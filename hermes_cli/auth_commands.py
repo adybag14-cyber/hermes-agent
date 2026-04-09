@@ -24,7 +24,7 @@ from hermes_cli.secret_prompt import masked_secret_prompt
 
 
 # Providers that support OAuth login in addition to API keys.
-_OAUTH_CAPABLE_PROVIDERS = {"anthropic", "nous", "openai-codex", "xai-oauth", "qwen-oauth", "minimax-oauth"}
+_OAUTH_CAPABLE_PROVIDERS = {"anthropic", "nous", "openai-codex", "chatgpt-web", "xai-oauth", "qwen-oauth", "minimax-oauth"}
 
 
 def _get_custom_provider_entries() -> list[dict]:
@@ -206,6 +206,14 @@ class _OAuthAddSpec:
 
 
 _OAUTH_ADD_SPECS: dict[str, _OAuthAddSpec] = {
+    "chatgpt-web": _OAuthAddSpec(
+        login=lambda args: auth_mod._codex_device_code_login(),
+        token=lambda creds: creds["tokens"]["access_token"],
+        source=SOURCE_MANUAL_DEVICE_CODE,
+        fields=lambda creds, provider: {
+            "refresh_token": creds["tokens"].get("refresh_token"),
+            "base_url": _provider_base_url(provider),
+            "last_refresh": creds.get("last_refresh")}),
     "anthropic": _OAuthAddSpec(
         login=_anthropic_oauth_login,
         token=lambda creds: creds["access_token"],
