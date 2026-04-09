@@ -128,6 +128,10 @@ def _is_known_provider(provider: str, configured_provider: dict | None) -> bool:
             or provider.startswith(CUSTOM_POOL_PREFIX) or configured_provider is not None)
 
 
+def _looks_like_jwt(token: str) -> bool:
+    return isinstance(token, str) and token.count(".") == 2
+
+
 def _display_source(source: str) -> str:
     return source.split(":", 1)[1] if source.startswith("manual:") else source
 
@@ -320,7 +324,63 @@ def _unsuppress_provider_sources(provider: str) -> None:
         pass
 
 
+def _add_chatgpt_web_credential(args, provider, pool):
+    token = (getattr(args, "api_key", None) or "").strip()
+    token_mode = str(getattr(args, "token_mode", "") or "").strip().lower()
+    if not token:
+        if token_mode == "session_token":
+            token = masked_secret_prompt("Paste your ChatGPT Web session token: ").strip()
+        elif token_mode == "access_token":
+            token = masked_secret_prompt("Paste your ChatGPT Web API key or access token: ").strip()
+        else:
+            token = masked_secret_prompt("Paste your ChatGPT Web access token or session token: ").strip()
+    if not token:
+        raise SystemExit("No ChatGPT Web token provided.")
+    default_label = f"api-key-{len(pool.entries()) + 1}"
+    label = (getattr(args, "label", None) or "").strip()
+    if not label:
+        if sys.stdin.isatty():
+            label = line_input(f"Label (optional, default: {default_label}): ").strip() or default_label
+        else:
+            label = default_label
+
+    source = SOURCE_MANUAL
+    access_token = token
+    extra = {}
+    should_exchange_session = (
+        token_mode == "session_token"
+        or (token_mode not in {"access_token", "session_token"} and not _looks_like_jwt(token))
+    )
+    if should_exchange_session:
+        from hermes_cli.chatgpt_web import _fetch_chatgpt_web_access_token_from_session
+
+        try:
+            access_token = _fetch_chatgpt_web_access_token_from_session(token)
+        except Exception as exc:
+            raise SystemExit(f"Could not exchange ChatGPT Web session token: {exc}") from exc
+        source = f"{SOURCE_MANUAL}:session_token"
+        extra["session_token"] = token
+
+    entry = PooledCredential(
+        provider=provider,
+        id=uuid.uuid4().hex[:6],
+        label=label,
+        auth_type=AUTH_TYPE_API_KEY,
+        priority=0,
+        source=source,
+        access_token=access_token,
+        base_url=_provider_base_url(provider),
+        extra=extra,
+    )
+    pool.add_entry(entry)
+    print(f'Added {provider} credential #{len(pool.entries())}: "{label}"')
+    return
+
+
 def _add_api_key_credential(args, provider: str, pool) -> None:
+    if provider == "chatgpt-web":
+        _add_chatgpt_web_credential(args, provider, pool)
+        return
     token = ((getattr(args, "api_key", None) or "").strip()
              or masked_secret_prompt("Paste your API key: ").strip())
     if not token:
@@ -587,7 +647,26 @@ def _interactive_add() -> None:
         raise SystemExit(f"Unknown provider: {provider}")
 
     auth_type = "api_key"
-    if provider in _OAUTH_CAPABLE_PROVIDERS:
+    # For OAuth-capable providers, ask which type
+    token_mode = None
+    if provider == "chatgpt-web":
+        print(f"\n{provider} supports API keys/access tokens, OAuth login, and session tokens.")
+        print("  1. API key / access token")
+        print("  2. OAuth login (authenticate via browser/device code)")
+        print("  3. Session token (paste __Secure-next-auth.session-token)")
+        try:
+            type_choice = input("Type [1/2/3]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if type_choice == "2":
+            auth_type = "oauth"
+        elif type_choice == "3":
+            auth_type = "api_key"
+            token_mode = "session_token"
+        else:
+            auth_type = "api_key"
+            token_mode = "access_token"
+    elif provider in _OAUTH_CAPABLE_PROVIDERS:
         print(f"\n{provider} supports both API keys and OAuth login.")
         print("  1. API key (paste a key from the provider dashboard)")
         print("  2. OAuth login (authenticate via browser)")
@@ -602,7 +681,9 @@ def _interactive_add() -> None:
     auth_add_command(SimpleNamespace(
         provider=provider, auth_type=auth_type, label=label or None, api_key=None,
         portal_url=None, inference_url=None, client_id=None, scope=None,
-        no_browser=False, timeout=None, insecure=False, ca_bundle=None))
+        no_browser=False, timeout=None, insecure=False, ca_bundle=None,
+        token_mode=token_mode,
+    ))
 
 
 def _interactive_remove() -> None:
