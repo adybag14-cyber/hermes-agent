@@ -247,6 +247,7 @@ ALIASES: Dict[str, str] = {
 _LABEL_OVERRIDES: Dict[str, str] = {
     "nous": "Nous Portal",
     "openai-codex": "OpenAI Codex",
+    "chatgpt-web": "ChatGPT Web",
     "copilot-acp": "GitHub Copilot ACP",
     "local": "Local endpoint",
 }
