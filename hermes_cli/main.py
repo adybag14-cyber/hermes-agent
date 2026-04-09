@@ -651,6 +651,7 @@ from datetime import datetime
 from hermes_cli import __version__, __release_date__
 
 from hermes_cli.model_setup_flows import (
+    _model_flow_chatgpt_web,
     _model_flow_openrouter,
     _model_flow_nous,
     _model_flow_openai_codex,
@@ -1820,6 +1821,7 @@ def cmd_model(args):
 # ``custom:*``, remove-custom and the generic API-key set are the fallthrough
 # branches in select_provider_and_model.
 _PROVIDER_MODEL_FLOWS = {
+    "chatgpt-web": lambda c, m, a: _model_flow_chatgpt_web(c, m),
     "openrouter": lambda c, m, a: _model_flow_openrouter(c, m),
     "moa": lambda c, m, a: _model_flow_moa(c, m),
     "ai-gateway": lambda c, m, a: _model_flow_ai_gateway(c, m),

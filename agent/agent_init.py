@@ -365,7 +365,7 @@ class CompressionSettings(SimpleNamespace):
 
 _EXPLICIT_API_MODES = {
     "chat_completions", "codex_responses", "anthropic_messages", "bedrock_converse",
-    "codex_app_server",
+    "codex_app_server", "chatgpt_web",
 }
 
 
@@ -374,11 +374,16 @@ def _resolve_api_mode(agent, api_mode, provider_name, base_url):
     host, url = agent._base_url_hostname, agent._base_url_lower
     if api_mode in _EXPLICIT_API_MODES:
         agent.api_mode = api_mode
+    elif agent.provider == "chatgpt-web":
+        agent.api_mode = "chatgpt_web"
     elif agent.provider in {"openai-codex", "xai", "xai-oauth"}:
         agent.api_mode = "codex_responses"
     elif provider_name is None and host == "chatgpt.com" and "/backend-api/codex" in url:
         agent.api_mode = "codex_responses"
         agent.provider = "openai-codex"
+    elif provider_name is None and host == "chatgpt.com" and urlparse(url).path.rstrip("/") in {"/backend-api/f", "/backend-anon/f"}:
+        agent.api_mode = "chatgpt_web"
+        agent.provider = "chatgpt-web"
     elif provider_name is None and host == "api.x.ai":
         agent.api_mode = "codex_responses"
         agent.provider = "xai"
@@ -939,6 +944,10 @@ def _build_client(agent, api_key, base_url, fallback_model):
     _provider_timeout = get_provider_request_timeout(agent.provider, agent.model)
     if agent.api_mode == "anthropic_messages":
         _init_anthropic_client(agent, api_key, base_url, _provider_timeout)
+    elif agent.api_mode == "chatgpt_web":
+        agent.api_key = api_key or ""
+        agent.client = None
+        agent._client_kwargs = {}
     elif agent.provider == "moa":
         _init_moa_client(agent, api_key)
     elif agent.api_mode == "bedrock_converse":
@@ -2251,6 +2260,8 @@ def init_agent(
     agent._credential_pool = credential_pool
     agent.acp_command = acp_command or command
     agent.acp_args = list(acp_args or args or [])
+    agent._chatgpt_web_conversation_id = None
+    agent._chatgpt_web_parent_message_id = None
     _resolve_api_mode(agent, api_mode, provider_name, base_url)
     _finalize_routing(agent, api_mode, credential_pool)
 

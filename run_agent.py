@@ -106,6 +106,7 @@ from tools.browser_tool_lifecycle import cleanup_browser
 
 from agent.memory_provider import is_trivial_prompt
 from agent.client_lifecycle import ClientLifecycleMixin
+from agent.chatgpt_web_transport import ChatGPTWebTransportMixin
 from agent.stream_delivery import StreamDeliveryMixin
 from agent.status_output import StatusOutputMixin
 from agent.api_request_hooks import ApiRequestHooksMixin
@@ -209,6 +210,7 @@ class _StreamErrorEvent(Exception):
 
 
 class AIAgent(
+    ChatGPTWebTransportMixin,
     ClientLifecycleMixin, StreamDeliveryMixin, StatusOutputMixin, ApiRequestHooksMixin, ApiErrorSummaryMixin,
     InterruptControlMixin, TurnExplainersMixin, ActivityTrackingMixin, RateLimitCreditsMixin,
     SessionPersistenceMixin, CompressionFacadeMixin, TurnFacadeMixin, VisionMessagePrepMixin, ReasoningParamsMixin,

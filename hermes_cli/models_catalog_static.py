@@ -164,6 +164,7 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
     ],
     "openai-codex": _codex_curated_models(),
     "xai-oauth": list(_XAI_MODELS),
+    "chatgpt-web": ["gpt-5-thinking", "gpt-5-instant", "gpt-5", "gpt-4o", "gpt-4.1", "o3", "o4-mini"],
     "copilot-acp": ["copilot-acp"],
     "copilot": _OPENAI_CHAT_MODELS + [
         "claude-sonnet-4.6", "claude-sonnet-5", "claude-sonnet-4", "claude-sonnet-4.5", "claude-haiku-4.5",
@@ -307,6 +308,7 @@ class ProviderEntry(NamedTuple):
 
 
 CANONICAL_PROVIDERS: list[ProviderEntry] = [ProviderEntry(*row) for row in (
+    ("chatgpt-web", "ChatGPT Web", "ChatGPT Web (ChatGPT.com web-app models)"),
     ("nous", "Nous Portal", "Nous Portal (Everything your agent needs, 300+ models with bundled tool use)"),
     ("fireworks", "Fireworks AI", "Fireworks AI (OpenAI-compatible direct model API)"),
     ("openrouter", "OpenRouter", "OpenRouter (Pay-per-use API aggregator)"),
@@ -440,6 +442,7 @@ def group_providers(slugs):
 
 
 _PROVIDER_ALIASES = dict((
+    ("chatgpt", "chatgpt-web"), ("chatgpt.com", "chatgpt-web"), ("openai-chatgpt", "chatgpt-web"),
     ("glm", "zai"), ("z-ai", "zai"), ("z.ai", "zai"), ("zhipu", "zai"), ("github", "copilot"),
     ("github-copilot", "copilot"), ("github-models", "copilot"), ("github-model", "copilot"),
     ("github-copilot-acp", "copilot-acp"), ("copilot-acp-agent", "copilot-acp"), ("google", "gemini"),

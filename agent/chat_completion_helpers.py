@@ -641,6 +641,9 @@ def _dispatch_nonstreaming_api_request(agent, api_kwargs: dict, *, make_client):
     if agent.api_mode == "codex_responses":
         return agent._run_codex_stream(api_kwargs, client=make_client("codex_stream_request"),
             on_first_delta=getattr(agent, "_codex_on_first_delta", None))
+    if agent.api_mode == "chatgpt_web":
+        return agent._run_chatgpt_web_completion(
+            api_kwargs, client=make_client("chatgpt_web_request", kind="chatgpt_web"))
     if agent.api_mode == "anthropic_messages":
         # Request-local client so the stale/interrupt watchdog aborts sockets
         # from the stranger thread while the worker owns the SDK close (#67142).
@@ -1124,7 +1127,14 @@ class _NonStreamRequest:
     def _make_client(self, reason: str, kind: str = "openai"):
         # Per-request clients are registered with the abort machinery so the watchdogs
         # force-close the worker's connection, never the shared client (#67142).
-        if kind == "anthropic_messages":
+        if kind == "chatgpt_web":
+            import httpx
+
+            client = httpx.Client(
+                timeout=self.api_kwargs.get("timeout") or self.agent._resolved_api_call_timeout(),
+                follow_redirects=True,
+            )
+        elif kind == "anthropic_messages":
             client = self.agent._create_request_anthropic_client(reason=reason)
         else:
             client = self.agent._create_request_openai_client(reason=reason, api_kwargs=self.api_kwargs)
@@ -1541,6 +1551,17 @@ def build_api_kwargs(agent, api_messages: list, tools_for_api: list | None = Non
 
 
 def _build_api_kwargs_for_mode(agent, api_messages: list, tools_for_api: list | None = None) -> dict:
+    if agent.api_mode == "chatgpt_web":
+        instructions, payload_messages = agent._chatgpt_web_messages(api_messages)
+        return {
+            "model": agent.model,
+            "instructions": instructions,
+            "messages": payload_messages,
+            "conversation_id": agent._chatgpt_web_conversation_id,
+            "parent_message_id": agent._chatgpt_web_parent_message_id,
+            "timeout": agent._resolved_api_call_timeout(),
+            "history_and_training_disabled": False,
+        }
     # One-shot continuation override — consumed exactly once, on the FIRST
     # request this call builds (only one api_mode branch runs per invocation).
     reasoning_config = _reasoning_config_for_wire(agent)
@@ -2453,6 +2474,14 @@ def _stream_codex_passthrough(agent, api_kwargs: dict, on_first_delta):
         return _with_stream_emitters(agent, lambda: agent._interruptible_api_call(api_kwargs))
     finally:
         agent._codex_on_first_delta = None
+
+
+def _stream_chatgpt_web_passthrough(agent, api_kwargs: dict, on_first_delta):
+    agent._chatgpt_web_on_delta = on_first_delta or agent._fire_stream_delta
+    try:
+        return _with_stream_emitters(agent, lambda: agent._interruptible_api_call(api_kwargs))
+    finally:
+        agent._chatgpt_web_on_delta = None
 
 
 class _BedrockStream:
@@ -3558,6 +3587,8 @@ def interruptible_streaming_api_call(agent, api_kwargs: dict, *, on_first_delta=
         raise InterruptedError("Agent interrupted before streaming API call")
     if agent.api_mode == "codex_responses":
         return _stream_codex_passthrough(agent, api_kwargs, on_first_delta)
+    if agent.api_mode == "chatgpt_web":
+        return _stream_chatgpt_web_passthrough(agent, api_kwargs, on_first_delta)
     if agent.api_mode == "bedrock_converse":
         return _BedrockStream(agent, api_kwargs, on_first_delta).run()
     # Cross-turn stale-stream circuit breaker (see ``_stale_streak()``).

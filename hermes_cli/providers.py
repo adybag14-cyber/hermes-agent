@@ -27,6 +27,10 @@ class HermesOverlay:
 
 
 HERMES_OVERLAYS: Dict[str, HermesOverlay] = {
+    "chatgpt-web": HermesOverlay(
+        transport="chatgpt_web", auth_type="oauth_external",
+        extra_env_vars=("CHATGPT_WEB_ACCESS_TOKEN", "CHATGPT_WEB_SESSION_TOKEN"),
+        base_url_override="https://chatgpt.com/backend-api/f"),
     "moa": HermesOverlay(auth_type="virtual", base_url_override="moa://local"),
     "openrouter": HermesOverlay(is_aggregator=True, base_url_env_var="OPENROUTER_BASE_URL"),
     "nous": HermesOverlay(auth_type="oauth_device_code", base_url_override="https://inference-api.nousresearch.com/v1"),
@@ -154,6 +158,7 @@ _LABEL_OVERRIDES: Dict[str, str] = {
 # -- Transport → API mode mapping ---------------------------------------------
 
 TRANSPORT_TO_API_MODE: Dict[str, str] = {
+    "chatgpt_web": "chatgpt_web",
     "openai_chat": "chat_completions", "anthropic_messages": "anthropic_messages",
     "codex_responses": "codex_responses", "bedrock_converse": "bedrock_converse",
 }

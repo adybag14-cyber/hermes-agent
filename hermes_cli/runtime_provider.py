@@ -30,6 +30,7 @@ from hermes_cli.auth import (  # resolve_external_process_provider_credentials i
     has_usable_secret, is_actual_local_base_url, normalize_actual_base_url,
 )
 from hermes_cli import config as _config_mod
+from hermes_cli.chatgpt_web import DEFAULT_CHATGPT_WEB_BASE_URL, resolve_chatgpt_web_runtime_credentials
 from hermes_cli import models as _models  # attribute access keeps ``hermes_cli.models.<name>`` patches effective
 from hermes_constants import OPENROUTER_BASE_URL
 from hermes_cli.providers import determine_api_mode, is_official_openai_host, nous_api_mode
@@ -97,7 +98,7 @@ _HOST_MANDATED_API_MODES = {
 
 # codex_app_server is opt-in: hand the whole turn to a `codex app-server` subprocess (Codex's own
 # tool runtime), gated on `model.openai_runtime == "codex_app_server"` AND provider in {openai, openai-codex}.
-_VALID_API_MODES = {"chat_completions", "codex_responses", "anthropic_messages", "bedrock_converse", "codex_app_server"}
+_VALID_API_MODES = {"chat_completions", "codex_responses", "anthropic_messages", "bedrock_converse", "codex_app_server", "chatgpt_web"}
 
 
 def _detect_api_mode_for_url(base_url: str) -> Optional[str]:
@@ -122,6 +123,8 @@ def _detect_api_mode_for_url(base_url: str) -> Optional[str]:
     if mandated:
         return mandated
     path = urlparse(normalized).path.rstrip("/")
+    if hostname == "chatgpt.com" and path in {"/backend-api/f", "/backend-anon/f"}:
+        return "chatgpt_web"
     if path.endswith(("/anthropic", "/anthropic/v1")) or (hostname == "api.kimi.com" and "/coding" in normalized):
         # Direct native Anthropic host: realign with providers.determine_api_mode, which already maps this
         # host to anthropic_messages. The exact-hostname match rejects lookalike subdomains
@@ -422,6 +425,7 @@ from hermes_cli.runtime_provider_backends import (  # noqa: E402,F401
 # are valid only against the Anthropic Messages endpoint, so a stale model.api_mode from a prior
 # OpenAI-compatible provider is never honoured for it (it would 404 on /chat/completions).
 _POOL_ENTRY_SIMPLE_MODES: Dict[str, tuple] = {
+    "chatgpt-web": ("chatgpt_web", DEFAULT_CHATGPT_WEB_BASE_URL),
     "openai-codex": ("codex_responses", DEFAULT_CODEX_BASE_URL), "xai-oauth": ("codex_responses", DEFAULT_XAI_OAUTH_BASE_URL),
     "qwen-oauth": ("chat_completions", DEFAULT_QWEN_BASE_URL), "openrouter": ("chat_completions", OPENROUTER_BASE_URL),
     "minimax-oauth": ("anthropic_messages", lambda: getattr(PROVIDER_REGISTRY.get("minimax-oauth"), "inference_base_url", "")),
@@ -630,6 +634,8 @@ class _OAuthRuntimeSpec:
 # ``resolve`` entries are late-bound lambdas so tests can monkeypatch the module-level
 # ``resolve_*_runtime_credentials`` names.
 _OAUTH_RUNTIME_PROVIDERS: Dict[str, _OAuthRuntimeSpec] = {
+    "chatgpt-web": _OAuthRuntimeSpec(lambda: resolve_chatgpt_web_runtime_credentials(), "chatgpt_web", "codex-oauth",
+                                      "last_refresh", "ChatGPT Web credentials failed", DEFAULT_CHATGPT_WEB_BASE_URL),
     "nous": _OAuthRuntimeSpec(_resolve_nous_creds, nous_api_mode, "portal", "expires_at",
                               "Auto-detected Nous provider but credentials failed"),
     "openai-codex": _OAuthRuntimeSpec(lambda: resolve_codex_runtime_credentials(), "codex_responses", "hermes-auth-store",

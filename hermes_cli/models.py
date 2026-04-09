@@ -1240,6 +1240,7 @@ def _opencode_free_catalog(normalized: str, force_refresh: bool) -> list[str]:
 # Per-provider catalog sources tried before the generic profile fetch. A fetcher returning None
 # falls through to the profile/curated path; a list is returned as-is (even empty).
 _PROVIDER_CATALOG_FETCHERS: dict[str, Any] = {
+    "chatgpt-web": lambda normalized, force_refresh: _chatgpt_web_catalog(),
     "openrouter": lambda normalized, force_refresh: model_ids(force_refresh=force_refresh),
     "openai-codex": _codex_catalog,
     "copilot": _copilot_catalog,
@@ -1258,6 +1259,16 @@ _PROVIDER_CATALOG_FETCHERS: dict[str, Any] = {
     "custom": _custom_catalog,
     "bedrock": _bedrock_catalog,
     "opencode-free": _opencode_free_catalog}
+
+
+def _chatgpt_web_catalog() -> Optional[list[str]]:
+    from hermes_cli.chatgpt_web import fetch_chatgpt_web_model_ids, resolve_chatgpt_web_runtime_credentials
+
+    try:
+        creds = resolve_chatgpt_web_runtime_credentials()
+        return fetch_chatgpt_web_model_ids(access_token=creds.get("api_key", "")) or None
+    except Exception:
+        return None
 
 
 def _profile_live_catalog(normalized: str) -> Optional[list[str]]:

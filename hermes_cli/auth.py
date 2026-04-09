@@ -108,6 +108,9 @@ from hermes_cli.auth_constants import (  # noqa: F401  re-exported
 
 logger = logging.getLogger(__name__)
 
+from hermes_cli.auth_chatgpt_web import get_chatgpt_web_auth_status
+from hermes_cli.chatgpt_web import DEFAULT_CHATGPT_WEB_BASE_URL
+
 try:
     import fcntl
 except Exception:
@@ -178,6 +181,7 @@ _REGISTRY_ROWS: Tuple[Any, ...] = (
         inference_base_url=DEFAULT_NOUS_INFERENCE_URL, client_id=DEFAULT_NOUS_CLIENT_ID,
         scope=DEFAULT_NOUS_SCOPE),
     ProviderConfig("openai-codex", "OpenAI Codex", "oauth_external", inference_base_url=DEFAULT_CODEX_BASE_URL),
+    ProviderConfig("chatgpt-web", "ChatGPT Web", "oauth_external", inference_base_url=DEFAULT_CHATGPT_WEB_BASE_URL),
     ("openai-api", "OpenAI API", "https://api.openai.com/v1", ("OPENAI_API_KEY",), "OPENAI_BASE_URL"),
     ProviderConfig(
         "xai-oauth", "xAI Grok OAuth (SuperGrok / Premium+)", "oauth_external",
@@ -1915,6 +1919,7 @@ def get_auth_status(provider_id: Optional[str] = None) -> Dict[str, Any]:
 # Bespoke status builders (name -> looked up in this module at call time) win over the
 # auth_type-keyed fallbacks below.
 _BESPOKE_STATUS_FUNCTIONS: Dict[str, str] = {
+    "chatgpt-web": "get_chatgpt_web_auth_status",
     **{pid: flow.status_fn for pid, flow in OAUTH_PROVIDER_FLOWS.items()},
     "spotify": "get_spotify_auth_status",
     "azure-foundry": "_get_azure_foundry_auth_status"}
