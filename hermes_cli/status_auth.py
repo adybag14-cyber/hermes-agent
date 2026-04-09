@@ -64,6 +64,8 @@ _FILE_REFRESH_ROWS = (
 _OAUTH_BLOCKS = (
     # (row name, auth getter, login hint, detail rows)
     ("OpenAI Codex", "get_codex_auth_status", "hermes model", _FILE_REFRESH_ROWS),
+    ("ChatGPT Web", "get_chatgpt_web_auth_status", "hermes model", (
+        ("Source:", "source", None, None), ("Mode:", "auth_mode", None, None), *_FILE_REFRESH_ROWS)),
     ("Qwen OAuth", "get_qwen_auth_status", "qwen auth qwen-oauth", (
         ("Auth file:", "auth_file", None, None),
         ("Access exp:", "expires_at_ms", _qwen_expiry, None),
@@ -103,7 +105,8 @@ def _render_auth_providers(ctx):
         # Read-only display: the refresh-free snapshot, so `hermes status` never performs an OAuth
         # refresh or burns a single-use refresh token.
         nous_status = auth.get_nous_auth_status_local()
-        statuses = {getter: getattr(auth, getter)() for _, getter, _, _ in _OAUTH_BLOCKS[:3]}
+        statuses = {getter: getattr(auth, getter)() for _, getter, _, _ in _OAUTH_BLOCKS
+                    if getter != "get_xai_oauth_auth_status"}
     except Exception:
         nous_status, statuses = {}, {}
     # xAI OAuth is guarded separately so an import failure there cannot disrupt the other rows.
