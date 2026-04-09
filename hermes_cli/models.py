@@ -99,6 +99,15 @@ _PROVIDER_MODELS: dict[str, list[str]] = {
         "openai/gpt-5.4-nano",
     ],
     "openai-codex": _codex_curated_models(),
+    "chatgpt-web": [
+        "gpt-5-thinking",
+        "gpt-5-instant",
+        "gpt-5",
+        "gpt-4o",
+        "gpt-4.1",
+        "o3",
+        "o4-mini",
+    ],
     "copilot-acp": [
         "copilot-acp",
     ],
@@ -481,6 +490,7 @@ def check_nous_free_tier() -> bool:
 _PROVIDER_LABELS = {
     "openrouter": "OpenRouter",
     "openai-codex": "OpenAI Codex",
+    "chatgpt-web": "ChatGPT Web",
     "copilot-acp": "GitHub Copilot ACP",
     "nous": "Nous Portal",
     "copilot": "GitHub Copilot",
@@ -507,6 +517,9 @@ _PROVIDER_ALIASES = {
     "z-ai": "zai",
     "z.ai": "zai",
     "zhipu": "zai",
+    "chatgpt": "chatgpt-web",
+    "chatgpt.com": "chatgpt-web",
+    "openai-chatgpt": "chatgpt-web",
     "github": "copilot",
     "github-copilot": "copilot",
     "github-models": "copilot",
@@ -838,7 +851,7 @@ def list_available_providers() -> list[dict[str, str]]:
     """
     # Canonical providers in display order
     _PROVIDER_ORDER = [
-        "openrouter", "nous", "openai-codex", "copilot", "copilot-acp",
+        "openrouter", "nous", "openai-codex", "chatgpt-web", "copilot", "copilot-acp",
         "gemini", "huggingface",
         "zai", "kimi-coding", "minimax", "minimax-cn", "kilocode", "anthropic", "alibaba",
         "qwen-oauth", "xiaomi",
@@ -1190,6 +1203,19 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
         from hermes_cli.codex_models import get_codex_model_ids
 
         return get_codex_model_ids()
+    if normalized == "chatgpt-web":
+        try:
+            from hermes_cli.chatgpt_web import (
+                fetch_chatgpt_web_model_ids,
+                resolve_chatgpt_web_runtime_credentials,
+            )
+
+            creds = resolve_chatgpt_web_runtime_credentials()
+            live = fetch_chatgpt_web_model_ids(access_token=creds.get("api_key", ""))
+            if live:
+                return live
+        except Exception:
+            pass
     if normalized in {"copilot", "copilot-acp"}:
         try:
             live = _fetch_github_models(_resolve_copilot_catalog_api_key())
