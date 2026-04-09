@@ -2445,6 +2445,7 @@ def _stream_final_text(response) -> str:
     return ""
 
 
+
 def _with_stream_emitters(agent, run):
     """Bracket ``run()`` with the agent's ``_emit_stream_start`` / ``_emit_stream_end``
     hooks when present (end carries the final text on success, the error string on
@@ -2477,7 +2478,19 @@ def _stream_codex_passthrough(agent, api_kwargs: dict, on_first_delta):
 
 
 def _stream_chatgpt_web_passthrough(agent, api_kwargs: dict, on_first_delta):
-    agent._chatgpt_web_on_delta = on_first_delta or agent._fire_stream_delta
+    first_delta_fired = False
+
+    def on_delta(text: str):
+        nonlocal first_delta_fired
+        if not text:
+            return
+        if not first_delta_fired and on_first_delta:
+            first_delta_fired = True
+            with contextlib.suppress(Exception):
+                on_first_delta()
+        agent._fire_stream_delta(text)
+
+    agent._chatgpt_web_on_delta = on_delta
     try:
         return _with_stream_emitters(agent, lambda: agent._interruptible_api_call(api_kwargs))
     finally:
