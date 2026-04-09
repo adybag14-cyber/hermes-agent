@@ -67,6 +67,7 @@ DEFAULT_AGENT_KEY_MIN_TTL_SECONDS = 30 * 60  # 30 minutes
 ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 120       # refresh 2 min before expiry
 DEVICE_AUTH_POLL_INTERVAL_CAP_SECONDS = 1     # poll at most every 1s
 DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
+DEFAULT_CHATGPT_WEB_BASE_URL = "https://chatgpt.com/backend-api/f"
 DEFAULT_QWEN_BASE_URL = "https://portal.qwen.ai/v1"
 DEFAULT_GITHUB_MODELS_BASE_URL = "https://api.githubcopilot.com"
 DEFAULT_COPILOT_ACP_BASE_URL = "acp://copilot"
@@ -114,6 +115,12 @@ PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
         name="OpenAI Codex",
         auth_type="oauth_external",
         inference_base_url=DEFAULT_CODEX_BASE_URL,
+    ),
+    "chatgpt-web": ProviderConfig(
+        id="chatgpt-web",
+        name="ChatGPT Web",
+        auth_type="oauth_external",
+        inference_base_url=DEFAULT_CHATGPT_WEB_BASE_URL,
     ),
     "qwen-oauth": ProviderConfig(
         id="qwen-oauth",
@@ -2303,6 +2310,38 @@ def get_codex_auth_status() -> Dict[str, Any]:
         }
 
 
+def get_chatgpt_web_auth_status() -> Dict[str, Any]:
+    """Status snapshot for ChatGPT Web auth.
+
+    Reuses Codex OAuth credentials when no explicit ChatGPT web env vars are set.
+    """
+    access_token = os.getenv("CHATGPT_WEB_ACCESS_TOKEN", "").strip()
+    session_token = os.getenv("CHATGPT_WEB_SESSION_TOKEN", "").strip()
+    if access_token:
+        return {
+            "logged_in": True,
+            "auth_mode": "access_token",
+            "source": "env:CHATGPT_WEB_ACCESS_TOKEN",
+            "api_key": access_token,
+        }
+    if session_token:
+        return {
+            "logged_in": True,
+            "auth_mode": "session_token",
+            "source": "env:CHATGPT_WEB_SESSION_TOKEN",
+            "api_key": "",
+        }
+
+    codex_status = get_codex_auth_status()
+    if codex_status.get("logged_in"):
+        return {
+            **codex_status,
+            "auth_mode": "codex_oauth",
+            "source": codex_status.get("source") or "codex-oauth",
+        }
+    return codex_status
+
+
 def get_api_key_provider_status(provider_id: str) -> Dict[str, Any]:
     """Status snapshot for API-key providers (z.ai, Kimi, MiniMax)."""
     pconfig = PROVIDER_REGISTRY.get(provider_id)
@@ -2371,6 +2410,8 @@ def get_auth_status(provider_id: Optional[str] = None) -> Dict[str, Any]:
         return get_nous_auth_status()
     if target == "openai-codex":
         return get_codex_auth_status()
+    if target == "chatgpt-web":
+        return get_chatgpt_web_auth_status()
     if target == "qwen-oauth":
         return get_qwen_auth_status()
     if target == "copilot-acp":

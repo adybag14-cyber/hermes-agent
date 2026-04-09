@@ -919,6 +919,7 @@ def select_provider_and_model(args=None):
         "openrouter": "OpenRouter",
         "nous": "Nous Portal",
         "openai-codex": "OpenAI Codex",
+        "chatgpt-web": "ChatGPT Web",
         "qwen-oauth": "Qwen OAuth",
         "copilot-acp": "GitHub Copilot ACP",
         "copilot": "GitHub Copilot",
@@ -950,6 +951,7 @@ def select_provider_and_model(args=None):
         ("openrouter", "OpenRouter (100+ models, pay-per-use)"),
         ("anthropic", "Anthropic (Claude models — API key or Claude Code)"),
         ("openai-codex", "OpenAI Codex"),
+        ("chatgpt-web", "ChatGPT Web (ChatGPT.com web-app models)"),
         ("qwen-oauth", "Qwen OAuth (reuses local Qwen CLI login)"),
         ("copilot", "GitHub Copilot (uses GITHUB_TOKEN or gh auth token)"),
         ("huggingface", "Hugging Face Inference Providers (20+ open models)"),
@@ -1056,6 +1058,8 @@ def select_provider_and_model(args=None):
         _model_flow_nous(config, current_model, args=args)
     elif selected_provider == "openai-codex":
         _model_flow_openai_codex(config, current_model)
+    elif selected_provider == "chatgpt-web":
+        _model_flow_chatgpt_web(config, current_model)
     elif selected_provider == "qwen-oauth":
         _model_flow_qwen_oauth(config, current_model)
     elif selected_provider == "copilot-acp":
@@ -1415,6 +1419,53 @@ def _model_flow_openai_codex(config, current_model=""):
     else:
         print("No change.")
 
+
+def _model_flow_chatgpt_web(config, current_model=""):
+    """ChatGPT Web provider: reuse ChatGPT auth, then pick a web-app model slug."""
+    from hermes_cli.auth import (
+        get_chatgpt_web_auth_status,
+        _prompt_model_selection,
+        _save_model_choice,
+        _update_config_for_provider,
+        _login_openai_codex,
+        PROVIDER_REGISTRY,
+    )
+    from hermes_cli.chatgpt_web import (
+        DEFAULT_CHATGPT_WEB_BASE_URL,
+        fetch_chatgpt_web_model_ids,
+        resolve_chatgpt_web_runtime_credentials,
+    )
+    import argparse
+
+    status = get_chatgpt_web_auth_status()
+    if not status.get("logged_in"):
+        print("Not logged into ChatGPT Web. Starting OpenAI login...")
+        print()
+        try:
+            mock_args = argparse.Namespace()
+            _login_openai_codex(mock_args, PROVIDER_REGISTRY["openai-codex"])
+        except SystemExit:
+            print("Login cancelled or failed.")
+            return
+        except Exception as exc:
+            print(f"Login failed: {exc}")
+            return
+
+    access_token = None
+    try:
+        creds = resolve_chatgpt_web_runtime_credentials()
+        access_token = creds.get("api_key")
+    except Exception:
+        pass
+
+    web_models = fetch_chatgpt_web_model_ids(access_token=access_token)
+    selected = _prompt_model_selection(web_models, current_model=current_model)
+    if selected:
+        _save_model_choice(selected)
+        _update_config_for_provider("chatgpt-web", DEFAULT_CHATGPT_WEB_BASE_URL)
+        print(f"Default model set to: {selected} (via ChatGPT Web)")
+    else:
+        print("No change.")
 
 
 _DEFAULT_QWEN_PORTAL_MODELS = [
@@ -4569,7 +4620,7 @@ For more help on a command:
     )
     login_parser.add_argument(
         "--provider",
-        choices=["nous", "openai-codex"],
+        choices=["nous", "openai-codex", "chatgpt-web"],
         default=None,
         help="Provider to authenticate with (default: nous)"
     )
@@ -4623,7 +4674,7 @@ For more help on a command:
     )
     logout_parser.add_argument(
         "--provider",
-        choices=["nous", "openai-codex"],
+        choices=["nous", "openai-codex", "chatgpt-web"],
         default=None,
         help="Provider to log out from (default: active provider)"
     )
