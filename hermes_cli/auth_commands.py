@@ -769,12 +769,13 @@ def _interactive_add() -> None:
     # For OAuth-capable providers, ask which type
     token_mode = None
     if provider == "chatgpt-web":
-        print(f"\n{provider} supports API keys/access tokens, OAuth login, and session tokens.")
+        print(f"\n{provider} supports API keys/access tokens, OAuth login, session tokens, and local browser bootstrap.")
         print("  1. API key / access token")
         print("  2. OAuth login (authenticate via browser/device code)")
         print("  3. Session token (paste __Secure-next-auth.session-token)")
+        print("  4. Termux browser bootstrap (launch Chromium in Termux:X11 and capture the session automatically)")
         try:
-            type_choice = input("Type [1/2/3]: ").strip()
+            type_choice = input("Type [1/2/3/4]: ").strip()
         except (EOFError, KeyboardInterrupt):
             return
         if type_choice == "2":
@@ -782,6 +783,8 @@ def _interactive_add() -> None:
         elif type_choice == "3":
             auth_type = "api_key"
             token_mode = "session_token"
+        elif type_choice == "4":
+            auth_type = "browser"
         else:
             auth_type = "api_key"
             token_mode = "access_token"
@@ -807,6 +810,16 @@ def _interactive_add() -> None:
         return
     if typed_label:
         label = typed_label
+
+    if auth_type == "browser":
+        auth_browser_command(SimpleNamespace(
+            provider=provider,
+            label=label,
+            timeout=None,
+            debug_port=None,
+            keep_open=False,
+        ))
+        return
 
     auth_add_command(SimpleNamespace(
         provider=provider, auth_type=auth_type, label=label, api_key=None,
