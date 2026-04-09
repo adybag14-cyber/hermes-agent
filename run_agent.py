@@ -44,6 +44,7 @@ from datetime import datetime
 from pathlib import Path
 
 from hermes_constants import get_hermes_home
+from hermes_cli import chatgpt_web as _chatgpt_web
 
 # Load .env from ~/.hermes/.env first, then project root as dev fallback.
 # User-managed env files should override stale shell exports on restart.
@@ -671,13 +672,18 @@ class AIAgent:
         self.provider = provider_name or ""
         self.acp_command = acp_command or command
         self.acp_args = list(acp_args or args or [])
-        if api_mode in {"chat_completions", "codex_responses", "anthropic_messages"}:
+        if api_mode in {"chat_completions", "codex_responses", "anthropic_messages", "chatgpt_web"}:
             self.api_mode = api_mode
         elif self.provider == "openai-codex":
             self.api_mode = "codex_responses"
+        elif self.provider == "chatgpt-web":
+            self.api_mode = "chatgpt_web"
         elif (provider_name is None) and "chatgpt.com/backend-api/codex" in self._base_url_lower:
             self.api_mode = "codex_responses"
             self.provider = "openai-codex"
+        elif (provider_name is None) and "chatgpt.com/backend-api/f" in self._base_url_lower:
+            self.api_mode = "chatgpt_web"
+            self.provider = "chatgpt-web"
         elif self.provider == "anthropic" or (provider_name is None and "api.anthropic.com" in self._base_url_lower):
             self.api_mode = "anthropic_messages"
             self.provider = "anthropic"
@@ -719,6 +725,8 @@ class AIAgent:
         self.tool_start_callback = tool_start_callback
         self.tool_complete_callback = tool_complete_callback
         self.suppress_status_output = False
+        self._chatgpt_web_conversation_id = None
+        self._chatgpt_web_parent_message_id = None
         self.thinking_callback = thinking_callback
         self.reasoning_callback = reasoning_callback
         self.clarify_callback = clarify_callback
@@ -4526,6 +4534,65 @@ class AIAgent:
             self._try_refresh_anthropic_client_credentials()
         return self._anthropic_client.messages.create(**api_kwargs)
 
+    def _chatgpt_web_messages(self, api_messages: list) -> tuple[str, list[dict[str, Any]]]:
+        instructions = ""
+        payload_messages = api_messages
+        if api_messages and api_messages[0].get("role") == "system":
+            instructions = str(api_messages[0].get("content") or "").strip()
+            payload_messages = api_messages[1:]
+        if not instructions:
+            instructions = DEFAULT_AGENT_IDENTITY
+        if self.tools:
+            instructions = (
+                instructions.rstrip()
+                + "\n\nImportant runtime limitation: this ChatGPT Web transport currently does not support Hermes tool calls. "
+                  "Never claim to have run a tool or accessed live system state through a tool."
+            )
+        if self._chatgpt_web_conversation_id and payload_messages:
+            latest_user = None
+            for item in reversed(payload_messages):
+                if isinstance(item, dict) and item.get("role") == "user":
+                    latest_user = item
+                    break
+            payload_messages = [latest_user] if latest_user else payload_messages[-1:]
+        return instructions, payload_messages
+
+    def _wrap_chatgpt_web_response(self, result: dict[str, Any]):
+        message_text = str(result.get("content") or "")
+        finish_reason = str(result.get("finish_reason") or "stop")
+        assistant_message = SimpleNamespace(content=message_text, tool_calls=None, role="assistant")
+        choice = SimpleNamespace(message=assistant_message, finish_reason=finish_reason)
+        return SimpleNamespace(
+            id=result.get("message_id") or result.get("parent_message_id") or str(uuid.uuid4()),
+            model=result.get("model") or self.model,
+            choices=[choice],
+            usage=None,
+        )
+
+    def _run_chatgpt_web_completion(self, api_kwargs: dict, *, client=None):
+        def _on_delta(text: str):
+            if not text:
+                return
+            callback = getattr(self, "_chatgpt_web_on_delta", None)
+            if callback is not None:
+                callback(text)
+
+        result = _chatgpt_web.stream_chatgpt_web_completion(
+            access_token=self.api_key,
+            model=api_kwargs.get("model") or self.model,
+            messages=api_kwargs.get("messages") or [],
+            instructions=api_kwargs.get("instructions") or DEFAULT_AGENT_IDENTITY,
+            conversation_id=api_kwargs.get("conversation_id") or None,
+            parent_message_id=api_kwargs.get("parent_message_id") or None,
+            timeout=api_kwargs.get("timeout") or float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
+            history_and_training_disabled=bool(api_kwargs.get("history_and_training_disabled", False)),
+            on_delta=_on_delta,
+            client=client,
+        )
+        self._chatgpt_web_conversation_id = result.get("conversation_id") or self._chatgpt_web_conversation_id
+        self._chatgpt_web_parent_message_id = result.get("parent_message_id") or self._chatgpt_web_parent_message_id
+        return self._wrap_chatgpt_web_response(result)
+
     def _interruptible_api_call(self, api_kwargs: dict):
         """
         Run the API call in a background thread so the main conversation loop
@@ -4546,6 +4613,17 @@ class AIAgent:
                         api_kwargs,
                         client=request_client_holder["client"],
                         on_first_delta=getattr(self, "_codex_on_first_delta", None),
+                    )
+                elif self.api_mode == "chatgpt_web":
+                    import httpx as _httpx
+
+                    request_client_holder["client"] = _httpx.Client(
+                        timeout=api_kwargs.get("timeout") or float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
+                        follow_redirects=True,
+                    )
+                    result["response"] = self._run_chatgpt_web_completion(
+                        api_kwargs,
+                        client=request_client_holder["client"],
                     )
                 elif self.api_mode == "anthropic_messages":
                     result["response"] = self._anthropic_messages_create(api_kwargs)
@@ -4664,6 +4742,12 @@ class AIAgent:
                 return self._interruptible_api_call(api_kwargs)
             finally:
                 self._codex_on_first_delta = None
+        if self.api_mode == "chatgpt_web":
+            self._chatgpt_web_on_delta = on_first_delta or self._fire_stream_delta
+            try:
+                return self._interruptible_api_call(api_kwargs)
+            finally:
+                self._chatgpt_web_on_delta = None
 
         result = {"response": None, "error": None}
         request_client_holder = {"client": None}
@@ -5794,6 +5878,18 @@ class AIAgent:
                 kwargs["max_output_tokens"] = self.max_tokens
 
             return kwargs
+
+        if self.api_mode == "chatgpt_web":
+            instructions, payload_messages = self._chatgpt_web_messages(api_messages)
+            return {
+                "model": self.model,
+                "instructions": instructions,
+                "messages": payload_messages,
+                "conversation_id": self._chatgpt_web_conversation_id,
+                "parent_message_id": self._chatgpt_web_parent_message_id,
+                "timeout": float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
+                "history_and_training_disabled": False,
+            }
 
         sanitized_messages = api_messages
         needs_sanitization = False
