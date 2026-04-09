@@ -7445,6 +7445,7 @@ For more help on a command:
             "openrouter",
             "nous",
             "openai-codex",
+            "chatgpt-web",
             "copilot-acp",
             "copilot",
             "anthropic",
