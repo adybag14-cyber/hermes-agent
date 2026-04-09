@@ -1978,6 +1978,7 @@ dependencies = [
     { name = "rich" },
     { name = "tenacity" },
     { name = "tzdata", marker = "sys_platform == 'win32'" },
+    { name = "websockets" },
 ]
 
 [package.optional-dependencies]
