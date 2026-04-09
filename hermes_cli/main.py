@@ -4672,6 +4672,12 @@ For more help on a command:
     auth_remove.add_argument("target", help="Credential index, entry id, or exact label")
     auth_reset = auth_subparsers.add_parser("reset", help="Clear exhaustion status for all credentials for a provider")
     auth_reset.add_argument("provider", help="Provider id")
+    auth_browser = auth_subparsers.add_parser("browser", help="Bootstrap auth by launching a local browser session")
+    auth_browser.add_argument("provider", nargs="?", default="chatgpt-web", choices=["chatgpt-web"], help="Provider id (currently only chatgpt-web)")
+    auth_browser.add_argument("--label", help="Optional display label for the stored credential")
+    auth_browser.add_argument("--timeout", type=int, default=15 * 60, help="How long to wait for the browser login flow in seconds")
+    auth_browser.add_argument("--debug-port", type=int, default=9222, help="Local Chromium remote-debugging port")
+    auth_browser.add_argument("--keep-open", action="store_true", help="Leave the browser/X11 session running after auth completes")
     auth_parser.set_defaults(func=cmd_auth)
 
     # =========================================================================
