@@ -8,6 +8,7 @@ are made.
 import io
 import json
 import logging
+import math
 import re
 import uuid
 from logging.handlers import RotatingFileHandler
@@ -2774,6 +2775,10 @@ class TestBudgetPressure:
     def test_zero_max_iterations(self, agent):
         agent.max_iterations = 0
         assert agent._get_budget_warning(0) is None
+
+    def test_unlimited_max_iterations_disable_budget_warnings(self, agent):
+        agent.max_iterations = math.inf
+        assert agent._get_budget_warning(500) is None
 
     def test_injects_into_json_tool_result(self, agent):
         """Warning should be injected as _budget_warning field in JSON tool results."""

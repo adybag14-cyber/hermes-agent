@@ -46,6 +46,7 @@ from pathlib import Path
 
 from hermes_constants import get_hermes_home
 from hermes_cli import chatgpt_web as _chatgpt_web
+from iteration_limits import format_iteration_limit, is_unlimited_iteration_limit, parse_iteration_limit
 
 # Load .env from ~/.hermes/.env first, then project root as dev fallback.
 # User-managed env files should override stale shell exports on restart.
@@ -726,10 +727,10 @@ class AIAgent:
         _install_safe_stdio()
 
         self.model = model
-        self.max_iterations = max_iterations
+        self.max_iterations = parse_iteration_limit(max_iterations, default=90)
         # Shared iteration budget — parent creates, children inherit.
         # Consumed by every LLM turn across parent + all subagents.
-        self.iteration_budget = iteration_budget or IterationBudget(max_iterations)
+        self.iteration_budget = iteration_budget or IterationBudget(self.max_iterations)
         self.tool_delay = tool_delay
         self.save_trajectories = save_trajectories
         self.verbose_logging = verbose_logging
@@ -2431,6 +2432,190 @@ class AIAgent:
         first_paragraph = text.strip().split("\n\n", 1)[0].strip()
         first_sentence = re.split(r"(?<=[.!?])\s+", first_paragraph, maxsplit=1)[0].strip()
         return first_sentence[:220]
+
+    @staticmethod
+    def _chatgpt_web_current_turn_messages(payload_messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not isinstance(payload_messages, list):
+            return []
+        for idx in range(len(payload_messages) - 1, -1, -1):
+            item = payload_messages[idx]
+            if isinstance(item, dict) and item.get("role") == "user":
+                return payload_messages[idx:]
+        return payload_messages
+
+    @staticmethod
+    def _chatgpt_web_extract_original_request(user_content: str) -> str:
+        original = str(user_content or "").strip()
+        marker = "Original user request:\n"
+        if marker in original:
+            original = original.split(marker, 1)[1].strip()
+            original = original.split("\n\nRuntime reminder:", 1)[0].strip()
+        return original
+
+    def _chatgpt_web_original_user_request(self, payload_messages: list[dict[str, Any]]) -> str:
+        current_turn_messages = self._chatgpt_web_current_turn_messages(payload_messages)
+        for item in reversed(current_turn_messages):
+            if isinstance(item, dict) and item.get("role") == "user":
+                return self._chatgpt_web_extract_original_request(str(item.get("content") or ""))
+        return ""
+
+    @staticmethod
+    def _chatgpt_web_answer_only_mode(original_request: str) -> str:
+        lowered = str(original_request or "").strip().lower()
+        if "answer only" not in lowered:
+            return ""
+        if (("yes/no" in lowered) or ("yes or no" in lowered)) and "matching path" in lowered:
+            return "yes_no_path"
+        if "answer only the path" in lowered or "answer only path" in lowered:
+            return "path"
+        if "answer only the result" in lowered or "answer only the output" in lowered:
+            return "result"
+        if "answer only yes/no" in lowered or "answer only yes or no" in lowered:
+            return "yes_no"
+        return ""
+
+    def _chatgpt_web_final_answer_example(self, original_request: str) -> str:
+        mode = self._chatgpt_web_answer_only_mode(original_request)
+        if mode == "path":
+            return "Final answer format example:\n/data/data/com.termux/files/home/project"
+        if mode == "result":
+            return "Final answer format example:\n42"
+        if mode == "yes_no":
+            return "Final answer format example:\nyes"
+        if mode == "yes_no_path":
+            return "Final answer format example when a match exists:\nyes\nrun_agent.py\nIf no match exists, answer:\nno"
+        return ""
+
+    @staticmethod
+    def _chatgpt_web_extract_path_candidate(text: str) -> Optional[str]:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        normalized = re.sub(r"/\s+", "/", text.strip())
+        for pattern in (
+            r"(/(?:[A-Za-z0-9._-]+/?)+)",
+            r"\b([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)\b",
+        ):
+            match = re.search(pattern, normalized)
+            if match:
+                candidate = match.group(1).strip().strip('"\'`')
+                return candidate.rstrip('.,;:!')
+        return None
+
+    @staticmethod
+    def _chatgpt_web_extract_simple_result(text: str) -> Optional[str]:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        stripped = text.strip().strip('"\'`')
+        number_match = re.search(r"(?<!\w)(-?\d+(?:\.\d+)?)(?!\w)", stripped)
+        if number_match:
+            return number_match.group(1)
+        lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+        if len(lines) == 1 and lines[0] and not any(ch in lines[0] for ch in "<>`"):
+            return lines[0].strip('"\'')
+        return None
+
+    @staticmethod
+    def _chatgpt_web_extract_yes_no(text: str) -> Optional[str]:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        lowered = text.strip().lower()
+        if re.match(r"^yes\b", lowered):
+            return "yes"
+        if re.match(r"^no\b", lowered):
+            return "no"
+        return None
+
+    @staticmethod
+    def _chatgpt_web_parse_tool_payload(tool_content: Any) -> Any:
+        if not isinstance(tool_content, str):
+            return None
+        try:
+            return json.loads(tool_content)
+        except Exception:
+            return None
+
+    def _chatgpt_web_extract_path_from_tool_payload(self, tool_payload: Any, tool_content: str) -> Optional[str]:
+        if isinstance(tool_payload, dict):
+            direct_path = tool_payload.get("path")
+            if isinstance(direct_path, str) and direct_path.strip():
+                return direct_path.strip()
+            matches = tool_payload.get("matches")
+            if isinstance(matches, list) and matches:
+                first = matches[0]
+                if isinstance(first, dict):
+                    path = first.get("path")
+                    if isinstance(path, str) and path.strip():
+                        return path.strip()
+            files = tool_payload.get("files")
+            if isinstance(files, list) and files:
+                first = files[0]
+                if isinstance(first, str) and first.strip():
+                    return first.strip()
+            output = tool_payload.get("output")
+            if isinstance(output, str) and output.strip():
+                path = self._chatgpt_web_extract_path_candidate(output)
+                if path:
+                    return path
+        return self._chatgpt_web_extract_path_candidate(tool_content)
+
+    def _chatgpt_web_extract_result_from_tool_payload(self, tool_payload: Any, tool_content: str) -> Optional[str]:
+        if isinstance(tool_payload, dict):
+            output = tool_payload.get("output")
+            if isinstance(output, str):
+                result = self._chatgpt_web_extract_simple_result(output)
+                if result:
+                    return result
+        return self._chatgpt_web_extract_simple_result(tool_content)
+
+    @staticmethod
+    def _chatgpt_web_extract_yes_no_from_tool_payload(tool_payload: Any) -> Optional[str]:
+        if isinstance(tool_payload, dict):
+            total_count = tool_payload.get("total_count")
+            if isinstance(total_count, int):
+                return "yes" if total_count > 0 else "no"
+            for key in ("matches", "files"):
+                value = tool_payload.get(key)
+                if isinstance(value, list):
+                    return "yes" if value else "no"
+        return None
+
+    def _chatgpt_web_repair_answer_only_response(
+        self,
+        original_request: str,
+        final_response: str,
+        messages: list[dict[str, Any]],
+    ) -> str:
+        repaired = str(final_response or "").strip()
+        mode = self._chatgpt_web_answer_only_mode(original_request)
+        if not mode:
+            return repaired
+
+        last_tool_content = ""
+        for item in reversed(messages):
+            if isinstance(item, dict) and item.get("role") == "tool":
+                last_tool_content = str(item.get("content") or "")
+                break
+        if not last_tool_content:
+            return repaired
+
+        tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content)
+        if mode == "path":
+            path = self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) or self._chatgpt_web_extract_path_candidate(repaired)
+            return path or repaired
+        if mode == "result":
+            result = self._chatgpt_web_extract_simple_result(repaired) or self._chatgpt_web_extract_result_from_tool_payload(tool_payload, last_tool_content)
+            return result or repaired
+        if mode == "yes_no":
+            verdict = self._chatgpt_web_extract_yes_no(repaired) or self._chatgpt_web_extract_yes_no_from_tool_payload(tool_payload)
+            return verdict or repaired
+        if mode == "yes_no_path":
+            verdict = self._chatgpt_web_extract_yes_no(repaired) or self._chatgpt_web_extract_yes_no_from_tool_payload(tool_payload)
+            path = self._chatgpt_web_extract_path_candidate(repaired) or self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content)
+            if verdict == "no":
+                return "no"
+            if path:
+                return f"yes\n{path}"
+        return repaired
 
     def _select_chatgpt_web_tools(self, payload_messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not self.tools:
@@ -4966,9 +5151,10 @@ class AIAgent:
         uses_local_tool_loop = bool(self.tools)
         if uses_local_tool_loop:
             payload_messages = copy.deepcopy(payload_messages)
-            selected_tools = self._select_chatgpt_web_tools(payload_messages)
+            current_turn_messages = self._chatgpt_web_current_turn_messages(payload_messages)
+            selected_tools = self._select_chatgpt_web_tools(current_turn_messages)
             used_tool_count = sum(
-                1 for item in payload_messages
+                1 for item in current_turn_messages
                 if isinstance(item, dict) and item.get("role") == "tool"
             )
             tool_protocol = self._chatgpt_web_tool_protocol(selected_tools).strip()
@@ -4981,7 +5167,7 @@ class AIAgent:
             ]
             selected_tool_names = [name for name in selected_tool_names if name]
             selected_tool_text = ", ".join(selected_tool_names)
-            selected_tool_args = self._chatgpt_web_tool_args(selected_tool_names[0], payload_messages) if selected_tool_names else None
+            selected_tool_args = self._chatgpt_web_tool_args(selected_tool_names[0], current_turn_messages) if selected_tool_names else None
             selected_tool_hint = (
                 "Use these exact arguments for this turn: " + json.dumps(selected_tool_args, ensure_ascii=False)
                 if selected_tool_args is not None else ""
@@ -4997,13 +5183,10 @@ class AIAgent:
                     "name": selected_tool_names[0],
                     "arguments": selected_tool_args,
                 }
-            for item in reversed(payload_messages):
+            original = self._chatgpt_web_original_user_request(payload_messages)
+            final_answer_example = self._chatgpt_web_final_answer_example(original)
+            for item in reversed(current_turn_messages):
                 if isinstance(item, dict) and item.get("role") == "user":
-                    original = str(item.get("content") or "").strip()
-                    marker = "Original user request:\n"
-                    if marker in original:
-                        original = original.split(marker, 1)[1].strip()
-                        original = original.split("\n\nRuntime reminder:", 1)[0].strip()
                     if original:
                         reminder_lines = [f"The tool available for this turn is: {selected_tool_text}."] if selected_tool_text else []
                         if used_tool_count == 0:
@@ -5023,7 +5206,10 @@ class AIAgent:
                                 "If another tool is still required, emit EXACTLY ONE <tool_call>...</tool_call> block.",
                                 "Otherwise, give the final answer directly with no extra tool-call markup.",
                                 "When you give the final answer, follow the original user's requested output format exactly, including any 'answer only' constraint.",
+                                "Do not add preambles, extra prose, commas, or quotes unless the user explicitly requested them.",
                             ])
+                            if final_answer_example:
+                                reminder_lines.append(final_answer_example)
                             if selected_tool_hint:
                                 reminder_lines.append(selected_tool_hint)
                         item["content"] = (
@@ -7775,7 +7961,11 @@ class AIAgent:
           - Caution (70%): nudge to consolidate work
           - Warning (90%): urgent, must respond now
         """
-        if not self._budget_pressure_enabled or self.max_iterations <= 0:
+        if (
+            not self._budget_pressure_enabled
+            or self.max_iterations <= 0
+            or is_unlimited_iteration_limit(self.max_iterations)
+        ):
             return None
         progress = api_call_count / self.max_iterations
         remaining = self.max_iterations - api_call_count
@@ -8457,7 +8647,9 @@ class AIAgent:
             thinking_spinner = None
             
             if not self.quiet_mode:
-                self._vprint(f"\n{self.log_prefix}🔄 Making API call #{api_call_count}/{self.max_iterations}...")
+                self._vprint(
+                    f"\n{self.log_prefix}🔄 Making API call #{api_call_count}/{format_iteration_limit(self.max_iterations)}..."
+                )
                 self._vprint(f"{self.log_prefix}   📊 Request size: {len(api_messages)} messages, ~{approx_tokens:,} tokens (~{total_chars:,} chars)")
                 self._vprint(f"{self.log_prefix}   🔧 Available tools: {len(self.tools) if self.tools else 0}")
             else:
@@ -10432,6 +10624,14 @@ class AIAgent:
                     
                     # Strip <think> blocks from user-facing response (keep raw in messages for trajectory)
                     final_response = self._strip_think_blocks(final_response).strip()
+                    if self.api_mode == "chatgpt_web" and self.tools:
+                        original_request = self._chatgpt_web_original_user_request(messages)
+                        final_response = self._chatgpt_web_repair_answer_only_response(
+                            original_request,
+                            final_response,
+                            messages,
+                        )
+                        assistant_message.content = final_response
                     
                     final_msg = self._build_assistant_message(assistant_message, finish_reason)
 
