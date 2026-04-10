@@ -2992,7 +2992,28 @@ class AIAgent:
         if skill_request:
             skill_tool = tools_by_name.get("skill_manage")
             return [skill_tool] if skill_tool is not None else []
-        if any(keyword in lowered for keyword in ("working directory", "pwd", "current directory", "date", "time", "port", "process")):
+        if any(
+            keyword in lowered for keyword in (
+                "working directory",
+                "pwd",
+                "current directory",
+                "date",
+                "time",
+                "port",
+                "process",
+                "platform details",
+                "platform info",
+                "platform information",
+                "system details",
+                "system info",
+                "system information",
+                "what system",
+                "what os",
+                "operating system",
+                "kernel",
+                "uname",
+            )
+        ):
             heuristic_names.append("terminal")
         if any(keyword in lowered for keyword in ("python", "script", "calculate", "math", "compute", "sum", "product", "multiply")):
             heuristic_names.append("execute_code")
@@ -3010,12 +3031,7 @@ class AIAgent:
             if tool is not None:
                 return [tool]
 
-        for name in ("search_files", "read_file", "execute_code", "terminal", "vision_analyze", "memory", "skill_manage", "image_generate"):
-            tool = tools_by_name.get(name)
-            if tool is not None:
-                return [tool]
-
-        return [next(iter(tools_by_name.values()))]
+        return []
 
     def _chatgpt_web_tool_args(self, tool_name: str, payload_messages: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
         if not isinstance(tool_name, str) or not tool_name.strip():
@@ -3147,10 +3163,8 @@ class AIAgent:
                 return {"code": f"print({expr})"}
 
         if tool_name == "terminal":
-            if "working directory" in lowered or "pwd" in lowered:
+            if "working directory" in lowered or "pwd" in lowered or "current directory" in lowered:
                 return {"command": "pwd"}
-            if "date" in lowered or "time" in lowered:
-                return {"command": "date"}
             command_match = re.search(r"\brun\s+(.+?)(?:\.\s*answer only.*|$)", user_text, re.IGNORECASE | re.DOTALL)
             if not command_match:
                 command_match = re.search(r"`([^`]+)`", user_text)
@@ -3158,6 +3172,25 @@ class AIAgent:
                 command = command_match.group(1).strip().strip('"\'`').rstrip('.')
                 if command:
                     return {"command": command}
+            if any(
+                keyword in lowered for keyword in (
+                    "platform details",
+                    "platform info",
+                    "platform information",
+                    "system details",
+                    "system info",
+                    "system information",
+                    "what system",
+                    "system you are running on",
+                    "what os",
+                    "operating system",
+                    "kernel",
+                    "uname",
+                )
+            ):
+                return {"command": "uname -a"}
+            if "date" in lowered or re.search(r"\b(?:what time is it|current time|time is it)\b", lowered):
+                return {"command": "date"}
 
         return None
 
