@@ -50,6 +50,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+# Add project root to path before importing repo-top modules
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from iteration_limits import parse_iteration_limit
+
 def _require_tty(command_name: str) -> None:
     """Exit with a clear error if stdin is not a terminal.
 
@@ -67,9 +73,14 @@ def _require_tty(command_name: str) -> None:
         sys.exit(1)
 
 
-# Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent.resolve()
-sys.path.insert(0, str(PROJECT_ROOT))
+def _parse_max_turns_arg(value: str):
+    try:
+        return parse_iteration_limit(value, default=None)
+    except (TypeError, ValueError) as exc:
+        raise argparse.ArgumentTypeError(
+            "max turns must be a positive integer or 'unlimited'"
+        ) from exc
+
 
 # ---------------------------------------------------------------------------
 # Profile override — MUST happen before any hermes module import.
@@ -4616,10 +4627,10 @@ For more help on a command:
     )
     chat_parser.add_argument(
         "--max-turns",
-        type=int,
+        type=_parse_max_turns_arg,
         default=None,
-        metavar="N",
-        help="Maximum tool-calling iterations per conversation turn (default: 90, or agent.max_turns in config)"
+        metavar="N|unlimited",
+        help="Maximum tool-calling iterations per conversation turn (default: 90, or agent.max_turns in config). Accepts 'unlimited'."
     )
     chat_parser.add_argument(
         "--yolo",
