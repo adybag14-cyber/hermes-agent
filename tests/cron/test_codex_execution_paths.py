@@ -1,6 +1,8 @@
 import asyncio
 import sys
 import types
+
+import pytest
 from types import SimpleNamespace
 
 
@@ -124,7 +126,8 @@ def test_cron_run_job_codex_path_handles_internal_401_refresh(monkeypatch):
     assert _Codex401ThenSuccessAgent.last_init["api_mode"] == "codex_responses"
 
 
-def test_gateway_run_agent_codex_path_handles_internal_401_refresh(monkeypatch):
+@pytest.mark.asyncio
+async def test_gateway_run_agent_codex_path_handles_internal_401_refresh(monkeypatch):
     _patch_agent_bootstrap(monkeypatch)
     monkeypatch.setattr(run_agent, "OpenAI", _FakeOpenAI)
     monkeypatch.setattr(run_agent, "AIAgent", _Codex401ThenSuccessAgent)
@@ -135,7 +138,7 @@ def test_gateway_run_agent_codex_path_handles_internal_401_refresh(monkeypatch):
             "provider": "openai-codex",
             "api_mode": "codex_responses",
             "base_url": "https://chatgpt.com/backend-api/codex",
-            "api_key": "codex-token",
+            "api_key": "***",
         },
     )
     monkeypatch.setenv("HERMES_TOOL_PROGRESS", "false")
@@ -153,6 +156,7 @@ def test_gateway_run_agent_codex_path_handles_internal_401_refresh(monkeypatch):
     runner._fallback_model = None
     runner._running_agents = {}
     runner._smart_model_routing = {}
+    runner._session_model_overrides = {}
     from unittest.mock import MagicMock, AsyncMock
     runner.hooks = MagicMock()
     runner.hooks.emit = AsyncMock()
@@ -177,15 +181,13 @@ def test_gateway_run_agent_codex_path_handles_internal_401_refresh(monkeypatch):
         user_id="user-1",
     )
 
-    result = asyncio.run(
-        runner._run_agent(
-            message="ping",
-            context_prompt="",
-            history=[],
-            source=source,
-            session_id="session-1",
-            session_key="agent:main:local:dm",
-        )
+    result = await runner._run_agent(
+        message="ping",
+        context_prompt="",
+        history=[],
+        source=source,
+        session_id="session-1",
+        session_key="agent:main:local:dm",
     )
 
     assert result["final_response"] == "Recovered via refresh"

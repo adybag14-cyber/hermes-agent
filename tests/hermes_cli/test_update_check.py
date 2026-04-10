@@ -117,17 +117,22 @@ def test_get_update_result_timeout():
     """get_update_result() returns None when check hasn't completed within timeout."""
     import hermes_cli.banner as banner
 
-    # Reset module state — don't set the event
+    class _NeverSetEvent:
+        def __init__(self):
+            self.last_timeout = None
+
+        def wait(self, timeout=None):
+            self.last_timeout = timeout
+            return False
+
+    # Reset module state — simulate an unfinished background check without a real wait.
     banner._update_result = None
-    banner._update_check_done = threading.Event()
+    banner._update_check_done = _NeverSetEvent()
 
-    start = time.monotonic()
     result = banner.get_update_result(timeout=0.1)
-    elapsed = time.monotonic() - start
 
-    # Should have waited ~0.1s and returned None
     assert result is None
-    assert elapsed < 0.5
+    assert banner._update_check_done.last_timeout == 0.1
 
 
 def test_invalidate_update_cache_clears_all_profiles(tmp_path):
