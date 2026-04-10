@@ -58,3 +58,11 @@ mini-swe-agent/
 # Nix
 .direnv/
 result
+
+# Android local build / signing state
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/keystore.properties
+android/release.keystore
