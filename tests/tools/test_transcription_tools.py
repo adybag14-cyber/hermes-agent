@@ -371,8 +371,11 @@ class TestTranscribeLocalExtended:
         mock_model.transcribe.return_value = ([mock_segment], mock_info)
         mock_whisper_cls = MagicMock(return_value=mock_model)
 
+        fake_module = MagicMock()
+        fake_module.WhisperModel = mock_whisper_cls
+
         with patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
-             patch("faster_whisper.WhisperModel", mock_whisper_cls), \
+             patch.dict("sys.modules", {"faster_whisper": fake_module}), \
              patch("tools.transcription_tools._local_model", None), \
              patch("tools.transcription_tools._local_model_name", None):
             from tools.transcription_tools import _transcribe_local
@@ -407,8 +410,11 @@ class TestTranscribeLocalExtended:
             }
         }
 
+        fake_module = MagicMock()
+        fake_module.WhisperModel = mock_whisper_cls
+
         with patch("tools.transcription_tools._HAS_FASTER_WHISPER", True), \
-             patch("faster_whisper.WhisperModel", mock_whisper_cls), \
+             patch.dict("sys.modules", {"faster_whisper": fake_module}), \
              patch("tools.transcription_tools._local_model", None), \
              patch("tools.transcription_tools._local_model_name", None), \
              patch("tools.transcription_tools._load_stt_config", return_value=fake_config):

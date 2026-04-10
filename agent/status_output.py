@@ -66,10 +66,11 @@ class StatusOutputMixin:
 
     def _emit_status_kind(self, kind: str, message: str, *, origin: str) -> None:
         """Print to the CLI (``_vprint(force=True)``) and forward to ``status_callback(kind, message)``. Never raises."""
-        try:
-            self._vprint(f"{self.log_prefix}{message}", force=True)
-        except Exception:
-            pass
+        if not getattr(self, "suppress_status_output", False):
+            try:
+                self._vprint(f"{self.log_prefix}{message}", force=True)
+            except Exception:
+                pass
         self._call_callback("status_callback", kind, message, origin=origin)
 
     def _emit_status(self, message: str) -> None:

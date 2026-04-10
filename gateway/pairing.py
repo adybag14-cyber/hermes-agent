@@ -601,6 +601,8 @@ class PairingStore:
 
     def _all_platforms(self, suffix: str) -> list:
         """Platforms that have a ``-<suffix>.json`` data file (``_``-prefixed files are shared state)."""
+        if not self._dir.exists():
+            return []
         tail = f"-{suffix}.json"
         platforms = (f.name.replace(tail, "") for f in self._dir.iterdir() if f.name.endswith(tail))
         return [p for p in platforms if not p.startswith("_")]

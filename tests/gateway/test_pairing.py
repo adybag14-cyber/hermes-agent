@@ -81,6 +81,19 @@ class TestProfileScopedDiscovery:
         assert approved[0]["platform"] == "telegram"
 
 
+def test_pairing_store_resolves_live_hermes_home(monkeypatch, tmp_path):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "profile-home"))
+    store = PairingStore()
+    assert store._rate_limit_path().parent == tmp_path / "profile-home" / "platforms" / "pairing"
+
+
+def test_missing_pairing_directory_is_empty(tmp_path):
+    store = _make_store(tmp_path / "pairing")
+    store._rate_limit_path().parent.rmdir()
+    assert store.list_pending() == []
+    assert store.list_approved() == []
+
+
 # ---------------------------------------------------------------------------
 # _secure_write
 # ---------------------------------------------------------------------------
@@ -701,5 +714,4 @@ class TestProfileScopedStorage:
             / "pairing"
             / "_rate_limits.json"
         )
-
 

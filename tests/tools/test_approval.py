@@ -8,7 +8,6 @@ from types import SimpleNamespace
 from unittest.mock import patch as mock_patch
 
 import pytest
-
 import tools.approval as approval_module
 from tools import approval_context
 from tools import approval_smart
@@ -17,6 +16,18 @@ from tools.approval import approve_session, detect_dangerous_command, detect_har
 from tools.approval_context import _get_approval_mode
 from tools.approval_context import _normalize_approval_mode
 from tools.approval_smart import _smart_approve
+
+
+@pytest.fixture(autouse=True)
+def _clean_approval_env(monkeypatch):
+    for key in (
+        "HERMES_INTERACTIVE",
+        "HERMES_GATEWAY_SESSION",
+        "HERMES_EXEC_ASK",
+        "HERMES_YOLO_MODE",
+        "HERMES_SESSION_KEY",
+    ):
+        monkeypatch.delenv(key, raising=False)
 
 
 class TestApprovalModeParsing:
@@ -237,6 +248,57 @@ class TestSessionKeyContext:
                 assert approval_module.get_current_session_key() == "alice"
         finally:
             approval_context.reset_current_session_key(token)
+
+    def test_context_keeps_pending_approval_attached_to_originating_session(self, monkeypatch):
+        monkeypatch.setenv("HERMES_EXEC_ASK", "1")
+        monkeypatch.setenv("HERMES_SESSION_KEY", "alice")
+        monkeypatch.setattr(approval_module, "_get_approval_config", lambda: {"mode": "manual"})
+        monkeypatch.setattr(approval_module, "_YOLO_MODE_FROZEN", False)
+        monkeypatch.setattr(approval_module, "_permanent_approved", set())
+        monkeypatch.setattr(approval_module, "_session_approved", {})
+        monkeypatch.setattr(approval_module, "_pending", {})
+        monkeypatch.setattr(
+            "tools.tirith_security.check_command_security",
+            lambda _command: {"action": "allow", "findings": [], "summary": ""},
+        )
+        alice_ready = threading.Event()
+        bob_ready = threading.Event()
+        results = {}
+
+        def worker_alice():
+            token = approval_module.set_current_session_key("alice")
+            try:
+                alice_ready.set()
+                if not bob_ready.wait(timeout=5):
+                    results["error"] = "Bob did not update the process environment"
+                    return
+                results["approval"] = approval_module.check_all_command_guards(
+                    "rm -rf /tmp/alice-secret", "local"
+                )
+            except Exception as exc:
+                results["error"] = exc
+            finally:
+                approval_module.reset_current_session_key(token)
+
+        worker = threading.Thread(target=worker_alice, daemon=True)
+        worker.start()
+        try:
+            assert alice_ready.wait(timeout=5)
+            bob_token = approval_module.set_current_session_key("bob")
+            try:
+                monkeypatch.setenv("HERMES_SESSION_KEY", "bob")
+                bob_ready.set()
+                worker.join(timeout=5)
+            finally:
+                approval_module.reset_current_session_key(bob_token)
+            assert not worker.is_alive()
+            assert "error" not in results, results.get("error")
+            assert results["approval"]["status"] == "pending_approval"
+            assert "alice" in approval_module._pending
+            assert "bob" not in approval_module._pending
+        finally:
+            bob_ready.set()
+            worker.join(timeout=5)
 
 
 class TestRmFalsePositiveFix:
