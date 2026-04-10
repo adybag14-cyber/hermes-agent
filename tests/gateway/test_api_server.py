@@ -1138,7 +1138,7 @@ class TestChatCompletionsEndpoint:
                 if ts_cb:
                     ts_cb("call_terminal_1", "terminal", {"command": "ls -la"})
                 if cb:
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0)
                     cb("Here are the files.")
                 return (
                     {"final_response": "Here are the files.", "messages": [], "api_calls": 1},

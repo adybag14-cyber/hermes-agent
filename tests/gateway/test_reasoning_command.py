@@ -216,4 +216,3 @@ class TestLoadShowReasoningCoercion:
             tmp_path, monkeypatch,
             'display:\n  show_reasoning: true\n',
         ) is True
-

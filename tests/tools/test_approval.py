@@ -225,7 +225,7 @@ class TestSafeCommand:
 
 
 def _clear_session(key):
-    """Replace for removed clear_session() — directly clear internal state."""
+    """Clear session-scoped approval state for tests without touching globals beyond that session."""
     approval_module._session_approved.pop(key, None)
     approval_module._pending.pop(key, None)
 

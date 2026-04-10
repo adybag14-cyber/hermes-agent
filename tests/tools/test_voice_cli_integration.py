@@ -680,4 +680,3 @@ class TestFallbackSpeakArmsBargeMonitor:
         # speak thread came and went without arming the mic.
         assert not cli._monitor_armed.wait(0.05)
         assert cli._monitor_calls == []
-
