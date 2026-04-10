@@ -7542,7 +7542,7 @@ class AIAgent:
                 preserve_dots=self._anthropic_preserve_dots(),
                 context_length=ctx_len,
                 base_url=getattr(self, "_anthropic_base_url", None),
-                fast_mode=(self.request_overrides or {}).get("speed") == "fast",
+                fast_mode=request_overrides.get("speed") == "fast",
             )
 
         # AWS Bedrock native Converse API — bypasses the OpenAI client entirely.
@@ -10066,9 +10066,10 @@ class AIAgent:
 
             finish_reason = "stop"
             response = None  # Guard against UnboundLocalError if all retries fail
-            api_kwargs = None  # Guard against UnboundLocalError in except handler
+            api_kwargs = {}
 
             while retry_count < max_retries:
+                api_kwargs = {}
                 # ── Nous Portal rate limit guard ──────────────────────
                 # If another session already recorded that Nous is rate-
                 # limited, skip the API call entirely.  Each attempt
@@ -10115,7 +10116,6 @@ class AIAgent:
                         pass
                     except Exception:
                         pass  # Never let rate guard break the agent loop
-
                 try:
                     self._reset_stream_delivery_tracking()
                     api_kwargs = self._build_api_kwargs(api_messages)

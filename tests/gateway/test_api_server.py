@@ -659,7 +659,7 @@ class TestChatCompletionsEndpoint:
                 if tp_cb:
                     tp_cb("tool.started", "terminal", "ls -la", {"command": "ls -la"})
                 if cb:
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0)
                     cb("Here are the files.")
                 return (
                     {"final_response": "Here are the files.", "messages": [], "api_calls": 1},
@@ -715,7 +715,7 @@ class TestChatCompletionsEndpoint:
                     tp_cb("tool.started", "_thinking", "some internal state", {})
                     tp_cb("tool.started", "web_search", "Python docs", {"query": "Python docs"})
                 if cb:
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0)
                     cb("Found it.")
                 return (
                     {"final_response": "Found it.", "messages": [], "api_calls": 1},
