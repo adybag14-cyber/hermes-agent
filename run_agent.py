@@ -7054,6 +7054,7 @@ class AIAgent:
             ephemeral_out = getattr(self, "_ephemeral_max_output_tokens", None)
             if ephemeral_out is not None:
                 self._ephemeral_max_output_tokens = None  # consume immediately
+            request_overrides = getattr(self, "request_overrides", None) or {}
             return build_anthropic_kwargs(
                 model=self.model,
                 messages=anthropic_messages,
@@ -7064,7 +7065,7 @@ class AIAgent:
                 preserve_dots=self._anthropic_preserve_dots(),
                 context_length=ctx_len,
                 base_url=getattr(self, "_anthropic_base_url", None),
-                fast_mode=(self.request_overrides or {}).get("speed") == "fast",
+                fast_mode=request_overrides.get("speed") == "fast",
             )
 
         if self.api_mode == "codex_responses":
@@ -9268,9 +9269,10 @@ class AIAgent:
 
             finish_reason = "stop"
             response = None  # Guard against UnboundLocalError if all retries fail
-            api_kwargs = None  # Guard against UnboundLocalError in except handler
+            api_kwargs = {}
 
             while retry_count < max_retries:
+                api_kwargs = {}
                 try:
                     self._reset_stream_delivery_tracking()
                     api_kwargs = self._build_api_kwargs(api_messages)
