@@ -319,6 +319,13 @@ termux-all = [
   "hermes-agent[web]",
   "hermes-agent[pty]",
 ]
+android = [
+  # Dedicated APK / embedded-Python lane. Keep this separate from [termux]
+  # so the app only pulls the API-server runtime dependencies it needs.
+  # Chaquopy currently exposes aiohttp wheels only up to the 3.10 line.
+  "aiohttp>=3.10.10,<4",
+  "croniter>=6.0.0,<7",
+]
 dingtalk = ["dingtalk-stream==0.24.3", "alibabacloud-dingtalk==2.2.42", "qrcode==7.4.2"]
 feishu = ["lark-oapi==1.6.8", "qrcode==7.4.2"]
 google = [
@@ -565,7 +572,7 @@ youtube-transcript-api = false
 # and the drift broke installed wheels. Do not add the list back.
 
 [tool.setuptools.packages.find]
-include = ["agent", "agent.*", "tools", "tools.*", "hermes_cli", "hermes_cli.*", "gateway", "gateway.*", "tui_gateway", "tui_gateway.*", "cron", "cron.*", "acp_adapter", "plugins", "plugins.*", "providers", "providers.*"]
+include = ["agent", "agent.*", "tools", "tools.*", "hermes_cli", "hermes_cli.*", "hermes_android", "hermes_android.*", "gateway", "gateway.*", "tui_gateway", "tui_gateway.*", "cron", "cron.*", "acp_adapter", "plugins", "plugins.*", "providers", "providers.*"]
 
 [tool.setuptools.package-data]
 hermes_cli = ["observability/schemas/*.json", "data/*.json", "local_runtime/*.json"]

@@ -191,6 +191,11 @@ TOOLSETS = {
         _core_without("text_to_speech", "clarify", "computer_use", kanban=False),
     ),
     "hermes-cli": _bundle("Full interactive CLI toolset - all default tools plus cronjob management"),
+    "hermes-android-app": _ts(
+        "Android app MVP toolset — mobile-safe defaults for the embedded API server",
+        ["web_search", "web_extract", "vision_analyze", "image_generate",
+         "skills_list", "skill_view", "skill_manage", "todo_list", "memory", "session_search"],
+    ),
 
     # Mirrors hermes-cli; `hermes tools` platform config filters it down and
     # _get_platform_tools() drops _DEFAULT_OFF_TOOLSETS unless user-enabled.

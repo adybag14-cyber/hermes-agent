@@ -2132,6 +2132,15 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             gateway_session_key=gateway_session_key, session_id=session_id)
         user_config = _load_gateway_config()
         enabled_toolsets = sorted(_get_platform_tools(user_config, "api_server"))
+        if os.getenv("HERMES_ANDROID_BOOTSTRAP", "").strip():
+            try:
+                from hermes_android.mobile_defaults import should_force_android_api_server_toolsets, resolved_android_api_server_toolsets
+
+                if should_force_android_api_server_toolsets(user_config):
+                    enabled_toolsets = resolved_android_api_server_toolsets(user_config)
+            except Exception as exc:
+                logger.debug("Android API-server toolset fallback unavailable: %s", exc)
+
         max_iterations = _current_max_iterations()
         if room_dispatch is not None:
             from gateway.hosted_room_execution_policy import RoomExecutionPolicy
