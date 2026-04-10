@@ -1935,6 +1935,7 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
     if normalized == "chatgpt-web":
         try:
             from hermes_cli.chatgpt_web import (
+                DEFAULT_CHATGPT_WEB_MODELS,
                 fetch_chatgpt_web_model_ids,
                 resolve_chatgpt_web_runtime_credentials,
             )
@@ -1942,7 +1943,11 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
             creds = resolve_chatgpt_web_runtime_credentials()
             live = fetch_chatgpt_web_model_ids(access_token=creds.get("api_key", ""))
             if live:
-                return live
+                merged: list[str] = []
+                for mid in list(live) + list(DEFAULT_CHATGPT_WEB_MODELS):
+                    if mid and mid not in merged:
+                        merged.append(mid)
+                return merged
         except Exception:
             pass
     if normalized in {"copilot", "copilot-acp"}:
