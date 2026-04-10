@@ -2,6 +2,7 @@ import sys
 import threading
 import time
 import types
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -118,6 +119,106 @@ def test_select_chatgpt_web_tools_prefers_terminal_for_working_directory(monkeyp
     ])
 
     assert [tool["function"]["name"] for tool in selected] == ["terminal"]
+
+
+
+def test_build_api_kwargs_chatgpt_web_prefers_memory_for_remember_requests(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    agent.tools = [
+        {"type": "function", "function": {"name": "search_files", "description": "Search files", "parameters": {"type": "object"}}},
+        {"type": "function", "function": {"name": "memory", "description": "Store durable memory", "parameters": {"type": "object"}}},
+    ]
+
+    kwargs = agent._build_api_kwargs([
+        {"role": "system", "content": "Be concise."},
+        {"role": "user", "content": "Remember that my temporary chatgpt-web canary is cobalt-otter-314. Answer only saved."},
+    ])
+
+    rewritten_user = kwargs["messages"][-1]["content"]
+    assert 'The tool available for this turn is: memory.' in rewritten_user
+    assert '"name": "memory"' in rewritten_user
+    assert '"action": "add"' in rewritten_user
+    assert '"target": "user"' in rewritten_user
+    assert 'cobalt-otter-314' in rewritten_user
+
+
+
+def test_build_api_kwargs_chatgpt_web_prefers_skill_manage_for_skill_creation(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    agent.tools = [
+        {"type": "function", "function": {"name": "search_files", "description": "Search files", "parameters": {"type": "object"}}},
+        {"type": "function", "function": {"name": "skill_manage", "description": "Manage skills", "parameters": {"type": "object"}}},
+    ]
+
+    kwargs = agent._build_api_kwargs([
+        {"role": "system", "content": "Be concise."},
+        {"role": "user", "content": "Create a temporary skill named chatgpt-web-e2e-temp-skill describing how to say hello. Answer only created."},
+    ])
+
+    rewritten_user = kwargs["messages"][-1]["content"]
+    assert 'The tool available for this turn is: skill_manage.' in rewritten_user
+    assert '"name": "skill_manage"' in rewritten_user
+    assert '"action": "create"' in rewritten_user
+    assert 'chatgpt-web-e2e-temp-skill' in rewritten_user
+
+
+
+def test_build_api_kwargs_chatgpt_web_prefers_vision_for_local_image_prompt(monkeypatch, tmp_path):
+    agent = _build_agent(monkeypatch)
+    image_path = tmp_path / "red-square.png"
+    image_path.write_bytes(b"png")
+    agent.tools = [
+        {"type": "function", "function": {"name": "search_files", "description": "Search files", "parameters": {"type": "object"}}},
+        {"type": "function", "function": {"name": "vision_analyze", "description": "Analyze images", "parameters": {"type": "object"}}},
+    ]
+
+    kwargs = agent._build_api_kwargs([
+        {"role": "system", "content": "Be concise."},
+        {"role": "user", "content": f"Look at this local image: {image_path}. Answer only what shape and dominant color it is."},
+    ])
+
+    rewritten_user = kwargs["messages"][-1]["content"]
+    assert 'The tool available for this turn is: vision_analyze.' in rewritten_user
+    assert '"name": "vision_analyze"' in rewritten_user
+    assert f'"image_url": "{image_path}"' in rewritten_user
+
+
+
+def test_build_api_kwargs_chatgpt_web_prefers_image_generate_for_generation_requests(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    agent.tools = [
+        {"type": "function", "function": {"name": "search_files", "description": "Search files", "parameters": {"type": "object"}}},
+        {"type": "function", "function": {"name": "image_generate", "description": "Generate images", "parameters": {"type": "object"}}},
+    ]
+
+    kwargs = agent._build_api_kwargs([
+        {"role": "system", "content": "Be concise."},
+        {"role": "user", "content": "Generate a square image of a red circle and save it to Downloads/chatgpt-web-images. Answer only the saved path."},
+    ])
+
+    rewritten_user = kwargs["messages"][-1]["content"]
+    assert 'The tool available for this turn is: image_generate.' in rewritten_user
+    assert '"name": "image_generate"' in rewritten_user
+    assert '"prompt": "a red circle"' in rewritten_user
+    assert '"aspect_ratio": "square"' in rewritten_user
+
+
+
+def test_build_api_kwargs_chatgpt_web_skips_local_tool_loop_for_image_generation_without_image_tool(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    agent.tools = [
+        {"type": "function", "function": {"name": "search_files", "description": "Search files", "parameters": {"type": "object"}}},
+    ]
+
+    kwargs = agent._build_api_kwargs([
+        {"role": "system", "content": "Be concise."},
+        {"role": "user", "content": "Generate a square image of a red circle and save it to Downloads/chatgpt-web-images. Answer only the saved path."},
+    ])
+
+    assert kwargs["history_and_training_disabled"] is False
+    assert kwargs["conversation_id"] is None
+    assert kwargs["messages"][-1]["content"] == "Generate a square image of a red circle and save it to Downloads/chatgpt-web-images. Answer only the saved path."
+    assert "<tool_call>" not in kwargs["instructions"]
 
 
 
@@ -499,6 +600,94 @@ def test_run_conversation_chatgpt_web_repairs_path_only_answer_from_terminal_too
 
 
 @pytest.mark.parametrize("model", ["gpt-5-thinking", "gpt-5-instant"])
+def test_run_conversation_chatgpt_web_repairs_saved_only_answer_from_memory_tool(monkeypatch, model):
+    agent = _build_agent(monkeypatch, model=model)
+    agent.tools = [{
+        "type": "function",
+        "function": {
+            "name": "memory",
+            "description": "Store durable memory",
+            "parameters": {"type": "object", "properties": {"content": {"type": "string"}}},
+        },
+    }]
+    agent.valid_tool_names = {"memory"}
+
+    responses = [
+        {
+            "content": "I can't update memory from here.",
+            "message_id": "msg_tool_memory",
+            "model": model,
+            "finish_reason": "stop",
+        },
+        {
+            "content": "The memory entry has been saved successfully.",
+            "message_id": "msg_final_memory",
+            "model": model,
+            "finish_reason": "stop",
+        },
+    ]
+    monkeypatch.setattr(agent, "_interruptible_api_call", lambda api_kwargs: agent._wrap_chatgpt_web_response(responses.pop(0)))
+
+    def _fake_execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count=0):
+        for call in assistant_message.tool_calls:
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": '{"success": true, "message": "Entry added."}',
+            })
+
+    monkeypatch.setattr(agent, "_execute_tool_calls", _fake_execute_tool_calls)
+
+    result = agent.run_conversation("Remember that my temporary chatgpt-web canary is cobalt-otter-999. Answer only saved.")
+
+    assert result["final_response"] == "saved"
+
+
+@pytest.mark.parametrize("model", ["gpt-5-thinking", "gpt-5-instant"])
+def test_run_conversation_chatgpt_web_repairs_created_only_answer_from_skill_tool(monkeypatch, model):
+    agent = _build_agent(monkeypatch, model=model)
+    agent.tools = [{
+        "type": "function",
+        "function": {
+            "name": "skill_manage",
+            "description": "Manage skills",
+            "parameters": {"type": "object", "properties": {"name": {"type": "string"}}},
+        },
+    }]
+    agent.valid_tool_names = {"skill_manage"}
+
+    responses = [
+        {
+            "content": "I can't create skills from here.",
+            "message_id": "msg_tool_skill",
+            "model": model,
+            "finish_reason": "stop",
+        },
+        {
+            "content": "Skill created successfully.",
+            "message_id": "msg_final_skill",
+            "model": model,
+            "finish_reason": "stop",
+        },
+    ]
+    monkeypatch.setattr(agent, "_interruptible_api_call", lambda api_kwargs: agent._wrap_chatgpt_web_response(responses.pop(0)))
+
+    def _fake_execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count=0):
+        for call in assistant_message.tool_calls:
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": "Skill 'chatgpt-web-e2e-temp-skill' created.",
+            })
+
+    monkeypatch.setattr(agent, "_execute_tool_calls", _fake_execute_tool_calls)
+
+    result = agent.run_conversation("Create a temporary skill named chatgpt-web-e2e-temp-skill describing how to say hello. Answer only created.")
+
+    assert result["final_response"] == "created"
+
+
+@pytest.mark.parametrize("model", ["gpt-5-thinking", "gpt-5-instant"])
 def test_run_conversation_chatgpt_web_repairs_result_only_answer_from_execute_code(monkeypatch, model):
     agent = _build_agent(monkeypatch, model=model)
     agent.tools = [{
@@ -584,3 +773,60 @@ def test_run_conversation_chatgpt_web_repairs_yes_no_path_answer_from_search(mon
     result = agent.run_conversation("Use Hermes tools to grep run_agent.py for _chatgpt_web_tool_args. Answer only yes/no and one matching path.")
 
     assert result["final_response"] == "yes\nrun_agent.py"
+
+
+@pytest.mark.parametrize("model", ["gpt-5-thinking", "gpt-5-instant"])
+def test_run_conversation_chatgpt_web_downloads_generated_image_when_requested(monkeypatch, model, tmp_path):
+    agent = _build_agent(monkeypatch, model=model)
+    download_dir = tmp_path / "chatgpt-web-images"
+    agent.tools = [{
+        "type": "function",
+        "function": {
+            "name": "image_generate",
+            "description": "Generate images",
+            "parameters": {"type": "object", "properties": {"prompt": {"type": "string"}}},
+        },
+    }]
+    agent.valid_tool_names = {"image_generate"}
+
+    responses = [
+        {
+            "content": "I can't generate images directly from this interface.",
+            "message_id": "msg_tool_image",
+            "model": model,
+            "finish_reason": "stop",
+        },
+        {
+            "content": "![red circle](https://example.com/generated/red-circle.png)",
+            "message_id": "msg_final_image",
+            "model": model,
+            "finish_reason": "stop",
+        },
+    ]
+    monkeypatch.setattr(agent, "_interruptible_api_call", lambda api_kwargs: agent._wrap_chatgpt_web_response(responses.pop(0)))
+
+    def _fake_execute_tool_calls(assistant_message, messages, effective_task_id, api_call_count=0):
+        for call in assistant_message.tool_calls:
+            messages.append({
+                "role": "tool",
+                "tool_call_id": call.id,
+                "content": '{"success": true, "image": "https://example.com/generated/red-circle.png"}',
+            })
+
+    monkeypatch.setattr(agent, "_execute_tool_calls", _fake_execute_tool_calls)
+
+    saved_path = download_dir / "red-circle.png"
+
+    def _fake_download(url, target_dir):
+        target_dir.mkdir(parents=True, exist_ok=True)
+        saved_path.write_bytes(b"png")
+        return saved_path
+
+    monkeypatch.setattr(agent, "_chatgpt_web_download_image_to_dir", _fake_download)
+
+    result = agent.run_conversation(
+        f"Generate a square image of a red circle and save it to {download_dir}. Answer only the saved path."
+    )
+
+    assert result["final_response"] == str(saved_path)
+    assert saved_path.exists()
