@@ -1301,6 +1301,7 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
     if normalized == "chatgpt-web":
         try:
             from hermes_cli.chatgpt_web import (
+                DEFAULT_CHATGPT_WEB_MODELS,
                 fetch_chatgpt_web_model_ids,
                 resolve_chatgpt_web_runtime_credentials,
             )
@@ -1308,7 +1309,11 @@ def provider_model_ids(provider: Optional[str], *, force_refresh: bool = False) 
             creds = resolve_chatgpt_web_runtime_credentials()
             live = fetch_chatgpt_web_model_ids(access_token=creds.get("api_key", ""))
             if live:
-                return live
+                merged: list[str] = []
+                for mid in list(live) + list(DEFAULT_CHATGPT_WEB_MODELS):
+                    if mid and mid not in merged:
+                        merged.append(mid)
+                return merged
         except Exception:
             pass
     if normalized in {"copilot", "copilot-acp"}:
@@ -2131,6 +2136,31 @@ def validate_requested_model(
                 ),
             }
 
+    if normalized == "chatgpt-web":
+        catalog = provider_model_ids("chatgpt-web")
+        if requested_for_lookup in set(catalog):
+            return {
+                "accepted": True,
+                "persist": True,
+                "recognized": True,
+                "message": None,
+            }
+
+        suggestions = get_close_matches(requested, catalog, n=3, cutoff=0.5)
+        suggestion_text = ""
+        if suggestions:
+            suggestion_text = "\n  Similar models: " + ", ".join(f"`{s}`" for s in suggestions)
+
+        return {
+            "accepted": True,
+            "persist": True,
+            "recognized": False,
+            "message": (
+                f"Note: `{requested}` was not found in ChatGPT Web's current model listing. "
+                f"It may still work if your plan supports it."
+                f"{suggestion_text}"
+            ),
+        }
     # Probe the live API to check if the model actually exists
     api_models = fetch_api_models(api_key, base_url)
 

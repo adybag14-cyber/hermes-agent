@@ -20,7 +20,11 @@ import copy
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-from hermes_cli.nous_subscription import get_nous_subscription_features
+from hermes_cli.nous_subscription import (
+    apply_nous_provider_defaults,
+    get_nous_subscription_features,
+)
+from iteration_limits import format_iteration_limit, is_unlimited_iteration_limit, parse_iteration_limit
 from tools.tool_backend_helpers import managed_nous_tools_enabled
 from hermes_constants import get_optional_skills_dir
 
@@ -1455,23 +1459,24 @@ def setup_agent_settings(config: dict):
     print()
 
     # ── Max Iterations ──
-    current_max = get_env_value("HERMES_MAX_ITERATIONS") or str(
+    current_max = get_env_value("HERMES_MAX_ITERATIONS") or format_iteration_limit(
         config.get("agent", {}).get("max_turns", 90)
     )
     print_info("Maximum tool-calling iterations per conversation.")
     print_info("Higher = more complex tasks, but costs more tokens.")
     print_info("Default is 90, which works for most tasks. Use 150+ for open exploration.")
+    print_info("You can also enter 'unlimited'.")
 
     max_iter_str = prompt("Max iterations", current_max)
     try:
-        max_iter = int(max_iter_str)
-        if max_iter > 0:
-            save_env_value("HERMES_MAX_ITERATIONS", str(max_iter))
-            config.setdefault("agent", {})["max_turns"] = max_iter
-            config.pop("max_turns", None)
-            print_success(f"Max iterations set to {max_iter}")
+        max_iter = parse_iteration_limit(max_iter_str, default=90)
+        stored_value = "unlimited" if is_unlimited_iteration_limit(max_iter) else str(max_iter)
+        save_env_value("HERMES_MAX_ITERATIONS", stored_value)
+        config.setdefault("agent", {})["max_turns"] = stored_value
+        config.pop("max_turns", None)
+        print_success(f"Max iterations set to {stored_value}")
     except ValueError:
-        print_warning("Invalid number, keeping current value")
+        print_warning("Invalid value, keeping current setting")
 
     # ── Tool Progress Display ──
     print_info("")
@@ -2392,7 +2397,7 @@ def _get_section_config_summary(config: dict, section_key: str) -> Optional[str]
 
     elif section_key == "agent":
         max_turns = config.get("agent", {}).get("max_turns", 90)
-        return f"max turns: {max_turns}"
+        return f"max turns: {format_iteration_limit(max_turns)}"
 
     elif section_key == "gateway":
         platforms = []
