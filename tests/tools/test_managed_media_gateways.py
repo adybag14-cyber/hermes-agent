@@ -47,6 +47,7 @@ def _restore_tool_and_agent_modules():
 @pytest.fixture(autouse=True)
 def _enable_managed_nous_tools(monkeypatch):
     monkeypatch.setenv("HERMES_ENABLE_NOUS_MANAGED_TOOLS", "1")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
 
 def _install_fake_tools_package():
