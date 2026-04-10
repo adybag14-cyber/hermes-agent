@@ -730,7 +730,7 @@ class TestChatCompletionsEndpoint:
                 if ts_cb:
                     ts_cb("call_terminal_1", "terminal", {"command": "ls -la"})
                 if cb:
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0)
                     cb("Here are the files.")
                 return (
                     {"final_response": "Here are the files.", "messages": [], "api_calls": 1},
@@ -789,7 +789,7 @@ class TestChatCompletionsEndpoint:
                     ts_cb("call_internal_1", "_thinking", {"text": "some internal state"})
                     ts_cb("call_search_1", "web_search", {"query": "Python docs"})
                 if cb:
-                    await asyncio.sleep(0.05)
+                    await asyncio.sleep(0)
                     cb("Found it.")
                 return (
                     {"final_response": "Found it.", "messages": [], "api_calls": 1},
