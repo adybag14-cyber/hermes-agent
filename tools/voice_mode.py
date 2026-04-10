@@ -417,6 +417,10 @@ class AudioRecorder:
     # -- public properties ---------------------------------------------------
 
     @property
+    def is_recording(self) -> bool:
+        return self._recording
+
+    @property
     def elapsed_seconds(self) -> float:
         if not self._recording:
             return 0.0
