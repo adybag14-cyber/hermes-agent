@@ -3024,9 +3024,13 @@ class AIAgent:
 
         tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
         if mode == "path":
-            path = (
-                self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
-            ) or self._chatgpt_web_extract_path_candidate(repaired)
+            image_url = self._chatgpt_web_extract_image_url_from_text(repaired)
+            if image_url and any(keyword in str(original_request or "").lower() for keyword in ("save", "download", "store")):
+                return image_url
+            repaired_path = self._chatgpt_web_extract_path_candidate(repaired)
+            if repaired_path:
+                return repaired_path
+            path = self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
             return path or repaired
         if mode == "result":
             result = self._chatgpt_web_extract_simple_result(repaired) or (
@@ -3120,6 +3124,9 @@ class AIAgent:
         markdown_match = re.search(r"!\[[^\]]*\]\((https?://[^)\s]+)\)", text)
         if markdown_match:
             return markdown_match.group(1)
+        estuary_match = re.search(r"(https?://[^\s)]+/backend-api/estuary/content\?[^\s)]+)", text, re.IGNORECASE)
+        if estuary_match:
+            return estuary_match.group(1)
         bare_match = re.search(r"(https?://\S+?\.(?:png|jpe?g|gif|webp)(?:\?\S*)?)", text, re.IGNORECASE)
         if bare_match:
             return bare_match.group(1)
@@ -3154,7 +3161,7 @@ class AIAgent:
 
     def _chatgpt_web_download_image_to_dir(self, image_url: str, target_dir: Path) -> Path:
         import httpx
-        from urllib.parse import urlparse
+        from urllib.parse import unquote, urlparse
 
         target_dir = Path(target_dir).expanduser()
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -3163,8 +3170,33 @@ class AIAgent:
         candidate_name = Path(parsed.path).name or f"chatgpt-web-image-{uuid.uuid4().hex[:8]}.png"
         candidate_name = re.sub(r"[^A-Za-z0-9._-]+", "-", candidate_name).strip("-._") or f"chatgpt-web-image-{uuid.uuid4().hex[:8]}.png"
 
-        response = httpx.get(image_url, timeout=60.0, follow_redirects=True)
+        request_headers = None
+        if (
+            self.api_mode == "chatgpt_web"
+            and parsed.scheme in {"http", "https"}
+            and parsed.netloc.lower().endswith("chatgpt.com")
+            and parsed.path.startswith("/backend-api/")
+        ):
+            request_headers = _chatgpt_web._build_chatgpt_web_headers(
+                access_token=self.api_key,
+                accept="*/*",
+            )
+            request_headers.pop("Content-Type", None)
+
+        response = httpx.get(image_url, headers=request_headers, timeout=60.0, follow_redirects=True)
         response.raise_for_status()
+
+        content_disposition = str(response.headers.get("content-disposition") or "")
+        disposition_match = re.search(r"filename\*=UTF-8''([^;]+)", content_disposition)
+        if disposition_match:
+            disposition_name = unquote(disposition_match.group(1))
+            candidate_name = disposition_name.strip() or candidate_name
+        else:
+            fallback_match = re.search(r'filename="?([^";]+)"?', content_disposition)
+            if fallback_match:
+                candidate_name = fallback_match.group(1).strip() or candidate_name
+
+        candidate_name = re.sub(r"[^A-Za-z0-9._-]+", "-", candidate_name).strip("-._") or f"chatgpt-web-image-{uuid.uuid4().hex[:8]}.png"
 
         suffix = Path(candidate_name).suffix.lower()
         if not suffix:
