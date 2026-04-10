@@ -15,7 +15,7 @@ import copy
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from hermes_cli.curses_ui import MenuNavigationEvent, MenuNavigationStart
 # Config helpers are re-exported (tests patch them on this module). display_hermes_home is
@@ -23,11 +23,12 @@ from hermes_cli.curses_ui import MenuNavigationEvent, MenuNavigationStart
 from hermes_cli.config import (
     cfg_get, DEFAULT_CONFIG, get_hermes_home, get_config_path, get_env_path, load_config, save_config,
     save_env_value, remove_env_value, get_env_value, ensure_hermes_home,
+    resolve_turn_limit, TURN_LIMIT_UNLIMITED,
 )
 from hermes_cli.colors import Colors, color
 from hermes_cli.cli_output import print_error, print_info, print_success, print_warning
 from hermes_cli.secret_prompt import masked_secret_prompt
-from iteration_limits import format_iteration_limit, is_unlimited_iteration_limit, parse_iteration_limit
+from iteration_limits import is_unlimited_iteration_limit
 
 logger = logging.getLogger(__name__)
 
@@ -454,6 +455,12 @@ _SESSION_RESET_CHOICES = [
 _SESSION_RESET_MODES = ("both", "idle", "daily", "none")  # index 4 = keep current
 
 
+def _format_setup_turn_limit(value: Any) -> str:
+    """Display the integer runtime sentinel as a human-readable unlimited value."""
+    limit = TURN_LIMIT_UNLIMITED if is_unlimited_iteration_limit(value) else resolve_turn_limit(value)
+    return "unlimited" if limit == TURN_LIMIT_UNLIMITED else str(limit)
+
+
 def setup_agent_settings(config: dict):
     """Configure agent behavior: iterations, progress display, compression, session reset."""
     print_header("Agent Settings")
@@ -462,21 +469,27 @@ def setup_agent_settings(config: dict):
     # ── Max Iterations ── (config.yaml is authoritative; never surface a stale legacy .env value)
     # If a legacy .env entry is still around (from pre-PR#18413 setups), prefer the config value so we don't
     # surface a stale number to the user.
-    current_max = format_iteration_limit(cfg_get(config, "agent", "max_turns", default=90))
+    current_max = _format_setup_turn_limit(cfg_get(config, "agent", "max_turns", default=90))
     _info("Maximum tool-calling iterations per conversation.",
           "Higher = more complex tasks, but costs more tokens.",
+          "Enter 'unlimited' to remove the iteration cap; usage costs can continue growing.",
           f"Press Enter to keep {current_max}. Use 90 for most tasks or 150+ for open exploration.")
     try:
-        max_iter = parse_iteration_limit(prompt("Max iterations", current_max), default=90)
-        if not is_unlimited_iteration_limit(max_iter) and int(max_iter) <= 0:
-            raise ValueError("max iterations must be positive")
-        stored_value = sys.maxsize if is_unlimited_iteration_limit(max_iter) else int(max_iter)
+        entered = prompt("Max iterations", current_max).strip()
+        if is_unlimited_iteration_limit(entered) or entered.lower() in {"null", "∞"}:
+            max_iter = resolve_turn_limit("unlimited")
+        else:
+            numeric = int(entered)
+            if numeric <= 0:
+                raise ValueError("max iterations must be positive")
+            max_iter = resolve_turn_limit(numeric)
+        stored_value = "unlimited" if max_iter == TURN_LIMIT_UNLIMITED else max_iter
         # config.yaml only; gateway/run.py derives HERMES_MAX_ITERATIONS from agent.max_turns.
         config.setdefault("agent", {})["max_turns"] = stored_value
         config.pop("max_turns", None)
         remove_env_value("HERMES_MAX_ITERATIONS")
-        print_success(f"Max iterations set to {format_iteration_limit(stored_value)}")
-    except (TypeError, ValueError):
+        print_success(f"Max iterations set to {_format_setup_turn_limit(stored_value)}")
+    except (TypeError, ValueError, OverflowError):
         print_warning("Invalid value, keeping current setting")
 
     # ── Tool Progress Display ──
