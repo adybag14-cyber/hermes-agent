@@ -2466,12 +2466,23 @@ class AIAgent:
             return ""
         if (("yes/no" in lowered) or ("yes or no" in lowered)) and "matching path" in lowered:
             return "yes_no_path"
-        if "answer only the path" in lowered or "answer only path" in lowered:
+        if (
+            "answer only the path" in lowered
+            or "answer only path" in lowered
+            or "answer only the saved path" in lowered
+            or "answer only saved path" in lowered
+        ):
             return "path"
         if "answer only the result" in lowered or "answer only the output" in lowered:
             return "result"
         if "answer only yes/no" in lowered or "answer only yes or no" in lowered:
             return "yes_no"
+        if "answer only the value" in lowered or "answer only value" in lowered:
+            return "value"
+        if "answer only saved" in lowered:
+            return "saved"
+        if "answer only created" in lowered:
+            return "created"
         return ""
 
     def _chatgpt_web_final_answer_example(self, original_request: str) -> str:
@@ -2512,6 +2523,25 @@ class AIAgent:
         lines = [line.strip() for line in stripped.splitlines() if line.strip()]
         if len(lines) == 1 and lines[0] and not any(ch in lines[0] for ch in "<>`"):
             return lines[0].strip('"\'')
+        return None
+
+    @staticmethod
+    def _chatgpt_web_extract_simple_value(text: str) -> Optional[str]:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        stripped = text.strip()
+        quoted = re.findall(r'"([^"]+)"', stripped)
+        if quoted:
+            return quoted[-1].strip()
+        single_quoted = re.findall(r"'([^']+)'", stripped)
+        if single_quoted:
+            return single_quoted[-1].strip()
+        value_match = re.search(r"\b(?:is|as|saved as)\s+([A-Za-z0-9._-]+)\b", stripped, re.IGNORECASE)
+        if value_match:
+            return value_match.group(1).strip().rstrip('.,;:!')
+        lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+        if len(lines) == 1 and lines[0] and re.fullmatch(r"[A-Za-z0-9._-]+", lines[0]):
+            return lines[0]
         return None
 
     @staticmethod
@@ -2595,27 +2625,190 @@ class AIAgent:
             if isinstance(item, dict) and item.get("role") == "tool":
                 last_tool_content = str(item.get("content") or "")
                 break
-        if not last_tool_content:
-            return repaired
 
-        tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content)
+        tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
         if mode == "path":
-            path = self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) or self._chatgpt_web_extract_path_candidate(repaired)
+            path = (
+                self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
+            ) or self._chatgpt_web_extract_path_candidate(repaired)
             return path or repaired
         if mode == "result":
-            result = self._chatgpt_web_extract_simple_result(repaired) or self._chatgpt_web_extract_result_from_tool_payload(tool_payload, last_tool_content)
+            result = self._chatgpt_web_extract_simple_result(repaired) or (
+                self._chatgpt_web_extract_result_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
+            )
             return result or repaired
         if mode == "yes_no":
             verdict = self._chatgpt_web_extract_yes_no(repaired) or self._chatgpt_web_extract_yes_no_from_tool_payload(tool_payload)
             return verdict or repaired
         if mode == "yes_no_path":
             verdict = self._chatgpt_web_extract_yes_no(repaired) or self._chatgpt_web_extract_yes_no_from_tool_payload(tool_payload)
-            path = self._chatgpt_web_extract_path_candidate(repaired) or self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content)
+            path = self._chatgpt_web_extract_path_candidate(repaired) or (
+                self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
+            )
             if verdict == "no":
                 return "no"
             if path:
                 return f"yes\n{path}"
+        if mode == "value":
+            value = self._chatgpt_web_extract_simple_value(repaired)
+            return value or repaired
+        if mode == "saved":
+            if isinstance(tool_payload, dict) and tool_payload.get("success") is True:
+                return "saved"
+            if last_tool_content and ("entry added" in last_tool_content.lower() or "saved" in last_tool_content.lower()):
+                return "saved"
+            if "saved" in repaired.lower():
+                return "saved"
+        if mode == "created":
+            if last_tool_content and (" created" in last_tool_content.lower() or " updated" in last_tool_content.lower()):
+                return "created"
+            if "created" in repaired.lower() or "updated" in repaired.lower():
+                return "created"
         return repaired
+
+    @staticmethod
+    def _chatgpt_web_extract_image_input_path(text: str) -> Optional[str]:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        match = re.search(r"((?:~|/)?[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|gif))", text, re.IGNORECASE)
+        if not match:
+            return None
+        return match.group(1).strip().strip('"\'`')
+
+    @staticmethod
+    def _chatgpt_web_sanitize_skill_name(name: str) -> str:
+        sanitized = re.sub(r"[^a-z0-9_-]+", "-", str(name or "").strip().lower())
+        sanitized = sanitized.strip("-_")
+        return sanitized[:64]
+
+    def _chatgpt_web_build_skill_content(self, name: str, description: str) -> str:
+        clean_name = self._chatgpt_web_sanitize_skill_name(name) or "chatgpt-web-temp-skill"
+        clean_desc = (description or "Temporary skill created from a ChatGPT Web request.").strip()
+        body_desc = clean_desc.rstrip(".") + "."
+        return (
+            f"---\n"
+            f"name: {clean_name}\n"
+            f"description: {clean_desc}\n"
+            f"version: 1.0.0\n"
+            f"author: Hermes Agent\n"
+            f"license: MIT\n"
+            f"---\n\n"
+            f"# {clean_name}\n\n"
+            f"{body_desc}\n"
+        )
+
+    @staticmethod
+    def _chatgpt_web_default_image_download_dir() -> Path:
+        termux_dir = Path.home() / "storage" / "downloads" / "chatgpt-web-images"
+        if termux_dir.parent.exists():
+            return termux_dir
+        return get_hermes_home() / "downloads" / "chatgpt-web-images"
+
+    def _chatgpt_web_requested_image_download_dir(self, original_request: str) -> Optional[Path]:
+        if not isinstance(original_request, str) or not original_request.strip():
+            return None
+        lowered = original_request.lower()
+        if not any(keyword in lowered for keyword in ("save", "download", "store", "upload")):
+            return None
+        explicit_path = re.search(r"\b(?:save|download|store|upload)(?:\s+it)?\s+to\s+([~/][A-Za-z0-9_./-]+)", original_request, re.IGNORECASE)
+        if explicit_path:
+            return Path(os.path.expanduser(explicit_path.group(1).strip().rstrip('.,;:!')))
+        if "downloads" in lowered or "chatgpt-web-images" in lowered or "chatgpt web images" in lowered:
+            return self._chatgpt_web_default_image_download_dir()
+        return None
+
+    @staticmethod
+    def _chatgpt_web_extract_image_url_from_text(text: str) -> Optional[str]:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        markdown_match = re.search(r"!\[[^\]]*\]\((https?://[^)\s]+)\)", text)
+        if markdown_match:
+            return markdown_match.group(1)
+        bare_match = re.search(r"(https?://\S+?\.(?:png|jpe?g|gif|webp)(?:\?\S*)?)", text, re.IGNORECASE)
+        if bare_match:
+            return bare_match.group(1)
+        return None
+
+    def _chatgpt_web_extract_generated_image_url(self, final_response: str, messages: list[dict[str, Any]]) -> Optional[str]:
+        direct = self._chatgpt_web_extract_image_url_from_text(final_response)
+        if direct:
+            return direct
+        for item in reversed(messages):
+            if not isinstance(item, dict) or item.get("role") != "tool":
+                continue
+            tool_content = str(item.get("content") or "")
+            tool_payload = self._chatgpt_web_parse_tool_payload(tool_content)
+            if isinstance(tool_payload, dict):
+                image_url = tool_payload.get("image")
+                if isinstance(image_url, str) and image_url.strip():
+                    return image_url.strip()
+                images = tool_payload.get("images")
+                if isinstance(images, list):
+                    for image in images:
+                        if isinstance(image, str) and image.strip():
+                            return image.strip()
+                        if isinstance(image, dict):
+                            candidate = image.get("url")
+                            if isinstance(candidate, str) and candidate.strip():
+                                return candidate.strip()
+            fallback = self._chatgpt_web_extract_image_url_from_text(tool_content)
+            if fallback:
+                return fallback
+        return None
+
+    def _chatgpt_web_download_image_to_dir(self, image_url: str, target_dir: Path) -> Path:
+        import httpx
+        from urllib.parse import urlparse
+
+        target_dir = Path(target_dir).expanduser()
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        parsed = urlparse(str(image_url or ""))
+        candidate_name = Path(parsed.path).name or f"chatgpt-web-image-{uuid.uuid4().hex[:8]}.png"
+        candidate_name = re.sub(r"[^A-Za-z0-9._-]+", "-", candidate_name).strip("-._") or f"chatgpt-web-image-{uuid.uuid4().hex[:8]}.png"
+
+        response = httpx.get(image_url, timeout=60.0, follow_redirects=True)
+        response.raise_for_status()
+
+        suffix = Path(candidate_name).suffix.lower()
+        if not suffix:
+            content_type = str(response.headers.get("content-type") or "").lower()
+            if "jpeg" in content_type or "jpg" in content_type:
+                suffix = ".jpg"
+            elif "webp" in content_type:
+                suffix = ".webp"
+            elif "gif" in content_type:
+                suffix = ".gif"
+            else:
+                suffix = ".png"
+            candidate_name += suffix
+
+        destination = target_dir / candidate_name
+        if destination.exists():
+            destination = target_dir / f"{destination.stem}-{uuid.uuid4().hex[:8]}{destination.suffix}"
+
+        destination.write_bytes(response.content)
+        return destination
+
+    def _chatgpt_web_postprocess_generated_image_response(
+        self,
+        original_request: str,
+        final_response: str,
+        messages: list[dict[str, Any]],
+    ) -> str:
+        download_dir = self._chatgpt_web_requested_image_download_dir(original_request)
+        if download_dir is None:
+            return final_response
+        image_url = self._chatgpt_web_extract_generated_image_url(final_response, messages)
+        if not image_url:
+            return final_response
+        try:
+            saved_path = self._chatgpt_web_download_image_to_dir(image_url, download_dir)
+        except Exception:
+            return final_response
+        if self._chatgpt_web_answer_only_mode(original_request) == "path":
+            return str(saved_path)
+        return f"{final_response}\n\nSaved image to {saved_path}"
 
     def _select_chatgpt_web_tools(self, payload_messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not self.tools:
@@ -2654,6 +2847,59 @@ class AIAgent:
 
         lowered = user_text.lower()
         heuristic_names: list[str] = []
+        image_generation_request = (
+            any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint"))
+            and any(keyword in lowered for keyword in ("image", "picture", "photo", "illustration", "drawing", "logo"))
+        )
+        image_analysis_request = bool(self._chatgpt_web_extract_image_input_path(user_text)) or any(
+            keyword in lowered for keyword in (
+                "look at this image",
+                "look at this local image",
+                "analyze this image",
+                "describe this image",
+                "what is in this image",
+                "dominant color",
+                "screenshot",
+                "photo",
+                "picture",
+            )
+        )
+        memory_request = any(
+            keyword in lowered for keyword in (
+                "remember that",
+                "remember this",
+                "save this to memory",
+                "store this in memory",
+                "don't forget",
+                "my preference",
+                "my favorite",
+                "my timezone",
+                "my name is",
+            )
+        )
+        skill_request = any(
+            keyword in lowered for keyword in (
+                "create a skill",
+                "temporary skill",
+                "save as a skill",
+                "skill named",
+                "skill called",
+                "workflow skill",
+            )
+        )
+
+        if image_generation_request:
+            image_tool = tools_by_name.get("image_generate")
+            return [image_tool] if image_tool is not None else []
+        if image_analysis_request:
+            vision_tool = tools_by_name.get("vision_analyze")
+            return [vision_tool] if vision_tool is not None else []
+        if memory_request:
+            memory_tool = tools_by_name.get("memory")
+            return [memory_tool] if memory_tool is not None else []
+        if skill_request:
+            skill_tool = tools_by_name.get("skill_manage")
+            return [skill_tool] if skill_tool is not None else []
         if any(keyword in lowered for keyword in ("working directory", "pwd", "current directory", "date", "time", "port", "process")):
             heuristic_names.append("terminal")
         if any(keyword in lowered for keyword in ("python", "script", "calculate", "math", "compute", "sum", "product", "multiply")):
@@ -2670,7 +2916,7 @@ class AIAgent:
             if tool is not None:
                 return [tool]
 
-        for name in ("search_files", "read_file", "execute_code", "terminal"):
+        for name in ("search_files", "read_file", "execute_code", "terminal", "vision_analyze", "memory", "skill_manage", "image_generate"):
             tool = tools_by_name.get(name)
             if tool is not None:
                 return [tool]
@@ -2705,6 +2951,50 @@ class AIAgent:
                     "output_mode": "files_only",
                     "limit": 20,
                 }
+
+        if tool_name == "memory":
+            remember_match = re.search(r"\bremember(?:\s+that|\s+this)?\b\s*(.+?)(?:\.\s*answer only.*)?$", user_text, re.IGNORECASE | re.DOTALL)
+            if remember_match:
+                content = remember_match.group(1).strip().rstrip(".")
+                if content:
+                    return {"action": "add", "target": "user", "content": content}
+
+        if tool_name == "skill_manage":
+            create_match = re.search(
+                r"\b(?:create|save)\s+(?:a\s+)?(?:temporary\s+)?skill\s+named\s+([A-Za-z0-9_.-]+)(?:\s+describing\s+(.+?))?(?:\.\s*answer only.*)?$",
+                user_text,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if create_match:
+                raw_name = create_match.group(1)
+                description = (create_match.group(2) or "Temporary skill created from a ChatGPT Web request.").strip().rstrip(".")
+                skill_name = self._chatgpt_web_sanitize_skill_name(raw_name)
+                if skill_name:
+                    return {
+                        "action": "create",
+                        "name": skill_name,
+                        "content": self._chatgpt_web_build_skill_content(skill_name, description),
+                    }
+
+        if tool_name == "vision_analyze":
+            image_path = self._chatgpt_web_extract_image_input_path(user_text)
+            if image_path:
+                question = re.sub(r"\.\s*answer only.*$", "", user_text, flags=re.IGNORECASE).strip()
+                return {"image_url": image_path, "question": question}
+
+        if tool_name == "image_generate":
+            if any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint")) and any(
+                keyword in lowered for keyword in ("image", "picture", "photo", "illustration", "drawing", "logo")
+            ):
+                prompt_match = re.search(
+                    r"\b(?:generate|create|draw|make|illustrate|paint)\s+(?:a|an|the)?\s*(?:square|portrait|landscape)?\s*(?:image|picture|photo|illustration|drawing|logo)?\s*(?:of\s+)?(.+?)(?:\s+and\s+(?:save|download|store)|\.\s*answer only.*|$)",
+                    user_text,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                prompt = (prompt_match.group(1).strip() if prompt_match else "").rstrip(".")
+                if prompt:
+                    aspect_ratio = "square" if "square" in lowered else ("portrait" if "portrait" in lowered else "landscape")
+                    return {"prompt": prompt, "aspect_ratio": aspect_ratio}
 
         if tool_name == "execute_code":
             expr_match = re.search(r"([0-9][0-9\s\+\-\*\/\(\)]*[\+\-\*\/][0-9\s\+\-\*\/\(\)]*)", user_text)
@@ -5148,11 +5438,14 @@ class AIAgent:
             instructions = DEFAULT_AGENT_IDENTITY
 
         self._chatgpt_web_forced_tool_call = None
-        uses_local_tool_loop = bool(self.tools)
-        if uses_local_tool_loop:
+        selected_tools: list[dict[str, Any]] = []
+        uses_local_tool_loop = False
+        if self.tools:
             payload_messages = copy.deepcopy(payload_messages)
             current_turn_messages = self._chatgpt_web_current_turn_messages(payload_messages)
             selected_tools = self._select_chatgpt_web_tools(current_turn_messages)
+            uses_local_tool_loop = bool(selected_tools)
+        if uses_local_tool_loop:
             used_tool_count = sum(
                 1 for item in current_turn_messages
                 if isinstance(item, dict) and item.get("role") == "tool"
@@ -10627,6 +10920,11 @@ class AIAgent:
                     if self.api_mode == "chatgpt_web" and self.tools:
                         original_request = self._chatgpt_web_original_user_request(messages)
                         final_response = self._chatgpt_web_repair_answer_only_response(
+                            original_request,
+                            final_response,
+                            messages,
+                        )
+                        final_response = self._chatgpt_web_postprocess_generated_image_response(
                             original_request,
                             final_response,
                             messages,
