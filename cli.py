@@ -3144,7 +3144,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin, CLITuiMix
                 ("Timeout:     ", f"{terminal_timeout}s"),
             )),
             ("Agent", (
-                ("Max Turns: ", self.max_turns),
+                ("Max Turns: ", "unlimited" if self.max_turns == sys.maxsize else str(self.max_turns)),
                 ("Toolsets:  ", ", ".join(self.enabled_toolsets) if self.enabled_toolsets else "all"),
                 ("Verbose:   ", self.verbose),
             )),

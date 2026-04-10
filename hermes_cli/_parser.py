@@ -7,6 +7,23 @@ gateway, sessions, …) is built by ``hermes_cli/subcommands/<group>.py`` and wi
 
 import argparse
 from functools import lru_cache
+from iteration_limits import is_unlimited_iteration_limit, parse_iteration_limit
+
+
+def _parse_max_turns_arg(value: str):
+    try:
+        parsed = parse_iteration_limit(value, default=None)
+        if is_unlimited_iteration_limit(parsed):
+            from hermes_cli.config import TURN_LIMIT_UNLIMITED
+
+            return TURN_LIMIT_UNLIMITED
+        if int(parsed) <= 0:
+            raise ValueError("max turns must be positive")
+        return parsed
+    except (TypeError, ValueError) as exc:
+        raise argparse.ArgumentTypeError(
+            "max turns must be a positive integer or 'unlimited'"
+        ) from exc
 
 # `--profile` / `-p` is consumed by ``main._apply_profile_override`` before argparse runs
 # (it sets ``HERMES_HOME`` and strips itself from ``sys.argv``), so it isn't on the parser.
@@ -245,8 +262,8 @@ def _build_chat_parser(subparsers) -> argparse.ArgumentParser:
         "hooks_auto_accept: in config.yaml)."))
     add("--checkpoints", action="store_true", default=False,
         help="Enable filesystem checkpoints before destructive file operations (use /rollback to restore)")
-    add("--max-turns", type=int, default=None, metavar="N",
-        help="Maximum tool-calling iterations per conversation turn (default: 500, or agent.max_turns in config)")
+    add("--max-turns", type=_parse_max_turns_arg, default=None, metavar="N|unlimited",
+        help="Maximum tool-calling iterations per conversation turn (default: unlimited, or agent.max_turns in config). Accepts 'unlimited'.")
     add("--run-budget", type=float, default=None, metavar="SECONDS", dest="run_budget", help=(
         "Optional wall-clock budget in seconds for each conversation run. "
         "At 80%% elapsed the agent gets a one-time wrap-up notice, and "

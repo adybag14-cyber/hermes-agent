@@ -2213,6 +2213,9 @@ def init_agent(
     checkpoint_max_snapshots: int = 20, checkpoint_max_total_size_mb: int = 500,
     checkpoint_max_file_size_mb: int = 10, pass_session_id: bool = False,
     requested_provider: str = None, capabilities: Optional[Dict[str, bool]] = None,
+    chatgpt_web_session_token: str = "", chatgpt_web_cookie_header: str = "",
+    chatgpt_web_browser_cookies: Any = None, chatgpt_web_user_agent: str = "",
+    chatgpt_web_device_id: str = "",
 ):
     """Initialize the AI Agent (body of :meth:`AIAgent.__init__`).
 
@@ -2263,6 +2266,12 @@ def init_agent(
     agent._chatgpt_web_conversation_id = None
     agent._chatgpt_web_parent_message_id = None
     _resolve_api_mode(agent, api_mode, provider_name, base_url)
+    from agent.chatgpt_web_transport import configure_browser_credentials
+    configure_browser_credentials(agent, {
+        "session_token": chatgpt_web_session_token, "cookie_header": chatgpt_web_cookie_header,
+        "browser_cookies": chatgpt_web_browser_cookies, "user_agent": chatgpt_web_user_agent,
+        "device_id": chatgpt_web_device_id,
+    })
     _finalize_routing(agent, api_mode, credential_pool)
 
     # Platform callbacks are stored under their parameter names verbatim.

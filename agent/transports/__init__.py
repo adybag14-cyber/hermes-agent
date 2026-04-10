@@ -15,7 +15,7 @@ from agent.transports.types import (  # noqa: F401
 
 _REGISTRY: dict = {}
 _discovered: bool = False
-_TRANSPORT_MODULES = ("anthropic", "codex", "chat_completions", "bedrock")
+_TRANSPORT_MODULES = ("anthropic", "codex", "chat_completions", "bedrock", "chatgpt_web")
 
 
 def register_transport(api_mode: str, transport_cls: type) -> None:

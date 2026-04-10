@@ -395,6 +395,22 @@ class TestValidateFormatChecks:
 
 # -- validate — API found ----------------------------------------------------
 
+class TestValidateChatGPTWebCatalog:
+    def test_uses_provider_catalog_instead_of_generic_models_probe(self):
+        with patch("hermes_cli.models.provider_model_ids", return_value=["gpt-5-thinking", "gpt-5-instant"]), \
+             patch("hermes_cli.models.fetch_api_models", side_effect=AssertionError("generic /models probe should not be used for chatgpt-web")):
+            result = validate_requested_model(
+                "gpt-5-thinking",
+                "chatgpt-web",
+                api_key="chatgpt-web-token",
+                base_url="https://chatgpt.com/backend-api/f",
+            )
+
+        assert result["accepted"] is True
+        assert result["persist"] is True
+        assert result["recognized"] is True
+        assert result["message"] is None
+
 
 # -- validate — API not found ------------------------------------------------
 

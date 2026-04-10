@@ -1262,11 +1262,12 @@ _PROVIDER_CATALOG_FETCHERS: dict[str, Any] = {
 
 
 def _chatgpt_web_catalog() -> Optional[list[str]]:
-    from hermes_cli.chatgpt_web import fetch_chatgpt_web_model_ids, resolve_chatgpt_web_runtime_credentials
+    from hermes_cli.chatgpt_web import DEFAULT_CHATGPT_WEB_MODELS, fetch_chatgpt_web_model_ids, resolve_chatgpt_web_runtime_credentials
 
     try:
         creds = resolve_chatgpt_web_runtime_credentials()
-        return fetch_chatgpt_web_model_ids(access_token=creds.get("api_key", "")) or None
+        live = fetch_chatgpt_web_model_ids(access_token=creds.get("api_key", ""))
+        return list(dict.fromkeys(mid for mid in [*live, *DEFAULT_CHATGPT_WEB_MODELS] if mid)) if live else None
     except Exception:
         return None
 

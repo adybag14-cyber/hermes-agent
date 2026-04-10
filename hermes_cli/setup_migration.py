@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from hermes_constants import get_optional_skills_dir
+from iteration_limits import format_iteration_limit
 
 logger = logging.getLogger("hermes_cli.setup")
 
@@ -72,9 +73,9 @@ def _model_summary(config: dict) -> Optional[str]:
     return "configured"
 
 
-def _cfg_summary(config: dict, section: str, key: str, default, prefix: str) -> str:
+def _cfg_summary(config: dict, section: str, key: str, default, prefix: str, formatter=str) -> str:
     from hermes_cli.setup import cfg_get
-    return f"{prefix}{cfg_get(config, section, key, default=default)}"
+    return f"{prefix}{formatter(cfg_get(config, section, key, default=default))}"
 
 
 def _gateway_summary(config: dict) -> Optional[str]:
@@ -106,7 +107,7 @@ def _tools_summary(config: dict) -> Optional[str]:
 _SECTION_SUMMARIES = {
     "model": _model_summary,
     "terminal": partial(_cfg_summary, section="terminal", key="backend", default="local", prefix="backend: "),
-    "agent": partial(_cfg_summary, section="agent", key="max_turns", default=90, prefix="max turns: "),
+    "agent": partial(_cfg_summary, section="agent", key="max_turns", default=90, prefix="max turns: ", formatter=format_iteration_limit),
     "gateway": _gateway_summary,
     "tools": _tools_summary,
 }

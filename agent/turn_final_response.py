@@ -165,6 +165,12 @@ def finish_text_response(
                 _frag.pop("_length_continuation_nudge", None)
 
     final_response = agent._strip_think_blocks(final_response).strip()
+    if agent.api_mode == "chatgpt_web" and agent.tools:
+        original_request = agent._chatgpt_web_original_user_request(messages)
+        final_response = agent._chatgpt_web_repair_answer_only_response(original_request, final_response, messages)
+        final_response = agent._chatgpt_web_repair_terminal_completion_response(original_request, final_response, messages)
+        final_response = agent._chatgpt_web_postprocess_generated_image_response(original_request, final_response, messages)
+        assistant_message.content = final_response
 
     final_msg = agent._build_assistant_message(assistant_message, finish_reason)
 

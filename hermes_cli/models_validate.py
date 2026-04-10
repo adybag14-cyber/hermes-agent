@@ -350,6 +350,15 @@ def _validate_static_catalog(req: _Request) -> Optional[dict[str, Any]]:
     )
 
 
+def _validate_chatgpt_web(req: _Request) -> Optional[dict[str, Any]]:
+    catalog = _static_catalog("chatgpt-web")
+    if not catalog:
+        return None
+    match = _match_in_catalog(req.lookup, catalog)
+    return match.verdict(req) or _reject(
+        f"`{req.requested}` was not found in the ChatGPT Web model catalog.{match.suggestion_text}")
+
+
 def _validate_minimax(req: _Request) -> Optional[dict[str, Any]]:
     """MiniMax has no /models endpoint — static catalog, case-insensitive (ids like MiniMax-M2.7).
     Returns None when the catalog is empty."""
@@ -534,6 +543,7 @@ _LADDER: tuple[tuple[Callable[[_Request], bool], Callable[[_Request], Optional[d
     (lambda req: True, _validate_ollama_native),
     (_is_custom, _validate_custom),
     (_for("openai-codex", "xai-oauth"), _validate_static_catalog),
+    (_for("chatgpt-web"), _validate_chatgpt_web),
     (_for("minimax", "minimax-cn"), _validate_minimax),
     (_for("anthropic"), _validate_anthropic),
     (lambda req: req.api_mode == "anthropic_messages", _validate_anthropic_messages),

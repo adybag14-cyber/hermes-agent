@@ -89,6 +89,16 @@ class TestMaxTurnsResolution:
 
 
 
+    def test_env_var_max_turns_accepts_unlimited(self):
+        cli_obj = _make_cli(env_overrides={"HERMES_MAX_ITERATIONS": "unlimited"})
+        assert isinstance(cli_obj.max_turns, int)
+        assert cli_obj.max_turns == sys.maxsize
+
+    def test_agent_config_max_turns_accepts_unlimited(self):
+        cli_obj = _make_cli(config_overrides={"agent": {"max_turns": "unlimited"}})
+        assert isinstance(cli_obj.max_turns, int)
+        assert cli_obj.max_turns == sys.maxsize
+
     def test_legacy_root_max_turns_is_used_when_agent_key_exists_without_value(self):
         cli_obj = _make_cli(config_overrides={"agent": {}, "max_turns": 77})
         assert cli_obj.max_turns == 77
@@ -711,6 +721,5 @@ class TestRootLevelProviderOverride:
         })
         assert result["model"]["default"] == "flat-default-model"
         assert result["model"]["provider"] == "auto"
-
 
 

@@ -1552,16 +1552,16 @@ def build_api_kwargs(agent, api_messages: list, tools_for_api: list | None = Non
 
 def _build_api_kwargs_for_mode(agent, api_messages: list, tools_for_api: list | None = None) -> dict:
     if agent.api_mode == "chatgpt_web":
-        instructions, payload_messages = agent._chatgpt_web_messages(api_messages)
-        return {
-            "model": agent.model,
-            "instructions": instructions,
-            "messages": payload_messages,
-            "conversation_id": agent._chatgpt_web_conversation_id,
-            "parent_message_id": agent._chatgpt_web_parent_message_id,
-            "timeout": agent._resolved_api_call_timeout(),
-            "history_and_training_disabled": False,
-        }
+        instructions, payload_messages, uses_local_tool_loop = agent._chatgpt_web_messages(api_messages)
+        return agent._get_transport().build_kwargs(
+            model=agent.model,
+            instructions=instructions,
+            messages=payload_messages,
+            conversation_id=None if uses_local_tool_loop else agent._chatgpt_web_conversation_id,
+            parent_message_id=None if uses_local_tool_loop else agent._chatgpt_web_parent_message_id,
+            timeout=agent._resolved_api_call_timeout(),
+            history_and_training_disabled=uses_local_tool_loop,
+        )
     # One-shot continuation override — consumed exactly once, on the FIRST
     # request this call builds (only one api_mode branch runs per invocation).
     reasoning_config = _reasoning_config_for_wire(agent)

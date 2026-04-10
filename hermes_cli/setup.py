@@ -27,6 +27,7 @@ from hermes_cli.config import (
 from hermes_cli.colors import Colors, color
 from hermes_cli.cli_output import print_error, print_info, print_success, print_warning
 from hermes_cli.secret_prompt import masked_secret_prompt
+from iteration_limits import format_iteration_limit, is_unlimited_iteration_limit, parse_iteration_limit
 
 logger = logging.getLogger(__name__)
 
@@ -461,19 +462,22 @@ def setup_agent_settings(config: dict):
     # ── Max Iterations ── (config.yaml is authoritative; never surface a stale legacy .env value)
     # If a legacy .env entry is still around (from pre-PR#18413 setups), prefer the config value so we don't
     # surface a stale number to the user.
-    current_max = str(cfg_get(config, "agent", "max_turns", default=90))
+    current_max = format_iteration_limit(cfg_get(config, "agent", "max_turns", default=90))
     _info("Maximum tool-calling iterations per conversation.",
           "Higher = more complex tasks, but costs more tokens.",
           f"Press Enter to keep {current_max}. Use 90 for most tasks or 150+ for open exploration.")
-    max_iter = _prompt_number("Max iterations", current_max)
-    if max_iter is None:
-        print_warning("Invalid number, keeping current value")
-    elif max_iter > 0:
+    try:
+        max_iter = parse_iteration_limit(prompt("Max iterations", current_max), default=90)
+        if not is_unlimited_iteration_limit(max_iter) and int(max_iter) <= 0:
+            raise ValueError("max iterations must be positive")
+        stored_value = sys.maxsize if is_unlimited_iteration_limit(max_iter) else int(max_iter)
         # config.yaml only; gateway/run.py derives HERMES_MAX_ITERATIONS from agent.max_turns.
-        config.setdefault("agent", {})["max_turns"] = max_iter
+        config.setdefault("agent", {})["max_turns"] = stored_value
         config.pop("max_turns", None)
         remove_env_value("HERMES_MAX_ITERATIONS")
-        print_success(f"Max iterations set to {max_iter}")
+        print_success(f"Max iterations set to {format_iteration_limit(stored_value)}")
+    except (TypeError, ValueError):
+        print_warning("Invalid value, keeping current setting")
 
     # ── Tool Progress Display ──
     _info("", *_TOOL_PROGRESS_HELP)

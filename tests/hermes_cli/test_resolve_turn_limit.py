@@ -12,6 +12,37 @@ import pytest
 from hermes_cli.config import resolve_turn_limit, TURN_LIMIT_UNLIMITED
 
 
+class TestCliTurnLimitRoundTrip:
+    @pytest.mark.parametrize("spelling", ["unlimited", "inf", "no-limit"])
+    def test_unlimited_parser_result_is_compatible_with_runtime(self, spelling):
+        from hermes_cli._parser import build_top_level_parser
+
+        parser, _, _ = build_top_level_parser()
+        args = parser.parse_args(["chat", "--max-turns", spelling])
+
+        assert isinstance(args.max_turns, int)
+        assert resolve_turn_limit(args.max_turns) == TURN_LIMIT_UNLIMITED
+        assert resolve_turn_limit(str(args.max_turns)) == TURN_LIMIT_UNLIMITED
+
+    def test_positive_parser_result_is_compatible_with_runtime(self):
+        from hermes_cli._parser import build_top_level_parser
+
+        parser, _, _ = build_top_level_parser()
+        args = parser.parse_args(["chat", "--max-turns", "17"])
+
+        assert resolve_turn_limit(args.max_turns) == 17
+
+    @pytest.mark.parametrize("value", ["0", "-2", "not-a-number", ""])
+    def test_invalid_cli_limits_are_rejected(self, value):
+        from hermes_cli._parser import build_top_level_parser
+
+        parser, _, _ = build_top_level_parser()
+        with pytest.raises(SystemExit) as exc:
+            parser.parse_args(["chat", f"--max-turns={value}"])
+
+        assert exc.value.code == 2
+
+
 class TestNumericValues:
     def test_int_passthrough(self):
         assert resolve_turn_limit(90) == 90

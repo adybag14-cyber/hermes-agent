@@ -272,6 +272,9 @@ class AIAgent(
         checkpoint_max_total_size_mb: int = 500, checkpoint_max_file_size_mb: int = 10,
         pass_session_id: bool = False, requested_provider: str = None,
         capabilities: Dict[str, bool] | None = None,
+        chatgpt_web_session_token: str = "", chatgpt_web_cookie_header: str = "",
+        chatgpt_web_browser_cookies: Any = None, chatgpt_web_user_agent: str = "",
+        chatgpt_web_device_id: str = "",
     ):
         """Forwarder — see ``agent.agent_init.init_agent`` (same keyword parameters, minus ``tool_delay``)."""
         init_kwargs = {k: v for k, v in locals().items() if k not in ("self", "tool_delay")}
