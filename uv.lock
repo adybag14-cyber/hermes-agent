@@ -1977,7 +1977,7 @@ dependencies = [
     { name = "requests" },
     { name = "rich" },
     { name = "tenacity" },
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
+    { name = "tzdata" },
     { name = "websockets" },
 ]
 
