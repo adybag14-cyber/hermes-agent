@@ -2355,6 +2355,10 @@ class AIAgent:
             return "saved"
         if "answer only created" in lowered:
             return "created"
+        if "answer only removed" in lowered:
+            return "removed"
+        if "answer only deleted" in lowered:
+            return "deleted"
         return ""
 
     def _chatgpt_web_final_answer_example(self, original_request: str) -> str:
@@ -2367,6 +2371,10 @@ class AIAgent:
             return "Final answer format example:\nyes"
         if mode == "yes_no_path":
             return "Final answer format example when a match exists:\nyes\nrun_agent.py\nIf no match exists, answer:\nno"
+        if mode == "removed":
+            return "Final answer format example:\nremoved"
+        if mode == "deleted":
+            return "Final answer format example:\ndeleted"
         return ""
 
     @staticmethod
@@ -2540,16 +2548,55 @@ class AIAgent:
                 return "created"
             if "created" in repaired.lower() or "updated" in repaired.lower():
                 return "created"
+        if mode == "removed":
+            if isinstance(tool_payload, dict) and tool_payload.get("success") is True:
+                return "removed"
+            if last_tool_content and ("removed" in last_tool_content.lower() or "deleted" in last_tool_content.lower()):
+                return "removed"
+            if "removed" in repaired.lower() or "deleted" in repaired.lower():
+                return "removed"
+        if mode == "deleted":
+            if last_tool_content and ("deleted" in last_tool_content.lower() or "removed" in last_tool_content.lower()):
+                return "deleted"
+            if "deleted" in repaired.lower() or "removed" in repaired.lower():
+                return "deleted"
         return repaired
 
     @staticmethod
-    def _chatgpt_web_extract_image_input_path(text: str) -> Optional[str]:
+    def _chatgpt_web_extract_local_path(text: str, *, extensions: Optional[tuple[str, ...]] = None) -> Optional[str]:
         if not isinstance(text, str) or not text.strip():
             return None
-        match = re.search(r"((?:~|/)?[A-Za-z0-9_./-]+\.(?:png|jpe?g|webp|gif))", text, re.IGNORECASE)
-        if not match:
-            return None
-        return match.group(1).strip().strip('"\'`')
+        stripped = text.strip()
+        candidates: list[str] = []
+        for pattern in (
+            r'"((?:~|/)[^"\n]+)"',
+            r"'((?:~|/)[^'\n]+)'",
+            r"`((?:~|/)[^`\n]+)`",
+            r"(?<![A-Za-z0-9_.-])((?:~|/)[A-Za-z0-9_./-]+)",
+        ):
+            for match in re.finditer(pattern, stripped):
+                candidate = match.group(1).strip().rstrip('.,;:!')
+                if candidate:
+                    candidates.append(candidate)
+        seen: set[str] = set()
+        for candidate in candidates:
+            normalized = os.path.expanduser(candidate)
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            if extensions is not None:
+                lowered = normalized.lower()
+                if not lowered.endswith(tuple(ext.lower() for ext in extensions)):
+                    continue
+            return normalized
+        return None
+
+    @staticmethod
+    def _chatgpt_web_extract_image_input_path(text: str) -> Optional[str]:
+        return AIAgent._chatgpt_web_extract_local_path(
+            text,
+            extensions=(".png", ".jpg", ".jpeg", ".webp", ".gif"),
+        )
 
     @staticmethod
     def _chatgpt_web_sanitize_skill_name(name: str) -> str:
@@ -2751,6 +2798,7 @@ class AIAgent:
 
         lowered = user_text.lower()
         heuristic_names: list[str] = []
+        explicit_local_path = self._chatgpt_web_extract_local_path(user_text)
         image_generation_request = (
             any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint"))
             and any(keyword in lowered for keyword in ("image", "picture", "photo", "illustration", "drawing", "logo"))
@@ -2775,6 +2823,10 @@ class AIAgent:
                 "save this to memory",
                 "store this in memory",
                 "don't forget",
+                "forget that",
+                "forget this",
+                "remove from memory",
+                "delete from memory",
                 "my preference",
                 "my favorite",
                 "my timezone",
@@ -2798,6 +2850,14 @@ class AIAgent:
         if image_analysis_request:
             vision_tool = tools_by_name.get("vision_analyze")
             return [vision_tool] if vision_tool is not None else []
+        if explicit_local_path and any(keyword in lowered for keyword in ("read", "first line", "exact def line", "open the file", "show the file")):
+            read_tool = tools_by_name.get("read_file")
+            if read_tool is not None:
+                return [read_tool]
+        if explicit_local_path and any(keyword in lowered for keyword in ("contains exactly", "with content", "containing")):
+            write_tool = tools_by_name.get("write_file")
+            if write_tool is not None:
+                return [write_tool]
         if memory_request:
             memory_tool = tools_by_name.get("memory")
             return [memory_tool] if memory_tool is not None else []
@@ -2808,10 +2868,12 @@ class AIAgent:
             heuristic_names.append("terminal")
         if any(keyword in lowered for keyword in ("python", "script", "calculate", "math", "compute", "sum", "product", "multiply")):
             heuristic_names.append("execute_code")
-        if any(keyword in lowered for keyword in ("find", "search", "grep", "file", "files", "path", "repo", "symbol")):
+        if any(keyword in lowered for keyword in ("find", "search", "grep", "file", "files", "path", "repo", "symbol", "definition")):
             heuristic_names.extend(["search_files", "read_file"])
         if any(keyword in lowered for keyword in ("shell", "command", "run ")):
             heuristic_names.append("terminal")
+        if explicit_local_path and any(keyword in lowered for keyword in ("edit", "modify", "change", "patch", "fix", "write")) and "contains exactly" in lowered:
+            heuristic_names.append("write_file")
         if any(keyword in lowered for keyword in ("edit", "modify", "change", "patch", "fix", "write")):
             heuristic_names.extend(["patch", "write_file"])
 
@@ -2836,18 +2898,28 @@ class AIAgent:
             if isinstance(msg, dict) and msg.get("role") == "user"
         )
         lowered = user_text.lower()
+        explicit_local_path = self._chatgpt_web_extract_local_path(user_text)
+        relative_path_match = re.search(r"\b([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)\b", user_text)
+        path_match = explicit_local_path or (relative_path_match.group(1) if relative_path_match else None)
+        last_tool_content = ""
+        for item in reversed(payload_messages):
+            if isinstance(item, dict) and item.get("role") == "tool":
+                last_tool_content = str(item.get("content") or "")
+                break
+        last_tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
 
         if tool_name == "search_files":
-            path_match = re.search(r"([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)", user_text)
             symbol_match = re.search(r"\bfor\s+([A-Za-z_][A-Za-z0-9_]*)", user_text)
-            if ("grep" in lowered or "symbol" in lowered or "search" in lowered) and path_match and symbol_match:
+            if not symbol_match:
+                symbol_match = re.search(r"\bdefinition\s+of\s+([A-Za-z_][A-Za-z0-9_]*)", user_text, re.IGNORECASE)
+            if path_match and symbol_match and any(keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition")):
                 return {
                     "pattern": symbol_match.group(1),
                     "target": "content",
-                    "path": path_match.group(1),
+                    "path": path_match,
                 }
             if "find" in lowered or "file named" in lowered or "named" in lowered:
-                filename = path_match.group(1) if path_match else "*.py"
+                filename = path_match or "*.py"
                 return {
                     "pattern": filename,
                     "target": "files",
@@ -2856,7 +2928,27 @@ class AIAgent:
                     "limit": 20,
                 }
 
+        if tool_name == "read_file":
+            if isinstance(last_tool_payload, dict):
+                matches = last_tool_payload.get("matches")
+                if isinstance(matches, list) and matches:
+                    first = matches[0]
+                    if isinstance(first, dict):
+                        match_path = str(first.get("path") or "").strip()
+                        match_line = first.get("line")
+                        if match_path:
+                            offset = int(match_line) if isinstance(match_line, int) and match_line > 0 else 1
+                            return {"path": match_path, "offset": offset, "limit": 1}
+            if explicit_local_path and any(keyword in lowered for keyword in ("read", "first line", "line", "open", "show")):
+                limit = 1 if any(keyword in lowered for keyword in ("first line", "exact def line", "exact line")) else 20
+                return {"path": explicit_local_path, "offset": 1, "limit": limit}
+
         if tool_name == "memory":
+            forget_match = re.search(r"\b(?:forget|remove|delete)(?:\s+that|\s+this)?\b\s*(.+?)(?:\.\s*answer only.*)?$", user_text, re.IGNORECASE | re.DOTALL)
+            if forget_match:
+                old_text = forget_match.group(1).strip().rstrip(".")
+                if old_text:
+                    return {"action": "remove", "target": "user", "old_text": old_text}
             remember_match = re.search(r"\bremember(?:\s+that|\s+this)?\b\s*(.+?)(?:\.\s*answer only.*)?$", user_text, re.IGNORECASE | re.DOTALL)
             if remember_match:
                 content = remember_match.group(1).strip().rstrip(".")
@@ -2864,6 +2956,15 @@ class AIAgent:
                     return {"action": "add", "target": "user", "content": content}
 
         if tool_name == "skill_manage":
+            delete_match = re.search(
+                r"\bdelete\s+(?:the\s+)?(?:temporary\s+)?skill\s+named\s+([A-Za-z0-9_.-]+)(?:\.\s*answer only.*)?$",
+                user_text,
+                re.IGNORECASE | re.DOTALL,
+            )
+            if delete_match:
+                skill_name = self._chatgpt_web_sanitize_skill_name(delete_match.group(1))
+                if skill_name:
+                    return {"action": "delete", "name": skill_name}
             create_match = re.search(
                 r"\b(?:create|save)\s+(?:a\s+)?(?:temporary\s+)?skill\s+named\s+([A-Za-z0-9_.-]+)(?:\s+describing\s+(.+?))?(?:\.\s*answer only.*)?$",
                 user_text,
@@ -2885,6 +2986,17 @@ class AIAgent:
             if image_path:
                 question = re.sub(r"\.\s*answer only.*$", "", user_text, flags=re.IGNORECASE).strip()
                 return {"image_url": image_path, "question": question}
+
+        if tool_name == "write_file":
+            if explicit_local_path:
+                content_match = re.search(r"contains exactly\s+(.+?)(?:\s+on one line|\.\s*then answer only.*|\.\s*answer only.*|$)", user_text, re.IGNORECASE | re.DOTALL)
+                if not content_match:
+                    content_match = re.search(r"(?:with content|containing)\s+(.+?)(?:\.\s*then answer only.*|\.\s*answer only.*|$)", user_text, re.IGNORECASE | re.DOTALL)
+                if content_match:
+                    content = content_match.group(1).strip().strip('"\'`')
+                    if "on one line" in lowered and not content.endswith("\n"):
+                        content += "\n"
+                    return {"path": explicit_local_path, "content": content}
 
         if tool_name == "image_generate":
             if any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint")) and any(
@@ -2911,6 +3023,13 @@ class AIAgent:
                 return {"command": "pwd"}
             if "date" in lowered or "time" in lowered:
                 return {"command": "date"}
+            command_match = re.search(r"\brun\s+(.+?)(?:\.\s*answer only.*|$)", user_text, re.IGNORECASE | re.DOTALL)
+            if not command_match:
+                command_match = re.search(r"`([^`]+)`", user_text)
+            if command_match:
+                command = command_match.group(1).strip().strip('"\'`').rstrip('.')
+                if command:
+                    return {"command": command}
 
         return None
 
