@@ -4153,9 +4153,9 @@ class AIAgent:
             path = self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
             return path or repaired
         if mode == "line":
-            line = self._chatgpt_web_extract_exact_line_from_text(repaired) or (
+            line = (
                 self._chatgpt_web_extract_line_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
-            )
+            ) or self._chatgpt_web_extract_exact_line_from_text(repaired)
             return line or repaired
         if mode == "result":
             result = self._chatgpt_web_extract_simple_result(repaired) or (
@@ -4246,6 +4246,7 @@ class AIAgent:
         stopwords = {"and", "the", "a", "an", "where", "with", "this", "that", "it"}
         patterns = (
             r"\bdefinition\s+of\s+[`\"']?([A-Za-z_][A-Za-z0-9_]*)",
+            r"\bwhere\s+[`\"']?([A-Za-z_][A-Za-z0-9_]*)\s+is\s+defined",
             r"\b(?:define|defines|defined)\s+[`\"']?([A-Za-z_][A-Za-z0-9_]*)",
             r"\bfor\s+([A-Za-z_][A-Za-z0-9_]*)",
         )
@@ -4514,6 +4515,15 @@ class AIAgent:
         if image_analysis_request:
             vision_tool = tools_by_name.get("vision_analyze")
             return [vision_tool] if vision_tool is not None else []
+        if used_tool_count > 0 and self._chatgpt_web_answer_only_mode(user_text) == "line":
+            last_tool_content = ""
+            for item in reversed(payload_messages):
+                if isinstance(item, dict) and item.get("role") == "tool":
+                    last_tool_content = str(item.get("content") or "")
+                    break
+            last_tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
+            if self._chatgpt_web_extract_line_from_tool_payload(last_tool_payload, last_tool_content):
+                return []
         if used_tool_count == 0 and path_match and explicit_symbol_target and any(
             keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
         ):
@@ -4774,6 +4784,32 @@ class AIAgent:
             + json.dumps({"name": tool_name, "arguments": args}, ensure_ascii=False)
             + "\n</tool_call>"
         )
+
+    def _chatgpt_web_should_force_followup_tool_call(
+        self,
+        payload_messages: list[dict[str, Any]],
+        tool_name: str,
+        tool_args: Optional[dict[str, Any]],
+    ) -> bool:
+        if tool_name != "read_file" or not isinstance(tool_args, dict):
+            return False
+        if not str(tool_args.get("path") or "").strip():
+            return False
+        last_tool_content = ""
+        for item in reversed(payload_messages):
+            if isinstance(item, dict) and item.get("role") == "tool":
+                last_tool_content = str(item.get("content") or "")
+                break
+        tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
+        if not isinstance(tool_payload, dict):
+            return False
+        if bool(tool_payload.get("truncated")):
+            return True
+        matches = tool_payload.get("matches")
+        original_request = self._chatgpt_web_original_user_request(payload_messages)
+        if self._chatgpt_web_answer_only_mode(original_request) == "line":
+            return False
+        return isinstance(matches, list) and bool(matches)
 
     def _format_tools_for_chatgpt_web(self, tools: Optional[list[dict[str, Any]]] = None) -> str:
         selected_tools = tools if tools is not None else self.tools
@@ -7340,7 +7376,7 @@ class AIAgent:
                 timeout=get_provider_request_timeout(self.provider, self.model),
                 drop_context_1m_beta=_drop_1m,
             )
-    def _chatgpt_web_messages(self, api_messages: list) -> tuple[str, list[dict[str, Any]]]:
+    def _chatgpt_web_messages(self, api_messages: list) -> tuple[str, list[dict[str, Any]], bool]:
         instructions = ""
         payload_messages = api_messages
         if api_messages and api_messages[0].get("role") == "system":
@@ -7348,25 +7384,121 @@ class AIAgent:
             payload_messages = api_messages[1:]
         if not instructions:
             instructions = DEFAULT_AGENT_IDENTITY
+
+        self._chatgpt_web_forced_tool_call = None
+        selected_tools: list[dict[str, Any]] = []
+        uses_local_tool_loop = False
+        current_turn_messages = payload_messages
         if self.tools:
-            instructions = (
-                instructions.rstrip()
-                + "\n\nImportant runtime limitation: this ChatGPT Web transport currently does not support Hermes tool calls. "
-                  "Never claim to have run a tool or accessed live system state through a tool."
+            payload_messages = copy.deepcopy(payload_messages)
+            current_turn_messages = self._chatgpt_web_current_turn_messages(payload_messages)
+            selected_tools = self._select_chatgpt_web_tools(current_turn_messages)
+            uses_local_tool_loop = bool(selected_tools)
+        if uses_local_tool_loop:
+            used_tool_count = sum(
+                1 for item in current_turn_messages
+                if isinstance(item, dict) and item.get("role") == "tool"
             )
-        if self._chatgpt_web_conversation_id and payload_messages:
+            tool_protocol = self._chatgpt_web_tool_protocol(selected_tools).strip()
+            base_instructions = instructions.strip() or DEFAULT_AGENT_IDENTITY
+            instructions = f"{base_instructions}\n\n{tool_protocol}" if tool_protocol else base_instructions
+            selected_tool_names = [
+                str(tool.get("function", {}).get("name") or "").strip()
+                for tool in selected_tools
+                if isinstance(tool, dict) and isinstance(tool.get("function"), dict)
+            ]
+            selected_tool_names = [name for name in selected_tool_names if name]
+            selected_tool_text = ", ".join(selected_tool_names)
+            selected_tool_args = self._chatgpt_web_tool_args(selected_tool_names[0], current_turn_messages) if selected_tool_names else None
+            selected_tool_hint = (
+                "Use these exact arguments for this turn: " + json.dumps(selected_tool_args, ensure_ascii=False)
+                if selected_tool_args is not None else ""
+            )
+            selected_tool_example = (
+                "<tool_call>\n"
+                + json.dumps({"name": selected_tool_names[0], "arguments": selected_tool_args}, ensure_ascii=False)
+                + "\n</tool_call>"
+                if selected_tool_names and selected_tool_args is not None else ""
+            )
+            if selected_tool_names and selected_tool_args is not None and (
+                used_tool_count == 0
+                or self._chatgpt_web_should_force_followup_tool_call(current_turn_messages, selected_tool_names[0], selected_tool_args)
+            ):
+                self._chatgpt_web_forced_tool_call = {
+                    "name": selected_tool_names[0],
+                    "arguments": selected_tool_args,
+                }
+            original = self._chatgpt_web_original_user_request(payload_messages)
+            final_answer_example = self._chatgpt_web_final_answer_example(original)
+            for item in reversed(current_turn_messages):
+                if isinstance(item, dict) and item.get("role") == "user":
+                    if original:
+                        reminder_lines = [f"The tool available for this turn is: {selected_tool_text}."] if selected_tool_text else []
+                        if used_tool_count == 0 or self._chatgpt_web_forced_tool_call is not None:
+                            reminder_lines.extend([
+                                "Hermes has already determined that another tool call is required before the final answer."
+                                if used_tool_count
+                                else "Hermes has already determined that this turn requires a tool call.",
+                                "Do not answer the user yet.",
+                                "Your next reply must be EXACTLY ONE <tool_call>...</tool_call> block with no explanatory prose before or after it.",
+                            ])
+                            if selected_tool_hint:
+                                reminder_lines.append(selected_tool_hint)
+                            if selected_tool_example:
+                                reminder_lines.append("Reply now with this exact structure:")
+                                reminder_lines.append(selected_tool_example)
+                        else:
+                            reminder_lines.extend([
+                                "You have already received at least one <tool_response>.",
+                                "If another tool is still required, emit EXACTLY ONE <tool_call>...</tool_call> block.",
+                                "Otherwise, give the final answer directly with no extra tool-call markup.",
+                                "When you give the final answer, follow the original user's requested output format exactly, including any 'answer only' constraint.",
+                                "Do not add preambles, extra prose, commas, or quotes unless the user explicitly requested them.",
+                            ])
+                            if final_answer_example:
+                                reminder_lines.append(final_answer_example)
+                            if selected_tool_hint:
+                                reminder_lines.append(selected_tool_hint)
+                        item["content"] = (
+                            f"Original user request:\n{original}\n\nRuntime reminder:\n"
+                            + "\n".join(reminder_lines)
+                        )
+                    break
+
+        if self._chatgpt_web_conversation_id and payload_messages and not uses_local_tool_loop:
             latest_user = None
             for item in reversed(payload_messages):
                 if isinstance(item, dict) and item.get("role") == "user":
                     latest_user = item
                     break
             payload_messages = [latest_user] if latest_user else payload_messages[-1:]
-        return instructions, payload_messages
+        return instructions, payload_messages, uses_local_tool_loop
 
     def _wrap_chatgpt_web_response(self, result: dict[str, Any]):
         message_text = str(result.get("content") or "")
         finish_reason = str(result.get("finish_reason") or "stop")
-        assistant_message = SimpleNamespace(content=message_text, tool_calls=None, role="assistant")
+        tool_calls = None
+        forced_tool_call = self._chatgpt_web_forced_tool_call
+        self._chatgpt_web_forced_tool_call = None
+        if self.tools and message_text:
+            extracted_tool_calls, cleaned_text = _extract_xml_tool_calls_from_text(message_text)
+            if extracted_tool_calls:
+                tool_calls = extracted_tool_calls
+                message_text = cleaned_text
+            elif isinstance(forced_tool_call, dict):
+                synthetic_block = (
+                    "<tool_call>\n"
+                    + json.dumps({
+                        "name": forced_tool_call.get("name"),
+                        "arguments": forced_tool_call.get("arguments", {}),
+                    }, ensure_ascii=False)
+                    + "\n</tool_call>"
+                )
+                extracted_tool_calls, _ = _extract_xml_tool_calls_from_text(synthetic_block)
+                if extracted_tool_calls:
+                    tool_calls = extracted_tool_calls
+                    message_text = ""
+        assistant_message = SimpleNamespace(content=message_text, tool_calls=tool_calls, role="assistant")
         choice = SimpleNamespace(message=assistant_message, finish_reason=finish_reason)
         return SimpleNamespace(
             id=result.get("message_id") or result.get("parent_message_id") or str(uuid.uuid4()),
@@ -9467,6 +9599,18 @@ class AIAgent:
                 github_reasoning_extra=self._github_models_reasoning_extra_body() if is_github_responses else None,
             )
 
+        if self.api_mode == "chatgpt_web":
+            instructions, payload_messages, uses_local_tool_loop = self._chatgpt_web_messages(api_messages)
+            return {
+                "model": self.model,
+                "instructions": instructions,
+                "messages": payload_messages,
+                "conversation_id": None if uses_local_tool_loop else self._chatgpt_web_conversation_id,
+                "parent_message_id": None if uses_local_tool_loop else self._chatgpt_web_parent_message_id,
+                "timeout": float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
+                "history_and_training_disabled": False,
+            }
+
         # ── chat_completions (default) ─────────────────────────────────────
         _ct = self._get_transport()
 
@@ -9489,140 +9633,6 @@ class AIAgent:
 
         # Temperature: _fixed_temperature_for_model may return OMIT_TEMPERATURE
         # sentinel (temperature omitted entirely), a numeric override, or None.
-        kwargs = {
-            "model": self.model,
-            "instructions": instructions,
-            "input": self._chat_messages_to_responses_input(payload_messages),
-            "tools": self._responses_tools(),
-            "tool_choice": "auto",
-            "parallel_tool_calls": True,
-            "store": False,
-        }
-
-        if not is_github_responses:
-                kwargs["prompt_cache_key"] = self.session_id
-
-        is_xai_responses = self.provider == "xai" or "api.x.ai" in (self.base_url or "").lower()
-
-        if reasoning_enabled and is_xai_responses:
-            # xAI reasons automatically — no effort param, just include encrypted content
-            kwargs["include"] = ["reasoning.encrypted_content"]
-        elif reasoning_enabled:
-            if is_github_responses:
-                # Copilot's Responses route advertises reasoning-effort support,
-                # but not OpenAI-specific prompt cache or encrypted reasoning
-                # fields. Keep the payload to the documented subset.
-                github_reasoning = self._github_models_reasoning_extra_body()
-                if github_reasoning is not None:
-                    kwargs["reasoning"] = github_reasoning
-            else:
-                kwargs["reasoning"] = {"effort": reasoning_effort, "summary": "auto"}
-                kwargs["include"] = ["reasoning.encrypted_content"]
-        elif not is_github_responses and not is_xai_responses:
-            kwargs["include"] = []
-
-        if self.request_overrides:
-            kwargs.update(self.request_overrides)
-
-        if self.max_tokens is not None and not is_codex_backend:
-            kwargs["max_output_tokens"] = self.max_tokens
-
-        if is_xai_responses and getattr(self, "session_id", None):
-            kwargs["extra_headers"] = {"x-grok-conv-id": self.session_id}
-
-        return kwargs
-
-        if self.api_mode == "chatgpt_web":
-            instructions, payload_messages = self._chatgpt_web_messages(api_messages)
-            return {
-                "model": self.model,
-                "instructions": instructions,
-                "messages": payload_messages,
-                "conversation_id": self._chatgpt_web_conversation_id,
-                "parent_message_id": self._chatgpt_web_parent_message_id,
-                "timeout": float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
-                "history_and_training_disabled": False,
-            }
-
-        sanitized_messages = api_messages
-        needs_sanitization = False
-        for msg in api_messages:
-            if not isinstance(msg, dict):
-                continue
-            if "codex_reasoning_items" in msg:
-                needs_sanitization = True
-                break
-
-            tool_calls = msg.get("tool_calls")
-            if isinstance(tool_calls, list):
-                for tool_call in tool_calls:
-                    if not isinstance(tool_call, dict):
-                        continue
-                    if "call_id" in tool_call or "response_item_id" in tool_call:
-                        needs_sanitization = True
-                        break
-                if needs_sanitization:
-                    break
-
-        if needs_sanitization:
-            sanitized_messages = copy.deepcopy(api_messages)
-            for msg in sanitized_messages:
-                if not isinstance(msg, dict):
-                    continue
-
-                # Codex-only replay state must not leak into strict chat-completions APIs.
-                msg.pop("codex_reasoning_items", None)
-
-                tool_calls = msg.get("tool_calls")
-                if isinstance(tool_calls, list):
-                    for tool_call in tool_calls:
-                        if isinstance(tool_call, dict):
-                            tool_call.pop("call_id", None)
-                            tool_call.pop("response_item_id", None)
-
-        # Qwen portal: normalize content to list-of-dicts, inject cache_control.
-        # Must run AFTER codex sanitization so we transform the final messages.
-        # If sanitization already deepcopied, reuse that copy (in-place).
-        if self._is_qwen_portal():
-            if sanitized_messages is api_messages:
-                # No sanitization was done — we need our own copy.
-                sanitized_messages = self._qwen_prepare_chat_messages(sanitized_messages)
-            else:
-                # Already a deepcopy — transform in place to avoid a second deepcopy.
-                self._qwen_prepare_chat_messages_inplace(sanitized_messages)
-
-        # GPT-5 and Codex models respond better to 'developer' than 'system'
-        # for instruction-following.  Swap the role at the API boundary so
-        # internal message representation stays uniform ("system").
-        _model_lower = (self.model or "").lower()
-        if (
-            sanitized_messages
-            and sanitized_messages[0].get("role") == "system"
-            and any(p in _model_lower for p in DEVELOPER_ROLE_MODELS)
-        ):
-            # Shallow-copy the list + first message only — rest stays shared.
-            sanitized_messages = list(sanitized_messages)
-            sanitized_messages[0] = {**sanitized_messages[0], "role": "developer"}
-
-        provider_preferences = {}
-        if self.providers_allowed:
-            provider_preferences["only"] = self.providers_allowed
-        if self.providers_ignored:
-            provider_preferences["ignore"] = self.providers_ignored
-        if self.providers_order:
-            provider_preferences["order"] = self.providers_order
-        if self.provider_sort:
-            provider_preferences["sort"] = self.provider_sort
-        if self.provider_require_parameters:
-            provider_preferences["require_parameters"] = True
-        if self.provider_data_collection:
-            provider_preferences["data_collection"] = self.provider_data_collection
-
-        api_kwargs = {
-            "model": self.model,
-            "messages": sanitized_messages,
-            "timeout": float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
-        }
         try:
             from agent.auxiliary_client import _fixed_temperature_for_model, OMIT_TEMPERATURE
             _ft = _fixed_temperature_for_model(self.model, self.base_url)
