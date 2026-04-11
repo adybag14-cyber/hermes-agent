@@ -896,6 +896,10 @@ def list_authenticated_providers(
         total = len(model_ids)
         top = model_ids[:max_models]
 
+        source_label = "built-in" if (
+            hermes_slug in PROVIDER_TO_MODELS_DEV or pid in PROVIDER_TO_MODELS_DEV.values()
+        ) else "hermes"
+
         results.append({
             "slug": hermes_slug,
             "name": get_label(hermes_slug),
@@ -903,7 +907,7 @@ def list_authenticated_providers(
             "is_user_defined": False,
             "models": top,
             "total_models": total,
-            "source": "hermes",
+            "source": source_label,
         })
         seen_slugs.add(pid)
         seen_slugs.add(hermes_slug)
