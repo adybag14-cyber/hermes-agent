@@ -2339,6 +2339,18 @@ class AIAgent:
         if (("yes/no" in lowered) or ("yes or no" in lowered)) and "matching path" in lowered:
             return "yes_no_path"
         if (
+            "answer only the exact line" in lowered
+            or "answer only with the exact line" in lowered
+            or "answer only exact line" in lowered
+            or "answer only the first line" in lowered
+            or "answer only with the first line" in lowered
+            or "answer only first line" in lowered
+            or "answer only the def line" in lowered
+            or "answer only with the def line" in lowered
+            or "answer only exact def line" in lowered
+        ):
+            return "line"
+        if (
             "answer only the path" in lowered
             or "answer only path" in lowered
             or "answer only the saved path" in lowered
@@ -2365,6 +2377,8 @@ class AIAgent:
         mode = self._chatgpt_web_answer_only_mode(original_request)
         if mode == "path":
             return "Final answer format example:\n/data/data/com.termux/files/home/project"
+        if mode == "line":
+            return "Final answer format example:\n_SANE_PATH = os.pathsep.join(_SANE_PATH_DIRS)"
         if mode == "result":
             return "Final answer format example:\n42"
         if mode == "yes_no":
@@ -2478,6 +2492,48 @@ class AIAgent:
         return self._chatgpt_web_extract_simple_result(tool_content)
 
     @staticmethod
+    def _chatgpt_web_extract_exact_line_from_text(text: str) -> Optional[str]:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        fence_match = re.search(r"```(?:[A-Za-z0-9_+-]+)?\n([^`]+?)\n```", text, re.DOTALL)
+        if fence_match:
+            fenced_lines = [line.strip() for line in fence_match.group(1).splitlines() if line.strip()]
+            if fenced_lines:
+                return fenced_lines[0]
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            numbered = re.match(r"^\d+\|(.*)$", line)
+            if numbered:
+                candidate = numbered.group(1).strip()
+                if candidate:
+                    return candidate
+            if line.startswith(("def ", "class ", "_", "@")) or " = " in line:
+                return line.strip('"\'`')
+        simple = AIAgent._chatgpt_web_extract_simple_result(text)
+        if simple and "\n" not in simple:
+            return simple
+        return None
+
+    def _chatgpt_web_extract_line_from_tool_payload(self, tool_payload: Any, tool_content: str) -> Optional[str]:
+        if isinstance(tool_payload, dict):
+            matches = tool_payload.get("matches")
+            if isinstance(matches, list) and matches:
+                first = matches[0]
+                if isinstance(first, dict):
+                    line = self._chatgpt_web_extract_exact_line_from_text(str(first.get("content") or ""))
+                    if line:
+                        return line
+            for key in ("content", "output"):
+                value = tool_payload.get(key)
+                if isinstance(value, str):
+                    line = self._chatgpt_web_extract_exact_line_from_text(value)
+                    if line:
+                        return line
+        return self._chatgpt_web_extract_exact_line_from_text(tool_content)
+
+    @staticmethod
     def _chatgpt_web_extract_yes_no_from_tool_payload(tool_payload: Any) -> Optional[str]:
         if isinstance(tool_payload, dict):
             total_count = tool_payload.get("total_count")
@@ -2516,6 +2572,11 @@ class AIAgent:
                 return repaired_path
             path = self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
             return path or repaired
+        if mode == "line":
+            line = self._chatgpt_web_extract_exact_line_from_text(repaired) or (
+                self._chatgpt_web_extract_line_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
+            )
+            return line or repaired
         if mode == "result":
             result = self._chatgpt_web_extract_simple_result(repaired) or (
                 self._chatgpt_web_extract_result_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
@@ -2597,6 +2658,26 @@ class AIAgent:
             text,
             extensions=(".png", ".jpg", ".jpeg", ".webp", ".gif"),
         )
+
+    @staticmethod
+    def _chatgpt_web_extract_symbol_target(text: str) -> Optional[str]:
+        if not isinstance(text, str) or not text.strip():
+            return None
+        stopwords = {"and", "the", "a", "an", "where", "with", "this", "that", "it"}
+        patterns = (
+            r"\bdefinition\s+of\s+[`\"']?([A-Za-z_][A-Za-z0-9_]*)",
+            r"\b(?:define|defines|defined)\s+[`\"']?([A-Za-z_][A-Za-z0-9_]*)",
+            r"\bfor\s+([A-Za-z_][A-Za-z0-9_]*)",
+        )
+        for pattern in patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if not match:
+                continue
+            candidate = match.group(1)
+            if candidate.lower() in stopwords:
+                continue
+            return candidate
+        return None
 
     @staticmethod
     def _chatgpt_web_sanitize_skill_name(name: str) -> str:
@@ -2799,6 +2880,7 @@ class AIAgent:
         lowered = user_text.lower()
         heuristic_names: list[str] = []
         explicit_local_path = self._chatgpt_web_extract_local_path(user_text)
+        explicit_symbol_target = self._chatgpt_web_extract_symbol_target(user_text)
         image_generation_request = (
             any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint"))
             and any(keyword in lowered for keyword in ("image", "picture", "photo", "illustration", "drawing", "logo"))
@@ -2850,6 +2932,12 @@ class AIAgent:
         if image_analysis_request:
             vision_tool = tools_by_name.get("vision_analyze")
             return [vision_tool] if vision_tool is not None else []
+        if used_tool_count == 0 and explicit_local_path and explicit_symbol_target and any(
+            keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
+        ):
+            search_tool = tools_by_name.get("search_files")
+            if search_tool is not None:
+                return [search_tool]
         if explicit_local_path and any(keyword in lowered for keyword in ("read", "first line", "exact def line", "open the file", "show the file")):
             read_tool = tools_by_name.get("read_file")
             if read_tool is not None:
@@ -2915,6 +3003,7 @@ class AIAgent:
         )
         lowered = user_text.lower()
         explicit_local_path = self._chatgpt_web_extract_local_path(user_text)
+        explicit_symbol_target = self._chatgpt_web_extract_symbol_target(user_text)
         relative_path_match = re.search(r"\b([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)\b", user_text)
         path_match = explicit_local_path or (relative_path_match.group(1) if relative_path_match else None)
         last_tool_content = ""
@@ -2925,12 +3014,11 @@ class AIAgent:
         last_tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
 
         if tool_name == "search_files":
-            symbol_match = re.search(r"\bfor\s+([A-Za-z_][A-Za-z0-9_]*)", user_text)
-            if not symbol_match:
-                symbol_match = re.search(r"\bdefinition\s+of\s+([A-Za-z_][A-Za-z0-9_]*)", user_text, re.IGNORECASE)
-            if path_match and symbol_match and any(keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition")):
+            if path_match and explicit_symbol_target and any(
+                keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
+            ):
                 return {
-                    "pattern": symbol_match.group(1),
+                    "pattern": explicit_symbol_target,
                     "target": "content",
                     "path": path_match,
                 }
