@@ -784,8 +784,9 @@ def _lap_overlay_rows(b: _PickerBuild, data: dict) -> None:
             model_ids = _nous_picker_model_ids(b.curated, b.force_fresh_nous_tier)
         else:
             model_ids = _live_or_curated_ids(hermes_slug, b.curated, hermes_slug, pid)
+        source_label = "built-in" if hermes_slug in PROVIDER_TO_MODELS_DEV or pid in mdev_to_hermes else "hermes"
         b.add_builtin_row(
-            hermes_slug, get_label(hermes_slug), b.current_provider in (hermes_slug, pid), model_ids, "hermes")
+            hermes_slug, get_label(hermes_slug), b.current_provider in (hermes_slug, pid), model_ids, source_label)
         b.seen_slugs.add(pid.lower())
 
 

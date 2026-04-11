@@ -260,6 +260,14 @@ class TestStripBlockedTools(unittest.TestCase):
 
 
 class TestDelegateTask(unittest.TestCase):
+    def test_invalid_task_shape_does_not_resolve_credentials(self):
+        parent = _make_mock_parent(depth=0)
+        with patch("tools.delegate_tool._resolve_delegation_credentials") as resolver:
+            result = json.loads(delegate_task(tasks=[{"goal": ""}], parent_agent=parent))
+
+        self.assertIn("missing a 'goal'", result["error"])
+        resolver.assert_not_called()
+
     def test_no_parent_agent(self):
         result = json.loads(delegate_task(goal="test"))
         self.assertIn("error", result)

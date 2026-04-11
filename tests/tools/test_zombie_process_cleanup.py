@@ -302,7 +302,7 @@ class TestGatewayCleanupWiring:
         runner._pending_model_notes = {}
         runner._shutdown_event = asyncio.Event()
         runner._exit_reason = None
-        runner._exit_code = None
+        runner._exit_code = 0
         runner._stop_task = None
         runner._draining = False
         runner._restart_requested = False
@@ -330,6 +330,7 @@ class TestGatewayCleanupWiring:
         try:
             with patch("gateway.status.remove_pid_file"), \
                  patch("gateway.status.write_runtime_status"), \
+                 patch("tools.process_registry.process_registry.kill_all"), \
                  patch("tools.terminal_tool.cleanup_all_environments"), \
                  patch("tools.browser_tool_lifecycle.cleanup_all_browsers"):
                 loop.run_until_complete(GatewayRunner.stop(runner))

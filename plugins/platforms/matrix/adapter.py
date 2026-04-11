@@ -1744,8 +1744,8 @@ class MatrixAdapter(BasePlatformAdapter):
                 # 45s outer cap guards TCP-level hangs the 30s long-poll timeout can't catch.
                 sync_data = await asyncio.wait_for(client.sync(since=next_batch, timeout=30000), timeout=45.0)
                 # Auth failures (M_UNKNOWN_TOKEN) arrive as SyncError objects, not exceptions.
-                _sync_msg = getattr(sync_data, "message", None)
-                if isinstance(_sync_msg, str) and "unknown_token" in _sync_msg.lower():
+                _sync_msg = str(getattr(sync_data, "message", "") or "")
+                if _sync_msg and "unknown_token" in _sync_msg.lower():
                     logger.error("Matrix: permanent auth error from sync: %s — stopping", _sync_msg)
                     return
                 if isinstance(sync_data, dict):
