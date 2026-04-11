@@ -206,14 +206,14 @@ class TestGatewayCleanupWiring:
         runner._pending_model_notes = {}
         runner._shutdown_event = asyncio.Event()
         runner._exit_reason = None
-        runner._exit_code = None
+        runner._exit_code = 0
         runner._stop_task = None
         runner._draining = False
         runner._restart_requested = False
         runner._restart_task_started = False
         runner._restart_detached = False
         runner._restart_via_service = False
-        runner._restart_drain_timeout = 5.0
+        runner._restart_drain_timeout = 0.0
         runner._voice_mode = {}
         runner._session_model_overrides = {}
         runner._update_prompt_pending = {}
@@ -222,6 +222,7 @@ class TestGatewayCleanupWiring:
         runner._agent_cache_lock = threading.Lock()
         runner._shutdown_all_gateway_honcho = lambda: None
         runner._update_runtime_status = MagicMock()
+        runner._running_agent_count = MagicMock(return_value=0)
 
         mock_agent_1 = MagicMock()
         mock_agent_2 = MagicMock()
@@ -229,11 +230,13 @@ class TestGatewayCleanupWiring:
             "session-1": mock_agent_1,
             "session-2": mock_agent_2,
         }
+        runner._drain_active_agents = AsyncMock(return_value=(dict(runner._running_agents), False))
 
         loop = asyncio.new_event_loop()
         try:
             with patch("gateway.status.remove_pid_file"), \
                  patch("gateway.status.write_runtime_status"), \
+                 patch("tools.process_registry.process_registry.kill_all"), \
                  patch("tools.terminal_tool.cleanup_all_environments"), \
                  patch("tools.browser_tool.cleanup_all_browsers"):
                 loop.run_until_complete(GatewayRunner.stop(runner))
