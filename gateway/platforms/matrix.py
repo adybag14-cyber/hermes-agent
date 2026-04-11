@@ -812,6 +812,10 @@ class MatrixAdapter(BasePlatformAdapter):
         while not self._closing:
             try:
                 sync_data = await self._client.sync(timeout=30000)
+                sync_message = str(getattr(sync_data, "message", "") or "")
+                if sync_message and "m_unknown_token" in sync_message.lower():
+                    logger.error("Matrix: permanent auth error: %s — stopping sync", sync_message)
+                    return
                 if isinstance(sync_data, dict):
                     # Update joined rooms from sync response.
                     rooms_join = sync_data.get("rooms", {}).get("join", {})
@@ -819,14 +823,14 @@ class MatrixAdapter(BasePlatformAdapter):
                         self._joined_rooms.update(rooms_join.keys())
 
                 # Share keys periodically if E2EE is enabled.
-                if self._encryption and getattr(self._client, "crypto", None):
+                if getattr(self, "_encryption", False) and getattr(self._client, "crypto", None):
                     try:
                         await self._client.crypto.share_keys()
                     except Exception as exc:
                         logger.warning("Matrix: E2EE key share failed: %s", exc)
 
                 # Retry any buffered undecrypted events.
-                if self._pending_megolm:
+                if getattr(self, "_pending_megolm", None):
                     await self._retry_pending_decryptions()
 
             except asyncio.CancelledError:
