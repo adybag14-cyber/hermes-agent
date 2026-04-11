@@ -737,7 +737,6 @@ class TestSubagentCostRollup(unittest.TestCase):
         self.assertEqual(parent.session_estimated_cost_usd, 0.10)
         self.assertEqual(len(result["results"]), 1)
 
-
 class TestBlockedTools(_DelegateConfigIsolatedTestCase):
     def test_blocked_tools_constant(self):
         for tool in ["delegate_task", "clarify", "memory", "send_message", "execute_code"]:
@@ -1347,8 +1346,6 @@ class TestChildCredentialPoolResolution(_DelegateConfigIsolatedTestCase):
             MockAgent.call_args[1]["enabled_toolsets"],
             ["web", "browser"],
         )
-
-
 class TestChildCredentialLeasing(_DelegateConfigIsolatedTestCase):
     def test_run_single_child_acquires_and_releases_lease(self):
         from tools.delegate_tool import _run_single_child
@@ -1658,8 +1655,6 @@ class TestDelegateHeartbeat(_DelegateConfigIsolatedTestCase):
             f"touches over 0.6s — expected heartbeat to stop after "
             f"~5 stale cycles",
         )
-
-
 class TestDelegationReasoningEffort(_DelegateConfigIsolatedTestCase):
     """Tests for delegation.reasoning_effort config override."""
 
