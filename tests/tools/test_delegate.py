@@ -1630,6 +1630,46 @@ class TestDelegateHeartbeat(unittest.TestCase):
             f"got {len(touch_calls)} touches",
         )
 
+    def test_heartbeat_still_trips_idle_stale_when_no_tool(self):
+        """Frozen iteration/tool/activity signals stop the parent's heartbeat."""
+        from tools.delegate_tool import _run_single_child
+
+        parent = _make_mock_parent()
+        touch_calls = []
+        parent._touch_activity = touch_calls.append
+        child = MagicMock()
+        child.get_activity_summary.return_value = {
+            "current_tool": None,
+            "api_call_count": 3,
+            "max_iterations": 50,
+            "last_activity_desc": "waiting for API response",
+            "last_activity_ts": 1000.0,
+        }
+        callbacks = []
+
+        def schedule(callback, interval):
+            callbacks.append(callback)
+            return MagicMock()
+
+        def run_child(**kwargs):
+            tick = callbacks[0]
+            self.assertIsNone(tick())  # Initial progress establishes baseline.
+            self.assertIsNone(tick())  # First unchanged cycle still touches.
+            self.assertIs(tick(), False)  # Threshold reached: scheduler stops.
+            self.assertEqual(len(touch_calls), 2)
+            return {"final_response": "done", "completed": True, "api_calls": 3}
+
+        child.run_conversation.side_effect = run_child
+        with (
+            patch("agent.periodic_scheduler.schedule", side_effect=schedule),
+            patch("tools.delegate_tool._HEARTBEAT_STALE_CYCLES_IDLE", 2),
+        ):
+            result = _run_single_child(
+                task_index=0, goal="Test frozen idle heartbeat",
+                child=child, parent_agent=parent,
+            )
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(len(touch_calls), 2)
 
 class TestDelegationReasoningEffort(unittest.TestCase):
     """Tests for delegation.reasoning_effort config override."""

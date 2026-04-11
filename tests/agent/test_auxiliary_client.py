@@ -1381,6 +1381,136 @@ class TestAuxiliaryPoolAwareness:
         assert mock_resolve.call_count == 2
 
 
+class TestForkAuxiliaryRoutingContracts:
+    """Retain fork routing contracts without shadowing the upstream classes."""
+
+    def test_native_anthropic_wrapper_preserves_explicit_model(self):
+        from agent.auxiliary_client import AnthropicAuxiliaryClient
+
+        with (
+            patch("agent.auxiliary_client._select_pool_entry", return_value=(False, None)),
+            patch("agent.anthropic_adapter.build_anthropic_client", return_value=MagicMock()),
+            patch("agent.anthropic_adapter.resolve_anthropic_token", return_value="synthetic-key"),
+        ):
+            client, model = resolve_provider_client("anthropic", model="claude-test")
+
+        assert isinstance(client, AnthropicAuxiliaryClient)
+        assert model == "claude-test"
+
+    def test_copilot_runtime_credentials_reach_client(self):
+        with (
+            patch("hermes_cli.auth.resolve_api_key_provider_credentials", return_value={
+                "provider": "copilot",
+                "api_key": "synthetic-copilot-token",
+                "base_url": "https://api.githubcopilot.com",
+            }),
+            patch("agent.auxiliary_client.OpenAI") as mock_openai,
+        ):
+            client, model = resolve_provider_client("copilot", model="gpt-4.1-mini")
+
+        assert client is not None
+        assert model == "gpt-4.1-mini"
+        assert mock_openai.call_args.kwargs["api_key"] == "synthetic-copilot-token"
+        assert mock_openai.call_args.kwargs["base_url"] == "https://api.githubcopilot.com"
+        assert mock_openai.call_args.kwargs["default_headers"]["Editor-Version"]
+
+    @pytest.mark.parametrize(
+        ("model", "responses"),
+        [("gpt-5.4-mini", True), ("gpt-4.1-mini", False)],
+    )
+    def test_copilot_wire_adapter_matches_requested_model(self, model, responses):
+        with (
+            patch("hermes_cli.auth.resolve_api_key_provider_credentials", return_value={
+                "provider": "copilot",
+                "api_key": "synthetic-copilot-token",
+                "base_url": "https://api.githubcopilot.com",
+            }),
+            patch("agent.auxiliary_client.OpenAI"),
+        ):
+            client, resolved_model = resolve_provider_client("copilot", model=model)
+
+        assert isinstance(client, CodexAuxiliaryClient) is responses
+        assert resolved_model == model
+
+    def test_task_direct_endpoint_from_config(self, monkeypatch, tmp_path):
+        (tmp_path / "config.yaml").write_text(
+            "auxiliary:\n  compression:\n    base_url: https://aux.example.test/v1\n"
+            "    api_key: synthetic-config-key\n    model: configured-model\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+        with patch("agent.auxiliary_client.OpenAI") as mock_openai:
+            client, model = get_text_auxiliary_client("compression")
+
+        assert client is not None
+        assert model == "configured-model"
+        assert mock_openai.call_args.kwargs["base_url"] == "https://aux.example.test/v1"
+        assert mock_openai.call_args.kwargs["api_key"] == "synthetic-config-key"
+
+    def test_auto_prefers_live_runtime_over_persisted_config(self, monkeypatch, tmp_path):
+        (tmp_path / "config.yaml").write_text(
+            "model:\n  default: configured-model\n  provider: opencode-go\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+        with patch(
+            "agent.auxiliary_client.resolve_provider_client",
+            side_effect=lambda _provider, model=None, **_kwargs: (MagicMock(), model),
+        ) as resolve:
+            client, model = _resolve_auto(main_runtime={
+                "provider": "openai-codex",
+                "model": "runtime-model",
+                "api_mode": "codex_responses",
+            })
+
+        assert client is not None
+        assert model == "runtime-model"
+        assert resolve.call_args.args[:2] == ("openai-codex", "runtime-model")
+        assert resolve.call_args.kwargs["api_mode"] == "codex_responses"
+
+    def test_explicit_task_pin_wins_over_live_runtime(self, monkeypatch, tmp_path):
+        (tmp_path / "config.yaml").write_text(
+            "auxiliary:\n  compression:\n    provider: openrouter\n    model: task-model\n"
+            "model:\n  default: configured-model\n  provider: opencode-go\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+        runtime = {"provider": "openai-codex", "model": "runtime-model"}
+        with patch(
+            "agent.auxiliary_client.resolve_provider_client",
+            return_value=(MagicMock(), "task-model"),
+        ) as resolve:
+            client, model = get_text_auxiliary_client("compression", main_runtime=runtime)
+
+        assert client is not None
+        assert model == "task-model"
+        assert resolve.call_args.args[0] == "openrouter"
+        assert resolve.call_args.kwargs["main_runtime"] == runtime
+
+    def test_copilot_acp_preserves_explicit_model_and_process_config(self):
+        fake_client = SimpleNamespace(
+            HERMES_SKIP_TRANSPORT_WRAP=True, HERMES_SKIP_ASYNC_WRAP=True,
+        )
+        with (
+            patch("agent.copilot_acp_client.CopilotACPClient", return_value=fake_client) as factory,
+            patch("hermes_cli.auth.resolve_external_process_provider_credentials", return_value={
+                "provider": "copilot-acp",
+                "api_key": "copilot-acp",
+                "base_url": "acp://copilot",
+                "command": "synthetic-copilot",
+                "args": ["--acp", "--stdio"],
+            }),
+        ):
+            client, model = resolve_provider_client("copilot-acp", model="requested-model")
+
+        assert client is fake_client
+        assert model == "requested-model"
+        assert factory.call_args.kwargs["api_key"] == "copilot-acp"
+        assert factory.call_args.kwargs["base_url"] == "acp://copilot"
+        assert factory.call_args.kwargs["command"] == "synthetic-copilot"
+        assert factory.call_args.kwargs["args"] == ["--acp", "--stdio"]
+
+
 # ── Payment / credit exhaustion fallback ─────────────────────────────────
 
 
