@@ -10,6 +10,7 @@ plugins {
 val repoRoot = rootDir.parentFile
 val hermesVersionFile = repoRoot.resolve("hermes_cli/__init__.py")
 val releaseTag = System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()
+val hermesWheelDir = layout.buildDirectory.dir("hermes-wheel")
 val keystorePropertiesFile = rootDir.resolve("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.isFile) {
@@ -36,6 +37,12 @@ fun hermesVersionCode(): Int {
     val seq = releaseMatch.groupValues[4].ifBlank { "0" }.padStart(2, '0')
     return "$year$month$day$seq".toInt()
 }
+
+fun resolvedBuildPython(): String {
+    return System.getenv("PYTHON_FOR_BUILD").orEmpty().trim().ifBlank { "python3.11" }
+}
+
+fun hermesWheelName(): String = "hermes_agent-${hermesVersionName()}-py3-none-any.whl"
 
 android {
     namespace = "com.nousresearch.hermesagent"
@@ -115,8 +122,47 @@ chaquopy {
         }
 
         pip {
-            install("../../[android]")
+            // Install Hermes itself from an isolated wheel, then layer an explicit
+            // Android-safe runtime set. Chaquopy applies pip options globally per
+            // block, so the runtime requirements file must include all transitive
+            // dependencies explicitly.
+            options("--no-deps")
+            install("../../android/pip-stubs/anthropic-stub")
+            install("../../android/pip-stubs/fal-client-stub")
+            install("build/hermes-wheel/${hermesWheelName()}")
+            install("-r", "../../requirements-android-chaquopy.txt")
         }
+    }
+}
+
+val prepareHermesAndroidWheel = tasks.register<Exec>("prepareHermesAndroidWheel") {
+    group = "python"
+    description = "Build a no-deps Hermes wheel for the Android embedded runtime."
+    val wheelDir = hermesWheelDir.get().asFile
+    outputs.file(wheelDir.resolve(hermesWheelName()))
+    doFirst {
+        wheelDir.mkdirs()
+    }
+    commandLine(
+        resolvedBuildPython(),
+        "-m",
+        "pip",
+        "wheel",
+        "--no-deps",
+        "--wheel-dir",
+        wheelDir.absolutePath,
+        repoRoot.absolutePath,
+    )
+}
+
+tasks.matching { it.name.endsWith("PythonRequirements") }.configureEach {
+    dependsOn(prepareHermesAndroidWheel)
+    val taskName = name
+    val variant = taskName.removePrefix("install").removeSuffix("PythonRequirements")
+    if (variant.isNotEmpty()) {
+        dependsOn("merge${variant}PythonSources")
+        dependsOn("merge${variant}NativeDebugMetadata")
+        dependsOn("check${variant}AarMetadata")
     }
 }
 

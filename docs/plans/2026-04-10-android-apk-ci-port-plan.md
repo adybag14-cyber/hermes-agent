@@ -111,7 +111,6 @@ MVP default allowlist:
 - `web_search`
 - `web_extract`
 - `vision_analyze`
-- `image_generate`
 - `skills_list`
 - `skill_view`
 - `skill_manage`
@@ -137,6 +136,7 @@ MVP default denylist:
 Notes:
 - This is intentionally smaller than `hermes-api-server`.
 - Local workspace editing returns later as an explicit post-MVP phase.
+- Image generation is deferred from the Android MVP until Chaquopy can satisfy the FAL/msgpack dependency chain with Android wheels.
 - The app should seed `platform_toolsets.api_server` to `['hermes-android-app']` on first run.
 
 ## Stage 0 — Create the Android lane and prove packaging viability

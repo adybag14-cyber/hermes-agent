@@ -43,7 +43,17 @@ class _FirecrawlProxy:
     __slots__ = ()
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return _load_firecrawl_cls()(*args, **kwargs)
+        try:
+            client_class = _load_firecrawl_cls()
+        except ImportError:
+            # Stripped Android installs may lack the SDK's native dependencies.
+            # Keep the selected direct/gateway route and profile credentials;
+            # only the client implementation changes, never provider policy.
+            from plugins.web.firecrawl.http_client import _FirecrawlHTTPCompatClient
+
+            logger.debug("Firecrawl SDK unavailable; using HTTP compatibility client")
+            client_class = _FirecrawlHTTPCompatClient
+        return client_class(*args, **kwargs)
 
     def __instancecheck__(self, obj: Any) -> bool:
         return isinstance(obj, _load_firecrawl_cls())

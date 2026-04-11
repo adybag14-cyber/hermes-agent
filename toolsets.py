@@ -193,7 +193,7 @@ TOOLSETS = {
     "hermes-cli": _bundle("Full interactive CLI toolset - all default tools plus cronjob management"),
     "hermes-android-app": _ts(
         "Android app MVP toolset — mobile-safe defaults for the embedded API server",
-        ["web_search", "web_extract", "vision_analyze", "image_generate",
+        ["web_search", "web_extract", "vision_analyze",
          "skills_list", "skill_view", "skill_manage", "todo_list", "memory", "session_search"],
     ),
 
