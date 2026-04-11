@@ -61,5 +61,10 @@ def test_android_fal_client_stub_marks_image_generation_deferred():
     android_toolset_block = toolset_file.split('"hermes-android-app":', 1)[1].split('},', 1)[0]
     assert '"image_generate"' not in android_toolset_block
     assert '"android_device_status"' in android_toolset_block
+    assert '"android_shared_folder_list"' in android_toolset_block
+    assert '"android_shared_folder_read"' in android_toolset_block
+    assert '"android_shared_folder_write"' in android_toolset_block
+    assert '"android_ui_snapshot"' in android_toolset_block
+    assert '"android_ui_action"' in android_toolset_block
     assert '"read_file"' in android_toolset_block
     assert '"write_file"' in android_toolset_block

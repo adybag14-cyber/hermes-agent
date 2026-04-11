@@ -12,6 +12,11 @@ import androidx.compose.ui.unit.dp
 
 private val ENABLED_TOOLS = listOf(
     "android_device_status",
+    "android_shared_folder_list",
+    "android_shared_folder_read",
+    "android_shared_folder_write",
+    "android_ui_snapshot",
+    "android_ui_action",
     "read_file",
     "search_files",
     "write_file",
@@ -47,7 +52,11 @@ fun ToolProfileCard() {
                 modifier = Modifier.padding(top = 8.dp),
             )
             Text(
-                "Workspace file tools target the Hermes Device workspace. Use android_device_status to discover the current path before asking Hermes to edit files.",
+                "Grant a shared folder in the Device tab to let Hermes operate on those files directly with android_shared_folder_list/read/write. Workspace file tools remain available for imported copies and scratch files.",
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Text(
+                "Accessibility targeting is available through android_ui_snapshot + android_ui_action after you enable the Hermes accessibility service.",
                 modifier = Modifier.padding(top = 8.dp),
             )
             Text(

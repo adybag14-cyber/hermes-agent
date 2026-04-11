@@ -17,9 +17,17 @@ def test_android_build_gradle_supports_semver_alpha_release_tags():
 def test_android_release_workflow_restores_signing_material_and_builds_release_artifacts():
     workflow = (REPO_ROOT / ".github/workflows/android-release.yml").read_text(encoding="utf-8")
 
+    assert 'FORCE_JAVASCRIPT_ACTIONS_TO_NODE24' in workflow
     assert 'ANDROID_KEYSTORE_BASE64' in workflow
     assert 'ANDROID_KEYSTORE_PASSWORD' in workflow
     assert 'ANDROID_KEY_ALIAS' in workflow
     assert 'ANDROID_KEY_PASSWORD' in workflow
     assert './gradlew :app:assembleRelease :app:bundleRelease' in workflow
     assert 'scripts/android_release_manifest.py --tag' in workflow
+
+
+def test_android_push_workflow_opts_into_node24_for_javascript_actions():
+    workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+
+    assert 'FORCE_JAVASCRIPT_ACTIONS_TO_NODE24' in workflow
+    assert 'actions/upload-artifact@v4' in workflow
