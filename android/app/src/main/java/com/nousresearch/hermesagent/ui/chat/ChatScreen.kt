@@ -21,11 +21,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun ChatScreen(viewModel: ChatViewModel = viewModel()) {
+fun ChatScreen(
+    modifier: Modifier = Modifier,
+    viewModel: ChatViewModel = viewModel(),
+) {
     val uiState by viewModel.uiState.collectAsState()
 
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
