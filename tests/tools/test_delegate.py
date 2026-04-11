@@ -1011,14 +1011,28 @@ class TestDelegationCredentialResolution(unittest.TestCase):
             "model": "qwen2.5-coder",
             "provider": "openrouter",
             "base_url": "http://localhost:1234/v1",
-            "api_key": "local-key",
+            "api_key": "delegation-token",
         }
         creds = _resolve_delegation_credentials(cfg, parent)
         self.assertEqual(creds["model"], "qwen2.5-coder")
         self.assertEqual(creds["provider"], "custom")
         self.assertEqual(creds["base_url"], "http://localhost:1234/v1")
-        self.assertEqual(creds["api_key"], "local-key")
+        self.assertEqual(creds["api_key"], "delegation-token")
         self.assertEqual(creds["api_mode"], "chat_completions")
+
+    def test_direct_endpoint_detects_chatgpt_web_api_mode(self):
+        parent = _make_mock_parent(depth=0)
+        cfg = {
+            "model": "gpt-5-thinking",
+            "base_url": "https://chatgpt.com/backend-api/f",
+            "api_key": "chatgpt-web-token",
+        }
+        creds = _resolve_delegation_credentials(cfg, parent)
+        self.assertEqual(creds["model"], "gpt-5-thinking")
+        self.assertEqual(creds["provider"], "chatgpt-web")
+        self.assertEqual(creds["base_url"], "https://chatgpt.com/backend-api/f")
+        self.assertEqual(creds["api_key"], "chatgpt-web-token")
+        self.assertEqual(creds["api_mode"], "chatgpt_web")
 
     def test_direct_endpoint_auto_detects_anthropic_messages_suffix(self):
         # Issue #10213: Azure AI Foundry exposes Anthropic-compatible models at
@@ -1225,13 +1239,13 @@ class TestDelegationProviderIntegration(unittest.TestCase):
             "max_iterations": 45,
             "model": "qwen2.5-coder",
             "base_url": "http://localhost:1234/v1",
-            "api_key": "local-key",
+            "api_key": "delegation-token",
         }
         mock_creds.return_value = {
             "model": "qwen2.5-coder",
             "provider": "custom",
             "base_url": "http://localhost:1234/v1",
-            "api_key": "local-key",
+            "api_key": "delegation-token",
             "api_mode": "chat_completions",
         }
         parent = _make_mock_parent(depth=0)
@@ -1249,7 +1263,7 @@ class TestDelegationProviderIntegration(unittest.TestCase):
             self.assertEqual(kwargs["model"], "qwen2.5-coder")
             self.assertEqual(kwargs["provider"], "custom")
             self.assertEqual(kwargs["base_url"], "http://localhost:1234/v1")
-            self.assertEqual(kwargs["api_key"], "local-key")
+            self.assertEqual(kwargs["api_key"], "delegation-token")
             self.assertEqual(kwargs["api_mode"], "chat_completions")
 
     @patch("tools.delegate_tool._load_config")

@@ -291,7 +291,9 @@ def _direct_endpoint_credentials(v: dict, explicit_request_overrides) -> dict:
     host = base_url_hostname(v["base_url"])
     provider = "custom"
     api_mode = _detect_api_mode_for_url(v["base_url"]) or "chat_completions"
-    if host == "chatgpt.com" and "/backend-api/codex" in base_lower:
+    if api_mode == "chatgpt_web":
+        provider = "chatgpt-web"
+    elif host == "chatgpt.com" and "/backend-api/codex" in base_lower:
         provider, api_mode = "openai-codex", "codex_responses"
     elif host == "api.anthropic.com":
         provider, api_mode = "anthropic", "anthropic_messages"
@@ -332,7 +334,7 @@ def _runtime_provider_credentials(v: dict, explicit_request_overrides) -> dict:
             f"Cannot resolve delegation provider '{configured_provider}': {exc}. "
             f"Check that the provider is configured (API key set, valid provider name), "
             f"or set delegation.base_url/delegation.api_key for a direct endpoint. "
-            f"Available providers: openrouter, nous, zai, kimi-coding, minimax."
+            f"Available providers include: openrouter, nous, chatgpt-web, openai-codex, qwen-oauth, zai, kimi-coding, minimax."
         ) from exc
 
     api_key = runtime.get("api_key", "")
