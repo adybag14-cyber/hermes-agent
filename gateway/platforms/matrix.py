@@ -952,13 +952,29 @@ class MatrixAdapter(BasePlatformAdapter):
     async def _sync_loop(self) -> None:
         """Continuously sync with the homeserver."""
         client = self._client
-        # Resume from the token stored during the initial sync.
-        next_batch = await client.sync_store.get_next_batch()
+        # Resume from the token stored during the initial sync when available.
+        next_batch = None
+        sync_store = getattr(client, "sync_store", None)
+        if sync_store is not None:
+            try:
+                getter = getattr(sync_store, "get_next_batch", None)
+                if getter is not None:
+                    maybe_batch = getter()
+                    if asyncio.iscoroutine(maybe_batch):
+                        next_batch = await maybe_batch
+                    else:
+                        next_batch = maybe_batch
+            except Exception:
+                next_batch = None
         while not self._closing:
             try:
-                sync_data = await client.sync(
-                    since=next_batch, timeout=30000,
-                )
+                if next_batch:
+                    try:
+                        sync_data = await client.sync(since=next_batch, timeout=30000)
+                    except TypeError:
+                        sync_data = await client.sync(timeout=30000)
+                else:
+                    sync_data = await client.sync(timeout=30000)
                 sync_message = str(getattr(sync_data, "message", "") or "")
                 if sync_message and "m_unknown_token" in sync_message.lower():
                     logger.error("Matrix: permanent auth error: %s — stopping sync", sync_message)
@@ -974,7 +990,15 @@ class MatrixAdapter(BasePlatformAdapter):
                     nb = sync_data.get("next_batch")
                     if nb:
                         next_batch = nb
-                        await client.sync_store.put_next_batch(nb)
+                        if sync_store is not None:
+                            try:
+                                putter = getattr(sync_store, "put_next_batch", None)
+                                if putter is not None:
+                                    maybe_put = putter(nb)
+                                    if asyncio.iscoroutine(maybe_put):
+                                        await maybe_put
+                            except Exception:
+                                pass
 
                     # Dispatch events to registered handlers so that
                     # _on_room_message / _on_reaction / _on_invite fire.
