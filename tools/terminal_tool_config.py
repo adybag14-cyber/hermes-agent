@@ -56,7 +56,7 @@ def _safe_getcwd() -> str:
 _HOST_CWD_PREFIXES = ("/Users/", "/home/", "C:\\", "C:/")
 
 _CONTAINER_BACKENDS = frozenset({"docker", "singularity", "modal", "daytona", "vercel_sandbox"})
-_BUILTIN_BACKENDS = _CONTAINER_BACKENDS | {"local", "ssh", "managed_modal"}
+_BUILTIN_BACKENDS = _CONTAINER_BACKENDS | {"local", "android_linux", "ssh", "managed_modal"}
 
 
 def _plugin_registry_lookup(env_type: str, fn_name: str, default, *args):

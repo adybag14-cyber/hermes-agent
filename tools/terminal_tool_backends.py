@@ -6,6 +6,7 @@ import functools
 import importlib.util
 import inspect
 import logging
+import os
 import shutil
 import subprocess
 from typing import Any, Dict, Optional
@@ -26,7 +27,7 @@ logger = logging.getLogger("tools.terminal_tool")
 
 _VERCEL_SANDBOX_DEFAULT_CWD = "/vercel/sandbox"
 _SUPPORTED_VERCEL_RUNTIMES = ("node24", "node22", "python3.13")
-_BUILTIN_BACKENDS = "local, docker, singularity, modal, daytona, vercel_sandbox, ssh"
+_BUILTIN_BACKENDS = "local, android_linux, docker, singularity, modal, daytona, vercel_sandbox, ssh"
 
 # Config -> kwargs shapers, driven by (out_key, config_key, default) tables. The container table's
 # (key, default) literal is intentionally greppable; tools/terminal_tool.py keeps its own for the AST test.
@@ -101,6 +102,11 @@ def _modal_unavailable_reason(modal_state: Dict[str, Any]) -> tuple[str, str]:
 # --- Environment builders. Signature: (*, env_type, image, cwd, timeout, cc, task_id, ssh_config, host_cwd)
 def _build_local_env(*, cwd, timeout, **_):
     return _LocalEnvironment(cwd=cwd, timeout=timeout)
+
+
+def _build_android_linux_env(*, cwd, timeout, **_):
+    from tools.environments.android_linux import AndroidLinuxEnvironment
+    return AndroidLinuxEnvironment(cwd=cwd, timeout=timeout)
 
 
 def _build_docker_env(*, image, cwd, timeout, cc, task_id, host_cwd, **_):
@@ -202,6 +208,7 @@ def _build_plugin_env(*, env_type, image, cwd, timeout, cc, task_id, **_):
 
 # Built-in backend -> builder. Anything else is looked up in the plugin registry.
 _ENV_BUILDERS = {"local": _build_local_env, "docker": _build_docker_env, "singularity": _build_singularity_env,
+                 "android_linux": _build_android_linux_env,
                  "modal": _build_modal_env, "daytona": _build_daytona_env, "vercel_sandbox": _build_vercel_env,
                  "ssh": _build_ssh_env}
 
@@ -275,7 +282,14 @@ def _daytona_post(config: Dict[str, Any]) -> bool:
     return get_secret("DAYTONA_API_KEY") is not None
 
 
+def _android_linux_pre(config):
+    bash = config.get("android_linux_bash", "")
+    prefix = config.get("android_linux_prefix", "")
+    return bool(bash and prefix and os.path.isfile(str(bash)) and os.path.isdir(str(prefix)))
+
+
 _BACKEND_SPECS: Dict[str, Dict[str, Any]] = {
+    "android_linux": {"pre": _android_linux_pre},
     "local": {},
     "docker": {"binary": (lambda: importlib.import_module("tools.environments.docker").find_docker(), "version",
                           "Docker executable not found in PATH or common install locations")},

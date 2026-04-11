@@ -23,6 +23,35 @@ def _clear_caches():
 
 
 class TestTerminalRequirements:
+    def test_android_linux_terminal_tools_resolve_when_prefix_env_is_present(self, monkeypatch, tmp_path):
+        prefix = tmp_path / "prefix"
+        for directory in ("bin", "lib", "home", "tmp"):
+            (prefix / directory).mkdir(parents=True)
+        # Readiness checks launcher/prefix presence; it never executes the
+        # launcher. An inert fixture keeps this contract host-independent.
+        bash_path = prefix / "bin" / "bash"
+        bash_path.write_bytes(b"fixture")
+
+        monkeypatch.setenv("TERMINAL_ENV", "android_linux")
+        monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
+        monkeypatch.setenv("HERMES_ANDROID_LINUX_PREFIX", str(prefix))
+        monkeypatch.setenv("HERMES_ANDROID_LINUX_BASH", str(bash_path))
+        monkeypatch.setenv("HERMES_ANDROID_LINUX_BIN", str(prefix / "bin"))
+        monkeypatch.setenv("HERMES_ANDROID_LINUX_LIB", str(prefix / "lib"))
+        monkeypatch.setenv("HERMES_ANDROID_LINUX_HOME", str(prefix / "home"))
+        monkeypatch.setenv("HERMES_ANDROID_LINUX_TMP", str(prefix / "tmp"))
+
+        assert terminal_tool_module.check_terminal_requirements() is True
+        # Test availability independently of the default deferred-tool policy.
+        tools = get_tool_definitions(
+            enabled_toolsets=["terminal"], quiet_mode=True,
+            skip_tool_search_assembly=True,
+        )
+        names = {tool["function"]["name"] for tool in tools}
+
+        assert "terminal" in names
+        assert "process_manage" in names
+
     def test_local_backend_requirements(self, monkeypatch):
         monkeypatch.setenv("TERMINAL_ENV", "local")
         monkeypatch.setattr(

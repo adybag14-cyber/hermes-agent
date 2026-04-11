@@ -572,6 +572,8 @@ def _resolve_config_cwd(env_type: str, mount_docker_cwd: bool) -> tuple:
     are discarded in favor of the backend default.
     """
     default_cwd = _safe_getcwd() if env_type == "local" else _DEFAULT_CWD_BY_BACKEND.get(env_type, "/root")
+    if env_type == "android_linux":
+        default_cwd = os.getenv("HERMES_ANDROID_LINUX_HOME", "").strip() or _safe_getcwd()
     cwd = _tenv("TERMINAL_CWD", default_cwd)
     from hermes_cli.config import _is_ssh_remote_tilde_cwd
     if cwd and not _is_ssh_remote_tilde_cwd(env_type, cwd):
@@ -632,6 +634,11 @@ def _get_env_config() -> Dict[str, Any]:
         "vercel_runtime": _tenv("TERMINAL_VERCEL_RUNTIME", "").strip(),
         "cwd": cwd,
         "host_cwd": host_cwd,
+        # App-owned paths identify the embedded runtime, not profile terminal policy.
+        "android_linux_prefix": os.getenv("HERMES_ANDROID_LINUX_PREFIX", ""),
+        "android_linux_bash": os.getenv("HERMES_ANDROID_LINUX_BASH", ""),
+        "android_linux_home": os.getenv("HERMES_ANDROID_LINUX_HOME", ""),
+        "android_linux_tmp": os.getenv("HERMES_ANDROID_LINUX_TMP", ""),
         "docker_mount_cwd_to_workspace": mount_docker_cwd,
         "timeout": _parse_env_var("TERMINAL_TIMEOUT", "180"),
         "lifetime_seconds": _parse_env_var("TERMINAL_LIFETIME_SECONDS", "300"),
