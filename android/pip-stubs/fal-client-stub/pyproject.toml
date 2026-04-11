@@ -1,0 +1,9 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fal-client"
+version = "0.13.1"
+description = "Android/Chaquopy placeholder for Hermes Agent builds"
+requires-python = ">=3.11"
