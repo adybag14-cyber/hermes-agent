@@ -45,9 +45,13 @@ import logging
 import os
 import re
 import asyncio
+import time
 from typing import List, Dict, Any, Optional
 import httpx
-from firecrawl import Firecrawl
+try:
+    from firecrawl import Firecrawl
+except Exception:  # pragma: no cover - optional dependency / Android fallback
+    Firecrawl = None
 from agent.auxiliary_client import (
     async_call_llm,
     extract_content_or_reasoning,
@@ -140,6 +144,148 @@ def _get_direct_firecrawl_config() -> Optional[tuple[Dict[str, str], tuple[str, 
         kwargs["api_url"] = api_url
 
     return kwargs, ("direct", api_url or None, api_key or None)
+
+
+def _normalize_firecrawl_api_url(api_url: str) -> str:
+    normalized = str(api_url or "").strip().rstrip("/")
+    if normalized.endswith("/v1") or normalized.endswith("/v2"):
+        normalized = normalized.rsplit("/", 1)[0]
+    return normalized
+
+
+def _camelize_firecrawl_payload(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_camelize_firecrawl_payload(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+
+    alias_map = {
+        "scrape_options": "scrapeOptions",
+        "include_paths": "includePaths",
+        "exclude_paths": "excludePaths",
+        "max_depth": "maxDepth",
+        "max_discovery_depth": "maxDiscoveryDepth",
+        "crawl_entire_domain": "crawlEntireDomain",
+        "allow_backward_links": "allowBackwardLinks",
+        "allow_external_links": "allowExternalLinks",
+        "ignore_sitemap": "ignoreSitemap",
+        "deduplicate_similar_urls": "deduplicateSimilarURLs",
+        "ignore_query_parameters": "ignoreQueryParameters",
+        "regex_on_full_url": "regexOnFullURL",
+        "allow_subdomains": "allowSubdomains",
+        "max_concurrency": "maxConcurrency",
+        "zero_data_retention": "zeroDataRetention",
+    }
+    return {
+        alias_map.get(key, key): _camelize_firecrawl_payload(val)
+        for key, val in value.items()
+        if val is not None
+    }
+
+
+class _FirecrawlHTTPCompatClient:
+    """Small Firecrawl-compatible client using plain HTTP requests.
+
+    This keeps Hermes web tools usable when the firecrawl SDK is unavailable
+    (for example on Chaquopy/Android, where its pydantic v2 dependency chain is
+    not currently wheel-safe).
+    """
+
+    def __init__(self, *, api_key: str, api_url: str):
+        self.api_key = api_key
+        self.api_url = _normalize_firecrawl_api_url(api_url)
+
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
+
+    def _request_timeout(self, payload: dict[str, Any] | None = None, default: float = 30.0) -> float:
+        if isinstance(payload, dict):
+            timeout_ms = payload.get("timeout")
+            if isinstance(timeout_ms, (int, float)) and timeout_ms > 0:
+                return float(timeout_ms) / 1000.0 + 5.0
+        return default
+
+    def _post_json(self, path: str, payload: dict[str, Any], *, default_timeout: float = 30.0) -> dict[str, Any]:
+        timeout = self._request_timeout(payload, default=default_timeout)
+        url = f"{self.api_url}{path}"
+        with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+            response = client.post(url, headers=self._headers(), json=payload)
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(f"Firecrawl request failed ({path}): {exc.response.text[:300]}") from exc
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise RuntimeError(f"Firecrawl request returned non-JSON for {path}") from exc
+
+    def _get_json(self, url_or_path: str, *, default_timeout: float = 30.0) -> dict[str, Any]:
+        url = url_or_path if url_or_path.startswith("http") else f"{self.api_url}{url_or_path}"
+        with httpx.Client(timeout=default_timeout, follow_redirects=True) as client:
+            response = client.get(url, headers=self._headers())
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise RuntimeError(f"Firecrawl request failed ({url_or_path}): {exc.response.text[:300]}") from exc
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise RuntimeError(f"Firecrawl request returned non-JSON for {url_or_path}") from exc
+
+    def search(self, *, query: str, limit: int = 5, **kwargs):
+        payload = {"query": query, "limit": limit, "origin": "hermes-agent"}
+        payload.update(_camelize_firecrawl_payload(kwargs))
+        return self._post_json("/v1/search", payload)
+
+    def scrape(self, *, url: str, formats: Optional[list[str]] = None, **kwargs):
+        payload = {"url": url, "origin": "hermes-agent"}
+        if formats is not None:
+            payload["formats"] = formats
+        payload.update(_camelize_firecrawl_payload(kwargs))
+        return self._post_json("/v1/scrape", payload, default_timeout=65.0)
+
+    def crawl(self, *, url: str, **kwargs):
+        payload = _camelize_firecrawl_payload(kwargs)
+        payload["url"] = url
+        payload.setdefault("origin", "hermes-agent")
+        start = self._post_json("/v1/crawl", payload, default_timeout=30.0)
+        job_id = start.get("id") or start.get("jobId")
+        if not job_id:
+            raise RuntimeError(f"Firecrawl crawl response did not include a job id: {start}")
+        return self._wait_for_crawl(job_id)
+
+    def _wait_for_crawl(self, job_id: str, *, poll_interval: float = 2.0, timeout: float = 180.0) -> dict[str, Any]:
+        deadline = time.monotonic() + timeout
+        status_data: dict[str, Any] = {}
+        while time.monotonic() < deadline:
+            status_data = self._get_json(f"/v1/crawl/{job_id}", default_timeout=30.0)
+            status = str(status_data.get("status") or "").lower()
+            if status == "completed":
+                data = list(status_data.get("data") or [])
+                next_url = status_data.get("next")
+                while next_url:
+                    next_page = self._get_json(str(next_url), default_timeout=30.0)
+                    data.extend(list(next_page.get("data") or []))
+                    next_url = next_page.get("next")
+                status_data["data"] = data
+                return status_data
+            if status in {"failed", "cancelled", "error"}:
+                raise RuntimeError(
+                    f"Firecrawl crawl failed with status '{status}': "
+                    f"{status_data.get('error') or status_data}"
+                )
+            time.sleep(poll_interval)
+        raise TimeoutError(f"Firecrawl crawl {job_id} did not finish within {timeout:.0f}s")
+
+
+def _load_firecrawl_client_class():
+    if Firecrawl is not None:
+        return Firecrawl
+    logger.debug("firecrawl SDK unavailable, falling back to HTTP client")
+    return None
 
 
 def _get_firecrawl_gateway_url() -> str:
@@ -235,7 +381,11 @@ def _get_firecrawl_client():
     if _firecrawl_client is not None and _firecrawl_client_config == client_config:
         return _firecrawl_client
 
-    _firecrawl_client = Firecrawl(**kwargs)
+    firecrawl_cls = _load_firecrawl_client_class()
+    if firecrawl_cls is not None:
+        _firecrawl_client = firecrawl_cls(**kwargs)
+    else:
+        _firecrawl_client = _FirecrawlHTTPCompatClient(**kwargs)
     _firecrawl_client_config = client_config
     return _firecrawl_client
 

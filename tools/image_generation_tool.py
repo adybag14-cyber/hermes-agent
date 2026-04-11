@@ -557,7 +557,9 @@ def check_image_generation_requirements() -> bool:
             return False
         
         # Check if fal_client is available
-        import fal_client  # noqa: F401 — SDK presence check
+        import fal_client
+        if getattr(fal_client, "__hermes_android_stub__", False):
+            return False
         return True
         
     except ImportError:
