@@ -24,6 +24,7 @@ def _clear_caches():
 
 class TestTerminalRequirements:
     def test_local_backend_requirements(self, monkeypatch):
+        monkeypatch.setenv("TERMINAL_ENV", "local")
         monkeypatch.setattr(
             terminal_tool_module,
             "_get_env_config",
