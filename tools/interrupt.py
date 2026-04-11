@@ -18,6 +18,10 @@ import threading
 
 # Set of thread idents that have been interrupted.
 _interrupted_threads: set[int] = set()
+# Legacy global interrupt flag for call sites/tests that still use the module
+# as a process-wide threading.Event. Thread-scoped interrupts continue to work
+# when a specific thread_id is provided.
+_global_interrupted = False
 _lock = threading.Lock()
 
 
@@ -26,11 +30,15 @@ def set_interrupt(active: bool, thread_id: int | None = None) -> None:
 
     Args:
         active: True to signal interrupt, False to clear it.
-        thread_id: Target thread ident.  When None, targets the
-                   current thread (backward compat for CLI/tests).
+        thread_id: Target thread ident. When None, toggles the legacy
+                   process-wide interrupt flag and the current thread's flag
+                   for backward compatibility with existing tests/tools.
     """
     tid = thread_id if thread_id is not None else threading.current_thread().ident
     with _lock:
+        global _global_interrupted
+        if thread_id is None:
+            _global_interrupted = active
         if active:
             _interrupted_threads.add(tid)
         else:
@@ -40,12 +48,12 @@ def set_interrupt(active: bool, thread_id: int | None = None) -> None:
 def is_interrupted() -> bool:
     """Check if an interrupt has been requested for the current thread.
 
-    Safe to call from any thread — each thread only sees its own
-    interrupt state.
+    Returns True when either the legacy global interrupt is active or the
+    current thread has been interrupted explicitly.
     """
     tid = threading.current_thread().ident
     with _lock:
-        return tid in _interrupted_threads
+        return _global_interrupted or tid in _interrupted_threads
 
 
 # ---------------------------------------------------------------------------
