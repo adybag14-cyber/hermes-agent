@@ -366,6 +366,59 @@ def test_build_api_kwargs_chatgpt_web_prefers_read_file_for_explicit_path_with_s
 
 
 
+def test_chatgpt_web_extract_symbol_target_ignores_stopwords(monkeypatch):
+    agent = _build_agent(monkeypatch)
+    assert agent._chatgpt_web_extract_symbol_target(
+        "Inspect tools/browser_tool.py and report where fallback PATH directories are defined and where subprocess PATH is assembled."
+    ) is None
+
+
+
+def test_build_api_kwargs_chatgpt_web_prefers_search_files_for_explicit_path_definition_lookup(monkeypatch, tmp_path):
+    agent = _build_agent(monkeypatch)
+    target_path = tmp_path / "sample.py"
+    target_path.write_text("alpha\nBETA = 1\n")
+    agent.tools = [
+        {"type": "function", "function": {"name": "search_files", "description": "Search files", "parameters": {"type": "object"}}},
+        {"type": "function", "function": {"name": "read_file", "description": "Read files", "parameters": {"type": "object"}}},
+    ]
+
+    kwargs = agent._build_api_kwargs([
+        {"role": "system", "content": "Be concise."},
+        {"role": "user", "content": f'Use Hermes tools to read the local file {target_path} and answer only with the exact line that defines BETA.'},
+    ])
+
+    rewritten_user = kwargs["messages"][-1]["content"]
+    assert 'The tool available for this turn is: search_files.' in rewritten_user
+    assert f'"path": "{target_path}"' in rewritten_user
+    assert '"pattern": "BETA"' in rewritten_user
+    assert '"target": "content"' in rewritten_user
+
+
+
+def test_build_api_kwargs_chatgpt_web_infers_read_file_after_explicit_path_definition_search(monkeypatch, tmp_path):
+    agent = _build_agent(monkeypatch)
+    target_path = tmp_path / "sample.py"
+    target_path.write_text("alpha\nBETA = 1\n")
+    agent.tools = [
+        {"type": "function", "function": {"name": "search_files", "description": "Search files", "parameters": {"type": "object"}}},
+        {"type": "function", "function": {"name": "read_file", "description": "Read files", "parameters": {"type": "object"}}},
+    ]
+
+    kwargs = agent._build_api_kwargs([
+        {"role": "system", "content": "Be concise."},
+        {"role": "user", "content": f'Use Hermes tools to read the local file {target_path} and answer only with the exact line that defines BETA.'},
+        {"role": "tool", "content": f'{{"total_count": 1, "matches": [{{"path": "{target_path}", "line": 2, "content": "BETA = 1"}}]}}'},
+    ])
+
+    rewritten_user = kwargs["messages"][0]["content"]
+    assert 'The tool available for this turn is: read_file.' in rewritten_user
+    assert f'"path": "{target_path}"' in rewritten_user
+    assert '"offset": 2' in rewritten_user
+    assert '"limit": 1' in rewritten_user
+
+
+
 def test_build_api_kwargs_chatgpt_web_prefers_terminal_for_general_run_command(monkeypatch):
     agent = _build_agent(monkeypatch)
     agent.tools = [
@@ -1237,3 +1290,14 @@ def test_chatgpt_web_repair_answer_only_path_does_not_reuse_old_image_urls(monke
     )
 
     assert repaired == "/tmp/report.txt"
+
+
+def test_chatgpt_web_repair_answer_only_line_prefers_exact_tool_line(monkeypatch):
+    agent = _build_agent(monkeypatch, model="gpt-5-thinking")
+    repaired = agent._chatgpt_web_repair_answer_only_response(
+        "Read the local file /tmp/sample.py and answer only with the exact line that defines BETA.",
+        "The line defining BETA is:\n\n```python\nBETA = 1\n```",
+        [{"role": "tool", "content": '{"total_count": 1, "matches": [{"path": "/tmp/sample.py", "line": 2, "content": "BETA = 1"}]}' }],
+    )
+
+    assert repaired == "BETA = 1"
