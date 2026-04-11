@@ -357,7 +357,7 @@ TOOLSETS = {
         "description": "Android app MVP toolset — mobile-safe defaults for the embedded API server",
         "tools": [
             "web_search", "web_extract",
-            "vision_analyze", "image_generate",
+            "vision_analyze",
             "skills_list", "skill_view", "skill_manage",
             "todo", "memory", "session_search",
         ],
