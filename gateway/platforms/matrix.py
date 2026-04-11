@@ -1121,16 +1121,18 @@ class MatrixAdapter(BasePlatformAdapter):
                 )
 
                 # nio returns SyncError objects (not exceptions) for auth
-                # failures like M_UNKNOWN_TOKEN.  Detect and stop immediately.
-                _sync_msg = getattr(sync_data, "message", None)
-                if _sync_msg and isinstance(_sync_msg, str):
-                    _lower = _sync_msg.lower()
-                    if "m_unknown_token" in _lower or "unknown_token" in _lower:
-                        logger.error(
-                            "Matrix: permanent auth error from sync: %s — stopping",
-                            _sync_msg,
-                        )
-                        return
+                # failures like M_UNKNOWN_TOKEN. Detect and stop immediately.
+                sync_message = str(getattr(sync_data, "message", "") or "")
+                sync_message_lower = sync_message.lower()
+                if sync_message and (
+                    "m_unknown_token" in sync_message_lower
+                    or "unknown_token" in sync_message_lower
+                ):
+                    logger.error(
+                        "Matrix: permanent auth error from sync: %s — stopping",
+                        sync_message,
+                    )
+                    return
 
                 if isinstance(sync_data, dict):
                     # Update joined rooms from sync response.
@@ -1154,6 +1156,9 @@ class MatrixAdapter(BasePlatformAdapter):
                     except Exception as exc:
                         logger.warning("Matrix: sync event dispatch error: %s", exc)
 
+                # Retry any buffered undecrypted events.
+                if getattr(self, "_pending_megolm", None):
+                    await self._retry_pending_decryptions()
             except asyncio.CancelledError:
                 return
             except Exception as exc:
