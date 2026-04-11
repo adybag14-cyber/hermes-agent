@@ -34,12 +34,21 @@ class TestTerminalRequirements:
 
     def test_terminal_and_execute_code_tools_resolve_for_managed_modal(self, monkeypatch, tmp_path):
         monkeypatch.setenv("HERMES_ENABLE_NOUS_MANAGED_TOOLS", "1")
+        monkeypatch.setenv("TERMINAL_ENV", "modal")
+        monkeypatch.setenv("TERMINAL_MODAL_MODE", "managed")
         monkeypatch.setenv("HOME", str(tmp_path))
         monkeypatch.setenv("USERPROFILE", str(tmp_path))
         monkeypatch.delenv("MODAL_TOKEN_ID", raising=False)
         monkeypatch.delenv("MODAL_TOKEN_SECRET", raising=False)
+        live_check_fn = registry._tools["terminal"].check_fn
+
         monkeypatch.setattr(
             terminal_tool_module,
+            "_get_env_config",
+            lambda: {"env_type": "modal", "modal_mode": "managed"},
+        )
+        monkeypatch.setitem(
+            live_check_fn.__globals__,
             "_get_env_config",
             lambda: {"env_type": "modal", "modal_mode": "managed"},
         )
@@ -48,10 +57,30 @@ class TestTerminalRequirements:
             "is_managed_tool_gateway_ready",
             lambda _vendor: True,
         )
+        monkeypatch.setitem(
+            live_check_fn.__globals__,
+            "is_managed_tool_gateway_ready",
+            lambda _vendor: True,
+        )
         monkeypatch.setattr(
             terminal_tool_module,
             "ensure_minisweagent_on_path",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not be called")),
+        )
+        monkeypatch.setitem(
+            live_check_fn.__globals__,
+            "ensure_minisweagent_on_path",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("should not be called")),
+        )
+        monkeypatch.setattr(
+            terminal_tool_module.importlib.util,
+            "find_spec",
+            lambda _name: (_ for _ in ()).throw(AssertionError("should not be called")),
+        )
+        monkeypatch.setattr(
+            live_check_fn.__globals__["importlib"].util,
+            "find_spec",
+            lambda _name: (_ for _ in ()).throw(AssertionError("should not be called")),
         )
 
         tools = get_tool_definitions(enabled_toolsets=["terminal", "code_execution"], quiet_mode=True)
