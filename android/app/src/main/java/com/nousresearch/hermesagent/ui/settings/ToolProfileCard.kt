@@ -14,7 +14,6 @@ private val ENABLED_TOOLS = listOf(
     "web_search",
     "web_extract",
     "vision_analyze",
-    "image_generate",
     "skills_list",
     "skill_view",
     "skill_manage",
@@ -30,6 +29,7 @@ private val BLOCKED_TOOL_CLASSES = listOf(
     "execute_code",
     "delegate_task",
     "cronjob",
+    "image generation (deferred)",
     "voice / transcription",
 )
 

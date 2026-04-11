@@ -42,13 +42,28 @@ jobs:
 
       - name: Run Android-related Python tests
         run: |
-          python -m pytest tests/hermes_android tests/gateway/test_api_server_toolset.py tests/gateway/test_api_server_android_toolset.py tests/tools/test_skills_sync.py -q
+          python -m pytest \
+            tests/hermes_android \
+            tests/hermes_android/test_android_packaging.py \
+            tests/gateway/test_api_server_toolset.py \
+            tests/gateway/test_api_server_android_toolset.py \
+            tests/tools/test_skills_sync.py \
+            tests/tools/test_web_tools_firecrawl_fallback.py \
+            tests/run_agent/test_run_agent_chatgpt_web.py \
+            -q
 
       - name: Ensure Gradle wrapper is executable
         run: chmod +x android/gradlew
 
-      - name: Android smoke check
+      - name: Build Android debug APK and run unit tests
         working-directory: android
         run: |
           export PYTHON_FOR_BUILD="$(command -v python3.11 || command -v python3 || command -v python)"
-          ./gradlew :app:tasks
+          ./gradlew :app:testDebugUnitTest :app:assembleDebug
+
+      - name: Upload debug APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-agent-android-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
