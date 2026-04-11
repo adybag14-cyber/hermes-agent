@@ -10,7 +10,7 @@ class HermesAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Alpha scaffold: event inspection hooks can be added here later.
+        DeviceStateWriter.write(applicationContext)
     }
 
     override fun onInterrupt() {

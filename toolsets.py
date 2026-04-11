@@ -313,9 +313,11 @@ TOOLSETS = {
     },
 
     "hermes-android-app": {
-        "description": "Android app alpha toolset — mobile-safe defaults plus workspace file access and device status",
+        "description": "Android app alpha toolset — direct shared-folder access, Android UI targeting, and workspace fallback tools",
         "tools": [
             "android_device_status",
+            "android_shared_folder_list", "android_shared_folder_read", "android_shared_folder_write",
+            "android_ui_snapshot", "android_ui_action",
             "read_file", "search_files", "write_file", "patch",
             "web_search", "web_extract",
             "vision_analyze",
