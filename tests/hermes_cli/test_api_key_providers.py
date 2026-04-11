@@ -147,6 +147,7 @@ _EXTRA_ENV_VARS = (
 PROVIDER_ENV_VARS = tuple(
     dict.fromkeys(
         [var for cfg in _REGISTRY.values() for var in cfg.api_key_env_vars]
+        + [cfg.base_url_env_var for cfg in _REGISTRY.values() if cfg.base_url_env_var]
         + list(_EXTRA_ENV_VARS)
     )
 )
