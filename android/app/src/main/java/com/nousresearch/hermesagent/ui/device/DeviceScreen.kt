@@ -107,10 +107,10 @@ private fun DeviceGuideCard(workspacePath: String) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text("How to use this alpha", style = MaterialTheme.typography.titleMedium)
-            Text("1. Import a file or grant a shared folder from Android's native pickers.")
-            Text("2. Hermes now has workspace file tools enabled in the Android runtime.")
-            Text("3. Ask Hermes to call android_device_status first, then use read_file / write_file / search_files / patch inside the workspace path below.")
-            Text("4. Enable Hermes accessibility if you want quick Home, Back, Recents, Notifications, and Quick settings control.")
+            Text("1. Grant a shared folder from Android's native picker if you want Hermes to edit the real files in place.")
+            Text("2. Ask Hermes to call android_device_status first, then use android_shared_folder_list / android_shared_folder_read / android_shared_folder_write for direct shared-folder work.")
+            Text("3. Import files into the workspace only when you want scratch copies or staging files.")
+            Text("4. Enable Hermes accessibility if you want Hermes to inspect the visible UI and trigger targeted actions in addition to Home / Back / Recents / Notifications / Quick settings.")
             if (workspacePath.isNotBlank()) {
                 Text("Workspace path: $workspacePath", style = MaterialTheme.typography.bodySmall)
             }
@@ -134,8 +134,8 @@ private fun WorkspaceAccessCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Workspace + file access", style = MaterialTheme.typography.titleMedium)
-            Text("Imported files land in the Hermes workspace so the local agent can read and edit them safely.")
+            Text("Shared folder + workspace access", style = MaterialTheme.typography.titleMedium)
+            Text("Grant a shared folder to let Hermes read and write the real files directly. Imported files still land in the Hermes workspace when you want copies instead.")
             Text("Shared folder: ${uiState.sharedFolderLabel}", style = MaterialTheme.typography.bodySmall)
             if (uiState.sharedFolderUri.isNotBlank()) {
                 Text(uiState.sharedFolderUri, style = MaterialTheme.typography.bodySmall)
@@ -215,12 +215,12 @@ private fun AccessibilityCard(
             Text(
                 if (uiState.accessibilityEnabled) {
                     if (uiState.accessibilityConnected) {
-                        "Hermes accessibility is enabled and connected."
+                        "Hermes accessibility is enabled and connected. Hermes can inspect the visible UI with android_ui_snapshot and target controls with android_ui_action."
                     } else {
                         "Hermes accessibility is enabled, but Android has not connected the service yet."
                     }
                 } else {
-                    "Hermes accessibility is disabled. Enable it in Android settings to unlock quick device actions."
+                    "Hermes accessibility is disabled. Enable it in Android settings to unlock quick device actions plus UI inspection/action targeting."
                 },
             )
             Button(onClick = onOpenSettings) {
