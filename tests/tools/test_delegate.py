@@ -58,7 +58,20 @@ def _make_mock_parent(depth=0):
     return parent
 
 
-class TestDelegateRequirements(unittest.TestCase):
+class _DelegateConfigIsolatedTestCase(unittest.TestCase):
+    """Keep delegate-tool tests independent from ambient ~/.hermes config."""
+
+    def setUp(self):
+        super().setUp()
+        self._delegate_cfg_patcher = patch("tools.delegate_tool._load_config", return_value={})
+        self._delegate_cfg_patcher.start()
+
+    def tearDown(self):
+        self._delegate_cfg_patcher.stop()
+        super().tearDown()
+
+
+class TestDelegateRequirements(_DelegateConfigIsolatedTestCase):
     def test_always_available(self):
         self.assertTrue(check_delegate_requirements())
 
@@ -125,7 +138,7 @@ class TestDelegateRequirements(unittest.TestCase):
         self.assertIn(f"max_spawn_depth={_get_max_spawn_depth()}", fn["description"])
 
 
-class TestChildSystemPrompt(unittest.TestCase):
+class TestChildSystemPrompt(_DelegateConfigIsolatedTestCase):
     def test_goal_only(self):
         prompt = _build_child_system_prompt("Fix the tests")
         self.assertIn("Fix the tests", prompt)
@@ -143,7 +156,7 @@ class TestChildSystemPrompt(unittest.TestCase):
         self.assertNotIn("CONTEXT", prompt)
 
 
-class TestStripBlockedTools(unittest.TestCase):
+class TestStripBlockedTools(_DelegateConfigIsolatedTestCase):
     def test_removes_blocked_toolsets(self):
         result = _strip_blocked_tools(["terminal", "file", "delegation", "clarify", "memory", "code_execution"])
         self.assertEqual(sorted(result), ["file", "terminal"])
@@ -157,7 +170,7 @@ class TestStripBlockedTools(unittest.TestCase):
         self.assertEqual(result, [])
 
 
-class TestDelegateTask(unittest.TestCase):
+class TestDelegateTask(_DelegateConfigIsolatedTestCase):
     def test_no_parent_agent(self):
         result = json.loads(delegate_task(goal="test"))
         self.assertIn("error", result)
@@ -415,7 +428,7 @@ class TestDelegateTask(unittest.TestCase):
         parent.tool_progress_callback.assert_not_called()
 
 
-class TestToolNamePreservation(unittest.TestCase):
+class TestToolNamePreservation(_DelegateConfigIsolatedTestCase):
     """Verify _last_resolved_tool_names is restored after subagent runs."""
 
     def test_global_tool_names_restored_after_delegation(self):
@@ -511,7 +524,7 @@ class TestToolNamePreservation(unittest.TestCase):
         self.assertEqual(captured["saved"], expected_tools)
 
 
-class TestDelegateObservability(unittest.TestCase):
+class TestDelegateObservability(_DelegateConfigIsolatedTestCase):
     """Tests for enriched metadata returned by _run_single_child."""
 
     def test_observability_fields_present(self):
@@ -831,7 +844,7 @@ class TestSubagentCostRollup(unittest.TestCase):
         self.assertEqual(len(result["results"]), 1)
 
 
-class TestBlockedTools(unittest.TestCase):
+class TestBlockedTools(_DelegateConfigIsolatedTestCase):
     def test_blocked_tools_constant(self):
         for tool in ["delegate_task", "clarify", "memory", "send_message", "execute_code"]:
             self.assertIn(tool, DELEGATE_BLOCKED_TOOLS)
@@ -849,7 +862,7 @@ class TestBlockedTools(unittest.TestCase):
         self.assertEqual(_MAX_SPAWN_DEPTH_CAP, 3)
 
 
-class TestDelegationCredentialResolution(unittest.TestCase):
+class TestDelegationCredentialResolution(_DelegateConfigIsolatedTestCase):
     """Tests for provider:model credential resolution in delegation config."""
 
     def test_no_provider_returns_none_credentials(self):
@@ -972,7 +985,7 @@ class TestDelegationCredentialResolution(unittest.TestCase):
         self.assertIsNone(creds["provider"])
 
 
-class TestDelegationProviderIntegration(unittest.TestCase):
+class TestDelegationProviderIntegration(_DelegateConfigIsolatedTestCase):
     """Integration tests: delegation config → _run_single_child → AIAgent construction."""
 
     @patch("tools.delegate_tool._load_config")
@@ -1311,7 +1324,7 @@ class TestDelegationProviderIntegration(unittest.TestCase):
             self.assertEqual(kwargs["base_url"], parent.base_url)
 
 
-class TestChildCredentialPoolResolution(unittest.TestCase):
+class TestChildCredentialPoolResolution(_DelegateConfigIsolatedTestCase):
     def test_same_provider_shares_parent_pool(self):
         parent = _make_mock_parent()
         mock_pool = MagicMock()
@@ -1435,7 +1448,7 @@ class TestChildCredentialPoolResolution(unittest.TestCase):
         )
 
 
-class TestChildCredentialLeasing(unittest.TestCase):
+class TestChildCredentialLeasing(_DelegateConfigIsolatedTestCase):
     def test_run_single_child_acquires_and_releases_lease(self):
         from tools.delegate_tool import _run_single_child
 
@@ -1486,7 +1499,7 @@ class TestChildCredentialLeasing(unittest.TestCase):
         child._credential_pool.release_lease.assert_called_once_with("cred-a")
 
 
-class TestDelegateHeartbeat(unittest.TestCase):
+class TestDelegateHeartbeat(_DelegateConfigIsolatedTestCase):
     """Heartbeat propagates child activity to parent during delegation.
 
     Without the heartbeat, the gateway inactivity timeout fires because the
@@ -1699,7 +1712,7 @@ class TestDelegateHeartbeat(unittest.TestCase):
 
 
 
-class TestDelegationReasoningEffort(unittest.TestCase):
+class TestDelegationReasoningEffort(_DelegateConfigIsolatedTestCase):
     """Tests for delegation.reasoning_effort config override."""
 
     @patch("tools.delegate_tool._load_config")
