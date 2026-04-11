@@ -25,6 +25,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, List, Optional
 
+from iteration_limits import is_unlimited_iteration_limit, parse_iteration_limit
 from toolsets import TOOLSETS
 
 
@@ -78,8 +79,27 @@ def _get_max_concurrent_children() -> int:
             pass
     return _DEFAULT_MAX_CONCURRENT_CHILDREN
 DEFAULT_MAX_ITERATIONS = 50
+MIN_SUBAGENT_MAX_ITERATIONS = 2
 _HEARTBEAT_INTERVAL = 30  # seconds between parent activity heartbeats during delegation
 DEFAULT_TOOLSETS = ["terminal", "file", "web"]
+
+
+def _resolve_effective_max_iterations(requested: Any, default: Any = DEFAULT_MAX_ITERATIONS) -> float | int:
+    """Normalize subagent iteration limits.
+
+    Subagents typically need one LLM turn to decide/use a tool and a second turn
+    to produce their final summary. Some models — especially ChatGPT Web during
+    delegate_task tool calls — sometimes emit ``max_iterations=1`` for tool-using
+    tasks, which leaves the child unable to answer after the tool returns.
+
+    Clamp finite limits to at least ``MIN_SUBAGENT_MAX_ITERATIONS`` while still
+    preserving unlimited/sentinel values from config.
+    """
+    candidate = default if requested is None else requested
+    parsed = parse_iteration_limit(candidate, default=DEFAULT_MAX_ITERATIONS)
+    if is_unlimited_iteration_limit(parsed):
+        return parsed
+    return max(MIN_SUBAGENT_MAX_ITERATIONS, int(parsed))
 
 
 def check_delegate_requirements() -> bool:
@@ -712,7 +732,7 @@ def delegate_task(
     # Load config
     cfg = _load_config()
     default_max_iter = cfg.get("max_iterations", DEFAULT_MAX_ITERATIONS)
-    effective_max_iter = max_iterations or default_max_iter
+    effective_max_iter = _resolve_effective_max_iterations(max_iterations, default_max_iter)
 
     # Resolve delegation credentials (provider:model pair).
     # When delegation.provider is configured, this resolves the full credential
@@ -976,7 +996,10 @@ def _resolve_delegation_credentials(cfg: dict, parent_agent) -> dict:
         base_lower = configured_base_url.lower()
         provider = "custom"
         api_mode = "chat_completions"
-        if "chatgpt.com/backend-api/codex" in base_lower:
+        if "chatgpt.com/backend-api/f" in base_lower or "chatgpt.com/backend-anon/f" in base_lower:
+            provider = "chatgpt-web"
+            api_mode = "chatgpt_web"
+        elif "chatgpt.com/backend-api/codex" in base_lower:
             provider = "openai-codex"
             api_mode = "codex_responses"
         elif "api.anthropic.com" in base_lower:
@@ -1010,7 +1033,7 @@ def _resolve_delegation_credentials(cfg: dict, parent_agent) -> dict:
             f"Cannot resolve delegation provider '{configured_provider}': {exc}. "
             f"Check that the provider is configured (API key set, valid provider name), "
             f"or set delegation.base_url/delegation.api_key for a direct endpoint. "
-            f"Available providers: openrouter, nous, zai, kimi-coding, minimax."
+            f"Available providers include: openrouter, nous, chatgpt-web, openai-codex, qwen-oauth, zai, kimi-coding, minimax."
         ) from exc
 
     api_key = runtime.get("api_key", "")
