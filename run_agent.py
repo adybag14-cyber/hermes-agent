@@ -2733,9 +2733,9 @@ class AIAgent:
             path = self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
             return path or repaired
         if mode == "line":
-            line = self._chatgpt_web_extract_exact_line_from_text(repaired) or (
+            line = (
                 self._chatgpt_web_extract_line_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
-            )
+            ) or self._chatgpt_web_extract_exact_line_from_text(repaired)
             return line or repaired
         if mode == "result":
             result = self._chatgpt_web_extract_simple_result(repaired) or (
@@ -3040,6 +3040,8 @@ class AIAgent:
         lowered = user_text.lower()
         heuristic_names: list[str] = []
         explicit_local_path = self._chatgpt_web_extract_local_path(user_text)
+        relative_path_match = re.search(r"\b([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)\b", user_text)
+        path_match = explicit_local_path or (relative_path_match.group(1) if relative_path_match else None)
         explicit_symbol_target = self._chatgpt_web_extract_symbol_target(user_text)
         image_generation_request = (
             any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint"))
@@ -3092,13 +3094,15 @@ class AIAgent:
         if image_analysis_request:
             vision_tool = tools_by_name.get("vision_analyze")
             return [vision_tool] if vision_tool is not None else []
-        if used_tool_count == 0 and explicit_local_path and explicit_symbol_target and any(
+        if used_tool_count == 0 and path_match and explicit_symbol_target and any(
             keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
         ):
             search_tool = tools_by_name.get("search_files")
             if search_tool is not None:
                 return [search_tool]
-        if explicit_local_path and any(keyword in lowered for keyword in ("read", "first line", "exact def line", "open the file", "show the file")):
+        if path_match and any(
+            keyword in lowered for keyword in ("read", "first line", "exact def line", "open the file", "show the file", "inspect", "summarize", "report")
+        ):
             read_tool = tools_by_name.get("read_file")
             if read_tool is not None:
                 return [read_tool]
@@ -3178,7 +3182,7 @@ class AIAgent:
                 keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
             ):
                 return {
-                    "pattern": explicit_symbol_target,
+                    "pattern": rf"\b{re.escape(explicit_symbol_target)}\b",
                     "target": "content",
                     "path": path_match,
                 }
@@ -3203,9 +3207,28 @@ class AIAgent:
                         if match_path:
                             offset = int(match_line) if isinstance(match_line, int) and match_line > 0 else 1
                             return {"path": match_path, "offset": offset, "limit": 1}
-            if explicit_local_path and any(keyword in lowered for keyword in ("read", "first line", "line", "open", "show")):
+                if (
+                    path_match
+                    and bool(last_tool_payload.get("truncated"))
+                    and any(keyword in lowered for keyword in ("inspect", "summarize", "report", "where"))
+                    and not any(keyword in lowered for keyword in ("first line", "exact def line", "exact line"))
+                ):
+                    hint_text = str(last_tool_payload.get("hint") or "")
+                    hint_match = re.search(r"offset=(\d+)", hint_text)
+                    next_offset = int(hint_match.group(1)) if hint_match else None
+                    if next_offset is None:
+                        content_text = str(last_tool_payload.get("content") or "")
+                        numbered_lines = [
+                            int(match.group(1))
+                            for match in re.finditer(r"(?m)^\s*(\d+)\|", content_text)
+                        ]
+                        if numbered_lines:
+                            next_offset = numbered_lines[-1] + 1
+                    if next_offset and next_offset > 1:
+                        return {"path": path_match, "offset": next_offset, "limit": 40}
+            if path_match and any(keyword in lowered for keyword in ("read", "first line", "line", "open", "show", "inspect", "summarize", "report")):
                 limit = 1 if any(keyword in lowered for keyword in ("first line", "exact def line", "exact line")) else 20
-                return {"path": explicit_local_path, "offset": 1, "limit": limit}
+                return {"path": path_match, "offset": 1, "limit": limit}
 
         if tool_name == "memory":
             forget_match = re.search(r"\b(?:forget|remove|delete)(?:\s+that|\s+this)?\b\s*(.+?)(?:\.\s*answer only.*)?$", user_text, re.IGNORECASE | re.DOTALL)
@@ -3331,6 +3354,25 @@ class AIAgent:
             + json.dumps({"name": tool_name, "arguments": args}, ensure_ascii=False)
             + "\n</tool_call>"
         )
+
+    def _chatgpt_web_should_force_followup_tool_call(
+        self,
+        payload_messages: list[dict[str, Any]],
+        tool_name: str,
+        tool_args: Optional[dict[str, Any]],
+    ) -> bool:
+        if tool_name != "read_file" or not isinstance(tool_args, dict):
+            return False
+        if not str(tool_args.get("path") or "").strip():
+            return False
+        last_tool_content = ""
+        for item in reversed(payload_messages):
+            if isinstance(item, dict) and item.get("role") == "tool":
+                last_tool_content = str(item.get("content") or "")
+                break
+        tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
+        matches = tool_payload.get("matches") if isinstance(tool_payload, dict) else None
+        return isinstance(matches, list) and bool(matches)
 
     def _format_tools_for_chatgpt_web(self, tools: Optional[list[dict[str, Any]]] = None) -> str:
         selected_tools = tools if tools is not None else self.tools
@@ -5792,7 +5834,10 @@ class AIAgent:
                 + "\n</tool_call>"
                 if selected_tool_names and selected_tool_args is not None else ""
             )
-            if used_tool_count == 0 and selected_tool_names and selected_tool_args is not None:
+            if selected_tool_names and selected_tool_args is not None and (
+                used_tool_count == 0
+                or self._chatgpt_web_should_force_followup_tool_call(current_turn_messages, selected_tool_names[0], selected_tool_args)
+            ):
                 self._chatgpt_web_forced_tool_call = {
                     "name": selected_tool_names[0],
                     "arguments": selected_tool_args,
