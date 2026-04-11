@@ -359,6 +359,23 @@ def _runtime_provider_credentials(v: dict, explicit_request_overrides) -> dict:
         runtime.get("max_output_tokens"), command=pinned_command, args=list(runtime.get("args") or []),
     )
 
+def _resolve_effective_max_iterations(default: Any = None) -> int:
+    """Normalize the configured cap without increasing an explicit user budget."""
+    import math
+    from tools.delegate_tool import DEFAULT_MAX_ITERATIONS
+
+    from hermes_cli.config import resolve_turn_limit
+
+    # Older fork configs accepted these spellings/values. Translate them to
+    # the shared integer sentinel rather than leaking float infinity into
+    # child construction or widening a finite one-iteration budget.
+    if isinstance(default, float) and math.isinf(default):
+        default = "unlimited"
+    elif isinstance(default, str) and default.strip().lower() in {"no-limit", "nolimit"}:
+        default = "unlimited"
+    return resolve_turn_limit(default, default=DEFAULT_MAX_ITERATIONS)
+
+
 def _resolve_delegation_credentials(cfg: dict, parent_agent) -> dict:
     """Child credential bundle from the ``delegation`` config section. Three branches: ``base_url`` set → direct
     endpoint (``api_key`` None means inherit the parent's key, so providers keyed outside OPENAI_API_KEY work);

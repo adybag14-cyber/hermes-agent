@@ -1168,6 +1168,38 @@ class TestDelegationCredentialResolution(unittest.TestCase):
 class TestDelegationProviderIntegration(unittest.TestCase):
     """Integration tests: delegation config → _run_single_child → AIAgent construction."""
 
+    def test_configured_iteration_limits_use_integer_contract(self):
+        from hermes_cli.config import TURN_LIMIT_UNLIMITED
+        from tools.delegate_tool_config import _resolve_effective_max_iterations
+
+        for configured, expected in (
+            (1, 1), ("1", 1), (17, 17),
+            ("unlimited", TURN_LIMIT_UNLIMITED), ("no-limit", TURN_LIMIT_UNLIMITED),
+            (float("inf"), TURN_LIMIT_UNLIMITED), (TURN_LIMIT_UNLIMITED, TURN_LIMIT_UNLIMITED),
+        ):
+            with self.subTest(configured=configured):
+                actual = _resolve_effective_max_iterations(configured)
+                self.assertIsInstance(actual, int)
+                self.assertEqual(actual, expected)
+
+    @patch("tools.delegate_tool._load_config")
+    @patch("tools.delegate_tool._resolve_delegation_credentials")
+    def test_delegate_task_preserves_explicit_one_iteration_cap(self, mock_creds, mock_cfg):
+        mock_cfg.return_value = {"max_iterations": 1, "model": "", "provider": ""}
+        mock_creds.return_value = {
+            "model": None, "provider": None, "base_url": None,
+            "api_key": None, "api_mode": None,
+        }
+        parent = _make_mock_parent(depth=0)
+        with patch("run_agent.AIAgent") as MockAgent:
+            child = MockAgent.return_value
+            child.run_conversation.return_value = {
+                "final_response": "done", "completed": True, "api_calls": 1,
+            }
+            delegate_task(goal="Summarize the supplied context.", parent_agent=parent)
+
+        self.assertEqual(MockAgent.call_args.kwargs["max_iterations"], 1)
+
     @patch("tools.delegate_tool._load_config")
     @patch("tools.delegate_tool._resolve_delegation_credentials")
     def test_config_provider_credentials_reach_child_agent(self, mock_creds, mock_cfg):
