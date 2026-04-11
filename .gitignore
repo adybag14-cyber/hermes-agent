@@ -29,6 +29,8 @@ run_datagen_sonnet.sh
 source-data/*
 run_datagen_megascience_glm4-6.sh
 data/*
+!android/app/src/main/java/com/nousresearch/hermesagent/data/
+!android/app/src/main/java/com/nousresearch/hermesagent/data/*.kt
 node_modules/
 browser-use/
 agent-browser/
