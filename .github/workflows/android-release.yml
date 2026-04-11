@@ -9,6 +9,9 @@ concurrency:
   group: android-release-${{ github.event.release.tag_name }}
   cancel-in-progress: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   build-release:
     runs-on: ubuntu-latest

@@ -43,4 +43,6 @@ object HermesAccessibilityController {
     fun performAction(action: HermesGlobalAction): Boolean {
         return service?.performGlobalAction(action.actionId) == true
     }
+
+    fun currentService(): HermesAccessibilityService? = service
 }

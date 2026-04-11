@@ -13,6 +13,11 @@ class TestHermesAndroidAppToolset:
         resolved = resolve_toolset("hermes-android-app")
         for expected in [
             "android_device_status",
+            "android_shared_folder_list",
+            "android_shared_folder_read",
+            "android_shared_folder_write",
+            "android_ui_snapshot",
+            "android_ui_action",
             "read_file",
             "write_file",
             "patch",
