@@ -3371,8 +3371,18 @@ class AIAgent:
                 last_tool_content = str(item.get("content") or "")
                 break
         tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
-        matches = tool_payload.get("matches") if isinstance(tool_payload, dict) else None
-        return isinstance(matches, list) and bool(matches)
+        if not isinstance(tool_payload, dict):
+            return False
+        matches = tool_payload.get("matches")
+        if isinstance(matches, list) and bool(matches):
+            return True
+        if tool_payload.get("truncated"):
+            try:
+                next_offset = int(tool_args.get("offset") or 0)
+            except Exception:
+                next_offset = 0
+            return next_offset > 1
+        return False
 
     def _format_tools_for_chatgpt_web(self, tools: Optional[list[dict[str, Any]]] = None) -> str:
         selected_tools = tools if tools is not None else self.tools
@@ -5834,9 +5844,17 @@ class AIAgent:
                 + "\n</tool_call>"
                 if selected_tool_names and selected_tool_args is not None else ""
             )
+            force_followup_tool_call = bool(
+                selected_tool_names
+                and selected_tool_args is not None
+                and self._chatgpt_web_should_force_followup_tool_call(
+                    current_turn_messages,
+                    selected_tool_names[0],
+                    selected_tool_args,
+                )
+            )
             if selected_tool_names and selected_tool_args is not None and (
-                used_tool_count == 0
-                or self._chatgpt_web_should_force_followup_tool_call(current_turn_messages, selected_tool_names[0], selected_tool_args)
+                used_tool_count == 0 or force_followup_tool_call
             ):
                 self._chatgpt_web_forced_tool_call = {
                     "name": selected_tool_names[0],
@@ -5860,17 +5878,29 @@ class AIAgent:
                                 reminder_lines.append("Reply now with this exact structure:")
                                 reminder_lines.append(selected_tool_example)
                         else:
-                            reminder_lines.extend([
-                                "You have already received at least one <tool_response>.",
-                                "If another tool is still required, emit EXACTLY ONE <tool_call>...</tool_call> block.",
-                                "Otherwise, give the final answer directly with no extra tool-call markup.",
-                                "When you give the final answer, follow the original user's requested output format exactly, including any 'answer only' constraint.",
-                                "Do not add preambles, extra prose, commas, or quotes unless the user explicitly requested them.",
-                            ])
-                            if final_answer_example:
-                                reminder_lines.append(final_answer_example)
-                            if selected_tool_hint:
-                                reminder_lines.append(selected_tool_hint)
+                            reminder_lines.append("You have already received at least one <tool_response>.")
+                            if force_followup_tool_call:
+                                reminder_lines.extend([
+                                    "Hermes has already determined that another tool call is required before the final answer.",
+                                    "Do not answer the user yet.",
+                                    "Your next reply must be EXACTLY ONE <tool_call>...</tool_call> block with no explanatory prose before or after it.",
+                                ])
+                                if selected_tool_hint:
+                                    reminder_lines.append(selected_tool_hint)
+                                if selected_tool_example:
+                                    reminder_lines.append("Reply now with this exact structure:")
+                                    reminder_lines.append(selected_tool_example)
+                            else:
+                                reminder_lines.extend([
+                                    "If another tool is still required, emit EXACTLY ONE <tool_call>...</tool_call> block.",
+                                    "Otherwise, give the final answer directly with no extra tool-call markup.",
+                                    "When you give the final answer, follow the original user's requested output format exactly, including any 'answer only' constraint.",
+                                    "Do not add preambles, extra prose, commas, or quotes unless the user explicitly requested them.",
+                                ])
+                                if final_answer_example:
+                                    reminder_lines.append(final_answer_example)
+                                if selected_tool_hint:
+                                    reminder_lines.append(selected_tool_hint)
                         item["content"] = (
                             f"Original user request:\n{original}\n\nRuntime reminder:\n"
                             + "\n".join(reminder_lines)
