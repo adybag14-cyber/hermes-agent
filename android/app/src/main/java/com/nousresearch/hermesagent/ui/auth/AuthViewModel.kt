@@ -45,6 +45,14 @@ data class AuthUiState(
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val appSettingsStore = AppSettingsStore(application)
     private val authSessionStore = AuthSessionStore(application)
+    private val signedOutStatuses by lazy {
+        buildSet {
+            add("Not signed in")
+            AppLanguage.entries.forEach { language ->
+                add(hermesStringsFor(language).authNotSignedIn())
+            }
+        }
+    }
 
     private fun currentStrings(): HermesStrings {
         val settings = appSettingsStore.load()
@@ -66,7 +74,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val normalized = Corr3xtAuthClient.normalizeConfiguredBaseUrl(_uiState.value.corr3xtBaseUrl)
         if (normalized == null) {
             _uiState.update {
-                it.copy(globalStatus = "Corr3xt base URL must be a valid http(s) URL")
+                it.copy(globalStatus = currentStrings().authBaseUrlMustBeValid())
             }
             return
         }
@@ -86,7 +94,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update {
             it.copy(
                 corr3xtBaseUrl = normalized,
-                globalStatus = "Saved Corr3xt base URL",
+                globalStatus = currentStrings().authSavedBaseUrl(),
             )
         }
     }
@@ -96,16 +104,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val normalizedBaseUrl = Corr3xtAuthClient.normalizeConfiguredBaseUrl(_uiState.value.corr3xtBaseUrl)
         if (normalizedBaseUrl == null) {
             _uiState.update {
-                it.copy(globalStatus = "Corr3xt base URL must be a valid http(s) URL")
+                it.copy(globalStatus = currentStrings().authBaseUrlMustBeValid())
             }
             return
         }
 
+        val settings = appSettingsStore.load()
         val state = UUID.randomUUID().toString()
         val pendingRequest = PendingAuthRequest(
             state = state,
             methodId = option.id,
-            startUrl = Corr3xtAuthClient.buildStartUri(normalizedBaseUrl, option, state).toString(),
+            startUrl = Corr3xtAuthClient.buildStartUri(
+                baseUrl = normalizedBaseUrl,
+                option = option,
+                state = state,
+                languageTag = settings.languageTag,
+            ).toString(),
         )
         val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(pendingRequest.startUrl)).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -117,7 +131,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { current ->
                 current.copy(
                     corr3xtBaseUrl = normalizedBaseUrl,
-                    globalStatus = "Opened Corr3xt for ${option.label} sign-in",
+                    globalStatus = currentStrings().authOpenedCorr3xt(option.label),
                     pendingMethodLabel = option.label,
                     hasPendingRequest = true,
                 )
@@ -175,7 +189,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val session = sessionsById[option.id] ?: defaultSession(option)
             val localizedStatus = when {
                 session.signedIn -> strings.authSignedInWith(option.label)
-                session.status == "Not signed in" -> strings.authNotSignedIn()
+                isSignedOutStatus(session.status) -> strings.authNotSignedIn()
                 else -> session.status
             }
             AuthOptionUiState(
@@ -193,7 +207,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         }
         val signedInAccounts = options.count { it.signedIn }
         val latestSessionStatus = sessions
-            .filter { it.updatedAtEpochMs > 0 && it.status.isNotBlank() && it.status != strings.authNotSignedIn() }
+            .filter { session ->
+                session.updatedAtEpochMs > 0 &&
+                    session.status.isNotBlank() &&
+                    !isSignedOutStatus(session.status)
+            }
             .maxByOrNull { it.updatedAtEpochMs }
             ?.status
         val pendingMethodLabel = pending?.methodId
@@ -236,5 +254,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             status = currentStrings().authNotSignedIn(),
             updatedAtEpochMs = 0,
         )
+    }
+
+    private fun isSignedOutStatus(status: String): Boolean {
+        return status.trim() in signedOutStatuses
     }
 }
