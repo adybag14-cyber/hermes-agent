@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -119,6 +120,10 @@ fun NousPortalScreen(
     val strings = LocalHermesStrings.current
     val context = LocalContext.current
     var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(strings.language) {
+        viewModel.refresh()
+    }
     var pageError by remember { mutableStateOf<String?>(null) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var isFullscreen by rememberSaveable { mutableStateOf(false) }

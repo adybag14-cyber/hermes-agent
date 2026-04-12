@@ -90,10 +90,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun selectLanguage(language: AppLanguage) {
         val normalized = language.tag
         settingsStore.save(settingsStore.load().copy(languageTag = normalized))
+        val strings = com.nousresearch.hermesagent.ui.i18n.hermesStringsFor(language)
         _uiState.update {
             it.copy(
                 languageTag = normalized,
-                status = "Language switched to ${language.nativeLabel}",
+                status = strings.languageSwitchedTo(language.nativeLabel),
             )
         }
     }

@@ -16,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,6 +39,10 @@ fun AuthScreen(
     val uiState by viewModel.uiState.collectAsState()
     val strings = LocalHermesStrings.current
     val scrollState = rememberScrollState()
+
+    LaunchedEffect(strings.language) {
+        viewModel.refresh()
+    }
 
     SideEffect {
         val actions = buildList {

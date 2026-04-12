@@ -27,4 +27,5 @@ def test_shell_branding_and_settings_page_hide_context_actions():
 
     assert 'section.subtitle' in app_shell
     assert 'setActions(emptyList())' in app_shell
+    assert 'onOpenContextActions = { showActionSheet = true }' in app_shell
     assert 'Runtime setup and onboarding' in app_shell

@@ -486,12 +486,12 @@ data class HermesStrings(
     }
 
     fun localDownloadsExampleGuidance(): String = when (language) {
-        AppLanguage.CHINESE -> "示例：GGUF 可使用 `Qwen/Qwen2.5-1.5B-Instruct-GGUF` 或 `bartowski/microsoft_Phi-4-mini-instruct-GGUF`；LiteRT-LM 可使用 `litert-community/Qwen2.5-1.5B-Instruct`、`litert-community/Phi-4-mini-instruct`、`litert-community/DeepSeek-R1-Distill-Qwen-1.5B`，以及 `litert-community/gemma-4-E2B-it-litert-lm` / `litert-community/gemma-4-E4B-it-litert-lm`。Google AI Edge Gallery 目前用这些精挑细选的 LiteRT-LM 仓库支持 Gemma、Qwen 和 DeepSeek；Nemotron / Cascade 这类模型目前更适合通过 llama.cpp + GGUF 运行。"
-        AppLanguage.SPANISH -> "Ejemplos: para GGUF usa `Qwen/Qwen2.5-1.5B-Instruct-GGUF` o `bartowski/microsoft_Phi-4-mini-instruct-GGUF`; para LiteRT-LM usa `litert-community/Qwen2.5-1.5B-Instruct`, `litert-community/Phi-4-mini-instruct`, `litert-community/DeepSeek-R1-Distill-Qwen-1.5B` y `litert-community/gemma-4-E2B-it-litert-lm` / `litert-community/gemma-4-E4B-it-litert-lm`. Google AI Edge Gallery hoy se apoya en estos repos LiteRT-LM curados para Gemma, Qwen y DeepSeek; familias como Nemotron / Cascade siguen siendo más prácticas con llama.cpp + GGUF."
-        AppLanguage.GERMAN -> "Beispiele: Für GGUF nutze `Qwen/Qwen2.5-1.5B-Instruct-GGUF` oder `bartowski/microsoft_Phi-4-mini-instruct-GGUF`; für LiteRT-LM nutze `litert-community/Qwen2.5-1.5B-Instruct`, `litert-community/Phi-4-mini-instruct`, `litert-community/DeepSeek-R1-Distill-Qwen-1.5B` sowie `litert-community/gemma-4-E2B-it-litert-lm` / `litert-community/gemma-4-E4B-it-litert-lm`. Google AI Edge Gallery stützt sich derzeit auf diese kuratierten LiteRT-LM-Repos für Gemma, Qwen und DeepSeek; Nemotron-/Cascade-Familien sind aktuell mit llama.cpp + GGUF praktischer."
-        AppLanguage.PORTUGUESE -> "Exemplos: para GGUF use `Qwen/Qwen2.5-1.5B-Instruct-GGUF` ou `bartowski/microsoft_Phi-4-mini-instruct-GGUF`; para LiteRT-LM use `litert-community/Qwen2.5-1.5B-Instruct`, `litert-community/Phi-4-mini-instruct`, `litert-community/DeepSeek-R1-Distill-Qwen-1.5B` e `litert-community/gemma-4-E2B-it-litert-lm` / `litert-community/gemma-4-E4B-it-litert-lm`. Hoje o Google AI Edge Gallery depende desses repositórios LiteRT-LM curados para Gemma, Qwen e DeepSeek; famílias como Nemotron / Cascade ainda são mais práticas com llama.cpp + GGUF."
-        AppLanguage.FRENCH -> "Exemples : pour GGUF, utilisez `Qwen/Qwen2.5-1.5B-Instruct-GGUF` ou `bartowski/microsoft_Phi-4-mini-instruct-GGUF` ; pour LiteRT-LM, utilisez `litert-community/Qwen2.5-1.5B-Instruct`, `litert-community/Phi-4-mini-instruct`, `litert-community/DeepSeek-R1-Distill-Qwen-1.5B` ainsi que `litert-community/gemma-4-E2B-it-litert-lm` / `litert-community/gemma-4-E4B-it-litert-lm`. Google AI Edge Gallery s’appuie aujourd’hui sur ces dépôts LiteRT-LM sélectionnés pour Gemma, Qwen et DeepSeek ; des familles comme Nemotron / Cascade restent plus pratiques via llama.cpp + GGUF."
-        AppLanguage.ENGLISH -> "Examples: for GGUF use `Qwen/Qwen2.5-1.5B-Instruct-GGUF` or `bartowski/microsoft_Phi-4-mini-instruct-GGUF`; for LiteRT-LM use `litert-community/Qwen2.5-1.5B-Instruct`, `litert-community/Phi-4-mini-instruct`, `litert-community/DeepSeek-R1-Distill-Qwen-1.5B`, and `litert-community/gemma-4-E2B-it-litert-lm` / `litert-community/gemma-4-E4B-it-litert-lm`. Google AI Edge Gallery currently relies on these curated LiteRT-LM repos for Gemma, Qwen, and DeepSeek; Nemotron / Cascade families are still more practical through llama.cpp + GGUF."
+        AppLanguage.CHINESE -> "输入任意 Hugging Face 仓库、hf:// 仓库、仓库页面 URL、resolve URL 或直接文件 URL。Hermes 会优先尝试推断与当前运行时匹配的文件；如果仓库里没有明显的 GGUF / LiteRT-LM 文件，就会退回到另一个看起来像模型工件的文件，并把最终是否可运行交给所选后端决定。若想固定具体文件，可填写仓库内文件路径。示例：GGUF 可用 `Qwen/Qwen2.5-1.5B-Instruct-GGUF`；LiteRT-LM 可用 `litert-community/Phi-4-mini-instruct`。"
+        AppLanguage.SPANISH -> "Introduce cualquier repo de Hugging Face, un repo hf://, la URL de la página del repo, una URL resolve o una URL directa al archivo. Hermes intentará priorizar un archivo nativo del runtime cuando pueda inferirlo; si el repo no expone un GGUF / LiteRT-LM claro, hará fallback a otro artefacto que parezca de modelo y dejará que el backend elegido decida si puede cargarlo. Si quieres fijar un archivo exacto, completa la ruta interna del repo. Ejemplos: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.GERMAN -> "Gib ein beliebiges Hugging-Face-Repo, ein hf://-Repo, eine Repo-Seiten-URL, eine Resolve-URL oder eine direkte Datei-URL ein. Hermes bevorzugt nach Möglichkeit eine runtime-native Datei; wenn das Repo kein klares GGUF / LiteRT-LM-Artefakt enthält, fällt Hermes auf eine andere modellartige Datei zurück und überlässt dem gewählten Backend die endgültige Kompatibilitätsentscheidung. Wenn du eine bestimmte Datei erzwingen willst, trage den Pfad im Repo ein. Beispiele: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.PORTUGUESE -> "Insira qualquer repositório do Hugging Face, um repositório hf://, a URL da página do repositório, uma URL resolve ou uma URL direta do arquivo. O Hermes tenta priorizar um arquivo nativo do runtime quando consegue inferi-lo; se o repositório não expuser um GGUF / LiteRT-LM claro, ele faz fallback para outro artefato com cara de modelo e deixa o backend escolhido decidir se consegue carregá-lo. Se quiser fixar um arquivo exato, preencha o caminho interno do repositório. Exemplos: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.FRENCH -> "Saisissez n’importe quel dépôt Hugging Face, un dépôt hf://, l’URL de la page du dépôt, une URL resolve ou une URL directe de fichier. Hermes essaie de privilégier un fichier natif pour le runtime lorsqu’il peut l’inférer ; si le dépôt n’expose pas clairement un artefact GGUF / LiteRT-LM, Hermes se rabat sur un autre artefact ressemblant à un modèle et laisse le backend choisi décider s’il peut le charger. Si vous voulez forcer un fichier précis, renseignez le chemin du fichier dans le dépôt. Exemples : GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF` ; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.ENGLISH -> "Enter any Hugging Face repo, hf:// repo, repo page URL, resolve URL, or direct file URL. Hermes will try to prefer a runtime-native file when it can infer one; if the repo does not expose a clear GGUF / LiteRT-LM artifact, Hermes falls back to another likely model artifact and lets the selected backend decide whether it can load it. If you want to pin an exact file, fill in the repo file path. Examples: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
     }
 
     fun downloadManagerReliabilityDescription(): String = when (language) {
@@ -577,6 +577,42 @@ data class HermesStrings(
         AppLanguage.PORTUGUESE -> "Abrir downloads do sistema"
         AppLanguage.FRENCH -> "Ouvrir les téléchargements système"
         AppLanguage.ENGLISH -> "Open system Downloads"
+    }
+
+    fun authBaseUrlMustBeValid(): String = when (language) {
+        AppLanguage.CHINESE -> "Corr3xt 基础 URL 必须是有效的 http(s) 地址"
+        AppLanguage.SPANISH -> "La URL base de Corr3xt debe ser una URL http(s) válida"
+        AppLanguage.GERMAN -> "Die Corr3xt-Basis-URL muss eine gültige http(s)-URL sein"
+        AppLanguage.PORTUGUESE -> "A URL base do Corr3xt deve ser uma URL http(s) válida"
+        AppLanguage.FRENCH -> "L’URL de base Corr3xt doit être une URL http(s) valide"
+        AppLanguage.ENGLISH -> "Corr3xt base URL must be a valid http(s) URL"
+    }
+
+    fun authSavedBaseUrl(): String = when (language) {
+        AppLanguage.CHINESE -> "已保存 Corr3xt 基础 URL"
+        AppLanguage.SPANISH -> "URL base de Corr3xt guardada"
+        AppLanguage.GERMAN -> "Corr3xt-Basis-URL gespeichert"
+        AppLanguage.PORTUGUESE -> "URL base do Corr3xt salva"
+        AppLanguage.FRENCH -> "URL de base Corr3xt enregistrée"
+        AppLanguage.ENGLISH -> "Saved Corr3xt base URL"
+    }
+
+    fun authOpenedCorr3xt(label: String): String = when (language) {
+        AppLanguage.CHINESE -> "已打开 Corr3xt 进行 $label 登录"
+        AppLanguage.SPANISH -> "Corr3xt abierto para iniciar sesión con $label"
+        AppLanguage.GERMAN -> "Corr3xt für die Anmeldung mit $label geöffnet"
+        AppLanguage.PORTUGUESE -> "Corr3xt aberto para login com $label"
+        AppLanguage.FRENCH -> "Corr3xt ouvert pour la connexion avec $label"
+        AppLanguage.ENGLISH -> "Opened Corr3xt for $label sign-in"
+    }
+
+    fun languageSwitchedTo(label: String): String = when (language) {
+        AppLanguage.CHINESE -> "界面语言已切换为 $label"
+        AppLanguage.SPANISH -> "Idioma cambiado a $label"
+        AppLanguage.GERMAN -> "Sprache auf $label umgestellt"
+        AppLanguage.PORTUGUESE -> "Idioma alterado para $label"
+        AppLanguage.FRENCH -> "Langue changée en $label"
+        AppLanguage.ENGLISH -> "Language switched to $label"
     }
 
     fun authSignedInWith(label: String): String = when (language) {

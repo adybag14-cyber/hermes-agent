@@ -147,7 +147,7 @@ fun ChatScreen(
         return true
     }
 
-    val shellActions = remember(uiState.isShowingHistory, uiState.messages, uiState.activeConversationTitle) {
+    val shellActions = remember(strings.language, uiState.isShowingHistory, uiState.messages, uiState.activeConversationTitle) {
         if (uiState.isShowingHistory) {
             listOf(
                 ShellActionItem(
@@ -240,7 +240,14 @@ fun ChatScreen(
                 ChatHeaderCard(
                     title = uiState.activeConversationTitle,
                     onOpenHistory = viewModel::showHistory,
-                    onOpenActions = onOpenContextActions,
+                    onOpenActions = if (shellActions.isNotEmpty() && onOpenContextActions != null) {
+                        {
+                            onContextActionsChanged(shellActions)
+                            onOpenContextActions()
+                        }
+                    } else {
+                        null
+                    },
                 )
                 if (uiState.status.isNotBlank()) {
                     StatusBanner(text = uiState.status)

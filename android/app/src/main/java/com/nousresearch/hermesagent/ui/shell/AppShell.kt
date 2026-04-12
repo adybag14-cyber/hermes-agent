@@ -128,7 +128,7 @@ fun AppShellScreen(
                                 authViewModel = authViewModel,
                                 onNavigateToSection = { currentSection = it },
                                 onContextActionsChanged = ::setActions,
-                                onOpenContextActions = { if (currentActions.isNotEmpty()) showActionSheet = true },
+                                onOpenContextActions = { showActionSheet = true },
                             )
                         } else {
                             HermesSetupScreen(
