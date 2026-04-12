@@ -154,7 +154,7 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 inspectionStatus = if (token.isBlank()) {
                     "Cleared Hugging Face token"
                 } else {
-                    "Saved Hugging Face token for gated model downloads"
+                    "Saved Hugging Face token for private or gated model downloads"
                 },
             )
         }
@@ -316,6 +316,10 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
             append(inspection.abiSummary)
             append(" · ")
             append(resumeText)
+            if (inspection.compatibilityHint.isNotBlank()) {
+                append(" · ")
+                append(inspection.compatibilityHint)
+            }
         }
     }
 

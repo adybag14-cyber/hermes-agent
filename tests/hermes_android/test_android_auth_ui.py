@@ -25,6 +25,7 @@ def test_auth_screen_lists_requested_sign_in_methods_and_pending_fallback_ui():
     assert 'strings.authRefreshDescription()' in auth_screen
     assert 'strings.authCancelPendingDescription()' in auth_screen
     assert 'strings.authWaitingCallbackFor(uiState.pendingMethodLabel)' in auth_screen
+    assert 'LaunchedEffect(strings.language)' in auth_screen
     assert 'secure callback' in auth_screen
     assert 'Sign in' in auth_screen
     assert 'extraBottomSpacing' in auth_screen
@@ -65,8 +66,15 @@ def test_auth_callback_hardening_strings_and_base_url_validation_exist():
     assert 'Auth callback rejected: provider mismatch' in auth_session_store
     assert 'Auth callback rejected: no provider credentials were returned' in auth_session_store
     assert 'Auth callback rejected: no account identity returned' in auth_session_store
-    assert 'Corr3xt base URL must be a valid http(s) URL' in auth_view_model
+    assert 'currentStrings().authBaseUrlMustBeValid()' in auth_view_model
+    assert 'currentStrings().authSavedBaseUrl()' in auth_view_model
+    assert 'currentStrings().authOpenedCorr3xt(option.label)' in auth_view_model
     assert 'currentStrings().authNoBrowser()' in auth_view_model
+    assert 'authBaseUrlMustBeValid' in strings
+    assert 'authOpenedCorr3xt' in strings
     assert 'Unable to open Corr3xt: no browser is available' in strings
     assert 'callback_contract' in corr3xt_auth_client
+    assert 'ui_locales' in corr3xt_auth_client
+    assert 'locale' in corr3xt_auth_client
+    assert 'lang' in corr3xt_auth_client
     assert 'normalizeConfiguredBaseUrl' in corr3xt_auth_client
