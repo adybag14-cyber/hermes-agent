@@ -60,7 +60,11 @@ def test_language_infrastructure_wires_app_shell_and_core_screens_to_shared_tran
     assert 'LocalHermesStrings.current' in chat_screen
     assert 'LocalHermesStrings.current' in device_screen
     assert 'LocalHermesStrings.current' in auth_screen
+    assert 'LaunchedEffect(strings.language)' in auth_screen
     assert 'LocalHermesStrings.current' in portal_screen
+    assert 'LaunchedEffect(strings.language)' in portal_screen
+    assert 'authBaseUrlMustBeValid' in i18n_strings
+    assert 'languageSwitchedTo' in i18n_strings
     assert 'AppLanguage.ENGLISH' in i18n_strings
     assert 'AppLanguage.CHINESE' in i18n_strings
     assert 'AppLanguage.SPANISH' in i18n_strings
