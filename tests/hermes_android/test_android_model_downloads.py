@@ -21,7 +21,7 @@ def test_local_model_download_view_model_and_store_support_resumable_download_st
     download_store = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/data/LocalModelDownloadStore.kt").read_text(encoding="utf-8")
     download_manager = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/models/HermesModelDownloadManager.kt").read_text(encoding="utf-8")
 
-    assert 'Saved Hugging Face token for gated model downloads' in downloads_view_model
+    assert 'Saved Hugging Face token for private or gated model downloads' in downloads_view_model
     assert 'refreshDownloads()' in downloads_view_model
     assert 'restartDownloadOnMobileData(' in downloads_view_model
     assert 'ACTION_VIEW_DOWNLOADS' in downloads_view_model
@@ -33,7 +33,9 @@ def test_local_model_download_view_model_and_store_support_resumable_download_st
     assert 'DownloadManager' in download_manager
     assert 'setAllowedOverMetered(allowMetered)' in download_manager
     assert 'setAllowedOverRoaming(allowRoaming)' in download_manager
-    assert 'Restart on mobile data' in download_manager
+    assert 'findFallbackRepoFile' in download_manager
+    assert 'selectRepoFileForDownload(' in download_manager
+    assert 'Downloading is allowed; the selected backend will decide at load time whether it can run this file.' in download_manager
     assert 'Paused because Android treats the current connection as roaming' in download_manager
     assert 'larger than your phone RAM' in download_manager
     assert 'supportsResume' in download_store
@@ -49,10 +51,20 @@ def test_local_model_download_ui_mentions_hugging_face_progress_resume_and_mobil
     assert 'strings.localDownloadStatusLine(item.runtimeFlavor, item.statusLabel)' in downloads_ui
     assert 'strings.restartOnMobileData()' in downloads_ui
     assert 'strings.openSystemDownloads()' in downloads_ui
+    assert 'Enter any Hugging Face repo' in strings
     assert 'Qwen/Qwen2.5-1.5B-Instruct-GGUF' in strings
     assert 'litert-community/Phi-4-mini-instruct' in strings
-    assert 'Google AI Edge Gallery currently relies on these curated LiteRT-LM repos' in strings
+    assert 'lets the selected backend decide whether it can load it' in strings
     assert 'Warning: this download is larger than your phone RAM' in download_manager
+
+
+def test_on_device_backend_attempts_any_completed_preferred_model_and_leaves_format_checks_to_runtime():
+    backend_manager = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/OnDeviceBackendManager.kt").read_text(encoding="utf-8")
+
+    assert 'preferredCompletedDownload(context)' in backend_manager
+    assert 'Download any repo or file and mark it as preferred' in backend_manager
+    assert 'matchesGguf' not in backend_manager
+    assert 'matchesLiteRtLm' not in backend_manager
 
 
 def test_portal_screen_exposes_fullscreen_and_minimize_controls():
