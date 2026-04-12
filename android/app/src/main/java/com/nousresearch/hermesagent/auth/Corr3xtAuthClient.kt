@@ -46,8 +46,10 @@ object Corr3xtAuthClient {
         baseUrl: String,
         option: AuthOption,
         state: String,
+        languageTag: String = "en",
     ): Uri {
         val normalizedBaseUrl = normalizedBaseUrl(baseUrl)
+        val normalizedLanguageTag = languageTag.trim().ifBlank { "en" }
         return Uri.parse("$normalizedBaseUrl/oauth/start").buildUpon()
             .appendQueryParameter("method", option.id)
             .appendQueryParameter("provider", option.runtimeProvider.ifBlank { option.id })
@@ -55,6 +57,9 @@ object Corr3xtAuthClient {
             .appendQueryParameter("callback_contract", "v1")
             .appendQueryParameter("redirect_uri", AuthSessionStore.CALLBACK_URI)
             .appendQueryParameter("state", state)
+            .appendQueryParameter("lang", normalizedLanguageTag)
+            .appendQueryParameter("locale", normalizedLanguageTag)
+            .appendQueryParameter("ui_locales", normalizedLanguageTag)
             .build()
     }
 }
