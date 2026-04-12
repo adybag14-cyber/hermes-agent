@@ -64,23 +64,23 @@ object OnDeviceBackendManager {
     }
 
     fun preferredDownloadSummary(context: Context, backendValue: String): String {
-        val preferred = preferredDownload(context, BackendKind.fromPersistedValue(backendValue))
+        val preferred = preferredCompletedDownload(context)
         return if (preferred != null) {
             "Preferred local model: ${preferred.title}"
         } else {
-            "No compatible local model is selected yet. Download one and mark it as preferred first."
+            "No preferred local model is selected yet. Download any repo or file and mark it as preferred to let the selected backend try it."
         }
     }
 
     private fun ensureLlamaCpp(context: Context): LocalBackendStatus {
         LiteRtLmOpenAiProxy.stop()
-        val preferred = preferredDownload(context, BackendKind.LLAMA_CPP)
+        val preferred = preferredCompletedDownload(context)
             ?: run {
                 LlamaCppServerController.stop()
                 return LocalBackendStatus(
                     backendKind = BackendKind.LLAMA_CPP,
                     started = false,
-                    statusMessage = "No preferred GGUF model is ready for llama.cpp yet",
+                    statusMessage = "No preferred local model is ready for llama.cpp yet",
                 ).also { currentStatus = it }
             }
 
@@ -90,7 +90,7 @@ object OnDeviceBackendManager {
             return LocalBackendStatus(
                 backendKind = BackendKind.LLAMA_CPP,
                 started = false,
-                statusMessage = "Preferred GGUF model is missing on disk: ${preferred.destinationPath}",
+                statusMessage = "Preferred local model is missing on disk: ${preferred.destinationPath}",
                 sourceModelPath = preferred.destinationPath,
             ).also { currentStatus = it }
         }
@@ -107,13 +107,13 @@ object OnDeviceBackendManager {
 
     private fun ensureLiteRtLm(context: Context): LocalBackendStatus {
         LlamaCppServerController.stop()
-        val preferred = preferredDownload(context, BackendKind.LITERT_LM)
+        val preferred = preferredCompletedDownload(context)
             ?: run {
                 LiteRtLmOpenAiProxy.stop()
                 return LocalBackendStatus(
                     backendKind = BackendKind.LITERT_LM,
                     started = false,
-                    statusMessage = "No preferred LiteRT-LM model is ready yet",
+                    statusMessage = "No preferred local model is ready for LiteRT-LM yet",
                 ).also { currentStatus = it }
             }
 
@@ -123,7 +123,7 @@ object OnDeviceBackendManager {
             return LocalBackendStatus(
                 backendKind = BackendKind.LITERT_LM,
                 started = false,
-                statusMessage = "Preferred LiteRT-LM model is missing on disk: ${preferred.destinationPath}",
+                statusMessage = "Preferred local model is missing on disk: ${preferred.destinationPath}",
                 sourceModelPath = preferred.destinationPath,
             ).also { currentStatus = it }
         }
@@ -138,26 +138,10 @@ object OnDeviceBackendManager {
         return status
     }
 
-    private fun preferredDownload(context: Context, backendKind: BackendKind): LocalModelDownloadRecord? {
+    private fun preferredCompletedDownload(context: Context): LocalModelDownloadRecord? {
         val store = LocalModelDownloadStore(context)
         val preferredId = store.preferredDownloadId().ifBlank { return null }
         val preferred = store.findDownload(preferredId) ?: return null
-        if (preferred.status != "completed") {
-            return null
-        }
-        return when (backendKind) {
-            BackendKind.NONE -> null
-            BackendKind.LLAMA_CPP -> if (preferred.matchesGguf()) preferred else null
-            BackendKind.LITERT_LM -> if (preferred.matchesLiteRtLm()) preferred else null
-        }
-    }
-
-    private fun LocalModelDownloadRecord.matchesGguf(): Boolean {
-        return runtimeFlavor.equals("GGUF", ignoreCase = true) || destinationPath.endsWith(".gguf", ignoreCase = true)
-    }
-
-    private fun LocalModelDownloadRecord.matchesLiteRtLm(): Boolean {
-        return runtimeFlavor.contains("litert", ignoreCase = true) ||
-            destinationPath.endsWith(".litertlm", ignoreCase = true)
+        return preferred.takeIf { it.status == "completed" }
     }
 }
