@@ -14,6 +14,8 @@ def test_chat_screen_has_bubbles_history_and_action_icons():
     assert 'R.drawable.ic_action_speaker' in chat_screen
     assert 'R.drawable.ic_action_cog' in chat_screen
     assert 'onOpenContextActions' in chat_screen
+    assert 'remember(strings.language' in chat_screen
+    assert 'onContextActionsChanged(shellActions)' in chat_screen
     assert 'Message Hermes' in chat_screen
     assert 'Speak last reply' in chat_screen
     assert 'Available app commands:' in (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/ChatCommandRouter.kt").read_text(encoding="utf-8")

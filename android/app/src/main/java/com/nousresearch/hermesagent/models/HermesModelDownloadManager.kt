@@ -28,6 +28,7 @@ data class ModelDownloadInspection(
     val ramWarning: String,
     val supportsResume: Boolean,
     val abiSummary: String,
+    val compatibilityHint: String,
 )
 
 data class ModelDownloadDraft(
@@ -64,14 +65,25 @@ object HermesModelDownloadManager {
         val isRoaming: Boolean,
     )
 
+    private data class ResolvedDownloadSource(
+        val sourceUrl: String,
+        val resolvedFilePath: String,
+        val compatibilityHint: String = "",
+    )
+
+    private data class RepoFileSelection(
+        val filePath: String,
+        val compatibilityHint: String = "",
+    )
+
     fun modelsDirectory(context: Context): File {
         return (context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
             ?: File(context.filesDir, "downloads")).resolve("models").apply { mkdirs() }
     }
 
     fun inspectCandidate(context: Context, draft: ModelDownloadDraft, hfToken: String): ModelDownloadInspection {
-        val resolvedUrl = resolveDownloadUrl(draft, hfToken)
-        val head = headProbe(resolvedUrl, hfToken)
+        val resolvedSource = resolveDownloadSource(draft, hfToken)
+        val head = headProbe(resolvedSource.sourceUrl, hfToken)
         val totalBytes = head.contentLength.coerceAtLeast(0L)
         val memoryInfo = ActivityManager.MemoryInfo()
         (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(memoryInfo)
@@ -80,10 +92,14 @@ object HermesModelDownloadManager {
         } else {
             ""
         }
-        val destinationName = destinationFileName(draft.repoOrUrl, draft.filePath, resolvedUrl)
+        val destinationName = destinationFileName(
+            repoOrUrl = draft.repoOrUrl,
+            filePath = resolvedSource.resolvedFilePath,
+            sourceUrl = resolvedSource.sourceUrl,
+        )
         return ModelDownloadInspection(
             title = destinationName,
-            sourceUrl = resolvedUrl,
+            sourceUrl = resolvedSource.sourceUrl,
             destinationFileName = destinationName,
             totalBytes = totalBytes,
             totalBytesLabel = if (totalBytes > 0) Formatter.formatShortFileSize(context, totalBytes) else "unknown size",
@@ -92,6 +108,7 @@ object HermesModelDownloadManager {
             ramWarning = ramWarning,
             supportsResume = head.acceptRanges,
             abiSummary = android.os.Build.SUPPORTED_ABIS.joinToString(),
+            compatibilityHint = resolvedSource.compatibilityHint,
         )
     }
 
@@ -183,12 +200,15 @@ object HermesModelDownloadManager {
             totalBytes = inspection.totalBytes,
             downloadedBytes = 0L,
             status = "queued",
-            statusMessage = queuedStatusMessage(
-                context = context,
-                dataSaverMode = dataSaverMode,
-                allowMetered = allowMetered,
-                allowRoaming = allowRoaming,
-            ),
+            statusMessage = listOf(
+                queuedStatusMessage(
+                    context = context,
+                    dataSaverMode = dataSaverMode,
+                    allowMetered = allowMetered,
+                    allowRoaming = allowRoaming,
+                ),
+                inspection.compatibilityHint,
+            ).filter { it.isNotBlank() }.joinToString(" · "),
             ramWarning = inspection.ramWarning,
             supportsResume = inspection.supportsResume,
             allowMetered = allowMetered,
@@ -243,42 +263,48 @@ object HermesModelDownloadManager {
         store.setPreferredDownloadId(recordId)
     }
 
-    private fun resolveDownloadUrl(draft: ModelDownloadDraft, hfToken: String): String {
+    private fun resolveDownloadSource(draft: ModelDownloadDraft, hfToken: String): ResolvedDownloadSource {
         val trimmed = draft.repoOrUrl.trim()
         val explicitFilePath = draft.filePath.trim().trim('/')
         val requestedRevision = draft.revision.trim().ifBlank { "main" }
-        parseHuggingFaceReference(trimmed)?.let { parsedReference ->
-            val reference = normalizeReferenceForRuntime(
-                reference = parsedReference,
-                runtimeFlavor = draft.runtimeFlavor,
-                explicitFilePath = explicitFilePath,
-            )
+        parseHuggingFaceReference(trimmed)?.let { reference ->
             val resolvedRevision = reference.revision ?: requestedRevision
-            val resolvedFilePath = explicitFilePath.ifBlank {
-                reference.filePath ?: findCompatibleRepoFile(
-                    repoId = reference.repoId,
-                    revision = resolvedRevision,
-                    runtimeFlavor = draft.runtimeFlavor,
-                    hfToken = hfToken,
-                )
-            }
-            return "$HUGGING_FACE_BASE/${reference.repoId}/resolve/$resolvedRevision/$resolvedFilePath?download=true"
+            val explicitOrReferencedPath = explicitFilePath.ifBlank { reference.filePath.orEmpty() }
+            val selection = selectRepoFileForDownload(
+                repoId = reference.repoId,
+                revision = resolvedRevision,
+                runtimeFlavor = draft.runtimeFlavor,
+                hfToken = hfToken,
+                explicitFilePath = explicitOrReferencedPath,
+            )
+            return ResolvedDownloadSource(
+                sourceUrl = "$HUGGING_FACE_BASE/${reference.repoId}/resolve/$resolvedRevision/${selection.filePath}?download=true",
+                resolvedFilePath = selection.filePath,
+                compatibilityHint = selection.compatibilityHint,
+            )
         }
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            return trimmed
+            return ResolvedDownloadSource(
+                sourceUrl = trimmed,
+                resolvedFilePath = explicitFilePath,
+                compatibilityHint = compatibilityHintForFile(explicitFilePath.ifBlank { trimmed }, draft.runtimeFlavor, explicitSelection = true),
+            )
         }
         val repo = trimmed.removePrefix("hf://").trim('/').ifBlank {
             throw IllegalArgumentException("Enter a Hugging Face repo or a direct model URL")
         }
-        val resolvedFilePath = explicitFilePath.ifBlank {
-            findCompatibleRepoFile(
-                repoId = repo,
-                revision = requestedRevision,
-                runtimeFlavor = draft.runtimeFlavor,
-                hfToken = hfToken,
-            )
-        }
-        return "$HUGGING_FACE_BASE/$repo/resolve/$requestedRevision/$resolvedFilePath?download=true"
+        val selection = selectRepoFileForDownload(
+            repoId = repo,
+            revision = requestedRevision,
+            runtimeFlavor = draft.runtimeFlavor,
+            hfToken = hfToken,
+            explicitFilePath = explicitFilePath,
+        )
+        return ResolvedDownloadSource(
+            sourceUrl = "$HUGGING_FACE_BASE/$repo/resolve/$requestedRevision/${selection.filePath}?download=true",
+            resolvedFilePath = selection.filePath,
+            compatibilityHint = selection.compatibilityHint,
+        )
     }
 
     private fun parseHuggingFaceReference(repoOrUrl: String): HuggingFaceReference? {
@@ -311,56 +337,118 @@ object HermesModelDownloadManager {
         return HuggingFaceReference(repoId = repoId)
     }
 
-    private fun normalizeReferenceForRuntime(
-        reference: HuggingFaceReference,
-        runtimeFlavor: String,
-        explicitFilePath: String,
-    ): HuggingFaceReference {
-        if (explicitFilePath.isNotBlank() || reference.filePath != null || !runtimeFlavor.equals("LiteRT-LM", ignoreCase = true)) {
-            return reference
-        }
-        val aliasRepoId = liteRtAlias(reference.repoId) ?: return reference
-        return reference.copy(
-            repoId = aliasRepoId,
-            revision = null,
-            filePath = null,
-        )
-    }
-
-    private fun findCompatibleRepoFile(
+    private fun selectRepoFileForDownload(
         repoId: String,
         revision: String,
         runtimeFlavor: String,
         hfToken: String,
-    ): String {
+        explicitFilePath: String,
+    ): RepoFileSelection {
+        if (explicitFilePath.isNotBlank()) {
+            return RepoFileSelection(
+                filePath = explicitFilePath,
+                compatibilityHint = compatibilityHintForFile(explicitFilePath, runtimeFlavor, explicitSelection = true),
+            )
+        }
         val siblings = loadRepoFiles(repoId = repoId, revision = revision, hfToken = hfToken)
-        val compatible = siblings
+        val runtimeNative = siblings
             .filter { isCompatibleRepoFile(it, runtimeFlavor) }
             .sortedWith(compareBy<String> { compatibleFileRank(it, runtimeFlavor) }.thenBy { it.lowercase(Locale.US) })
-
-        return compatible.firstOrNull()
-            ?: throw IllegalArgumentException(noCompatibleArtifactMessage(repoId, runtimeFlavor))
+            .firstOrNull()
+        if (runtimeNative != null) {
+            return RepoFileSelection(filePath = runtimeNative)
+        }
+        val fallback = findFallbackRepoFile(siblings)
+            ?: throw IllegalArgumentException(noDownloadableArtifactMessage(repoId, runtimeFlavor))
+        return RepoFileSelection(
+            filePath = fallback,
+            compatibilityHint = compatibilityHintForFile(fallback, runtimeFlavor, explicitSelection = false),
+        )
     }
 
-    private fun noCompatibleArtifactMessage(repoId: String, runtimeFlavor: String): String {
-        val aliasRepoId = liteRtAlias(repoId)
-        val normalizedRepoId = repoId.lowercase(Locale.US)
-        val ggufSuggestion = GGUF_RECOMMENDED_REPOS[normalizedRepoId]
-        return when {
-            runtimeFlavor.equals("GGUF", ignoreCase = true) && normalizedRepoId in GEMMA4_SOURCE_REPOS ->
-                "No compatible GGUF artifact found in huggingface.co/$repoId. Google AI Edge Gallery runs Gemma 4 from LiteRT-LM repos like ${aliasRepoId ?: "litert-community/gemma-4-E2B-it-litert-lm"}, not from the raw google model page."
+    private fun noDownloadableArtifactMessage(repoId: String, runtimeFlavor: String): String {
+        return "Unable to infer a downloadable model artifact from huggingface.co/$repoId for $runtimeFlavor. Enter an exact file path inside the repo or paste a direct model URL to try a specific artifact."
+    }
 
-            runtimeFlavor.equals("GGUF", ignoreCase = true) && ggufSuggestion != null ->
-                "No compatible GGUF artifact found in huggingface.co/$repoId. Try the GGUF-ready repo $ggufSuggestion instead."
-
-            runtimeFlavor.equals("LiteRT-LM", ignoreCase = true) && aliasRepoId != null ->
-                "No compatible LiteRT-LM artifact found in huggingface.co/$repoId. Try the mobile-ready repo $aliasRepoId instead."
-
-            runtimeFlavor.equals("LiteRT-LM", ignoreCase = true) && ("nemotron" in normalizedRepoId || "cascade" in normalizedRepoId) ->
-                "No compatible LiteRT-LM artifact found in huggingface.co/$repoId. Hermes currently recommends llama.cpp + GGUF for Nemotron / Cascade families."
-
-            else -> "No compatible $runtimeFlavor artifact found in huggingface.co/$repoId"
+    private fun compatibilityHintForFile(
+        filePath: String,
+        runtimeFlavor: String,
+        explicitSelection: Boolean,
+    ): String {
+        if (filePath.isBlank() || isCompatibleRepoFile(filePath, runtimeFlavor)) {
+            return ""
         }
+        val prefix = if (explicitSelection) {
+            "Using the exact file you selected"
+        } else {
+            "No clear $runtimeFlavor artifact was found, so Hermes selected ${filePath.substringAfterLast('/')}"
+        }
+        return "$prefix. Downloading is allowed; the selected backend will decide at load time whether it can run this file."
+    }
+
+    private fun findFallbackRepoFile(paths: List<String>): String? {
+        return paths
+            .filter { looksLikeLikelyModelArtifact(it) }
+            .sortedWith(compareBy<String> { fallbackFileRank(it) }.thenBy { it.lowercase(Locale.US) })
+            .firstOrNull()
+    }
+
+    private fun looksLikeLikelyModelArtifact(path: String): Boolean {
+        return fallbackFileRank(path) < Int.MAX_VALUE
+    }
+
+    private fun fallbackFileRank(path: String): Int {
+        val lower = path.lowercase(Locale.US)
+        if (isClearlyNonModelArtifact(lower)) {
+            return Int.MAX_VALUE
+        }
+        val shardPenalty = if (Regex("(-\\d{5}-of-\\d{5}|\\.part\\d+of\\d+|\\.part\\d+)").containsMatchIn(lower)) 40 else 0
+        val baseRank = when {
+            lower.endsWith(".gguf") -> 0
+            lower.endsWith(".litertlm") -> 1
+            lower.endsWith(".safetensors") -> 2
+            lower.endsWith(".bin") -> if ("model" in lower || "weights" in lower) 3 else 6
+            lower.endsWith(".onnx") -> 7
+            lower.endsWith(".tflite") -> 8
+            lower.endsWith(".task") -> 9
+            lower.endsWith(".pte") || lower.endsWith(".ptl") -> 10
+            lower.endsWith(".pt") || lower.endsWith(".pth") || lower.endsWith(".ckpt") -> 11
+            lower.endsWith(".pb") || lower.endsWith(".keras") -> 12
+            lower.endsWith(".zip") || lower.endsWith(".tar") || lower.endsWith(".tar.gz") || lower.endsWith(".tgz") -> 20
+            "model" in lower || "weights" in lower -> 25
+            else -> Int.MAX_VALUE
+        }
+        return if (baseRank == Int.MAX_VALUE) baseRank else baseRank + shardPenalty
+    }
+
+    private fun isClearlyNonModelArtifact(lowerPath: String): Boolean {
+        return lowerPath.endsWith(".md") ||
+            lowerPath.endsWith(".txt") ||
+            lowerPath.endsWith(".json") ||
+            lowerPath.endsWith(".yaml") ||
+            lowerPath.endsWith(".yml") ||
+            lowerPath.endsWith(".png") ||
+            lowerPath.endsWith(".jpg") ||
+            lowerPath.endsWith(".jpeg") ||
+            lowerPath.endsWith(".gif") ||
+            lowerPath.endsWith(".webp") ||
+            lowerPath.endsWith(".csv") ||
+            lowerPath.endsWith(".tsv") ||
+            lowerPath.endsWith(".py") ||
+            lowerPath.endsWith(".ipynb") ||
+            lowerPath.endsWith(".html") ||
+            lowerPath.endsWith(".pdf") ||
+            "readme" in lowerPath ||
+            "license" in lowerPath ||
+            "tokenizer" in lowerPath ||
+            "merges" in lowerPath ||
+            "vocab" in lowerPath ||
+            "special_tokens_map" in lowerPath ||
+            "generation_config" in lowerPath ||
+            "preprocessor_config" in lowerPath ||
+            "processor_config" in lowerPath ||
+            "chat_template" in lowerPath ||
+            "added_tokens" in lowerPath
     }
 
     private fun liteRtAlias(repoId: String): String? {
@@ -424,7 +512,7 @@ object HermesModelDownloadManager {
     }
 
     private fun isCompatibleRepoFile(path: String, runtimeFlavor: String): Boolean {
-        val lower = path.lowercase(Locale.US)
+        val lower = path.substringBefore('?').lowercase(Locale.US)
         return when (runtimeFlavor.uppercase(Locale.US)) {
             "LITERT-LM" -> lower.endsWith(".litertlm")
             else -> lower.endsWith(".gguf")
