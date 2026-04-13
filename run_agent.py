@@ -374,6 +374,19 @@ def _is_destructive_command(cmd: str) -> bool:
     return False
 
 
+def _parse_tool_call_arguments(raw_args: Any) -> Optional[dict[str, Any]]:
+    """Normalize tool-call arguments from string-or-dict payloads."""
+    if isinstance(raw_args, dict):
+        return raw_args
+    if isinstance(raw_args, str):
+        try:
+            parsed = json.loads(raw_args)
+        except json.JSONDecodeError:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+    return None
+
+
 def _should_parallelize_tool_batch(tool_calls) -> bool:
     """Return True when a tool-call batch is safe to run concurrently."""
     if len(tool_calls) <= 1:
@@ -386,20 +399,12 @@ def _should_parallelize_tool_batch(tool_calls) -> bool:
     reserved_paths: list[Path] = []
     for tool_call in tool_calls:
         tool_name = tool_call.function.name
-        try:
-            function_args = json.loads(tool_call.function.arguments)
-        except Exception:
+        function_args = _parse_tool_call_arguments(tool_call.function.arguments)
+        if function_args is None:
             logging.debug(
                 "Could not parse args for %s — defaulting to sequential; raw=%s",
                 tool_name,
-                tool_call.function.arguments[:200],
-            )
-            return False
-        if not isinstance(function_args, dict):
-            logging.debug(
-                "Non-dict args for %s (%s) — defaulting to sequential",
-                tool_name,
-                type(function_args).__name__,
+                str(tool_call.function.arguments)[:200],
             )
             return False
 
@@ -2046,7 +2051,7 @@ class AIAgent:
         # for reliable tool-calling workflows (64K tokens).
         from agent.model_metadata import MINIMUM_CONTEXT_LENGTH
         _ctx = getattr(self.context_compressor, "context_length", 0)
-        if _ctx and _ctx < MINIMUM_CONTEXT_LENGTH:
+        if self.model and _ctx and _ctx < MINIMUM_CONTEXT_LENGTH:
             raise ValueError(
                 f"Model {self.model} has a context window of {_ctx:,} tokens, "
                 f"which is below the minimum {MINIMUM_CONTEXT_LENGTH:,} required "
@@ -4049,6 +4054,15 @@ class AIAgent:
 
     def _chatgpt_web_extract_path_from_tool_payload(self, tool_payload: Any, tool_content: str) -> Optional[str]:
         if isinstance(tool_payload, dict):
+            results = tool_payload.get("results")
+            if isinstance(results, list) and results:
+                first = results[0]
+                if isinstance(first, dict):
+                    summary = first.get("summary")
+                    if isinstance(summary, str) and summary.strip():
+                        path = self._chatgpt_web_extract_path_candidate(summary)
+                        if path:
+                            return path
             direct_path = tool_payload.get("path")
             if isinstance(direct_path, str) and direct_path.strip():
                 return direct_path.strip()
@@ -4073,6 +4087,15 @@ class AIAgent:
 
     def _chatgpt_web_extract_result_from_tool_payload(self, tool_payload: Any, tool_content: str) -> Optional[str]:
         if isinstance(tool_payload, dict):
+            results = tool_payload.get("results")
+            if isinstance(results, list) and results:
+                first = results[0]
+                if isinstance(first, dict):
+                    summary = first.get("summary")
+                    if isinstance(summary, str):
+                        result = self._chatgpt_web_extract_simple_result(summary)
+                        if result:
+                            return result
             output = tool_payload.get("output")
             if isinstance(output, str):
                 result = self._chatgpt_web_extract_simple_result(output)
@@ -4107,6 +4130,15 @@ class AIAgent:
 
     def _chatgpt_web_extract_line_from_tool_payload(self, tool_payload: Any, tool_content: str) -> Optional[str]:
         if isinstance(tool_payload, dict):
+            results = tool_payload.get("results")
+            if isinstance(results, list) and results:
+                first = results[0]
+                if isinstance(first, dict):
+                    summary = first.get("summary")
+                    if isinstance(summary, str):
+                        line = self._chatgpt_web_extract_exact_line_from_text(summary)
+                        if line:
+                            return line
             matches = tool_payload.get("matches")
             if isinstance(matches, list) and matches:
                 first = matches[0]
@@ -4517,6 +4549,15 @@ class AIAgent:
                 "workflow skill",
             )
         )
+        delegation_request = any(
+            keyword in lowered for keyword in (
+                "delegate_task",
+                "delegate task",
+                "delegate this",
+                "delegate that",
+                "subagent",
+            )
+        )
 
         if image_generation_request:
             image_tool = tools_by_name.get("image_generate")
@@ -4533,6 +4574,9 @@ class AIAgent:
             last_tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
             if self._chatgpt_web_extract_line_from_tool_payload(last_tool_payload, last_tool_content):
                 return []
+        if delegation_request:
+            delegate_tool = tools_by_name.get("delegate_task")
+            return [delegate_tool] if delegate_tool is not None else []
         if used_tool_count == 0 and path_match and explicit_symbol_target and any(
             keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
         ):
@@ -4668,6 +4712,43 @@ class AIAgent:
             if path_match and any(keyword in lowered for keyword in ("read", "first line", "line", "open", "show", "inspect", "summarize", "report")):
                 limit = 1 if any(keyword in lowered for keyword in ("first line", "exact def line", "exact line")) else 20
                 return {"path": path_match, "offset": 1, "limit": limit}
+
+        if tool_name == "delegate_task":
+            delegation_request = any(
+                keyword in lowered for keyword in (
+                    "delegate_task",
+                    "delegate task",
+                    "delegate this",
+                    "delegate that",
+                    "subagent",
+                )
+            )
+            if delegation_request:
+                original_request = self._chatgpt_web_extract_original_request(user_text) or user_text.strip()
+                cleaned_goal = re.sub(r"^\s*use\s+delegate_task\s+to\s+", "", original_request, flags=re.IGNORECASE).strip()
+                cleaned_goal = re.sub(r"^\s*delegate\s+(?:this|that)\s+", "", cleaned_goal, flags=re.IGNORECASE).strip()
+                cleaned_goal = cleaned_goal.rstrip(".")
+                context_lines: list[str] = []
+                if path_match:
+                    context_lines.append(f"Inspect only this local file: {path_match}.")
+                    context_lines.append("Do not search outside that file unless the file itself references another required location.")
+                if explicit_symbol_target:
+                    context_lines.append(f"The requested symbol/definition target is: {explicit_symbol_target}.")
+                if path_match and explicit_symbol_target and any(
+                    keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
+                ):
+                    context_lines.append("Use search_files against that exact path first, then read_file on the matching line if needed.")
+                if "answer only" in lowered:
+                    context_lines.append("Final response must preserve the user's exact answer-only formatting requirement.")
+                elif any(keyword in lowered for keyword in ("exact line", "exact def line", "first line")):
+                    context_lines.append("Final response must be only the requested line, with no extra commentary.")
+                context_lines.append("Use only the file toolset for this task.")
+                return {
+                    "goal": cleaned_goal or original_request,
+                    "context": " ".join(context_lines).strip(),
+                    "toolsets": ["file"],
+                    "max_iterations": 4,
+                }
 
         if tool_name == "memory":
             forget_match = re.search(r"\b(?:forget|remove|delete)(?:\s+that|\s+this)?\b\s*(.+?)(?:\.\s*answer only.*)?$", user_text, re.IGNORECASE | re.DOTALL)
@@ -6873,7 +6954,11 @@ class AIAgent:
         from unittest.mock import Mock
 
         primary_client = self._ensure_primary_openai_client(reason=reason)
-        if isinstance(primary_client, Mock):
+        if isinstance(primary_client, Mock) or not hasattr(primary_client, "_client"):
+            # Test doubles and lightweight in-memory stubs often don't expose the
+            # real OpenAI SDK's underlying httpx client. Reuse the primary client
+            # for those objects so per-request recreation doesn't reset their
+            # in-memory state between iterations.
             return primary_client
         with self._openai_client_lock():
             request_kwargs = dict(self._client_kwargs)
@@ -6896,6 +6981,8 @@ class AIAgent:
         return self._create_openai_client(request_kwargs, reason=reason, shared=False)
 
     def _close_request_openai_client(self, client: Any, *, reason: str) -> None:
+        if client is getattr(self, "client", None):
+            return
         self._close_openai_client(client, reason=reason, shared=False)
 
     def _run_codex_stream(self, api_kwargs: dict, client: Any = None, on_first_delta: callable = None):
@@ -10756,12 +10843,7 @@ class AIAgent:
             elif function_name == "skill_manage":
                 self._iters_since_skill = 0
 
-            try:
-                function_args = json.loads(tool_call.function.arguments)
-            except json.JSONDecodeError:
-                function_args = {}
-            if not isinstance(function_args, dict):
-                function_args = {}
+            function_args = _parse_tool_call_arguments(tool_call.function.arguments) or {}
 
             # Checkpoint for file-mutating tools
             if function_name in ("write_file", "patch") and self._checkpoint_mgr.enabled:
@@ -11128,13 +11210,7 @@ class AIAgent:
 
             function_name = tool_call.function.name
 
-            try:
-                function_args = json.loads(tool_call.function.arguments)
-            except json.JSONDecodeError as e:
-                logging.warning(f"Unexpected JSON error after validation: {e}")
-                function_args = {}
-            if not isinstance(function_args, dict):
-                function_args = {}
+            function_args = _parse_tool_call_arguments(tool_call.function.arguments) or {}
 
             # Check plugin hooks for a block directive before executing.
             _block_msg: Optional[str] = None
