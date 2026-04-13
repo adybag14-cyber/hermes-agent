@@ -3180,8 +3180,8 @@ Summary generation was unavailable, so this is a best-effort deterministic fallb
         call_kwargs: Dict[str, Any] = {
             "task": "compression",
             "main_runtime": {
-                "model": self.model, "provider": self.provider, "base_url": self.base_url, "api_key": self.api_key,
-                "api_mode": self.api_mode,
+                field: getattr(self, field, "")
+                for field in ("model", "provider", "base_url", "api_key", "api_mode")
             },
             "messages": [{"role": "user", "content": prompt}], "route_info": _aux_route,
             # NO max_tokens: Anthropic/NIM wires forward it and a hard cap truncates summaries
