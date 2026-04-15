@@ -605,6 +605,22 @@ def _print_azure_entra_status() -> None:
         pass
 
 
+def _wait_for_any_debugger(debug_bases: list[str], timeout: float = 30.0) -> str:
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        for debug_base in debug_bases:
+            try:
+                with urllib.request.urlopen(f"{debug_base}/json/version", timeout=5) as response:
+                    if response.status == 200:
+                        return debug_base
+            except Exception as exc:
+                last_error = exc
+        time.sleep(1)
+    joined = ", ".join(debug_bases)
+    raise SystemExit(f"Timed out waiting for Chromium DevTools at any of [{joined}]: {last_error}")
+
+
 def _interactive_auth() -> None:
     """Interactive credential pool management when `hermes auth` is called bare."""
     print("Credential Pool Status")
@@ -654,7 +670,7 @@ def _interactive_add() -> None:
         print("  1. API key / access token")
         print("  2. OAuth login (authenticate via browser/device code)")
         print("  3. Session token (paste __Secure-next-auth.session-token)")
-        print("  4. Termux browser bootstrap (launch Chromium in Termux:X11 and capture the session automatically)")
+        print("  4. Local browser bootstrap (Termux, Windows, or WSL)")
         try:
             type_choice = input("Type [1/2/3/4]: ").strip()
         except (EOFError, KeyboardInterrupt):
