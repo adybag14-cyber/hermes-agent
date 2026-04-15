@@ -8628,6 +8628,11 @@ def main():
     auth_add.add_argument(
         "--api-key", help="API key value (otherwise prompted securely)"
     )
+    auth_add.add_argument(
+        "--token-mode",
+        choices=["access_token", "session_token"],
+        help="Interpret a chatgpt-web API key value as an access token or session token",
+    )
     auth_add.add_argument("--portal-url", help="Nous portal base URL")
     auth_add.add_argument("--inference-url", help="Nous inference base URL")
     auth_add.add_argument("--client-id", help="OAuth client id")
@@ -8663,6 +8668,12 @@ def main():
     auth_status.add_argument("provider", help="Provider id")
     auth_logout = auth_subparsers.add_parser("logout", help="Log out a provider and clear stored auth state")
     auth_logout.add_argument("provider", help="Provider id")
+    auth_browser = auth_subparsers.add_parser("browser", help="Bootstrap chatgpt-web auth from a local browser")
+    auth_browser.add_argument("provider", nargs="?", default="chatgpt-web", help="Provider id (default: chatgpt-web)")
+    auth_browser.add_argument("--label", help="Optional display label")
+    auth_browser.add_argument("--timeout", type=float, help="Browser login timeout in seconds")
+    auth_browser.add_argument("--debug-port", type=int, default=9222, help="Chromium remote debugging port")
+    auth_browser.add_argument("--keep-open", action="store_true", help="Leave the browser profile open after capture")
     auth_spotify = auth_subparsers.add_parser("spotify", help="Authenticate Hermes with Spotify via PKCE")
     auth_spotify.add_argument("spotify_action", nargs="?", choices=["login", "status", "logout"], default="login")
     auth_spotify.add_argument("--client-id", help="Spotify app client_id (or set HERMES_SPOTIFY_CLIENT_ID)")

@@ -72,6 +72,7 @@ DEFAULT_AGENT_KEY_MIN_TTL_SECONDS = 30 * 60  # 30 minutes
 ACCESS_TOKEN_REFRESH_SKEW_SECONDS = 120       # refresh 2 min before expiry
 DEVICE_AUTH_POLL_INTERVAL_CAP_SECONDS = 1     # poll at most every 1s
 DEFAULT_CODEX_BASE_URL = "https://chatgpt.com/backend-api/codex"
+DEFAULT_CHATGPT_WEB_BASE_URL = DEFAULT_CODEX_BASE_URL
 MINIMAX_OAUTH_CLIENT_ID = "78257093-7e40-4613-99e0-527b14b39113"
 MINIMAX_OAUTH_SCOPE = "group_id profile model.completion"
 MINIMAX_OAUTH_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:user_code"
@@ -161,6 +162,12 @@ PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
         name="OpenAI Codex",
         auth_type="oauth_external",
         inference_base_url=DEFAULT_CODEX_BASE_URL,
+    ),
+    "chatgpt-web": ProviderConfig(
+        id="chatgpt-web",
+        name="ChatGPT Web",
+        auth_type="oauth_external",
+        inference_base_url=DEFAULT_CHATGPT_WEB_BASE_URL,
     ),
     "qwen-oauth": ProviderConfig(
         id="qwen-oauth",
