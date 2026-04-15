@@ -511,6 +511,121 @@ def _is_termux() -> bool:
     return bool(os.getenv("TERMUX_VERSION") or "com.termux/files/usr" in prefix)
 
 
+def _is_windows() -> bool:
+    return os.name == "nt"
+
+
+def _is_wsl() -> bool:
+    if _is_windows() or _is_termux():
+        return False
+    if os.getenv("WSL_INTEROP") or os.getenv("WSL_DISTRO_NAME"):
+        return True
+    try:
+        return "microsoft" in Path("/proc/version").read_text(encoding="utf-8").lower()
+    except Exception:
+        return False
+
+
+def _find_windows_browser_command() -> str | None:
+    for candidate in (
+        shutil.which("msedge.exe"),
+        shutil.which("chrome.exe"),
+        shutil.which("chromium.exe"),
+    ):
+        if candidate:
+            return candidate
+    common_paths = [
+        Path(os.getenv("ProgramFiles", "")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+        Path(os.getenv("ProgramFiles(x86)", "")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+        Path(os.getenv("ProgramFiles", "")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+        Path(os.getenv("ProgramFiles(x86)", "")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+    ]
+    for path in common_paths:
+        if str(path) and path.exists():
+            return str(path)
+    return None
+
+
+def _find_desktop_browser_command() -> str | None:
+    if _is_windows():
+        return _find_windows_browser_command()
+    return (
+        shutil.which("chromium-browser")
+        or shutil.which("chromium")
+        or shutil.which("google-chrome")
+        or shutil.which("microsoft-edge")
+        or shutil.which("microsoft-edge-stable")
+    )
+
+
+def _wsl_host_candidates() -> list[str]:
+    candidates: list[str] = []
+    try:
+        resolv = Path("/etc/resolv.conf")
+        if resolv.exists():
+            for line in resolv.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line.startswith("nameserver "):
+                    value = line.split(None, 1)[1].strip()
+                    if value and value not in candidates:
+                        candidates.append(value)
+    except Exception:
+        pass
+    return candidates
+
+
+def _debug_base_candidates(debug_port: int, *, expose_wsl_host: bool = False) -> list[str]:
+    candidates = [f"http://127.0.0.1:{debug_port}", f"http://localhost:{debug_port}"]
+    if expose_wsl_host:
+        for host in _wsl_host_candidates():
+            candidates.append(f"http://{host}:{debug_port}")
+    seen: list[str] = []
+    for item in candidates:
+        if item not in seen:
+            seen.append(item)
+    return seen
+
+
+def _launch_chatgpt_web_desktop_browser(
+    browser_command: str,
+    base_dir: Path,
+    debug_port: int,
+    *,
+    expose_wsl_host: bool = False,
+):
+    base_dir.mkdir(parents=True, exist_ok=True)
+    profile_dir = base_dir / "profile"
+    logs_dir = base_dir / "logs"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_handle = (logs_dir / "browser.log").open("ab")
+    debug_address = "0.0.0.0" if expose_wsl_host else "127.0.0.1"
+    command = [
+        browser_command,
+        f"--user-data-dir={profile_dir}",
+        f"--remote-debugging-address={debug_address}",
+        f"--remote-debugging-port={int(debug_port)}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-fre",
+        "--disable-session-crashed-bubble",
+        "https://chatgpt.com",
+    ]
+    popen_kwargs = {
+        "stdout": log_handle,
+        "stderr": subprocess.STDOUT,
+        "cwd": str(base_dir),
+        "start_new_session": True,
+    }
+    if _is_windows():
+        popen_kwargs["creationflags"] = (
+            getattr(subprocess, "DETACHED_PROCESS", 0)
+            | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        )
+    proc = subprocess.Popen(command, **popen_kwargs)
+    return proc, _debug_base_candidates(debug_port, expose_wsl_host=expose_wsl_host)
+
+
 def _termux_x11_android_app_installed() -> bool:
     pm_command = "/system/bin/pm"
     if not Path(pm_command).exists():
@@ -672,7 +787,7 @@ def _wait_for_chatgpt_web_session_token(
             token = None
         if token:
             return token
-        print("waiting for ChatGPT login in Termux browser...")
+        print("waiting for ChatGPT login in browser...")
         time.sleep(poll_seconds)
     return None
 
@@ -699,41 +814,69 @@ def auth_browser_command(args) -> None:
     provider = _normalize_provider(getattr(args, "provider", "") or "chatgpt-web")
     if provider != "chatgpt-web":
         raise SystemExit("Browser auth currently supports only chatgpt-web.")
-    if not _is_termux():
-        raise SystemExit("Browser auth currently supports only Termux/Android.")
     if websockets is None:
         raise SystemExit("Python package 'websockets' is required for browser auth.")
-    if not _termux_x11_android_app_installed():
-        raise SystemExit("Termux:X11 Android app (com.termux.x11) is not installed.")
-
-    termux_x11_command = _find_termux_x11_command()
-    if not termux_x11_command:
-        raise SystemExit("termux-x11 command not found. Install `termux-x11-nightly`.")
-
-    browser_command = _find_chromium_browser_command()
-    if not browser_command:
-        raise SystemExit("Chromium command not found. Install `chromium`.")
-
-    label = (getattr(args, "label", None) or "termux-x11-browser").strip() or "termux-x11-browser"
     timeout_seconds = max(30, int(getattr(args, "timeout", None) or 15 * 60))
     debug_port = max(1024, int(getattr(args, "debug_port", None) or 9222))
     keep_open = bool(getattr(args, "keep_open", False))
-    debug_base = f"http://127.0.0.1:{debug_port}"
     base_dir = get_hermes_home() / "chatgpt-web-browser"
-
-    shutil.rmtree(base_dir, ignore_errors=True)
-    launcher_script, _startup_script = _write_chatgpt_web_browser_launch_scripts(
-        base_dir,
-        termux_x11_command,
-        browser_command,
-        debug_port,
-    )
-    proc = _launch_chatgpt_web_browser(launcher_script, base_dir)
-    print("Started local Termux browser for ChatGPT Web auth.")
-    print("Open the Termux:X11 Android app manually, then finish logging into ChatGPT in Chromium.")
+    if _is_termux():
+        if not _termux_x11_android_app_installed():
+            raise SystemExit("Termux:X11 Android app (com.termux.x11) is not installed.")
+        termux_x11_command = _find_termux_x11_command()
+        if not termux_x11_command:
+            raise SystemExit("termux-x11 command not found. Install `termux-x11-nightly`.")
+        browser_command = _find_chromium_browser_command()
+        if not browser_command:
+            raise SystemExit("Chromium command not found. Install `chromium`.")
+        label = (getattr(args, "label", None) or "termux-x11-browser").strip() or "termux-x11-browser"
+        shutil.rmtree(base_dir, ignore_errors=True)
+        launcher_script, _startup_script = _write_chatgpt_web_browser_launch_scripts(
+            base_dir,
+            termux_x11_command,
+            browser_command,
+            debug_port,
+        )
+        proc = _launch_chatgpt_web_browser(launcher_script, base_dir)
+        debug_base = _debug_base_candidates(debug_port)[0]
+        print("Started local Termux browser for ChatGPT Web auth.")
+        print("Open the Termux:X11 Android app manually, then finish logging into ChatGPT in Chromium.")
+        success_message = "Stored chatgpt-web credential from Termux browser."
+    else:
+        browser_command = _find_desktop_browser_command()
+        if not browser_command:
+            if _is_windows():
+                raise SystemExit("No supported browser found. Install Microsoft Edge, Google Chrome, or Chromium.")
+            if _is_wsl():
+                raise SystemExit("No supported browser found in WSL. Install Chromium/Chrome in WSLg or run this command from native Windows.")
+            raise SystemExit("No supported browser found. Install Chromium, Chrome, or Edge.")
+        label_default = "windows-browser" if _is_windows() else ("wsl-browser" if _is_wsl() else "desktop-browser")
+        label = (getattr(args, "label", None) or label_default).strip() or label_default
+        shutil.rmtree(base_dir, ignore_errors=True)
+        proc, debug_bases = _launch_chatgpt_web_desktop_browser(
+            browser_command,
+            base_dir,
+            debug_port,
+            expose_wsl_host=_is_wsl(),
+        )
+        if _is_windows():
+            print("Started local Windows browser for ChatGPT Web auth.")
+            print("Finish logging into ChatGPT in the launched browser window.")
+            success_message = "Stored chatgpt-web credential from Windows browser."
+        elif _is_wsl():
+            print("Started local WSL browser for ChatGPT Web auth.")
+            print("Finish logging into ChatGPT in the launched browser window (or WSLg session).")
+            success_message = "Stored chatgpt-web credential from WSL browser."
+        else:
+            print("Started local browser for ChatGPT Web auth.")
+            print("Finish logging into ChatGPT in the launched browser window.")
+            success_message = "Stored chatgpt-web credential from desktop browser."
 
     try:
-        _wait_for_debugger(debug_base, timeout=min(60.0, float(timeout_seconds)))
+        if _is_termux():
+            _wait_for_debugger(debug_base, timeout=min(60.0, float(timeout_seconds)))
+        else:
+            debug_base = _wait_for_any_debugger(debug_bases, timeout=min(60.0, float(timeout_seconds)))
         session_token = _wait_for_chatgpt_web_session_token(
             debug_base,
             timeout_seconds=timeout_seconds,
@@ -756,13 +899,29 @@ def auth_browser_command(args) -> None:
             insecure=False,
             ca_bundle=None,
         ))
-        print("Stored chatgpt-web credential from Termux browser.")
+        print(success_message)
         print(f'Added it to the credential pool as "{label}".')
         print("Verify with: hermes auth list")
     finally:
         if not keep_open:
             _terminate_process(proc)
             shutil.rmtree(base_dir, ignore_errors=True)
+
+
+def _wait_for_any_debugger(debug_bases: list[str], timeout: float = 30.0) -> str:
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        for debug_base in debug_bases:
+            try:
+                with urllib.request.urlopen(f"{debug_base}/json/version", timeout=5) as response:
+                    if response.status == 200:
+                        return debug_base
+            except Exception as exc:
+                last_error = exc
+        time.sleep(1)
+    joined = ", ".join(debug_bases)
+    raise SystemExit(f"Timed out waiting for Chromium DevTools at any of [{joined}]: {last_error}")
 
 
 def _interactive_auth() -> None:
@@ -854,7 +1013,7 @@ def _interactive_add() -> None:
         print("  1. API key / access token")
         print("  2. OAuth login (authenticate via browser/device code)")
         print("  3. Session token (paste __Secure-next-auth.session-token)")
-        print("  4. Termux browser bootstrap (launch Chromium in Termux:X11 and capture the session automatically)")
+        print("  4. Local browser bootstrap (Termux, Windows, or WSL)")
         try:
             type_choice = input("Type [1/2/3/4]: ").strip()
         except (EOFError, KeyboardInterrupt):
