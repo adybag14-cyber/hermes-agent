@@ -2,10 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 from getpass import getpass
+import json
 import math
+import os
+from pathlib import Path
+import shlex
+import shutil
+import subprocess
+import sys
 import time
 from types import SimpleNamespace
+import urllib.request
 import uuid
 
 from agent.credential_pool import (
@@ -28,7 +37,12 @@ from agent.credential_pool import (
 )
 import hermes_cli.auth as auth_mod
 from hermes_cli.auth import PROVIDER_REGISTRY
-from hermes_constants import OPENROUTER_BASE_URL
+from hermes_constants import OPENROUTER_BASE_URL, get_hermes_home
+
+try:
+    import websockets
+except ImportError:
+    websockets = None  # type: ignore[assignment]
 
 
 # Providers that support OAuth login in addition to API keys.
@@ -105,6 +119,10 @@ def _api_key_default_label(count: int) -> str:
     return f"api-key-{count}"
 
 
+def _looks_like_jwt(token: str) -> bool:
+    return isinstance(token, str) and token.count(".") == 2
+
+
 def _display_source(source: str) -> str:
     return source.split(":", 1)[1] if source.startswith("manual:") else source
 
@@ -147,12 +165,60 @@ def auth_add_command(args) -> None:
         if provider.startswith(CUSTOM_POOL_PREFIX):
             requested_type = AUTH_TYPE_API_KEY
         else:
-            requested_type = AUTH_TYPE_OAUTH if provider in {"anthropic", "nous", "openai-codex", "qwen-oauth"} else AUTH_TYPE_API_KEY
+            requested_type = AUTH_TYPE_OAUTH if provider in {"anthropic", "nous", "openai-codex", "chatgpt-web", "qwen-oauth"} else AUTH_TYPE_API_KEY
 
     pool = load_pool(provider)
 
     if requested_type == AUTH_TYPE_API_KEY:
         token = (getattr(args, "api_key", None) or "").strip()
+        if provider == "chatgpt-web":
+            token_mode = str(getattr(args, "token_mode", "") or "").strip().lower()
+            if not token:
+                if token_mode == "session_token":
+                    token = getpass("Paste your ChatGPT Web session token: ").strip()
+                elif token_mode == "access_token":
+                    token = getpass("Paste your ChatGPT Web API key or access token: ").strip()
+                else:
+                    token = getpass("Paste your ChatGPT Web access token or session token: ").strip()
+            if not token:
+                raise SystemExit("No ChatGPT Web token provided.")
+            default_label = _api_key_default_label(len(pool.entries()) + 1)
+            label = (getattr(args, "label", None) or "").strip()
+            if not label:
+                label = input(f"Label (optional, default: {default_label}): ").strip() or default_label
+
+            source = SOURCE_MANUAL
+            access_token = token
+            extra = {}
+            should_exchange_session = (
+                token_mode == "session_token"
+                or (token_mode not in {"access_token", "session_token"} and not _looks_like_jwt(token))
+            )
+            if should_exchange_session:
+                from hermes_cli.chatgpt_web import _fetch_chatgpt_web_access_token_from_session
+
+                try:
+                    access_token = _fetch_chatgpt_web_access_token_from_session(token)
+                except Exception as exc:
+                    raise SystemExit(f"Could not exchange ChatGPT Web session token: {exc}") from exc
+                source = f"{SOURCE_MANUAL}:session_token"
+                extra["session_token"] = token
+
+            entry = PooledCredential(
+                provider=provider,
+                id=uuid.uuid4().hex[:6],
+                label=label,
+                auth_type=AUTH_TYPE_API_KEY,
+                priority=0,
+                source=source,
+                access_token=access_token,
+                base_url=_provider_base_url(provider),
+                extra=extra,
+            )
+            pool.add_entry(entry)
+            print(f'Added {provider} credential #{len(pool.entries())}: "{label}"')
+            return
+
         if not token:
             token = getpass("Paste your API key: ").strip()
         if not token:
@@ -250,6 +316,28 @@ def auth_add_command(args) -> None:
         print(f'Added {provider} OAuth credential #{len(pool.entries())}: "{entry.label}"')
         return
 
+    if provider == "chatgpt-web":
+        creds = auth_mod._codex_device_code_login()
+        label = (getattr(args, "label", None) or "").strip() or label_from_token(
+            creds["tokens"]["access_token"],
+            _oauth_default_label(provider, len(pool.entries()) + 1),
+        )
+        entry = PooledCredential(
+            provider=provider,
+            id=uuid.uuid4().hex[:6],
+            label=label,
+            auth_type=AUTH_TYPE_OAUTH,
+            priority=0,
+            source=f"{SOURCE_MANUAL}:device_code",
+            access_token=creds["tokens"]["access_token"],
+            refresh_token=creds["tokens"].get("refresh_token"),
+            base_url=_provider_base_url(provider),
+            last_refresh=creds.get("last_refresh"),
+        )
+        pool.add_entry(entry)
+        print(f'Added {provider} OAuth credential #{len(pool.entries())}: "{entry.label}"')
+        return
+
     if provider == "qwen-oauth":
         creds = auth_mod.resolve_qwen_runtime_credentials(refresh_if_expiring=False)
         label = (getattr(args, "label", None) or "").strip() or label_from_token(
@@ -293,7 +381,7 @@ def auth_list_command(args) -> None:
         for idx, entry in enumerate(entries, start=1):
             marker = "  "
             if current is not None and entry.id == current.id:
-                marker = "← "
+                marker = "â† "
             status = _format_exhausted_status(entry)
             source = _display_source(entry.source)
             print(f"  #{idx}  {entry.label:<20} {entry.auth_type:<7} {source}{status} {marker}".rstrip())
@@ -349,7 +437,7 @@ def auth_remove_command(args) -> None:
     elif removed.source == "claude_code" and provider == "anthropic":
         from hermes_cli.auth import suppress_credential_source
         suppress_credential_source(provider, "claude_code")
-        print("Suppressed claude_code credential — it will not be re-seeded.")
+        print("Suppressed claude_code credential â€” it will not be re-seeded.")
         print("Note: Claude Code credentials still live in ~/.claude/.credentials.json")
         print("Run `hermes auth add anthropic` to re-enable if needed.")
 
@@ -359,6 +447,424 @@ def auth_reset_command(args) -> None:
     pool = load_pool(provider)
     count = pool.reset_statuses()
     print(f"Reset status on {count} {provider} credentials")
+
+
+def _is_termux() -> bool:
+    prefix = os.getenv("PREFIX", "")
+    return bool(os.getenv("TERMUX_VERSION") or "com.termux/files/usr" in prefix)
+
+
+def _is_windows() -> bool:
+    return os.name == "nt"
+
+
+def _is_wsl() -> bool:
+    if _is_windows() or _is_termux():
+        return False
+    if os.getenv("WSL_INTEROP") or os.getenv("WSL_DISTRO_NAME"):
+        return True
+    try:
+        return "microsoft" in Path("/proc/version").read_text(encoding="utf-8").lower()
+    except Exception:
+        return False
+
+
+def _find_windows_browser_command() -> str | None:
+    for candidate in (
+        shutil.which("msedge.exe"),
+        shutil.which("chrome.exe"),
+        shutil.which("chromium.exe"),
+    ):
+        if candidate:
+            return candidate
+    common_paths = [
+        Path(os.getenv("ProgramFiles", "")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+        Path(os.getenv("ProgramFiles(x86)", "")) / "Microsoft" / "Edge" / "Application" / "msedge.exe",
+        Path(os.getenv("ProgramFiles", "")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+        Path(os.getenv("ProgramFiles(x86)", "")) / "Google" / "Chrome" / "Application" / "chrome.exe",
+    ]
+    for path in common_paths:
+        if str(path) and path.exists():
+            return str(path)
+    return None
+
+
+def _find_desktop_browser_command() -> str | None:
+    if _is_windows():
+        return _find_windows_browser_command()
+    return (
+        shutil.which("chromium-browser")
+        or shutil.which("chromium")
+        or shutil.which("google-chrome")
+        or shutil.which("microsoft-edge")
+        or shutil.which("microsoft-edge-stable")
+    )
+
+
+def _wsl_host_candidates() -> list[str]:
+    candidates: list[str] = []
+    try:
+        resolv = Path("/etc/resolv.conf")
+        if resolv.exists():
+            for line in resolv.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line.startswith("nameserver "):
+                    value = line.split(None, 1)[1].strip()
+                    if value and value not in candidates:
+                        candidates.append(value)
+    except Exception:
+        pass
+    return candidates
+
+
+def _debug_base_candidates(debug_port: int, *, expose_wsl_host: bool = False) -> list[str]:
+    candidates = [f"http://127.0.0.1:{debug_port}", f"http://localhost:{debug_port}"]
+    if expose_wsl_host:
+        for host in _wsl_host_candidates():
+            candidates.append(f"http://{host}:{debug_port}")
+    seen: list[str] = []
+    for item in candidates:
+        if item not in seen:
+            seen.append(item)
+    return seen
+
+
+def _launch_chatgpt_web_desktop_browser(
+    browser_command: str,
+    base_dir: Path,
+    debug_port: int,
+    *,
+    expose_wsl_host: bool = False,
+):
+    base_dir.mkdir(parents=True, exist_ok=True)
+    profile_dir = base_dir / "profile"
+    logs_dir = base_dir / "logs"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    log_handle = (logs_dir / "browser.log").open("ab")
+    debug_address = "0.0.0.0" if expose_wsl_host else "127.0.0.1"
+    command = [
+        browser_command,
+        f"--user-data-dir={profile_dir}",
+        f"--remote-debugging-address={debug_address}",
+        f"--remote-debugging-port={int(debug_port)}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--disable-fre",
+        "--disable-session-crashed-bubble",
+        "https://chatgpt.com",
+    ]
+    popen_kwargs = {
+        "stdout": log_handle,
+        "stderr": subprocess.STDOUT,
+        "cwd": str(base_dir),
+        "start_new_session": True,
+    }
+    if _is_windows():
+        popen_kwargs["creationflags"] = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    proc = subprocess.Popen(command, **popen_kwargs)
+    return proc, _debug_base_candidates(debug_port, expose_wsl_host=expose_wsl_host)
+
+
+def _termux_x11_android_app_installed() -> bool:
+    pm_command = "/system/bin/pm"
+    if not Path(pm_command).exists():
+        return False
+    result = subprocess.run(
+        [pm_command, "list", "packages", "com.termux.x11"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={k: v for k, v in os.environ.items() if k != "LD_PRELOAD"},
+    )
+    return "package:com.termux.x11" in (result.stdout or "")
+
+
+def _find_termux_x11_command() -> str | None:
+    return shutil.which("termux-x11")
+
+
+def _find_chromium_browser_command() -> str | None:
+    return shutil.which("chromium-browser") or shutil.which("chromium")
+
+
+def _write_chatgpt_web_browser_launch_scripts(
+    base_dir: Path,
+    termux_x11_command: str,
+    browser_command: str,
+    debug_port: int,
+) -> tuple[Path, Path]:
+    base_dir.mkdir(parents=True, exist_ok=True)
+    startup_script = base_dir / "startup.sh"
+    launcher_script = base_dir / "launch.sh"
+
+    startup_script.write_text(
+        "#!/data/data/com.termux/files/usr/bin/bash\n"
+        "set -euo pipefail\n\n"
+        f"BASE_DIR={shlex.quote(str(base_dir))}\n"
+        "PROFILE_DIR=\"$BASE_DIR/profile\"\n"
+        "LOG_DIR=\"$BASE_DIR/logs\"\n"
+        "mkdir -p \"$PROFILE_DIR\" \"$LOG_DIR\"\n\n"
+        "export DISPLAY=\"${DISPLAY:-:0}\"\n"
+        "export XDG_RUNTIME_DIR=\"${TMPDIR:-$PREFIX/tmp}\"\n"
+        f"exec {shlex.quote(browser_command)} \\\n"
+        "  --no-sandbox \\\n"
+        "  --password-store=basic \\\n"
+        "  --user-data-dir=\"$PROFILE_DIR\" \\\n"
+        "  --remote-debugging-address=127.0.0.1 \\\n"
+        f"  --remote-debugging-port={int(debug_port)} \\\n"
+        "  --no-first-run \\\n"
+        "  --no-default-browser-check \\\n"
+        "  --disable-fre \\\n"
+        "  --disable-crash-reporter \\\n"
+        "  --disable-session-crashed-bubble \\\n"
+        "  --window-size=1280,900 \\\n"
+        "  https://chatgpt.com \\\n"
+        "  >>\"$LOG_DIR/chromium.log\" 2>&1\n",
+        encoding="utf-8",
+    )
+
+    launcher_script.write_text(
+        "#!/data/data/com.termux/files/usr/bin/bash\n"
+        "set -euo pipefail\n\n"
+        f"BASE_DIR={shlex.quote(str(base_dir))}\n"
+        "DISPLAY_FILE=\"$BASE_DIR/display\"\n"
+        "mkdir -p \"$BASE_DIR\"\n"
+        "rm -f \"$DISPLAY_FILE\"\n\n"
+        "exec 3<>\"$DISPLAY_FILE\"\n"
+        f"exec {shlex.quote(termux_x11_command)} -displayfd 3 -noreset -xstartup {shlex.quote(str(startup_script))}\n",
+        encoding="utf-8",
+    )
+
+    startup_script.chmod(0o755)
+    launcher_script.chmod(0o755)
+    return launcher_script, startup_script
+
+
+def _launch_chatgpt_web_browser(launcher_script: Path, base_dir: Path):
+    log_path = base_dir / "termux-x11.log"
+    with log_path.open("ab") as handle:
+        return subprocess.Popen(
+            [str(launcher_script)],
+            stdout=handle,
+            stderr=subprocess.STDOUT,
+            cwd=str(base_dir),
+            start_new_session=True,
+        )
+
+
+def _wait_for_debugger(debug_base: str, timeout: float = 30.0) -> None:
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        try:
+            with urllib.request.urlopen(f"{debug_base}/json/version", timeout=5) as response:
+                if response.status == 200:
+                    return
+        except Exception as exc:
+            last_error = exc
+        time.sleep(1)
+    raise SystemExit(f"Timed out waiting for Chromium DevTools at {debug_base}: {last_error}")
+
+
+def _wait_for_any_debugger(debug_bases: list[str], timeout: float = 30.0) -> str:
+    deadline = time.time() + timeout
+    last_error = None
+    while time.time() < deadline:
+        for debug_base in debug_bases:
+            try:
+                with urllib.request.urlopen(f"{debug_base}/json/version", timeout=5) as response:
+                    if response.status == 200:
+                        return debug_base
+            except Exception as exc:
+                last_error = exc
+        time.sleep(1)
+    joined = ", ".join(debug_bases)
+    raise SystemExit(f"Timed out waiting for Chromium DevTools at any of [{joined}]: {last_error}")
+
+
+async def _get_chatgpt_web_session_token(debug_base: str) -> str | None:
+    if websockets is None:
+        raise SystemExit("Python package 'websockets' is required for browser auth.")
+
+    with urllib.request.urlopen(f"{debug_base}/json/list", timeout=5) as response:
+        pages = json.load(response)
+
+    page = None
+    for item in pages:
+        if item.get("type") == "page" and "chatgpt.com" in str(item.get("url") or ""):
+            page = item
+            break
+    if page is None:
+        return None
+
+    ws_url = str(page.get("webSocketDebuggerUrl") or "").strip()
+    if not ws_url:
+        return None
+
+    async with websockets.connect(ws_url, max_size=20_000_000) as ws:
+        next_id = 1
+
+        async def send(method: str, params: dict | None = None):
+            nonlocal next_id
+            payload = {"id": next_id, "method": method}
+            if params is not None:
+                payload["params"] = params
+            await ws.send(json.dumps(payload))
+            my_id = next_id
+            next_id += 1
+            while True:
+                message = json.loads(await ws.recv())
+                if message.get("id") == my_id:
+                    return message
+
+        await send("Network.enable")
+        result = await send("Network.getCookies", {"urls": ["https://chatgpt.com/"]})
+        cookies = result.get("result", {}).get("cookies", [])
+        for cookie in cookies:
+            if cookie.get("name") == "__Secure-next-auth.session-token":
+                value = str(cookie.get("value") or "").strip()
+                if value:
+                    return value
+    return None
+
+
+def _wait_for_chatgpt_web_session_token(
+    debug_base: str,
+    *,
+    timeout_seconds: int = 15 * 60,
+    poll_seconds: int = 5,
+) -> str | None:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        try:
+            token = asyncio.run(_get_chatgpt_web_session_token(debug_base))
+        except Exception:
+            token = None
+        if token:
+            return token
+        print("waiting for ChatGPT login in Termux browser...")
+        time.sleep(poll_seconds)
+    return None
+
+
+def _terminate_process(proc, timeout: float = 5.0) -> None:
+    if proc is None:
+        return
+    try:
+        if proc.poll() is not None:
+            return
+    except Exception:
+        pass
+    try:
+        proc.terminate()
+        proc.wait(timeout=timeout)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
+def auth_browser_command(args) -> None:
+    provider = _normalize_provider(getattr(args, "provider", "") or "chatgpt-web")
+    if provider != "chatgpt-web":
+        raise SystemExit("Browser auth currently supports only chatgpt-web.")
+    if websockets is None:
+        raise SystemExit("Python package 'websockets' is required for browser auth.")
+
+    timeout_seconds = max(30, int(getattr(args, "timeout", None) or 15 * 60))
+    debug_port = max(1024, int(getattr(args, "debug_port", None) or 9222))
+    keep_open = bool(getattr(args, "keep_open", False))
+    base_dir = get_hermes_home() / "chatgpt-web-browser"
+
+    if _is_termux():
+        if not _termux_x11_android_app_installed():
+            raise SystemExit("Termux:X11 Android app (com.termux.x11) is not installed.")
+        termux_x11_command = _find_termux_x11_command()
+        if not termux_x11_command:
+            raise SystemExit("termux-x11 command not found. Install `termux-x11-nightly`.")
+        browser_command = _find_chromium_browser_command()
+        if not browser_command:
+            raise SystemExit("Chromium command not found. Install `chromium`.")
+        label = (getattr(args, "label", None) or "termux-x11-browser").strip() or "termux-x11-browser"
+        shutil.rmtree(base_dir, ignore_errors=True)
+        launcher_script, _startup_script = _write_chatgpt_web_browser_launch_scripts(
+            base_dir,
+            termux_x11_command,
+            browser_command,
+            debug_port,
+        )
+        proc = _launch_chatgpt_web_browser(launcher_script, base_dir)
+        debug_base = _debug_base_candidates(debug_port)[0]
+        print("Started local Termux browser for ChatGPT Web auth.")
+        print("Open the Termux:X11 Android app manually, then finish logging into ChatGPT in Chromium.")
+        success_message = "Stored chatgpt-web credential from Termux browser."
+    else:
+        browser_command = _find_desktop_browser_command()
+        if not browser_command:
+            if _is_windows():
+                raise SystemExit("No supported browser found. Install Microsoft Edge, Google Chrome, or Chromium.")
+            if _is_wsl():
+                raise SystemExit("No supported browser found in WSL. Install Chromium/Chrome in WSLg or run this command from native Windows.")
+            raise SystemExit("No supported browser found. Install Chromium, Chrome, or Edge.")
+        label_default = "windows-browser" if _is_windows() else ("wsl-browser" if _is_wsl() else "desktop-browser")
+        label = (getattr(args, "label", None) or label_default).strip() or label_default
+        shutil.rmtree(base_dir, ignore_errors=True)
+        proc, debug_bases = _launch_chatgpt_web_desktop_browser(
+            browser_command,
+            base_dir,
+            debug_port,
+            expose_wsl_host=_is_wsl(),
+        )
+        if _is_windows():
+            print("Started local Windows browser for ChatGPT Web auth.")
+            print("Finish logging into ChatGPT in the launched browser window.")
+            success_message = "Stored chatgpt-web credential from Windows browser."
+        elif _is_wsl():
+            print("Started local WSL browser for ChatGPT Web auth.")
+            print("Finish logging into ChatGPT in the launched browser window (or WSLg session).")
+            success_message = "Stored chatgpt-web credential from WSL browser."
+        else:
+            print("Started local browser for ChatGPT Web auth.")
+            print("Finish logging into ChatGPT in the launched browser window.")
+            success_message = "Stored chatgpt-web credential from desktop browser."
+
+    try:
+        if _is_termux():
+            _wait_for_debugger(debug_base, timeout=min(60.0, float(timeout_seconds)))
+        else:
+            debug_base = _wait_for_any_debugger(debug_bases, timeout=min(60.0, float(timeout_seconds)))
+        session_token = _wait_for_chatgpt_web_session_token(
+            debug_base,
+            timeout_seconds=timeout_seconds,
+        )
+        if not session_token:
+            raise SystemExit("Timed out waiting for __Secure-next-auth.session-token from Chromium.")
+
+        auth_add_command(SimpleNamespace(
+            provider="chatgpt-web",
+            auth_type="api-key",
+            api_key=session_token,
+            label=label,
+            token_mode="session_token",
+            portal_url=None,
+            inference_url=None,
+            client_id=None,
+            scope=None,
+            no_browser=False,
+            timeout=None,
+            insecure=False,
+            ca_bundle=None,
+        ))
+        print(success_message)
+        print(f'Added it to the credential pool as "{label}".')
+        print("Verify with: hermes auth list")
+    finally:
+        if not keep_open:
+            _terminate_process(proc)
+            shutil.rmtree(base_dir, ignore_errors=True)
+
 
 
 def _interactive_auth() -> None:
@@ -423,7 +929,28 @@ def _interactive_add() -> None:
         raise SystemExit(f"Unknown provider: {provider}")
 
     # For OAuth-capable providers, ask which type
-    if provider in _OAUTH_CAPABLE_PROVIDERS:
+    token_mode = None
+    if provider == "chatgpt-web":
+        print(f"\n{provider} supports API keys/access tokens, OAuth login, session tokens, and local browser bootstrap.")
+        print("  1. API key / access token")
+        print("  2. OAuth login (authenticate via browser/device code)")
+        print("  3. Session token (paste __Secure-next-auth.session-token)")
+        print("  4. Termux browser bootstrap (launch Chromium in Termux:X11 and capture the session automatically)")
+        try:
+            type_choice = input("Type [1/2/3/4]: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if type_choice == "2":
+            auth_type = "oauth"
+        elif type_choice == "3":
+            auth_type = "api_key"
+            token_mode = "session_token"
+        elif type_choice == "4":
+            auth_type = "browser"
+        else:
+            auth_type = "api_key"
+            token_mode = "access_token"
+    elif provider in _OAUTH_CAPABLE_PROVIDERS:
         print(f"\n{provider} supports both API keys and OAuth login.")
         print("  1. API key (paste a key from the provider dashboard)")
         print("  2. OAuth login (authenticate via browser)")
@@ -446,10 +973,21 @@ def _interactive_add() -> None:
     if typed_label:
         label = typed_label
 
+    if auth_type == "browser":
+        auth_browser_command(SimpleNamespace(
+            provider=provider,
+            label=label,
+            timeout=None,
+            debug_port=None,
+            keep_open=False,
+        ))
+        return
+
     auth_add_command(SimpleNamespace(
         provider=provider, auth_type=auth_type, label=label, api_key=None,
         portal_url=None, inference_url=None, client_id=None, scope=None,
         no_browser=False, timeout=None, insecure=False, ca_bundle=None,
+        token_mode=token_mode,
     ))
 
 
@@ -495,8 +1033,8 @@ def _interactive_strategy() -> None:
         STRATEGY_RANDOM: "Random selection",
     }
     for i, s in enumerate(strategies, 1):
-        marker = " ←" if s == current else ""
-        print(f"  {i}. {s:15s} — {descriptions.get(s, '')}{marker}")
+        marker = " â†" if s == current else ""
+        print(f"  {i}. {s:15s} â€” {descriptions.get(s, '')}{marker}")
 
     try:
         raw = input("\nStrategy [1-4]: ").strip()
@@ -537,5 +1075,9 @@ def auth_command(args) -> None:
     if action == "reset":
         auth_reset_command(args)
         return
-    # No subcommand — launch interactive mode
+    if action == "browser":
+        auth_browser_command(args)
+        return
+    # No subcommand â€” launch interactive mode
     _interactive_auth()
+
