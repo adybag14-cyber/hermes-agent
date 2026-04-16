@@ -1252,7 +1252,12 @@ def _cprint(text: str):
     StdoutProxy.  Routing through print_formatted_text(ANSI(...)) lets
     prompt_toolkit parse the escapes and render real colors.
     """
-    _pt_print(_PT_ANSI(text))
+    try:
+        _pt_print(_PT_ANSI(text))
+    except Exception:
+        import re
+        plain = re.sub(r"\[[0-9;]*[A-Za-z]", "", text)
+        print(plain)
 
 
 # ---------------------------------------------------------------------------
