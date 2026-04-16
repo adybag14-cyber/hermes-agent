@@ -1282,7 +1282,10 @@ def _cprint(text: str):
     try:
         from prompt_toolkit.application import get_app_or_none, run_in_terminal
     except Exception:
-        _pt_print(_PT_ANSI(text))
+        # Windows fallback: if prompt_toolkit fails entirely, strip ANSI and print plain
+        import re
+        plain = re.sub(r"\[[0-9;]*[A-Za-z]", "", text)
+        print(plain)
         return
 
     app = None
@@ -1295,7 +1298,13 @@ def _cprint(text: str):
     # direct prompt_toolkit print is safe and matches existing behavior
     # (spinner frames, streamed tokens, tool activity prefixes, …).
     if app is None or not getattr(app, "_is_running", False):
-        _pt_print(_PT_ANSI(text))
+        try:
+            _pt_print(_PT_ANSI(text))
+        except Exception:
+            # Windows fallback: no Win32 console, strip ANSI codes
+            import re
+            plain = re.sub(r"\[[0-9;]*[A-Za-z]", "", text)
+            print(plain)
         return
 
     try:
@@ -1303,7 +1312,12 @@ def _cprint(text: str):
     except Exception:
         loop = None
     if loop is None:
-        _pt_print(_PT_ANSI(text))
+        try:
+            _pt_print(_PT_ANSI(text))
+        except Exception:
+            import re
+            plain = re.sub(r"\[[0-9;]*[A-Za-z]", "", text)
+            print(plain)
         return
 
     import asyncio as _asyncio
@@ -1313,11 +1327,16 @@ def _cprint(text: str):
         current_loop = None
     # Same thread as the app's loop → safe to print directly.
     if current_loop is loop and loop.is_running():
-        _pt_print(_PT_ANSI(text))
+        try:
+            _pt_print(_PT_ANSI(text))
+        except Exception:
+            import re
+            plain = re.sub(r"\[[0-9;]*[A-Za-z]", "", text)
+            print(plain)
         return
 
     # Cross-thread emission: ask the app's event loop to schedule a
-    # ``run_in_terminal`` that wraps ``_pt_print``.  This hides the
+    # run_in_terminal that wraps _pt_print.  This hides the
     # prompt, prints, and redraws.  Fire-and-forget — if scheduling
     # fails we fall back to a direct print so the line isn't lost.
     def _schedule():
@@ -1335,7 +1354,11 @@ def _cprint(text: str):
         try:
             _pt_print(_PT_ANSI(text))
         except Exception:
-            pass
+            # Windows fallback: no Win32 console, strip ANSI codes
+            import re
+            plain = re.sub(r"\[[0-9;]*[A-Za-z]", "", text)
+            print(plain)
+
 
 
 # ---------------------------------------------------------------------------
