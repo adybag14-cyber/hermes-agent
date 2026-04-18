@@ -100,6 +100,7 @@ class ChatGPTWebTransportMixin(ChatGPTWebMessagesMixin, ChatGPTWebMediaMixin, Ch
                 if selected_tool_args is not None
                 else (self._chatgpt_web_missing_args_hint(selected_tool_names[0]) if selected_tool_names else "")
             )
+            selected_tool_argument_mirror = self._chatgpt_web_prompt_argument_mirror(selected_tool_args)
             selected_tool_example = (
                 "<tool_call>\n"
                 + json.dumps({"name": selected_tool_names[0], "arguments": selected_tool_args}, ensure_ascii=False)
@@ -148,6 +149,8 @@ class ChatGPTWebTransportMixin(ChatGPTWebMessagesMixin, ChatGPTWebMediaMixin, Ch
                             ])
                             if selected_tool_hint:
                                 reminder_lines.append(selected_tool_hint)
+                            if selected_tool_argument_mirror:
+                                reminder_lines.append(selected_tool_argument_mirror)
                             if selected_tool_example:
                                 reminder_lines.append("Reply now with this exact structure:")
                                 reminder_lines.append(selected_tool_example)
@@ -164,6 +167,8 @@ class ChatGPTWebTransportMixin(ChatGPTWebMessagesMixin, ChatGPTWebMediaMixin, Ch
                                 ])
                                 if selected_tool_hint:
                                     reminder_lines.append(selected_tool_hint)
+                                if selected_tool_argument_mirror:
+                                    reminder_lines.append(selected_tool_argument_mirror)
                                 if selected_tool_example:
                                     reminder_lines.append("Reply now with this exact structure:")
                                     reminder_lines.append(selected_tool_example)
@@ -194,6 +199,8 @@ class ChatGPTWebTransportMixin(ChatGPTWebMessagesMixin, ChatGPTWebMediaMixin, Ch
                                     reminder_lines.append(final_answer_example)
                                 if selected_tool_hint:
                                     reminder_lines.append(selected_tool_hint)
+                                if selected_tool_argument_mirror:
+                                    reminder_lines.append(selected_tool_argument_mirror)
                         item["content"] = (
                             f"Original user request:\n{original}\n\nRuntime reminder:\n"
                             + "\n".join(reminder_lines)

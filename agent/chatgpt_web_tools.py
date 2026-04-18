@@ -148,6 +148,18 @@ class ChatGPTWebToolsMixin:
                 return []
             vision_tool = tools_by_name.get("vision_analyze")
             return [vision_tool] if vision_tool is not None else []
+        if (
+            used_tool_count > 0
+            and last_tool_name == "search_files"
+            and isinstance(last_tool_payload, dict)
+            and path_match
+            and any(keyword in lowered for keyword in ("read", "open", "show", "inspect", "exact line", "exact def line", "first line"))
+        ):
+            matches = last_tool_payload.get("matches")
+            if isinstance(matches, list) and matches:
+                read_tool = tools_by_name.get("read_file")
+                if read_tool is not None:
+                    return [read_tool]
         if used_tool_count > 0 and self._chatgpt_web_answer_only_mode(user_text) == "line":
             last_tool_content = ""
             for item in reversed(payload_messages):
@@ -456,7 +468,7 @@ class ChatGPTWebToolsMixin:
                 keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
             ):
                 return {
-                    "pattern": explicit_symbol_target,
+                    "pattern": rf"\b{re.escape(explicit_symbol_target)}\b",
                     "target": "content",
                     "path": path_match,
                 }
@@ -980,10 +992,7 @@ class ChatGPTWebToolsMixin:
         if not isinstance(tool_payload, dict):
             return False
         matches = tool_payload.get("matches")
-        original_request = self._chatgpt_web_original_user_request(payload_messages)
         if isinstance(matches, list) and bool(matches):
-            if self._chatgpt_web_answer_only_mode(original_request) == "line":
-                return False
             return True
         if tool_payload.get("truncated"):
             try:
@@ -1131,3 +1140,14 @@ class ChatGPTWebToolsMixin:
                     if inferred_args is not None:
                         function.arguments = json.dumps(inferred_args, ensure_ascii=False)
         return tool_calls
+
+    @staticmethod
+    def _chatgpt_web_prompt_argument_mirror(args: Optional[dict[str, Any]]) -> str:
+        if not isinstance(args, dict):
+            return ""
+        lines: list[str] = []
+        for key in ("path", "image_url"):
+            value = args.get(key)
+            if isinstance(value, str) and "\\" in value:
+                lines.append(f'Windows path argument mirror: "{key}": "{value}"')
+        return "\n".join(lines)
