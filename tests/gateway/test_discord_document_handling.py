@@ -7,6 +7,7 @@ to download, cache, and optionally inject text from non-image/audio files.
 
 import os
 import sys
+import importlib
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -56,10 +57,6 @@ def _ensure_discord_mock():
 
 _ensure_discord_mock()
 
-import gateway.platforms.discord as discord_platform  # noqa: E402
-from gateway.platforms.discord import DiscordAdapter  # noqa: E402
-
-
 # ---------------------------------------------------------------------------
 # Fake channel / thread types
 # ---------------------------------------------------------------------------
@@ -94,11 +91,12 @@ def _redirect_cache(tmp_path, monkeypatch):
 
 @pytest.fixture
 def adapter(monkeypatch):
+    discord_platform = importlib.import_module("gateway.platforms.discord")
     monkeypatch.setattr(discord_platform.discord, "DMChannel", FakeDMChannel, raising=False)
     monkeypatch.setattr(discord_platform.discord, "Thread", FakeThread, raising=False)
 
     config = PlatformConfig(enabled=True, token="fake-token")
-    a = DiscordAdapter(config)
+    a = discord_platform.DiscordAdapter(config)
     a._client = SimpleNamespace(user=SimpleNamespace(id=999))
     a.handle_message = AsyncMock()
     return a

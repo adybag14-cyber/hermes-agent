@@ -35,6 +35,13 @@ from gateway.platforms.api_server import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolated_hermes_home(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes-home"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+
+
 # ---------------------------------------------------------------------------
 # check_api_server_requirements
 # ---------------------------------------------------------------------------

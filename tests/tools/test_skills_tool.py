@@ -21,6 +21,16 @@ from tools.skills_tool import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _isolated_hermes_home(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes-home"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    monkeypatch.setattr(skills_tool_module, "HERMES_HOME", hermes_home)
+    monkeypatch.setattr(skills_tool_module, "SKILLS_DIR", hermes_home / "skills")
+    monkeypatch.setattr(skills_tool_module, "_secret_capture_callback", None, raising=False)
+
+
 def _make_skill(
     skills_dir, name, frontmatter_extra="", body="Step 1: Do the thing.", category=None
 ):

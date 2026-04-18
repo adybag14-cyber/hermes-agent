@@ -1120,7 +1120,7 @@ class TestSendMatrixUrlEncoding:
 
         with patch("aiohttp.ClientSession", return_value=mock_session):
             from tools.send_message_tool import _send_matrix
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 _send_matrix(
                     "test_token",
                     {"homeserver": "https://matrix.example.org"},

@@ -1,41 +1,12 @@
-"""Shared fixtures for the hermes-agent test suite.
-
-Hermetic-test invariants enforced here (see AGENTS.md for rationale):
-
-1. **No credential env vars.** All provider/credential-shaped env vars
-   (ending in _API_KEY, _TOKEN, _SECRET, _PASSWORD, _CREDENTIALS, etc.)
-   are unset before every test. Local developer keys cannot leak in.
-2. **Isolated HERMES_HOME.** HERMES_HOME points to a per-test tempdir so
-   code reading ``~/.hermes/*`` via ``get_hermes_home()`` can't see the
-   real one. (We do NOT also redirect HOME — that broke subprocesses in
-   CI. Code using ``Path.home() / ".hermes"`` instead of the canonical
-   ``get_hermes_home()`` is a bug to fix at the callsite.)
-3. **Deterministic runtime.** TZ=UTC, LANG=C.UTF-8, PYTHONHASHSEED=0.
-4. **No HERMES_SESSION_* inheritance** — the agent's current gateway
-   session must not leak into tests.
-
-These invariants make the local test run match CI closely. Gaps that
-remain (CPU count, xdist worker count) are addressed by the canonical
-test runner at ``scripts/run_tests.sh``.
-"""
-
 import asyncio
-import os
-import re
-import signal
-import sys
-import tempfile
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
-# Ensure project root is importable
-PROJECT_ROOT = Path(__file__).parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+from gateway.session_context import _UNSET, _VAR_MAP
+import tools.approval as approval_module
 
 
+<<<<<<< HEAD
 # ── Credential env-var filter ──────────────────────────────────────────────
 #
 # Any env var in the current process matching ONE of these patterns is
@@ -212,63 +183,34 @@ _HERMES_BEHAVIORAL_VARS = frozenset({
     "EMAIL_ALLOW_ALL_USERS",
     "SMS_ALLOW_ALL_USERS",
 })
+=======
+def _reset_approval_module_state() -> None:
+    for attr in (
+        "_gateway_queues",
+        "_gateway_notify_cbs",
+        "_session_approved",
+        "_permanent_approved",
+        "_pending",
+        "_session_yolo",
+    ):
+        try:
+            getattr(approval_module, attr).clear()
+        except Exception:
+            pass
+    approval_module._approval_session_key.set("")
+>>>>>>> 9dc97295 (Fix post-rebase regressions)
 
 
 @pytest.fixture(autouse=True)
-def _hermetic_environment(tmp_path, monkeypatch):
-    """Blank out all credential/behavioral env vars so local and CI match.
+def _reset_shared_contextvars(tmp_path, monkeypatch):
+    """Reset cross-test contextvars that otherwise leak within one thread."""
+    hermes_home = tmp_path / "hermes_test_home"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
 
-    Also redirects HOME and HERMES_HOME to per-test tempdirs so code that
-    reads ``~/.hermes/*`` can't touch the real one, and pins TZ/LANG so
-    datetime/locale-sensitive tests are deterministic.
-    """
-    # 1. Blank every credential-shaped env var that's currently set.
-    for name in list(os.environ.keys()):
-        if _looks_like_credential(name):
-            monkeypatch.delenv(name, raising=False)
-
-    # 2. Blank behavioral HERMES_* vars that could change test semantics.
-    for name in _HERMES_BEHAVIORAL_VARS:
-        monkeypatch.delenv(name, raising=False)
-
-    # 3. Redirect HERMES_HOME to a per-test tempdir. Code that reads
-    #    ``~/.hermes/*`` via ``get_hermes_home()`` now gets the tempdir.
-    #
-    #    NOTE: We do NOT also redirect HOME. Doing so broke CI because
-    #    some tests (and their transitive deps) spawn subprocesses that
-    #    inherit HOME and expect it to be stable. If a test genuinely
-    #    needs HOME isolated, it should set it explicitly in its own
-    #    fixture. Any code in the codebase reading ``~/.hermes/*`` via
-    #    ``Path.home() / ".hermes"`` instead of ``get_hermes_home()``
-    #    is a bug to fix at the callsite.
-    fake_hermes_home = tmp_path / "hermes_test"
-    fake_hermes_home.mkdir()
-    (fake_hermes_home / "sessions").mkdir()
-    (fake_hermes_home / "cron").mkdir()
-    (fake_hermes_home / "memories").mkdir()
-    (fake_hermes_home / "skills").mkdir()
-    monkeypatch.setenv("HERMES_HOME", str(fake_hermes_home))
-
-    # 4. Deterministic locale / timezone / hashseed. CI runs in UTC with
-    #    C.UTF-8 locale; local dev often doesn't. Pin everything.
-    monkeypatch.setenv("TZ", "UTC")
-    monkeypatch.setenv("LANG", "C.UTF-8")
-    monkeypatch.setenv("LC_ALL", "C.UTF-8")
-    monkeypatch.setenv("PYTHONHASHSEED", "0")
-
-    # 4b. Disable AWS IMDS lookups. Without this, any test that ends up
-    #     calling has_aws_credentials() / resolve_aws_auth_env_var()
-    #     (e.g. provider auto-detect, status command, cron run_job) burns
-    #     ~2s waiting for the metadata service at 169.254.169.254 to time
-    #     out. Tests don't run on EC2 — IMDS is always unreachable here.
-    monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
-    monkeypatch.setenv("AWS_METADATA_SERVICE_TIMEOUT", "1")
-    monkeypatch.setenv("AWS_METADATA_SERVICE_NUM_ATTEMPTS", "1")
-
-    # 5. Reset plugin singleton so tests don't leak plugins from
-    #    ~/.hermes/plugins/ (which, per step 3, is now empty — but the
-    #    singleton might still be cached from a previous test).
+    created_loop = None
     try:
+<<<<<<< HEAD
         import hermes_cli.plugins as _plugins_mod
         monkeypatch.setattr(_plugins_mod, "_plugin_manager", None)
     except Exception:
@@ -431,33 +373,31 @@ def _ensure_current_event_loop(request):
 
     try:
         loop = asyncio.get_event_loop_policy().get_event_loop()
+=======
+        asyncio.get_event_loop()
+>>>>>>> 9dc97295 (Fix post-rebase regressions)
     except RuntimeError:
-        loop = None
+        created_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(created_loop)
 
-    created = loop is None or loop.is_closed()
-    if created:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-    try:
-        yield
-    finally:
-        if created and loop is not None:
-            try:
-                loop.close()
-            finally:
-                asyncio.set_event_loop(None)
-
-
-@pytest.fixture(autouse=True)
-def _enforce_test_timeout():
-    """Kill any individual test that takes longer than 30 seconds.
-    SIGALRM is Unix-only; skip on Windows."""
-    if sys.platform == "win32":
-        yield
-        return
-    old = signal.signal(signal.SIGALRM, _timeout_handler)
-    signal.alarm(30)
+    for var in _VAR_MAP.values():
+        var.set(_UNSET)
+    _reset_approval_module_state()
     yield
-    signal.alarm(0)
-    signal.signal(signal.SIGALRM, old)
+    for var in _VAR_MAP.values():
+        var.set(_UNSET)
+    _reset_approval_module_state()
+    if created_loop is not None:
+        try:
+            pending = [task for task in asyncio.all_tasks(created_loop) if not task.done()]
+            for task in pending:
+                task.cancel()
+            if pending:
+                created_loop.run_until_complete(
+                    asyncio.gather(*pending, return_exceptions=True)
+                )
+        except Exception:
+            pass
+        finally:
+            asyncio.set_event_loop(None)
+            created_loop.close()

@@ -14,6 +14,7 @@ Individual test files may still call their own ``_ensure_telegram_mock``
 — it short-circuits when the mock is already present.
 """
 
+import importlib
 import sys
 from unittest.mock import MagicMock
 
@@ -77,6 +78,12 @@ def _ensure_discord_mock() -> None:
     """
     if "discord" in sys.modules and hasattr(sys.modules["discord"], "__file__"):
         return  # Real library is installed — nothing to mock
+
+    try:
+        importlib.import_module("discord")
+        return
+    except ImportError:
+        pass
 
     from types import SimpleNamespace
 

@@ -8,10 +8,26 @@ Requires: PyNaCl>=1.5.0, discord.py[voice] (opus codec)
 """
 
 import struct
+import sys
 import time
 import pytest
 
 pytestmark = pytest.mark.integration
+
+# Gateway unit tests install a fake discord module in sys.modules during
+# collection. Integration voice tests need the real library, so evict the
+# mock and the already-imported adapter module before importorskip().
+_cached_discord = sys.modules.get("discord")
+if _cached_discord is not None and not hasattr(_cached_discord, "__file__"):
+    for name in list(sys.modules):
+        if name == "gateway.platforms.discord" or name == "discord" or name.startswith("discord."):
+            sys.modules.pop(name, None)
+    try:
+        import gateway.platforms as _gateway_platforms
+        if hasattr(_gateway_platforms, "discord"):
+            delattr(_gateway_platforms, "discord")
+    except Exception:
+        pass
 
 # Skip entire module if voice deps are missing
 pytest.importorskip("nacl.secret", reason="PyNaCl required for voice integration tests")
@@ -35,6 +51,9 @@ try:
     OPUS_AVAILABLE = discord.opus.is_loaded()
 except Exception:
     OPUS_AVAILABLE = False
+
+if not OPUS_AVAILABLE:
+    pytest.skip("libopus required for voice integration tests", allow_module_level=True)
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock

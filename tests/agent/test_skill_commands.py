@@ -13,6 +13,19 @@ from agent.skill_commands import (
 )
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolated_hermes_home(tmp_path, monkeypatch):
+    hermes_home = tmp_path / "hermes-home"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    monkeypatch.setattr(skills_tool_module, "HERMES_HOME", hermes_home)
+    monkeypatch.setattr(skills_tool_module, "SKILLS_DIR", hermes_home / "skills")
+    monkeypatch.setattr(skills_tool_module, "_secret_capture_callback", None, raising=False)
+
+
 def _make_skill(
     skills_dir, name, frontmatter_extra="", body="Do the thing.", category=None
 ):
@@ -340,7 +353,7 @@ Generate some audio.
         )
 
         with patch.dict(
-            os.environ, {"HERMES_SESSION_PLATFORM": "telegram"}, clear=False
+            os.environ, {"HERMES_SESSION_PLATFORM": "telegram", "HERMES_GATEWAY_SESSION": "1"}, clear=False
         ):
             with patch("tools.skills_tool.SKILLS_DIR", tmp_path):
                 _make_skill(
@@ -356,7 +369,8 @@ Generate some audio.
                 msg = build_skill_invocation_message("/test-skill", "do stuff")
 
         assert msg is not None
-        assert "local cli" in msg.lower()
+        assert "load this skill in the local cli" in msg.lower()
+        assert ".env manually" in msg.lower()
 
     def test_preserves_remaining_remote_setup_warning(self, tmp_path, monkeypatch):
         monkeypatch.setenv("TERMINAL_ENV", "ssh")

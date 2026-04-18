@@ -17,9 +17,12 @@ def _mock_agent():
 
 
 @pytest.fixture()
-def manager():
+def manager(tmp_path):
     """SessionManager with a mock agent factory (avoids needing API keys)."""
-    return SessionManager(agent_factory=_mock_agent)
+    db = SessionDB(tmp_path / "state.db")
+    manager = SessionManager(agent_factory=_mock_agent, db=db)
+    yield manager
+    db.close()
 
 
 # ---------------------------------------------------------------------------
