@@ -29,15 +29,29 @@ Use any model you want ÔÇö [Nous Portal](https://portal.nousresearch.com), [O
 
 ## Quick Install
 
+**Linux / macOS / WSL2**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
 ```
 
-Works on Linux, macOS, WSL2, and Android via Termux. The installer handles the platform-specific setup for you.
+**Native Windows (PowerShell)**
 
-> **Android / Termux:** The tested manual path is documented in the [Termux guide](https://hermes-agent.nousresearch.com/docs/getting-started/termux). On Termux, Hermes installs a curated `.[termux]` extra because the full `.[all]` extra currently pulls Android-incompatible voice dependencies.
+```powershell
+irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex
+```
+
+**Windows (CMD wrapper)**
+
+```cmd
+curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.cmd -o install.cmd && install.cmd && del install.cmd
+```
+
+Works on Linux, macOS, native Windows, WSL2, and Android via Termux. The installers handle the platform-specific setup for you.
+
+> **Windows:** Native Windows installation is supported via the PowerShell installer in `scripts/install.ps1`. WSL2 is still a good option if you prefer a Linux shell, but it is no longer required just to install Hermes.
 >
-> **Windows:** Native Windows is not supported. Please install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) and run the command above.
+> **Android / Termux:** The tested manual path is documented in the [Termux guide](https://hermes-agent.nousresearch.com/docs/getting-started/termux). On Termux, Hermes installs a curated `.[termux]` extra because the full `.[all]` extra currently pulls Android-incompatible voice dependencies.
 
 After installation:
 
