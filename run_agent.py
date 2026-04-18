@@ -7661,12 +7661,12 @@ class AIAgent:
                 )
                 if (
                     not retried_stale_thread
-                    and status == 404
+                    and status in {404, 500}
                     and "backend-api/f/conversation" in failed_url
                     and had_remote_thread
                 ):
                     logger.warning(
-                        "ChatGPT Web conversation thread returned 404; resetting remote thread and retrying once."
+                        "ChatGPT Web conversation thread returned a stale-thread status; resetting remote thread and retrying once."
                     )
                     retried_stale_thread = True
                     self._chatgpt_web_conversation_id = None
