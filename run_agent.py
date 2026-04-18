@@ -6387,18 +6387,53 @@ class AIAgent:
             if callback is not None:
                 callback(text)
 
-        result = _chatgpt_web.stream_chatgpt_web_completion(
-            access_token=self.api_key,
-            model=api_kwargs.get("model") or self.model,
-            messages=api_kwargs.get("messages") or [],
-            instructions=api_kwargs.get("instructions") or DEFAULT_AGENT_IDENTITY,
-            conversation_id=api_kwargs.get("conversation_id") or None,
-            parent_message_id=api_kwargs.get("parent_message_id") or None,
-            timeout=api_kwargs.get("timeout") or float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
-            history_and_training_disabled=bool(api_kwargs.get("history_and_training_disabled", False)),
-            on_delta=_on_delta,
-            client=client,
-        )
+        import httpx as _httpx
+
+        call_kwargs = {
+            "access_token": self.api_key,
+            "model": api_kwargs.get("model") or self.model,
+            "messages": api_kwargs.get("messages") or [],
+            "instructions": api_kwargs.get("instructions") or DEFAULT_AGENT_IDENTITY,
+            "conversation_id": api_kwargs.get("conversation_id") or None,
+            "parent_message_id": api_kwargs.get("parent_message_id") or None,
+            "timeout": api_kwargs.get("timeout") or float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
+            "history_and_training_disabled": bool(api_kwargs.get("history_and_training_disabled", False)),
+            "on_delta": _on_delta,
+            "client": client,
+        }
+
+        retried_stale_thread = False
+        while True:
+            try:
+                result = _chatgpt_web.stream_chatgpt_web_completion(**call_kwargs)
+                break
+            except _httpx.HTTPStatusError as exc:
+                status = getattr(getattr(exc, "response", None), "status_code", None)
+                request_url = str(getattr(getattr(exc, "request", None), "url", "") or "")
+                response_url = str(getattr(getattr(exc, "response", None), "url", "") or "")
+                failed_url = request_url or response_url
+                had_remote_thread = bool(
+                    call_kwargs.get("conversation_id")
+                    or call_kwargs.get("parent_message_id")
+                    or self._chatgpt_web_conversation_id
+                    or self._chatgpt_web_parent_message_id
+                )
+                if (
+                    not retried_stale_thread
+                    and status == 404
+                    and "backend-api/f/conversation" in failed_url
+                    and had_remote_thread
+                ):
+                    logger.warning(
+                        "ChatGPT Web conversation thread returned 404; resetting remote thread and retrying once."
+                    )
+                    retried_stale_thread = True
+                    self._chatgpt_web_conversation_id = None
+                    self._chatgpt_web_parent_message_id = None
+                    call_kwargs["conversation_id"] = None
+                    call_kwargs["parent_message_id"] = None
+                    continue
+                raise
         self._chatgpt_web_conversation_id = result.get("conversation_id") or self._chatgpt_web_conversation_id
         self._chatgpt_web_parent_message_id = result.get("parent_message_id") or self._chatgpt_web_parent_message_id
         return self._wrap_chatgpt_web_response(result)
