@@ -446,6 +446,29 @@ def test_auth_browser_command_bootstraps_chatgpt_web_from_windows_browser(tmp_pa
     assert fake_proc.killed is False
 
 
+def test_chatgpt_web_browser_base_dir_uses_snap_safe_location(tmp_path, monkeypatch):
+    from hermes_cli import auth_commands as auth_commands_mod
+
+    monkeypatch.delenv("HERMES_CHATGPT_WEB_BROWSER_BASE_DIR", raising=False)
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
+    monkeypatch.setattr(auth_commands_mod.Path, "home", lambda: tmp_path)
+
+    base_dir = auth_commands_mod._chatgpt_web_browser_base_dir("/snap/bin/chromium")
+
+    assert base_dir == tmp_path / "hermes-chatgpt-web-browser"
+
+
+def test_chatgpt_web_browser_base_dir_honors_override(tmp_path, monkeypatch):
+    from hermes_cli import auth_commands as auth_commands_mod
+
+    override = tmp_path / "custom-browser-auth"
+    monkeypatch.setenv("HERMES_CHATGPT_WEB_BROWSER_BASE_DIR", str(override))
+
+    base_dir = auth_commands_mod._chatgpt_web_browser_base_dir("/snap/bin/chromium")
+
+    assert base_dir == override
+
+
 def test_auth_browser_command_rejects_unsupported_provider():
     from hermes_cli import auth_commands as auth_commands_mod
 

@@ -558,6 +558,16 @@ def _find_desktop_browser_command() -> str | None:
     )
 
 
+def _chatgpt_web_browser_base_dir(browser_command: str | None = None) -> Path:
+    override = os.getenv("HERMES_CHATGPT_WEB_BROWSER_BASE_DIR", "").strip()
+    if override:
+        return Path(override).expanduser()
+    command = str(browser_command or "").strip()
+    if command.startswith("/snap/bin/"):
+        return Path.home() / "hermes-chatgpt-web-browser"
+    return get_hermes_home() / "chatgpt-web-browser"
+
+
 def _wsl_host_candidates() -> list[str]:
     candidates: list[str] = []
     try:
@@ -819,7 +829,6 @@ def auth_browser_command(args) -> None:
     timeout_seconds = max(30, int(getattr(args, "timeout", None) or 15 * 60))
     debug_port = max(1024, int(getattr(args, "debug_port", None) or 9222))
     keep_open = bool(getattr(args, "keep_open", False))
-    base_dir = get_hermes_home() / "chatgpt-web-browser"
     if _is_termux():
         if not _termux_x11_android_app_installed():
             raise SystemExit("Termux:X11 Android app (com.termux.x11) is not installed.")
@@ -829,6 +838,7 @@ def auth_browser_command(args) -> None:
         browser_command = _find_chromium_browser_command()
         if not browser_command:
             raise SystemExit("Chromium command not found. Install `chromium`.")
+        base_dir = _chatgpt_web_browser_base_dir(browser_command)
         label = (getattr(args, "label", None) or "termux-x11-browser").strip() or "termux-x11-browser"
         shutil.rmtree(base_dir, ignore_errors=True)
         launcher_script, _startup_script = _write_chatgpt_web_browser_launch_scripts(
@@ -850,6 +860,7 @@ def auth_browser_command(args) -> None:
             if _is_wsl():
                 raise SystemExit("No supported browser found in WSL. Install Chromium/Chrome in WSLg or run this command from native Windows.")
             raise SystemExit("No supported browser found. Install Chromium, Chrome, or Edge.")
+        base_dir = _chatgpt_web_browser_base_dir(browser_command)
         label_default = "windows-browser" if _is_windows() else ("wsl-browser" if _is_wsl() else "desktop-browser")
         label = (getattr(args, "label", None) or label_default).strip() or label_default
         shutil.rmtree(base_dir, ignore_errors=True)
