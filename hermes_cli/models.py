@@ -1500,7 +1500,6 @@ def detect_static_provider_for_model(
 
     return None
 
-
 def detect_provider_for_model(
     model_name: str,
     current_provider: str,

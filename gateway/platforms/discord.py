@@ -87,7 +87,7 @@ def _build_allowed_mentions():
     """Build Discord ``AllowedMentions`` with safe defaults, overridable via env.
 
     Discord bots default to parsing ``@everyone``, ``@here``, role pings, and
-    user pings when ``allowed_mentions`` is unset on the client — any LLM
+    user pings when ``allowed_mentions`` is unset on the client â€” any LLM
     output or echoed user content that contains ``@everyone`` would therefore
     ping the whole server. We explicitly deny ``@everyone`` and role pings
     by default and keep user / replied-user pings enabled so normal
@@ -96,10 +96,10 @@ def _build_allowed_mentions():
     Override via environment variables (or ``discord.allow_mentions.*`` in
     config.yaml):
 
-        DISCORD_ALLOW_MENTION_EVERYONE      default false  — @everyone + @here
-        DISCORD_ALLOW_MENTION_ROLES         default false  — @role pings
-        DISCORD_ALLOW_MENTION_USERS         default true   — @user pings
-        DISCORD_ALLOW_MENTION_REPLIED_USER  default true   — reply-ping author
+        DISCORD_ALLOW_MENTION_EVERYONE      default false  â€” @everyone + @here
+        DISCORD_ALLOW_MENTION_ROLES         default false  â€” @role pings
+        DISCORD_ALLOW_MENTION_USERS         default true   â€” @user pings
+        DISCORD_ALLOW_MENTION_REPLIED_USER  default true   â€” reply-ping author
     """
     if not DISCORD_AVAILABLE:
         return None
@@ -127,7 +127,7 @@ class VoiceReceiver:
     completed utterances via a callback.
     """
 
-    SILENCE_THRESHOLD = 1.5    # seconds of silence → end of utterance
+    SILENCE_THRESHOLD = 1.5    # seconds of silence â†’ end of utterance
     MIN_SPEECH_DURATION = 0.5  # minimum seconds to process (skip noise)
     SAMPLE_RATE = 48000        # Discord native rate
     CHANNELS = 2               # Discord sends stereo
@@ -273,7 +273,7 @@ class VoiceReceiver:
         # Calculate dynamic RTP header size (RFC 9335 / rtpsize mode)
         cc = first_byte & 0x0F  # CSRC count
         has_extension = bool(first_byte & 0x10)  # extension bit
-        has_padding = bool(first_byte & 0x20)  # padding bit (RFC 3550 §5.1)
+        has_padding = bool(first_byte & 0x20)  # padding bit (RFC 3550 Â§5.1)
         header_size = 12 + (4 * cc) + (4 if has_extension else 0)
 
         if len(data) < header_size + 4:  # need at least header + nonce
@@ -305,7 +305,7 @@ class VoiceReceiver:
         encrypted = bytes(payload_with_nonce[:-4])
 
         try:
-            import nacl.secret  # noqa: delayed import – only in voice path
+            import nacl.secret  # noqa: delayed import â€“ only in voice path
             box = nacl.secret.Aead(self._secret_key)
             decrypted = box.decrypt(encrypted, header, bytes(nonce))
         except Exception as e:
@@ -317,7 +317,7 @@ class VoiceReceiver:
         if ext_data_len and len(decrypted) > ext_data_len:
             decrypted = decrypted[ext_data_len:]
 
-        # --- Strip RTP padding (RFC 3550 §5.1) ---
+        # --- Strip RTP padding (RFC 3550 Â§5.1) ---
         # When the P bit is set, the last payload byte holds the count of
         # trailing padding bytes (including itself) that must be removed
         # before further processing. Skipping this passes padding-contaminated
@@ -339,7 +339,7 @@ class VoiceReceiver:
                 return
             decrypted = decrypted[:-pad_len]
             if not decrypted:
-                # Padding consumed entire payload — nothing to decode
+                # Padding consumed entire payload â€” nothing to decode
                 return
 
         # --- DAVE E2EE decrypt ---
@@ -353,13 +353,13 @@ class VoiceReceiver:
                         user_id, davey.MediaType.audio, decrypted
                     )
                 except Exception as e:
-                    # Unencrypted passthrough — use NaCl-decrypted data as-is
+                    # Unencrypted passthrough â€” use NaCl-decrypted data as-is
                     if "Unencrypted" not in str(e):
                         if self._packet_debug_count <= 10:
                             logger.warning("DAVE decrypt failed for ssrc=%d: %s", ssrc, e)
                         return
             # If SSRC unknown (no SPEAKING event yet), skip DAVE and try
-            # Opus decode directly — audio may be in passthrough mode.
+            # Opus decode directly â€” audio may be in passthrough mode.
             # Buffer will get a user_id when SPEAKING event arrives later.
 
         # --- Opus decode -> PCM ---
@@ -431,7 +431,7 @@ class VoiceReceiver:
                     self._buffers[ssrc] = bytearray()
                     self._last_packet_time.pop(ssrc, None)
                 elif silence_duration >= self.SILENCE_THRESHOLD * 2:
-                    # Stale buffer with no valid user — discard
+                    # Stale buffer with no valid user â€” discard
                     self._buffers.pop(ssrc, None)
                     self._last_packet_time.pop(ssrc, None)
 
@@ -558,7 +558,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 except Exception:
                     logger.warning("Opus codec found at %s but failed to load", opus_path)
             if not discord.opus.is_loaded():
-                logger.warning("Opus codec not found — voice channel playback disabled")
+                logger.warning("Opus codec not found â€” voice channel playback disabled")
 
         if not self.config.token:
             logger.error("[%s] No bot token configured", self.name)
@@ -576,7 +576,7 @@ class DiscordAdapter(BasePlatformAdapter):
                     if uid.strip()
                 }
 
-            # Parse DISCORD_ALLOWED_ROLES — comma-separated role IDs.
+            # Parse DISCORD_ALLOWED_ROLES â€” comma-separated role IDs.
             # Users with ANY of these roles can interact with the bot.
             roles_env = os.getenv("DISCORD_ALLOWED_ROLES", "")
             if roles_env:
@@ -608,7 +608,7 @@ class DiscordAdapter(BasePlatformAdapter):
             if proxy_url:
                 logger.info("[%s] Using proxy for Discord: %s", self.name, proxy_url)
 
-            # Create bot — proxy= for HTTP, connector= for SOCKS.
+            # Create bot â€” proxy= for HTTP, connector= for SOCKS.
             # allowed_mentions is set with safe defaults (no @everyone/roles)
             # so LLM output or echoed user content can't ping the whole
             # server; override per DISCORD_ALLOW_MENTION_* env vars or the
@@ -656,14 +656,14 @@ class DiscordAdapter(BasePlatformAdapter):
                     return
 
                 # Ignore Discord system messages (thread renames, pins, member joins, etc.)
-                # Allow both default and reply types — replies have a distinct MessageType.
+                # Allow both default and reply types â€” replies have a distinct MessageType.
                 if message.type not in (discord.MessageType.default, discord.MessageType.reply):
                     return
 
                 # Bot message filtering (DISCORD_ALLOW_BOTS):
-                #   "none"     — ignore all other bots (default)
-                #   "mentions" — accept bot messages only when they @mention us
-                #   "all"      — accept all bot messages
+                #   "none"     â€” ignore all other bots (default)
+                #   "mentions" â€” accept bot messages only when they @mention us
+                #   "all"      â€” accept all bot messages
                 # Must run BEFORE the user allowlist check so that bots
                 # permitted by DISCORD_ALLOW_BOTS are not rejected for
                 # not being in DISCORD_ALLOWED_USERS (fixes #4466).
@@ -674,7 +674,7 @@ class DiscordAdapter(BasePlatformAdapter):
                     elif allow_bots == "mentions":
                         if not self._client.user or self._client.user not in message.mentions:
                             return
-                    # "all" falls through; bot is permitted — skip the
+                    # "all" falls through; bot is permitted â€” skip the
                     # human-user allowlist below (bots aren't in it).
                 else:
                     # Non-bot: enforce the configured user/role allowlists.
@@ -682,7 +682,7 @@ class DiscordAdapter(BasePlatformAdapter):
                         return
                 
                 # Multi-agent filtering: if the message mentions specific bots
-                # but NOT this bot, the sender is talking to another agent —
+                # but NOT this bot, the sender is talking to another agent â€”
                 # stay silent.  Messages with no bot mentions (general chat)
                 # still fall through to _handle_message for the existing
                 # DISCORD_REQUIRE_MENTION check.
@@ -699,10 +699,10 @@ class DiscordAdapter(BasePlatformAdapter):
                         m.bot and m != self._client.user
                         for m in message.mentions
                     )
-                    # If other bots are mentioned but we're not → not for us
+                    # If other bots are mentioned but we're not â†’ not for us
                     if _other_bots_mentioned and not _self_mentioned:
                         return
-                    # If humans are mentioned but we're not → not for us
+                    # If humans are mentioned but we're not â†’ not for us
                     # (preserves old DISCORD_IGNORE_NO_MENTION=true behavior)
                     _ignore_no_mention = os.getenv(
                         "DISCORD_IGNORE_NO_MENTION", "true"
@@ -881,7 +881,7 @@ class DiscordAdapter(BasePlatformAdapter):
         discord.py's AppCommand.to_dict() does NOT include nsfw,
         dm_permission, or default_member_permissions (they live only on the
         attributes). Pull them from the attributes so the canonicalizer sees
-        the real server-side values instead of defaults — otherwise any
+        the real server-side values instead of defaults â€” otherwise any
         command using non-default permissions would diff on every startup.
         """
         payload = dict(command.to_dict())
@@ -1040,7 +1040,7 @@ class DiscordAdapter(BasePlatformAdapter):
             return
         message = event.raw_message
         if hasattr(message, "add_reaction"):
-            await self._add_reaction(message, "👀")
+            await self._add_reaction(message, "ðŸ‘€")
 
     async def on_processing_complete(self, event: MessageEvent, outcome: ProcessingOutcome) -> None:
         """Swap the in-progress reaction for a final success/failure reaction."""
@@ -1048,11 +1048,11 @@ class DiscordAdapter(BasePlatformAdapter):
             return
         message = event.raw_message
         if hasattr(message, "add_reaction"):
-            await self._remove_reaction(message, "👀")
+            await self._remove_reaction(message, "ðŸ‘€")
             if outcome == ProcessingOutcome.SUCCESS:
-                await self._add_reaction(message, "✅")
+                await self._add_reaction(message, "âœ…")
             elif outcome == ProcessingOutcome.FAILURE:
-                await self._add_reaction(message, "❌")
+                await self._add_reaction(message, "âŒ")
 
     async def send(
         self,
@@ -1066,7 +1066,7 @@ class DiscordAdapter(BasePlatformAdapter):
         When metadata contains a thread_id, the message is sent to that
         thread instead of the parent channel identified by chat_id.
 
-        Forum channels (type 15) reject direct messages — a thread post is
+        Forum channels (type 15) reject direct messages â€” a thread post is
         created automatically.
         """
         if not self._client:
@@ -1079,7 +1079,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 thread_id = metadata["thread_id"]
 
             if thread_id:
-                # Fetch the thread directly — threads are addressed by their own ID.
+                # Fetch the thread directly â€” threads are addressed by their own ID.
                 channel = self._client.get_channel(int(thread_id))
                 if not channel:
                     channel = await self._client.fetch_channel(int(thread_id))
@@ -1093,7 +1093,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 if not channel:
                     return SendResult(success=False, error=f"Channel {chat_id} not found")
 
-            # Forum channels reject channel.send() — create a thread post instead.
+            # Forum channels reject channel.send() â€” create a thread post instead.
             if self._is_forum_parent(channel):
                 return await self._send_to_forum(channel, content)
 
@@ -1309,7 +1309,7 @@ class DiscordAdapter(BasePlatformAdapter):
         """Send a local file as a Discord attachment.
 
         Forum channels (type 15) get a new thread whose starter message
-        carries the file — they reject direct POST /messages.
+        carries the file â€” they reject direct POST /messages.
         """
         if not self._client:
             return SendResult(success=False, error="Not connected")
@@ -1377,7 +1377,7 @@ class DiscordAdapter(BasePlatformAdapter):
             with open(audio_path, "rb") as f:
                 file_data = f.read()
 
-            # Forum channels (type 15) reject direct POST /messages — the
+            # Forum channels (type 15) reject direct POST /messages â€” the
             # native voice flag path also targets /messages so it would fail
             # too.  Create a thread post with the audio as the starter
             # attachment instead.
@@ -1650,7 +1650,7 @@ class DiscordAdapter(BasePlatformAdapter):
         if not info:
             return ""
 
-        parts = [f"[Voice channel: #{info['channel_name']} — {info['member_count']} participant(s)]"]
+        parts = [f"[Voice channel: #{info['channel_name']} â€” {info['member_count']} participant(s)]"]
         for m in info["members"]:
             status = " (speaking)" if m["is_speaking"] else ""
             parts.append(f"  - {m['display_name']}{status}")
@@ -1661,7 +1661,7 @@ class DiscordAdapter(BasePlatformAdapter):
     # Voice listening (Phase 2)
     # ------------------------------------------------------------------
 
-    # UDP keepalive interval in seconds — prevents Discord from dropping
+    # UDP keepalive interval in seconds â€” prevents Discord from dropping
     # the UDP route after ~60s of silence.
     _KEEPALIVE_INTERVAL = 15
 
@@ -1742,7 +1742,7 @@ class DiscordAdapter(BasePlatformAdapter):
         """
         # ``getattr`` fallbacks here guard against test fixtures that build
         # an adapter via ``object.__new__(DiscordAdapter)`` and skip __init__
-        # (see AGENTS.md pitfall #17 — same pattern as gateway.run).
+        # (see AGENTS.md pitfall #17 â€” same pattern as gateway.run).
         allowed_users = getattr(self, "_allowed_user_ids", set())
         allowed_roles = getattr(self, "_allowed_role_ids", set())
         has_users = bool(allowed_users)
@@ -2262,12 +2262,12 @@ class DiscordAdapter(BasePlatformAdapter):
         @tree.command(name="voice", description="Toggle voice reply mode")
         @discord.app_commands.describe(mode="Voice mode: on, off, tts, channel, leave, or status")
         @discord.app_commands.choices(mode=[
-            discord.app_commands.Choice(name="channel — join your voice channel", value="channel"),
-            discord.app_commands.Choice(name="leave — leave voice channel", value="leave"),
-            discord.app_commands.Choice(name="on — voice reply to voice messages", value="on"),
-            discord.app_commands.Choice(name="tts — voice reply to all messages", value="tts"),
-            discord.app_commands.Choice(name="off — text only", value="off"),
-            discord.app_commands.Choice(name="status — show current mode", value="status"),
+            discord.app_commands.Choice(name="channel â€” join your voice channel", value="channel"),
+            discord.app_commands.Choice(name="leave â€” leave voice channel", value="leave"),
+            discord.app_commands.Choice(name="on â€” voice reply to voice messages", value="on"),
+            discord.app_commands.Choice(name="tts â€” voice reply to all messages", value="tts"),
+            discord.app_commands.Choice(name="off â€” text only", value="off"),
+            discord.app_commands.Choice(name="status â€” show current mode", value="status"),
         ])
         async def slash_voice(interaction: discord.Interaction, mode: str = ""):
             await self._run_simple_slash(interaction, f"/voice {mode}".strip())
@@ -2320,7 +2320,7 @@ class DiscordAdapter(BasePlatformAdapter):
         async def slash_btw(interaction: discord.Interaction, question: str):
             await self._run_simple_slash(interaction, f"/btw {question}")
 
-        # ── Auto-register any gateway-available commands not yet on the tree ──
+        # â”€â”€ Auto-register any gateway-available commands not yet on the tree â”€â”€
         # This ensures new commands added to COMMAND_REGISTRY in
         # hermes_cli/commands.py automatically appear as Discord slash
         # commands without needing a manual entry here.
@@ -2374,13 +2374,57 @@ class DiscordAdapter(BasePlatformAdapter):
                 discord_name = cmd_def.name.lower()[:32]
                 if discord_name in already_registered:
                     continue
-                auto_cmd = _build_auto_slash_command(
-                    cmd_def.name,
-                    cmd_def.description,
-                    cmd_def.args_hint,
-                )
+                # Skip aliases that overlap with already-registered names
+                # (aliases for explicitly registered commands are handled above).
+                desc = (cmd_def.description or f"Run /{cmd_def.name}")[:100]
+                has_args = bool(cmd_def.args_hint)
+
+                if has_args:
+                    # Command takes optional arguments â€” create handler with
+                    # an optional ``args`` string parameter.
+                    def _make_args_handler(_name: str, _hint: str):
+                        @discord.app_commands.describe(args=f"Arguments: {_hint}"[:100])
+                        async def _handler(interaction: discord.Interaction, args: str = ""):
+                            await self._run_simple_slash(
+                                interaction, f"/{_name} {args}".strip()
+                            )
+                        _handler.__name__ = f"auto_slash_{_name.replace('-', '_')}"
+                        return _handler
+
+                    handler = _make_args_handler(cmd_def.name, cmd_def.args_hint)
+                else:
+                    # Parameterless command.
+                    def _make_simple_handler(_name: str):
+                        async def _handler(interaction: discord.Interaction):
+                            await self._run_simple_slash(interaction, f"/{_name}")
+                        _handler.__name__ = f"auto_slash_{_name.replace('-', '_')}"
+                        return _handler
+
+                    handler = _make_simple_handler(cmd_def.name)
+
                 try:
-                    tree.add_command(auto_cmd)
+                    if hasattr(discord.app_commands, "Command"):
+                        auto_cmd = discord.app_commands.Command(
+                            name=discord_name,
+                            description=desc,
+                            callback=handler,
+                        )
+                        tree.add_command(auto_cmd)
+                    else:
+                        # Lightweight test doubles may not expose
+                        # ``discord.app_commands.Command``. Register a tiny
+                        # command object with the attributes our tests and fake
+                        # trees rely on.
+                        fallback_cmd = type(
+                            "_FallbackDiscordCommand",
+                            (),
+                            {
+                                "name": discord_name,
+                                "description": desc,
+                                "callback": staticmethod(handler),
+                            },
+                        )()
+                        tree.add_command(fallback_cmd)
                     already_registered.add(discord_name)
                 except Exception:
                     # Silently skip commands that fail registration (e.g.
@@ -2394,11 +2438,11 @@ class DiscordAdapter(BasePlatformAdapter):
         except Exception as e:
             logger.warning("Discord auto-register from COMMAND_REGISTRY failed: %s", e)
 
-        # ── Plugin-registered slash commands ──
+        # â”€â”€ Plugin-registered slash commands â”€â”€
         # Plugins register via PluginContext.register_command(); we mirror
         # those into Discord's native slash picker so users get the same
         # autocomplete UX as for built-in commands. No per-platform plugin
-        # API needed — plugin commands are platform-agnostic.
+        # API needed â€” plugin commands are platform-agnostic.
         try:
             from hermes_cli.commands import _iter_plugin_command_entries
 
@@ -2425,7 +2469,7 @@ class DiscordAdapter(BasePlatformAdapter):
 
         # Register skills under a single /skill command group with category
         # subcommand groups.  This uses 1 top-level slot instead of N,
-        # supporting up to 25 categories × 25 skills = 625 skills.
+        # supporting up to 25 categories Ã— 25 skills = 625 skills.
         self._register_skill_group(tree)
 
     def _register_skill_group(self, tree) -> None:
@@ -2434,16 +2478,16 @@ class DiscordAdapter(BasePlatformAdapter):
         Discord enforces an ~8000-byte per-command payload limit. The older
         nested layout (``/skill <category> <name>``) registered one giant
         command whose serialized payload grew linearly with the skill
-        catalog — with the default ~75 skills the payload was ~14 KB and
+        catalog â€” with the default ~75 skills the payload was ~14 KB and
         ``tree.sync()`` rejected the entire slash-command batch (issues
         #11321, #10259, #11385, #10261, #10214).
 
         Autocomplete options are fetched dynamically by Discord when the
-        user types — they do NOT count against the per-command registration
+        user types â€” they do NOT count against the per-command registration
         budget. So we register ONE flat ``/skill`` command with
         ``name: str`` (autocompleted) and ``args: str = ""``. This scales
         to thousands of skills with no size math, no splitting, and no
-        hidden skills. The slash picker also becomes more discoverable —
+        hidden skills. The slash picker also becomes more discoverable â€”
         Discord live-filters by the user's typed prefix against both the
         skill name and its description.
         """
@@ -2458,7 +2502,7 @@ class DiscordAdapter(BasePlatformAdapter):
 
             # Reuse the existing collector for consistent filtering
             # (per-platform disabled, hub-excluded, name clamping), then
-            # flatten — the category grouping was only useful for the
+            # flatten â€” the category grouping was only useful for the
             # nested layout.
             categories, uncategorized, hidden = discord_skill_commands_by_category(
                 reserved_names=existing_names,
@@ -2474,7 +2518,7 @@ class DiscordAdapter(BasePlatformAdapter):
             # list is predictable across restarts.
             entries.sort(key=lambda t: t[0])
 
-            # name -> (description, cmd_key) — used by both the autocomplete
+            # name -> (description, cmd_key) â€” used by both the autocomplete
             # callback and the handler for O(1) dispatch.
             skill_lookup: dict[str, tuple[str, str]] = {
                 n: (d, k) for n, d, k in entries
@@ -2495,7 +2539,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 for name, desc, _key in entries:
                     if not q or q in name.lower() or (desc and q in desc.lower()):
                         if desc:
-                            label = f"{name} — {desc}"
+                            label = f"{name} â€” {desc}"
                         else:
                             label = name
                         # Discord's Choice.name is capped at 100 chars.
@@ -2535,7 +2579,6 @@ class DiscordAdapter(BasePlatformAdapter):
                 callback=_skill_handler,
             )
             tree.add_command(cmd)
-
             logger.info(
                 "[%s] Registered /skill command with %d skill(s) via autocomplete",
                 self.name, len(entries),
@@ -2834,10 +2877,10 @@ class DiscordAdapter(BasePlatformAdapter):
         """
         # Build a short thread name from the message. Strip Discord mention
         # syntax (users / roles / channels) so thread titles don't end up
-        # showing raw <@id>, <@&id>, or <#id> markers — the ID isn't
+        # showing raw <@id>, <@&id>, or <#id> markers â€” the ID isn't
         # meaningful to humans glancing at the thread list (#6336).
         content = (message.content or "").strip()
-        # <@123>, <@!123>, <@&123>, <#123> — collapse to empty; normalize spaces.
+        # <@123>, <@!123>, <@&123>, <#123> â€” collapse to empty; normalize spaces.
         content = re.sub(r"<@[!&]?\d+>", "", content)
         content = re.sub(r"<#\d+>", "", content)
         content = re.sub(r"\s+", " ", content).strip()
@@ -2877,13 +2920,13 @@ class DiscordAdapter(BasePlatformAdapter):
         Send a button-based exec approval prompt for a dangerous command.
 
         The buttons call ``resolve_gateway_approval()`` to unblock the waiting
-        agent thread — this replaces the text-based ``/approve`` flow on Discord.
+        agent thread â€” this replaces the text-based ``/approve`` flow on Discord.
         """
         if not self._client or not DISCORD_AVAILABLE:
             return SendResult(success=False, error="Not connected")
 
         try:
-            # Resolve channel — use thread_id from metadata if present
+            # Resolve channel â€” use thread_id from metadata if present
             target_id = chat_id
             if metadata and metadata.get("thread_id"):
                 target_id = metadata["thread_id"]
@@ -2896,7 +2939,7 @@ class DiscordAdapter(BasePlatformAdapter):
             max_desc = 4088
             cmd_display = command if len(command) <= max_desc else command[: max_desc - 3] + "..."
             embed = discord.Embed(
-                title="⚠️ Command Approval Required",
+                title="âš ï¸ Command Approval Required",
                 description=f"```\n{cmd_display}\n```",
                 color=discord.Color.orange(),
             )
@@ -2931,7 +2974,7 @@ class DiscordAdapter(BasePlatformAdapter):
 
             default_hint = f" (default: {default})" if default else ""
             embed = discord.Embed(
-                title="⚕ Update Needs Your Input",
+                title="âš• Update Needs Your Input",
                 description=f"{prompt}{default_hint}",
                 color=discord.Color.gold(),
             )
@@ -2956,7 +2999,7 @@ class DiscordAdapter(BasePlatformAdapter):
     ) -> SendResult:
         """Send an interactive select-menu model picker.
 
-        Two-step drill-down: provider dropdown → model dropdown.
+        Two-step drill-down: provider dropdown â†’ model dropdown.
         Uses Discord embeds + Select menus via ``ModelPickerView``.
         """
         if not self._client or not DISCORD_AVAILABLE:
@@ -2979,7 +3022,7 @@ class DiscordAdapter(BasePlatformAdapter):
                 provider_label = current_provider
 
             embed = discord.Embed(
-                title="⚙ Model Configuration",
+                title="âš™ Model Configuration",
                 description=(
                     f"Current model: `{current_model or 'unknown'}`\n"
                     f"Provider: {provider_label}\n\n"
@@ -3062,7 +3105,7 @@ class DiscordAdapter(BasePlatformAdapter):
     # plain-HTTP path:
     #
     #   1. ``cdn.discordapp.com`` URLs increasingly require bot auth on
-    #      download — unauthenticated httpx sees 403 Forbidden.
+    #      download â€” unauthenticated httpx sees 403 Forbidden.
     #      (issue #8242)
     #   2. Some user environments (VPNs, corporate DNS, tunnels) resolve
     #      ``cdn.discordapp.com`` to private-looking IPs that our
@@ -3456,7 +3499,7 @@ class DiscordAdapter(BasePlatformAdapter):
         if thread_id:
             self._threads.mark(thread_id)
 
-        # Only batch plain text messages — commands, media, etc. dispatch
+        # Only batch plain text messages â€” commands, media, etc. dispatch
         # immediately since they won't be split by the Discord client.
         if msg_type == MessageType.TEXT and self._text_batch_delay_seconds > 0:
             self._enqueue_text_event(event)
@@ -3531,12 +3574,12 @@ class DiscordAdapter(BasePlatformAdapter):
             # the running agent turn.  _enqueue_text_event always cancels
             # the prior flush task when a new chunk lands; without this
             # shield, CancelledError would propagate from our task down
-            # into handle_message → the agent's streaming request,
+            # into handle_message â†’ the agent's streaming request,
             # aborting the response the user was waiting on.  The new
             # chunk is handled by the fresh flush task regardless.
             await asyncio.shield(self.handle_message(event))
         except asyncio.CancelledError:
-            # Only reached if cancel landed before the pop — the shielded
+            # Only reached if cancel landed before the pop â€” the shielded
             # handle_message is unaffected either way.  Let the task exit
             # cleanly so the finally block cleans up.
             pass
@@ -3557,7 +3600,7 @@ if DISCORD_AVAILABLE:
 
         Shows four buttons: Allow Once, Allow Session, Always Allow, Deny.
         Clicking a button calls ``resolve_gateway_approval()`` to unblock the
-        waiting agent thread — the same mechanism as the text ``/approve`` flow.
+        waiting agent thread â€” the same mechanism as the text ``/approve`` flow.
         Only users in the allowed list can click.  Times out after 5 minutes.
         """
 
@@ -3707,13 +3750,13 @@ if DISCORD_AVAILABLE:
             except Exception as exc:
                 logger.error("Failed to write update response: %s", exc)
 
-        @discord.ui.button(label="Yes", style=discord.ButtonStyle.green, emoji="✓")
+        @discord.ui.button(label="Yes", style=discord.ButtonStyle.green, emoji="âœ“")
         async def yes_btn(
             self, interaction: discord.Interaction, button: discord.ui.Button
         ):
             await self._respond(interaction, "y", discord.Color.green(), "Yes")
 
-        @discord.ui.button(label="No", style=discord.ButtonStyle.red, emoji="✗")
+        @discord.ui.button(label="No", style=discord.ButtonStyle.red, emoji="âœ—")
         async def no_btn(
             self, interaction: discord.Interaction, button: discord.ui.Button
         ):
@@ -3727,7 +3770,7 @@ if DISCORD_AVAILABLE:
     class ModelPickerView(discord.ui.View):
         """Interactive select-menu view for model switching.
 
-        Two-step drill-down: provider dropdown → model dropdown.
+        Two-step drill-down: provider dropdown â†’ model dropdown.
         Edits the original message in-place as the user navigates.
         Times out after 2 minutes.
         """
@@ -3821,7 +3864,7 @@ if DISCORD_AVAILABLE:
             self.add_item(select)
 
             back_btn = discord.ui.Button(
-                label="◀ Back", style=discord.ButtonStyle.grey, custom_id="model_back"
+                label="â—€ Back", style=discord.ButtonStyle.grey, custom_id="model_back"
             )
             back_btn.callback = self._on_back
             self.add_item(back_btn)
@@ -3850,11 +3893,11 @@ if DISCORD_AVAILABLE:
 
             total = provider.get("total_models", 0) if provider else 0
             shown = min(len(provider.get("models", [])), 25) if provider else 0
-            extra = f"\n*{total - shown} more available — type `/model <name>` directly*" if total > shown else ""
+            extra = f"\n*{total - shown} more available â€” type `/model <name>` directly*" if total > shown else ""
 
             await interaction.response.edit_message(
                 embed=discord.Embed(
-                    title="⚙ Model Configuration",
+                    title="âš™ Model Configuration",
                     description=f"Provider: **{pname}**\nSelect a model:{extra}",
                     color=discord.Color.blue(),
                 ),
@@ -3878,7 +3921,7 @@ if DISCORD_AVAILABLE:
             self.clear_items()
             await interaction.response.edit_message(
                 embed=discord.Embed(
-                    title="⚙ Switching Model",
+                    title="âš™ Switching Model",
                     description=f"Switching to `{model_id}`...",
                     color=discord.Color.blue(),
                 ),
@@ -3896,7 +3939,7 @@ if DISCORD_AVAILABLE:
 
             await interaction.edit_original_response(
                 embed=discord.Embed(
-                    title="⚙ Model Switched",
+                    title="âš™ Model Switched",
                     description=result_text,
                     color=discord.Color.green(),
                 ),
@@ -3920,7 +3963,7 @@ if DISCORD_AVAILABLE:
 
             await interaction.response.edit_message(
                 embed=discord.Embed(
-                    title="⚙ Model Configuration",
+                    title="âš™ Model Configuration",
                     description=(
                         f"Current model: `{self.current_model or 'unknown'}`\n"
                         f"Provider: {provider_label}\n\n"
@@ -3936,7 +3979,7 @@ if DISCORD_AVAILABLE:
             self.clear_items()
             await interaction.response.edit_message(
                 embed=discord.Embed(
-                    title="⚙ Model Configuration",
+                    title="âš™ Model Configuration",
                     description="Model selection cancelled.",
                     color=discord.Color.greyple(),
                 ),
