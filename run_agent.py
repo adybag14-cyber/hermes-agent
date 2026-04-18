@@ -9860,7 +9860,11 @@ class AIAgent:
         # agent sees it on its next iteration. Runs AFTER budget enforcement
         # so the steer marker is never truncated. See steer() for details.
         if num_tools > 0:
-            self._apply_pending_steer_to_tool_results(messages, num_tools)
+            apply_pending_steer = getattr(
+                self, "_apply_pending_steer_to_tool_results", None
+            )
+            if callable(apply_pending_steer):
+                apply_pending_steer(messages, num_tools)
 
     def _execute_tool_calls_sequential(self, assistant_message, messages: list, effective_task_id: str, api_call_count: int = 0) -> None:
         """Execute tool calls sequentially (original behavior). Used for single calls or interactive tools."""

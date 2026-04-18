@@ -15,6 +15,7 @@ helpers. Verifies that:
 """
 
 import sys
+import importlib
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -58,9 +59,6 @@ def _ensure_discord_mock():
 
 _ensure_discord_mock()
 
-from gateway.platforms.discord import DiscordAdapter  # noqa: E402
-
-
 # Minimal valid image / audio / PDF bytes so the cache_*_from_bytes
 # validators accept them. cache_image_from_bytes runs _looks_like_image()
 # which checks for magic bytes; PNG's magic is sufficient.
@@ -69,8 +67,9 @@ _OGG_BYTES = b"OggS" + b"\x00" * 60
 _PDF_BYTES = b"%PDF-1.4\n" + b"fake pdf body" + b"\n%%EOF"
 
 
-def _make_adapter() -> DiscordAdapter:
-    return DiscordAdapter(PlatformConfig(enabled=True, token="***"))
+def _make_adapter():
+    discord_platform = importlib.import_module("gateway.platforms.discord")
+    return discord_platform.DiscordAdapter(PlatformConfig(enabled=True, token="***"))
 
 
 def _make_attachment_with_read(payload: bytes) -> SimpleNamespace:

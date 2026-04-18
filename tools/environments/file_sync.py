@@ -104,6 +104,25 @@ _SYNC_BACK_BACKOFF = (2, 4, 8)  # seconds between retries
 _SYNC_BACK_MAX_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB — refuse to extract larger tars
 
 
+def _safe_extract_tar(tar: tarfile.TarFile, dest_dir: str) -> None:
+    """Extract a sync-back tar safely across Python versions."""
+    try:
+        tar.extractall(dest_dir, filter="data")
+        return
+    except TypeError:
+        pass
+
+    dest_root = Path(dest_dir).resolve()
+    for member in tar.getmembers():
+        member_path = (dest_root / member.name).resolve()
+        if os.path.commonpath([str(dest_root), str(member_path)]) != str(dest_root):
+            raise RuntimeError(f"sync_back: unsafe tar entry {member.name!r}")
+        if member.isdev():
+            raise RuntimeError(f"sync_back: refusing special tar entry {member.name!r}")
+
+    tar.extractall(dest_dir)
+
+
 class FileSyncManager:
     """Tracks local file changes and syncs to a remote environment.
 
@@ -321,7 +340,7 @@ class FileSyncManager:
 
             with tempfile.TemporaryDirectory(prefix="hermes-sync-back-") as staging:
                 with tarfile.open(tf.name) as tar:
-                    tar.extractall(staging, filter="data")
+                    _safe_extract_tar(tar, staging)
 
                 applied = 0
                 for dirpath, _dirnames, filenames in os.walk(staging):

@@ -34,6 +34,7 @@ import re
 import traceback
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Set
 
 try:
@@ -887,6 +888,21 @@ class DingTalkAdapter(BasePlatformAdapter):
                 return None
         return info
 
+    @staticmethod
+    def _card_model(name: str, **kwargs):
+        """Build a DingTalk card model, falling back to SimpleNamespace in tests."""
+        model_cls = getattr(dingtalk_card_models, name, None) if dingtalk_card_models else None
+        if model_cls is None:
+            return SimpleNamespace(**kwargs)
+        return model_cls(**kwargs)
+
+    @staticmethod
+    def _card_runtime_options():
+        runtime_cls = getattr(tea_util_models, "RuntimeOptions", None) if tea_util_models else None
+        if runtime_cls is None:
+            return SimpleNamespace()
+        return runtime_cls()
+
     async def _create_and_stream_card(
         self,
         chat_id: str,
@@ -915,29 +931,34 @@ class DingTalkAdapter(BasePlatformAdapter):
             is_group = str(conversation_type) == "2"
             sender_staff_id = getattr(message, "sender_staff_id", "") or ""
 
-            runtime = tea_util_models.RuntimeOptions()
+            runtime = self._card_runtime_options()
 
             # Step 1: Create card with STREAM callback type
-            create_request = dingtalk_card_models.CreateCardRequest(
+            create_request = self._card_model(
+                "CreateCardRequest",
                 card_template_id=self._card_template_id,
                 out_track_id=out_track_id,
-                card_data=dingtalk_card_models.CreateCardRequestCardData(
+                card_data=self._card_model(
+                    "CreateCardRequestCardData",
                     card_param_map={"content": ""},
                 ),
                 callback_type="STREAM",
                 im_group_open_space_model=(
-                    dingtalk_card_models.CreateCardRequestImGroupOpenSpaceModel(
+                    self._card_model(
+                        "CreateCardRequestImGroupOpenSpaceModel",
                         support_forward=True,
                     )
                 ),
                 im_robot_open_space_model=(
-                    dingtalk_card_models.CreateCardRequestImRobotOpenSpaceModel(
+                    self._card_model(
+                        "CreateCardRequestImRobotOpenSpaceModel",
                         support_forward=True,
                     )
                 ),
             )
 
-            create_headers = dingtalk_card_models.CreateCardHeaders(
+            create_headers = self._card_model(
+                "CreateCardHeaders",
                 x_acs_dingtalk_access_token=token,
             )
 
@@ -948,12 +969,14 @@ class DingTalkAdapter(BasePlatformAdapter):
             # Step 2: Deliver card to the conversation
             if is_group:
                 open_space_id = f"dtv1.card//IM_GROUP.{conversation_id}"
-                deliver_request = dingtalk_card_models.DeliverCardRequest(
+                deliver_request = self._card_model(
+                    "DeliverCardRequest",
                     out_track_id=out_track_id,
                     user_id_type=1,
                     open_space_id=open_space_id,
                     im_group_open_deliver_model=(
-                        dingtalk_card_models.DeliverCardRequestImGroupOpenDeliverModel(
+                        self._card_model(
+                            "DeliverCardRequestImGroupOpenDeliverModel",
                             robot_code=self._robot_code,
                         )
                     ),
@@ -966,18 +989,21 @@ class DingTalkAdapter(BasePlatformAdapter):
                     )
                     return None
                 open_space_id = f"dtv1.card//IM_ROBOT.{sender_staff_id}"
-                deliver_request = dingtalk_card_models.DeliverCardRequest(
+                deliver_request = self._card_model(
+                    "DeliverCardRequest",
                     out_track_id=out_track_id,
                     user_id_type=1,
                     open_space_id=open_space_id,
                     im_robot_open_deliver_model=(
-                        dingtalk_card_models.DeliverCardRequestImRobotOpenDeliverModel(
+                        self._card_model(
+                            "DeliverCardRequestImRobotOpenDeliverModel",
                             space_type="IM_ROBOT",
                         )
                     ),
                 )
 
-            deliver_headers = dingtalk_card_models.DeliverCardHeaders(
+            deliver_headers = self._card_model(
+                "DeliverCardHeaders",
                 x_acs_dingtalk_access_token=token,
             )
 
@@ -1062,7 +1088,8 @@ class DingTalkAdapter(BasePlatformAdapter):
         finalize: bool = False,
     ) -> None:
         """Stream content to an existing AI Card."""
-        stream_request = dingtalk_card_models.StreamingUpdateRequest(
+        stream_request = self._card_model(
+            "StreamingUpdateRequest",
             out_track_id=out_track_id,
             guid=str(uuid.uuid4()),
             key="content",
@@ -1072,11 +1099,12 @@ class DingTalkAdapter(BasePlatformAdapter):
             is_error=False,
         )
 
-        stream_headers = dingtalk_card_models.StreamingUpdateHeaders(
+        stream_headers = self._card_model(
+            "StreamingUpdateHeaders",
             x_acs_dingtalk_access_token=token,
         )
 
-        runtime = tea_util_models.RuntimeOptions()
+        runtime = self._card_runtime_options()
         await self._card_sdk.streaming_update_with_options_async(
             stream_request, stream_headers, runtime
         )
@@ -1117,7 +1145,7 @@ class DingTalkAdapter(BasePlatformAdapter):
                 "emotion_type": 2,
                 "emotion_name": emoji_name,
             }
-            runtime = tea_util_models.RuntimeOptions()
+            runtime = self._card_runtime_options()
 
             if recall:
                 emotion_kwargs["text_emotion"] = (
@@ -1221,7 +1249,7 @@ class DingTalkAdapter(BasePlatformAdapter):
             headers = dingtalk_robot_models.RobotMessageFileDownloadHeaders(
                 x_acs_dingtalk_access_token=token,
             )
-            runtime = tea_util_models.RuntimeOptions()
+            runtime = self._card_runtime_options()
             response = await self._robot_sdk.robot_message_file_download_with_options_async(
                 request, headers, runtime
             )
@@ -1288,6 +1316,37 @@ class _IncomingHandler(
         self._adapter = adapter
         self._loop = loop
 
+    @staticmethod
+    def _coerce_chatbot_message(data: Any) -> Any:
+        """Convert callback payloads into a ChatbotMessage-like object.
+
+        Some test/dev environments don't have the DingTalk SDK installed, and
+        some SDK versions don't expose a usable ``from_dict`` path. Fall back
+        to a lightweight object with the attributes the adapter reads.
+        """
+        from_dict = getattr(ChatbotMessage, "from_dict", None) if ChatbotMessage is not None else None
+        if callable(from_dict):
+            try:
+                return from_dict(data)
+            except Exception:
+                pass
+
+        if not isinstance(data, dict):
+            raise TypeError("DingTalk callback payload must be a dict or JSON object")
+
+        return SimpleNamespace(
+            msgtype=data.get("msgtype") or data.get("msgType") or "",
+            text=data.get("text"),
+            rich_text=data.get("richText") or data.get("rich_text"),
+            sender_id=data.get("senderId") or data.get("sender_id") or "",
+            sender_staff_id=data.get("senderStaffId") or data.get("sender_staff_id") or "",
+            conversation_id=data.get("conversationId") or data.get("conversation_id") or "",
+            conversation_type=data.get("conversationType") or data.get("conversation_type") or "",
+            session_webhook=data.get("sessionWebhook") or data.get("session_webhook") or "",
+            message_id=data.get("msgId") or data.get("msg_id") or "",
+            is_in_at_list=bool(data.get("isInAtList") or data.get("is_in_at_list")),
+        )
+
     async def process(self, message: "CallbackMessage"):
         """Called by dingtalk-stream (>=0.20) when a message arrives.
 
@@ -1305,8 +1364,7 @@ class _IncomingHandler(
             if isinstance(data, str):
                 data = json.loads(data)
 
-            # Parse dict into ChatbotMessage using SDK's from_dict
-            chatbot_msg = ChatbotMessage.from_dict(data)
+            chatbot_msg = self._coerce_chatbot_message(data)
 
             # Ensure session_webhook is populated even if the SDK's
             # from_dict() did not map it (field name mismatch across

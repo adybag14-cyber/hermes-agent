@@ -13,6 +13,7 @@ Requires:
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -186,23 +187,33 @@ class HomeAssistantAdapter(BasePlatformAdapter):
 
     async def _cleanup_ws(self) -> None:
         """Close WebSocket and session."""
-        if self._ws and not self._ws.closed:
-            await self._ws.close()
+        ws = self._ws
+        session = self._session
         self._ws = None
-        if self._session and not self._session.closed:
-            await self._session.close()
         self._session = None
+
+        if ws and not ws.closed:
+            try:
+                await asyncio.wait_for(ws.close(), timeout=0.5)
+            except Exception:
+                response = getattr(ws, "_response", None)
+                if response is not None:
+                    with contextlib.suppress(Exception):
+                        response.close()
+
+        if session and not session.closed:
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(session.close(), timeout=1.0)
 
     async def disconnect(self) -> None:
         """Disconnect from Home Assistant."""
         self._running = False
         if self._listen_task:
-            self._listen_task.cancel()
-            try:
-                await self._listen_task
-            except asyncio.CancelledError:
-                pass
+            task = self._listen_task
             self._listen_task = None
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, asyncio.TimeoutError):
+                await asyncio.wait_for(task, timeout=1.0)
 
         await self._cleanup_ws()
         if self._rest_session and not self._rest_session.closed:

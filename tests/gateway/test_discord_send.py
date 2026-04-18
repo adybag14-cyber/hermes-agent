@@ -9,6 +9,10 @@ from gateway.config import PlatformConfig
 
 def _ensure_discord_mock():
     if "discord" in sys.modules and hasattr(sys.modules["discord"], "__file__"):
+        discord_mod = sys.modules["discord"]
+        discord_mod.DMChannel = type("DMChannel", (), {})
+        discord_mod.Thread = type("Thread", (), {})
+        discord_mod.ForumChannel = type("ForumChannel", (), {})
         return
 
     discord_mod = MagicMock()

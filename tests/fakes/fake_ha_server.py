@@ -18,6 +18,7 @@ Usage::
 """
 
 import asyncio
+import contextlib
 import json
 from typing import Any, Dict, List, Optional
 
@@ -129,7 +130,8 @@ class FakeHAServer:
         # Close any remaining WS connections.
         for ws in self._ws_connections:
             if not ws.closed:
-                await ws.close()
+                with contextlib.suppress(asyncio.TimeoutError, ConnectionError, RuntimeError):
+                    await asyncio.wait_for(ws.close(), timeout=1.0)
         self._ws_connections.clear()
         if self._server is not None:
             await self._server.close()

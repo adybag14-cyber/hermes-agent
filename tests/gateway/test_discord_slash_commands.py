@@ -11,10 +11,12 @@ from gateway.config import PlatformConfig
 
 def _ensure_discord_mock():
     if "discord" in sys.modules and hasattr(sys.modules["discord"], "__file__"):
-        # Real discord is installed — nothing to do.
-        return
-
-    if sys.modules.get("discord") is None:
+        discord_mod = sys.modules["discord"]
+        discord_mod.DMChannel = type("DMChannel", (), {})
+        discord_mod.Thread = type("Thread", (), {})
+        discord_mod.ForumChannel = type("ForumChannel", (), {})
+        discord_mod.Interaction = object
+    elif sys.modules.get("discord") is None:
         discord_mod = MagicMock()
         discord_mod.Intents.default.return_value = MagicMock()
         discord_mod.DMChannel = type("DMChannel", (), {})
