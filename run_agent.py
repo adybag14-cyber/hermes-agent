@@ -4425,6 +4425,10 @@ class AIAgent:
         self._interrupt_requested = False
         self._interrupt_message = None
         self._interrupt_thread_signal_pending = False
+        # Clear the legacy global/current-thread interrupt flag for
+        # compatibility with older tests and call sites that toggle
+        # interrupts without passing a thread id.
+        _set_interrupt(False)
         if self._execution_thread_id is not None:
             _set_interrupt(False, self._execution_thread_id)
         # Also clear any concurrent-tool worker thread bits.  Tracked
