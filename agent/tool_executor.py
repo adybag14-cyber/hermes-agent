@@ -1024,13 +1024,16 @@ def _commit_tool_result(
     return persisted_result, function_result, tool_message.get("_tool_output_risk")
 
 
-def _finalize_tool_batch(agent, messages: list, effective_task_id: str, num_tools: int, budget: BudgetConfig) -> None:
+def _finalize_tool_batch(agent, messages: list, effective_task_id: str, num_tools: int, budget: BudgetConfig, api_call_count: int = 0) -> None:
     """Per-turn aggregate budget enforcement, then /steer injection — in that order, so the
     steer marker is never truncated/discarded when enforcement replaces a result."""
     if num_tools <= 0:
         return
     enforce_turn_budget(messages[-num_tools:], env=get_active_env(effective_task_id), config=budget)
     agent._apply_pending_steer_to_tool_results(messages, num_tools)
+    inject_budget_warning = getattr(agent, "_inject_budget_warning_into_last_tool_result", None)
+    if inject_budget_warning is not None:
+        inject_budget_warning(messages, api_call_count)
 
 
 def _tool_progress_enabled(agent) -> bool:
@@ -1422,7 +1425,7 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
     if not _append_batch_results(agent, messages, effective_task_id, batch, _tool_budget):
         return
     if finalize:
-        _finalize_tool_batch(agent, messages, effective_task_id, len(parsed_calls), _tool_budget)
+        _finalize_tool_batch(agent, messages, effective_task_id, len(parsed_calls), _tool_budget, api_call_count)
 
 
 # ── Sequential dispatch ─────────────────────────────────────────────────────
@@ -1692,7 +1695,7 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
             break
 
     if finalize:
-        _finalize_tool_batch(agent, messages, effective_task_id, len(tool_calls), _tool_budget)
+        _finalize_tool_batch(agent, messages, effective_task_id, len(tool_calls), _tool_budget, api_call_count)
 
 
 def execute_tool_calls_segmented(agent, assistant_message, messages: list, effective_task_id: str, api_call_count: int = 0, segments=None) -> None:
@@ -1719,7 +1722,7 @@ def execute_tool_calls_segmented(agent, assistant_message, messages: list, effec
 
     total_tools = len(assistant_message.tool_calls)
     if total_tools > 0:
-        _finalize_tool_batch(agent, messages, effective_task_id, total_tools, _budget_for_agent(agent))
+        _finalize_tool_batch(agent, messages, effective_task_id, total_tools, _budget_for_agent(agent), api_call_count)
 
 
 __all__ = [
