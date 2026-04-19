@@ -185,6 +185,11 @@ _CHATGPT_WEB_HERMES_INTRO = (
     "memory, environment hints, and session state.\n"
     "- Treat the developer instructions as the authoritative Hermes runtime specification on every turn.\n"
     "- If tools are available, use them instead of describing what you would do.\n"
+    "- Each turn has one job: either emit exactly one Hermes tool-call block or provide the final user-facing answer.\n"
+    "- After a Hermes tool response, if the main task is not complete yet, continue immediately with the single best next tool call instead of narrating future intentions.\n"
+    "- Build tool calls from the Hermes tool schema: choose a listed tool name, provide a JSON arguments object that matches the schema, and infer the safest obvious next call from the user request plus tool outputs.\n"
+    "- Do not say you will continue later, do not claim a file/skill/package was created unless a tool result proved it, and do not invent success states.\n"
+    "- For create, write, edit, package, install, or migration work, verify the result with follow-up tool evidence before claiming completion.\n"
     "- Respect exact output constraints such as answer-only, one-line, path-only, or JSON-only responses.\n"
     "- Skills are first-class Hermes artifacts. If a relevant skill exists, load it. If the user asks to create or save a skill, "
     "produce a reusable skill with frontmatter, workflow steps, validation, and pitfalls rather than a stub.\n"
@@ -1257,6 +1262,8 @@ class AIAgent:
         self.suppress_status_output = False
         self._chatgpt_web_conversation_id = None
         self._chatgpt_web_parent_message_id = None
+        self._chatgpt_web_forced_tool_call = None
+        self._chatgpt_web_forced_tool_call_mode = "always"
         self.thinking_callback = thinking_callback
         self.reasoning_callback = reasoning_callback
         self.clarify_callback = clarify_callback
@@ -5011,6 +5018,70 @@ class AIAgent:
             + "\n</tool_call>"
         )
 
+    @staticmethod
+    def _chatgpt_web_requests_consecutive_tool_flow(original_request: str) -> bool:
+        lowered = str(original_request or "").strip().lower()
+        if not lowered:
+            return False
+        patterns = (
+            r"\bcontinue\b",
+            r"\bkeep going\b",
+            r"\bkeep using\b",
+            r"\bconsecutive\b",
+            r"\bdo not (?:reply|answer)\b",
+            r"\bonly after\b",
+            r"\bimmediate second attempt\b",
+            r"\bguess the next tool call\b",
+            r"\bnext \d+ turns?\b",
+            r"\bno(?: real)? english answer\b",
+        )
+        return any(re.search(pattern, lowered) for pattern in patterns)
+
+    @staticmethod
+    def _chatgpt_web_response_signals_pending_tool_work(message_text: str) -> bool:
+        lowered = str(message_text or "").strip().lower()
+        if not lowered:
+            return False
+        patterns = (
+            r"\bi(?:'ll| will)\s+(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look)\b",
+            r"\blet me\s+(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look)\b",
+            r"\b(?:next step|next up|continuing|retrying)\b",
+            r"\bi need to\s+(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look)\b",
+            r"\bi(?: have|'ve)?\s+(?:made progress|found|identified).+\b(?:now|next)\b",
+        )
+        return any(re.search(pattern, lowered) for pattern in patterns)
+
+    @staticmethod
+    def _chatgpt_web_universal_tool_examples() -> str:
+        return (
+            "Universal tool-call cookbook (shape examples only; only use tool names currently listed in <tools> for this turn):\n"
+            "1. Search for code or text:\n"
+            "<tool_call>\n"
+            "{\"name\": \"search_files\", \"arguments\": {\"pattern\": \"stream_chatgpt_web_completion\", \"target\": \"content\", \"path\": \"hermes_cli/chatgpt_web.py\"}}\n"
+            "</tool_call>\n"
+            "2. Read a specific file or line range:\n"
+            "<tool_call>\n"
+            "{\"name\": \"read_file\", \"arguments\": {\"path\": \"run_agent.py\", \"offset\": 3900, \"limit\": 120}}\n"
+            "</tool_call>\n"
+            "3. Run a shell command in the workspace:\n"
+            "<tool_call>\n"
+            "{\"name\": \"terminal\", \"arguments\": {\"command\": \"rg -n \\\"tool_call\\\" run_agent.py\", \"working_dir\": \"/workspace/hermes-agent\"}}\n"
+            "</tool_call>\n"
+            "4. Run Python for inspection or generation:\n"
+            "<tool_call>\n"
+            "{\"name\": \"execute_code\", \"arguments\": {\"code\": \"from pathlib import Path\\nprint(Path('skills').exists())\"}}\n"
+            "</tool_call>\n"
+            "5. Create or update a skill/file, then verify it exists before claiming success:\n"
+            "<tool_call>\n"
+            "{\"name\": \"skill_manage\", \"arguments\": {\"action\": \"create\", \"name\": \"tool-customizability\", \"content\": \"---\\nname: tool-customizability\\n---\\n# Tool Customizability\\n...\"}}\n"
+            "</tool_call>\n"
+            "Verification follow-up shape:\n"
+            "<tool_call>\n"
+            "{\"name\": \"read_file\", \"arguments\": {\"path\": \"skills/tool-customizability/SKILL.md\", \"offset\": 1, \"limit\": 80}}\n"
+            "</tool_call>\n"
+            "To build your own next tool call, copy the shape above, replace name with a tool listed in <tools>, and provide an arguments object that matches that tool's schema exactly."
+        )
+
     def _chatgpt_web_should_force_followup_tool_call(
         self,
         payload_messages: list[dict[str, Any]],
@@ -5069,6 +5140,7 @@ class AIAgent:
         selected_tools = tools if tools is not None else self.tools
         if not selected_tools:
             return ""
+        universal_examples = self._chatgpt_web_universal_tool_examples()
         tool_names = [
             str(tool.get("function", {}).get("name") or "").strip()
             for tool in selected_tools
@@ -5082,10 +5154,12 @@ class AIAgent:
                 f"That tool is available right now. Do not say tools are unavailable. "
                 f"Ignore any later steps for now and focus only on using {tool_label} in this response. "
                 f"If the user's request needs {tool_label}, your next response must be EXACTLY ONE <tool_call>...</tool_call> block and nothing else. "
-                "After you receive a <tool_response>, continue the task and either make the next tool call or give the final answer.\n"
+                "After you receive a <tool_response>, if the task is still in progress, make the next tool call immediately instead of narrating that you will continue later. "
+                f"Use the latest <tool_response> plus the tool schema for {tool_label} to guess the next tool call needed to advance the main goal when another step is still needed.\n"
                 f"<tools>\n{self._format_tools_for_chatgpt_web(selected_tools)}\n</tools>\n"
                 "Tool call schema: {'name': <function-name>, 'arguments': <args-dict>}\n"
-                f"Example:\n<tool_call>\n{{\"name\": \"{tool_label}\", \"arguments\": {{}}}}\n</tool_call>"
+                f"Exact tool example for this turn:\n<tool_call>\n{{\"name\": \"{tool_label}\", \"arguments\": {{}}}}\n</tool_call>\n"
+                f"{universal_examples}"
             )
         return (
             "You are running inside Hermes Agent's local tool loop over ChatGPT Web. "
@@ -5093,12 +5167,14 @@ class AIAgent:
             "Never claim that tools are unavailable, inaccessible, or unsupported here. They ARE available through this local tool loop. "
             "Do not claim that a tool failed unless you actually emitted a <tool_call> block and were given a failing <tool_response>. "
             "For multi-step tasks, work iteratively: make the single best next tool call now, wait for the <tool_response>, then make the next tool call or provide the final answer. "
+            "When the task is still underway, use the latest <tool_response> plus the tool schemas to guess the next tool call needed to advance the main goal. "
+            "Do not reply with progress narration like 'I will continue' or unsupported completion claims. "
             "When a tool is needed, respond with EXACTLY ONE <tool_call>...</tool_call> block and no surrounding commentary. "
             "After tool execution, you will receive tool outputs inside <tool_response>...</tool_response> blocks and should then continue the task.\n"
             f"<tools>\n{self._format_tools_for_chatgpt_web(selected_tools)}\n</tools>\n"
             "For each function call return a JSON object with this schema: {'name': <function-name>, 'arguments': <args-dict>}. "
             "Each function call must be enclosed within <tool_call> </tool_call> XML tags.\n"
-            "Example:\n<tool_call>\n{\"name\": \"search_files\", \"arguments\": {\"pattern\": \"chatgpt_web\", \"target\": \"content\", \"path\": \"hermes_cli/chatgpt_web.py\"}}\n</tool_call>"
+            f"{universal_examples}"
         )
 
     def _convert_to_trajectory_format(self, messages: List[Dict[str, Any]], user_query: str, completed: bool) -> List[Dict[str, Any]]:
@@ -7625,6 +7701,7 @@ class AIAgent:
         instructions = self._chatgpt_web_enrich_instructions(instructions)
 
         self._chatgpt_web_forced_tool_call = None
+        self._chatgpt_web_forced_tool_call_mode = "always"
         selected_tools: list[dict[str, Any]] = []
         uses_local_tool_loop = False
         current_turn_messages = payload_messages
@@ -7659,6 +7736,8 @@ class AIAgent:
                 + "\n</tool_call>"
                 if selected_tool_names and selected_tool_args is not None else ""
             )
+            original = self._chatgpt_web_original_user_request(payload_messages)
+            prefer_consecutive_tool_flow = self._chatgpt_web_requests_consecutive_tool_flow(original)
             force_followup_tool_call = bool(
                 selected_tool_names
                 and selected_tool_args is not None
@@ -7669,13 +7748,19 @@ class AIAgent:
                 )
             )
             if selected_tool_names and selected_tool_args is not None and (
-                used_tool_count == 0 or force_followup_tool_call
+                used_tool_count == 0
+                or force_followup_tool_call
+                or prefer_consecutive_tool_flow
             ):
                 self._chatgpt_web_forced_tool_call = {
                     "name": selected_tool_names[0],
                     "arguments": selected_tool_args,
                 }
-            original = self._chatgpt_web_original_user_request(payload_messages)
+                self._chatgpt_web_forced_tool_call_mode = (
+                    "always"
+                    if (used_tool_count == 0 or force_followup_tool_call)
+                    else "if_pending_work"
+                )
             final_answer_example = self._chatgpt_web_final_answer_example(original)
             for item in reversed(current_turn_messages):
                 if isinstance(item, dict) and item.get("role") == "user":
@@ -7696,11 +7781,13 @@ class AIAgent:
                                 reminder_lines.append(selected_tool_example)
                         else:
                             reminder_lines.append("You have already received at least one <tool_response>.")
-                            if force_followup_tool_call:
+                            if force_followup_tool_call or prefer_consecutive_tool_flow:
                                 reminder_lines.extend([
                                     "Hermes has already determined that another tool call is required before the final answer.",
-                                    "Do not answer the user yet.",
-                                    "Your next reply must be EXACTLY ONE <tool_call>...</tool_call> block with no explanatory prose before or after it.",
+                                    "Hermes expects you to keep advancing the task through tool use until the original request is actually complete.",
+                                    "Do not answer the user yet and do not narrate that you will continue later.",
+                                    "Use the available tool schema plus the latest <tool_response> to guess the single best next tool call needed for the main task.",
+                                    "Your next reply should be EXACTLY ONE <tool_call>...</tool_call> block with no explanatory prose before or after it.",
                                 ])
                                 if selected_tool_hint:
                                     reminder_lines.append(selected_tool_hint)
@@ -7709,6 +7796,9 @@ class AIAgent:
                                     reminder_lines.append(selected_tool_example)
                             else:
                                 reminder_lines.extend([
+                                    "Do not make unsupported claims about created files, saved skills, packaged artifacts, or completed debugging unless a tool result already proved them.",
+                                    "If the main task is still in progress, your next reply should usually be EXACTLY ONE <tool_call>...</tool_call> block for the best next tool call.",
+                                    "Use the available tool schema plus the latest <tool_response> to guess the next tool call whenever another step is still needed.",
                                     "If another tool is still required, emit EXACTLY ONE <tool_call>...</tool_call> block.",
                                     "Otherwise, give the final answer directly with no extra tool-call markup.",
                                     "When you give the final answer, follow the original user's requested output format exactly, including any 'answer only' constraint.",
@@ -7738,25 +7828,32 @@ class AIAgent:
         finish_reason = str(result.get("finish_reason") or "stop")
         tool_calls = None
         forced_tool_call = self._chatgpt_web_forced_tool_call
+        forced_tool_call_mode = self._chatgpt_web_forced_tool_call_mode
         self._chatgpt_web_forced_tool_call = None
+        self._chatgpt_web_forced_tool_call_mode = "always"
         if self.tools and message_text:
             extracted_tool_calls, cleaned_text = _extract_xml_tool_calls_from_text(message_text)
             if extracted_tool_calls:
                 tool_calls = extracted_tool_calls
                 message_text = cleaned_text
             elif isinstance(forced_tool_call, dict):
-                synthetic_block = (
-                    "<tool_call>\n"
-                    + json.dumps({
-                        "name": forced_tool_call.get("name"),
-                        "arguments": forced_tool_call.get("arguments", {}),
-                    }, ensure_ascii=False)
-                    + "\n</tool_call>"
-                )
-                extracted_tool_calls, _ = _extract_xml_tool_calls_from_text(synthetic_block)
-                if extracted_tool_calls:
-                    tool_calls = extracted_tool_calls
-                    message_text = ""
+                synth_mode = str(forced_tool_call_mode or "always").strip().lower()
+                should_synthesize = synth_mode == "always"
+                if synth_mode == "if_pending_work":
+                    should_synthesize = self._chatgpt_web_response_signals_pending_tool_work(message_text)
+                if should_synthesize:
+                    synthetic_block = (
+                        "<tool_call>\n"
+                        + json.dumps({
+                            "name": forced_tool_call.get("name"),
+                            "arguments": forced_tool_call.get("arguments", {}),
+                        }, ensure_ascii=False)
+                        + "\n</tool_call>"
+                    )
+                    extracted_tool_calls, _ = _extract_xml_tool_calls_from_text(synthetic_block)
+                    if extracted_tool_calls:
+                        tool_calls = extracted_tool_calls
+                        message_text = ""
         assistant_message = SimpleNamespace(content=message_text, tool_calls=tool_calls, role="assistant")
         choice = SimpleNamespace(message=assistant_message, finish_reason=finish_reason)
         return SimpleNamespace(
@@ -7805,14 +7902,16 @@ class AIAgent:
                     or self._chatgpt_web_conversation_id
                     or self._chatgpt_web_parent_message_id
                 )
-                if (
+                should_reset_remote_thread = (
                     not retried_stale_thread
                     and status in {404, 500}
                     and "backend-api/f/conversation" in failed_url
                     and had_remote_thread
-                ):
+                )
+                if should_reset_remote_thread:
                     logger.warning(
-                        "ChatGPT Web conversation thread returned a stale-thread status; resetting remote thread and retrying once."
+                        "ChatGPT Web conversation thread returned %s; resetting remote thread and retrying once.",
+                        status,
                     )
                     retried_stale_thread = True
                     self._chatgpt_web_conversation_id = None
