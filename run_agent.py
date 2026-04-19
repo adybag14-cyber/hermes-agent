@@ -5214,6 +5214,87 @@ class AIAgent:
             "To build your own next tool call, copy the shape above, replace name with a tool listed in <tools>, and provide an arguments object that matches that tool's schema exactly."
         )
 
+    @staticmethod
+    def _chatgpt_web_tool_guess_example(tool_name: str) -> str:
+        examples = {
+            "terminal": (
+                "<tool_call>\n"
+                "{\"name\": \"terminal\", \"arguments\": {\"command\": \"git status\"}}\n"
+                "</tool_call>"
+            ),
+            "browser_navigate": (
+                "<tool_call>\n"
+                "{\"name\": \"browser_navigate\", \"arguments\": {\"url\": \"https://www.wikipedia.org\"}}\n"
+                "</tool_call>"
+            ),
+            "browser_snapshot": (
+                "<tool_call>\n"
+                "{\"name\": \"browser_snapshot\", \"arguments\": {\"full\": false}}\n"
+                "</tool_call>"
+            ),
+            "browser_click": (
+                "<tool_call>\n"
+                "{\"name\": \"browser_click\", \"arguments\": {\"ref\": \"search-input\"}}\n"
+                "</tool_call>"
+            ),
+            "browser_type": (
+                "<tool_call>\n"
+                "{\"name\": \"browser_type\", \"arguments\": {\"ref\": \"search-input\", \"text\": \"Hermes Agent\"}}\n"
+                "</tool_call>"
+            ),
+            "browser_press": (
+                "<tool_call>\n"
+                "{\"name\": \"browser_press\", \"arguments\": {\"key\": \"Enter\"}}\n"
+                "</tool_call>"
+            ),
+            "search_files": (
+                "<tool_call>\n"
+                "{\"name\": \"search_files\", \"arguments\": {\"pattern\": \"TODO\", \"path\": \".\", \"target\": \"content\"}}\n"
+                "</tool_call>"
+            ),
+            "read_file": (
+                "<tool_call>\n"
+                "{\"name\": \"read_file\", \"arguments\": {\"path\": \"README.md\", \"offset\": 1, \"limit\": 40}}\n"
+                "</tool_call>"
+            ),
+            "write_file": (
+                "<tool_call>\n"
+                "{\"name\": \"write_file\", \"arguments\": {\"path\": \"notes.txt\", \"content\": \"done\\n\"}}\n"
+                "</tool_call>"
+            ),
+            "patch": (
+                "<tool_call>\n"
+                "{\"name\": \"patch\", \"arguments\": {\"path\": \"README.md\", \"old\": \"before\", \"new\": \"after\"}}\n"
+                "</tool_call>"
+            ),
+        }
+        return examples.get(
+            str(tool_name or "").strip(),
+            "<tool_call>\n"
+            + json.dumps(
+                {
+                    "name": str(tool_name or "").strip() or "tool_name",
+                    "arguments": {"fill_required_fields": "with_real_values_from_the_user_request"},
+                },
+                ensure_ascii=False,
+            )
+            + "\n</tool_call>",
+        )
+
+    @classmethod
+    def _chatgpt_web_missing_args_hint(cls, tool_name: str) -> str:
+        tool_name = str(tool_name or "").strip()
+        if not tool_name:
+            return ""
+        return (
+            f"Hermes did not prefill {tool_name} arguments for this turn. "
+            "You must infer the arguments yourself from the user's request and still emit a tool call now. "
+            "Do not say the tool is unavailable. Do not leave the arguments object empty. "
+            "Use the tool schema plus the user's request to guess the single best next call.\n"
+            "Example shape with real argument keys:\n"
+            f"{cls._chatgpt_web_tool_guess_example(tool_name)}"
+        )
+
     def _chatgpt_web_should_force_followup_tool_call(
         self,
         payload_messages: list[dict[str, Any]],
@@ -7860,13 +7941,15 @@ class AIAgent:
             selected_tool_args = self._chatgpt_web_tool_args(selected_tool_names[0], current_turn_messages) if selected_tool_names else None
             selected_tool_hint = (
                 "Use these exact arguments for this turn: " + json.dumps(selected_tool_args, ensure_ascii=False)
-                if selected_tool_args is not None else ""
+                if selected_tool_args is not None
+                else (self._chatgpt_web_missing_args_hint(selected_tool_names[0]) if selected_tool_names else "")
             )
             selected_tool_example = (
                 "<tool_call>\n"
                 + json.dumps({"name": selected_tool_names[0], "arguments": selected_tool_args}, ensure_ascii=False)
                 + "\n</tool_call>"
-                if selected_tool_names and selected_tool_args is not None else ""
+                if selected_tool_names and selected_tool_args is not None
+                else (self._chatgpt_web_tool_guess_example(selected_tool_names[0]) if selected_tool_names else "")
             )
             original = self._chatgpt_web_original_user_request(payload_messages)
             answer_only_mode = self._chatgpt_web_answer_only_mode(original)
