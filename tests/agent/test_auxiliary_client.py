@@ -496,6 +496,77 @@ class TestExplicitProviderRouting:
             for record in caplog.records
         )
 
+    def test_explicit_chatgpt_web_uses_native_auxiliary_wrapper(self, monkeypatch):
+        monkeypatch.setattr(
+            "agent.auxiliary_client.resolve_chatgpt_web_runtime_credentials",
+            lambda **kwargs: {
+                "provider": "chatgpt-web",
+                "api_key": "chatgpt-web-token",
+                "base_url": "https://chatgpt.com/backend-api/f",
+                "session_token": "chatgpt-session-token",
+            },
+        )
+
+        client, model = resolve_provider_client("chatgpt-web", model="gpt-5-4-thinking")
+
+        assert client is not None
+        assert client.__class__.__name__ == "ChatGptWebAuxiliaryClient"
+        assert client.api_key == "chatgpt-web-token"
+        assert client.base_url == "https://chatgpt.com/backend-api/f"
+        assert model == "gpt-5-4-thinking"
+
+    def test_chatgpt_web_auxiliary_client_supports_xml_tool_calls(self, monkeypatch):
+        captured = {}
+
+        monkeypatch.setattr(
+            "agent.auxiliary_client.resolve_chatgpt_web_runtime_credentials",
+            lambda **kwargs: {
+                "provider": "chatgpt-web",
+                "api_key": "chatgpt-web-token",
+                "base_url": "https://chatgpt.com/backend-api/f",
+                "session_token": "chatgpt-session-token",
+            },
+        )
+
+        def _fake_stream(**kwargs):
+            captured.update(kwargs)
+            return {
+                "content": (
+                    "<tool_call>\n"
+                    '{"name":"memory","arguments":{"action":"add","target":"user","content":"remember this"}}\n'
+                    "</tool_call>"
+                ),
+                "model": kwargs["model"],
+                "finish_reason": "stop",
+            }
+
+        monkeypatch.setattr("agent.auxiliary_client.stream_chatgpt_web_completion", _fake_stream)
+
+        client, model = resolve_provider_client("chatgpt-web", model="gpt-5-4-thinking")
+        response = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "Summarize carefully."},
+                {"role": "user", "content": "Remember this preference."},
+            ],
+            tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "memory",
+                        "description": "Store durable memory",
+                        "parameters": {"type": "object", "properties": {"action": {"type": "string"}}},
+                    },
+                }
+            ],
+            timeout=12,
+        )
+
+        assert captured["history_and_training_disabled"] is True
+        assert "Hermes auxiliary tool protocol" in captured["instructions"]
+        assert response.choices[0].finish_reason == "tool_calls"
+        assert response.choices[0].message.tool_calls[0].function.name == "memory"
+        assert response.choices[0].message.tool_calls[0].function.arguments == '{"action": "add", "target": "user", "content": "remember this"}'
+
 class TestGetTextAuxiliaryClient:
     """Test the full resolution chain for get_text_auxiliary_client."""
 
@@ -1041,6 +1112,29 @@ class TestTaskSpecificOverrides:
         assert calls[0][1] == "gpt-5.4"
         assert calls[0][2]["api_mode"] == "codex_responses"
 
+    def test_resolve_auto_supports_chatgpt_web_main_runtime(self, monkeypatch):
+        monkeypatch.setattr(
+            "agent.auxiliary_client.resolve_chatgpt_web_runtime_credentials",
+            lambda **kwargs: {
+                "provider": "chatgpt-web",
+                "api_key": "chatgpt-web-token",
+                "base_url": "https://chatgpt.com/backend-api/f",
+                "session_token": "chatgpt-session-token",
+            },
+        )
+
+        client, model = _resolve_auto(
+            main_runtime={
+                "provider": "chatgpt-web",
+                "model": "gpt-5-4-thinking",
+                "api_mode": "chatgpt_web",
+            }
+        )
+
+        assert client is not None
+        assert client.__class__.__name__ == "ChatGptWebAuxiliaryClient"
+        assert model == "gpt-5-4-thinking"
+
     def test_explicit_compression_pin_still_wins_over_live_main_runtime(self, monkeypatch, tmp_path):
         """Task-level compression config should beat a live session override."""
         hermes_home = tmp_path / "hermes"
@@ -1434,8 +1528,9 @@ class TestKimiTemperatureOmitted:
         assert kwargs["model"] == "kimi-for-coding"
         assert "temperature" not in kwargs
 
-    @pytest.mark.asyncio
-    async def test_async_call_omits_temperature(self):
+    def test_auto_routed_kimi_for_coding_async_call_omits_temperature(self):
+        import asyncio
+
         client = MagicMock()
         client.base_url = "https://api.kimi.com/coding/v1"
         response = MagicMock()
