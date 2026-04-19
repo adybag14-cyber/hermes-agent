@@ -221,6 +221,10 @@ def auth_add_command(args) -> None:
         token = (getattr(args, "api_key", None) or "").strip()
         if provider == "chatgpt-web":
             token_mode = str(getattr(args, "token_mode", "") or "").strip().lower()
+            cookie_header = str(getattr(args, "cookie_header", "") or "").strip()
+            browser_cookies = getattr(args, "browser_cookies", None)
+            device_id = str(getattr(args, "device_id", "") or "").strip()
+            user_agent = str(getattr(args, "user_agent", "") or "").strip()
             if not token:
                 if token_mode == "session_token":
                     token = getpass("Paste your ChatGPT Web session token: ").strip()
@@ -246,11 +250,25 @@ def auth_add_command(args) -> None:
                 from hermes_cli.chatgpt_web import _fetch_chatgpt_web_access_token_from_session
 
                 try:
-                    access_token = _fetch_chatgpt_web_access_token_from_session(token)
+                    access_token = _fetch_chatgpt_web_access_token_from_session(
+                        token,
+                        cookie_header=cookie_header,
+                        browser_cookies=browser_cookies,
+                        device_id=device_id,
+                        user_agent=user_agent,
+                    )
                 except Exception as exc:
                     raise SystemExit(f"Could not exchange ChatGPT Web session token: {exc}") from exc
                 source = f"{SOURCE_MANUAL}:session_token"
                 extra["session_token"] = token
+            if cookie_header:
+                extra["cookie_header"] = cookie_header
+            if browser_cookies:
+                extra["browser_cookies"] = browser_cookies
+            if device_id:
+                extra["device_id"] = device_id
+            if user_agent:
+                extra["user_agent"] = user_agent
 
             entry = PooledCredential(
                 provider=provider,
