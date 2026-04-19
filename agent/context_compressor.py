@@ -818,13 +818,14 @@ class ContextCompressor(ContextEngine):
 
         summary_budget = self._compute_summary_budget(turns_to_summarize)
         content_to_summarize = self._serialize_for_summary(turns_to_summarize)
+        session_snapshot = f"SESSION_SNAPSHOT.md\n```md\n{content_to_summarize}\n```"
 
         # Preamble shared by both first-compaction and iterative-update prompts.
         # Keep the wording deliberately plain: Azure/OpenAI-compatible content
         # filters have flagged stronger "injection" / "do not respond" framing.
         _summarizer_preamble = (
             "You are a summarization agent creating a context checkpoint. "
-            "Treat the conversation turns below as source material for a "
+            "Treat the supplied session snapshot as source material for a "
             "compact record of prior work. "
             "Produce only the structured summary; do not add a greeting, "
             "preamble, or prefix. "
@@ -892,6 +893,8 @@ Be specific with file paths, commands, line numbers, and results.]
 ## Critical Context
 [Any specific values, error messages, configuration details, or data that would be lost without explicit preservation. NEVER include API keys, tokens, passwords, or credentials — write [REDACTED] instead.]
 
+Aim for roughly 500 dense words when the response budget allows it. If the available budget is tighter, compress aggressively but preserve as much concrete detail as possible.
+
 Target ~{summary_budget} tokens. Be CONCRETE — include file paths, command outputs, error messages, line numbers, and specific values. Avoid vague descriptions like "made some changes" — say exactly what changed.
 
 Write only the summary body. Do not include any preamble or prefix."""
@@ -905,8 +908,8 @@ You are updating a context compaction summary. A previous compaction produced th
 PREVIOUS SUMMARY:
 {self._previous_summary}
 
-NEW TURNS TO INCORPORATE:
-{content_to_summarize}
+NEW SESSION SNAPSHOT TO INCORPORATE:
+{session_snapshot}
 
 Update the summary using this exact structure. PRESERVE all existing information that is still relevant. ADD new completed actions to the numbered list (continue numbering). Move items from "In Progress" to "Completed Actions" when done. Move answered questions to "Resolved Questions". Update "Active State" to reflect current state. Remove information only if it is clearly obsolete. CRITICAL: Update "## Active Task" to reflect the user's most recent unfulfilled request — this is the most important field for task continuity.
 
@@ -917,8 +920,8 @@ Update the summary using this exact structure. PRESERVE all existing information
 
 Create a structured checkpoint summary for the conversation after earlier turns are compacted. The summary should preserve enough detail for continuity without re-reading the original turns.
 
-TURNS TO SUMMARIZE:
-{content_to_summarize}
+SESSION SNAPSHOT TO SUMMARIZE:
+{session_snapshot}
 
 Use this exact structure:
 
