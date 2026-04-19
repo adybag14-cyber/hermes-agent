@@ -4075,6 +4075,8 @@ class AIAgent:
             or "answer only the def line" in lowered
             or "answer only with the def line" in lowered
             or "answer only exact def line" in lowered
+            or "answer only the exact def line" in lowered
+            or "answer only with the exact def line" in lowered
         ):
             return "line"
         if (
@@ -4434,11 +4436,40 @@ class AIAgent:
         )
 
     @staticmethod
+    def _chatgpt_web_build_multimodal_user_content(text: str) -> Any:
+        if not _chatgpt_web._chatgpt_web_debug_base():
+            return text
+        image_path = AIAgent._chatgpt_web_extract_image_input_path(text)
+        if not image_path:
+            return text
+        prompt_text = str(text or "")
+        replacements = [
+            json.dumps(image_path),
+            f'"{image_path}"',
+            f"'{image_path}'",
+            image_path,
+        ]
+        for replacement in replacements:
+            prompt_text = prompt_text.replace(replacement, "the attached image")
+        prompt_text = re.sub(
+            r"(?i)\blocal image\s*:\s*the attached image\b",
+            "the attached image",
+            prompt_text,
+        )
+        prompt_text = re.sub(r"\s{2,}", " ", prompt_text).strip()
+        return [
+            {"type": "text", "text": prompt_text or "Please analyze the attached image."},
+            {"type": "input_image", "image_url": image_path},
+        ]
+
+    @staticmethod
     def _chatgpt_web_extract_symbol_target(text: str) -> Optional[str]:
         if not isinstance(text, str) or not text.strip():
             return None
-        stopwords = {"and", "the", "a", "an", "where", "with", "this", "that", "it"}
+        stopwords = {"and", "the", "a", "an", "where", "with", "this", "that", "it", "in"}
         patterns = (
+            r"\bwhere\s+([A-Za-z_][A-Za-z0-9_]*)\s+is\s+defined\b",
+            r"\b([A-Za-z_][A-Za-z0-9_]*)\s+is\s+defined\b",
             r"\bdefinition\s+of\s+[`\"']?([A-Za-z_][A-Za-z0-9_]*)",
             r"\bwhere\s+[`\"']?([A-Za-z_][A-Za-z0-9_]*)\s+is\s+defined",
             r"\b(?:define|defines|defined)\s+[`\"']?([A-Za-z_][A-Za-z0-9_]*)",
@@ -4676,6 +4707,12 @@ class AIAgent:
             1 for msg in payload_messages
             if isinstance(msg, dict) and msg.get("role") == "tool"
         )
+        last_tool_content = ""
+        for item in reversed(payload_messages):
+            if isinstance(item, dict) and item.get("role") == "tool":
+                last_tool_content = str(item.get("content") or "")
+                break
+        last_tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
 
         explicit_pattern = re.compile(
             r"\b(" + "|".join(re.escape(name) for name in sorted(tools_by_name, key=len, reverse=True)) + r")\b",
@@ -4695,6 +4732,7 @@ class AIAgent:
         relative_path_match = re.search(r"\b([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)\b", user_text)
         path_match = explicit_local_path or (relative_path_match.group(1) if relative_path_match else None)
         explicit_symbol_target = self._chatgpt_web_extract_symbol_target(user_text)
+        answer_only_mode = self._chatgpt_web_answer_only_mode(user_text)
         image_generation_request = (
             any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint"))
             and any(keyword in lowered for keyword in ("image", "picture", "photo", "illustration", "drawing", "logo"))
@@ -4753,6 +4791,8 @@ class AIAgent:
             image_tool = tools_by_name.get("image_generate")
             return [image_tool] if image_tool is not None else []
         if image_analysis_request:
+            if _chatgpt_web._chatgpt_web_debug_base():
+                return []
             vision_tool = tools_by_name.get("vision_analyze")
             return [vision_tool] if vision_tool is not None else []
         if used_tool_count > 0 and self._chatgpt_web_answer_only_mode(user_text) == "line":
@@ -4767,6 +4807,26 @@ class AIAgent:
         if delegation_request:
             delegate_tool = tools_by_name.get("delegate_task")
             return [delegate_tool] if delegate_tool is not None else []
+        if used_tool_count > 0 and answer_only_mode == "line" and isinstance(last_tool_payload, dict):
+            matches = last_tool_payload.get("matches")
+            if isinstance(matches, list) and len(matches) == 1 and isinstance(matches[0], dict):
+                match_content = str(matches[0].get("content") or "").strip()
+                if match_content and (
+                    not explicit_symbol_target
+                    or explicit_symbol_target in match_content
+                    or match_content.startswith(("def ", "async def ", "class "))
+                ):
+                    return []
+            payload_content = str(last_tool_payload.get("content") or "")
+            numbered_line_match = re.search(r"(?m)^\s*\d+\|([^\n]+)", payload_content)
+            if numbered_line_match:
+                exact_line = numbered_line_match.group(1).strip()
+                if exact_line and (
+                    not explicit_symbol_target
+                    or explicit_symbol_target in exact_line
+                    or exact_line.startswith(("def ", "async def ", "class "))
+                ):
+                    return []
         if used_tool_count == 0 and path_match and explicit_symbol_target and any(
             keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
         ):
@@ -7786,6 +7846,7 @@ class AIAgent:
                 if selected_tool_names and selected_tool_args is not None else ""
             )
             original = self._chatgpt_web_original_user_request(payload_messages)
+            answer_only_mode = self._chatgpt_web_answer_only_mode(original)
             prefer_consecutive_tool_flow = self._chatgpt_web_requests_consecutive_tool_flow(original)
             force_followup_tool_call = bool(
                 selected_tool_names
@@ -7853,6 +7914,18 @@ class AIAgent:
                                     "When you give the final answer, follow the original user's requested output format exactly, including any 'answer only' constraint.",
                                     "Do not add preambles, extra prose, commas, or quotes unless the user explicitly requested them.",
                                 ])
+                                if answer_only_mode == "line":
+                                    reminder_lines.append(
+                                        "For this request, the final answer must be ONLY the exact source line itself with no explanation, no line number, and no words like 'defined at line'."
+                                    )
+                                elif answer_only_mode == "path":
+                                    reminder_lines.append(
+                                        "For this request, the final answer must be ONLY the path string itself with no explanation."
+                                    )
+                                elif answer_only_mode in {"result", "value"}:
+                                    reminder_lines.append(
+                                        "For this request, the final answer must be ONLY the raw result value with no explanation."
+                                    )
                                 if final_answer_example:
                                     reminder_lines.append(final_answer_example)
                                 if selected_tool_hint:
@@ -7862,6 +7935,14 @@ class AIAgent:
                             + "\n".join(reminder_lines)
                         )
                     break
+
+        if not uses_local_tool_loop:
+            payload_messages = copy.deepcopy(payload_messages)
+            for item in reversed(payload_messages):
+                if not isinstance(item, dict) or item.get("role") != "user":
+                    continue
+                item["content"] = self._chatgpt_web_build_multimodal_user_content(item.get("content"))
+                break
 
         if self._chatgpt_web_conversation_id and payload_messages and not uses_local_tool_loop:
             latest_user = None
