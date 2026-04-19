@@ -113,6 +113,19 @@ from utils import atomic_json_write, env_var_enabled
 
 
 _XML_TOOL_CALL_BLOCK_RE = re.compile(r"(?:['\"]?<?)tool_call>\s*(\{.*?\})\s*</tool_call>", re.DOTALL | re.IGNORECASE)
+_CHATGPT_WEB_HERMES_INTRO = (
+    "# Hermes Agent web-model runtime\n"
+    "You are Hermes Agent running through the ChatGPT Web transport, not the plain consumer chat UI. "
+    "Hermes provides the real operating contract through developer instructions, tool definitions, skills, context files, "
+    "memory, environment hints, and session state.\n"
+    "- Treat the developer instructions as the authoritative Hermes runtime specification on every turn.\n"
+    "- If tools are available, use them instead of describing what you would do.\n"
+    "- Respect exact output constraints such as answer-only, one-line, path-only, or JSON-only responses.\n"
+    "- Skills are first-class Hermes artifacts. If a relevant skill exists, load it. If the user asks to create or save a skill, "
+    "produce a reusable skill with frontmatter, workflow steps, validation, and pitfalls rather than a stub.\n"
+    "- Session summaries and compacted context are authoritative state. Continue from them instead of restarting work.\n"
+    "- Keep working until the request is complete or you hit a real external blocker."
+)
 
 
 def _extract_xml_tool_calls_from_text(text: str) -> tuple[list[SimpleNamespace], str]:
@@ -2985,6 +2998,26 @@ class AIAgent:
         try:
             return json.loads(tool_content)
         except Exception:
+            repaired = re.sub(
+                r'("(?:path|image_url|file|directory)"\s*:\s*")([^"]*)(")',
+                lambda match: (
+                    match.group(1)
+                    + match.group(2).replace("\\", "\\\\")
+                    + match.group(3)
+                ),
+                tool_content,
+            )
+            if repaired != tool_content:
+                try:
+                    return json.loads(repaired)
+                except Exception:
+                    pass
+            repaired = re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", tool_content)
+            if repaired != tool_content:
+                try:
+                    return json.loads(repaired)
+                except Exception:
+                    return None
             return None
 
     def _chatgpt_web_extract_path_from_tool_payload(self, tool_payload: Any, tool_content: str) -> Optional[str]:
@@ -3186,10 +3219,10 @@ class AIAgent:
         stripped = text.strip()
         candidates: list[str] = []
         for pattern in (
-            r'"((?:~|/)[^"\n]+)"',
-            r"'((?:~|/)[^'\n]+)'",
-            r"`((?:~|/)[^`\n]+)`",
-            r"(?<![A-Za-z0-9_.-])((?:~|/)[A-Za-z0-9_./-]+)",
+            r'"((?:[A-Za-z]:[\\/]|~|/)[^"\n]+)"',
+            r"'((?:[A-Za-z]:[\\/]|~|/)[^'\n]+)'",
+            r"`((?:[A-Za-z]:[\\/]|~|/)[^`\n]+)`",
+            r"(?<![A-Za-z0-9_.-])((?:[A-Za-z]:[\\/]|~|/)[A-Za-z0-9_./:\\\\ -]+?)(?=[\s,;!?)]|$)",
         ):
             for match in re.finditer(pattern, stripped):
                 candidate = match.group(1).strip().rstrip('.,;:!')
@@ -3254,8 +3287,33 @@ class AIAgent:
             f"license: MIT\n"
             f"---\n\n"
             f"# {clean_name}\n\n"
-            f"{body_desc}\n"
+            f"## Purpose\n"
+            f"{body_desc}\n\n"
+            f"## When To Use\n"
+            f"- Use this skill when the request matches this workflow or description.\n"
+            f"- Prefer this skill over re-deriving the same steps from scratch.\n\n"
+            f"## Inputs\n"
+            f"- Confirm the target files, commands, environment, or system scope before changing anything.\n"
+            f"- Gather any missing prerequisites with Hermes tools before acting.\n\n"
+            f"## Workflow\n"
+            f"1. Restate the concrete goal in one sentence.\n"
+            f"2. Inspect the relevant files, commands, or runtime state before editing or executing.\n"
+            f"3. Make the smallest concrete change that satisfies the request.\n"
+            f"4. Verify the result with the most direct test, command, or inspection available.\n"
+            f"5. Report what changed, what was verified, and any remaining risk.\n\n"
+            f"## Validation\n"
+            f"- Re-run the exact command, test, or inspection that proves the workflow succeeded.\n"
+            f"- If verification is not possible, say precisely what is missing.\n\n"
+            f"## Pitfalls\n"
+            f"- Do not assume paths, dependencies, or credentials without checking them.\n"
+            f"- Update this skill when you discover a better command, a missing step, or a new failure mode.\n"
         )
+
+    def _chatgpt_web_enrich_instructions(self, instructions: str) -> str:
+        base = str(instructions or "").strip() or DEFAULT_AGENT_IDENTITY
+        if _CHATGPT_WEB_HERMES_INTRO in base:
+            return base
+        return f"{base}\n\n{_CHATGPT_WEB_HERMES_INTRO}"
 
     @staticmethod
     def _chatgpt_web_default_image_download_dir() -> Path:
@@ -3270,9 +3328,15 @@ class AIAgent:
         lowered = original_request.lower()
         if not any(keyword in lowered for keyword in ("save", "download", "store", "upload")):
             return None
-        explicit_path = re.search(r"\b(?:save|download|store|upload)(?:\s+it)?\s+to\s+([~/][A-Za-z0-9_./-]+)", original_request, re.IGNORECASE)
+        explicit_path = re.search(
+            r"\b(?:save|download|store|upload)(?:\s+it)?\s+to\s+(.+?)(?:\.\s*answer only.*|$)",
+            original_request,
+            re.IGNORECASE | re.DOTALL,
+        )
         if explicit_path:
-            return Path(os.path.expanduser(explicit_path.group(1).strip().rstrip('.,;:!')))
+            parsed_path = self._chatgpt_web_extract_local_path(explicit_path.group(1))
+            if parsed_path:
+                return Path(os.path.expanduser(parsed_path))
         if "downloads" in lowered or "chatgpt-web-images" in lowered or "chatgpt web images" in lowered:
             return self._chatgpt_web_default_image_download_dir()
         return None
@@ -6579,6 +6643,7 @@ class AIAgent:
             payload_messages = api_messages[1:]
         if not instructions:
             instructions = DEFAULT_AGENT_IDENTITY
+        instructions = self._chatgpt_web_enrich_instructions(instructions)
 
         self._chatgpt_web_forced_tool_call = None
         selected_tools: list[dict[str, Any]] = []
