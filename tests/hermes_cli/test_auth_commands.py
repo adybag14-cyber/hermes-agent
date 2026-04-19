@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
+from hermes_cli import auth_browser as auth_browser_mod
 import yaml
 
 
@@ -795,6 +796,10 @@ def test_auth_add_chatgpt_web_session_token_persists_pool_entry(tmp_path, monkey
         api_key = "session-cookie"
         label = "cookie-login"
         token_mode = "session_token"
+        cookie_header = "cf_clearance=cf-cookie; oai-did=device-cookie"
+        browser_cookies = [{"name": "cf_clearance", "value": "cf-cookie"}]
+        device_id = "device-cookie"
+        user_agent = "Mozilla/Test"
 
     auth_add_command(_Args())
 
@@ -805,9 +810,14 @@ def test_auth_add_chatgpt_web_session_token_persists_pool_entry(tmp_path, monkey
     assert entry["auth_type"] == "api_key"
     assert entry["access_token"] == token
     assert entry["session_token"] == "session-cookie"
+    assert entry["cookie_header"] == "cf_clearance=cf-cookie; oai-did=device-cookie"
+    assert entry["browser_cookies"] == [{"name": "cf_clearance", "value": "cf-cookie"}]
+    assert entry["device_id"] == "device-cookie"
+    assert entry["user_agent"] == "Mozilla/Test"
     assert entry["base_url"] == DEFAULT_CHATGPT_WEB_BASE_URL
 
 
+@pytest.mark.linux_only
 def test_auth_browser_command_bootstraps_chatgpt_web_from_termux_browser(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
 
@@ -835,13 +845,23 @@ def test_auth_browser_command_bootstraps_chatgpt_web_from_termux_browser(tmp_pat
 
     fake_proc = _FakeProc()
 
-    monkeypatch.setattr(auth_commands_mod, "_is_termux", lambda: True)
-    monkeypatch.setattr(auth_commands_mod, "_termux_x11_android_app_installed", lambda: True)
-    monkeypatch.setattr(auth_commands_mod, "_find_termux_x11_command", lambda: "/usr/bin/termux-x11")
-    monkeypatch.setattr(auth_commands_mod, "_find_chromium_browser_command", lambda: "/usr/bin/chromium-browser")
-    monkeypatch.setattr(auth_commands_mod, "_wait_for_debugger", lambda *args, **kwargs: None)
-    monkeypatch.setattr(auth_commands_mod, "_wait_for_chatgpt_web_session_token", lambda *args, **kwargs: "session-cookie")
-    monkeypatch.setattr(auth_commands_mod, "_launch_chatgpt_web_browser", lambda *args, **kwargs: fake_proc)
+    monkeypatch.setattr(auth_browser_mod, "_is_termux", lambda: True)
+    monkeypatch.setattr(auth_browser_mod, "_termux_x11_android_app_installed", lambda: True)
+    monkeypatch.setattr(auth_browser_mod, "_find_termux_x11_command", lambda: "/usr/bin/termux-x11")
+    monkeypatch.setattr(auth_browser_mod, "_find_chromium_browser_command", lambda: "/usr/bin/chromium-browser")
+    monkeypatch.setattr(auth_browser_mod, "_wait_for_debugger", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        auth_browser_mod,
+        "_wait_for_chatgpt_web_browser_auth_state",
+        lambda *args, **kwargs: {
+            "session_token": "session-cookie",
+            "cookie_header": "cf_clearance=cf-cookie; oai-did=device-cookie",
+            "browser_cookies": [{"name": "cf_clearance", "value": "cf-cookie"}],
+            "device_id": "device-cookie",
+            "user_agent": "Mozilla/Test",
+        },
+    )
+    monkeypatch.setattr(auth_browser_mod, "_launch_chatgpt_web_browser", lambda *args, **kwargs: fake_proc)
     monkeypatch.setattr(
         auth_commands_mod,
         "auth_add_command",
@@ -863,6 +883,10 @@ def test_auth_browser_command_bootstraps_chatgpt_web_from_termux_browser(tmp_pat
     assert captured["args"].token_mode == "session_token"
     assert captured["args"].api_key == "session-cookie"
     assert captured["args"].label == "termux-x11-browser"
+    assert captured["args"].cookie_header == "cf_clearance=cf-cookie; oai-did=device-cookie"
+    assert captured["args"].browser_cookies == [{"name": "cf_clearance", "value": "cf-cookie"}]
+    assert captured["args"].device_id == "device-cookie"
+    assert captured["args"].user_agent == "Mozilla/Test"
     assert "Stored chatgpt-web credential from Termux browser" in output
     assert "credential pool" in output.lower()
     assert "hermes auth list" in output
@@ -870,6 +894,7 @@ def test_auth_browser_command_bootstraps_chatgpt_web_from_termux_browser(tmp_pat
     assert fake_proc.killed is False
 
 
+@pytest.mark.windows_only
 def test_auth_browser_command_bootstraps_chatgpt_web_from_windows_browser(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
 
@@ -893,13 +918,26 @@ def test_auth_browser_command_bootstraps_chatgpt_web_from_windows_browser(tmp_pa
 
     fake_proc = _FakeProc()
 
-    monkeypatch.setattr(auth_commands_mod, "_is_termux", lambda: False)
-    monkeypatch.setattr(auth_commands_mod, "_is_windows", lambda: True)
-    monkeypatch.setattr(auth_commands_mod, "_is_wsl", lambda: False)
-    monkeypatch.setattr(auth_commands_mod, "_find_desktop_browser_command", lambda: "C:/Program Files/Microsoft/Edge/Application/msedge.exe")
-    monkeypatch.setattr(auth_commands_mod, "_launch_chatgpt_web_desktop_browser", lambda *args, **kwargs: (fake_proc, ["http://127.0.0.1:9222"]))
-    monkeypatch.setattr(auth_commands_mod, "_wait_for_any_debugger", lambda *args, **kwargs: "http://127.0.0.1:9222")
-    monkeypatch.setattr(auth_commands_mod, "_wait_for_chatgpt_web_session_token", lambda *args, **kwargs: "session-cookie")
+    # A login owns only its fresh child directory, never the configured root.
+    browser_root = tmp_path / "browser-auth"
+    browser_root.mkdir()
+    sentinel = browser_root / "keep.txt"
+    sentinel.write_text("user data", encoding="utf-8")
+    monkeypatch.setenv("HERMES_CHATGPT_WEB_BROWSER_BASE_DIR", str(browser_root))
+    monkeypatch.setattr(auth_browser_mod, "_find_desktop_browser_command", lambda: "C:/Program Files/Microsoft/Edge/Application/msedge.exe")
+    monkeypatch.setattr(auth_browser_mod, "_launch_chatgpt_web_desktop_browser", lambda *args, **kwargs: (fake_proc, ["http://127.0.0.1:9222"]))
+    monkeypatch.setattr(auth_browser_mod, "_wait_for_any_debugger", lambda *args, **kwargs: "http://127.0.0.1:9222")
+    monkeypatch.setattr(
+        auth_browser_mod,
+        "_wait_for_chatgpt_web_browser_auth_state",
+        lambda *args, **kwargs: {
+            "session_token": "session-cookie",
+            "cookie_header": "cf_clearance=cf-cookie; oai-did=device-cookie",
+            "browser_cookies": [{"name": "cf_clearance", "value": "cf-cookie"}],
+            "device_id": "device-cookie",
+            "user_agent": "Mozilla/Test",
+        },
+    )
     monkeypatch.setattr(auth_commands_mod, "auth_add_command", lambda args: captured.setdefault("args", args))
 
     class _Args:
@@ -916,7 +954,13 @@ def test_auth_browser_command_bootstraps_chatgpt_web_from_windows_browser(tmp_pa
     assert captured["args"].token_mode == "session_token"
     assert captured["args"].api_key == "session-cookie"
     assert captured["args"].label == "windows-browser"
+    assert captured["args"].cookie_header == "cf_clearance=cf-cookie; oai-did=device-cookie"
+    assert captured["args"].browser_cookies == [{"name": "cf_clearance", "value": "cf-cookie"}]
+    assert captured["args"].device_id == "device-cookie"
+    assert captured["args"].user_agent == "Mozilla/Test"
     assert "Stored chatgpt-web credential from Windows browser" in output
+    assert sentinel.read_text(encoding="utf-8") == "user data"
+    assert list(browser_root.iterdir()) == [sentinel]
     assert fake_proc.terminated is True
     assert fake_proc.killed is False
 
@@ -926,9 +970,9 @@ def test_chatgpt_web_browser_base_dir_uses_snap_safe_location(tmp_path, monkeypa
 
     monkeypatch.delenv("HERMES_CHATGPT_WEB_BROWSER_BASE_DIR", raising=False)
     monkeypatch.setenv("HERMES_HOME", str(tmp_path / "hermes"))
-    monkeypatch.setattr(auth_commands_mod.Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(auth_browser_mod.Path, "home", lambda: tmp_path)
 
-    base_dir = auth_commands_mod._chatgpt_web_browser_base_dir("/snap/bin/chromium")
+    base_dir = auth_browser_mod._chatgpt_web_browser_base_dir("/snap/bin/chromium")
 
     assert base_dir == tmp_path / "hermes-chatgpt-web-browser"
 
@@ -939,7 +983,7 @@ def test_chatgpt_web_browser_base_dir_honors_override(tmp_path, monkeypatch):
     override = tmp_path / "custom-browser-auth"
     monkeypatch.setenv("HERMES_CHATGPT_WEB_BROWSER_BASE_DIR", str(override))
 
-    base_dir = auth_commands_mod._chatgpt_web_browser_base_dir("/snap/bin/chromium")
+    base_dir = auth_browser_mod._chatgpt_web_browser_base_dir("/snap/bin/chromium")
 
     assert base_dir == override
 

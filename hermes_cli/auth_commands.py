@@ -21,6 +21,7 @@ import hermes_cli.auth as auth_mod
 from hermes_cli.auth import PROVIDER_REGISTRY
 from hermes_constants import OPENROUTER_BASE_URL
 from hermes_cli.secret_prompt import masked_secret_prompt
+from hermes_cli.auth_browser import auth_browser_command
 
 
 # Providers that support OAuth login in addition to API keys.
@@ -327,6 +328,10 @@ def _unsuppress_provider_sources(provider: str) -> None:
 def _add_chatgpt_web_credential(args, provider, pool):
     token = (getattr(args, "api_key", None) or "").strip()
     token_mode = str(getattr(args, "token_mode", "") or "").strip().lower()
+    cookie_header = str(getattr(args, "cookie_header", "") or "").strip()
+    browser_cookies = getattr(args, "browser_cookies", None)
+    device_id = str(getattr(args, "device_id", "") or "").strip()
+    user_agent = str(getattr(args, "user_agent", "") or "").strip()
     if not token:
         if token_mode == "session_token":
             token = masked_secret_prompt("Paste your ChatGPT Web session token: ").strip()
@@ -355,11 +360,18 @@ def _add_chatgpt_web_credential(args, provider, pool):
         from hermes_cli.chatgpt_web import _fetch_chatgpt_web_access_token_from_session
 
         try:
-            access_token = _fetch_chatgpt_web_access_token_from_session(token)
+            access_token = _fetch_chatgpt_web_access_token_from_session(
+                token, cookie_header=cookie_header, browser_cookies=browser_cookies,
+                device_id=device_id, user_agent=user_agent,
+            )
         except Exception as exc:
             raise SystemExit(f"Could not exchange ChatGPT Web session token: {exc}") from exc
         source = f"{SOURCE_MANUAL}:session_token"
         extra["session_token"] = token
+    for field, value in (("cookie_header", cookie_header), ("browser_cookies", browser_cookies),
+                         ("device_id", device_id), ("user_agent", user_agent)):
+        if value:
+            extra[field] = value
 
     entry = PooledCredential(
         provider=provider,
@@ -605,20 +617,6 @@ def _print_azure_entra_status() -> None:
         pass
 
 
-def _wait_for_any_debugger(debug_bases: list[str], timeout: float = 30.0) -> str:
-    deadline = time.time() + timeout
-    last_error = None
-    while time.time() < deadline:
-        for debug_base in debug_bases:
-            try:
-                with urllib.request.urlopen(f"{debug_base}/json/version", timeout=5) as response:
-                    if response.status == 200:
-                        return debug_base
-            except Exception as exc:
-                last_error = exc
-        time.sleep(1)
-    joined = ", ".join(debug_bases)
-    raise SystemExit(f"Timed out waiting for Chromium DevTools at any of [{joined}]: {last_error}")
 
 
 def _interactive_auth() -> None:
@@ -767,6 +765,7 @@ def _interactive_strategy() -> None:
 
 
 _AUTH_ACTIONS = {
+    "browser": auth_browser_command,
     "add": auth_add_command, "list": auth_list_command, "remove": auth_remove_command,
     "reset": auth_reset_command, "status": auth_status_command, "logout": auth_logout_command,
     "spotify": auth_spotify_command}

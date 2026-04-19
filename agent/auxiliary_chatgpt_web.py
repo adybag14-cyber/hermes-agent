@@ -177,11 +177,17 @@ class _ChatGptWebCompletionsAdapter:
         model: str,
         base_url: str,
         session_token: str = "",
+        cookie_header: str = "", browser_cookies=None,
+        user_agent: str = "", device_id: str = "",
     ):
         self._access_token = access_token
         self._model = model
         self._base_url = base_url
         self._session_token = session_token
+        self._cookie_header = cookie_header
+        self._browser_cookies = browser_cookies
+        self._user_agent = user_agent
+        self._device_id = device_id
 
     def create(self, **kwargs) -> Any:
         from agent.auxiliary_client import _notify_aux_provider_response
@@ -219,6 +225,10 @@ class _ChatGptWebCompletionsAdapter:
             messages=payload_messages,
             instructions=instructions,
             session_token=self._session_token,
+            cookie_header=self._cookie_header,
+            browser_cookies=self._browser_cookies,
+            user_agent=self._user_agent,
+            device_id=self._device_id,
             timeout=timeout,
             history_and_training_disabled=True,
             on_delta=lambda text: _notify_aux_provider_response() if text else None,
@@ -257,7 +267,8 @@ class ChatGptWebAuxiliaryClient:
 
     HERMES_SKIP_TRANSPORT_WRAP = True
 
-    def __init__(self, *, access_token: str, model: str, base_url: str, session_token: str = ""):
+    def __init__(self, *, access_token: str, model: str, base_url: str, session_token: str = "",
+                 cookie_header: str = "", browser_cookies=None, user_agent: str = "", device_id: str = ""):
         self._access_token = access_token
         self._session_token = session_token
         self.api_key = access_token
@@ -268,6 +279,10 @@ class ChatGptWebAuxiliaryClient:
                 model=model,
                 base_url=base_url,
                 session_token=session_token,
+                cookie_header=cookie_header,
+                browser_cookies=browser_cookies,
+                user_agent=user_agent,
+                device_id=device_id,
             )
         )
 
@@ -331,8 +346,10 @@ def resolve_chatgpt_web(req):
         return aux._AuxProbeClientStub(api_key="", base_url=base), model
 
     if req.explicit_api_key:
-        creds = {"api_key": req.explicit_api_key,
-                 "session_token": get_secret("CHATGPT_WEB_SESSION_TOKEN", "") or ""}
+        creds = {"api_key": req.explicit_api_key, **{
+            field: get_secret("CHATGPT_WEB_" + field.upper(), "") or ""
+            for field in ("session_token", "cookie_header", "user_agent", "device_id")
+        }}
     else:
         try:
             creds = resolve_chatgpt_web_runtime_credentials()
@@ -348,7 +365,11 @@ def resolve_chatgpt_web(req):
     session_token = str(creds.get("session_token") or "").strip()
     base = str(req.explicit_base_url or creds.get("base_url") or "https://chatgpt.com/backend-api/f").strip().rstrip("/")
     model = aux._normalize_resolved_model(req.model or aux._read_main_model() or _CHATGPT_WEB_AUX_MODEL, req.provider)
-    client = ChatGptWebAuxiliaryClient(access_token=access_token, model=model, base_url=base, session_token=session_token)
+    client = ChatGptWebAuxiliaryClient(
+        access_token=access_token, model=model, base_url=base, session_token=session_token,
+        cookie_header=str(creds.get("cookie_header") or "").strip(), browser_cookies=creds.get("browser_cookies"),
+        user_agent=str(creds.get("user_agent") or "").strip(), device_id=str(creds.get("device_id") or "").strip(),
+    )
     return aux._route_client(req, client, model)
 
 

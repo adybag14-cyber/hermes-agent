@@ -34,7 +34,10 @@ def get_chatgpt_web_auth_status() -> Dict[str, Any]:
 
         pool = load_pool("chatgpt-web")
         if pool and pool.has_credentials():
-            entry = pool.select()
+            entry = pool.select() or pool.peek()
+            if entry is None:
+                entries = pool.entries()
+                entry = entries[0] if entries else None
             if entry is not None:
                 api_key = str(getattr(entry, "runtime_api_key", None) or getattr(entry, "access_token", "") or "").strip()
                 session_token = str(getattr(entry, "session_token", "") or "").strip()

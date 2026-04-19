@@ -166,6 +166,7 @@ _EXTRA_KEYS = frozenset({
     "expires_in", "agent_key_id", "agent_key_expires_in", "agent_key_reused",
     "agent_key_obtained_at", "tls", "secret_source", "secret_fingerprint",
     "session_token",
+    "cookie_header", "browser_cookies", "device_id", "user_agent",
     # Classified failure semantics for the last exhaustion (agent/error_classifier.py).
     # Providers return 403 for both an edge throttle and a spending limit, so the
     # raw status cannot size a cooldown; persisted so a restart doesn't downgrade
