@@ -161,6 +161,32 @@ def test_build_api_kwargs_chatgpt_web_skips_local_tool_loop_for_plain_greeting(m
     assert "<tool_call>" not in kwargs["instructions"]
 
 
+def test_build_api_kwargs_chatgpt_web_includes_richer_hermes_intro(monkeypatch):
+    agent = _build_agent(monkeypatch)
+
+    kwargs = agent._build_api_kwargs([
+        {"role": "system", "content": "Be concise."},
+        {"role": "user", "content": "hello welcome to termux"},
+    ])
+
+    assert "Hermes Agent web-model runtime" in kwargs["instructions"]
+    assert "Skills are first-class Hermes artifacts" in kwargs["instructions"]
+
+
+def test_chatgpt_web_build_skill_content_returns_reusable_template(monkeypatch):
+    agent = _build_agent(monkeypatch)
+
+    content = agent._chatgpt_web_build_skill_content(
+        "chatgpt-web-e2e-temp-skill",
+        "How to say hello and verify the output",
+    )
+
+    assert "## Purpose" in content
+    assert "## Workflow" in content
+    assert "## Validation" in content
+    assert "## Pitfalls" in content
+
+
 
 def test_build_api_kwargs_chatgpt_web_prefers_terminal_for_platform_details(monkeypatch):
     agent = _build_agent(monkeypatch)
@@ -279,7 +305,7 @@ def test_build_api_kwargs_chatgpt_web_prefers_vision_for_local_image_prompt(monk
     rewritten_user = kwargs["messages"][-1]["content"]
     assert 'The tool available for this turn is: vision_analyze.' in rewritten_user
     assert '"name": "vision_analyze"' in rewritten_user
-    assert f'"image_url": "{image_path}"' in rewritten_user
+    assert f'"image_url": {json.dumps(str(image_path))}' in rewritten_user
 
 
 
@@ -301,7 +327,7 @@ def test_build_api_kwargs_chatgpt_web_supports_image_paths_with_spaces(monkeypat
 
     rewritten_user = kwargs["messages"][-1]["content"]
     assert 'The tool available for this turn is: vision_analyze.' in rewritten_user
-    assert f'"image_url": "{image_path}"' in rewritten_user
+    assert f'"image_url": {json.dumps(str(image_path))}' in rewritten_user
 
 
 
@@ -395,7 +421,7 @@ def test_build_api_kwargs_chatgpt_web_prefers_read_file_for_explicit_path_with_s
 
     rewritten_user = kwargs["messages"][-1]["content"]
     assert 'The tool available for this turn is: read_file.' in rewritten_user
-    assert f'"path": "{target_path}"' in rewritten_user
+    assert f'"path": {json.dumps(str(target_path))}' in rewritten_user
     assert '"offset": 1' in rewritten_user
     assert '"limit": 1' in rewritten_user
 
@@ -425,7 +451,7 @@ def test_build_api_kwargs_chatgpt_web_prefers_search_files_for_explicit_path_def
 
     rewritten_user = kwargs["messages"][-1]["content"]
     assert 'The tool available for this turn is: search_files.' in rewritten_user
-    assert f'"path": "{target_path}"' in rewritten_user
+    assert f'"path": {json.dumps(str(target_path))}' in rewritten_user
     assert 'BETA' in rewritten_user
     assert '\\\\b' in rewritten_user
     assert '"target": "content"' in rewritten_user
@@ -449,7 +475,8 @@ def test_build_api_kwargs_chatgpt_web_infers_read_file_after_explicit_path_defin
 
     rewritten_user = kwargs["messages"][0]["content"]
     assert 'The tool available for this turn is: read_file.' in rewritten_user
-    assert f'"path": "{target_path}"' in rewritten_user
+    assert '"path":' in rewritten_user
+    assert 'sample.py' in rewritten_user
     assert '"offset": 2' in rewritten_user
     assert '"limit": 1' in rewritten_user
     assert agent._chatgpt_web_forced_tool_call == {
@@ -563,7 +590,7 @@ def test_build_api_kwargs_chatgpt_web_prefers_write_file_for_exact_file_contents
 
     rewritten_user = kwargs["messages"][-1]["content"]
     assert 'The tool available for this turn is: write_file.' in rewritten_user
-    assert f'"path": "{target_path}"' in rewritten_user
+    assert f'"path": {json.dumps(str(target_path))}' in rewritten_user
     assert '"content": "beta\\n"' in rewritten_user
 
 

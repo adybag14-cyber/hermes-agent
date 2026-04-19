@@ -9,6 +9,10 @@ in neither chain (undocumented, shifting allow-list): main provider or explicit
 """
 
 import contextlib
+from agent.auxiliary_chatgpt_web import (
+    AsyncChatGptWebAuxiliaryClient, ChatGptWebAuxiliaryClient,
+    cache_scope_hint as _chatgpt_web_cache_scope_hint, resolve_chatgpt_web,
+)
 import contextvars
 import functools
 import hashlib
@@ -4180,6 +4184,8 @@ def _to_async_client(sync_client, model: str, is_vision: bool = False):
         return sync_client, model
     if isinstance(sync_client, CodexAuxiliaryClient):
         return AsyncCodexAuxiliaryClient(sync_client), model
+    if isinstance(sync_client, ChatGptWebAuxiliaryClient):
+        return AsyncChatGptWebAuxiliaryClient(sync_client), model
     if isinstance(sync_client, AnthropicAuxiliaryClient):
         return AsyncAnthropicAuxiliaryClient(sync_client), model
     if isinstance(sync_client, BedrockAuxiliaryClient):
@@ -4761,6 +4767,7 @@ def _resolve_registry_branch(req: _ResolveRequest) -> _ResolveResult:
 # Explicit providers with a dedicated branch; anything else falls through to named custom
 # providers → azure-foundry → PROVIDER_REGISTRY (order preserved from the original if-chain).
 _EXPLICIT_PROVIDER_BRANCHES: Dict[str, Callable[[_ResolveRequest], _ResolveResult]] = {
+    "chatgpt-web": resolve_chatgpt_web,
     "auto": _resolve_auto_branch,
     "openrouter": _resolve_openrouter_branch,
     "nous": _resolve_nous_branch,
@@ -5136,6 +5143,7 @@ def _client_cache_key(
     runtime_key = tuple(_runtime_cache_discriminator(f, runtime.get(f, "")) for f in _MAIN_RUNTIME_FIELDS) if provider == "auto" else ()
     task_key = (task or "", _task_prefers_fast_model(task)) if provider == "auto" else ""
     pool_hint = _pool_cache_hint(provider, main_runtime=main_runtime)
+    pool_hint = f"{pool_hint}{_chatgpt_web_cache_scope_hint(provider, runtime)}"
     # Model MUST be in the key: concurrent calls to the same endpoint with different models would
     # share an entry, and the second builder's _store_cached_client would close the first's client.
     model_key = model or runtime.get("model", "")
@@ -5342,6 +5350,11 @@ def _get_cached_client(
     previously occurred in long-running gateways where recycled worker threads created unbounded entries
     (#10200).
     """
+    if _aux_probe_active():
+        return resolve_provider_client(
+            provider, model, async_mode, explicit_base_url=base_url, explicit_api_key=api_key,
+            api_mode=api_mode, main_runtime=main_runtime, is_vision=is_vision, task=task,
+        )
     current_loop = _current_event_loop() if async_mode else None
     runtime = _normalize_main_runtime(main_runtime)
     cache_key = _client_cache_key(
@@ -6094,7 +6107,7 @@ def _aux_stream_total_ceiling(effective_timeout: Optional[float]) -> float:
 def _client_streams_internally(client: Any) -> bool:
     """Adapters that stream inside .create() tick the hook themselves (Codex, Anthropic) or
     cannot stream (Bedrock); none accept ``stream=True`` from us."""
-    return isinstance(client, (CodexAuxiliaryClient, AnthropicAuxiliaryClient, BedrockAuxiliaryClient))
+    return isinstance(client, (CodexAuxiliaryClient, ChatGptWebAuxiliaryClient, AnthropicAuxiliaryClient, BedrockAuxiliaryClient))
 
 
 _MANAGED_LOCAL_STATE_TTL_S = 15.0
