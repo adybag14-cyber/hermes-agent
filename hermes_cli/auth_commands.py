@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import time
 from types import SimpleNamespace
+from typing import Any
 import urllib.request
 import uuid
 
@@ -180,6 +181,10 @@ def auth_add_command(args) -> None:
         token = (getattr(args, "api_key", None) or "").strip()
         if provider == "chatgpt-web":
             token_mode = str(getattr(args, "token_mode", "") or "").strip().lower()
+            cookie_header = str(getattr(args, "cookie_header", "") or "").strip()
+            browser_cookies = getattr(args, "browser_cookies", None)
+            device_id = str(getattr(args, "device_id", "") or "").strip()
+            user_agent = str(getattr(args, "user_agent", "") or "").strip()
             if not token:
                 if token_mode == "session_token":
                     token = getpass("Paste your ChatGPT Web session token: ").strip()
@@ -205,11 +210,25 @@ def auth_add_command(args) -> None:
                 from hermes_cli.chatgpt_web import _fetch_chatgpt_web_access_token_from_session
 
                 try:
-                    access_token = _fetch_chatgpt_web_access_token_from_session(token)
+                    access_token = _fetch_chatgpt_web_access_token_from_session(
+                        token,
+                        cookie_header=cookie_header,
+                        browser_cookies=browser_cookies,
+                        device_id=device_id,
+                        user_agent=user_agent,
+                    )
                 except Exception as exc:
                     raise SystemExit(f"Could not exchange ChatGPT Web session token: {exc}") from exc
                 source = f"{SOURCE_MANUAL}:session_token"
                 extra["session_token"] = token
+            if cookie_header:
+                extra["cookie_header"] = cookie_header
+            if browser_cookies:
+                extra["browser_cookies"] = browser_cookies
+            if device_id:
+                extra["device_id"] = device_id
+            if user_agent:
+                extra["user_agent"] = user_agent
 
             entry = PooledCredential(
                 provider=provider,
@@ -737,7 +756,7 @@ def _wait_for_debugger(debug_base: str, timeout: float = 30.0) -> None:
     raise SystemExit(f"Timed out waiting for Chromium DevTools at {debug_base}: {last_error}")
 
 
-async def _get_chatgpt_web_session_token(debug_base: str) -> str | None:
+async def _get_chatgpt_web_browser_auth_state(debug_base: str) -> dict[str, Any] | None:
     if websockets is None:
         raise SystemExit("Python package 'websockets' is required for browser auth.")
 
@@ -773,30 +792,64 @@ async def _get_chatgpt_web_session_token(debug_base: str) -> str | None:
                     return message
 
         await send("Network.enable")
-        result = await send("Network.getCookies", {"urls": ["https://chatgpt.com/"]})
+        await send("Runtime.enable")
+        result = await send("Network.getCookies", {"urls": ["https://chatgpt.com/", "https://auth.openai.com/"]})
         cookies = result.get("result", {}).get("cookies", [])
-        for cookie in cookies:
-            if cookie.get("name") == "__Secure-next-auth.session-token":
-                value = str(cookie.get("value") or "").strip()
-                if value:
-                    return value
+        from hermes_cli import chatgpt_web as chatgpt_web_mod
+
+        normalized_cookies = chatgpt_web_mod._normalize_browser_cookies(cookies)
+        cookie_header = chatgpt_web_mod._build_cookie_header(
+            browser_cookies=normalized_cookies,
+        )
+        session_token = ""
+        device_id = ""
+        for cookie in normalized_cookies:
+            name = str(cookie.get("name") or "").strip()
+            value = str(cookie.get("value") or "").strip()
+            if name == "__Secure-next-auth.session-token" and value:
+                session_token = value
+            elif name == "oai-did" and value:
+                device_id = value
+        if not session_token:
+            return None
+        user_agent = ""
+        try:
+            result = await send(
+                "Runtime.evaluate",
+                {"expression": "navigator.userAgent", "returnByValue": True},
+            )
+            user_agent = str(
+                result.get("result", {})
+                .get("result", {})
+                .get("value")
+                or ""
+            ).strip()
+        except Exception:
+            user_agent = ""
+        return {
+            "session_token": session_token,
+            "cookie_header": cookie_header,
+            "browser_cookies": normalized_cookies,
+            "device_id": device_id,
+            "user_agent": user_agent,
+        }
     return None
 
 
-def _wait_for_chatgpt_web_session_token(
+def _wait_for_chatgpt_web_browser_auth_state(
     debug_base: str,
     *,
     timeout_seconds: int = 15 * 60,
     poll_seconds: int = 5,
-) -> str | None:
+) -> dict[str, Any] | None:
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
         try:
-            token = asyncio.run(_get_chatgpt_web_session_token(debug_base))
+            state = asyncio.run(_get_chatgpt_web_browser_auth_state(debug_base))
         except Exception:
-            token = None
-        if token:
-            return token
+            state = None
+        if isinstance(state, dict) and str(state.get("session_token") or "").strip():
+            return state
         print("waiting for ChatGPT login in browser...")
         time.sleep(poll_seconds)
     return None
@@ -888,12 +941,13 @@ def auth_browser_command(args) -> None:
             _wait_for_debugger(debug_base, timeout=min(60.0, float(timeout_seconds)))
         else:
             debug_base = _wait_for_any_debugger(debug_bases, timeout=min(60.0, float(timeout_seconds)))
-        session_token = _wait_for_chatgpt_web_session_token(
+        browser_auth_state = _wait_for_chatgpt_web_browser_auth_state(
             debug_base,
             timeout_seconds=timeout_seconds,
         )
-        if not session_token:
+        if not browser_auth_state:
             raise SystemExit("Timed out waiting for __Secure-next-auth.session-token from Chromium.")
+        session_token = str(browser_auth_state.get("session_token") or "").strip()
 
         auth_add_command(SimpleNamespace(
             provider="chatgpt-web",
@@ -901,6 +955,10 @@ def auth_browser_command(args) -> None:
             api_key=session_token,
             label=label,
             token_mode="session_token",
+            cookie_header=str(browser_auth_state.get("cookie_header") or "").strip(),
+            browser_cookies=browser_auth_state.get("browser_cookies"),
+            device_id=str(browser_auth_state.get("device_id") or "").strip(),
+            user_agent=str(browser_auth_state.get("user_agent") or "").strip(),
             portal_url=None,
             inference_url=None,
             client_id=None,

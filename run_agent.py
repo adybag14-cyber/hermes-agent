@@ -121,6 +121,7 @@ _CHATGPT_WEB_HERMES_INTRO = (
     "- Treat the developer instructions as the authoritative Hermes runtime specification on every turn.\n"
     "- If tools are available, use them instead of describing what you would do.\n"
     "- Each turn has one job: either emit exactly one Hermes tool-call block or provide the final user-facing answer.\n"
+    "- If the user explicitly names a Hermes tool such as terminal, read_file, search_files, execute_code, memory, or skill_manage, treat that as proof the tool is available in this session.\n"
     "- After a Hermes tool response, if the main task is not complete yet, continue immediately with the single best next tool call instead of narrating future intentions.\n"
     "- Build tool calls from the Hermes tool schema: choose a listed tool name, provide a JSON arguments object that matches the schema, and infer the safest obvious next call from the user request plus tool outputs.\n"
     "- Do not say you will continue later, do not claim a file/skill/package was created unless a tool result proved it, and do not invent success states.\n"
@@ -957,6 +958,47 @@ class AIAgent:
         self._chatgpt_web_parent_message_id = None
         self._chatgpt_web_forced_tool_call = None
         self._chatgpt_web_forced_tool_call_mode = "always"
+        self._chatgpt_web_session_token = os.getenv("CHATGPT_WEB_SESSION_TOKEN", "").strip()
+        self._chatgpt_web_cookie_header = os.getenv("CHATGPT_WEB_COOKIE_HEADER", "").strip()
+        self._chatgpt_web_browser_cookies = None
+        self._chatgpt_web_user_agent = os.getenv("CHATGPT_WEB_USER_AGENT", "").strip()
+        self._chatgpt_web_device_id = os.getenv("CHATGPT_WEB_DEVICE_ID", "").strip()
+        if self.provider == "chatgpt-web":
+            try:
+                from agent.credential_pool import load_pool as _load_chatgpt_web_pool
+
+                _chatgpt_web_pool = _load_chatgpt_web_pool("chatgpt-web")
+                if _chatgpt_web_pool and _chatgpt_web_pool.has_credentials():
+                    _chatgpt_web_entry = _chatgpt_web_pool.select() or _chatgpt_web_pool.peek()
+                    if _chatgpt_web_entry is None:
+                        _chatgpt_web_entries = _chatgpt_web_pool.entries()
+                        _chatgpt_web_entry = _chatgpt_web_entries[0] if _chatgpt_web_entries else None
+                else:
+                    _chatgpt_web_entry = None
+            except Exception:
+                _chatgpt_web_entry = None
+            if _chatgpt_web_entry is not None:
+                self._chatgpt_web_session_token = str(
+                    getattr(_chatgpt_web_entry, "session_token", "")
+                    or self._chatgpt_web_session_token
+                    or ""
+                ).strip()
+                self._chatgpt_web_cookie_header = str(
+                    getattr(_chatgpt_web_entry, "cookie_header", "")
+                    or self._chatgpt_web_cookie_header
+                    or ""
+                ).strip()
+                self._chatgpt_web_browser_cookies = getattr(_chatgpt_web_entry, "browser_cookies", None)
+                self._chatgpt_web_user_agent = str(
+                    getattr(_chatgpt_web_entry, "user_agent", "")
+                    or self._chatgpt_web_user_agent
+                    or ""
+                ).strip()
+                self._chatgpt_web_device_id = str(
+                    getattr(_chatgpt_web_entry, "device_id", "")
+                    or self._chatgpt_web_device_id
+                    or ""
+                ).strip()
         self.thinking_callback = thinking_callback
         self.reasoning_callback = reasoning_callback
         self.clarify_callback = clarify_callback
@@ -3409,6 +3451,11 @@ class AIAgent:
         ):
             request_headers = _chatgpt_web._build_chatgpt_web_headers(
                 access_token=self.api_key,
+                session_token=self._chatgpt_web_session_token,
+                cookie_header=self._chatgpt_web_cookie_header,
+                browser_cookies=self._chatgpt_web_browser_cookies,
+                user_agent=self._chatgpt_web_user_agent,
+                device_id=self._chatgpt_web_device_id,
                 accept="*/*",
             )
             request_headers.pop("Content-Type", None)
@@ -3481,11 +3528,12 @@ class AIAgent:
         if not tools_by_name:
             return []
 
-        user_text = "\n".join(
+        user_messages = [
             str(msg.get("content") or "")
             for msg in payload_messages
             if isinstance(msg, dict) and msg.get("role") == "user"
-        )
+        ]
+        user_text = user_messages[-1] if user_messages else ""
         used_tool_count = sum(
             1 for msg in payload_messages
             if isinstance(msg, dict) and msg.get("role") == "tool"
@@ -3594,26 +3642,10 @@ class AIAgent:
         if skill_request:
             skill_tool = tools_by_name.get("skill_manage")
             return [skill_tool] if skill_tool is not None else []
-        if any(
+        if self._chatgpt_web_infer_terminal_command(user_text) or any(
             keyword in lowered for keyword in (
-                "working directory",
-                "pwd",
-                "current directory",
-                "date",
-                "time",
                 "port",
                 "process",
-                "platform details",
-                "platform info",
-                "platform information",
-                "system details",
-                "system info",
-                "system information",
-                "what system",
-                "what os",
-                "operating system",
-                "kernel",
-                "uname",
             )
         ):
             heuristic_names.append("terminal")
@@ -3634,6 +3666,66 @@ class AIAgent:
                 return [tool]
 
         return []
+
+    @staticmethod
+    def _chatgpt_web_infer_terminal_command(user_text: str) -> Optional[str]:
+        text = str(user_text or "").strip()
+        if not text:
+            return None
+        lowered = text.lower()
+
+        explicit_run = re.search(r"\brun\s+(.+?)(?:\.\s*answer only.*|$)", text, re.IGNORECASE | re.DOTALL)
+        if explicit_run:
+            command = explicit_run.group(1).strip().strip('"\'`').rstrip(".")
+            command_lower = command.lower()
+            if re.search(r"\b(?:python|script)\b.*\bthat\b", command_lower):
+                command = ""
+            if command:
+                return command
+
+        backtick_match = re.search(r"`([^`]+)`", text)
+        if backtick_match:
+            command = backtick_match.group(1).strip().strip('"\'`').rstrip(".")
+            if command:
+                return command
+
+        common_commands: list[tuple[str, str]] = [
+            (r"\bwhoami\b", "whoami"),
+            (r"\bhostname\b", "hostname"),
+            (r"\bpwd\b", "pwd"),
+            (r"\buname(?:\s+-a)?\b", "uname -a"),
+            (r"\bdate\b", "date"),
+            (r"\bls\b", "ls"),
+            (r"\bdir\b", "dir"),
+        ]
+        for pattern, command in common_commands:
+            if re.search(pattern, lowered):
+                return command
+
+        if "working directory" in lowered or "current directory" in lowered:
+            return "pwd"
+        if "list files" in lowered or "list the files" in lowered:
+            return "ls"
+        if any(
+            keyword in lowered for keyword in (
+                "platform details",
+                "platform info",
+                "platform information",
+                "system details",
+                "system info",
+                "system information",
+                "what system",
+                "system you are running on",
+                "what os",
+                "operating system",
+                "kernel",
+            )
+        ):
+            return "uname -a"
+        if re.search(r"\b(?:what time is it|current time|time is it)\b", lowered):
+            return "date"
+
+        return None
 
     def _chatgpt_web_tool_args(self, tool_name: str, payload_messages: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
         if not isinstance(tool_name, str) or not tool_name.strip():
@@ -3821,34 +3913,9 @@ class AIAgent:
                 return {"code": f"print({expr})"}
 
         if tool_name == "terminal":
-            if "working directory" in lowered or "pwd" in lowered or "current directory" in lowered:
-                return {"command": "pwd"}
-            command_match = re.search(r"\brun\s+(.+?)(?:\.\s*answer only.*|$)", user_text, re.IGNORECASE | re.DOTALL)
-            if not command_match:
-                command_match = re.search(r"`([^`]+)`", user_text)
-            if command_match:
-                command = command_match.group(1).strip().strip('"\'`').rstrip('.')
-                if command:
-                    return {"command": command}
-            if any(
-                keyword in lowered for keyword in (
-                    "platform details",
-                    "platform info",
-                    "platform information",
-                    "system details",
-                    "system info",
-                    "system information",
-                    "what system",
-                    "system you are running on",
-                    "what os",
-                    "operating system",
-                    "kernel",
-                    "uname",
-                )
-            ):
-                return {"command": "uname -a"}
-            if "date" in lowered or re.search(r"\b(?:what time is it|current time|time is it)\b", lowered):
-                return {"command": "date"}
+            command = self._chatgpt_web_infer_terminal_command(user_text)
+            if command:
+                return {"command": command}
 
         return None
 
@@ -3907,6 +3974,10 @@ class AIAgent:
     def _chatgpt_web_universal_tool_examples() -> str:
         return (
             "Universal tool-call cookbook (shape examples only; only use tool names currently listed in <tools> for this turn):\n"
+            "0. If the user explicitly says to use terminal and check whoami, do it directly:\n"
+            "<tool_call>\n"
+            "{\"name\": \"terminal\", \"arguments\": {\"command\": \"whoami\"}}\n"
+            "</tool_call>\n"
             "1. Search for code or text:\n"
             "<tool_call>\n"
             "{\"name\": \"search_files\", \"arguments\": {\"pattern\": \"stream_chatgpt_web_completion\", \"target\": \"content\", \"path\": \"hermes_cli/chatgpt_web.py\"}}\n"
@@ -3931,6 +4002,7 @@ class AIAgent:
             "<tool_call>\n"
             "{\"name\": \"read_file\", \"arguments\": {\"path\": \"skills/tool-customizability/SKILL.md\", \"offset\": 1, \"limit\": 80}}\n"
             "</tool_call>\n"
+            "6. After a tool response, either guess the next tool call from the result or give the final answer. Never say tools are unavailable when a tool is listed in <tools>.\n"
             "To build your own next tool call, copy the shape above, replace name with a tool listed in <tools>, and provide an arguments object that matches that tool's schema exactly."
         )
 
@@ -6897,6 +6969,11 @@ class AIAgent:
             "instructions": api_kwargs.get("instructions") or DEFAULT_AGENT_IDENTITY,
             "conversation_id": api_kwargs.get("conversation_id") or None,
             "parent_message_id": api_kwargs.get("parent_message_id") or None,
+            "session_token": self._chatgpt_web_session_token,
+            "cookie_header": self._chatgpt_web_cookie_header,
+            "browser_cookies": self._chatgpt_web_browser_cookies,
+            "user_agent": self._chatgpt_web_user_agent,
+            "device_id": self._chatgpt_web_device_id,
             "timeout": api_kwargs.get("timeout") or float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
             "history_and_training_disabled": bool(api_kwargs.get("history_and_training_disabled", False)),
             "on_delta": _on_delta,
