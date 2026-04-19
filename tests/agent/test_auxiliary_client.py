@@ -1063,10 +1063,12 @@ class TestKimiTemperatureOmitted:
             "agent.auxiliary_client._resolve_task_provider_model",
             return_value=("auto", "kimi-for-coding", None, None, None),
         ):
-            result = await async_call_llm(
-                task="session_search",
-                messages=[{"role": "user", "content": "hello"}],
-                temperature=0.1,
+            result = asyncio.run(
+                async_call_llm(
+                    task="session_search",
+                    messages=[{"role": "user", "content": "hello"}],
+                    temperature=0.1,
+                )
             )
 
         assert result is response
