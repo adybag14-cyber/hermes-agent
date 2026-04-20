@@ -63,15 +63,14 @@ class TestDiscoverHomebrewNodeDirs:
     def test_finds_versioned_node_dirs(self):
         """Should discover node@20/bin, node@24/bin etc."""
         entries = ["node@20", "node@24", "openssl", "node", "python@3.12"]
+        node20_bin = os.path.join("/opt/homebrew/opt", "node@20", "bin")
+        node24_bin = os.path.join("/opt/homebrew/opt", "node@24", "bin")
 
         def mock_isdir(p):
             if p == "/opt/homebrew/opt":
                 return True
             # node@20/bin and node@24/bin exist
-            if p in (
-                "/opt/homebrew/opt/node@20/bin",
-                "/opt/homebrew/opt/node@24/bin",
-            ):
+            if p in (node20_bin, node24_bin):
                 return True
             return False
 
@@ -80,8 +79,8 @@ class TestDiscoverHomebrewNodeDirs:
             result = _discover_homebrew_node_dirs()
 
         assert len(result) == 2
-        assert "/opt/homebrew/opt/node@20/bin" in result
-        assert "/opt/homebrew/opt/node@24/bin" in result
+        assert node20_bin in result
+        assert node24_bin in result
 
     def test_excludes_plain_node(self):
         """'node' (unversioned) should be excluded — covered by /opt/homebrew/bin."""
@@ -316,6 +315,7 @@ class TestRunBrowserCommandPathConstruction:
         }
         fake_json = json.dumps({"success": True})
         hermes_home = str(tmp_path / "hermes-home")
+        resolved_npx = r"C:\Users\Test\AppData\Roaming\npm\npx.CMD"
 
         with patch("tools.browser_tool._find_agent_browser", return_value="npx agent-browser"), \
  patch("tools.browser_tool._chromium_installed", return_value=True), \
@@ -323,6 +323,7 @@ class TestRunBrowserCommandPathConstruction:
              patch("tools.browser_tool._socket_safe_tmpdir", return_value=str(tmp_path)), \
              patch("tools.browser_tool._discover_homebrew_node_dirs", return_value=[]), \
              patch("hermes_constants.Path.home", return_value=tmp_path), \
+             patch("shutil.which", side_effect=lambda cmd, path=None: resolved_npx if cmd in {"npx", "npx.cmd"} else None), \
              patch("subprocess.Popen", side_effect=capture_popen), \
              patch("os.open", return_value=99), \
              patch("os.close"), \
@@ -334,13 +335,13 @@ class TestRunBrowserCommandPathConstruction:
                      "HOME": "/home/test",
                      "HERMES_HOME": hermes_home,
                  },
-                 clear=True,
+                clear=True,
              ):
             with patch("builtins.open", mock_open(read_data=fake_json)):
                 _run_browser_command("test-task", "navigate", ["https://example.com"])
 
         assert captured_cmd is not None
-        assert captured_cmd[:2] == ["npx", "agent-browser"]
+        assert captured_cmd[:2] == [resolved_npx, "agent-browser"]
         assert captured_cmd[2:6] == [
             "--session",
             "test-session",
@@ -372,6 +373,7 @@ class TestRunBrowserCommandPathConstruction:
         fake_json = json.dumps({"success": True})
         stdout_file = tmp_path / "stdout"
         stdout_file.write_text(fake_json)
+        hermes_home = str(tmp_path / "hermes-home")
 
         fake_homebrew_dirs = [
             "/opt/homebrew/opt/node@24/bin",
@@ -399,7 +401,7 @@ class TestRunBrowserCommandPathConstruction:
              patch("os.open", return_value=99), \
              patch("os.close"), \
              patch("tools.interrupt.is_interrupted", return_value=False), \
-             patch.dict(os.environ, {"PATH": "/usr/bin:/bin", "HOME": "/home/test"}, clear=True):
+             patch.dict(os.environ, {"PATH": "/usr/bin:/bin", "HOME": "/home/test", "HERMES_HOME": hermes_home}, clear=True):
             # The function reads from temp files for stdout/stderr
             with patch("builtins.open", mock_open(read_data=fake_json)):
                 _run_browser_command("test-task", "navigate", ["https://example.com"])
@@ -429,6 +431,7 @@ class TestRunBrowserCommandPathConstruction:
         }
 
         fake_json = json.dumps({"success": True})
+        hermes_home = str(tmp_path / "hermes-home")
         real_isdir = os.path.isdir
 
         def selective_isdir(p):
@@ -448,7 +451,7 @@ class TestRunBrowserCommandPathConstruction:
              patch("os.open", return_value=99), \
              patch("os.close"), \
              patch("tools.interrupt.is_interrupted", return_value=False), \
-             patch.dict(os.environ, {"PATH": "/usr/bin:/bin", "HOME": "/home/test"}, clear=True):
+             patch.dict(os.environ, {"PATH": "/usr/bin:/bin", "HOME": "/home/test", "HERMES_HOME": hermes_home}, clear=True):
             with patch("builtins.open", mock_open(read_data=fake_json)):
                 _run_browser_command("test-task", "navigate", ["https://example.com"])
 
@@ -475,6 +478,7 @@ class TestRunBrowserCommandPathConstruction:
         }
 
         fake_json = json.dumps({"success": True})
+        hermes_home = str(tmp_path / "hermes-home")
         real_isdir = os.path.isdir
 
         def selective_isdir(path):
@@ -497,7 +501,7 @@ class TestRunBrowserCommandPathConstruction:
              patch("os.open", return_value=99), \
              patch("os.close"), \
              patch("tools.interrupt.is_interrupted", return_value=False), \
-             patch.dict(os.environ, {"PATH": "/usr/bin:/bin", "HOME": "/home/test"}, clear=True):
+             patch.dict(os.environ, {"PATH": "/usr/bin:/bin", "HOME": "/home/test", "HERMES_HOME": hermes_home}, clear=True):
             with patch("builtins.open", mock_open(read_data=fake_json)):
                 _run_browser_command("test-task", "navigate", ["https://example.com"])
 

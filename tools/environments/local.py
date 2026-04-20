@@ -3,6 +3,7 @@
 import logging
 import os
 import platform
+import re
 import shutil
 import signal
 import subprocess
@@ -142,6 +143,46 @@ def _build_provider_env_blocklist() -> frozenset:
 _HERMES_PROVIDER_ENV_BLOCKLIST = _build_provider_env_blocklist()
 
 
+def _normalize_windows_shell_path(path: str) -> str:
+    """Convert native Windows or MSYS paths into a Git-Bash-friendly form."""
+    if not path:
+        return path
+
+    expanded = os.path.expanduser(path)
+
+    # Drive-letter paths: C:\foo or C:/foo -> C:/foo
+    if re.match(r"^[A-Za-z]:[\\/]", expanded):
+        return expanded.replace("\\", "/")
+
+    # UNC paths: \\server\share -> //server/share
+    if expanded.startswith("\\\\"):
+        return "//" + expanded.lstrip("\\").replace("\\", "/")
+
+    # Git Bash / MSYS drive mounts: /c/Users/foo -> C:/Users/foo
+    msys_match = re.match(r"^/([A-Za-z])/(.*)$", expanded)
+    if msys_match:
+        drive = msys_match.group(1).upper()
+        rest = msys_match.group(2)
+        return f"{drive}:/{rest}"
+
+    # Relative Windows paths: .\foo\bar -> ./foo/bar
+    if "\\" in expanded:
+        return expanded.replace("\\", "/")
+
+    return expanded
+
+
+def _is_wsl_bash_launcher(path: str | None) -> bool:
+    """Return True when *path* is Windows' WSL launcher, not Git Bash."""
+    if not path:
+        return False
+
+    normalized = os.path.normcase(os.path.abspath(path))
+    return normalized.endswith(os.path.normcase(r"\windows\system32\bash.exe")) or normalized.endswith(
+        os.path.normcase(r"\windows\sysnative\bash.exe")
+    )
+
+
 def _sanitize_subprocess_env(base_env: dict | None, extra_env: dict | None = None) -> dict:
     """Filter Hermes-managed secrets from a subprocess environment."""
     try:
@@ -188,10 +229,6 @@ def _find_bash() -> str:
     if custom and os.path.isfile(custom):
         return custom
 
-    found = shutil.which("bash")
-    if found:
-        return found
-
     for candidate in (
         os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "Git", "bin", "bash.exe"),
         os.path.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"), "Git", "bin", "bash.exe"),
@@ -199,6 +236,10 @@ def _find_bash() -> str:
     ):
         if candidate and os.path.isfile(candidate):
             return candidate
+
+    found = shutil.which("bash")
+    if found and not _is_wsl_bash_launcher(found):
+        return found
 
     raise RuntimeError(
         "Git Bash not found. Hermes Agent requires Git for Windows on Windows.\n"
@@ -234,7 +275,7 @@ def _make_run_env(env: dict) -> dict:
         elif k not in _HERMES_PROVIDER_ENV_BLOCKLIST or _is_passthrough(k):
             run_env[k] = v
     existing_path = run_env.get("PATH", "")
-    if "/usr/bin" not in existing_path.split(":"):
+    if not _IS_WINDOWS and "/usr/bin" not in existing_path.split(":"):
         run_env["PATH"] = f"{existing_path}:{_SANE_PATH}" if existing_path else _SANE_PATH
 
     # Per-profile HOME isolation: redirect system tool configs (git, ssh, gh,
@@ -342,8 +383,17 @@ class LocalEnvironment(BaseEnvironment):
     def __init__(self, cwd: str = "", timeout: int = 60, env: dict = None):
         if cwd:
             cwd = os.path.expanduser(cwd)
-        super().__init__(cwd=cwd or os.getcwd(), timeout=timeout, env=env)
+        self.shell_path_style = "git-bash" if _IS_WINDOWS else "posix"
+        initial_cwd = self._to_shell_path(cwd or os.getcwd())
+        super().__init__(cwd=initial_cwd, timeout=timeout, env=env)
         self.init_session()
+
+    @staticmethod
+    def _to_shell_path(path: str) -> str:
+        """Normalize local host paths into the shell path format used by this backend."""
+        if not _IS_WINDOWS:
+            return path
+        return _normalize_windows_shell_path(path)
 
     def get_temp_dir(self) -> str:
         """Return a shell-safe writable temp dir for local execution.
@@ -357,6 +407,15 @@ class LocalEnvironment(BaseEnvironment):
         override the temp root explicitly (for example via terminal.env or a
         custom TMPDIR), then fall back to the host process environment.
         """
+        if _IS_WINDOWS:
+            for env_var in ("TMPDIR", "TMP", "TEMP"):
+                candidate = self.env.get(env_var) or os.environ.get(env_var)
+                normalized = self._to_shell_path(candidate) if candidate else ""
+                if normalized and re.match(r"^[A-Za-z]:/", normalized):
+                    return normalized.rstrip("/") or normalized
+
+            return self._to_shell_path(tempfile.gettempdir()).rstrip("/")
+
         for env_var in ("TMPDIR", "TMP", "TEMP"):
             candidate = self.env.get(env_var) or os.environ.get(env_var)
             if candidate and candidate.startswith("/"):
@@ -425,6 +484,22 @@ class LocalEnvironment(BaseEnvironment):
             _pipe_stdin(proc, stdin_data)
 
         return proc
+
+    def execute(
+        self,
+        command: str,
+        cwd: str = "",
+        *,
+        timeout: int | None = None,
+        stdin_data: str | None = None,
+    ) -> dict:
+        shell_cwd = self._to_shell_path(cwd) if cwd else ""
+        return super().execute(
+            command,
+            cwd=shell_cwd,
+            timeout=timeout,
+            stdin_data=stdin_data,
+        )
 
     def _kill_process(self, proc):
         """Kill the entire process group (all children)."""

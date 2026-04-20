@@ -483,6 +483,29 @@ class ShellFileOperations(FileOperations):
 
         # Cache for command availability checks
         self._command_cache: Dict[str, bool] = {}
+
+    def _uses_windows_shell_path_translation(self) -> bool:
+        """Return True when the backend is native Windows using a POSIX-like shell."""
+        return getattr(self.env, "shell_path_style", "") == "git-bash"
+
+    def _normalize_shell_path(self, path: str) -> str:
+        """Convert Windows-style paths into a form Git Bash can consume."""
+        if not path or not self._uses_windows_shell_path_translation():
+            return path
+
+        if path.startswith("~"):
+            return path
+
+        if re.match(r"^[A-Za-z]:[\\/]", path):
+            return path.replace("\\", "/")
+
+        if path.startswith("\\\\"):
+            return "//" + path.lstrip("\\").replace("\\", "/")
+
+        if "\\" in path:
+            return path.replace("\\", "/")
+
+        return path
     
     def _exec(self, command: str, cwd: str = None, timeout: int = None,
               stdin_data: str = None) -> ExecuteResult:
@@ -568,6 +591,8 @@ class ShellFileOperations(FileOperations):
         """
         if not path:
             return path
+
+        path = self._normalize_shell_path(path)
         
         # Handle ~ and ~user
         if path.startswith('~'):
