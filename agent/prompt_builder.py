@@ -449,6 +449,15 @@ WSL_ENVIRONMENT_HINT = (
     "the Windows username if needed."
 )
 
+NATIVE_WINDOWS_ENVIRONMENT_HINT = (
+    "You are running on native Windows, not WSL. "
+    "The terminal tool uses Git Bash for local shell execution, so prefer "
+    "Git-Bash-compatible commands and forward-slash paths such as "
+    "C:/Users/<username>/... or /c/Users/<username>/.... "
+    "If you need a Windows-only shell feature or builtin, invoke it explicitly "
+    "via powershell -Command ..."
+)
+
 
 def build_environment_hints() -> str:
     """Return environment-specific guidance for the system prompt.
@@ -459,6 +468,8 @@ def build_environment_hints() -> str:
     hints: list[str] = []
     if is_wsl():
         hints.append(WSL_ENVIRONMENT_HINT)
+    elif os.name == "nt":
+        hints.append(NATIVE_WINDOWS_ENVIRONMENT_HINT)
     return "\n\n".join(hints)
 
 
@@ -954,7 +965,7 @@ def load_soul_md() -> Optional[str]:
     if not soul_path.exists():
         return None
     try:
-        content = soul_path.read_text(encoding="utf-8").strip()
+        content = soul_path.read_text(encoding="utf-8-sig").strip()
         if not content:
             return None
         content = _scan_context_content(content, "SOUL.md")
