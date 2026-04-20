@@ -123,6 +123,7 @@ _CHATGPT_WEB_HERMES_INTRO = (
     "- Each turn has one job: either emit exactly one Hermes tool-call block or provide the final user-facing answer.\n"
     "- If the user explicitly names a Hermes tool such as terminal, read_file, search_files, execute_code, memory, or skill_manage, treat that as proof the tool is available in this session.\n"
     "- After a Hermes tool response, if the main task is not complete yet, continue immediately with the single best next tool call instead of narrating future intentions.\n"
+    "- The user's original request already authorizes the obvious in-scope tool calls needed to complete that request. Do not ask for permission to continue, retry, inspect, patch, browse, or run the next obvious step.\n"
     "- Build tool calls from the Hermes tool schema: choose a listed tool name, provide a JSON arguments object that matches the schema, and infer the safest obvious next call from the user request plus tool outputs.\n"
     "- Do not say you will continue later, do not claim a file/skill/package was created unless a tool result proved it, and do not invent success states.\n"
     "- For create, write, edit, package, install, or migration work, verify the result with follow-up tool evidence before claiming completion.\n"
@@ -740,6 +741,11 @@ class AIAgent:
         api_key: str = None,
         provider: str = None,
         api_mode: str = None,
+        chatgpt_web_session_token: str = "",
+        chatgpt_web_cookie_header: str = "",
+        chatgpt_web_browser_cookies: Any = None,
+        chatgpt_web_user_agent: str = "",
+        chatgpt_web_device_id: str = "",
         acp_command: str = None,
         acp_args: list[str] | None = None,
         command: str = None,
@@ -958,11 +964,20 @@ class AIAgent:
         self._chatgpt_web_parent_message_id = None
         self._chatgpt_web_forced_tool_call = None
         self._chatgpt_web_forced_tool_call_mode = "always"
-        self._chatgpt_web_session_token = os.getenv("CHATGPT_WEB_SESSION_TOKEN", "").strip()
-        self._chatgpt_web_cookie_header = os.getenv("CHATGPT_WEB_COOKIE_HEADER", "").strip()
-        self._chatgpt_web_browser_cookies = None
-        self._chatgpt_web_user_agent = os.getenv("CHATGPT_WEB_USER_AGENT", "").strip()
-        self._chatgpt_web_device_id = os.getenv("CHATGPT_WEB_DEVICE_ID", "").strip()
+        self._chatgpt_web_selected_tool_names: list[str] = []
+        self._chatgpt_web_session_token = str(
+            chatgpt_web_session_token or os.getenv("CHATGPT_WEB_SESSION_TOKEN", "") or ""
+        ).strip()
+        self._chatgpt_web_cookie_header = str(
+            chatgpt_web_cookie_header or os.getenv("CHATGPT_WEB_COOKIE_HEADER", "") or ""
+        ).strip()
+        self._chatgpt_web_browser_cookies = chatgpt_web_browser_cookies
+        self._chatgpt_web_user_agent = str(
+            chatgpt_web_user_agent or os.getenv("CHATGPT_WEB_USER_AGENT", "") or ""
+        ).strip()
+        self._chatgpt_web_device_id = str(
+            chatgpt_web_device_id or os.getenv("CHATGPT_WEB_DEVICE_ID", "") or ""
+        ).strip()
         if self.provider == "chatgpt-web":
             try:
                 from agent.credential_pool import load_pool as _load_chatgpt_web_pool
@@ -977,7 +992,13 @@ class AIAgent:
                     _chatgpt_web_entry = None
             except Exception:
                 _chatgpt_web_entry = None
-            if _chatgpt_web_entry is not None:
+            if _chatgpt_web_entry is not None and not (
+                self._chatgpt_web_session_token
+                or self._chatgpt_web_cookie_header
+                or self._chatgpt_web_browser_cookies is not None
+                or self._chatgpt_web_user_agent
+                or self._chatgpt_web_device_id
+            ):
                 self._chatgpt_web_session_token = str(
                     getattr(_chatgpt_web_entry, "session_token", "")
                     or self._chatgpt_web_session_token
@@ -2914,6 +2935,29 @@ class AIAgent:
             original = original.split("\n\nRuntime reminder:", 1)[0].strip()
         return original
 
+    @staticmethod
+    def _conversation_turn_preview(user_message: Any) -> str:
+        if isinstance(user_message, str):
+            preview = user_message
+        elif isinstance(user_message, list):
+            parts: list[str] = []
+            for item in user_message:
+                if not isinstance(item, dict):
+                    continue
+                item_type = str(item.get("type") or "").strip()
+                if item_type == "text":
+                    text = str(item.get("text") or "").strip()
+                    if text:
+                        parts.append(text)
+                elif item_type == "input_image":
+                    image_url = str(item.get("image_url") or "").strip()
+                    parts.append(f"[image:{image_url or 'attached'}]")
+            preview = " ".join(part for part in parts if part) or str(user_message)
+        else:
+            preview = str(user_message)
+        preview = preview.replace("\n", " ")
+        return (preview[:80] + "...") if len(preview) > 80 else preview
+
     def _chatgpt_web_original_user_request(self, payload_messages: list[dict[str, Any]]) -> str:
         current_turn_messages = self._chatgpt_web_current_turn_messages(payload_messages)
         for item in reversed(current_turn_messages):
@@ -2947,13 +2991,22 @@ class AIAgent:
             or "answer only path" in lowered
             or "answer only the saved path" in lowered
             or "answer only saved path" in lowered
+            or "answer only the exact path" in lowered
+            or "answer only with the exact path" in lowered
+            or "answer only the exact repo path" in lowered
+            or "answer only with the exact repo path" in lowered
         ):
             return "path"
         if "answer only the result" in lowered or "answer only the output" in lowered:
             return "result"
         if "answer only yes/no" in lowered or "answer only yes or no" in lowered:
             return "yes_no"
-        if "answer only the value" in lowered or "answer only value" in lowered:
+        if (
+            "answer only the value" in lowered
+            or "answer only value" in lowered
+            or "answer only the branch name" in lowered
+            or "answer only branch name" in lowered
+        ):
             return "value"
         if "answer only saved" in lowered:
             return "saved"
@@ -2963,6 +3016,12 @@ class AIAgent:
             return "removed"
         if "answer only deleted" in lowered:
             return "deleted"
+        if (
+            "answer only verified" in lowered
+            or "answer only 'verified'" in lowered
+            or 'answer only "verified"' in lowered
+        ):
+            return "verified"
         return ""
 
     def _chatgpt_web_final_answer_example(self, original_request: str) -> str:
@@ -2981,6 +3040,8 @@ class AIAgent:
             return "Final answer format example:\nremoved"
         if mode == "deleted":
             return "Final answer format example:\ndeleted"
+        if mode == "verified":
+            return "Final answer format example:\nverified"
         return ""
 
     @staticmethod
@@ -3012,6 +3073,398 @@ class AIAgent:
         return None
 
     @staticmethod
+    def _chatgpt_web_strip_terminal_noise(text: str) -> str:
+        if not isinstance(text, str) or not text:
+            return ""
+        cleaned_lines: list[str] = []
+        for raw_line in text.splitlines():
+            line = str(raw_line or "").rstrip()
+            lowered = line.strip().lower()
+            if not lowered:
+                continue
+            if "screen size is bogus" in lowered:
+                continue
+            cleaned_lines.append(line)
+        return "\n".join(cleaned_lines)
+
+    @classmethod
+    def _chatgpt_web_terminal_output_lines(cls, text: str) -> list[str]:
+        cleaned = cls._chatgpt_web_strip_terminal_noise(text)
+        return [line.strip() for line in cleaned.splitlines() if line.strip()]
+
+    @classmethod
+    def _chatgpt_web_extract_top_process_name(cls, text: str) -> Optional[str]:
+        lines = cls._chatgpt_web_terminal_output_lines(text)
+        if not lines:
+            return None
+        header_index = -1
+        for idx, line in enumerate(lines):
+            if re.match(r"^USER\s+PID\s+%CPU\s+%MEM\b", line):
+                header_index = idx
+                break
+        candidate_rows = lines[header_index + 1:] if header_index >= 0 else lines
+        for row in candidate_rows:
+            if re.match(r"^USER\s+PID\s+%CPU\s+%MEM\b", row):
+                continue
+            parts = re.split(r"\s+", row, maxsplit=10)
+            if len(parts) < 11:
+                continue
+            command = parts[10].strip()
+            if not command:
+                continue
+            first_token = command.split()[0].strip()
+            if not first_token:
+                continue
+            normalized = first_token.rstrip(",:;")
+            normalized = normalized.replace("\\", "/")
+            base_name = normalized.rsplit("/", 1)[-1].strip()
+            return base_name or normalized
+        return None
+
+    @staticmethod
+    def _chatgpt_web_request_mentions_top_process(original_request: str) -> bool:
+        lowered = str(original_request or "").strip().lower()
+        if not lowered:
+            return False
+        return any(
+            keyword in lowered for keyword in (
+                "top process",
+                "top processes",
+                "most memory",
+                "memory usage",
+                "%mem",
+            )
+        )
+
+    @staticmethod
+    def _chatgpt_web_request_mentions_pwd(original_request: str) -> bool:
+        lowered = str(original_request or "").strip().lower()
+        if not lowered:
+            return False
+        return any(
+            keyword in lowered for keyword in (
+                " pwd",
+                "pwd",
+                "working directory",
+                "current directory",
+            )
+        )
+
+    @staticmethod
+    def _chatgpt_web_request_mentions_whoami(original_request: str) -> bool:
+        lowered = str(original_request or "").strip().lower()
+        return bool(lowered and "whoami" in lowered)
+
+    @staticmethod
+    def _chatgpt_web_request_mentions_marker_verification(original_request: str) -> bool:
+        lowered = str(original_request or "").strip().lower()
+        if not lowered or "marker" not in lowered or "exist" not in lowered:
+            return False
+        return any(keyword in lowered for keyword in ("verify", "confirm", "check"))
+
+    @staticmethod
+    def _chatgpt_web_request_mentions_current_branch(original_request: str) -> bool:
+        lowered = str(original_request or "").strip().lower()
+        if not lowered:
+            return False
+        return any(
+            keyword in lowered for keyword in (
+                "current branch",
+                "branch name",
+                "print the current branch",
+                "show the current branch",
+                "what branch",
+            )
+        )
+
+    @staticmethod
+    def _chatgpt_web_request_mentions_browser_title(original_request: str) -> bool:
+        lowered = str(original_request or "").strip().lower()
+        if not lowered:
+            return False
+        return any(
+            keyword in lowered for keyword in (
+                "visible title",
+                "page title",
+                "title from the screenshot",
+                "read the title",
+                "what is the title",
+            )
+        )
+
+    @staticmethod
+    def _chatgpt_web_extract_browser_url(original_request: str) -> Optional[str]:
+        request_text = str(original_request or "").strip()
+        if not request_text:
+            return None
+        url_matches = re.findall(r"(https?://[^\s)]+)", request_text)
+        if not url_matches:
+            return None
+        return url_matches[-1].rstrip(".,;:")
+
+    @classmethod
+    def _chatgpt_web_extract_marker_search_request(cls, original_request: str) -> Optional[tuple[str, str]]:
+        request_text = str(original_request or "").strip()
+        if not request_text:
+            return None
+        lowered = request_text.lower()
+        if "exist" not in lowered or not any(keyword in lowered for keyword in ("readme", "marker", "contains")):
+            return None
+        repo_path = cls._chatgpt_web_extract_local_path(request_text)
+        if not repo_path:
+            return None
+        marker_match = re.search(
+            r"\bcheck\s+whether\s+(.+?)\s+exists\s+in\s+(?:the\s+)?(?:repo\s+)?readme\b",
+            request_text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not marker_match:
+            marker_match = re.search(
+                r"\bcheck\s+whether\s+(.+?)\s+is\s+present\s+in\s+(?:the\s+)?(?:repo\s+)?readme\b",
+                request_text,
+                re.IGNORECASE | re.DOTALL,
+            )
+        if not marker_match:
+            marker_match = re.search(
+                r"\bdoes\s+(?:the\s+)?(?:repo\s+)?readme\s+contain\s+(.+?)(?:[.?!]|$)",
+                request_text,
+                re.IGNORECASE | re.DOTALL,
+            )
+        if not marker_match:
+            return None
+        marker_text = marker_match.group(1).strip().strip("\"'`").rstrip(".,;:")
+        if not marker_text:
+            return None
+        return marker_text, repo_path
+
+    @classmethod
+    def _chatgpt_web_infer_last_tool_name(
+        cls,
+        payload_messages: list[dict[str, Any]],
+        last_tool_payload: Any,
+    ) -> str:
+        saw_tool_message = False
+        for item in reversed(payload_messages):
+            if not isinstance(item, dict):
+                continue
+            role = item.get("role")
+            if role == "tool":
+                saw_tool_message = True
+                tool_name = str(item.get("tool_name") or "").strip()
+                if tool_name:
+                    return tool_name
+                continue
+            if saw_tool_message and role == "assistant":
+                tool_calls = item.get("tool_calls")
+                if isinstance(tool_calls, list) and tool_calls:
+                    last_call = tool_calls[-1]
+                    if isinstance(last_call, dict):
+                        function = last_call.get("function")
+                        if isinstance(function, dict):
+                            tool_name = str(function.get("name") or "").strip()
+                            if tool_name:
+                                return tool_name
+                break
+        if isinstance(last_tool_payload, dict):
+            if any(key in last_tool_payload for key in ("matches", "files", "total_count")):
+                return "search_files"
+            if any(key in last_tool_payload for key in ("content", "truncated", "hint")):
+                return "read_file"
+            if any(key in last_tool_payload for key in ("output", "exit_code", "error")):
+                return "terminal"
+            if any(key in last_tool_payload for key in ("jobs", "entries", "schedule")):
+                return "cronjob"
+            if any(key in last_tool_payload for key in ("screenshot_path", "analysis", "answer")):
+                return "browser_vision"
+            if any(key in last_tool_payload for key in ("url", "title")):
+                return "browser_navigate"
+        return ""
+
+    @staticmethod
+    def _chatgpt_web_shell_quote(value: str) -> str:
+        text = str(value or "")
+        return "'" + text.replace("'", "'\"'\"'") + "'"
+
+    @classmethod
+    def _chatgpt_web_extract_path_exists_target(cls, original_request: str) -> Optional[str]:
+        request_text = str(original_request or "").strip()
+        if not request_text:
+            return None
+        lowered = request_text.lower()
+        if "exist" not in lowered:
+            return None
+        if not any(keyword in lowered for keyword in ("check whether", "whether", "verify", "confirm", "does", "is there")):
+            return None
+        return cls._chatgpt_web_extract_local_path(request_text)
+
+    @classmethod
+    def _chatgpt_web_extract_append_request(cls, original_request: str) -> Optional[tuple[str, str]]:
+        request_text = str(original_request or "").strip()
+        if not request_text:
+            return None
+        target_path = cls._chatgpt_web_extract_local_path(request_text)
+        if not target_path:
+            return None
+        marker_match = re.search(
+            r"\bappend\s+the\s+exact\s+text\s+(.+?)(?:\s+to\s+|\s+at\s+the\s+end\s+of\b)",
+            request_text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not marker_match:
+            return None
+        marker_text = marker_match.group(1).strip().strip("\"'`").rstrip(".,;:")
+        if not marker_text:
+            return None
+        return marker_text, target_path
+
+    @classmethod
+    def _chatgpt_web_extract_clone_request(cls, original_request: str) -> Optional[tuple[str, str, Optional[int]]]:
+        request_text = str(original_request or "").strip()
+        if not request_text:
+            return None
+        repo_match = re.search(
+            r"\bclone\b(?:\s+(?:the|this|that|github|git|repository|repo|project))*\s+(https?://\S+)",
+            request_text,
+            re.IGNORECASE,
+        )
+        if not repo_match and re.search(r"\bclone\b", request_text, re.IGNORECASE):
+            repo_match = re.search(r"(https?://\S+)", request_text, re.IGNORECASE)
+        if not repo_match:
+            return None
+        into_match = re.search(r"\binto\s+(.+?)(?:\.\s|\.?$|$)", request_text, re.IGNORECASE | re.DOTALL)
+        target_path = cls._chatgpt_web_extract_local_path(into_match.group(1)) if into_match else None
+        if not target_path:
+            target_path = cls._chatgpt_web_extract_local_path(request_text)
+        if not target_path:
+            return None
+        depth_match = re.search(r"\bdepth\s+(\d+)\b", request_text, re.IGNORECASE)
+        depth = int(depth_match.group(1)) if depth_match else None
+        return repo_match.group(1).rstrip(".,;:"), target_path, depth
+
+    @classmethod
+    def _chatgpt_web_extract_terminal_completion(
+        cls,
+        original_request: str,
+        messages: list[dict[str, Any]],
+    ) -> Optional[str]:
+        request_text = str(original_request or "").strip()
+        if not request_text:
+            return None
+
+        tool_outputs: list[str] = []
+        for item in messages:
+            if not isinstance(item, dict) or item.get("role") != "tool":
+                continue
+            tool_payload = cls._chatgpt_web_parse_tool_payload(item.get("content"))
+            if not isinstance(tool_payload, dict):
+                continue
+            output_text = tool_payload.get("output")
+            if isinstance(output_text, str) and output_text.strip():
+                cleaned = cls._chatgpt_web_strip_terminal_noise(output_text)
+                if cleaned:
+                    tool_outputs.append(cleaned)
+        if not tool_outputs:
+            return None
+
+        answer_only_mode = cls._chatgpt_web_answer_only_mode(request_text)
+        if answer_only_mode == "yes_no" and cls._chatgpt_web_extract_path_exists_target(request_text):
+            for output_text in reversed(tool_outputs):
+                yes_no = cls._chatgpt_web_extract_yes_no(output_text)
+                if yes_no:
+                    return yes_no
+        if answer_only_mode == "path" and cls._chatgpt_web_extract_clone_request(request_text):
+            for output_text in reversed(tool_outputs):
+                clone_match = re.search(r"Cloning into ['\"]([^'\"]+)['\"]", output_text)
+                if clone_match:
+                    return clone_match.group(1).strip()
+                lines = cls._chatgpt_web_terminal_output_lines(output_text)
+                for line in reversed(lines):
+                    candidate = cls._chatgpt_web_extract_path_candidate(line)
+                    if candidate:
+                        return candidate
+        if answer_only_mode == "verified" and cls._chatgpt_web_extract_append_request(request_text):
+            for output_text in reversed(tool_outputs):
+                simple_value = cls._chatgpt_web_extract_simple_value(output_text)
+                if simple_value and simple_value.lower() == "verified":
+                    return "verified"
+        if answer_only_mode == "value" and cls._chatgpt_web_request_mentions_current_branch(request_text):
+            for output_text in reversed(tool_outputs):
+                simple_value = cls._chatgpt_web_extract_simple_value(output_text)
+                if (
+                    simple_value
+                    and re.fullmatch(r"[A-Za-z0-9._/-]+", simple_value)
+                    and not simple_value.startswith(("/", "~"))
+                    and not re.match(r"^[A-Za-z]:[\\/]", simple_value)
+                ):
+                    return simple_value
+
+        needs_topproc = cls._chatgpt_web_request_mentions_top_process(request_text)
+        needs_whoami = cls._chatgpt_web_request_mentions_whoami(request_text)
+        needs_pwd = cls._chatgpt_web_request_mentions_pwd(request_text)
+
+        top_process = None
+        if needs_topproc:
+            for output_text in reversed(tool_outputs):
+                top_process = cls._chatgpt_web_extract_top_process_name(output_text)
+                if top_process:
+                    break
+            if top_process and (
+                "top process name only" in request_text.lower()
+                or "answer with the top process name only" in request_text.lower()
+            ):
+                return top_process
+
+        user_value = None
+        pwd_value = None
+        if needs_whoami or needs_pwd:
+            for output_text in tool_outputs:
+                lines = cls._chatgpt_web_terminal_output_lines(output_text)
+                if not lines:
+                    continue
+                if needs_whoami and user_value is None:
+                    for idx, line in enumerate(lines):
+                        if re.match(r"^USER\s+PID\s+%CPU\s+%MEM\b", line):
+                            continue
+                        if re.fullmatch(r"[A-Za-z0-9._-]+", line):
+                            if needs_pwd and idx + 1 < len(lines) and (
+                                lines[idx + 1].startswith("/")
+                                or re.match(r"^[A-Za-z]:[\\/]", lines[idx + 1])
+                            ):
+                                user_value = line
+                                break
+                            if not needs_pwd:
+                                user_value = line
+                                break
+                if needs_pwd and pwd_value is None:
+                    for line in lines:
+                        if line.startswith("/") or re.match(r"^[A-Za-z]:[\\/]", line):
+                            pwd_value = line
+                            break
+                if (not needs_whoami or user_value) and (not needs_pwd or pwd_value):
+                    break
+
+        if (
+            "final answer exactly as three lines" in request_text.lower()
+            and needs_whoami
+            and needs_pwd
+            and needs_topproc
+            and user_value
+            and pwd_value
+            and top_process
+        ):
+            return f"USER={user_value}\nPWD={pwd_value}\nTOPPROC={top_process}"
+
+        if answer_only_mode in {"result", "value"} and needs_whoami and not needs_pwd and not needs_topproc and user_value:
+            return user_value
+        if answer_only_mode in {"result", "path"} and needs_pwd and not needs_whoami and not needs_topproc and pwd_value:
+            return pwd_value
+        if needs_topproc and top_process:
+            if "answer briefly" in request_text.lower():
+                return top_process
+
+        return None
+
+    @staticmethod
     def _chatgpt_web_extract_simple_value(text: str) -> Optional[str]:
         if not isinstance(text, str) or not text.strip():
             return None
@@ -3024,7 +3477,9 @@ class AIAgent:
             return single_quoted[-1].strip()
         value_match = re.search(r"\b(?:is|as|saved as)\s+([A-Za-z0-9._-]+)\b", stripped, re.IGNORECASE)
         if value_match:
-            return value_match.group(1).strip().rstrip('.,;:!')
+            candidate = value_match.group(1).strip().rstrip('.,;:!')
+            if candidate.lower() not in {"a", "an", "the"}:
+                return candidate
         lines = [line.strip() for line in stripped.splitlines() if line.strip()]
         if len(lines) == 1 and lines[0] and re.fullmatch(r"[A-Za-z0-9._-]+", lines[0]):
             return lines[0]
@@ -3173,6 +3628,16 @@ class AIAgent:
         return self._chatgpt_web_extract_exact_line_from_text(tool_content)
 
     @staticmethod
+    def _chatgpt_web_plaintext_from_read_file_content(text: str) -> str:
+        if not isinstance(text, str) or not text:
+            return ""
+        plain_lines: list[str] = []
+        for raw_line in text.splitlines():
+            match = re.match(r"^\s*\d+\|(.*)$", raw_line)
+            plain_lines.append(match.group(1) if match else raw_line)
+        return "\n".join(plain_lines)
+
+    @staticmethod
     def _chatgpt_web_extract_yes_no_from_tool_payload(tool_payload: Any) -> Optional[str]:
         if isinstance(tool_payload, dict):
             total_count = tool_payload.get("total_count")
@@ -3206,11 +3671,17 @@ class AIAgent:
             image_url = self._chatgpt_web_extract_image_url_from_text(repaired)
             if image_url and any(keyword in str(original_request or "").lower() for keyword in ("save", "download", "store")):
                 return image_url
+            payload_path = self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
+            if payload_path and (
+                self._chatgpt_web_extract_clone_request(original_request)
+                or "exact path" in str(original_request or "").lower()
+                or "exact repo path" in str(original_request or "").lower()
+            ):
+                return payload_path
             repaired_path = self._chatgpt_web_extract_path_candidate(repaired)
             if repaired_path:
                 return repaired_path
-            path = self._chatgpt_web_extract_path_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
-            return path or repaired
+            return payload_path or repaired
         if mode == "line":
             line = (
                 self._chatgpt_web_extract_line_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
@@ -3234,7 +3705,9 @@ class AIAgent:
             if path:
                 return f"yes\n{path}"
         if mode == "value":
-            value = self._chatgpt_web_extract_simple_value(repaired)
+            value = self._chatgpt_web_extract_simple_value(repaired) or (
+                self._chatgpt_web_extract_result_from_tool_payload(tool_payload, last_tool_content) if last_tool_content else None
+            )
             return value or repaired
         if mode == "saved":
             if isinstance(tool_payload, dict) and tool_payload.get("success") is True:
@@ -3243,6 +3716,14 @@ class AIAgent:
                 return "saved"
             if "saved" in repaired.lower():
                 return "saved"
+        if mode == "verified":
+            append_request = self._chatgpt_web_extract_append_request(original_request)
+            if append_request:
+                marker_text, _target_path = append_request
+                if last_tool_content and marker_text in last_tool_content:
+                    return "verified"
+            if "verified" in repaired.lower():
+                return "verified"
         if mode == "created":
             if last_tool_content and (" created" in last_tool_content.lower() or " updated" in last_tool_content.lower()):
                 return "created"
@@ -3260,6 +3741,62 @@ class AIAgent:
                 return "deleted"
             if "deleted" in repaired.lower() or "removed" in repaired.lower():
                 return "deleted"
+        return repaired
+
+    def _chatgpt_web_repair_terminal_completion_response(
+        self,
+        original_request: str,
+        final_response: str,
+        messages: list[dict[str, Any]],
+    ) -> str:
+        repaired = str(final_response or "").strip()
+        synthesized = self._chatgpt_web_extract_terminal_completion(original_request, messages)
+        if not synthesized:
+            return repaired
+
+        lowered = repaired.lower()
+        if not lowered:
+            return synthesized
+        if self._chatgpt_web_response_signals_pending_tool_work(repaired):
+            return synthesized
+        if any(
+            phrase in lowered for phrase in (
+                "issue with executing the commands",
+                "issue with the terminal",
+                "unable to access the terminal",
+                "terminal environment not responding",
+                "would you like me to try again later",
+                "assist you in another way",
+                "tools are unavailable",
+                "tool isn't available",
+                "tool is not available",
+            )
+        ):
+            return synthesized
+
+        request_lower = str(original_request or "").strip().lower()
+        if any(
+            phrase in request_lower for phrase in (
+                "top process name only",
+                "answer with the top process name only",
+                "answer briefly",
+                "final answer exactly as three lines",
+            )
+        ):
+            return synthesized
+        answer_only_mode = self._chatgpt_web_answer_only_mode(original_request)
+        if answer_only_mode in {"yes_no", "verified", "path"}:
+            return synthesized
+        if answer_only_mode == "result" and (
+            self._chatgpt_web_request_mentions_whoami(original_request)
+            or self._chatgpt_web_request_mentions_pwd(original_request)
+        ):
+            return synthesized
+        if (
+            answer_only_mode == "value"
+            and self._chatgpt_web_request_mentions_current_branch(original_request)
+        ):
+            return synthesized
         return repaired
 
     @staticmethod
@@ -3284,6 +3821,8 @@ class AIAgent:
             if normalized in seen:
                 continue
             seen.add(normalized)
+            if normalized.startswith("//") and re.match(r"^//[^/\s]+\.[^/\s]+(?:/|$)", normalized):
+                continue
             if extensions is not None:
                 lowered = normalized.lower()
                 if not lowered.endswith(tuple(ext.lower() for ext in extensions)):
@@ -3575,12 +4114,33 @@ class AIAgent:
                 last_tool_content = str(item.get("content") or "")
                 break
         last_tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
+        last_tool_name = self._chatgpt_web_infer_last_tool_name(payload_messages, last_tool_payload)
+        terminal_completion = self._chatgpt_web_extract_terminal_completion(user_text, payload_messages) if used_tool_count > 0 else None
+        if terminal_completion:
+            return []
+
+        lowered = user_text.lower()
+        if any(keyword in lowered for keyword in ("cron", "schedule job", "scheduled job", "create job", "list jobs", "remind me every")):
+            cron_tool = tools_by_name.get("cronjob")
+            if cron_tool is not None:
+                return [cron_tool]
 
         explicit_pattern = re.compile(
             r"\b(" + "|".join(re.escape(name) for name in sorted(tools_by_name, key=len, reverse=True)) + r")\b",
             re.IGNORECASE,
         )
-        explicit_sequence = [match.group(1) for match in explicit_pattern.finditer(user_text)]
+        explicit_sequence: list[str] = []
+        for match in explicit_pattern.finditer(user_text):
+            tool_name = str(match.group(1) or "").strip()
+            prefix = user_text[max(0, match.start() - 48):match.start()].lower()
+            suffix = user_text[match.end():min(len(user_text), match.end() + 16)].lower()
+            if re.match(r"^\s*or\b", suffix):
+                continue
+            if re.search(
+                r"(?:^|[\s,;:(-])(?:use|using|with|via|through|invoke|invoking|call|calling|tool|tools|first|then|next|after that|and then)\s*$",
+                prefix,
+            ) or re.search(r"(?:tool available(?: for this turn)? is:\s*)$", prefix) or re.match(r"^\s*(?:tool|tools)\b", suffix):
+                explicit_sequence.append(tool_name)
         if explicit_sequence:
             next_index = min(used_tool_count, len(explicit_sequence) - 1)
             next_name = explicit_sequence[next_index]
@@ -3588,28 +4148,34 @@ class AIAgent:
                 if candidate_name.lower() == next_name.lower():
                     return [tool]
 
-        lowered = user_text.lower()
         heuristic_names: list[str] = []
         explicit_local_path = self._chatgpt_web_extract_local_path(user_text)
         relative_path_match = re.search(r"\b([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)\b", user_text)
         path_match = explicit_local_path or (relative_path_match.group(1) if relative_path_match else None)
         explicit_symbol_target = self._chatgpt_web_extract_symbol_target(user_text)
         answer_only_mode = self._chatgpt_web_answer_only_mode(user_text)
+        browser_url = self._chatgpt_web_extract_browser_url(user_text)
+        marker_search_request = self._chatgpt_web_extract_marker_search_request(user_text)
         image_generation_request = (
             any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint"))
             and any(keyword in lowered for keyword in ("image", "picture", "photo", "illustration", "drawing", "logo"))
         )
-        image_analysis_request = bool(self._chatgpt_web_extract_image_input_path(user_text)) or any(
-            keyword in lowered for keyword in (
-                "look at this image",
-                "look at this local image",
-                "analyze this image",
-                "describe this image",
-                "what is in this image",
-                "dominant color",
-                "screenshot",
-                "photo",
-                "picture",
+        image_analysis_request = (
+            bool(self._chatgpt_web_extract_image_input_path(user_text))
+            or (
+                not browser_url
+                and any(
+                    keyword in lowered for keyword in (
+                        "look at this image",
+                        "look at this local image",
+                        "analyze this image",
+                        "describe this image",
+                        "what is in this image",
+                        "dominant color",
+                        "photo",
+                        "picture",
+                    )
+                )
             )
         )
         memory_request = any(
@@ -3686,6 +4252,33 @@ class AIAgent:
             search_tool = tools_by_name.get("search_files")
             if search_tool is not None:
                 return [search_tool]
+        if used_tool_count == 0:
+            path_exists_target = self._chatgpt_web_extract_path_exists_target(user_text)
+            if path_exists_target:
+                terminal_tool = tools_by_name.get("terminal")
+                if terminal_tool is not None:
+                    return [terminal_tool]
+        if used_tool_count > 0 and last_tool_name == "patch" and self._chatgpt_web_request_mentions_marker_verification(user_text):
+            terminal_tool = tools_by_name.get("terminal")
+            if terminal_tool is not None:
+                return [terminal_tool]
+        if marker_search_request and used_tool_count > 0 and last_tool_name == "terminal":
+            search_tool = tools_by_name.get("search_files")
+            if search_tool is not None:
+                return [search_tool]
+        if browser_url and used_tool_count > 0 and last_tool_name in {"terminal", "search_files"}:
+            navigate_tool = tools_by_name.get("browser_navigate")
+            if navigate_tool is not None:
+                return [navigate_tool]
+        if (
+            browser_url
+            and self._chatgpt_web_request_mentions_browser_title(user_text)
+            and used_tool_count > 0
+            and last_tool_name == "browser_navigate"
+        ):
+            vision_tool = tools_by_name.get("browser_vision")
+            if vision_tool is not None:
+                return [vision_tool]
         if path_match and any(
             keyword in lowered for keyword in ("read", "first line", "exact def line", "open the file", "show the file", "inspect", "summarize", "report")
         ):
@@ -3702,6 +4295,14 @@ class AIAgent:
         if skill_request:
             skill_tool = tools_by_name.get("skill_manage")
             return [skill_tool] if skill_tool is not None else []
+        if self._chatgpt_web_extract_clone_request(user_text):
+            terminal_tool = tools_by_name.get("terminal")
+            if terminal_tool is not None:
+                return [terminal_tool]
+        if explicit_local_path and self._chatgpt_web_request_mentions_current_branch(user_text):
+            terminal_tool = tools_by_name.get("terminal")
+            if terminal_tool is not None:
+                return [terminal_tool]
         if self._chatgpt_web_infer_terminal_command(user_text) or any(
             keyword in lowered for keyword in (
                 "port",
@@ -3727,12 +4328,59 @@ class AIAgent:
 
         return []
 
-    @staticmethod
-    def _chatgpt_web_infer_terminal_command(user_text: str) -> Optional[str]:
+    @classmethod
+    def _chatgpt_web_infer_terminal_command(cls, user_text: str) -> Optional[str]:
         text = str(user_text or "").strip()
         if not text:
             return None
         lowered = text.lower()
+        path_exists_target = cls._chatgpt_web_extract_path_exists_target(text)
+        if path_exists_target:
+            quoted_path = cls._chatgpt_web_shell_quote(path_exists_target)
+            return f"[ -e {quoted_path} ] && echo yes || echo no"
+        append_request = cls._chatgpt_web_extract_append_request(text)
+        if append_request:
+            marker_text, target_path = append_request
+            quoted_marker = cls._chatgpt_web_shell_quote(marker_text)
+            quoted_path = cls._chatgpt_web_shell_quote(target_path)
+            return f"printf '%s\\n' {quoted_marker} >> {quoted_path}"
+        clone_request = cls._chatgpt_web_extract_clone_request(text)
+        if clone_request:
+            repo_url, target_path, depth = clone_request
+            quoted_repo = cls._chatgpt_web_shell_quote(repo_url)
+            quoted_path = cls._chatgpt_web_shell_quote(target_path)
+            clone_parts = ["git", "clone"]
+            if depth is not None:
+                clone_parts.extend(["--depth", str(depth)])
+            clone_parts.extend([quoted_repo, quoted_path])
+            return " ".join(clone_parts)
+        explicit_local_path = cls._chatgpt_web_extract_local_path(text)
+        if explicit_local_path and cls._chatgpt_web_request_mentions_current_branch(text):
+            quoted_path = cls._chatgpt_web_shell_quote(explicit_local_path)
+            return f"git -C {quoted_path} rev-parse --abbrev-ref HEAD"
+
+        top_process_requested = any(
+            keyword in lowered for keyword in (
+                "top process",
+                "top processes",
+                "most memory",
+                "memory usage",
+                "%mem",
+            )
+        )
+        pwd_requested = any(
+            keyword in lowered for keyword in (
+                " pwd",
+                "pwd",
+                "working directory",
+                "current directory",
+            )
+        )
+        whoami_requested = "whoami" in lowered
+        if whoami_requested and pwd_requested and top_process_requested:
+            return "whoami && pwd && ps aux --sort=-%mem | head -n 2"
+        if whoami_requested and pwd_requested:
+            return "whoami && pwd"
 
         explicit_run = re.search(r"\brun\s+(.+?)(?:\.\s*answer only.*|$)", text, re.IGNORECASE | re.DOTALL)
         if explicit_run:
@@ -3757,6 +4405,8 @@ class AIAgent:
             (r"\bdate\b", "date"),
             (r"\bls\b", "ls"),
             (r"\bdir\b", "dir"),
+            (r"\bfree\s+-h\b", "free -h"),
+            (r"\bdf\s+-h\b", "df -h"),
         ]
         for pattern, command in common_commands:
             if re.search(pattern, lowered):
@@ -3784,22 +4434,73 @@ class AIAgent:
             return "uname -a"
         if re.search(r"\b(?:what time is it|current time|time is it)\b", lowered):
             return "date"
+        if any(
+            keyword in lowered for keyword in (
+                "free ram",
+                "free memory",
+                "available ram",
+                "available memory",
+                "memory free",
+            )
+        ):
+            return "free -h"
+        if any(
+            keyword in lowered for keyword in (
+                "top processes",
+                "top memory processes",
+                "most memory",
+                "memory usage",
+                "%mem",
+            )
+        ):
+            if any(
+                phrase in lowered for phrase in (
+                    "top process name only",
+                    "top process only",
+                    "first process",
+                    "name only",
+                )
+            ):
+                return "ps aux --sort=-%mem | head -n 2"
+            return "ps aux --sort=-%mem | head -n 10"
+        if any(
+            keyword in lowered for keyword in (
+                "top cpu processes",
+                "most cpu",
+                "cpu usage",
+                "%cpu",
+            )
+        ):
+            return "ps aux --sort=-%cpu | head -n 10"
+        if any(
+            keyword in lowered for keyword in (
+                "disk usage",
+                "disk free",
+                "filesystem usage",
+            )
+        ):
+            return "df -h"
 
         return None
 
     def _chatgpt_web_tool_args(self, tool_name: str, payload_messages: list[dict[str, Any]]) -> Optional[dict[str, Any]]:
         if not isinstance(tool_name, str) or not tool_name.strip():
             return None
-        user_text = "\n".join(
+        raw_user_text = "\n".join(
             str(msg.get("content") or "")
             for msg in payload_messages
             if isinstance(msg, dict) and msg.get("role") == "user"
         )
+        user_text = self._chatgpt_web_extract_original_request(raw_user_text) or raw_user_text
         lowered = user_text.lower()
         explicit_local_path = self._chatgpt_web_extract_local_path(user_text)
         explicit_symbol_target = self._chatgpt_web_extract_symbol_target(user_text)
         relative_path_match = re.search(r"\b([A-Za-z0-9_./-]+\.[A-Za-z0-9_]+)\b", user_text)
         path_match = explicit_local_path or (relative_path_match.group(1) if relative_path_match else None)
+        used_tool_count = sum(
+            1 for item in payload_messages
+            if isinstance(item, dict) and item.get("role") == "tool"
+        )
         last_tool_content = ""
         for item in reversed(payload_messages):
             if isinstance(item, dict) and item.get("role") == "tool":
@@ -3808,6 +4509,15 @@ class AIAgent:
         last_tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
 
         if tool_name == "search_files":
+            marker_search_request = self._chatgpt_web_extract_marker_search_request(user_text)
+            if marker_search_request:
+                marker_text, repo_path = marker_search_request
+                return {
+                    "pattern": marker_text,
+                    "target": "content",
+                    "path": repo_path,
+                    "limit": 20,
+                }
             if path_match and explicit_symbol_target and any(
                 keyword in lowered for keyword in ("find", "search", "grep", "symbol", "definition", "define", "defines", "defined")
             ):
@@ -3941,6 +4651,17 @@ class AIAgent:
                 question = re.sub(r"\.\s*answer only.*$", "", user_text, flags=re.IGNORECASE).strip()
                 return {"image_url": image_path, "question": question}
 
+        if tool_name == "browser_navigate":
+            url_match = re.search(r"(https?://[^\s)]+)", user_text)
+            if url_match:
+                return {"url": url_match.group(1).rstrip(".,;:")}
+
+        if tool_name == "browser_vision":
+            if any(keyword in lowered for keyword in ("page title", "title from the screenshot", "visible title")):
+                return {"question": "What is the visible page title text in the screenshot?"}
+            question = re.sub(r"\.\s*answer only.*$", "", user_text, flags=re.IGNORECASE).strip()
+            return {"question": question or "What is visible in the current browser screenshot?"}
+
         if tool_name == "write_file":
             if explicit_local_path:
                 content_match = re.search(r"contains exactly\s+(.+?)(?:\s+on one line|\.\s*then answer only.*|\.\s*answer only.*|$)", user_text, re.IGNORECASE | re.DOTALL)
@@ -3951,6 +4672,27 @@ class AIAgent:
                     if "on one line" in lowered and not content.endswith("\n"):
                         content += "\n"
                     return {"path": explicit_local_path, "content": content}
+
+        if tool_name == "patch":
+            append_request = self._chatgpt_web_extract_append_request(user_text)
+            if append_request and explicit_local_path and isinstance(last_tool_payload, dict):
+                marker_text, target_path = append_request
+                current_content = self._chatgpt_web_plaintext_from_read_file_content(
+                    str(last_tool_payload.get("content") or "")
+                )
+                if current_content:
+                    new_content = current_content
+                    if not new_content.endswith("\n"):
+                        new_content += "\n"
+                    new_content += marker_text
+                    if not new_content.endswith("\n"):
+                        new_content += "\n"
+                    return {
+                        "mode": "replace",
+                        "path": target_path,
+                        "old_string": current_content,
+                        "new_string": new_content,
+                    }
 
         if tool_name == "image_generate":
             if any(keyword in lowered for keyword in ("generate", "create", "draw", "make", "illustrate", "paint")) and any(
@@ -3972,7 +4714,101 @@ class AIAgent:
                 expr = expr_match.group(1).strip()
                 return {"code": f"print({expr})"}
 
+        if tool_name == "cronjob":
+            remove_requested = (
+                "cron" in lowered
+                and any(keyword in lowered for keyword in ("remove", "delete"))
+            )
+            create_requested = (
+                "cron" in lowered
+                and any(keyword in lowered for keyword in ("create", "add", "schedule", "remind"))
+            )
+            list_requested = any(keyword in lowered for keyword in ("list cron", "show cron", "list jobs", "show jobs", "scheduled jobs"))
+            name_match = re.search(r"\bnamed\s+([A-Za-z0-9_.-]+)", user_text, re.IGNORECASE)
+            if remove_requested:
+                job_name = name_match.group(1).strip().rstrip(".,;:") if name_match else "chatgpt-web-job"
+                if isinstance(last_tool_payload, dict):
+                    jobs = last_tool_payload.get("jobs")
+                    if isinstance(jobs, list):
+                        for job in jobs:
+                            if not isinstance(job, dict):
+                                continue
+                            candidate_name = str(job.get("name") or "").strip().rstrip(".,;:")
+                            candidate_id = str(job.get("id") or job.get("job_id") or "").strip()
+                            if candidate_id and candidate_name.lower() == job_name.lower():
+                                return {"action": "remove", "job_id": candidate_id}
+                return {"action": "list"}
+            if create_requested and used_tool_count == 0:
+                schedule_match = re.search(
+                    r"\b(every\s+\d+\s*(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)|daily|hourly|weekly|monthly)\b",
+                    lowered,
+                )
+                prompt_match = re.search(
+                    r"\b(?:to|that)\s+(.+?)(?:\.\s*answer only.*|$)",
+                    user_text,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                schedule = schedule_match.group(1) if schedule_match else "every 1h"
+                prompt = (prompt_match.group(1).strip() if prompt_match else "Report job status.")
+                prompt = re.split(r"\b(?:then|and then)\s+(?:list|show)\s+(?:jobs|cron)\b", prompt, maxsplit=1, flags=re.IGNORECASE)[0]
+                prompt = re.split(r"\.\s*keep going\b", prompt, maxsplit=1, flags=re.IGNORECASE)[0]
+                prompt = prompt.rstrip(" .,;:")
+                job_name = (name_match.group(1).strip().rstrip(".,;:") if name_match else "chatgpt-web-job")
+                return {
+                    "action": "create",
+                    "name": job_name,
+                    "schedule": schedule,
+                    "prompt": prompt,
+                }
+            if list_requested:
+                return {"action": "list"}
+            if create_requested:
+                schedule_match = re.search(
+                    r"\b(every\s+\d+\s*(?:m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)|daily|hourly|weekly|monthly)\b",
+                    lowered,
+                )
+                prompt_match = re.search(
+                    r"\b(?:to|that)\s+(.+?)(?:\.\s*answer only.*|$)",
+                    user_text,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                schedule = schedule_match.group(1) if schedule_match else "every 1h"
+                prompt = (prompt_match.group(1).strip() if prompt_match else "Report job status.")
+                prompt = re.split(r"\b(?:then|and then)\s+(?:list|show)\s+(?:jobs|cron)\b", prompt, maxsplit=1, flags=re.IGNORECASE)[0]
+                prompt = re.split(r"\.\s*keep going\b", prompt, maxsplit=1, flags=re.IGNORECASE)[0]
+                prompt = prompt.rstrip(" .,;:")
+                job_name = (name_match.group(1).strip().rstrip(".,;:") if name_match else "chatgpt-web-job")
+                return {
+                    "action": "create",
+                    "name": job_name,
+                    "schedule": schedule,
+                    "prompt": prompt,
+                }
+
         if tool_name == "terminal":
+            append_request = self._chatgpt_web_extract_append_request(user_text)
+            if append_request:
+                marker_text, target_path = append_request
+                quoted_marker = self._chatgpt_web_shell_quote(marker_text)
+                quoted_path = self._chatgpt_web_shell_quote(target_path)
+                if used_tool_count > 0 and self._chatgpt_web_request_mentions_marker_verification(user_text):
+                    return {"command": f"grep -Fqx -- {quoted_marker} {quoted_path} && echo verified || echo missing"}
+                return {"command": f"printf '%s\\n' {quoted_marker} >> {quoted_path}"}
+            clone_request = self._chatgpt_web_extract_clone_request(user_text)
+            if clone_request:
+                repo_url, target_path, depth = clone_request
+                quoted_repo = self._chatgpt_web_shell_quote(repo_url)
+                quoted_path = self._chatgpt_web_shell_quote(target_path)
+                if used_tool_count > 0 and self._chatgpt_web_request_mentions_current_branch(user_text):
+                    return {"command": f"git -C {quoted_path} rev-parse --abbrev-ref HEAD"}
+                clone_parts = ["git", "clone"]
+                if depth is not None:
+                    clone_parts.extend(["--depth", str(depth)])
+                clone_parts.extend([quoted_repo, quoted_path])
+                return {"command": " ".join(clone_parts)}
+            if explicit_local_path and self._chatgpt_web_request_mentions_current_branch(user_text):
+                quoted_path = self._chatgpt_web_shell_quote(explicit_local_path)
+                return {"command": f"git -C {quoted_path} rev-parse --abbrev-ref HEAD"}
             command = self._chatgpt_web_infer_terminal_command(user_text)
             if command:
                 return {"command": command}
@@ -4023,10 +4859,25 @@ class AIAgent:
             return False
         patterns = (
             r"\bi(?:'ll| will)\s+(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look)\b",
+            r"\bi can\s+(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look|run|open|browse)\b",
             r"\blet me\s+(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look)\b",
             r"\b(?:next step|next up|continuing|retrying)\b",
             r"\bi need to\s+(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look)\b",
             r"\bi(?: have|'ve)?\s+(?:made progress|found|identified).+\b(?:now|next)\b",
+            r"\btechnical issue preventing the use of the terminal\b",
+            r"\bissue with tool usage\b",
+            r"\bcannot retrieve\b.{0,80}\b(?:tool|resources)\b",
+            r"\btool is currently unavailable\b",
+            r"\btool is unavailable\b",
+            r"\bterminal tool is currently unavailable\b",
+            r"\bterminal tool is unavailable\b",
+            r"\bassist with another solution\b",
+            r"\b(?:attempt|try)\s+(?:another|a different)\s+approach\b",
+            r"\blet me\s+address\b.+\bproceed\b",
+            r"\bproceed with the correct steps\b",
+            r"\b(?:would you like|if you(?:'d| would)? like|if you want|let me know if you want)\b.{0,80}\b(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look|run|open|browse)\b",
+            r"\b(?:should i|shall i)\s+(?:continue|retry|inspect|check|read|search|write|patch|test|debug|create|save|package|install|use|look|run|open|browse)\b",
+            r"\bi can also\b",
         )
         return any(re.search(pattern, lowered) for pattern in patterns)
 
@@ -4037,6 +4888,15 @@ class AIAgent:
             "0. If the user explicitly says to use terminal and check whoami, do it directly:\n"
             "<tool_call>\n"
             "{\"name\": \"terminal\", \"arguments\": {\"command\": \"whoami\"}}\n"
+            "</tool_call>\n"
+            "0b. If the user already approved a multi-step task, do the next obvious tool step immediately. Do not ask for permission again. Emit the next <tool_call> block now.\n"
+            "0c. Natural-language repo tasks still require tools even when the user never says 'use terminal'. For a clone request, emit the guessed git clone call immediately:\n"
+            "<tool_call>\n"
+            "{\"name\": \"terminal\", \"arguments\": {\"command\": \"git clone --depth 1 'https://github.com/octocat/Hello-World.git' '/tmp/hello-world'\"}}\n"
+            "</tool_call>\n"
+            "0d. In a fresh chat, if the user asks for the current branch of a repo path, use terminal directly and do not ask permission again:\n"
+            "<tool_call>\n"
+            "{\"name\": \"terminal\", \"arguments\": {\"command\": \"git -C '/tmp/hello-world' rev-parse --abbrev-ref HEAD\"}}\n"
             "</tool_call>\n"
             "1. Search for code or text:\n"
             "<tool_call>\n"
@@ -4062,8 +4922,18 @@ class AIAgent:
             "<tool_call>\n"
             "{\"name\": \"read_file\", \"arguments\": {\"path\": \"skills/tool-customizability/SKILL.md\", \"offset\": 1, \"limit\": 80}}\n"
             "</tool_call>\n"
+            "5b. Schedule a simple cron job:\n"
+            "<tool_call>\n"
+            "{\"name\": \"cronjob\", \"arguments\": {\"action\": \"create\", \"name\": \"disk-check\", \"schedule\": \"every 1h\", \"prompt\": \"Use terminal to run df -h and report if any filesystem is above 90%.\"}}\n"
+            "</tool_call>\n"
+            "5c. Use browser tools in sequence when a web task needs several steps:\n"
+            "<tool_call>\n"
+            "{\"name\": \"browser_navigate\", \"arguments\": {\"url\": \"https://www.wikipedia.org\"}}\n"
+            "</tool_call>\n"
+            "After its <tool_response>, if the user still wants more, emit the next tool call immediately such as browser_snapshot, browser_click, browser_type, browser_press, or browser_vision.\n"
             "6. After a tool response, either guess the next tool call from the result or give the final answer. Never say tools are unavailable when a tool is listed in <tools>.\n"
-            "To build your own next tool call, copy the shape above, replace name with a tool listed in <tools>, and provide an arguments object that matches that tool's schema exactly."
+            "To build your own next tool call, copy the shape above, replace name with a tool listed in <tools>, and provide an arguments object that matches that tool's schema exactly.\n"
+            "If the task is still incomplete, do not ask the user whether to continue. Emit the single best next <tool_call> block immediately."
         )
 
     @staticmethod
@@ -4072,6 +4942,11 @@ class AIAgent:
             "terminal": (
                 "<tool_call>\n"
                 "{\"name\": \"terminal\", \"arguments\": {\"command\": \"git status\"}}\n"
+                "</tool_call>"
+            ),
+            "cronjob": (
+                "<tool_call>\n"
+                "{\"name\": \"cronjob\", \"arguments\": {\"action\": \"list\"}}\n"
                 "</tool_call>"
             ),
             "browser_navigate": (
@@ -4097,6 +4972,11 @@ class AIAgent:
             "browser_press": (
                 "<tool_call>\n"
                 "{\"name\": \"browser_press\", \"arguments\": {\"key\": \"Enter\"}}\n"
+                "</tool_call>"
+            ),
+            "browser_vision": (
+                "<tool_call>\n"
+                "{\"name\": \"browser_vision\", \"arguments\": {\"question\": \"What is the visible page title text in the screenshot?\"}}\n"
                 "</tool_call>"
             ),
             "search_files": (
@@ -4215,6 +5095,7 @@ class AIAgent:
                 f"You have access to exactly one tool in this turn: {tool_label}. "
                 f"That tool is available right now. Do not say tools are unavailable. "
                 f"Ignore any later steps for now and focus only on using {tool_label} in this response. "
+                "The user already approved the task, so do not ask for permission to continue with the obvious next tool step. "
                 f"If the user's request needs {tool_label}, your next response must be EXACTLY ONE <tool_call>...</tool_call> block and nothing else. "
                 "After you receive a <tool_response>, if the task is still in progress, make the next tool call immediately instead of narrating that you will continue later. "
                 f"Use the latest <tool_response> plus the tool schema for {tool_label} to guess the next tool call needed to advance the main goal when another step is still needed.\n"
@@ -4228,6 +5109,7 @@ class AIAgent:
             "If the user asks for live filesystem inspection, file search, command execution, Python/code execution, calculations, or current system/repo facts, you MUST call Hermes tools before answering. "
             "Never claim that tools are unavailable, inaccessible, or unsupported here. They ARE available through this local tool loop. "
             "Do not claim that a tool failed unless you actually emitted a <tool_call> block and were given a failing <tool_response>. "
+            "The user's current request already authorizes the obvious in-scope tool calls needed to finish it, so do not ask whether to continue with the next step. "
             "For multi-step tasks, work iteratively: make the single best next tool call now, wait for the <tool_response>, then make the next tool call or provide the final answer. "
             "When the task is still underway, use the latest <tool_response> plus the tool schemas to guess the next tool call needed to advance the main goal. "
             "Do not reply with progress narration like 'I will continue' or unsupported completion claims. "
@@ -4238,6 +5120,80 @@ class AIAgent:
             "Each function call must be enclosed within <tool_call> </tool_call> XML tags.\n"
             f"{universal_examples}"
         )
+
+    def _chatgpt_web_salvage_malformed_tool_call(
+        self,
+        message_text: str,
+        payload_messages: list[dict[str, Any]],
+    ) -> list[SimpleNamespace]:
+        if not isinstance(message_text, str) or "<tool_call" not in message_text:
+            return []
+        name_match = re.search(
+            r"<tool_call>\s*[\s\S]{0,20000}?\"name\"\s*:\s*\"([A-Za-z0-9_. -]+)\"",
+            message_text,
+            re.IGNORECASE,
+        )
+        if not name_match:
+            return []
+        hinted_name = str(name_match.group(1) or "").strip()
+        if not hinted_name:
+            return []
+        available_tool_names = {
+            str(tool.get("function", {}).get("name") or "").strip()
+            for tool in (self.tools or [])
+            if isinstance(tool, dict)
+        }
+        available_tool_names.discard("")
+        valid_tool_names = set(self.valid_tool_names) | available_tool_names
+        hinted_lower = hinted_name.lower()
+        hinted_normalized = hinted_lower.replace("-", "_").replace(" ", "_")
+        repaired_name = None
+        for candidate in (hinted_name, hinted_lower, hinted_normalized):
+            if candidate in valid_tool_names:
+                repaired_name = candidate
+                break
+        if repaired_name is None:
+            repaired_name = self._repair_tool_call(hinted_name)
+        if not repaired_name:
+            return []
+        inferred_args = self._chatgpt_web_tool_args(
+            repaired_name,
+            payload_messages or [{"role": "user", "content": message_text}],
+        )
+        if inferred_args is None:
+            return []
+        synthetic_block = (
+            "<tool_call>\n"
+            + json.dumps(
+                {"name": repaired_name, "arguments": inferred_args},
+                ensure_ascii=False,
+            )
+            + "\n</tool_call>"
+        )
+        extracted_tool_calls, _ = _extract_xml_tool_calls_from_text(synthetic_block)
+        return extracted_tool_calls
+
+    def _chatgpt_web_normalize_extracted_tool_calls(
+        self,
+        tool_calls: list[SimpleNamespace],
+        payload_messages: list[dict[str, Any]],
+    ) -> list[SimpleNamespace]:
+        for tool_call in tool_calls:
+            function = getattr(tool_call, "function", None)
+            tool_name = str(getattr(function, "name", "") or "").strip()
+            if not tool_name:
+                continue
+            parsed_args = _parse_tool_call_arguments(getattr(function, "arguments", None))
+            if tool_name == "browser_vision":
+                question = parsed_args.get("question") if isinstance(parsed_args, dict) else None
+                if not isinstance(question, str) or not question.strip():
+                    inferred_args = self._chatgpt_web_tool_args(
+                        tool_name,
+                        payload_messages or [{"role": "user", "content": tool_name}],
+                    )
+                    if inferred_args is not None:
+                        function.arguments = json.dumps(inferred_args, ensure_ascii=False)
+        return tool_calls
 
     def _convert_to_trajectory_format(self, messages: List[Dict[str, Any]], user_query: str, completed: bool) -> List[Dict[str, Any]]:
         """
@@ -6935,12 +7891,18 @@ class AIAgent:
 
         self._chatgpt_web_forced_tool_call = None
         self._chatgpt_web_forced_tool_call_mode = "always"
+        self._chatgpt_web_selected_tool_names = []
+        self._chatgpt_web_selected_tool_payload_messages = []
         selected_tools: list[dict[str, Any]] = []
         uses_local_tool_loop = False
         if self.tools:
             payload_messages = copy.deepcopy(payload_messages)
             current_turn_messages = self._chatgpt_web_current_turn_messages(payload_messages)
-            selected_tools = self._select_chatgpt_web_tools(current_turn_messages)
+            attached_images_present = _chatgpt_web._messages_include_chatgpt_web_images(current_turn_messages)
+            if attached_images_present and _chatgpt_web._chatgpt_web_debug_base():
+                selected_tools = []
+            else:
+                selected_tools = self._select_chatgpt_web_tools(current_turn_messages)
             uses_local_tool_loop = bool(selected_tools)
         if uses_local_tool_loop:
             used_tool_count = sum(
@@ -6956,6 +7918,8 @@ class AIAgent:
                 if isinstance(tool, dict) and isinstance(tool.get("function"), dict)
             ]
             selected_tool_names = [name for name in selected_tool_names if name]
+            self._chatgpt_web_selected_tool_names = list(selected_tool_names)
+            self._chatgpt_web_selected_tool_payload_messages = copy.deepcopy(current_turn_messages)
             selected_tool_text = ", ".join(selected_tool_names)
             selected_tool_args = self._chatgpt_web_tool_args(selected_tool_names[0], current_turn_messages) if selected_tool_names else None
             selected_tool_hint = (
@@ -7018,6 +7982,7 @@ class AIAgent:
                                 reminder_lines.extend([
                                     "Hermes has already determined that another tool call is required before the final answer.",
                                     "Hermes expects you to keep advancing the task through tool use until the original request is actually complete.",
+                                    "The user already approved the original task, so do not ask for permission to continue with the next obvious step.",
                                     "Do not answer the user yet and do not narrate that you will continue later.",
                                     "Use the available tool schema plus the latest <tool_response> to guess the single best next tool call needed for the main task.",
                                     "Your next reply should be EXACTLY ONE <tool_call>...</tool_call> block with no explanatory prose before or after it.",
@@ -7031,6 +7996,7 @@ class AIAgent:
                                 reminder_lines.extend([
                                     "Do not make unsupported claims about created files, saved skills, packaged artifacts, or completed debugging unless a tool result already proved them.",
                                     "If the main task is still in progress, your next reply should usually be EXACTLY ONE <tool_call>...</tool_call> block for the best next tool call.",
+                                    "The user already approved the original task, so do not ask whether to continue with the next obvious step.",
                                     "Use the available tool schema plus the latest <tool_response> to guess the next tool call whenever another step is still needed.",
                                     "If another tool is still required, emit EXACTLY ONE <tool_call>...</tool_call> block.",
                                     "Otherwise, give the final answer directly with no extra tool-call markup.",
@@ -7082,14 +8048,29 @@ class AIAgent:
         tool_calls = None
         forced_tool_call = self._chatgpt_web_forced_tool_call
         forced_tool_call_mode = self._chatgpt_web_forced_tool_call_mode
+        selected_tool_names = list(getattr(self, "_chatgpt_web_selected_tool_names", []) or [])
+        selected_tool_payload_messages = list(getattr(self, "_chatgpt_web_selected_tool_payload_messages", []) or [])
         self._chatgpt_web_forced_tool_call = None
         self._chatgpt_web_forced_tool_call_mode = "always"
+        self._chatgpt_web_selected_tool_names = []
+        self._chatgpt_web_selected_tool_payload_messages = []
         if self.tools and message_text:
             extracted_tool_calls, cleaned_text = _extract_xml_tool_calls_from_text(message_text)
             if extracted_tool_calls:
-                tool_calls = extracted_tool_calls
+                tool_calls = self._chatgpt_web_normalize_extracted_tool_calls(
+                    extracted_tool_calls,
+                    selected_tool_payload_messages,
+                )
                 message_text = cleaned_text
-            elif isinstance(forced_tool_call, dict):
+            else:
+                salvaged_tool_calls = self._chatgpt_web_salvage_malformed_tool_call(
+                    message_text,
+                    selected_tool_payload_messages,
+                )
+                if salvaged_tool_calls:
+                    tool_calls = salvaged_tool_calls
+                    message_text = ""
+            if tool_calls is None and isinstance(forced_tool_call, dict):
                 synth_mode = str(forced_tool_call_mode or "always").strip().lower()
                 should_synthesize = synth_mode == "always"
                 if synth_mode == "if_pending_work":
@@ -7100,6 +8081,24 @@ class AIAgent:
                         + json.dumps({
                             "name": forced_tool_call.get("name"),
                             "arguments": forced_tool_call.get("arguments", {}),
+                        }, ensure_ascii=False)
+                        + "\n</tool_call>"
+                    )
+                    extracted_tool_calls, _ = _extract_xml_tool_calls_from_text(synthetic_block)
+                    if extracted_tool_calls:
+                        tool_calls = extracted_tool_calls
+                        message_text = ""
+            elif tool_calls is None and len(selected_tool_names) == 1 and self._chatgpt_web_response_signals_pending_tool_work(message_text):
+                inferred_args = self._chatgpt_web_tool_args(
+                    selected_tool_names[0],
+                    selected_tool_payload_messages or [{"role": "user", "content": message_text}],
+                )
+                if inferred_args is not None:
+                    synthetic_block = (
+                        "<tool_call>\n"
+                        + json.dumps({
+                            "name": selected_tool_names[0],
+                            "arguments": inferred_args,
                         }, ensure_ascii=False)
                         + "\n</tool_call>"
                     )
@@ -10663,8 +11662,7 @@ class AIAgent:
         self.iteration_budget = IterationBudget(self.max_iterations)
 
         # Log conversation turn start for debugging/observability
-        _msg_preview = (user_message[:80] + "...") if len(user_message) > 80 else user_message
-        _msg_preview = _msg_preview.replace("\n", " ")
+        _msg_preview = self._conversation_turn_preview(user_message)
         logger.info(
             "conversation turn: session=%s model=%s provider=%s platform=%s history=%d msg=%r",
             self.session_id or "none", self.model, self.provider or "unknown",
@@ -13489,6 +14487,11 @@ class AIAgent:
                     if self.api_mode == "chatgpt_web" and self.tools:
                         original_request = self._chatgpt_web_original_user_request(messages)
                         final_response = self._chatgpt_web_repair_answer_only_response(
+                            original_request,
+                            final_response,
+                            messages,
+                        )
+                        final_response = self._chatgpt_web_repair_terminal_completion_response(
                             original_request,
                             final_response,
                             messages,
