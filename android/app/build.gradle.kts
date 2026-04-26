@@ -263,6 +263,7 @@ val prepareHermesAndroidLinuxAssets = tasks.register<Exec>("prepareHermesAndroid
     group = "android"
     description = "Download and normalize the Android Linux command-suite assets."
     val outputDir = generatedHermesLinuxAssetsDir.get().asFile
+    inputs.file(repoRoot.resolve("scripts/prepare_android_linux_assets.py"))
     outputs.dir(outputDir)
     doFirst {
         outputDir.mkdirs()
