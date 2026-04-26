@@ -1,0 +1,6 @@
+pyproject.toml
+anthropic/__init__.py
+anthropic.egg-info/PKG-INFO
+anthropic.egg-info/SOURCES.txt
+anthropic.egg-info/dependency_links.txt
+anthropic.egg-info/top_level.txt
