@@ -178,6 +178,8 @@ object HermesModelDownloadManager {
             setTitle("Hermes model: ${inspection.title}")
             setDescription("Downloading a local model for Hermes")
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            // setVisibleInDownloadsUi is deprecated since API 33; keeping for backward compat on older devices
+            @Suppress("DEPRECATION")
             setVisibleInDownloadsUi(true)
             setAllowedOverRoaming(allowRoaming)
             setAllowedOverMetered(allowMetered)
