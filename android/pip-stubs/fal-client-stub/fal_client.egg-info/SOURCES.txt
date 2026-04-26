@@ -1,0 +1,6 @@
+pyproject.toml
+fal_client/__init__.py
+fal_client.egg-info/PKG-INFO
+fal_client.egg-info/SOURCES.txt
+fal_client.egg-info/dependency_links.txt
+fal_client.egg-info/top_level.txt
