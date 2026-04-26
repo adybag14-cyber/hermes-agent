@@ -150,6 +150,12 @@ class ChatGPTWebToolsMixin:
             return [vision_tool] if vision_tool is not None else []
         if (
             used_tool_count > 0
+            and answer_only_mode == "line"
+            and self._chatgpt_web_extract_line_from_tool_payload(last_tool_payload, last_tool_content)
+        ):
+            return []
+        if (
+            used_tool_count > 0
             and last_tool_name == "search_files"
             and isinstance(last_tool_payload, dict)
             and path_match
@@ -160,15 +166,6 @@ class ChatGPTWebToolsMixin:
                 read_tool = tools_by_name.get("read_file")
                 if read_tool is not None:
                     return [read_tool]
-        if used_tool_count > 0 and self._chatgpt_web_answer_only_mode(user_text) == "line":
-            last_tool_content = ""
-            for item in reversed(payload_messages):
-                if isinstance(item, dict) and item.get("role") == "tool":
-                    last_tool_content = str(item.get("content") or "")
-                    break
-            last_tool_payload = self._chatgpt_web_parse_tool_payload(last_tool_content) if last_tool_content else None
-            if self._chatgpt_web_extract_line_from_tool_payload(last_tool_payload, last_tool_content):
-                return []
         if delegation_request:
             delegate_tool = tools_by_name.get("delegate_task")
             return [delegate_tool] if delegate_tool is not None else []
