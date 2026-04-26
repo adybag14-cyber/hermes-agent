@@ -8557,48 +8557,48 @@ class AIAgent:
 
         # Temperature: _fixed_temperature_for_model may return OMIT_TEMPERATURE
         # sentinel (temperature omitted entirely), a numeric override, or None.
-            kwargs = {
-                "model": self.model,
-                "instructions": instructions,
-                "input": self._chat_messages_to_responses_input(payload_messages),
-                "tools": self._responses_tools(),
-                "tool_choice": "auto",
-                "parallel_tool_calls": True,
-                "store": False,
-            }
+        kwargs = {
+            "model": self.model,
+            "instructions": instructions,
+            "input": self._chat_messages_to_responses_input(payload_messages),
+            "tools": self._responses_tools(),
+            "tool_choice": "auto",
+            "parallel_tool_calls": True,
+            "store": False,
+        }
 
-            if not is_github_responses:
+        if not is_github_responses:
                 kwargs["prompt_cache_key"] = self.session_id
 
-            is_xai_responses = self.provider == "xai" or "api.x.ai" in (self.base_url or "").lower()
+        is_xai_responses = self.provider == "xai" or "api.x.ai" in (self.base_url or "").lower()
 
-            if reasoning_enabled and is_xai_responses:
-                # xAI reasons automatically — no effort param, just include encrypted content
+        if reasoning_enabled and is_xai_responses:
+            # xAI reasons automatically — no effort param, just include encrypted content
+            kwargs["include"] = ["reasoning.encrypted_content"]
+        elif reasoning_enabled:
+            if is_github_responses:
+                # Copilot's Responses route advertises reasoning-effort support,
+                # but not OpenAI-specific prompt cache or encrypted reasoning
+                # fields. Keep the payload to the documented subset.
+                github_reasoning = self._github_models_reasoning_extra_body()
+                if github_reasoning is not None:
+                    kwargs["reasoning"] = github_reasoning
+            else:
+                kwargs["reasoning"] = {"effort": reasoning_effort, "summary": "auto"}
                 kwargs["include"] = ["reasoning.encrypted_content"]
-            elif reasoning_enabled:
-                if is_github_responses:
-                    # Copilot's Responses route advertises reasoning-effort support,
-                    # but not OpenAI-specific prompt cache or encrypted reasoning
-                    # fields. Keep the payload to the documented subset.
-                    github_reasoning = self._github_models_reasoning_extra_body()
-                    if github_reasoning is not None:
-                        kwargs["reasoning"] = github_reasoning
-                else:
-                    kwargs["reasoning"] = {"effort": reasoning_effort, "summary": "auto"}
-                    kwargs["include"] = ["reasoning.encrypted_content"]
-            elif not is_github_responses and not is_xai_responses:
-                kwargs["include"] = []
+        elif not is_github_responses and not is_xai_responses:
+            kwargs["include"] = []
 
-            if self.request_overrides:
-                kwargs.update(self.request_overrides)
+        if self.request_overrides:
+            kwargs.update(self.request_overrides)
 
-            if self.max_tokens is not None and not is_codex_backend:
-                kwargs["max_output_tokens"] = self.max_tokens
+        if self.max_tokens is not None and not is_codex_backend:
+            kwargs["max_output_tokens"] = self.max_tokens
 
-            if is_xai_responses and getattr(self, "session_id", None):
-                kwargs["extra_headers"] = {"x-grok-conv-id": self.session_id}
+        if is_xai_responses and getattr(self, "session_id", None):
+            kwargs["extra_headers"] = {"x-grok-conv-id": self.session_id}
 
-            return kwargs
+        return kwargs
 
         if self.api_mode == "chatgpt_web":
             instructions, payload_messages = self._chatgpt_web_messages(api_messages)
