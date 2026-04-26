@@ -97,7 +97,6 @@ fun SettingsScreen(
                             label = { Text(strings.providerLabel()) },
                             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                             modifier = Modifier
-                                .menuAnchor()
                                 .fillMaxWidth(),
                         )
                         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
