@@ -19,7 +19,6 @@ import json
 import logging
 import re
 import threading
-import time
 from typing import Any, Dict, List, Optional
 
 from agent.memory_provider import MemoryProvider
@@ -207,18 +206,12 @@ class HonchoMemoryProvider(MemoryProvider):
         self._turn_count = 0
         self._injection_frequency = "every-turn"  # or "first-turn"
         self._context_cadence = 1   # minimum turns between context API calls
-        self._dialectic_cadence = 1  # backwards-compat fallback; wizard writes 2 on new configs
+        self._dialectic_cadence = 3  # minimum turns between dialectic API calls
         self._dialectic_depth = 1   # how many .chat() calls per dialectic cycle (1-3)
         self._dialectic_depth_levels: list[str] | None = None  # per-pass reasoning levels
-        self._reasoning_heuristic: bool = True  # scale base level by query length
-        self._reasoning_level_cap: str = "high"  # ceiling for auto-selected level
+        self._reasoning_level_cap: Optional[str] = None  # "minimal", "low", "medium", "high"
         self._last_context_turn = -999
         self._last_dialectic_turn = -999
-
-        # Liveness + observability state
-        self._prefetch_thread_started_at: float = 0.0   # monotonic ts of current thread
-        self._prefetch_result_fired_at: int = -999      # turn the pending result was fired at
-        self._dialectic_empty_streak: int = 0           # consecutive empty returns
 
         # Port #1957: lazy session init for tools-only mode
         self._session_initialized = False
@@ -293,6 +286,15 @@ class HonchoMemoryProvider(MemoryProvider):
                 logger.debug("Honcho not configured — plugin inactive")
                 return
 
+            # Override peer_name with gateway user_id for per-user memory scoping.
+            # Messaging/gateway platforms should scope memory to the concrete user
+            # identity even if the global config carries a generic static peer name.
+            # CLI/local sessions still preserve an explicit configured peer_name.
+            _gw_user_id = kwargs.get("user_id")
+            _platform = str(kwargs.get("platform") or "cli").strip().lower()
+            if _gw_user_id and (_platform not in {"", "cli", "local"} or not cfg.peer_name):
+                cfg.peer_name = _gw_user_id
+
             self._config = cfg
 
             # ----- B1: recall_mode from config -----
@@ -304,16 +306,12 @@ class HonchoMemoryProvider(MemoryProvider):
                 raw = cfg.raw or {}
                 self._injection_frequency = raw.get("injectionFrequency", "every-turn")
                 self._context_cadence = int(raw.get("contextCadence", 1))
-                # Backwards-compat: unset dialecticCadence falls back to 1
-                # (every turn) so existing honcho.json configs without the key
-                # behave as they did before. New setups via `hermes honcho setup`
-                # get dialecticCadence=2 written explicitly by the wizard.
-                self._dialectic_cadence = int(raw.get("dialecticCadence", 1))
+                self._dialectic_cadence = int(raw.get("dialecticCadence", 3))
                 self._dialectic_depth = max(1, min(cfg.dialectic_depth, 3))
                 self._dialectic_depth_levels = cfg.dialectic_depth_levels
-                self._reasoning_heuristic = cfg.reasoning_heuristic
-                if cfg.reasoning_level_cap in self._LEVEL_ORDER:
-                    self._reasoning_level_cap = cfg.reasoning_level_cap
+                cap = raw.get("reasoningLevelCap")
+                if cap and cap in ("minimal", "low", "medium", "high"):
+                    self._reasoning_level_cap = cap
             except Exception as e:
                 logger.debug("Honcho cost-awareness config parse error: %s", e)
 
@@ -355,7 +353,6 @@ class HonchoMemoryProvider(MemoryProvider):
             honcho=client,
             config=cfg,
             context_tokens=cfg.context_tokens,
-            runtime_user_peer_name=kwargs.get("user_id") or None,
         )
 
         # ----- B3: resolve_session_name -----
@@ -395,45 +392,14 @@ class HonchoMemoryProvider(MemoryProvider):
         except Exception as e:
             logger.debug("Honcho memory file migration skipped: %s", e)
 
-        # ----- B7: Pre-warming at init -----
-        # Context prewarm warms peer.context() (base layer), consumed via
-        # pop_context_result() in prefetch(). Dialectic prewarm runs the
-        # full configured depth and writes into _prefetch_result so turn 1
-        # consumes the result directly.
+        # ----- B7: Pre-warming context at init -----
         if self._recall_mode in ("context", "hybrid"):
             try:
                 self._manager.prefetch_context(self._session_key)
+                self._manager.prefetch_dialectic(self._session_key, "What should I know about this user?")
+                logger.debug("Honcho pre-warm threads started for session: %s", self._session_key)
             except Exception as e:
-                logger.debug("Honcho context prewarm failed: %s", e)
-
-            _prewarm_query = (
-                "Summarize what you know about this user. "
-                "Focus on preferences, current projects, and working style."
-            )
-
-            def _prewarm_dialectic() -> None:
-                try:
-                    r = self._run_dialectic_depth(_prewarm_query)
-                except Exception as exc:
-                    logger.debug("Honcho dialectic prewarm failed: %s", exc)
-                    self._dialectic_empty_streak += 1
-                    return
-                if r and r.strip():
-                    with self._prefetch_lock:
-                        self._prefetch_result = r
-                        self._prefetch_result_fired_at = 0
-                    # Treat prewarm as turn 0 so cadence gating starts clean.
-                    self._last_dialectic_turn = 0
-                    self._dialectic_empty_streak = 0
-                else:
-                    self._dialectic_empty_streak += 1
-
-            self._prefetch_thread_started_at = time.monotonic()
-            self._prefetch_thread = threading.Thread(
-                target=_prewarm_dialectic, daemon=True, name="honcho-prewarm-dialectic"
-            )
-            self._prefetch_thread.start()
-            logger.debug("Honcho pre-warm started for session: %s", self._session_key)
+                logger.debug("Honcho pre-warm failed: %s", e)
 
     def _ensure_session(self) -> bool:
         """Lazily initialize the Honcho session (for tools-only mode).
@@ -522,8 +488,7 @@ class HonchoMemoryProvider(MemoryProvider):
                 "# Honcho Memory\n"
                 "Active (tools-only mode). Use honcho_profile for a quick factual snapshot, "
                 "honcho_search for raw excerpts, honcho_context for raw peer context, "
-                "honcho_reasoning for synthesized answers (pass reasoning_level "
-                "minimal/low/medium/high/max — you pick the depth per call), "
+                "honcho_reasoning for synthesized answers, "
                 "honcho_conclude to save facts about the user. "
                 "No automatic context injection — you must use tools to access memory."
             )
@@ -533,8 +498,7 @@ class HonchoMemoryProvider(MemoryProvider):
                 "Active (hybrid mode). Relevant context is auto-injected AND memory tools are available. "
                 "Use honcho_profile for a quick factual snapshot, "
                 "honcho_search for raw excerpts, honcho_context for raw peer context, "
-                "honcho_reasoning for synthesized answers (pass reasoning_level "
-                "minimal/low/medium/high/max — you pick the depth per call), "
+                "honcho_reasoning for synthesized answers, "
                 "honcho_conclude to save facts about the user."
             )
 
@@ -561,10 +525,6 @@ class HonchoMemoryProvider(MemoryProvider):
         # B5: injection_frequency — if "first-turn" and past first turn, return empty.
         # _turn_count is 1-indexed (first user message = 1), so > 1 means "past first".
         if self._injection_frequency == "first-turn" and self._turn_count > 1:
-            return ""
-
-        # Trivial prompts ("ok", "yes", slash commands) carry no semantic signal.
-        if self._is_trivial_prompt(query):
             return ""
 
         parts = []
@@ -601,72 +561,43 @@ class HonchoMemoryProvider(MemoryProvider):
         # On the very first turn, no queue_prefetch() has run yet so the
         # dialectic result is empty.  Run with a bounded timeout so a slow
         # Honcho connection doesn't block the first response indefinitely.
-        # On timeout we let the thread keep running and write its result into
-        # _prefetch_result under the lock, so the next turn picks it up.
-        #
-        # Skip if the session-start prewarm already filled _prefetch_result —
-        # firing another .chat() would be duplicate work.
-        with self._prefetch_lock:
-            _prewarm_landed = bool(self._prefetch_result)
-        if _prewarm_landed and self._last_dialectic_turn == -999:
-            self._last_dialectic_turn = self._turn_count
-
+        # On timeout the result is skipped and queue_prefetch() will pick it
+        # up at the next cadence-allowed turn.
         if self._last_dialectic_turn == -999 and query:
             _first_turn_timeout = (
                 self._config.timeout if self._config and self._config.timeout else 8.0
             )
-            _fired_at = self._turn_count
+            _result_holder: list[str] = []
 
             def _run_first_turn() -> None:
                 try:
-                    r = self._run_dialectic_depth(query)
+                    _result_holder.append(self._run_dialectic_depth(query))
                 except Exception as exc:
                     logger.debug("Honcho first-turn dialectic failed: %s", exc)
-                    self._dialectic_empty_streak += 1
-                    return
-                if r and r.strip():
-                    with self._prefetch_lock:
-                        self._prefetch_result = r
-                        self._prefetch_result_fired_at = _fired_at
-                    # Advance cadence only on a non-empty result so the next
-                    # turn retries when the call returned nothing.
-                    self._last_dialectic_turn = _fired_at
-                    self._dialectic_empty_streak = 0
-                else:
-                    self._dialectic_empty_streak += 1
 
-            self._prefetch_thread_started_at = time.monotonic()
-            self._prefetch_thread = threading.Thread(
-                target=_run_first_turn, daemon=True, name="honcho-prefetch-first"
-            )
-            self._prefetch_thread.start()
-            self._prefetch_thread.join(timeout=_first_turn_timeout)
-            if self._prefetch_thread.is_alive():
+            _t = threading.Thread(target=_run_first_turn, daemon=True)
+            _t.start()
+            _t.join(timeout=_first_turn_timeout)
+            if not _t.is_alive():
+                first_turn_dialectic = _result_holder[0] if _result_holder else ""
+                if first_turn_dialectic and first_turn_dialectic.strip():
+                    with self._prefetch_lock:
+                        self._prefetch_result = first_turn_dialectic
+                self._last_dialectic_turn = self._turn_count
+            else:
                 logger.debug(
-                    "Honcho first-turn dialectic still running after %.1fs — "
-                    "will surface on next turn",
+                    "Honcho first-turn dialectic timed out (%.1fs) — "
+                    "will inject at next cadence-allowed turn",
                     _first_turn_timeout,
                 )
+                # Don't update _last_dialectic_turn: queue_prefetch() will
+                # retry at the next cadence-allowed turn via the async path.
 
         if self._prefetch_thread and self._prefetch_thread.is_alive():
             self._prefetch_thread.join(timeout=3.0)
         with self._prefetch_lock:
             dialectic_result = self._prefetch_result
-            fired_at = self._prefetch_result_fired_at
             self._prefetch_result = ""
-            self._prefetch_result_fired_at = -999
-
-        # Discard stale pending results: if the fire happened more than
-        # cadence × multiplier turns ago (e.g. a run of trivial-prompt turns
-        # passed without consumption), the content likely no longer tracks
-        # the current conversational pivot.
-        stale_limit = self._dialectic_cadence * self._STALE_RESULT_MULTIPLIER
-        if dialectic_result and fired_at >= 0 and (self._turn_count - fired_at) > stale_limit:
-            logger.debug(
-                "Honcho pending dialectic discarded as stale: fired_at=%d, "
-                "turn=%d, limit=%d", fired_at, self._turn_count, stale_limit,
-            )
-            dialectic_result = ""
 
         if dialectic_result and dialectic_result.strip():
             parts.append(dialectic_result)
@@ -711,10 +642,6 @@ class HonchoMemoryProvider(MemoryProvider):
         if self._recall_mode == "tools":
             return
 
-        # Trivial prompts don't warrant either a context refresh or a dialectic call.
-        if self._is_trivial_prompt(query):
-            return
-
         # ----- Context refresh (base layer) — independent cadence -----
         if self._context_cadence <= 1 or (self._turn_count - self._last_context_turn) >= self._context_cadence:
             self._last_context_turn = self._turn_count
@@ -724,46 +651,24 @@ class HonchoMemoryProvider(MemoryProvider):
                 logger.debug("Honcho context prefetch failed: %s", e)
 
         # ----- Dialectic prefetch (supplement layer) -----
-        # Thread-alive guard with stale-thread recovery: a hung Honcho call
-        # older than timeout × multiplier is treated as dead so it can't
-        # block subsequent fires.
-        if self._thread_is_live():
-            logger.debug("Honcho dialectic prefetch skipped: prior thread still running")
-            return
+        # B5: cadence check — skip if too soon since last dialectic call
+        if self._dialectic_cadence > 1:
+            if (self._turn_count - self._last_dialectic_turn) < self._dialectic_cadence:
+                logger.debug("Honcho dialectic prefetch skipped: cadence %d, turns since last: %d",
+                             self._dialectic_cadence, self._turn_count - self._last_dialectic_turn)
+                return
 
-        # Cadence gate, widened by the empty-streak backoff so a persistently
-        # silent backend doesn't retry every turn forever.
-        effective = self._effective_cadence()
-        if (self._turn_count - self._last_dialectic_turn) < effective:
-            logger.debug(
-                "Honcho dialectic prefetch skipped: effective cadence %d "
-                "(base %d, empty streak %d), turns since last: %d",
-                effective, self._dialectic_cadence, self._dialectic_empty_streak,
-                self._turn_count - self._last_dialectic_turn,
-            )
-            return
-
-        # Cadence advances only on a non-empty result so empty returns
-        # (transient API error, sparse representation) retry next turn.
-        _fired_at = self._turn_count
+        self._last_dialectic_turn = self._turn_count
 
         def _run():
             try:
                 result = self._run_dialectic_depth(query)
+                if result and result.strip():
+                    with self._prefetch_lock:
+                        self._prefetch_result = result
             except Exception as e:
                 logger.debug("Honcho prefetch failed: %s", e)
-                self._dialectic_empty_streak += 1
-                return
-            if result and result.strip():
-                with self._prefetch_lock:
-                    self._prefetch_result = result
-                    self._prefetch_result_fired_at = _fired_at
-                self._last_dialectic_turn = _fired_at
-                self._dialectic_empty_streak = 0
-            else:
-                self._dialectic_empty_streak += 1
 
-        self._prefetch_thread_started_at = time.monotonic()
         self._prefetch_thread = threading.Thread(
             target=_run, daemon=True, name="honcho-prefetch"
         )
@@ -788,91 +693,11 @@ class HonchoMemoryProvider(MemoryProvider):
 
     _LEVEL_ORDER = ("minimal", "low", "medium", "high", "max")
 
-    # Char-count thresholds for the query-length reasoning heuristic.
-    _HEURISTIC_LENGTH_MEDIUM = 120
-    _HEURISTIC_LENGTH_HIGH = 400
-
-    # Liveness constants. A thread older than timeout × multiplier is treated
-    # as dead so a hung Honcho call can't block future retries indefinitely.
-    _STALE_THREAD_MULTIPLIER = 2.0
-    # Pending result whose fire-turn is older than cadence × multiplier is
-    # discarded on read so we don't inject context for a stale conversational
-    # pivot after a gap of trivial-prompt turns.
-    _STALE_RESULT_MULTIPLIER = 2
-    # Cap on the empty-streak backoff so a persistently silent backend
-    # eventually settles on a ceiling instead of unbounded widening.
-    _BACKOFF_MAX = 8
-
-    def _thread_is_live(self) -> bool:
-        """Thread-alive guard that treats threads older than the stale
-        threshold as dead, so a hung Honcho request can't block new fires."""
-        if not self._prefetch_thread or not self._prefetch_thread.is_alive():
-            return False
-        timeout = (self._config.timeout if self._config and self._config.timeout else 8.0)
-        age = time.monotonic() - self._prefetch_thread_started_at
-        if age > timeout * self._STALE_THREAD_MULTIPLIER:
-            logger.debug(
-                "Honcho prefetch thread age %.1fs exceeds stale threshold "
-                "%.1fs — treating as dead", age, timeout * self._STALE_THREAD_MULTIPLIER,
-            )
-            return False
-        return True
-
-    def _effective_cadence(self) -> int:
-        """Cadence plus empty-streak backoff, capped at _BACKOFF_MAX × base."""
-        if self._dialectic_empty_streak <= 0:
-            return self._dialectic_cadence
-        widened = self._dialectic_cadence + self._dialectic_empty_streak
-        ceiling = self._dialectic_cadence * self._BACKOFF_MAX
-        return min(widened, ceiling)
-
-    def liveness_snapshot(self) -> dict:
-        """In-process snapshot of dialectic liveness state for diagnostics.
-
-        Returns current turn, last successful dialectic turn, pending-result
-        fire turn, empty streak, effective cadence, and thread status.
-        """
-        thread_age = None
-        if self._prefetch_thread and self._prefetch_thread.is_alive():
-            thread_age = time.monotonic() - self._prefetch_thread_started_at
-        return {
-            "turn_count": self._turn_count,
-            "last_dialectic_turn": self._last_dialectic_turn,
-            "pending_result_fired_at": self._prefetch_result_fired_at,
-            "empty_streak": self._dialectic_empty_streak,
-            "effective_cadence": self._effective_cadence(),
-            "thread_alive": thread_age is not None,
-            "thread_age_seconds": thread_age,
-        }
-
-    def _apply_reasoning_heuristic(self, base: str, query: str) -> str:
-        """Scale `base` up by query length, clamped at reasoning_level_cap.
-
-        Char-count heuristic: +1 at >=120 chars, +2 at >=400.
-        """
-        if not self._reasoning_heuristic or not query:
-            return base
-        if base not in self._LEVEL_ORDER:
-            return base
-        n = len(query)
-        if n < self._HEURISTIC_LENGTH_MEDIUM:
-            bump = 0
-        elif n < self._HEURISTIC_LENGTH_HIGH:
-            bump = 1
-        else:
-            bump = 2
-        base_idx = self._LEVEL_ORDER.index(base)
-        cap_idx = self._LEVEL_ORDER.index(self._reasoning_level_cap)
-        return self._LEVEL_ORDER[min(base_idx + bump, cap_idx)]
-
-    def _resolve_pass_level(self, pass_idx: int, query: str = "") -> str:
+    def _resolve_pass_level(self, pass_idx: int) -> str:
         """Resolve reasoning level for a given pass index.
 
-        Precedence:
-          1. dialecticDepthLevels (explicit per-pass) — wins absolutely
-          2. _PROPORTIONAL_LEVELS table (depth>1 lighter-early passes)
-          3. Base level = dialecticReasoningLevel, optionally scaled by the
-             reasoning heuristic when the mapping falls through to 'base'
+        Uses dialecticDepthLevels if configured, otherwise proportional
+        defaults relative to dialecticReasoningLevel.
         """
         if self._dialectic_depth_levels and pass_idx < len(self._dialectic_depth_levels):
             return self._dialectic_depth_levels[pass_idx]
@@ -880,7 +705,7 @@ class HonchoMemoryProvider(MemoryProvider):
         base = (self._config.dialectic_reasoning_level if self._config else "low")
         mapping = self._PROPORTIONAL_LEVELS.get((self._dialectic_depth, pass_idx))
         if mapping is None or mapping == "base":
-            return self._apply_reasoning_heuristic(base, query)
+            return base
         return mapping
 
     def _build_dialectic_prompt(self, pass_idx: int, prior_results: list[str], is_cold: bool) -> str:
@@ -967,7 +792,7 @@ class HonchoMemoryProvider(MemoryProvider):
                     break
                 prompt = self._build_dialectic_prompt(i, results, is_cold)
 
-            level = self._resolve_pass_level(i, query=query)
+            level = self._resolve_pass_level(i)
             logger.debug("Honcho dialectic depth %d: pass %d, level=%s, cold=%s",
                          self._dialectic_depth, i, level, is_cold)
 
@@ -983,29 +808,6 @@ class HonchoMemoryProvider(MemoryProvider):
             if r and r.strip():
                 return r
         return ""
-
-    # Prompts that carry no semantic signal — trivial acknowledgements, slash
-    # commands, empty input. Skipping injection here saves tokens and prevents
-    # stale user-model context from derailing one-word replies.
-    _TRIVIAL_PROMPT_RE = re.compile(
-        r'^(yes|no|ok|okay|sure|thanks|thank you|y|n|yep|nope|yeah|nah|'
-        r'continue|go ahead|do it|proceed|got it|cool|nice|great|done|next|lgtm|k)$',
-        re.IGNORECASE,
-    )
-
-    @classmethod
-    def _is_trivial_prompt(cls, text: str) -> bool:
-        """Return True if the prompt is too trivial to warrant context injection."""
-        if not text:
-            return True
-        stripped = text.strip()
-        if not stripped:
-            return True
-        if stripped.startswith("/"):
-            return True
-        if cls._TRIVIAL_PROMPT_RE.match(stripped):
-            return True
-        return False
 
     def on_turn_start(self, turn_number: int, message: str, **kwargs) -> None:
         """Track turn count for cadence and injection_frequency logic."""
