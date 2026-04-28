@@ -30,6 +30,13 @@ try:
 except ImportError:
     _HAS_NUMPY = False
 
+try:
+    from numba import njit
+    _HAS_NUMBA = _HAS_NUMPY
+except Exception:
+    njit = None
+    _HAS_NUMBA = False
+
 logger = logging.getLogger(__name__)
 
 _TWO_PI = 2.0 * math.pi
@@ -105,7 +112,24 @@ def similarity(a: "np.ndarray", b: "np.ndarray") -> float:
     and -1.0 for perfectly anti-correlated vectors.
     """
     _require_numpy()
-    return float(np.mean(np.cos(a - b)))
+    return float(_similarity_impl(a, b))
+
+
+def batch_similarity(target: "np.ndarray", matrix: "np.ndarray") -> "np.ndarray":
+    """Return similarity(target, row) for every row in ``matrix``.
+
+    This is the main retrieval hot path. When Numba is available we use a
+    compiled kernel to keep large reranks out of the Python interpreter while
+    preserving the NumPy fallback for lightweight installs.
+    """
+    _require_numpy()
+    if matrix.ndim != 2:
+        raise ValueError("matrix must be 2-dimensional")
+    if matrix.shape[1] != target.shape[0]:
+        raise ValueError("target and matrix dimensions must match")
+    if matrix.shape[0] == 0:
+        return np.empty(0, dtype=np.float64)
+    return _batch_similarity_impl(target, matrix)
 
 
 def encode_text(text: str, dim: int = 1024) -> "np.ndarray":
@@ -176,6 +200,23 @@ def bytes_to_phases(data: bytes) -> "np.ndarray":
     return np.frombuffer(data, dtype=np.float64).copy()
 
 
+def phase_bytes_to_matrix(rows: list[bytes]) -> "np.ndarray":
+    """Decode a list of serialized phase vectors into a 2D float64 matrix."""
+    _require_numpy()
+    if not rows:
+        return np.empty((0, 0), dtype=np.float64)
+
+    row_width = len(rows[0])
+    if row_width == 0 or row_width % np.dtype(np.float64).itemsize:
+        raise ValueError("invalid HRR vector byte width")
+    if any(len(row) != row_width for row in rows):
+        raise ValueError("all HRR vectors must have the same width")
+
+    dim = row_width // np.dtype(np.float64).itemsize
+    joined = b"".join(rows)
+    return np.frombuffer(joined, dtype=np.float64).reshape(len(rows), dim)
+
+
 def snr_estimate(dim: int, n_items: int) -> float:
     """Signal-to-noise ratio estimate for holographic storage.
 
@@ -201,3 +242,39 @@ def snr_estimate(dim: int, n_items: int) -> float:
         )
 
     return snr
+
+
+def _similarity_numpy(a: "np.ndarray", b: "np.ndarray") -> float:
+    return float(np.mean(np.cos(a - b)))
+
+
+def _batch_similarity_numpy(target: "np.ndarray", matrix: "np.ndarray") -> "np.ndarray":
+    return np.cos(matrix - target).mean(axis=1)
+
+
+if _HAS_NUMBA:
+    @njit(cache=True)
+    def _similarity_numba(a, b):  # type: ignore[no-redef]
+        total = 0.0
+        length = len(a)
+        for i in range(length):
+            total += math.cos(a[i] - b[i])
+        return total / length if length else 0.0
+
+    @njit(cache=True)
+    def _batch_similarity_numba(target, matrix):  # type: ignore[no-redef]
+        row_count = matrix.shape[0]
+        col_count = matrix.shape[1]
+        out = np.empty(row_count, dtype=np.float64)
+        for row_idx in range(row_count):
+            total = 0.0
+            for col_idx in range(col_count):
+                total += math.cos(matrix[row_idx, col_idx] - target[col_idx])
+            out[row_idx] = total / col_count if col_count else 0.0
+        return out
+
+    _similarity_impl = _similarity_numba
+    _batch_similarity_impl = _batch_similarity_numba
+else:
+    _similarity_impl = _similarity_numpy
+    _batch_similarity_impl = _batch_similarity_numpy
