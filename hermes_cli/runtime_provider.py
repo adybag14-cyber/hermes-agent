@@ -629,13 +629,16 @@ class _OAuthRuntimeSpec:
     expiry_key: str
     failure_msg: str
     default_base_url: str = ""
+    metadata_fields: tuple[tuple[str, Any], ...] = ()
 
 
 # ``resolve`` entries are late-bound lambdas so tests can monkeypatch the module-level
 # ``resolve_*_runtime_credentials`` names.
 _OAUTH_RUNTIME_PROVIDERS: Dict[str, _OAuthRuntimeSpec] = {
     "chatgpt-web": _OAuthRuntimeSpec(lambda: resolve_chatgpt_web_runtime_credentials(), "chatgpt_web", "codex-oauth",
-                                      "last_refresh", "ChatGPT Web credentials failed", DEFAULT_CHATGPT_WEB_BASE_URL),
+                                      "last_refresh", "ChatGPT Web credentials failed", DEFAULT_CHATGPT_WEB_BASE_URL,
+                                      metadata_fields=(("session_token", ""), ("cookie_header", ""), ("browser_cookies", None),
+                                                       ("user_agent", ""), ("device_id", ""))),
     "nous": _OAuthRuntimeSpec(_resolve_nous_creds, nous_api_mode, "portal", "expires_at",
                               "Auto-detected Nous provider but credentials failed"),
     "openai-codex": _OAuthRuntimeSpec(lambda: resolve_codex_runtime_credentials(), "codex_responses", "hermes-auth-store",
@@ -662,7 +665,8 @@ def _resolve_oauth_runtime(provider, requested_provider, model_cfg, target_model
     api_mode = spec.api_mode(_effective_model(model_cfg, target_model)) if callable(spec.api_mode) else spec.api_mode
     return _runtime(provider, api_mode, (creds.get("base_url") or "").rstrip("/") or spec.default_base_url,
                     creds.get("api_key", ""), source=creds.get("source", spec.default_source),
-                    **{spec.expiry_key: creds.get(spec.expiry_key)}, requested_provider=requested_provider)
+                    **{spec.expiry_key: creds.get(spec.expiry_key)}, requested_provider=requested_provider,
+                    **{field: creds.get(field, default) for field, default in spec.metadata_fields})
 
 
 def _minimax_oauth_runtime(provider, requested_provider) -> Optional[Dict[str, Any]]:
