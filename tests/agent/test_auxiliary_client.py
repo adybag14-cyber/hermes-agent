@@ -941,7 +941,7 @@ class TestAuxiliaryPoolAwareness:
             client, model = _try_nous()
 
         assert client is not None
-        assert model == "gemini-3-flash"
+        assert model == "google/gemini-3-flash-preview"
         call_kwargs = mock_openai.call_args.kwargs
         assert call_kwargs["api_key"] == "pooled-agent-key"
         assert call_kwargs["base_url"] == "https://inference.pool.example/v1"
