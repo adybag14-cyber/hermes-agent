@@ -823,11 +823,7 @@ Use up to about {summary_word_target} dense words for this snapshot when that mu
 
 Prioritise preserving the user's steering intent, the main goal, major achievements, key events, blockers, and what still needs to be done in future turns.
 
-Choose the summary length that best fits the size and complexity of this session. Short/simple sessions may only need a brief handoff. Larger, branching, or debug-heavy sessions should use more of the available budget.
-
-Use up to about {summary_word_target} dense words for this snapshot when that much detail is justified, but use less when the session is simpler.
-
-Prioritise preserving the user's steering intent, the main goal, major achievements, key events, blockers, and what still needs to be done in future turns.
+Aim for roughly 500 dense words when the response budget allows it. If the available budget is tighter, compress aggressively but preserve as much concrete detail as possible.
 
 Target ~{summary_budget} tokens. Be CONCRETE — include file paths, command outputs, error messages, line numbers, and specific values. Avoid vague descriptions like "made some changes" — say exactly what changed.
 
