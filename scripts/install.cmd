@@ -16,12 +16,19 @@ echo  Hermes Agent Installer
 echo  Launching PowerShell installer...
 echo.
 
-powershell -ExecutionPolicy ByPass -NoProfile -Command "irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex"
+where pwsh.exe >nul 2>nul
+if %ERRORLEVEL% EQU 0 (
+    pwsh.exe -ExecutionPolicy ByPass -NoProfile -Command "irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex"
+) else (
+    powershell.exe -ExecutionPolicy ByPass -NoProfile -Command "irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex"
+)
 
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo  Installation failed. Please try running PowerShell directly:
-    echo    powershell -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex"
+    echo    pwsh -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex"
+    echo  Or, if PowerShell 7 is not installed:
+    echo    powershell.exe -ExecutionPolicy ByPass -c "irm https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.ps1 | iex"
     echo.
     pause
     exit /b 1

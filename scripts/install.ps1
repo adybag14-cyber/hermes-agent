@@ -65,6 +65,203 @@ function Write-Err {
     Write-Host "[ERR] $Message" -ForegroundColor Red
 }
 
+function ConvertTo-PowerShellSingleQuoted {
+    param([string]$Value)
+    return "'" + ($Value -replace "'", "''") + "'"
+}
+
+function Test-IsAdministrator {
+    try {
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    } catch {
+        return $false
+    }
+}
+
+function Write-HermesWindowsLaunchers {
+    param(
+        [Parameter(Mandatory = $true)][string]$LauncherDir,
+        [Parameter(Mandatory = $true)][string]$HermesExe
+    )
+
+    if (-not (Test-Path -LiteralPath $HermesExe)) {
+        Write-Warn "Skipping Windows launcher shims because hermes.exe was not found at $HermesExe"
+        return
+    }
+
+    New-Item -ItemType Directory -Force -Path $LauncherDir | Out-Null
+
+    $quotedHermesHome = ConvertTo-PowerShellSingleQuoted $HermesHome
+    $quotedHermesExe = ConvertTo-PowerShellSingleQuoted $HermesExe
+
+    $hermesCmd = @"
+@echo off
+set "HERMES_HOME=$HermesHome"
+"$HermesExe" %*
+exit /b %ERRORLEVEL%
+"@
+    Set-Content -Path (Join-Path $LauncherDir "hermes.cmd") -Value $hermesCmd -Encoding ASCII
+    Set-Content -Path (Join-Path $LauncherDir "hermes-native.cmd") -Value $hermesCmd -Encoding ASCII
+
+    $hermesPs1 = @"
+`$env:HERMES_HOME = $quotedHermesHome
+& $quotedHermesExe @args
+exit `$LASTEXITCODE
+"@
+    Set-Content -Path (Join-Path $LauncherDir "hermes.ps1") -Value $hermesPs1 -Encoding UTF8
+    Set-Content -Path (Join-Path $LauncherDir "hermes-native.ps1") -Value $hermesPs1 -Encoding UTF8
+
+    $startPs1 = @"
+param(
+    [Parameter(ValueFromRemainingArguments = `$true)]
+    [string[]] `$HermesArgs
+)
+
+`$ErrorActionPreference = "Stop"
+`$HermesHome = $quotedHermesHome
+`$HermesExe = $quotedHermesExe
+
+function ConvertTo-SingleQuotedLiteral {
+    param([string] `$Value)
+    return "'" + (`$Value -replace "'", "''") + "'"
+}
+
+function ConvertTo-NativeArgument {
+    param([string] `$Value)
+    if (`$null -eq `$Value) { return '""' }
+    if (`$Value -notmatch '[\s"]') { return `$Value }
+    return '"' + (`$Value -replace '\\', '\\' -replace '"', '\"') + '"'
+}
+
+function Get-PwshRank {
+    param([string] `$Path)
+    `$dir = Split-Path -Parent `$Path
+    `$name = Split-Path -Leaf `$dir
+    `$match = [regex]::Match(`$name, '\d+(?:\.\d+){0,3}')
+    if (`$match.Success) {
+        try { `$version = [version]`$match.Value } catch { `$version = [version]'0.0' }
+    } else {
+        `$version = [version]'0.0'
+    }
+    `$build = if (`$version.Build -ge 0) { `$version.Build } else { 0 }
+    `$revision = if (`$version.Revision -ge 0) { `$version.Revision } else { 0 }
+    `$stable = if (`$name -notmatch '(?i)preview|rc|daily|nightly') { 1 } else { 0 }
+    return ('{0:D3}.{1:D3}.{2:D3}.{3:D3}.{4}' -f `$version.Major, `$version.Minor, `$build, `$revision, `$stable)
+}
+
+function Resolve-HermesPowerShellPath {
+    if (`$env:HERMES_POWERSHELL_PATH -and (Test-Path -LiteralPath `$env:HERMES_POWERSHELL_PATH)) {
+        return `$env:HERMES_POWERSHELL_PATH
+    }
+
+    `$candidates = [System.Collections.Generic.List[string]]::new()
+    foreach (`$root in @(`$env:ProgramFiles, `$env:ProgramW6432, (Join-Path `$env:LOCALAPPDATA 'Programs'))) {
+        if (-not `$root) { continue }
+        `$psRoot = Join-Path `$root 'PowerShell'
+        if (-not (Test-Path -LiteralPath `$psRoot)) { continue }
+        Get-ChildItem -LiteralPath `$psRoot -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            `$candidate = Join-Path `$_.FullName 'pwsh.exe'
+            if (Test-Path -LiteralPath `$candidate) { `$candidates.Add(`$candidate) }
+        }
+    }
+
+    `$pathPwsh = Get-Command pwsh.exe -ErrorAction SilentlyContinue
+    if (`$pathPwsh) { `$candidates.Add(`$pathPwsh.Source) }
+
+    `$bestPwsh = `$candidates |
+        Where-Object { `$_ -and (Test-Path -LiteralPath `$_) } |
+        Select-Object -Unique |
+        Sort-Object @{ Expression = { Get-PwshRank `$_ }; Descending = `$true } |
+        Select-Object -First 1
+    if (`$bestPwsh) { return `$bestPwsh }
+
+    `$fallback = Get-Command powershell.exe -ErrorAction SilentlyContinue
+    if (`$fallback) { return `$fallback.Source }
+
+    return Join-Path `$env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+}
+
+function Resolve-HermesWindowsTerminalPath {
+    `$wt = Get-Command wt.exe -ErrorAction SilentlyContinue
+    if (`$wt) { return `$wt.Source }
+    `$windowsAppsWt = Join-Path `$env:LOCALAPPDATA 'Microsoft\WindowsApps\wt.exe'
+    if (Test-Path -LiteralPath `$windowsAppsWt) { return `$windowsAppsWt }
+    return `$null
+}
+
+`$argListLiteral = ''
+if (`$HermesArgs -and `$HermesArgs.Count -gt 0) {
+    `$argListLiteral = '@(' + ((`$HermesArgs | ForEach-Object { ConvertTo-SingleQuotedLiteral `$_ }) -join ', ') + ')'
+}
+
+`$inner = '`$env:HERMES_HOME = ' + (ConvertTo-SingleQuotedLiteral `$HermesHome) + "``n& " + (ConvertTo-SingleQuotedLiteral `$HermesExe)
+if (`$argListLiteral) {
+    `$inner += " `$argListLiteral"
+}
+`$inner += "``n" + 'if (`$LASTEXITCODE -is [int] -and `$LASTEXITCODE -ne 0) { Write-Host ""; Write-Host "Hermes exited with code `$LASTEXITCODE" -ForegroundColor Yellow }'
+
+`$encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes(`$inner))
+`$shell = Resolve-HermesPowerShellPath
+`$workDir = Split-Path -Parent `$HermesExe
+`$shellArgs = @('-NoExit', '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', `$encoded)
+
+`$wt = Resolve-HermesWindowsTerminalPath
+if (`$env:HERMES_START_DRY_RUN) {
+    [pscustomobject]@{
+        terminal = `$wt
+        shell = `$shell
+        workDir = `$workDir
+        hermesExe = `$HermesExe
+        encodedCommand = `$encoded
+    } | ConvertTo-Json -Compress
+    return
+}
+
+if (`$wt) {
+    `$wtArgs = @('-w', '0', 'nt', '--title', 'Hermes Agent', '--startingDirectory', `$workDir, `$shell) + `$shellArgs
+    Start-Process -FilePath `$wt -ArgumentList (`$wtArgs | ForEach-Object { ConvertTo-NativeArgument `$_ })
+    return
+}
+
+Start-Process -FilePath `$shell -ArgumentList (`$shellArgs | ForEach-Object { ConvertTo-NativeArgument `$_ })
+"@
+    Set-Content -Path (Join-Path $LauncherDir "hermes-start.ps1") -Value $startPs1 -Encoding UTF8
+
+    $startCmd = @"
+@echo off
+set "HERMES_START_SCRIPT=%~dp0hermes-start.ps1"
+where pwsh.exe >nul 2>nul
+if %ERRORLEVEL% EQU 0 (
+    pwsh.exe -NoProfile -ExecutionPolicy Bypass -File "%HERMES_START_SCRIPT%" %*
+) else (
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%HERMES_START_SCRIPT%" %*
+)
+exit /b %ERRORLEVEL%
+"@
+    Set-Content -Path (Join-Path $LauncherDir "hermes-start.cmd") -Value $startCmd -Encoding ASCII
+    Set-Content -Path (Join-Path $LauncherDir "hermes-native-start.cmd") -Value $startCmd -Encoding ASCII
+
+    $windowCmd = @"
+@echo off
+call "%~dp0hermes-start.cmd" %*
+exit /b %ERRORLEVEL%
+"@
+    Set-Content -Path (Join-Path $LauncherDir "hermes-window.cmd") -Value $windowCmd -Encoding ASCII
+    Set-Content -Path (Join-Path $LauncherDir "hermes-native-window.cmd") -Value $windowCmd -Encoding ASCII
+
+    $windowPs1 = @"
+& "`$PSScriptRoot\hermes-start.ps1" @args
+exit `$LASTEXITCODE
+"@
+    Set-Content -Path (Join-Path $LauncherDir "hermes-window.ps1") -Value $windowPs1 -Encoding UTF8
+    Set-Content -Path (Join-Path $LauncherDir "hermes-native-start.ps1") -Value $windowPs1 -Encoding UTF8
+    Set-Content -Path (Join-Path $LauncherDir "hermes-native-window.ps1") -Value $windowPs1 -Encoding UTF8
+
+    Write-Success "Windows launchers installed in $LauncherDir"
+}
+
 # ============================================================================
 # Dependency checks
 # ============================================================================
@@ -676,20 +873,68 @@ function Set-PathVariable {
     } else {
         $hermesBin = "$InstallDir\venv\Scripts"
     }
+
+    $hermesExe = Join-Path $hermesBin "hermes.exe"
+    $launcherDir = Join-Path $HermesHome "bin"
+    Write-HermesWindowsLaunchers -LauncherDir $launcherDir -HermesExe $hermesExe
+
+    if (Test-IsAdministrator) {
+        $machineLauncherDir = Join-Path $env:ProgramData "Hermes\bin"
+        try {
+            Write-HermesWindowsLaunchers -LauncherDir $machineLauncherDir -HermesExe $hermesExe
+        } catch {
+            Write-Warn "Could not install machine-wide Hermes launchers: $_"
+        }
+    }
     
-    # Add the venv Scripts dir to user PATH so hermes is globally available
-    # On Windows, the hermes.exe in venv\Scripts\ has the venv Python baked in
+    # Add the stable launcher dir first, then the venv Scripts dir. The
+    # launcher dir provides hermes-start for modern Windows Terminal/pwsh
+    # sessions while the venv Scripts dir remains a direct executable fallback.
     $currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
-    
-    if ($currentPath -notlike "*$hermesBin*") {
+    $currentParts = @()
+    if ($currentPath) {
+        $currentParts = $currentPath -split ";" | Where-Object { $_ }
+    }
+    $desiredUserPath = @($launcherDir, $hermesBin)
+    $missingUserPath = @(
+        $desiredUserPath | Where-Object {
+            $candidate = $_
+            -not ($currentParts | Where-Object { $_.TrimEnd("\") -ieq $candidate.TrimEnd("\") })
+        }
+    )
+
+    if ($missingUserPath.Count -gt 0) {
+        $newUserPath = (($missingUserPath + $currentParts) | Where-Object { $_ }) -join ";"
         [Environment]::SetEnvironmentVariable(
             "Path",
-            "$hermesBin;$currentPath",
+            $newUserPath,
             "User"
         )
-        Write-Success "Added to user PATH: $hermesBin"
+        Write-Success "Added to user PATH: $($missingUserPath -join ';')"
     } else {
         Write-Info "PATH already configured"
+    }
+
+    if (Test-IsAdministrator) {
+        $machineLauncherDir = Join-Path $env:ProgramData "Hermes\bin"
+        $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+        $machineParts = @()
+        if ($machinePath) {
+            $machineParts = $machinePath -split ";" | Where-Object { $_ }
+        }
+        $machineHasLauncher = $machineParts | Where-Object { $_.TrimEnd("\") -ieq $machineLauncherDir.TrimEnd("\") }
+        if (-not $machineHasLauncher) {
+            try {
+                [Environment]::SetEnvironmentVariable(
+                    "Path",
+                    (($machineLauncherDir, $machineParts) | Where-Object { $_ }) -join ";",
+                    "Machine"
+                )
+                Write-Success "Added to machine PATH: $machineLauncherDir"
+            } catch {
+                Write-Warn "Could not update machine PATH: $_"
+            }
+        }
     }
     
     # Set HERMES_HOME so the Python code finds config/data in the right place.
@@ -703,7 +948,7 @@ function Set-PathVariable {
     $env:HERMES_HOME = $HermesHome
     
     # Update current session
-    $env:Path = "$hermesBin;$env:Path"
+    $env:Path = "$launcherDir;$hermesBin;$env:Path"
     
     Write-Success "hermes command ready"
 }
@@ -940,6 +1185,8 @@ function Write-Completion {
     Write-Host ""
     Write-Host "   hermes              " -NoNewline -ForegroundColor Green
     Write-Host "Start chatting"
+    Write-Host "   hermes-start        " -NoNewline -ForegroundColor Green
+    Write-Host "Open Hermes in Windows Terminal / PowerShell 7"
     Write-Host "   hermes setup        " -NoNewline -ForegroundColor Green
     Write-Host "Configure API keys & settings"
     Write-Host "   hermes config       " -NoNewline -ForegroundColor Green
