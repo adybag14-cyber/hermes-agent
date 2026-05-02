@@ -1,9 +1,15 @@
-"""Android Linux execution environment backed by an app-private Termux-style prefix."""
+"""Android shell execution environment for the native Android app.
+
+Android 15 and recent target SDKs do not allow executing binaries copied into
+app-private writable storage. This backend therefore runs commands through the
+platform shell and toybox command set instead of a Termux-style extracted bash.
+"""
 
 from __future__ import annotations
 
 import os
 import signal
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -21,25 +27,29 @@ except ImportError:  # lightweight test stubs may only expose BaseEnvironment
 
 
 class AndroidLinuxEnvironment(BaseEnvironment):
-    """Run commands inside an Android app-private Linux/CLI prefix.
+    """Run commands through Android's native system shell.
 
-    The prefix is prepared by the Android app at runtime and contains a relocated
-    Termux-style command suite. Commands run directly on Android through the
-    extracted bash binary, with PATH/LD_LIBRARY_PATH pointed at the prefix.
+    Files persist in the app-private Hermes workspace, while command execution
+    uses /system/bin/sh and Android's built-in command set. This keeps the
+    native app independent of Termux and avoids Android's noexec policy for
+    writable app storage.
     """
 
     def __init__(self, cwd: str = "", timeout: int = 60, env: dict | None = None):
         self.prefix_path = os.environ.get("HERMES_ANDROID_LINUX_PREFIX", "").strip()
-        self.bash_path = os.environ.get("HERMES_ANDROID_LINUX_BASH", "").strip()
+        self.shell_path = (
+            os.environ.get("HERMES_ANDROID_SHELL", "").strip()
+            or os.environ.get("HERMES_ANDROID_LINUX_BASH", "").strip()
+            or "/system/bin/sh"
+        )
         self.bin_path = os.environ.get("HERMES_ANDROID_LINUX_BIN", "").strip()
-        self.lib_path = os.environ.get("HERMES_ANDROID_LINUX_LIB", "").strip()
         self.home_path = os.environ.get("HERMES_ANDROID_LINUX_HOME", "").strip()
         self.tmp_path = os.environ.get("HERMES_ANDROID_LINUX_TMP", "").strip()
 
-        if not self.prefix_path or not self.bash_path:
-            raise ValueError("Android Linux environment is not configured")
+        if not self.shell_path:
+            raise ValueError("Android shell environment is not configured")
 
-        for required in (self.prefix_path, self.bin_path, self.home_path, self.tmp_path):
+        for required in (self.prefix_path, self.home_path, self.tmp_path):
             if required:
                 Path(required).mkdir(parents=True, exist_ok=True)
 
@@ -52,27 +62,48 @@ class AndroidLinuxEnvironment(BaseEnvironment):
     def _build_run_env(self) -> dict[str, str]:
         run_env = dict(os.environ)
         run_env.update(self.env)
-        existing_ld = run_env.get("LD_LIBRARY_PATH", "")
-        if self.lib_path:
-            run_env["LD_LIBRARY_PATH"] = (
-                f"{self.lib_path}:{existing_ld}" if existing_ld else self.lib_path
-            )
-        prefix_path = self.bin_path or self.prefix_path
+
+        system_path = "/system/bin:/system/xbin:/vendor/bin:/odm/bin"
         existing_path = run_env.get("PATH", "")
-        run_env["PATH"] = f"{prefix_path}:{existing_path}" if existing_path else prefix_path
-        run_env["PREFIX"] = self.prefix_path
-        run_env["TERMUX_PREFIX"] = self.prefix_path
+        path_parts = [system_path]
+        if existing_path:
+            path_parts.append(existing_path)
+        if self.bin_path and run_env.get("HERMES_ANDROID_ALLOW_PREFIX_BIN") == "1":
+            path_parts.append(self.bin_path)
+        run_env["PATH"] = ":".join(path_parts)
+
+        if self.prefix_path:
+            run_env["PREFIX"] = self.prefix_path
         run_env["HOME"] = self.home_path or self.prefix_path
         run_env["TMPDIR"] = self.tmp_path or self.get_temp_dir()
+        run_env["HERMES_ANDROID_SHELL"] = self.shell_path
+        run_env["HERMES_ANDROID_EXECUTION_MODE"] = "android_system_shell"
         run_env.setdefault("TERM", "xterm-256color")
         run_env.setdefault("LANG", "C.UTF-8")
-        terminfo_dir = Path(self.prefix_path) / "share" / "terminfo"
-        if terminfo_dir.is_dir():
-            run_env.setdefault("TERMINFO", str(terminfo_dir))
-        git_exec_path = Path(self.prefix_path) / "libexec" / "git-core"
-        if git_exec_path.is_dir():
-            run_env.setdefault("GIT_EXEC_PATH", str(git_exec_path))
         return run_env
+
+    def init_session(self):
+        """Use a lightweight native-shell session without bash snapshots."""
+        self._snapshot_ready = False
+        try:
+            Path(self._cwd_file).parent.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            pass
+
+    def _wrap_command(self, command: str, cwd: str) -> str:
+        escaped = command.replace("'", "'\\''")
+        quoted_cwd = self._quote_cwd_for_cd(cwd)
+        quoted_cwd_file = shlex.quote(self._cwd_file)
+        return "\n".join(
+            [
+                f"cd {quoted_cwd} || exit 126",
+                f"eval '{escaped}'",
+                "__hermes_ec=$?",
+                f"pwd -P > {quoted_cwd_file} 2>/dev/null || true",
+                f"printf '\\n{self._cwd_marker}%s{self._cwd_marker}\\n' \"$(pwd -P)\"",
+                "exit $__hermes_ec",
+            ]
+        )
 
     def _run_bash(
         self,
@@ -83,7 +114,8 @@ class AndroidLinuxEnvironment(BaseEnvironment):
         stdin_data: str | None = None,
     ) -> subprocess.Popen:
         del timeout  # spawn-per-call; enforced by BaseEnvironment
-        args = [self.bash_path, "-l", "-c", cmd_string] if login else [self.bash_path, "-c", cmd_string]
+        del login
+        args = [self.shell_path, "-c", cmd_string]
         proc = subprocess.Popen(
             args,
             text=True,
