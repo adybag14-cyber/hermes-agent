@@ -8,6 +8,7 @@ import com.nousresearch.hermesagent.api.ChatCompletionRequest
 import com.nousresearch.hermesagent.api.ChatMessage
 import com.nousresearch.hermesagent.api.HermesSseClient
 import com.nousresearch.hermesagent.backend.HermesRuntimeManager
+import com.nousresearch.hermesagent.backend.OnDeviceBackendManager
 import com.nousresearch.hermesagent.data.ConversationStore
 import com.nousresearch.hermesagent.data.StoredConversationMessage
 import kotlinx.coroutines.Dispatchers
@@ -124,9 +125,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val runtime = HermesRuntimeManager.currentState()
-        val baseUrl = runtime.baseUrl
-        val modelName = runtime.modelName ?: "hermes-agent-android"
-        if (!runtime.started || baseUrl.isNullOrBlank()) {
+        val endpoint = resolveChatEndpoint(runtime)
+        if (!runtime.started || endpoint == null) {
             _uiState.update { it.copy(error = runtime.error ?: "Hermes runtime is not ready") }
             return
         }
@@ -153,9 +153,49 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         viewModelScope.launch(Dispatchers.IO) {
-            val client = HermesSseClient(baseUrl = baseUrl, apiKey = runtime.apiKey)
+            if (endpoint.nativeToolCalling) {
+                runCatching {
+                    val result = NativeToolCallingChatClient(getApplication<Application>()).send(
+                        baseUrl = endpoint.baseUrl,
+                        modelName = endpoint.modelName,
+                        sessionId = sessionId,
+                        userText = text,
+                    )
+                    conversationStore.updateMessageContent(
+                        sessionId = sessionId,
+                        messageId = assistantMessageId,
+                        newContent = result.content,
+                    )
+                    _uiState.update { state ->
+                        state.copy(
+                            activeConversationTitle = conversationStore.currentConversation().title,
+                            conversationSummaries = loadSummaries(),
+                            messages = state.messages.map { message ->
+                                if (message.id == assistantMessageId) {
+                                    message.copy(content = result.content)
+                                } else {
+                                    message
+                                }
+                            },
+                            isSending = false,
+                            status = "",
+                        )
+                    }
+                }.onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSending = false,
+                            error = error.message ?: error.javaClass.simpleName,
+                            status = "",
+                        )
+                    }
+                }
+                return@launch
+            }
+
+            val client = HermesSseClient(baseUrl = endpoint.baseUrl, apiKey = endpoint.apiKey)
             val request = ChatCompletionRequest(
-                model = modelName,
+                model = endpoint.modelName,
                 messages = listOf(ChatMessage(role = "user", content = text)),
                 stream = true,
                 sessionId = sessionId,
@@ -211,6 +251,31 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    private data class ChatEndpoint(
+        val baseUrl: String,
+        val apiKey: String?,
+        val modelName: String,
+        val nativeToolCalling: Boolean = false,
+    )
+
+    private fun resolveChatEndpoint(runtime: HermesRuntimeManager.RuntimeState): ChatEndpoint? {
+        val localBackend = OnDeviceBackendManager.currentStatus()
+        if (localBackend.started && localBackend.baseUrl.isNotBlank() && localBackend.modelName.isNotBlank()) {
+            return ChatEndpoint(
+                baseUrl = localBackend.baseUrl.removeSuffix("/v1"),
+                apiKey = null,
+                modelName = localBackend.modelName,
+                nativeToolCalling = true,
+            )
+        }
+        val runtimeBaseUrl = runtime.baseUrl?.takeIf { it.isNotBlank() } ?: return null
+        return ChatEndpoint(
+            baseUrl = runtimeBaseUrl,
+            apiKey = runtime.apiKey,
+            modelName = runtime.modelName ?: "hermes-agent-android",
+        )
     }
 
     private fun buildState(

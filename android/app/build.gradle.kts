@@ -11,7 +11,6 @@ val repoRoot = rootDir.parentFile
 val hermesVersionFile = repoRoot.resolve("hermes_cli/__init__.py")
 val releaseTag = System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()
 val hermesWheelDir = layout.buildDirectory.dir("hermes-wheel")
-val generatedHermesLinuxAssetsDir = layout.buildDirectory.dir("generated/hermes-linux-assets")
 val keystorePropertiesFile = rootDir.resolve("keystore.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.isFile) {
@@ -69,7 +68,12 @@ fun hermesVersionCode(): Int {
 }
 
 fun resolvedBuildPython(): String {
-    return System.getenv("PYTHON_FOR_BUILD").orEmpty().trim().ifBlank { "python3.11" }
+    val configured = System.getenv("PYTHON_FOR_BUILD").orEmpty().trim()
+    if (configured.isNotBlank()) {
+        return configured
+    }
+    val osName = System.getProperty("os.name").lowercase()
+    return if (osName.contains("windows")) "python" else "python3.11"
 }
 
 fun hermesWheelName(): String = "hermes_agent-${hermesVersionName()}-py3-none-any.whl"
@@ -90,6 +94,15 @@ android {
         }
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
+        }
+    }
+
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "x86_64")
+            isUniversalApk = true
         }
     }
 
@@ -139,12 +152,6 @@ android {
         compose = true
     }
 
-    sourceSets {
-        getByName("main") {
-            assets.srcDir(generatedHermesLinuxAssetsDir)
-        }
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -156,12 +163,7 @@ chaquopy {
     defaultConfig {
         version = "3.11"
 
-        val configuredBuildPython = System.getenv("PYTHON_FOR_BUILD")
-        if (!configuredBuildPython.isNullOrBlank()) {
-            buildPython(configuredBuildPython)
-        } else {
-            buildPython("python3.11")
-        }
+        buildPython(resolvedBuildPython())
 
         pip {
             // Install Hermes itself from an isolated wheel, then layer an explicit
@@ -181,10 +183,7 @@ val prepareHermesAndroidWheel = tasks.register<Exec>("prepareHermesAndroidWheel"
     group = "python"
     description = "Build a no-deps Hermes wheel for the Android embedded runtime."
     val wheelDir = hermesWheelDir.get().asFile
-    inputs.file(repoRoot.resolve("pyproject.toml"))
-    inputs.dir(repoRoot.resolve("hermes_cli"))
     outputs.file(wheelDir.resolve(hermesWheelName()))
-    outputs.upToDateWhen { outputs.files.isEmpty() || !outputs.files.files.all { it.exists() } }
     doFirst {
         wheelDir.mkdirs()
     }
@@ -200,31 +199,8 @@ val prepareHermesAndroidWheel = tasks.register<Exec>("prepareHermesAndroidWheel"
     )
 }
 
-val prepareHermesAndroidLinuxAssets = tasks.register<Exec>("prepareHermesAndroidLinuxAssets") {
-    group = "android"
-    description = "Download and normalize the Android Linux command-suite assets."
-    val outputDir = generatedHermesLinuxAssetsDir.get().asFile
-    inputs.file(repoRoot.resolve("scripts/prepare_android_linux_assets.py"))
-    outputs.dir(outputDir)
-    outputs.upToDateWhen { outputs.files.isEmpty() || !outputs.files.files.all { it.exists() } }
-    doFirst {
-        outputDir.mkdirs()
-    }
-    commandLine(
-        resolvedBuildPython(),
-        repoRoot.resolve("scripts/prepare_android_linux_assets.py").absolutePath,
-        "--output-dir",
-        outputDir.absolutePath,
-    )
-}
-
-tasks.named("preBuild") {
-    dependsOn(prepareHermesAndroidLinuxAssets)
-}
-
 tasks.matching { it.name.endsWith("PythonRequirements") }.configureEach {
     dependsOn(prepareHermesAndroidWheel)
-    dependsOn(prepareHermesAndroidLinuxAssets)
     val taskName = name
     val variant = taskName.removePrefix("install").removeSuffix("PythonRequirements")
     if (variant.isNotEmpty()) {
@@ -238,6 +214,7 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
 
     implementation("androidx.core:core-ktx:1.13.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
@@ -253,7 +230,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("org.json:json:20240303")
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.0")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.2")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
 
     testImplementation("junit:junit:4.13.2")
