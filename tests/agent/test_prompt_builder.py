@@ -851,6 +851,9 @@ class TestEnvironmentHints:
         assert "PowerShell" in NATIVE_WINDOWS_ENVIRONMENT_HINT
         assert "PowerShell 7+" in NATIVE_WINDOWS_ENVIRONMENT_HINT
         assert "pwsh.exe" in NATIVE_WINDOWS_ENVIRONMENT_HINT
+        assert "CMD" in NATIVE_WINDOWS_ENVIRONMENT_HINT
+        assert "cmd.exe" in NATIVE_WINDOWS_ENVIRONMENT_HINT
+        assert "dir /b" in NATIVE_WINDOWS_ENVIRONMENT_HINT
         assert "Get-ChildItem" in NATIVE_WINDOWS_ENVIRONMENT_HINT
 
     def test_build_environment_hints_on_wsl(self, monkeypatch):
@@ -869,6 +872,8 @@ class TestEnvironmentHints:
         assert "Git Bash" in result
         assert "PowerShell" in result
         assert "PowerShell 7+" in result
+        assert "CMD" in result
+        assert "cmd.exe" in result
 
     def test_build_environment_hints_not_wsl(self, monkeypatch):
         import agent.prompt_builder as _pb

@@ -173,6 +173,88 @@ _POWERSHELL_NONINTERACTIVE_PREAMBLE = (
     "$PSStyle.OutputRendering='PlainText' }; "
 )
 
+_EXPLICIT_WINDOWS_SHELLS = {
+    "bash",
+    "bash.exe",
+    "sh",
+    "sh.exe",
+    "cmd",
+    "cmd.exe",
+    "powershell",
+    "powershell.exe",
+    "pwsh",
+    "pwsh.exe",
+}
+
+_CMD_EXCLUSIVE_COMMANDS = {
+    "assoc",
+    "break",
+    "call",
+    "chdir",
+    "chcp",
+    "choice",
+    "clip",
+    "cls",
+    "color",
+    "copy",
+    "date",
+    "del",
+    "endlocal",
+    "erase",
+    "findstr",
+    "ftype",
+    "md",
+    "mklink",
+    "move",
+    "path",
+    "pause",
+    "prompt",
+    "rd",
+    "rem",
+    "ren",
+    "rename",
+    "setlocal",
+    "start",
+    "time",
+    "title",
+    "type",
+    "ver",
+    "verify",
+    "vol",
+    "where",
+}
+
+_CMD_SHARED_COMMANDS = {
+    "cd",
+    "dir",
+    "echo",
+    "if",
+    "for",
+    "mkdir",
+    "rmdir",
+    "set",
+}
+
+_CMD_PERCENT_VAR_RE = re.compile(r"%(?:[A-Za-z_][A-Za-z0-9_]*|[0-9*]|ERRORLEVEL)%", re.IGNORECASE)
+_CMD_SLASH_SWITCH_RE = re.compile(r"(?:^|\s)/(?:[A-Za-z?]|-)")
+_CMD_OPERATOR_RE = re.compile(r"\s(?:&&|\|\||[|&])\s")
+_CMD_PIPELINE_COMMAND_RE = re.compile(
+    r"(?:&&|\|\||[|&])\s*"
+    r"(?:"
+    + "|".join(re.escape(cmd) for cmd in sorted(_CMD_EXCLUSIVE_COMMANDS))
+    + r")\b",
+    re.IGNORECASE,
+)
+_EXPLICIT_CMD_RE = re.compile(r"^\s*@?cmd(?:\.exe)?\s+(?P<args>.*)$", re.IGNORECASE)
+_EXPLICIT_CMD_C_RE = re.compile(r"(?<!\S)(?://|/)c(?:\s+|$)", re.IGNORECASE)
+
+
+def _strip_cmd_grouping_quotes(command: str) -> str:
+    """Remove one outer quote pair used only to group a cmd /c body."""
+    if len(command) >= 2 and command[0] == command[-1] and command[0] in {"'", '"'}:
+        return command[1:-1]
+    return command
+
 
 def _powershell_version_key(dirname: str) -> tuple:
     """Sort installed PowerShell directory names with stable releases first."""
@@ -279,24 +361,85 @@ def _looks_like_powershell(command: str) -> bool:
         return False
 
     first_word = re.split(r"\s+", stripped, maxsplit=1)[0].lower()
-    if first_word in {
-        "bash",
-        "bash.exe",
-        "sh",
-        "sh.exe",
-        "cmd",
-        "cmd.exe",
-        "powershell",
-        "powershell.exe",
-        "pwsh",
-        "pwsh.exe",
-    }:
+    if first_word in _EXPLICIT_WINDOWS_SHELLS:
         return False
 
     return bool(
         _POWERSHELL_LEADING_COMMAND_RE.search(stripped)
         or _POWERSHELL_PIPELINE_RE.search(stripped)
     )
+
+
+def _find_cmd() -> str:
+    """Find native cmd.exe for Git Bash to launch on Windows."""
+    custom = os.environ.get("HERMES_CMD_PATH")
+    if custom and os.path.isfile(custom):
+        return _normalize_windows_shell_path(custom)
+
+    candidates = _dedupe_paths(
+        [
+            shutil.which("cmd.exe") or "",
+            shutil.which("cmd") or "",
+            os.path.join(
+                os.environ.get("SystemRoot", r"C:\Windows"),
+                "System32",
+                "cmd.exe",
+            ),
+        ]
+    )
+
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate):
+            return _normalize_windows_shell_path(candidate)
+
+    raise RuntimeError(
+        "cmd.exe not found. Native Windows CMD commands require cmd.exe "
+        "on PATH, or HERMES_CMD_PATH set."
+    )
+
+
+def _looks_like_cmd(command: str) -> bool:
+    """Return True when a command is CMD syntax, not Bash or PowerShell syntax."""
+    stripped = command.lstrip()
+    if not stripped or "\n" in stripped or "\r" in stripped:
+        return False
+
+    raw_first_word = re.split(r"\s+", stripped, maxsplit=1)[0].lower()
+    first_word = raw_first_word.lstrip("@")
+    if first_word in _EXPLICIT_WINDOWS_SHELLS:
+        return False
+    if first_word.endswith(".exe") or first_word.endswith(".cmd") or first_word.endswith(".bat"):
+        return False
+
+    if _CMD_PIPELINE_COMMAND_RE.search(stripped):
+        return True
+    if first_word in _CMD_EXCLUSIVE_COMMANDS:
+        return True
+    if _CMD_PERCENT_VAR_RE.search(stripped):
+        return True
+
+    if first_word not in _CMD_SHARED_COMMANDS:
+        return False
+    if raw_first_word.startswith("@"):
+        return True
+
+    remainder = stripped[len(raw_first_word):].lstrip()
+    if first_word in {"cd", "mkdir", "rmdir"}:
+        return bool(_CMD_SLASH_SWITCH_RE.search(remainder) or re.search(r"(^|\s)[A-Za-z]:[\\/]", remainder))
+    if first_word == "dir":
+        return not remainder.startswith("-")
+    if first_word == "set":
+        return not remainder.startswith("-")
+    if first_word == "echo":
+        return bool(
+            _CMD_PERCENT_VAR_RE.search(remainder)
+            or remainder.lower() in {"on", "off"}
+            or _CMD_OPERATOR_RE.search(stripped)
+        )
+    if first_word in {"if", "for"}:
+        return bool(_CMD_PERCENT_VAR_RE.search(stripped) or _CMD_SLASH_SWITCH_RE.search(stripped))
+
+    return False
 
 
 def _wrap_windows_powershell_command(command: str) -> str:
@@ -311,6 +454,38 @@ def _wrap_windows_powershell_command(command: str) -> str:
         f"{powershell} -NoProfile -NonInteractive "
         f"-ExecutionPolicy Bypass -EncodedCommand {encoded}"
     )
+
+
+def _wrap_windows_cmd_command(command: str) -> str:
+    """Wrap native CMD syntax so Git Bash can execute it on Windows."""
+    if not _IS_WINDOWS:
+        return command
+
+    # Git Bash/MSYS rewrites /c-style arguments for native Windows programs
+    # unless they use the double-slash escape form.
+    cmd = shlex.quote(_find_cmd())
+
+    explicit = _EXPLICIT_CMD_RE.match(command)
+    if explicit:
+        args = explicit.group("args")
+        c_switch = _EXPLICIT_CMD_C_RE.search(args)
+        if not c_switch:
+            return command
+        body = _strip_cmd_grouping_quotes(args[c_switch.end():].strip())
+        return f"{cmd} //d //s //c {shlex.quote(body)}" if body else f"{cmd} //d //s //c"
+
+    if not _looks_like_cmd(command):
+        return command
+
+    return f"{cmd} //d //s //c {shlex.quote(command)}"
+
+
+def _wrap_windows_native_command(command: str) -> str:
+    """Wrap native Windows shell syntax for the Git Bash local backend."""
+    wrapped = _wrap_windows_powershell_command(command)
+    if wrapped != command:
+        return wrapped
+    return _wrap_windows_cmd_command(command)
 
 
 def _normalize_windows_shell_path(path: str) -> str:
@@ -669,7 +844,7 @@ class LocalEnvironment(BaseEnvironment):
         timeout: int | None = None,
         stdin_data: str | None = None,
     ) -> dict:
-        command = _wrap_windows_powershell_command(command)
+        command = _wrap_windows_native_command(command)
         shell_cwd = self._to_shell_path(cwd) if cwd else ""
         return super().execute(
             command,

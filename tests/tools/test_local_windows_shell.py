@@ -1,4 +1,5 @@
 import base64
+import shlex
 from unittest.mock import patch
 
 import pytest
@@ -84,6 +85,48 @@ def test_windows_does_not_wrap_bash_or_explicit_shell_commands(monkeypatch):
     assert local_env._wrap_windows_powershell_command(bash_command) == bash_command
 
 
+def test_windows_wraps_direct_cmd_builtins(monkeypatch):
+    local_env._IS_WINDOWS = True
+    monkeypatch.setattr(local_env, "_find_cmd", lambda: "C:/Windows/System32/cmd.exe")
+
+    command = "dir /b"
+    wrapped = local_env._wrap_windows_cmd_command(command)
+
+    assert "cmd.exe" in wrapped
+    assert " //d //s //c " in wrapped
+    assert wrapped.endswith(shlex.quote(command))
+
+
+def test_windows_wraps_cmd_percent_vars_and_pipeline_builtins(monkeypatch):
+    local_env._IS_WINDOWS = True
+    monkeypatch.setattr(local_env, "_find_cmd", lambda: "C:/Windows/System32/cmd.exe")
+
+    assert local_env._wrap_windows_cmd_command("@echo off").endswith(shlex.quote("@echo off"))
+    assert local_env._wrap_windows_cmd_command("@echo CMD_AT_OK").endswith(shlex.quote("@echo CMD_AT_OK"))
+    assert local_env._wrap_windows_cmd_command(r"cd /d C:\Users").endswith(shlex.quote(r"cd /d C:\Users"))
+    assert local_env._wrap_windows_cmd_command("echo %PATH%").endswith(shlex.quote("echo %PATH%"))
+    assert local_env._wrap_windows_cmd_command("echo hi && del temp.txt").endswith(
+        shlex.quote("echo hi && del temp.txt")
+    )
+
+
+def test_windows_normalizes_explicit_cmd_and_preserves_bash_shared_forms(monkeypatch):
+    local_env._IS_WINDOWS = True
+    monkeypatch.setattr(local_env, "_find_cmd", lambda: "C:/Windows/System32/cmd.exe")
+
+    wrapped = local_env._wrap_windows_native_command("cmd /c dir /b")
+
+    assert "cmd.exe" in wrapped
+    assert " //d //s //c " in wrapped
+    assert wrapped.endswith(shlex.quote("dir /b"))
+
+    quoted = local_env._wrap_windows_native_command('cmd /c "echo QUOTED_CMD_OK && ver"')
+    assert quoted.endswith(shlex.quote("echo QUOTED_CMD_OK && ver"))
+    assert local_env._wrap_windows_native_command("bash -lc 'dir /b'") == "bash -lc 'dir /b'"
+    assert local_env._wrap_windows_native_command("mkdir -p build/out") == "mkdir -p build/out"
+    assert local_env._wrap_windows_native_command("set -e") == "set -e"
+
+
 def test_find_powershell_prefers_newest_stable_pwsh(monkeypatch):
     local_env._IS_WINDOWS = True
     monkeypatch.delenv("HERMES_POWERSHELL_PATH", raising=False)
@@ -119,6 +162,15 @@ def test_find_powershell_allows_explicit_override(monkeypatch):
     monkeypatch.setattr(local_env.os.path, "isfile", lambda path: path == override)
 
     assert local_env._find_powershell() == "D:/Tools/PowerShell/9/pwsh.exe"
+
+
+def test_find_cmd_allows_explicit_override(monkeypatch):
+    local_env._IS_WINDOWS = True
+    override = r"D:\Tools\cmd.exe"
+    monkeypatch.setenv("HERMES_CMD_PATH", override)
+    monkeypatch.setattr(local_env.os.path, "isfile", lambda path: path == override)
+
+    assert local_env._find_cmd() == "D:/Tools/cmd.exe"
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only live regression")
@@ -179,3 +231,22 @@ def test_local_environment_prefers_pwsh_on_windows_when_available():
     assert result["returncode"] == 0
     assert "#< CLIXML" not in result["output"]
     assert int(result["output"].strip().splitlines()[-1]) >= 7
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only live regression")
+def test_local_environment_runs_direct_cmd_builtins_on_windows():
+    try:
+        local_env._find_bash()
+        local_env._find_cmd()
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+
+    env = local_env.LocalEnvironment(cwd=str(Path.cwd()), timeout=10)
+    try:
+        result = env.execute("dir /b", timeout=10)
+    finally:
+        env.cleanup()
+
+    assert result["returncode"] == 0
+    assert "command not found" not in result["output"]
+    assert result["output"].strip()

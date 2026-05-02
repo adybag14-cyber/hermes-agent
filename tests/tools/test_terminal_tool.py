@@ -17,8 +17,11 @@ def test_terminal_description_advertises_native_windows_powershell():
     assert "PowerShell" in description
     assert "PowerShell 7+" in description
     assert "pwsh.exe" in description
+    assert "CMD" in description
+    assert "cmd.exe" in description
+    assert "dir /b" in description
     assert "Get-ChildItem" in description
-    assert "Do NOT claim PowerShell is unavailable" in description
+    assert "Do NOT claim PowerShell or CMD are unavailable" in description
 
 
 def test_searching_for_sudo_does_not_trigger_rewrite(monkeypatch):

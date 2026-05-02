@@ -45,7 +45,7 @@ from tools.environments.local import (
     _find_shell,
     _resolve_safe_cwd,
     _sanitize_subprocess_env,
-    _wrap_windows_powershell_command,
+    _wrap_windows_native_command,
 )
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
@@ -499,7 +499,7 @@ class ProcessRegistry:
                 user_shell = _find_shell()
                 pty_env = _sanitize_subprocess_env(os.environ, env_vars)
                 pty_env["PYTHONUNBUFFERED"] = "1"
-                spawn_command = _wrap_windows_powershell_command(command)
+                spawn_command = _wrap_windows_native_command(command)
                 pty_proc = _PtyProcessCls.spawn(
                     [user_shell, "-lic", f"set +m; {spawn_command}"],
                     cwd=session.cwd,
@@ -541,7 +541,7 @@ class ProcessRegistry:
         # stdout is a pipe, hiding output from process(action="poll")).
         bg_env = _sanitize_subprocess_env(os.environ, env_vars)
         bg_env["PYTHONUNBUFFERED"] = "1"
-        spawn_command = _wrap_windows_powershell_command(command)
+        spawn_command = _wrap_windows_native_command(command)
         proc = subprocess.Popen(
             [user_shell, "-lic", f"set +m; {spawn_command}"],
             text=True,

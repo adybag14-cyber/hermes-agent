@@ -542,15 +542,17 @@ WSL_ENVIRONMENT_HINT = (
 
 NATIVE_WINDOWS_ENVIRONMENT_HINT = (
     "You are running on native Windows, not WSL. "
-    "The terminal tool supports Git-Bash-compatible commands and native "
-    "PowerShell commands. Prefer forward-slash paths such as "
+    "The terminal tool supports Git-Bash-compatible commands, native "
+    "PowerShell commands, and native CMD commands. Prefer forward-slash paths such as "
     "C:/Users/<username>/... or /c/Users/<username>/... when using Git Bash. "
     "When a Windows-native operation is clearer, run PowerShell cmdlets "
     "directly (for example Get-ChildItem, Get-Process, Select-Object, "
     "$PSVersionTable, [Environment]::GetEnvironmentVariable(...)); Hermes "
     "routes PowerShell-shaped commands through the newest installed pwsh.exe "
     "/ PowerShell 7+ and falls back to Windows PowerShell only when pwsh is "
-    "unavailable. For ambiguous explicit shell invocations under Git Bash, "
+    "unavailable. Hermes also routes CMD-shaped commands (for example dir /b, "
+    "where python, set PATH, type README.md, del file.tmp, copy a b) through "
+    "cmd.exe automatically. For ambiguous explicit shell invocations under Git Bash, "
     "quote PowerShell snippets with single quotes, e.g. "
     "pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'."
 )

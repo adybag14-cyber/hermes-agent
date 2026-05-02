@@ -23,6 +23,8 @@ def test_windows_installer_writes_modern_terminal_launchers():
     assert "function Write-HermesWindowsLaunchers" in content
     assert "hermes-start.ps1" in content
     assert "hermes-start.cmd" in content
+    assert "hermes-cmd.cmd" in content
+    assert "hermes-native-cmd.cmd" in content
     assert "hermes-native-start.cmd" in content
     assert "hermes-native-window.ps1" in content
     assert "Resolve-HermesWindowsTerminalPath" in content

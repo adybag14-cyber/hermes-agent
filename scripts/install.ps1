@@ -104,6 +104,8 @@ exit /b %ERRORLEVEL%
 "@
     Set-Content -Path (Join-Path $LauncherDir "hermes.cmd") -Value $hermesCmd -Encoding ASCII
     Set-Content -Path (Join-Path $LauncherDir "hermes-native.cmd") -Value $hermesCmd -Encoding ASCII
+    Set-Content -Path (Join-Path $LauncherDir "hermes-cmd.cmd") -Value $hermesCmd -Encoding ASCII
+    Set-Content -Path (Join-Path $LauncherDir "hermes-native-cmd.cmd") -Value $hermesCmd -Encoding ASCII
 
     $hermesPs1 = @"
 `$env:HERMES_HOME = $quotedHermesHome
