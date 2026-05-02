@@ -20960,7 +20960,6 @@ class AIAgent:
                     normalized = _transport.normalize_response(response, **_normalize_kwargs)
                     assistant_message = normalized
                     finish_reason = normalized.finish_reason
-
                 # Normalize content to string — some OpenAI-compatible servers
                 # (llama-server, etc.) return content as a dict or list instead
                 # of a plain string, which crashes downstream .strip() calls.
