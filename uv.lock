@@ -9,7 +9,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "0001-01-01T00:00:00Z" # This has no effect and is included for backwards compatibility when using relative exclude-newer values.
+exclude-newer = "2026-04-25T21:45:25.5952979Z"
 exclude-newer-span = "P7D"
 
 [[package]]
@@ -2026,6 +2026,10 @@ all = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "vercel" },
 ]
+android = [
+    { name = "aiohttp" },
+    { name = "croniter" },
+]
 bedrock = [
     { name = "boto3" },
 ]
@@ -2137,6 +2141,7 @@ yc-bench = [
 [package.metadata]
 requires-dist = [
     { name = "agent-client-protocol", marker = "extra == 'acp'", specifier = ">=0.9.0,<1.0" },
+    { name = "aiohttp", marker = "extra == 'android'", specifier = ">=3.10.10,<4" },
     { name = "aiohttp", marker = "extra == 'homeassistant'", specifier = ">=3.9.0,<4" },
     { name = "aiohttp", marker = "extra == 'messaging'", specifier = ">=3.13.3,<4" },
     { name = "aiohttp", marker = "extra == 'sms'", specifier = ">=3.9.0,<4" },
@@ -2148,6 +2153,7 @@ requires-dist = [
     { name = "atroposlib", marker = "extra == 'rl'", git = "https://github.com/NousResearch/atropos.git?rev=c20c85256e5a45ad31edf8b7276e9c5ee1995a30" },
     { name = "boto3", marker = "extra == 'bedrock'", specifier = ">=1.35.0,<2" },
     { name = "croniter", specifier = ">=6.0.0,<7" },
+    { name = "croniter", marker = "extra == 'android'", specifier = ">=6.0.0,<7" },
     { name = "daytona", marker = "extra == 'daytona'", specifier = ">=0.148.0,<1" },
     { name = "debugpy", marker = "extra == 'dev'", specifier = ">=1.8.0,<2" },
     { name = "dingtalk-stream", marker = "extra == 'dingtalk'", specifier = ">=0.20,<1" },
@@ -2233,13 +2239,15 @@ requires-dist = [
     { name = "tenacity", specifier = ">=9.1.4,<10" },
     { name = "tinker", marker = "extra == 'rl'", git = "https://github.com/thinking-machines-lab/tinker.git?rev=30517b667f18a3dfb7ef33fb56cf686d5820ba2b" },
     { name = "ty", marker = "extra == 'dev'", specifier = ">=0.0.1a29,<0.0.22" },
+    { name = "tzdata", specifier = ">=2025.2,<2027" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'rl'", specifier = ">=0.24.0,<1" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'web'", specifier = ">=0.24.0,<1" },
     { name = "vercel", marker = "extra == 'vercel'", specifier = ">=0.5.7,<0.6.0" },
     { name = "wandb", marker = "extra == 'rl'", specifier = ">=0.15.0,<1" },
+    { name = "websockets", specifier = ">=15.0.1,<16" },
     { name = "yc-bench", marker = "python_full_version >= '3.12' and extra == 'yc-bench'", git = "https://github.com/collinear-ai/yc-bench.git?rev=bfb0c88062450f46341bd9a5298903fc2e952a5c" },
 ]
-provides-extras = ["modal", "daytona", "vercel", "dev", "messaging", "cron", "slack", "matrix", "cli", "tts-premium", "voice", "pty", "honcho", "mcp", "homeassistant", "sms", "acp", "mistral", "bedrock", "termux", "dingtalk", "feishu", "google", "web", "rl", "yc-bench", "all"]
+provides-extras = ["modal", "daytona", "vercel", "dev", "messaging", "cron", "slack", "matrix", "cli", "tts-premium", "voice", "pty", "honcho", "mcp", "homeassistant", "sms", "acp", "mistral", "bedrock", "termux", "android", "dingtalk", "feishu", "google", "web", "rl", "yc-bench", "all"]
 
 [[package]]
 name = "hf-transfer"

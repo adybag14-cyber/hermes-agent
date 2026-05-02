@@ -1328,75 +1328,81 @@ def _run_single_child(
     _last_seen_tool = [None]  # type: list
     _stale_count = [0]
 
-    def _heartbeat_loop():
-        while not _heartbeat_stop.wait(_HEARTBEAT_INTERVAL):
-            if parent_agent is None:
-                continue
-            touch = getattr(parent_agent, "_touch_activity", None)
-            if not touch:
-                continue
-            # Pull detail from the child's own activity tracker
-            desc = f"delegate_task: subagent {task_index} working"
-            try:
-                child_summary = child.get_activity_summary()
-                child_tool = child_summary.get("current_tool")
-                child_iter = child_summary.get("api_call_count", 0)
-                child_max = child_summary.get("max_iterations", 0)
+    def _emit_heartbeat() -> bool:
+        if parent_agent is None:
+            return True
+        touch = getattr(parent_agent, "_touch_activity", None)
+        if not touch:
+            return True
+        # Pull detail from the child's own activity tracker
+        desc = f"delegate_task: subagent {task_index} working"
+        try:
+            child_summary = child.get_activity_summary()
+            child_tool = child_summary.get("current_tool")
+            child_iter = child_summary.get("api_call_count", 0)
+            child_max = child_summary.get("max_iterations", 0)
 
-                # Stale detection: count cycles where neither the iteration
-                # count nor the current_tool advances. A child running a
-                # legitimately long-running tool (terminal command, web
-                # fetch) keeps current_tool set but doesn't advance
-                # api_call_count — we don't want that to look stale at the
-                # idle threshold.
-                iter_advanced = child_iter > _last_seen_iter[0]
-                tool_changed = child_tool != _last_seen_tool[0]
-                if iter_advanced or tool_changed:
-                    _last_seen_iter[0] = child_iter
-                    _last_seen_tool[0] = child_tool
-                    _stale_count[0] = 0
-                else:
-                    _stale_count[0] += 1
+            # Stale detection: count cycles where neither the iteration
+            # count nor the current_tool advances. A child running a
+            # legitimately long-running tool (terminal command, web
+            # fetch) keeps current_tool set but doesn't advance
+            # api_call_count — we don't want that to look stale at the
+            # idle threshold.
+            iter_advanced = child_iter > _last_seen_iter[0]
+            tool_changed = child_tool != _last_seen_tool[0]
+            if iter_advanced or tool_changed:
+                _last_seen_iter[0] = child_iter
+                _last_seen_tool[0] = child_tool
+                _stale_count[0] = 0
+            else:
+                _stale_count[0] += 1
 
-                # Pick threshold based on whether the child is currently
-                # inside a tool call. In-tool threshold is high enough to
-                # cover legitimately slow tools; idle threshold stays
-                # tight so the gateway timeout can fire on a truly wedged
-                # child.
-                stale_limit = (
-                    _HEARTBEAT_STALE_CYCLES_IN_TOOL
-                    if child_tool
-                    else _HEARTBEAT_STALE_CYCLES_IDLE
+            # Pick threshold based on whether the child is currently
+            # inside a tool call. In-tool threshold is high enough to
+            # cover legitimately slow tools; idle threshold stays
+            # tight so the gateway timeout can fire on a truly wedged
+            # child.
+            stale_limit = (
+                _HEARTBEAT_STALE_CYCLES_IN_TOOL
+                if child_tool
+                else _HEARTBEAT_STALE_CYCLES_IDLE
+            )
+            if _stale_count[0] >= stale_limit:
+                logger.warning(
+                    "Subagent %d appears stale (no progress for %d "
+                    "heartbeat cycles, tool=%s) — stopping heartbeat",
+                    task_index,
+                    _stale_count[0],
+                    child_tool or "<none>",
                 )
-                if _stale_count[0] >= stale_limit:
-                    logger.warning(
-                        "Subagent %d appears stale (no progress for %d "
-                        "heartbeat cycles, tool=%s) — stopping heartbeat",
-                        task_index,
-                        _stale_count[0],
-                        child_tool or "<none>",
-                    )
-                    break  # stop touching parent, let gateway timeout fire
+                return False
 
-                if child_tool:
+            if child_tool:
+                desc = (
+                    f"delegate_task: subagent running {child_tool} "
+                    f"(iteration {child_iter}/{child_max})"
+                )
+            else:
+                child_desc = child_summary.get("last_activity_desc", "")
+                if child_desc:
                     desc = (
-                        f"delegate_task: subagent running {child_tool} "
+                        f"delegate_task: subagent {child_desc} "
                         f"(iteration {child_iter}/{child_max})"
                     )
-                else:
-                    child_desc = child_summary.get("last_activity_desc", "")
-                    if child_desc:
-                        desc = (
-                            f"delegate_task: subagent {child_desc} "
-                            f"(iteration {child_iter}/{child_max})"
-                        )
-            except Exception:
-                pass
-            try:
-                touch(desc)
-            except Exception:
-                pass
+        except Exception:
+            pass
+        try:
+            touch(desc)
+        except Exception:
+            pass
+        return True
 
+    def _heartbeat_loop():
+        while not _heartbeat_stop.wait(_HEARTBEAT_INTERVAL):
+            if not _emit_heartbeat():
+                break
+
+    _emit_heartbeat()
     _heartbeat_thread = threading.Thread(target=_heartbeat_loop, daemon=True)
     _heartbeat_thread.start()
 
