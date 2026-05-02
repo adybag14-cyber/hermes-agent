@@ -21,6 +21,7 @@ Usage:
 """
 
 import asyncio
+import ast
 import base64
 import concurrent.futures
 import contextvars
@@ -11180,7 +11181,7 @@ class AIAgent:
                 "conversation_id": None if uses_local_tool_loop else self._chatgpt_web_conversation_id,
                 "parent_message_id": None if uses_local_tool_loop else self._chatgpt_web_parent_message_id,
                 "timeout": float(os.getenv("HERMES_API_TIMEOUT", 1800.0)),
-                "history_and_training_disabled": False,
+                "history_and_training_disabled": uses_local_tool_loop,
             }
 
         # ── chat_completions (default) ─────────────────────────────────────
@@ -14106,6 +14107,16 @@ class AIAgent:
                                 error_details.append("response is None")
                             else:
                                 error_details.append("Bedrock response invalid (no output or choices)")
+                    elif self.api_mode == "chatgpt_web":
+                        if response is None:
+                            response_invalid = True
+                            error_details.append("response is None")
+                        elif not hasattr(response, "choices"):
+                            response_invalid = True
+                            error_details.append("response has no 'choices' attribute")
+                        elif not getattr(response, "choices", None):
+                            response_invalid = True
+                            error_details.append("response.choices is empty")
                     else:
                         _ctv = self._get_transport()
                         if not _ctv.validate_response(response):
@@ -14274,6 +14285,10 @@ class AIAgent:
                         _bt_fr = self._get_transport()
                         _bedrock_result = _bt_fr.normalize_response(response)
                         finish_reason = _bedrock_result.finish_reason
+                    elif self.api_mode == "chatgpt_web":
+                        _choice = response.choices[0]
+                        assistant_message = _choice.message
+                        finish_reason = getattr(_choice, "finish_reason", None) or getattr(assistant_message, "finish_reason", None) or "stop"
                     else:
                         _cc_fr = self._get_transport()
                         _finish_result = _cc_fr.normalize_response(response)
@@ -15674,13 +15689,18 @@ class AIAgent:
                 break
 
             try:
-                _transport = self._get_transport()
-                _normalize_kwargs = {}
-                if self.api_mode == "anthropic_messages":
-                    _normalize_kwargs["strip_tool_prefix"] = self._is_anthropic_oauth
-                normalized = _transport.normalize_response(response, **_normalize_kwargs)
-                assistant_message = normalized
-                finish_reason = normalized.finish_reason
+                if self.api_mode == "chatgpt_web":
+                    _choice = response.choices[0]
+                    assistant_message = _choice.message
+                    finish_reason = getattr(_choice, "finish_reason", None) or getattr(assistant_message, "finish_reason", None) or "stop"
+                else:
+                    _transport = self._get_transport()
+                    _normalize_kwargs = {}
+                    if self.api_mode == "anthropic_messages":
+                        _normalize_kwargs["strip_tool_prefix"] = self._is_anthropic_oauth
+                    normalized = _transport.normalize_response(response, **_normalize_kwargs)
+                    assistant_message = normalized
+                    finish_reason = normalized.finish_reason
                 
                 # Normalize content to string — some OpenAI-compatible servers
                 # (llama-server, etc.) return content as a dict or list instead
