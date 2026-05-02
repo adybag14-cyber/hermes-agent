@@ -1099,6 +1099,11 @@ def resolve_runtime_provider(
                 "base_url": (creds.get("base_url") or DEFAULT_CHATGPT_WEB_BASE_URL).rstrip("/"),
                 "api_key": creds.get("api_key", ""),
                 "source": creds.get("source", "codex-oauth"),
+                "session_token": creds.get("session_token", ""),
+                "cookie_header": creds.get("cookie_header", ""),
+                "browser_cookies": creds.get("browser_cookies"),
+                "user_agent": creds.get("user_agent", ""),
+                "device_id": creds.get("device_id", ""),
                 "requested_provider": requested_provider,
             }
         except AuthError:
