@@ -85,6 +85,16 @@ class TestDirHash:
 
 
 class TestDiscoverBundledSkills:
+    def test_install_prefix_does_not_hide_bundled_skills(self, tmp_path):
+        bundled = tmp_path / ".github" / "venv" / "site-packages" / "assets" / "skills"
+        real = bundled / "category" / "real-skill"
+        ignored = bundled / ".hub" / "internal-skill"
+        for path in (real, ignored):
+            path.mkdir(parents=True)
+            (path / "SKILL.md").write_text("# Skill", encoding="utf-8")
+
+        assert _discover_bundled_skills(bundled) == [("real-skill", real)]
+
     def test_finds_skill_dirs_and_ignores_non_skills(self, tmp_path):
         (tmp_path / "category" / "skill-a").mkdir(parents=True)
         (tmp_path / "category" / "skill-a" / "SKILL.md").write_text("# Skill A")
@@ -141,7 +151,7 @@ class TestComputeRelativeDest:
     def test_preserves_category_structure(self):
         bundled = Path("/repo/skills")
         dest = _compute_relative_dest(Path("/repo/skills/mlops/axolotl"), bundled)
-        assert str(dest).endswith("mlops/axolotl")
+        assert dest.as_posix().endswith("mlops/axolotl")
         # Flat (uncategorized) skills keep their own name.
         assert _compute_relative_dest(Path("/repo/skills/simple"), bundled).name == "simple"
 
