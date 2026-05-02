@@ -62,6 +62,12 @@ def _default_device_id() -> str:
 def _chatgpt_web_debug_base() -> str:
     return os.getenv("CHATGPT_WEB_DEBUG_BASE", "").strip()
 
+
+def _chatgpt_web_force_browser_fetch() -> bool:
+    value = os.getenv("CHATGPT_WEB_FORCE_BROWSER_FETCH", "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 def _split_chatgpt_web_message_content(content: Any) -> tuple[str, list[str]]:
     """Return best-effort text plus any attached image sources."""
     if isinstance(content, str):
@@ -113,6 +119,72 @@ def _messages_include_chatgpt_web_images(messages: list[dict[str, Any]]) -> bool
         if image_sources:
             return True
     return False
+
+
+def _select_chatgpt_web_browser_response_text(
+    snapshot: dict[str, Any],
+    prompt_text: str,
+) -> tuple[str, str]:
+    """Pick assistant text from a browser snapshot while avoiding prompt echo/chrome."""
+    prompt = str(prompt_text or "").strip()
+
+    def _clean(candidate: str) -> str:
+        text = str(candidate or "").strip()
+        if prompt and text.startswith(prompt):
+            text = text[len(prompt):].strip()
+            text = re.sub(r"^[\s:.\-–—]+", "", text).strip()
+        chrome_markers = (
+            "ChatGPT can make mistakes",
+            "Cookie Preferences",
+            "Reading documents Thinking",
+        )
+        if any(marker in text for marker in chrome_markers):
+            return ""
+        if text == prompt:
+            return ""
+        return text
+
+    for key in ("assistant", "articles"):
+        entries = snapshot.get(key)
+        if not isinstance(entries, list):
+            continue
+        for item in reversed(entries):
+            if not isinstance(item, dict):
+                continue
+            author = str(item.get("author") or item.get("role") or "").strip().lower()
+            if key == "articles" and author and author != "assistant":
+                continue
+            cleaned = _clean(str(item.get("text") or ""))
+            if cleaned:
+                return cleaned, str(item.get("model") or "").strip()
+
+    cleaned_main = _clean(str(snapshot.get("mainText") or ""))
+    return (cleaned_main, "") if cleaned_main else ("", "")
+
+
+def _chatgpt_web_browser_auth_cookies(
+    *,
+    session_token: str = "",
+    browser_cookies: Any = None,
+) -> list[dict[str, Any]]:
+    cookies: list[dict[str, Any]] = []
+    if isinstance(browser_cookies, list):
+        for item in browser_cookies:
+            if isinstance(item, dict) and item.get("name"):
+                cookies.append(dict(item))
+    token = str(session_token or "").strip()
+    if token and not any(str(item.get("name") or "") == "__Secure-next-auth.session-token" for item in cookies):
+        cookies.append(
+            {
+                "name": "__Secure-next-auth.session-token",
+                "value": token,
+                "domain": "chatgpt.com",
+                "path": "/",
+                "secure": True,
+                "httpOnly": True,
+            }
+        )
+    return cookies
 
 
 def _split_chatgpt_web_message_content(content: Any) -> tuple[str, list[str]]:
@@ -253,6 +325,7 @@ async def _chatgpt_web_browser_fetch(
     if websockets is None:
         raise RuntimeError("Python package 'websockets' is required for browser-backed ChatGPT Web transport")
 
+    created_target_id = ""
     with urllib.request.urlopen(f"{debug_base}/json/list", timeout=5) as response:
         pages = json.load(response)
 
@@ -262,57 +335,57 @@ async def _chatgpt_web_browser_fetch(
             page = item
             break
     if page is None:
-        raise RuntimeError(f"No ChatGPT page is open on {debug_base}")
+        created_target_id = await _chatgpt_web_browser_create_target(debug_base, "https://chatgpt.com/")
+        page = _chatgpt_web_browser_page_target(debug_base, created_target_id)
 
     ws_url = str(page.get("webSocketDebuggerUrl") or "").strip()
     if not ws_url:
         raise RuntimeError(f"ChatGPT page on {debug_base} has no DevTools websocket URL")
 
-    async with websockets.connect(ws_url, max_size=50_000_000) as ws:
-        next_id = 1
-
-        async def send(method_name: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
-            nonlocal next_id
-            payload = {"id": next_id, "method": method_name}
-            if params is not None:
-                payload["params"] = params
-            await ws.send(json.dumps(payload))
-            my_id = next_id
-            next_id += 1
-            while True:
-                message = json.loads(await ws.recv())
-                if message.get("id") == my_id:
-                    return message
-
-        await send("Runtime.enable")
-        expression = (
-            "(async () => {\n"
-            f"  const url = {json.dumps(url)};\n"
-            f"  const method = {json.dumps(str(method or 'GET').upper())};\n"
-            f"  const headers = {json.dumps(headers or {}, ensure_ascii=False)};\n"
-            f"  const jsonBody = {json.dumps(json_body, ensure_ascii=False)};\n"
-            "  const options = {method, headers, credentials: 'include'};\n"
-            "  if (jsonBody !== null) options.body = JSON.stringify(jsonBody);\n"
-            "  const response = await fetch(url, options);\n"
-            "  const text = await response.text();\n"
-            "  return JSON.stringify({status: response.status, ok: response.ok, text});\n"
-            "})()"
-        )
-        result = await send(
-            "Runtime.evaluate",
-            {
-                "expression": expression,
-                "awaitPromise": True,
-                "returnByValue": True,
-            },
-        )
-        payload = result.get("result", {}).get("result", {}).get("value")
-        if not isinstance(payload, str):
-            raise RuntimeError("Browser-backed ChatGPT Web fetch did not return a JSON payload")
-        parsed = json.loads(payload)
-        if not isinstance(parsed, dict):
-            raise RuntimeError("Browser-backed ChatGPT Web fetch returned invalid data")
-        return parsed
+    try:
+        async with websockets.connect(ws_url, max_size=50_000_000) as ws:
+            next_id = [1]
+            await _chatgpt_web_cdp_send(ws, next_id, "Runtime.enable")
+            await _chatgpt_web_cdp_send(ws, next_id, "Page.enable")
+            await _chatgpt_web_cdp_send(ws, next_id, "Network.enable")
+            await _chatgpt_web_cdp_send(ws, next_id, "Page.bringToFront")
+            await _chatgpt_web_browser_wait_for_location(ws, next_id, timeout=15.0)
+            expression = (
+                "(async () => {\n"
+                f"  const url = {json.dumps(url)};\n"
+                f"  const method = {json.dumps(str(method or 'GET').upper())};\n"
+                f"  const headers = {json.dumps(headers or {}, ensure_ascii=False)};\n"
+                f"  const jsonBody = {json.dumps(json_body, ensure_ascii=False)};\n"
+                "  const options = {method, headers, credentials: 'include'};\n"
+                "  if (jsonBody !== null) options.body = JSON.stringify(jsonBody);\n"
+                "  const response = await fetch(url, options);\n"
+                "  const text = await response.text();\n"
+                "  return JSON.stringify({status: response.status, ok: response.ok, text});\n"
+                "})()"
+            )
+            result = await _chatgpt_web_cdp_send(
+                ws,
+                next_id,
+                "Runtime.evaluate",
+                {
+                    "expression": expression,
+                    "awaitPromise": True,
+                    "returnByValue": True,
+                },
+            )
+            payload = result.get("result", {}).get("result", {}).get("value")
+            if not isinstance(payload, str):
+                raise RuntimeError("Browser-backed ChatGPT Web fetch did not return a JSON payload")
+            parsed = json.loads(payload)
+            if not isinstance(parsed, dict):
+                raise RuntimeError("Browser-backed ChatGPT Web fetch returned invalid data")
+            return parsed
+    finally:
+        if created_target_id:
+            try:
+                await _chatgpt_web_browser_close_target(debug_base, created_target_id)
+            except Exception:
+                pass
 
 
 def _chatgpt_web_browser_fetch_sync(
@@ -349,6 +422,37 @@ async def _chatgpt_web_cdp_send(
         message = json.loads(await ws.recv())
         if message.get("id") == my_id:
             return message
+
+
+async def _chatgpt_web_browser_wait_for_location(
+    ws: Any,
+    next_id: list[int],
+    *,
+    timeout: float = 15.0,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + max(1.0, float(timeout or 15.0))
+    last_value: dict[str, Any] = {}
+    while time.monotonic() < deadline:
+        result = await _chatgpt_web_cdp_send(
+            ws,
+            next_id,
+            "Runtime.evaluate",
+            {
+                "expression": "JSON.stringify({href: location.href, readyState: document.readyState})",
+                "returnByValue": True,
+            },
+        )
+        raw_value = result.get("result", {}).get("result", {}).get("value")
+        try:
+            value = json.loads(raw_value) if isinstance(raw_value, str) else {}
+        except Exception:
+            value = {}
+        if isinstance(value, dict):
+            last_value = value
+            if str(value.get("href") or "").startswith("https://chatgpt.com/") and value.get("readyState") in {"interactive", "complete"}:
+                return value
+        await asyncio.sleep(0.25)
+    return last_value
 
 
 def _chatgpt_web_browser_version(debug_base: str) -> dict[str, Any]:
@@ -459,6 +563,11 @@ async def _chatgpt_web_browser_multimodal_completion(
     prompt_text: str,
     image_sources: list[str],
     timeout: float,
+    session_token: str = "",
+    cookie_header: str = "",
+    browser_cookies: Any = None,
+    user_agent: str = "",
+    device_id: str = "",
 ) -> dict[str, Any]:
     if websockets is None:
         raise RuntimeError("Python package 'websockets' is required for browser-backed ChatGPT Web multimodal turns")
@@ -821,6 +930,11 @@ async def _chatgpt_web_browser_multimodal_completion(
     prompt_text: str,
     image_sources: list[str],
     timeout: float,
+    session_token: str = "",
+    cookie_header: str = "",
+    browser_cookies: Any = None,
+    user_agent: str = "",
+    device_id: str = "",
 ) -> dict[str, Any]:
     if websockets is None:
         raise RuntimeError("Python package 'websockets' is required for browser-backed ChatGPT Web multimodal turns")
@@ -1147,8 +1261,6 @@ def _fetch_chatgpt_web_access_token_from_session(
 
 
 def resolve_chatgpt_web_runtime_credentials(*, force_refresh: bool = False) -> dict[str, Any]:
-    del force_refresh  # reserved for future provider-specific refresh logic
-
     access_token = os.getenv("CHATGPT_WEB_ACCESS_TOKEN", "").strip()
     session_token = os.getenv("CHATGPT_WEB_SESSION_TOKEN", "").strip()
     cookie_header = os.getenv("CHATGPT_WEB_COOKIE_HEADER", "").strip()
@@ -1199,7 +1311,11 @@ def resolve_chatgpt_web_runtime_credentials(*, force_refresh: bool = False) -> d
                 pool_browser_cookies = getattr(entry, "browser_cookies", None)
                 pool_user_agent = str(getattr(entry, "user_agent", "") or "").strip()
                 pool_device_id = str(getattr(entry, "device_id", "") or "").strip()
-                if pool_session_token and (not pool_api_key or _codex_access_token_is_expiring(pool_api_key, 0)):
+                if pool_session_token and (
+                    force_refresh
+                    or not pool_api_key
+                    or _codex_access_token_is_expiring(pool_api_key, 0)
+                ):
                     pool_api_key = _fetch_chatgpt_web_access_token_from_session(
                         pool_session_token,
                         user_agent=pool_user_agent,
@@ -1207,6 +1323,27 @@ def resolve_chatgpt_web_runtime_credentials(*, force_refresh: bool = False) -> d
                         cookie_header=pool_cookie_header,
                         browser_cookies=pool_browser_cookies,
                     )
+                    try:
+                        from hermes_cli.auth import read_credential_pool, write_credential_pool
+
+                        raw_entries = read_credential_pool("chatgpt-web")
+                        entry_id = str(getattr(entry, "id", "") or "")
+                        for raw_entry in raw_entries:
+                            if not isinstance(raw_entry, dict):
+                                continue
+                            if entry_id and str(raw_entry.get("id") or "") != entry_id:
+                                continue
+                            raw_entry["access_token"] = pool_api_key
+                            raw_entry.pop("last_status", None)
+                            raw_entry.pop("last_status_at", None)
+                            raw_entry.pop("last_error_code", None)
+                            raw_entry.pop("last_error_reason", None)
+                            raw_entry.pop("last_error_message", None)
+                            raw_entry.pop("last_error_reset_at", None)
+                            break
+                        write_credential_pool("chatgpt-web", raw_entries)
+                    except Exception:
+                        pass
                 if pool_api_key:
                     return {
                         "provider": "chatgpt-web",
@@ -1333,6 +1470,7 @@ def _prepare_conversation(
     conversation_id: Optional[str],
     parent_message_id: str,
     history_and_training_disabled: bool,
+    use_browser_fetch: bool = False,
 ) -> str:
     payload: dict[str, Any] = {
         "action": "next",
@@ -1349,7 +1487,7 @@ def _prepare_conversation(
         payload["conversation_id"] = conversation_id
 
     debug_base = _chatgpt_web_debug_base()
-    if debug_base:
+    if debug_base and use_browser_fetch:
         browser_response = _chatgpt_web_browser_fetch_sync(
             debug_base=debug_base,
             url="https://chatgpt.com/backend-api/f/conversation/prepare",
@@ -1379,9 +1517,10 @@ def _chat_requirements(
     client: httpx.Client,
     *,
     headers: dict[str, str],
+    use_browser_fetch: bool = False,
 ) -> dict[str, Any]:
     debug_base = _chatgpt_web_debug_base()
-    if debug_base:
+    if debug_base and use_browser_fetch:
         browser_response = _chatgpt_web_browser_fetch_sync(
             debug_base=debug_base,
             url="https://chatgpt.com/backend-api/sentinel/chat-requirements",
@@ -1471,6 +1610,12 @@ def _format_initial_message(
             )
         if latest_user.strip():
             prompt_parts.append(f"Latest user request:\n{latest_user.strip()}")
+        local_context = "\n".join(transcript_lines).strip()
+        if local_context:
+            prompt_parts.append(
+                "Local Hermes context after that request (same task, not a new user request):\n"
+                + local_context
+            )
         return "\n\n".join(part for part in prompt_parts if part).strip()
 
     prompt_parts: list[str] = []
@@ -1912,9 +2057,22 @@ def stream_chatgpt_web_completion(
                 prompt_text=prompt_text,
                 image_sources=image_sources,
                 timeout=timeout,
+                session_token=session_token,
+                cookie_header=cookie_header,
+                browser_cookies=browser_cookies,
+                user_agent=ua,
+                device_id=did,
             )
         )
         return browser_result
+
+    use_browser_fetch = bool(
+        debug_base
+        and (
+            _chatgpt_web_force_browser_fetch()
+            or str(session_token or "").strip()
+        )
+    )
 
     base_headers = _build_chatgpt_web_headers(
         access_token=token,
@@ -1934,8 +2092,13 @@ def stream_chatgpt_web_completion(
             conversation_id=convo_id,
             parent_message_id=parent_id,
             history_and_training_disabled=history_and_training_disabled,
+            use_browser_fetch=use_browser_fetch,
         )
-        chat_requirements = _chat_requirements(client, headers=base_headers)
+        chat_requirements = _chat_requirements(
+            client,
+            headers=base_headers,
+            use_browser_fetch=use_browser_fetch,
+        )
         requirement_token = str(chat_requirements.get("token") or "").strip()
         proof_token = ""
         proof = chat_requirements.get("proofofwork")
@@ -2082,7 +2245,7 @@ def stream_chatgpt_web_completion(
                         if delta and on_delta is not None:
                             on_delta(delta)
 
-        if debug_base:
+        if debug_base and use_browser_fetch:
             browser_response = _chatgpt_web_browser_fetch_sync(
                 debug_base=debug_base,
                 url="https://chatgpt.com/backend-api/f/conversation",
