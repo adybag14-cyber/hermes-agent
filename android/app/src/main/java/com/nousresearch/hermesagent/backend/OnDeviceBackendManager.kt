@@ -9,7 +9,8 @@ import java.util.Locale
 enum class BackendKind(val persistedValue: String) {
     NONE("none"),
     LLAMA_CPP("llama.cpp"),
-    LITERT_LM("litert-lm");
+    LITERT_LM("litert-lm"),
+    AICORE("aicore");
 
     companion object {
         fun fromPersistedValue(value: String?): BackendKind {
@@ -55,6 +56,7 @@ object OnDeviceBackendManager {
             }
             BackendKind.LLAMA_CPP -> ensureLlamaCpp(context)
             BackendKind.LITERT_LM -> ensureLiteRtLm(context)
+            BackendKind.AICORE -> ensureAICore(context)
         }
     }
 
@@ -147,6 +149,57 @@ object OnDeviceBackendManager {
         return status
     }
 
+    /**
+     * Ensure AICore backend is running with GPU/CPU fallback.
+     * AICore requires API 35+ and NPU hardware; gracefully falls back to GPU/CPU.
+     */
+    private fun ensureAICore(context: Context): LocalBackendStatus {
+        LlamaCppServerController.stop()
+        val preferred = preferredCompletedDownload(context)
+            ?: run {
+                LiteRtLmOpenAiProxy.stop()
+                return LocalBackendStatus(
+                    backendKind = BackendKind.AICORE,
+                    started = false,
+                    statusMessage = "No preferred local model is ready for AICore yet",
+                ).also { currentStatus = it }
+            }
+
+        val modelFile = java.io.File(preferred.destinationPath)
+        if (!modelFile.isFile) {
+            LiteRtLmOpenAiProxy.stop()
+            return LocalBackendStatus(
+                backendKind = BackendKind.AICORE,
+                started = false,
+                statusMessage = "Preferred local model is missing on disk: ${preferred.destinationPath}",
+                sourceModelPath = preferred.destinationPath,
+            ).also { currentStatus = it }
+        }
+        if (!preferred.matchesBackendArtifact(BackendKind.AICORE)) {
+            LiteRtLmOpenAiProxy.stop()
+            return incompatiblePreferredDownloadStatus(preferred, BackendKind.AICORE)
+        }
+
+        // AICore uses same port as LiteRT-LM but with AICore-appropriate inference config
+        val inferenceConfig = AICoreBackendController.createAICoreInferenceConfig()
+        val status = LiteRtLmOpenAiProxy.ensureRunning(
+            context = context,
+            modelPath = modelFile.absolutePath,
+            requestedModelName = preferred.title,
+            port = AICoreBackendController.AICORE_PORT,
+            inferenceConfig = inferenceConfig,
+        )
+
+        // Update status message to reflect actual backend used
+        val actualBackend = AICoreBackendController.getBackendDescription()
+        val finalStatus = status.copy(
+            backendKind = BackendKind.AICORE,
+            statusMessage = "AICore mode active: $actualBackend",
+        )
+        currentStatus = finalStatus
+        return finalStatus
+    }
+
     private fun preferredCompletedDownload(context: Context): LocalModelDownloadRecord? {
         val store = LocalModelDownloadStore(context)
         val preferredId = store.preferredDownloadId().ifBlank { return null }
@@ -159,6 +212,7 @@ object OnDeviceBackendManager {
         return when (backendKind) {
             BackendKind.LLAMA_CPP -> lower.endsWith(".gguf")
             BackendKind.LITERT_LM -> lower.endsWith(".litertlm")
+            BackendKind.AICORE -> lower.endsWith(".litertlm")  // AICore uses same format
             BackendKind.NONE -> true
         }
     }
@@ -170,11 +224,13 @@ object OnDeviceBackendManager {
         val requiredExtension = when (backendKind) {
             BackendKind.LLAMA_CPP -> ".gguf"
             BackendKind.LITERT_LM -> ".litertlm"
+            BackendKind.AICORE -> ".litertlm"
             BackendKind.NONE -> "supported"
         }
         val backendLabel = when (backendKind) {
             BackendKind.LLAMA_CPP -> "llama.cpp"
             BackendKind.LITERT_LM -> "LiteRT-LM"
+            BackendKind.AICORE -> "AICore (NPU)"
             BackendKind.NONE -> "the selected backend"
         }
         return LocalBackendStatus(

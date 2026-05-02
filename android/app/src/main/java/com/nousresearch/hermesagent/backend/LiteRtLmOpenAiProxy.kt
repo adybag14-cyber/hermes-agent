@@ -1,6 +1,7 @@
 package com.nousresearch.hermesagent.backend
 
 import android.content.Context
+import android.os.Build
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.ConversationConfig
@@ -8,6 +9,7 @@ import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.OpenApiTool
+import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ToolCall
 import com.google.ai.edge.litertlm.tool
 import fi.iki.elonen.NanoHTTPD
@@ -20,12 +22,24 @@ object LiteRtLmOpenAiProxy {
     @Volatile private var server: LiteRtLmServer? = null
     @Volatile private var activeModelPath: String = ""
 
+    /** LiteRT-LM inference configuration from catalog entry or defaults */
+    data class InferenceConfig(
+        val topK: Int = 40,              // Edge Gallery default
+        val topP: Float = 0.95f,         // Edge Gallery default
+        val temperature: Float = 1.0f,   // Edge Gallery default
+        val maxTokens: Int = -1,         // -1 = backend default
+        val maxContextLength: Int = -1,  // -1 = backend default
+        val supportImage: Boolean = false,
+        val supportAudio: Boolean = false,
+    )
+
     @Synchronized
     fun ensureRunning(
         context: Context,
         modelPath: String,
         requestedModelName: String,
         port: Int,
+        inferenceConfig: InferenceConfig = InferenceConfig(),
     ): LocalBackendStatus {
         val current = server
         if (current != null && current.isAlive() && activeModelPath == modelPath) {
@@ -46,6 +60,7 @@ object LiteRtLmOpenAiProxy {
                 modelPath = modelPath,
                 requestedModelName = requestedModelName,
                 port = port,
+                inferenceConfig = inferenceConfig,
             )
             newServer.start(SOCKET_READ_TIMEOUT, false)
             server = newServer
@@ -81,12 +96,33 @@ object LiteRtLmOpenAiProxy {
         modelPath: String,
         requestedModelName: String,
         port: Int,
+        inferenceConfig: InferenceConfig = InferenceConfig(),
     ) : NanoHTTPD("127.0.0.1", port) {
-        private val initializedEngine = initializeEngine(context, modelPath)
-        private val engine = initializedEngine.first
-        private val runtimeBackendLabel = initializedEngine.second
+        /** Engine initialization result with accelerator labels for each modality */
+        data class EngineInitResult(
+            val engine: Engine,
+            val backend: String,
+            val visionBackend: String,
+            val audioBackend: String,
+        )
+
+        private val engineInitResult = initializeEngine(
+            context = context,
+            modelPath = modelPath,
+            supportImage = inferenceConfig.supportImage,
+            supportAudio = inferenceConfig.supportAudio,
+        )
+        private val engine = engineInitResult.engine
+        private val runtimeBackendLabel = engineInitResult.backend
+        private val visionBackendLabel = engineInitResult.visionBackend
+        private val audioBackendLabel = engineInitResult.audioBackend
 
         val modelName: String = requestedModelName.ifBlank { File(modelPath).name }
+        private val samplerConfig = SamplerConfig(
+            topK = inferenceConfig.topK,
+            topP = inferenceConfig.topP.toDouble(),
+            temperature = inferenceConfig.temperature.toDouble(),
+        )
 
         override fun serve(session: IHTTPSession): Response {
             return try {
@@ -96,6 +132,8 @@ object LiteRtLmOpenAiProxy {
                             put("status", "ok")
                             put("backend", "litert-lm")
                             put("accelerator", runtimeBackendLabel)
+                            put("vision_accelerator", visionBackendLabel)
+                            put("audio_accelerator", audioBackendLabel)
                             put("model", modelName)
                         }
                     )
@@ -121,29 +159,58 @@ object LiteRtLmOpenAiProxy {
             kotlin.runCatching { engine.close() }
         }
 
-        private fun initializeEngine(context: Context, modelPath: String): Pair<Engine, String> {
+        /**
+         * Initialize LiteRT-LM engine with GPU-first strategy and multimodal backends.
+         * Follows Edge Gallery pattern: GPU primary, CPU fallback.
+         * For multimodal models: vision uses GPU, audio uses CPU.
+         */
+        private fun initializeEngine(
+            context: Context,
+            modelPath: String,
+            supportImage: Boolean,
+            supportAudio: Boolean,
+        ): EngineInitResult {
             var lastError: Throwable? = null
-            val backends = listOf(
-                Backend.GPU() to "gpu",
-                Backend.CPU() to "cpu",
-            )
+            val backends = if (isTranslatedArm64OnX86(context)) {
+                listOf(Backend.CPU() to "cpu")
+            } else {
+                listOf(
+                    Backend.GPU() to "gpu",
+                    Backend.CPU() to "cpu",
+                )
+            }
             for ((backend, label) in backends) {
                 val candidate = Engine(
                     EngineConfig(
                         modelPath = modelPath,
                         backend = backend,
+                        visionBackend = if (supportImage) Backend.GPU() else null,
+                        audioBackend = if (supportAudio) Backend.CPU() else null,
                         cacheDir = context.cacheDir.absolutePath,
                     )
                 )
                 try {
                     candidate.initialize()
-                    return candidate to label
+                    return EngineInitResult(
+                        engine = candidate,
+                        backend = label,
+                        visionBackend = if (supportImage) "gpu" else "none",
+                        audioBackend = if (supportAudio) "cpu" else "none",
+                    )
                 } catch (error: Throwable) {
                     lastError = error
                     kotlin.runCatching { candidate.close() }
                 }
             }
             throw lastError ?: IllegalStateException("LiteRT-LM engine initialization failed")
+        }
+
+        private fun isTranslatedArm64OnX86(context: Context): Boolean {
+            val nativeLibraryDir = context.applicationInfo.nativeLibraryDir.orEmpty()
+            val packageUsesArm64 = nativeLibraryDir.contains("/arm64") ||
+                nativeLibraryDir.contains("\\arm64")
+            val deviceSupportsX86 = Build.SUPPORTED_ABIS.any { it.startsWith("x86") }
+            return packageUsesArm64 && deviceSupportsX86
         }
 
         private fun handleChatCompletions(session: IHTTPSession): Response {
@@ -170,6 +237,7 @@ object LiteRtLmOpenAiProxy {
                     systemInstruction = systemInstruction,
                     initialMessages = initialMessages,
                     tools = toolProviders,
+                    samplerConfig = samplerConfig,
                     automaticToolCalling = false,
                 )
             )
