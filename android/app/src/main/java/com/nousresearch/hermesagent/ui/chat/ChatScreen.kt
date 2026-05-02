@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -577,7 +578,9 @@ private fun ChatComposer(
             OutlinedTextField(
                 value = input,
                 onValueChange = onInputChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("HermesChatInput"),
                 shape = RoundedCornerShape(28.dp),
                 label = { Text(strings.messageHermes.ifBlank { "Message Hermes" }) },
                 maxLines = 5,
@@ -588,7 +591,11 @@ private fun ChatComposer(
                     )
                 },
             )
-            Button(onClick = onSend, enabled = !isSending) {
+            Button(
+                onClick = onSend,
+                enabled = !isSending,
+                modifier = Modifier.testTag("HermesChatSendButton"),
+            ) {
                 Text(if (isSending) "…" else strings.send.ifBlank { "Send" })
             }
         }

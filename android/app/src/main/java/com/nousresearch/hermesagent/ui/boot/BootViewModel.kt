@@ -77,7 +77,7 @@ class BootViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun checkHealth(baseUrl: String, apiKey: String?): Boolean {
-        val connection = (URL("$baseUrl/health").openConnection() as HttpURLConnection).apply {
+        val connection = (URL(hermesHealthUrl(baseUrl)).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = 5000
             readTimeout = 5000
@@ -91,4 +91,8 @@ class BootViewModel(application: Application) : AndroidViewModel(application) {
             connection.disconnect()
         }
     }
+}
+
+internal fun hermesHealthUrl(baseUrl: String): String {
+    return baseUrl.trimEnd('/').removeSuffix("/v1") + "/health"
 }
