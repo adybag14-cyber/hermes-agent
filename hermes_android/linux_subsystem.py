@@ -23,10 +23,13 @@ def apply_linux_subsystem_env(files_dir: str | Path) -> dict[str, str]:
     state = load_linux_subsystem_state(files_dir)
     if not state or not state.get("enabled"):
         return {}
+    shell_path = str(state.get("shell_path") or state.get("bash_path") or "/system/bin/sh")
     return {
         "TERMINAL_ENV": "android_linux",
+        "HERMES_ANDROID_EXECUTION_MODE": str(state.get("execution_mode", "android_system_shell")),
+        "HERMES_ANDROID_SHELL": shell_path,
         "HERMES_ANDROID_LINUX_PREFIX": str(state.get("prefix_path", "")),
-        "HERMES_ANDROID_LINUX_BASH": str(state.get("bash_path", "")),
+        "HERMES_ANDROID_LINUX_BASH": shell_path,
         "HERMES_ANDROID_LINUX_BIN": str(state.get("bin_path", "")),
         "HERMES_ANDROID_LINUX_LIB": str(state.get("lib_path", "")),
         "HERMES_ANDROID_LINUX_HOME": str(state.get("home_path", "")),

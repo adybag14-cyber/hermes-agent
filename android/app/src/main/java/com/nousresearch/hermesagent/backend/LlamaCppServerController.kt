@@ -43,6 +43,14 @@ object LlamaCppServerController {
 
         stop()
         val linuxState = HermesLinuxSubsystemBridge.ensureInstalled(context)
+        if (linuxState.optString("execution_mode") == "android_system_shell") {
+            return LocalBackendStatus(
+                backendKind = BackendKind.LLAMA_CPP,
+                started = false,
+                sourceModelPath = modelPath,
+                statusMessage = "llama.cpp is not available in native Android shell mode. Use LiteRT-LM .litertlm models for fully native local inference.",
+            )
+        }
         val bashPath = linuxState.optString("bash_path")
         val prefixPath = linuxState.optString("prefix_path")
         val binPath = linuxState.optString("bin_path")
