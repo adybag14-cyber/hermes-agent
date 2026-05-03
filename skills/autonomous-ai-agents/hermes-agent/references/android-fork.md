@@ -49,6 +49,15 @@ are not runtime proof: a web-oriented `.task` file need not load in Android.
 Test image understanding with a genuinely multimodal model; text-only
 models must reject unsupported image requests clearly.
 
+For `Unable to open zip archive`, inspect the artifact's actual header and
+the selected loader. `TFL3` identifies a TFLite FlatBuffer, not the ZIP-style
+bundle expected by that LiteRT-LM load path. Use the artifact declared for
+the selected backend; renaming a web `.task` file does not convert it.
+
+For `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, verify package and signer identity.
+Use a correctly signed candidate/update; publish a patch release only when
+that is requested. Do not uninstall the existing app to bypass the mismatch.
+
 Use app-scoped storage or the current scoped-storage-safe provisioning path.
 Watch both emulator data-space and RAM limits when testing large models.
 Remove only fixtures owned by the current run or files the user explicitly
