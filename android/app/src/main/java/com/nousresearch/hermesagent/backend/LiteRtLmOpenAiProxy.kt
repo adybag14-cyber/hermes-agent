@@ -5,10 +5,12 @@ import android.os.Build
 import android.util.Base64
 import com.google.ai.edge.litertlm.Backend
 import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
+import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.OpenApiTool
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ToolCall
@@ -19,6 +21,9 @@ import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 object LiteRtLmOpenAiProxy {
     @Volatile private var server: LiteRtLmServer? = null
@@ -34,6 +39,10 @@ object LiteRtLmOpenAiProxy {
         val supportImage: Boolean = false,
         val supportAudio: Boolean = false,
     )
+
+    private const val DEFAULT_GENERATION_TIMEOUT_MS = 120_000L
+    private const val MIN_GENERATION_TIMEOUT_MS = 5_000L
+    private const val MAX_GENERATION_TIMEOUT_MS = 300_000L
 
     @Synchronized
     fun ensureRunning(
@@ -309,14 +318,65 @@ object LiteRtLmOpenAiProxy {
                 )
             )
             conversation.use { convo ->
-                val responseMessage = convo.sendMessage(promptMessage, emptyMap())
-                val payload = completionPayload(responseMessage)
+                val payload = runInferenceWithTimeout(
+                    conversation = convo,
+                    promptMessage = promptMessage,
+                    timeoutMs = generationTimeoutMs(requestJson),
+                )
                 return if (requestJson.optBoolean("stream", false)) {
                     sseResponse(payload)
                 } else {
                     jsonResponse(payload)
                 }
             }
+        }
+
+        private fun runInferenceWithTimeout(
+            conversation: Conversation,
+            promptMessage: Message,
+            timeoutMs: Long,
+        ): JSONObject {
+            val done = CountDownLatch(1)
+            val latestMessage = AtomicReference<Message?>(null)
+            val failure = AtomicReference<Throwable?>(null)
+            conversation.sendMessageAsync(
+                promptMessage,
+                object : MessageCallback {
+                    override fun onMessage(message: Message) {
+                        latestMessage.set(message)
+                    }
+
+                    override fun onDone() {
+                        done.countDown()
+                    }
+
+                    override fun onError(throwable: Throwable) {
+                        failure.set(throwable)
+                        done.countDown()
+                    }
+                },
+                emptyMap(),
+            )
+            val completed = done.await(timeoutMs, TimeUnit.MILLISECONDS)
+            failure.get()?.let { throw it }
+            val responseMessage = latestMessage.get()
+            if (!completed) {
+                kotlin.runCatching { conversation.cancelProcess() }
+                if (responseMessage != null) {
+                    return completionPayload(responseMessage, finishReasonOverride = "length")
+                }
+                throw IllegalStateException(
+                    "LiteRT-LM generation timed out after ${timeoutMs / 1000} seconds before producing a response"
+                )
+            }
+            return completionPayload(
+                responseMessage ?: throw IllegalStateException("LiteRT-LM completed without a response message")
+            )
+        }
+
+        private fun generationTimeoutMs(requestJson: JSONObject): Long {
+            val requested = requestJson.optLong("timeout_ms", DEFAULT_GENERATION_TIMEOUT_MS)
+            return requested.coerceIn(MIN_GENERATION_TIMEOUT_MS, MAX_GENERATION_TIMEOUT_MS)
         }
 
         private fun buildSystemInstruction(messages: JSONArray): com.google.ai.edge.litertlm.Contents? {
@@ -400,7 +460,7 @@ object LiteRtLmOpenAiProxy {
             return providers
         }
 
-        private fun completionPayload(responseMessage: Message): JSONObject {
+        private fun completionPayload(responseMessage: Message, finishReasonOverride: String? = null): JSONObject {
             val toolCallsJson = JSONArray()
             responseMessage.toolCalls.forEachIndexed { index, toolCall ->
                 toolCallsJson.put(
@@ -418,7 +478,7 @@ object LiteRtLmOpenAiProxy {
                 )
             }
             val content = responseMessage.toString()
-            val finishReason = if (responseMessage.toolCalls.isNotEmpty()) "tool_calls" else "stop"
+            val finishReason = finishReasonOverride ?: if (responseMessage.toolCalls.isNotEmpty()) "tool_calls" else "stop"
             return JSONObject().apply {
                 put("id", "chatcmpl-${UUID.randomUUID()}")
                 put("object", "chat.completion")
