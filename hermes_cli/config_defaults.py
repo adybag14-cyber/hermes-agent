@@ -1193,6 +1193,9 @@ DEFAULT_CONFIG = {
         "write_approval": False,
         "memory_char_limit": 2200,   # ~800 tokens at 2.75 chars/token
         "user_char_limit": 1375,     # ~500 tokens at 2.75 chars/token
+        # External recalled-memory text cap (2,000..200,000 characters).
+        # None inherits legacy HERMES_MEMORY_CONTEXT_MAX_CHARS, then 24,000.
+        "context_max_chars": None,
         # Periodic built-in memory review; 0 when an external provider auto-extracts.
         "nudge_interval": 10,
         # External memory provider plugin (empty = built-in only); only ONE at a time: "openviking",

@@ -10,6 +10,7 @@ import contextvars
 import inspect
 import json
 import logging
+import os
 import re
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor, wait
@@ -161,6 +162,9 @@ def inject_memory_provider_tools(agent: Any) -> int:
             existing_tool_names.add(schema["name"])
             added += 1
     return added
+DEFAULT_MEMORY_CONTEXT_MAX_CHARS = 24_000
+MIN_MEMORY_CONTEXT_MAX_CHARS = 2_000
+MAX_MEMORY_CONTEXT_MAX_CHARS = 200_000
 
 
 # -- Context fencing helpers --------------------------------------------------
@@ -178,6 +182,54 @@ def sanitize_context(text: str) -> str:
     for pattern in (_INTERNAL_CONTEXT_RE, _INTERNAL_NOTE_RE, _FENCE_TAG_RE):
         text = pattern.sub('', text)
     return text
+
+
+def memory_context_max_chars() -> int:
+    """Return the hard cap for recalled memory injected into a prompt."""
+    raw = None
+    try:
+        from hermes_cli.config import cfg_get, load_config_readonly
+
+        raw = cfg_get(load_config_readonly(), "memory", "context_max_chars")
+    except Exception:
+        logger.debug("Unable to read memory context cap configuration", exc_info=True)
+    if raw is None or raw == "":
+        # Compatibility with Android launchers predating the config key.
+        raw = os.getenv("HERMES_MEMORY_CONTEXT_MAX_CHARS", "").strip()
+    if raw is None or raw == "":
+        return DEFAULT_MEMORY_CONTEXT_MAX_CHARS
+    try:
+        if isinstance(raw, bool) or isinstance(raw, float) and not raw.is_integer():
+            raise ValueError("Expected an integer character limit")
+        value = int(raw)
+    except (TypeError, ValueError, OverflowError):
+        logger.warning(
+            "Invalid memory.context_max_chars or legacy environment limit; using default %d",
+            DEFAULT_MEMORY_CONTEXT_MAX_CHARS,
+        )
+        return DEFAULT_MEMORY_CONTEXT_MAX_CHARS
+    return max(MIN_MEMORY_CONTEXT_MAX_CHARS, min(value, MAX_MEMORY_CONTEXT_MAX_CHARS))
+
+
+def bound_memory_context(text: str, *, max_chars: int | None = None) -> str:
+    """Sanitize and cap recalled memory before prompt injection.
+
+    External memory systems such as Hindsight can return ranked recall blocks.
+    Hermes preserves that ordering and keeps the highest-ranked prefix when a
+    small local model cannot safely accept the full memory context.
+    """
+    clean = sanitize_context(text).strip()
+    if not clean:
+        return ""
+    limit = max_chars if max_chars is not None else memory_context_max_chars()
+    if limit <= 0 or len(clean) <= limit:
+        return clean
+    marker = f"\n\n[Memory context truncated to {limit} characters to fit the model context budget.]"
+    if len(marker) >= limit:
+        # A marker must never overflow an explicit small caller budget.
+        return clean[:limit]
+    keep = limit - len(marker)
+    return clean[:keep].rstrip() + marker
 
 
 class StreamingContextScrubber:
@@ -272,8 +324,8 @@ def build_memory_context_block(raw_context: str) -> str:
     """Wrap prefetched memory in a fenced block with system note."""
     if not raw_context or not raw_context.strip():
         return ""
-    clean = sanitize_context(raw_context)
-    if clean != raw_context:
+    clean = bound_memory_context(raw_context)
+    if sanitize_context(raw_context).strip() != raw_context.strip():
         logger.warning("memory provider returned pre-wrapped context; stripped")
     return (
         "<memory-context>\n"
