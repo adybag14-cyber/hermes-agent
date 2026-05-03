@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-08-20T12:46:05.3034432Z"
+exclude-newer = "2026-08-20T12:47:46.7231184Z"
 exclude-newer-span = "P14D"
 
 [options.exclude-newer-package]
@@ -1670,7 +1670,7 @@ wheels = [
 
 [[package]]
 name = "hermes-agent"
-version = "0.13.1"
+version = "0.13.2"
 source = { editable = "." }
 dependencies = [
     { name = "certifi" },

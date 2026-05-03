@@ -58,6 +58,11 @@ For `INSTALL_FAILED_UPDATE_INCOMPATIBLE`, verify package and signer identity.
 Use a correctly signed candidate/update; publish a patch release only when
 that is requested. Do not uninstall the existing app to bypass the mismatch.
 
+For `INSTALL_FAILED_NO_MATCHING_ABIS`, compare the APK's `lib/` entries with
+the device's `ro.product.cpu.abilist`. A universal artifact must be the
+actual universal Gradle output, not the newest ABI split renamed to
+`universal.apk`. Verify the archive before publishing or installing it.
+
 Use app-scoped storage or the current scoped-storage-safe provisioning path.
 Watch both emulator data-space and RAM limits when testing large models.
 Remove only fixtures owned by the current run or files the user explicitly
