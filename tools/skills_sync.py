@@ -27,7 +27,7 @@ from agent.skill_utils import ESSENTIAL_SKILLS, is_excluded_skill_path
 from tools.skill_usage import _read_skill_name, read_suppressed_names
 from tools.skills_sync_bundled_ops import _is_tracked_user_modification
 from tools.skills_sync_optional import _backfill_optional_provenance, _read_hub_install_paths
-from utils import atomic_write_text
+from hermes_cli.shared_utils import atomic_write_text
 
 logger = logging.getLogger(__name__)
 

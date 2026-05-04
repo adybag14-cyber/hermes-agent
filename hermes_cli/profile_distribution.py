@@ -159,7 +159,7 @@ def write_manifest(profile_dir: Path, manifest: DistributionManifest) -> Path:
     lands and read_manifest() treats a missing/unparseable manifest as "not a distribution",
     so an interrupted install/update would silently demote the profile."""
     mf_path = profile_dir / MANIFEST_FILENAME
-    from utils import atomic_yaml_write
+    from hermes_cli.shared_utils import atomic_yaml_write
 
     # create_mode=0o644: with an explicit `distribution_owned` allowlist that omits
     # distribution.yaml, _copy_dist_payload reaches here with no manifest on disk. It is a

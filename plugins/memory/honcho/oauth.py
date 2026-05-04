@@ -283,7 +283,7 @@ def _deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]
 def _persist_credential(path: Path, host: str, cred: OAuthCredential, raw: dict[str, Any] | None = None) -> None:
     """Write ``cred`` into ``host``'s block (apiKey + oauth) of ``raw`` (default:
     the file's current content), leaving the rest intact; marks the grant live."""
-    from utils import atomic_json_write
+    from hermes_cli.shared_utils import atomic_json_write
 
     raw = _read_config(path) if raw is None else raw
     block = raw.setdefault("hosts", {}).setdefault(host, {})

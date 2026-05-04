@@ -21,7 +21,7 @@ from hermes_cli.cli_output import line_input
 from hermes_cli.config import cfg_get
 from hermes_cli.plugin_capabilities import _child_dict
 from hermes_cli.secret_prompt import masked_secret_prompt
-from utils import atomic_write_text
+from hermes_cli.shared_utils import atomic_write_text
 
 logger = logging.getLogger(__name__)
 

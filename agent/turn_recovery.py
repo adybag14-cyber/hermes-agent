@@ -27,7 +27,7 @@ from agent.message_sanitization import (
 )
 from agent.thinking_timeout_guidance import build_thinking_timeout_guidance, is_thinking_timeout
 from agent.turn_retry_state import TurnRetryState
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 logger = logging.getLogger("agent.conversation_loop")
 

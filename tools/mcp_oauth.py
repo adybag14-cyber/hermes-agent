@@ -844,7 +844,7 @@ _FIGMA_DEFAULT_SCOPE = "mcp:connect"
 
 def _is_figma_remote_mcp(server_name: str | None = None, server_url: str | None = None) -> bool:
     """True when this MCP server is Figma's hosted remote endpoint."""
-    from utils import base_url_host_matches, base_url_hostname
+    from hermes_cli.shared_utils import base_url_host_matches, base_url_hostname
     url = (server_url or "").lower()
     if base_url_host_matches(url, "mcp.figma.com") or (base_url_host_matches(url, "figma.com") and "/mcp" in url):
         return True

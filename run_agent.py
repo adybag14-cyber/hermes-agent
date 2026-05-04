@@ -134,7 +134,7 @@ from agent.codex_responses_adapter import (
     _summarize_user_message_for_log,
 )
 from agent.tool_guardrails import ToolGuardrailDecision, append_toolguard_guidance, toolguard_synthetic_result
-from utils import base_url_host_matches, base_url_hostname, env_float, model_forces_max_completion_tokens
+from hermes_cli.shared_utils import base_url_host_matches, base_url_hostname, env_float, model_forces_max_completion_tokens
 
 
 _MAX_TOOL_WORKERS = 8

@@ -471,7 +471,7 @@ def _configure_ui_meta(profile_dir, params, applied) -> None:
             else:
                 existing.pop("ui_meta", None)
             existing["_ui_meta_revisions"] = revisions
-            from utils import atomic_yaml_write
+            from hermes_cli.shared_utils import atomic_yaml_write
             atomic_yaml_write(profile_dir / "profile.yaml", existing, sort_keys=False)
             applied["ui_meta"] = True
             applied["ui_meta_revisions"] = {key: revisions[key] for key in incoming}

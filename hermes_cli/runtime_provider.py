@@ -34,7 +34,7 @@ from hermes_cli.chatgpt_web import DEFAULT_CHATGPT_WEB_BASE_URL, resolve_chatgpt
 from hermes_cli import models as _models  # attribute access keeps ``hermes_cli.models.<name>`` patches effective
 from hermes_constants import OPENROUTER_BASE_URL
 from hermes_cli.providers import determine_api_mode, is_official_openai_host, nous_api_mode
-from utils import base_url_host_matches, base_url_hostname, env_int
+from hermes_cli.shared_utils import base_url_host_matches, base_url_hostname, env_int
 
 
 # Late-bound delegates, deliberately NOT module-level from-imports: this module is often imported

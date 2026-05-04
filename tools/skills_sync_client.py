@@ -283,7 +283,7 @@ def read_sync_state() -> Dict[str, Any]:
 def write_sync_state(data: Dict[str, Any]) -> None:
     """Write the local sync state atomically. Best-effort."""
     try:
-        from utils import atomic_write_text
+        from hermes_cli.shared_utils import atomic_write_text
         atomic_write_text(_skills_dir() / ".sync_state",
                           json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False),
                           tmp_prefix=".sync_state_")

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 
 
 class TestAtomicJsonWrite:
@@ -46,7 +46,7 @@ class TestAtomicJsonWrite:
         Previously this crashed in `hermes memory setup` while saving the
         Hindsight config with mode=0o600 (GitHub: Windows setup traceback).
         """
-        import utils
+        from hermes_cli import shared_utils as utils
 
         target = tmp_path / "secret.json"
         no_fchmod = {k: getattr(os, k) for k in dir(os) if k != "fchmod"}

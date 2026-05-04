@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from hermes_constants import (
     _get_platform_default_hermes_home, get_default_hermes_root, get_hermes_home, display_hermes_home,
 )
-from utils import (
+from hermes_cli.shared_utils import (
     _preserve_file_mode, _preserve_file_owner, _restore_file_mode, _restore_file_owner, atomic_replace,
 )
 
@@ -1439,7 +1439,7 @@ def restore_config_model_settings_if_rewritten(
     if not restored_keys:
         return None
     try:
-        from utils import atomic_yaml_write
+        from hermes_cli.shared_utils import atomic_yaml_write
         atomic_yaml_write(live_path, live)
     except (OSError, PermissionError) as exc:
         logger.error("config.yaml model settings were rewritten during update but auto-restore failed: %s", exc)

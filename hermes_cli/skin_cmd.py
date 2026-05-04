@@ -62,7 +62,7 @@ def _skin_set(key: str, value: str, skin: str | None) -> int:
     # Atomic write: write_text truncates with no fsync; safe_load("") → None → {} would
     # permanently lose the palette on the next set.
     # See #51356.
-    from utils import atomic_yaml_write
+    from hermes_cli.shared_utils import atomic_yaml_write
     atomic_yaml_write(path, data, sort_keys=False)
     if target != name:
         _use(target)

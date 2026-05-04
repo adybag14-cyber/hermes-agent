@@ -259,13 +259,13 @@ class TestRejectionMatcher:
 
 class TestConfigCoercion:
     def test_false_like_strings_stay_disabled(self, monkeypatch):
-        from utils import is_truthy_value
+        from hermes_cli.shared_utils import is_truthy_value
 
         for raw in ("false", "off", "no", "0", "", "FALSE", " Off "):
             assert not is_truthy_value(raw, False), raw
 
     def test_true_like_strings_enable(self):
-        from utils import is_truthy_value
+        from hermes_cli.shared_utils import is_truthy_value
 
         for raw in ("true", "1", "yes", "on", "TRUE"):
             assert is_truthy_value(raw, False), raw

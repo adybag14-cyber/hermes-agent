@@ -607,7 +607,7 @@ def _read_logging_config():
             from hermes_cli.config import read_raw_config as _rrc
             cfg = _rrc() or {}
         except Exception:
-            from utils import fast_safe_load
+            from hermes_cli.shared_utils import fast_safe_load
             config_path = get_config_path()
             cfg = {}
             if config_path.exists():

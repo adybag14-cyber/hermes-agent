@@ -24,7 +24,7 @@ from typing import Any, Callable, Dict, Optional
 
 from gateway.restart import GATEWAY_SERVICE_RESTART_EXIT_CODE
 from hermes_constants import get_hermes_home
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 
 logger = logging.getLogger(__name__)
 

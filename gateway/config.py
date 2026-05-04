@@ -18,7 +18,7 @@ from gateway.shutdown_watchdog import (
     DEFAULT_LOOP_WATCHDOG_MAX_STRIKES,
     DEFAULT_LOOP_WATCHDOG_TIMEOUT_S,
 )
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 logger = logging.getLogger(__name__)
 

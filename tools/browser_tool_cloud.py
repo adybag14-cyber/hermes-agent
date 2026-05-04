@@ -13,7 +13,7 @@ from hermes_constants import get_hermes_home_override, hermes_home_key
 from plugins.browser.browser_use.provider import BrowserUseBrowserProvider
 from plugins.browser.browserbase.provider import BrowserbaseBrowserProvider
 from tools.tool_backend_helpers import normalize_browser_cloud_provider
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 from tools.browser_tool_origin import origin_module as _origin
 from tools import browser_tool_cdp as _cdp
 

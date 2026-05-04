@@ -18,7 +18,7 @@ from agent.i18n import t
 from gateway.config import Platform
 from gateway.platforms.base import MessageEvent, _prefix_within_utf16_limit, utf16_len
 from gateway.session import SessionSource
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 if TYPE_CHECKING:  # string annotations only; never imported at runtime (cycle)
     from gateway.run import GatewayRunner  # noqa: F401

@@ -15,7 +15,7 @@ import sys
 import threading
 
 from rich.markup import escape as _escape
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 # CLI-level fields describing the active model route; snapshotted before a switch / one-turn
 # override and restored wholesale on rollback.

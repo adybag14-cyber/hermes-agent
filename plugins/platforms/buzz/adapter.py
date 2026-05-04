@@ -1372,7 +1372,7 @@ class BuzzAdapter(BasePlatformAdapter):
         }
         payload = {"identity": self._self_pubkey, "relay": self.relay_url, "channels": channels}
         try:
-            from utils import atomic_json_write
+            from hermes_cli.shared_utils import atomic_json_write
             atomic_json_write(self._cursor_path(), payload, indent=None)
         except Exception:
             logger.debug("Buzz: could not persist channel cursors", exc_info=True)

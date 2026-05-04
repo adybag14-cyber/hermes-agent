@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Any, Callable, Optional
 
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 
 # ── Verdicts ─────────────────────────────────────────────────────────────

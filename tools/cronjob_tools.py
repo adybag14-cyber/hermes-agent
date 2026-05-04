@@ -986,7 +986,7 @@ Jobs run in a fresh session with no current-chat context, so prompts must be sel
 def check_cronjob_requirements() -> bool:
     """Available in interactive CLI mode and gateway/messaging platforms (the scheduler is
     internal; no crontab needed). Flags must be explicitly truthy via ``env_var_enabled``."""
-    from utils import env_var_enabled
+    from hermes_cli.shared_utils import env_var_enabled
     return (
         env_var_enabled("HERMES_INTERACTIVE")
         or env_var_enabled("HERMES_GATEWAY_SESSION")

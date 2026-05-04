@@ -51,7 +51,7 @@ from agent.turn_response_intake import normalize_model_response
 from agent.turn_tool_round import run_tool_round
 from hermes_logging import set_session_context
 from tools.skill_provenance import set_current_write_origin
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 logger = logging.getLogger(__name__)
 

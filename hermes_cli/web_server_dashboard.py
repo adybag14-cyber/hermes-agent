@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from hermes_cli.config import cfg_get, get_process_hermes_home
-from utils import env_var_enabled
+from hermes_cli.shared_utils import env_var_enabled
 
 # Same logger the code used before extraction (record parity).
 _log = logging.getLogger("hermes_cli.web_server")

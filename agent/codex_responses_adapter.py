@@ -527,7 +527,7 @@ class ResponsesRouteFlags(NamedTuple):
 def classify_responses_route(agent: Any) -> ResponsesRouteFlags:
     """Classify the agent's Responses route from provider + base URL. Host checks are
     exact-host-or-subdomain, never substring (``evil.com/models.github.ai`` is not GitHub)."""
-    from utils import base_url_hostname
+    from hermes_cli.shared_utils import base_url_hostname
     provider = getattr(agent, "provider", None)
     base_url = str(getattr(agent, "base_url", "") or "")
     hostname = str(getattr(agent, "_base_url_hostname", "") or "").lower() or base_url_hostname(base_url)

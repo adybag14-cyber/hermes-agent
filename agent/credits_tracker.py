@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Mapping, Optional
 
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 logger = logging.getLogger(__name__)
 

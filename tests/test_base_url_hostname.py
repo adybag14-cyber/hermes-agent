@@ -8,7 +8,7 @@ tests/agent/test_direct_provider_url_detection.py.
 
 from __future__ import annotations
 
-from utils import base_url_hostname, base_url_host_matches
+from hermes_cli.shared_utils import base_url_hostname, base_url_host_matches
 
 
 # ─── base_url_hostname ────────────────────────────────────────────────────
@@ -117,4 +117,3 @@ class TestOllamaUrlHostCheck:
         assert base_url_host_matches(
             "https://ollama.com/api/generate", "ollama.com"
         ) is True
-

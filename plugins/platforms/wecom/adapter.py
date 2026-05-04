@@ -29,7 +29,7 @@ HTTPX_AVAILABLE = httpx is not None
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.helpers import MessageDeduplicator
 from gateway.platforms.base import gateway_trust_env, BasePlatformAdapter, MessageEvent, MessageType, SendResult
-from utils import env_float
+from hermes_cli.shared_utils import env_float
 
 from gateway.platforms._shared import get_scoped_secret as _get_scoped_secret
 from plugins.platforms.wecom.send_queue import ChatSendQueueMixin

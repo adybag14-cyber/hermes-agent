@@ -14,7 +14,7 @@ from typing import Any
 
 from hermes_cli.sqlite_util import write_txn
 from hermes_constants import get_hermes_home
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 
 from .shared_metrics_contract import (
     CLIENT_ACTIVE_METRIC,

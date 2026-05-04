@@ -14,7 +14,7 @@ import threading
 import time
 from collections.abc import Iterator
 
-from utils import env_var_enabled
+from hermes_cli.shared_utils import env_var_enabled
 
 # Log-record parity with the origin module.
 logger = logging.getLogger("tools.terminal_tool")

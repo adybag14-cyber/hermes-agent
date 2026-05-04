@@ -87,7 +87,7 @@ def _scrub_config_yaml_mirrors(old_value: str, new_value: str | None) -> List[st
     """
     if not old_value:
         return []
-    from utils import atomic_yaml_write, fast_safe_load
+    from hermes_cli.shared_utils import atomic_yaml_write, fast_safe_load
 
     from hermes_cli.config import get_config_path, require_readable_config_before_write
 

@@ -39,7 +39,7 @@ from agent.memory_provider import MemoryProvider
 from agent.skill_commands import extract_user_instruction_from_skill_message
 from hermes_cli import __version__ as _HERMES_VERSION
 from tools.registry import tool_error
-from utils import atomic_json_write, env_var_enabled
+from hermes_cli.shared_utils import atomic_json_write, env_var_enabled
 
 try:
     import fcntl

@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Any, Dict, Literal, Optional
 
 from agent.model_metadata import fetch_endpoint_model_metadata, fetch_model_metadata
-from utils import base_url_host_matches, base_url_hostname
+from hermes_cli.shared_utils import base_url_host_matches, base_url_hostname
 
 logger = logging.getLogger(__name__)
 

@@ -43,7 +43,7 @@ def _get_flush_dir():
 
 def _write_payload(flush_dir: Path, payload: Dict[str, Any]) -> Path:
     """Atomically write one private, uniquely named recovery payload; return its path."""
-    from utils import atomic_json_write
+    from hermes_cli.shared_utils import atomic_json_write
     final_path = flush_dir / f"pending-{uuid.uuid4().hex}.json"
     atomic_json_write(final_path, payload, mode=0o600, default=str)
     if os.name == "posix":

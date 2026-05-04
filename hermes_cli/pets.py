@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 
 def _err(msg: str) -> None:

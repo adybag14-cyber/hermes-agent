@@ -18,7 +18,7 @@ import time
 import urllib.request
 from typing import Any, Optional
 
-from utils import base_url_hostname, normalize_proxy_url
+from hermes_cli.shared_utils import base_url_hostname, normalize_proxy_url
 
 
 _OPENAI_CLS_CACHE = None

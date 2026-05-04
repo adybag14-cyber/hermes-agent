@@ -60,9 +60,30 @@ def test_android_linux_environment_builds_system_first_runtime_env(tmp_path, mon
     assert str(bin_dir) not in run_env["PATH"]
     assert run_env["HERMES_ANDROID_SHELL"] == "/system/bin/sh"
     assert run_env["HERMES_ANDROID_EXECUTION_MODE"] == "android_system_shell"
-    for name in ("TERMUX_PREFIX", "LD_LIBRARY_PATH", "TERMINFO", "GIT_EXEC_PATH"):
+    assert run_env["LD_LIBRARY_PATH"] == str(lib_dir)
+    for name in ("TERMUX_PREFIX", "TERMINFO", "GIT_EXEC_PATH"):
         assert name not in run_env
     monkeypatch.setenv("HERMES_ANDROID_ALLOW_PREFIX_BIN", "1")
     assert env._build_run_env()["PATH"].endswith(":" + str(bin_dir))
 
     env.cleanup()
+
+
+def test_android_linux_environment_preserves_selected_native_runtime(tmp_path, monkeypatch):
+    native_dir = tmp_path / "native-libs"
+    prefix_lib = tmp_path / "prefix-libs"
+    monkeypatch.setenv("HERMES_ANDROID_EXECUTION_MODE", "embedded_termux")
+    monkeypatch.setenv("HERMES_ANDROID_SHELL", str(native_dir / "libhermes_android_bash.so"))
+    monkeypatch.setenv("HERMES_ANDROID_NATIVE_LIB", str(native_dir))
+    monkeypatch.setenv("HERMES_ANDROID_LINUX_LIB", str(prefix_lib))
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/vendor/lib64")
+    monkeypatch.setenv("OPENAI_API_KEY", "must-not-reach-native-shell")
+    monkeypatch.setattr(AndroidLinuxEnvironment, "init_session", lambda self: None)
+
+    environment = AndroidLinuxEnvironment(cwd=str(tmp_path))
+    child_env = environment._build_run_env()
+
+    assert child_env["HERMES_ANDROID_EXECUTION_MODE"] == "embedded_termux"
+    assert child_env["HERMES_ANDROID_SHELL"] == str(native_dir / "libhermes_android_bash.so")
+    assert child_env["LD_LIBRARY_PATH"] == f"{native_dir}:{prefix_lib}:/vendor/lib64"
+    assert "OPENAI_API_KEY" not in child_env

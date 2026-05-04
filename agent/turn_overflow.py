@@ -26,7 +26,7 @@ from agent.model_metadata import (
     parse_available_output_tokens_from_error,
 )
 from agent.turn_retry_state import TurnRetryState
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 logger = logging.getLogger("agent.conversation_loop")
 

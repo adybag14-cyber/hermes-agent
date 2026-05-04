@@ -164,5 +164,5 @@ class PluginState:
                     f"Plugin state quota exceeded: {len(encoded)} bytes is greater "
                     f"than the {self.quota_bytes}-byte per-plugin quota"
                 )
-            from utils import atomic_json_write
+            from hermes_cli.shared_utils import atomic_json_write
             atomic_json_write(self.path, data, mode=0o600)

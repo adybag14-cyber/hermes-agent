@@ -12,7 +12,7 @@ import tempfile
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, Optional
-from utils import atomic_replace
+from hermes_cli.shared_utils import atomic_replace
 
 if TYPE_CHECKING:
     from gateway.session import SessionEntry

@@ -29,7 +29,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Tuple, Uni
 
 from hermes_constants import get_hermes_home, hermes_home_key
 from registration_lifecycle import replacement_coordinator
-from utils import env_var_enabled
+from hermes_cli.shared_utils import env_var_enabled
 from hermes_cli.config import load_config_readonly
 from hermes_cli.middleware import VALID_MIDDLEWARE
 from hermes_cli.plugin_capabilities import plugin_capability_granted

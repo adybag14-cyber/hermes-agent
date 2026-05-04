@@ -23,7 +23,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any, Dict, FrozenSet, Optional
 
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 
 def shell_quote_context(command_template: str, position: int) -> Optional[str]:

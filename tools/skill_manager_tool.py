@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 
 from hermes_constants import get_hermes_home, display_hermes_home
-from utils import atomic_write_text, is_truthy_value
+from hermes_cli.shared_utils import atomic_write_text, is_truthy_value
 from hermes_cli.config import cfg_get
 from agent.skill_utils import (
     extract_skill_description,

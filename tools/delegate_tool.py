@@ -17,7 +17,7 @@ import weakref
 from typing import Any, Dict, List, Optional
 
 from tools.terminal_tool import set_approval_callback as _set_subagent_approval_cb  # noqa: F401  (used via _ChildRun.await_child)
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 logger = logging.getLogger(__name__)
 

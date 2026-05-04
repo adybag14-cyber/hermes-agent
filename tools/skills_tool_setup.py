@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any, Dict, List
 
 from hermes_constants import display_hermes_home
-from utils import env_var_enabled
+from hermes_cli.shared_utils import env_var_enabled
 
 logger = logging.getLogger("tools.skills_tool")
 

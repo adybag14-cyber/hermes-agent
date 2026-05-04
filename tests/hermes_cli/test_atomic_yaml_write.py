@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from utils import atomic_yaml_write
+from hermes_cli.shared_utils import atomic_yaml_write
 
 
 class TestAtomicYamlWrite:

@@ -313,7 +313,7 @@ def _load_mcp_config() -> Dict[str, dict]:
     """``mcp_servers`` from config.yaml as ``{name: config}`` (empty on error / safe mode), ``${VAR}`` interpolated."""
     try:
         from hermes_cli.config import load_config
-        from utils import env_var_enabled as _env_enabled
+        from hermes_cli.shared_utils import env_var_enabled as _env_enabled
         if _env_enabled("HERMES_SAFE_MODE"):
             return {}
         servers = load_config().get("mcp_servers")

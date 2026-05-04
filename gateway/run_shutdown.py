@@ -1161,7 +1161,7 @@ class GatewayShutdownMixin:
 
     def _increment_restart_failure_counts(self, active_session_keys: set) -> None:
         """Increment persisted restart-failure counters for active sessions; drop the rest (loop broken)."""
-        from utils import atomic_json_write
+        from hermes_cli.shared_utils import atomic_json_write
         path = self._stuck_loop_counts_path()
         counts = self._read_json_counts(path) or {}
         with suppress(Exception):
@@ -1196,7 +1196,7 @@ class GatewayShutdownMixin:
 
     async def _clear_restart_failure_count(self, session_key: str) -> None:
         """Clear a completed session's restart-failure counter off-loop (atomic_json_write fsyncs)."""
-        from utils import atomic_json_write
+        from hermes_cli.shared_utils import atomic_json_write
         path = self._stuck_loop_counts_path()
         if not path.exists():
             return
@@ -1772,7 +1772,7 @@ class GatewayShutdownMixin:
     def _stop_persist_exit_state(self, ctx: "GatewayShutdownMixin._StopContext") -> None:
         """PID/lock release, clean-shutdown marker, restart markers, terminal runtime status."""
         from gateway.run import _hermes_home, _planned_restart_notification_path, _shutdown_gateway_health_export
-        from utils import atomic_json_write
+        from hermes_cli.shared_utils import atomic_json_write
         from gateway.status import remove_pid_file, release_gateway_runtime_lock
         remove_pid_file()
         release_gateway_runtime_lock()

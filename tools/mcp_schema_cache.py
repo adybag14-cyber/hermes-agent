@@ -51,7 +51,7 @@ def _load_all() -> Dict[str, Any]:
 
 
 def _save_all(data: Dict[str, Any]) -> None:
-    from utils import atomic_json_write
+    from hermes_cli.shared_utils import atomic_json_write
     # 0o600: the cache file is trusted input on the lazy registration path, keep it user-only.
     atomic_json_write(_cache_path(), data, mode=0o600)
 

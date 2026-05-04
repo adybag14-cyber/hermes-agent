@@ -27,7 +27,7 @@ from gateway.session import SessionSource
 from gateway.session_state import SERVICE_TIER_UNSET as _SERVICE_TIER_UNSET
 from hermes_cli.config import cfg_get, resolve_ephemeral_system_prompt_from_config
 from hermes_cli.fallback_config import get_fallback_chain
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 if TYPE_CHECKING:  # string annotations only; never imported at runtime (cycle)
     from gateway.run import GatewayRunner  # noqa: F401

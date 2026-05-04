@@ -18,7 +18,7 @@ import importlib.util as _ilu
 from pathlib import Path
 from typing import Optional, Dict, Any
 
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 from tools.transcription_common import (
     BUILTIN_STT_PROVIDERS, CLOUD_STT_PROVIDERS, DEFAULT_ELEVENLABS_STT_MODEL,
     DEFAULT_GROQ_STT_MODEL, DEFAULT_LOCAL_MODEL, DEFAULT_MISTRAL_STT_MODEL, DEFAULT_PROVIDER,

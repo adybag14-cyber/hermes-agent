@@ -378,7 +378,7 @@ class HindsightMemoryProvider(MemoryProvider):
 
     def save_config(self, values, hermes_home):
         """Merge *values* into $HERMES_HOME/hindsight/config.json."""
-        from utils import atomic_json_write
+        from hermes_cli.shared_utils import atomic_json_write
         config_path = Path(hermes_home) / "hindsight" / "config.json"
         config_path.parent.mkdir(parents=True, exist_ok=True)
         existing = {}

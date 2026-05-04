@@ -147,7 +147,7 @@ def _write_cache(text: str) -> None:
     try:
         cache = _cache_path()
         cache.parent.mkdir(parents=True, exist_ok=True)
-        from utils import atomic_write_text
+        from hermes_cli.shared_utils import atomic_write_text
         atomic_write_text(cache, text)
     except OSError as exc:  # pragma: no cover - best effort
         logger.debug("plugin index: cache write failed: %s", exc)

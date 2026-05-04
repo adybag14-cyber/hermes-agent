@@ -242,7 +242,7 @@ class TestCustomProvidersListIndex:
 
 class TestAtomicRoundtripYamlUpdate:
     def test_existing_dotted_model_id_not_split(self, tmp_path):
-        from utils import atomic_roundtrip_yaml_update
+        from hermes_cli.shared_utils import atomic_roundtrip_yaml_update
 
         path = tmp_path / "config.yaml"
         path.write_text(
@@ -260,7 +260,7 @@ class TestAtomicRoundtripYamlUpdate:
         assert "glm-5" not in overrides
 
     def test_escaped_dotted_key_created(self, tmp_path):
-        from utils import atomic_roundtrip_yaml_update
+        from hermes_cli.shared_utils import atomic_roundtrip_yaml_update
 
         path = tmp_path / "config.yaml"
         path.write_text("model_overrides: {}\n")
@@ -271,7 +271,7 @@ class TestAtomicRoundtripYamlUpdate:
         assert saved["model_overrides"]["zai"]["glm-5.3"]["supports_reasoning"] is True
 
     def test_plain_paths_unchanged(self, tmp_path):
-        from utils import atomic_roundtrip_yaml_update
+        from hermes_cli.shared_utils import atomic_roundtrip_yaml_update
 
         path = tmp_path / "config.yaml"
         path.write_text("# keep this comment\ndisplay:\n  personality: default\n")

@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from utils import atomic_write_text, atomic_yaml_write
+from hermes_cli.shared_utils import atomic_write_text, atomic_yaml_write
 
 
 pytestmark = pytest.mark.skipif(
@@ -59,7 +59,7 @@ class TestPreserveMode:
         target.write_text("old\n", encoding="utf-8")
         os.chmod(target, 0o640)
 
-        import utils as utils_mod
+        from hermes_cli import shared_utils as utils_mod
 
         real_replace = utils_mod.atomic_replace
         seen: list[int] = []

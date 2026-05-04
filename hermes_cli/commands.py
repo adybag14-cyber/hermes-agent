@@ -11,7 +11,7 @@ import logging
 import re
 from dataclasses import dataclass
 
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 from hermes_constants import INDICATOR_STYLES
 
 logger = logging.getLogger(__name__)

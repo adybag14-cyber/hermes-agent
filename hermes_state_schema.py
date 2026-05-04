@@ -19,7 +19,7 @@ from typing import Dict, List, Optional, Sequence
 
 from hermes_constants import get_hermes_home
 from hermes_startup_watchdog import report_startup_progress
-from utils import safe_json_loads
+from hermes_cli.shared_utils import safe_json_loads
 from hermes_state_common import (
     DEFERRED_INDEX_SQL, FTS_CJK_STALE_KEY, FTS_REBUILD_DEFERRAL_KEY, FTS_STALE_KEY, FTS_SQL,
     FTS_STORAGE_VERSION, FTS_TOOL_FULL_CONTENT_HIGH_WATER_KEY, FTS_TRIGRAM_SQL, LEGACY_FTS_SQL,

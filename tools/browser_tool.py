@@ -21,7 +21,7 @@ from typing import Dict, Any, Optional, Union
 from pathlib import Path
 from agent.redact import redact_cdp_url
 from hermes_constants import get_hermes_home
-from utils import env_int
+from hermes_cli.shared_utils import env_int
 from hermes_cli.config import DEFAULT_CONFIG, cfg_get
 
 

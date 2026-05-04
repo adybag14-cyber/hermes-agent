@@ -99,7 +99,7 @@ def remove_path_from_shell_configs():
             content = config_path.read_text(encoding="utf-8")
             new_content = _strip_hermes_path_lines(content)
             if new_content != content:
-                from utils import atomic_write_text
+                from hermes_cli.shared_utils import atomic_write_text
                 # The user's own rc, never backed up: a bare write_text() truncates before the new
                 # content lands and a crash mid-write would leave an empty ~/.zshrc. Atomic replace
                 # also follows a symlinked rc; preserve_mode keeps its bits/owner (sudo-run uninstalls).

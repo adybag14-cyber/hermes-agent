@@ -8,7 +8,7 @@ import re
 import time
 from pathlib import Path
 
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 
 logger = logging.getLogger(__name__)
 

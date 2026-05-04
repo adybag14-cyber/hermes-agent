@@ -108,7 +108,7 @@ def _sudo_annotations(command: str, output: str, env_type: str) -> tuple[str, bo
         _handle_sudo_failure, _in_delegated_child_context, _invalidate_cached_sudo_on_auth_failure,
         _sudo_wrong_password_failure,
     )
-    from utils import env_var_enabled
+    from hermes_cli.shared_utils import env_var_enabled
     output = _handle_sudo_failure(output, env_type)
     auth_failed = _sudo_wrong_password_failure(output)
     cache_cleared = _invalidate_cached_sudo_on_auth_failure(command, output)

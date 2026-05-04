@@ -23,7 +23,7 @@ from gateway.platforms.base import (
     cache_image_from_bytes_async, cache_audio_from_bytes_async, cache_document_from_bytes_async)
 from .media_cache import ext_for_mime
 from gateway.platforms.helpers import compile_mention_patterns, strip_markdown
-from utils import TRUTHY_STRINGS
+from hermes_cli.shared_utils import TRUTHY_STRINGS
 
 # Historical BlueBubbles mime→ext maps, preserved verbatim as overrides for the shared dispatch in
 # gateway.platforms.media_cache. Both maps are CLOSED: unlisted mimes fall back to .jpg / .mp3.

@@ -23,7 +23,7 @@ from hermes_cli.update_cmd_common import _best_effort
 logger = logging.getLogger("hermes_cli.update_cmd")
 
 
-_UPDATE_RUNTIME_RELOAD_MODULES = "hermes_constants", "tools.environments.local", "tools.lazy_deps"
+_UPDATE_RUNTIME_RELOAD_MODULES = "hermes_constants", "hermes_cli.shared_utils", "tools.environments.local", "tools.lazy_deps"
 
 #: Package prefixes whose cached modules go stale when the checkout changes under this
 #: process; purged (not reloaded) so any LATER import chain resolves against fresh source.
@@ -82,14 +82,19 @@ def _purge_stale_hermes_modules() -> None:
     with _best_effort('Could not purge stale Hermes modules: %s'):
         importlib.invalidate_caches()
         modules = _m().sys.modules
-        purged = [
+        purged = []
+        canonical_utils = modules.get("hermes_cli.shared_utils")
+        if canonical_utils is not None and modules.get("utils") is canonical_utils:
+            modules.pop("utils", None)
+            purged.append("utils")
+        purged.extend(
             name for name in list(modules)
             if name not in _STALE_PURGE_PROTECTED
             and not name.startswith(_STALE_PURGE_PROTECTED_PREFIX)
             # Root-package check: startswith() alone also matches unrelated ``gateway_foo``.
             and name.split(".", 1)[0] in _STALE_PURGE_PREFIXES
             and modules.pop(name, None) is not None
-        ]
+        )
         if purged:
             logger.debug("Purged %d stale Hermes module(s) after checkout update", len(purged))
 

@@ -438,7 +438,7 @@ _REASONING_ECHO_RULE_BY_FAMILY = {rule[0]: rule for rule in _REASONING_ECHO_RULE
 def matches_reasoning_echo_family(family: str, provider: Any, model: Any, base_url: Any) -> bool:
     """True when (provider, model, base_url) matches one echo-back family (families can overlap;
     membership is tested independently). Raises KeyError for an unknown family."""
-    from utils import base_url_host_matches
+    from hermes_cli.shared_utils import base_url_host_matches
 
     _, raw_providers, lowered_providers, model_subs, hosts = _REASONING_ECHO_RULE_BY_FAMILY[family]
     model_lower = (model or "").lower()

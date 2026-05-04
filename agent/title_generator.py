@@ -108,7 +108,7 @@ def _title_language() -> str:
 
 def _auto_title_enabled() -> bool:
     try:
-        from utils import is_truthy_value
+        from hermes_cli.shared_utils import is_truthy_value
         return is_truthy_value(_title_config().get("enabled"), default=True)
     except Exception:
         logger.debug("Failed to read title_generation.enabled", exc_info=True)

@@ -31,7 +31,7 @@ from gateway.turn_lease import DEFAULT_LEASE_WAIT, TurnLeaseTimeoutError
 from hermes_constants import get_hermes_home_override
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from utils import base_url_hostname
+from hermes_cli.shared_utils import base_url_hostname
 
 if TYPE_CHECKING:  # string annotations only; never imported at runtime (cycle)
     from gateway.run import GatewayRunner  # noqa: F401
@@ -1118,7 +1118,7 @@ class GatewayTurnMixin:
         # With compression.checkpoint_required on, load the memory provider so the checkpoint exists
         # before any mutation; otherwise keep the fast path (no provider init).
         from hermes_cli.config import load_config as _load_cfg
-        from utils import is_truthy_value as _is_truthy
+        from hermes_cli.shared_utils import is_truthy_value as _is_truthy
 
         _hyg_checkpoint_required = _is_truthy(
             ((_load_cfg() or {}).get("compression") or {}).get("checkpoint_required"), default=False,

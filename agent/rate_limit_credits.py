@@ -7,7 +7,7 @@ import logging
 import os
 from typing import Any
 
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 # Same logger name as the origin module so log records / caplog filters are unchanged.
 logger = logging.getLogger("run_agent")

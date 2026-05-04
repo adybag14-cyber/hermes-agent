@@ -26,7 +26,7 @@ from typing import Dict, Iterator, List, NamedTuple, Optional, Set, Tuple
 
 from hermes_constants import get_hermes_home
 from hermes_cli._subprocess_compat import windows_hide_flags
-from utils import env_int
+from hermes_cli.shared_utils import env_int
 
 logger = logging.getLogger(__name__)
 

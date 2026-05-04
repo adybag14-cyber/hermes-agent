@@ -336,7 +336,7 @@ def _ensure_whatsapp_bridge_dependencies(bridge_dir: Path) -> None:
         return
 
     from hermes_constants import find_node_executable, with_hermes_node_path
-    from utils import env_int
+    from hermes_cli.shared_utils import env_int
 
     npm = find_node_executable("npm")
     if not npm:

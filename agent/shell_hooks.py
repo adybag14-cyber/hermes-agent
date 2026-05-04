@@ -31,7 +31,7 @@ except ImportError:  # pragma: no cover
     fcntl = None  # type: ignore[assignment]
 
 from hermes_constants import get_hermes_home
-from utils import atomic_replace
+from hermes_cli.shared_utils import atomic_replace
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ def register_from_config(cfg: Optional[Dict[str, Any]], *, accept_hooks: bool = 
     entries (unknown, malformed, not allowlisted, already registered) are logged only."""
     if not isinstance(cfg, dict):
         return []
-    from utils import env_var_enabled
+    from hermes_cli.shared_utils import env_var_enabled
     if env_var_enabled("HERMES_SAFE_MODE"):  # hooks are user customizations too — fire zero user-configured code
         logger.info("HERMES_SAFE_MODE=1 — shell-hook registration skipped")
         return []

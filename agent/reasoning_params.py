@@ -9,7 +9,7 @@ from typing import Optional
 
 from agent.lazy_forward import forward as _forward, forward_static as _forward_static
 from agent.message_sanitization import matches_reasoning_echo_family
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 # Static OpenRouter fallback when the live /v1/models capability cache is cold.
 _OPENROUTER_REASONING_PREFIXES = (

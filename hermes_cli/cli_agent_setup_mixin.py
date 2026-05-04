@@ -8,7 +8,7 @@ import sys
 
 from rich.markup import escape as _escape
 
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 
 def _single_query_clarify_callback(question: str, choices=None, multi_select=False) -> str:

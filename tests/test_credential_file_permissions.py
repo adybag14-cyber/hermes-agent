@@ -13,7 +13,7 @@ import os
 
 import pytest
 
-from utils import warn_if_credential_file_broadly_readable
+from hermes_cli.shared_utils import warn_if_credential_file_broadly_readable
 
 pytestmark = pytest.mark.skipif(
     os.name != "posix", reason="POSIX permission-bit semantics required"

@@ -189,7 +189,7 @@ def load_background_review_settings() -> tuple[bool, Dict[str, Any]]:
     config never silently disables reviews — but WARN so the cost is visible."""
     try:
         from hermes_cli.config import load_config_readonly
-        from utils import is_truthy_value
+        from hermes_cli.shared_utils import is_truthy_value
         task = _task_block(load_config_readonly())
         return is_truthy_value(task.get("enabled"), default=True), task
     except Exception:
@@ -1176,7 +1176,7 @@ def is_background_review_enabled(
     """
     if task_cfg is not None:
         try:
-            from utils import is_truthy_value
+            from hermes_cli.shared_utils import is_truthy_value
 
             return is_truthy_value(task_cfg.get("enabled"), default=True)
         except Exception:

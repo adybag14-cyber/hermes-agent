@@ -110,7 +110,7 @@ def _load_supermemory_config(hermes_home: Optional[str] = None) -> dict:
 
 
 def _save_supermemory_config(values: dict, hermes_home: str) -> None:
-    from utils import atomic_json_write
+    from hermes_cli.shared_utils import atomic_json_write
     config_path = Path(hermes_home) / "supermemory.json"
     atomic_json_write(config_path, {**_read_json_dict(config_path), **values}, mode=0o600, sort_keys=True)
 

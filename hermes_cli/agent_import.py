@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import yaml
 
-from utils import atomic_write_text, atomic_yaml_write
+from hermes_cli.shared_utils import atomic_write_text, atomic_yaml_write
 
 logger = logging.getLogger(__name__)
 

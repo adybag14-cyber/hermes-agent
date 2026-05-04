@@ -6,7 +6,7 @@ Facade-owned state is read through ``_bt`` (``tools.browser_tool``, resolved per
 
 import re
 from typing import Optional
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 from tools.browser_tool_origin import origin_module as _origin
 from tools import browser_tool_cloud as _cloud
 from tools import browser_tool_session as _session

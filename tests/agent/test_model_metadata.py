@@ -1573,7 +1573,7 @@ class TestContextLengthCache:
         ``os.replace`` write leaves the previous file byte-for-byte intact
         when the swap fails.
         """
-        import utils
+        from hermes_cli import shared_utils as utils
         import agent.model_metadata as mm
 
         cache_file = tmp_path / "cache.yaml"

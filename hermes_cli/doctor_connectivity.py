@@ -15,7 +15,7 @@ from typing import NamedTuple
 from hermes_cli.colors import Colors, color
 from hermes_cli.models import _HERMES_USER_AGENT
 from hermes_constants import OPENROUTER_MODELS_URL
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 _APIKEY_PROVIDERS_CACHE: list | None = None
 

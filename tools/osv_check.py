@@ -132,7 +132,7 @@ def _save_disk_cache() -> None:
     try:
         # Shared atomic writer (temp file + fsync + rename); mkstemp's 0600
         # is kept on create, so verdicts never sit in a world-readable file.
-        from utils import atomic_write_text
+        from hermes_cli.shared_utils import atomic_write_text
 
         atomic_write_text(path, json.dumps(data))
     except Exception as exc:

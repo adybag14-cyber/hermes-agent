@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Optional
 
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 
 @dataclass

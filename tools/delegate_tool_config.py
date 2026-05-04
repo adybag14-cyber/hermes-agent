@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from typing import Any, Dict, List, Optional
-from utils import base_url_hostname, is_truthy_value
+from hermes_cli.shared_utils import base_url_hostname, is_truthy_value
 
 logger = logging.getLogger("tools.delegate_tool")  # log-record parity with the origin module
 

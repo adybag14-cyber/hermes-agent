@@ -80,7 +80,7 @@ def reconcile_profile_gateways(
     # Under a multiplexing root gateway named slots are still registered but must not boot from
     # their persisted run intent, or they would become additional multiplex owners.
     from gateway.config import load_gateway_config
-    from utils import is_truthy_value
+    from hermes_cli.shared_utils import is_truthy_value
     try:
         multiplex_profiles = load_gateway_config().multiplex_profiles
     except Exception:

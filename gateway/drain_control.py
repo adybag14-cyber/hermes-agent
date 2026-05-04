@@ -22,7 +22,7 @@ from typing import Any, Optional
 
 from gateway.memory_status import _parse_iso
 from hermes_constants import get_hermes_home
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 
 _log = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ import subprocess
 from contextlib import suppress
 from typing import Any, Dict, List, Optional
 
-from utils import normalize_proxy_env_vars
+from hermes_cli.shared_utils import normalize_proxy_env_vars
 
 from agent.anthropic_credentials import _is_oauth_token
 from agent.anthropic_endpoints import (

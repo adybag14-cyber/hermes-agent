@@ -155,7 +155,7 @@ async def _download_media(
     media_label: str, accept: str, max_bytes: int, timeout: float, retry_all: bool) -> Path:
     """SSRF-safe streaming download with exponential backoff (2s/4s/8s). ``retry_all=False`` (images)
     retries only :func:`_is_retryable_download_error` errors — a 404/403 never succeeds on retry."""
-    from utils import atomic_replace
+    from hermes_cli.shared_utils import atomic_replace
     from tools.url_safety import create_ssrf_safe_async_client
     destination.parent.mkdir(parents=True, exist_ok=True)
     last_error = None

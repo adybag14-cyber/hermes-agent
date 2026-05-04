@@ -27,7 +27,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from utils import (
+from hermes_cli.shared_utils import (
     atomic_json_write,
     atomic_replace,
     atomic_roundtrip_yaml_save,
@@ -325,7 +325,7 @@ def test_contended_rename_retries_then_rewrites_in_place(
     winerror 5 is the code the reported bug actually produces; 32 and 33 are
     the sibling contention codes.  All three must recover.
     """
-    import utils as utils_mod
+    from hermes_cli import shared_utils as utils_mod
 
     target = tmp_path / "gateway_state.json"
     target.write_text("old", encoding="utf-8")
@@ -487,7 +487,7 @@ def test_in_place_rewrite_never_exposes_a_truncated_file(
     means an empty credential store.  Shrinking writes must also not leave
     trailing bytes from the previous, longer content.
     """
-    import utils as utils_mod
+    from hermes_cli import shared_utils as utils_mod
 
     target = tmp_path / "auth.json"
     observed: list[int] = []
@@ -560,7 +560,7 @@ def test_windows_real_held_handle_reports_access_denied(tmp_path: Path) -> None:
             os.replace(str(tmp), str(target))
 
     assert caught.value.winerror in (5, 32, 33)
-    import utils as utils_mod
+    from hermes_cli import shared_utils as utils_mod
 
     assert utils_mod._is_contended_windows_replace_error(caught.value)
 

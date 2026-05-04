@@ -19,7 +19,7 @@ import os
 import threading
 from typing import Optional
 
-from utils import env_var_enabled, is_truthy_value
+from hermes_cli.shared_utils import env_var_enabled, is_truthy_value
 from tools import approval_context
 from tools.approval_context import (
     _get_session_platform, _is_cron_approval_context,

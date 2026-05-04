@@ -477,7 +477,7 @@ class CLIVoiceMixin:
     def _voice_beeps_enabled(self) -> bool:
         """Return whether CLI voice mode should play record start/stop beeps."""
         try:
-            from utils import is_truthy_value  # handles quoted YAML "false" (bool() would not)
+            from hermes_cli.shared_utils import is_truthy_value  # handles quoted YAML "false" (bool() would not)
             return is_truthy_value(_config_section("voice").get("beep_enabled", True), default=True)
         except Exception:
             return True

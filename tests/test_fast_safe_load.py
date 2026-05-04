@@ -10,7 +10,7 @@ import io
 
 import yaml
 
-from utils import fast_safe_load, _fast_yaml_loader
+from hermes_cli.shared_utils import fast_safe_load, _fast_yaml_loader
 
 
 _DOCS = [

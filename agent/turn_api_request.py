@@ -15,7 +15,7 @@ from typing import Any
 from agent.message_sanitization import (
     _sanitize_structure_non_ascii, _sanitize_structure_surrogates
 )
-from utils import env_var_enabled
+from hermes_cli.shared_utils import env_var_enabled
 
 logger = logging.getLogger("agent.conversation_loop")
 

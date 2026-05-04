@@ -74,7 +74,7 @@ def register_from_config(cfg: Optional[Dict[str, Any]]) -> List[WebhookTarget]:
     means zero targets — never raises.  Returns the targets that ended up wired (deduplicated)."""
     if not isinstance(cfg, dict):
         return []
-    from utils import env_var_enabled
+    from hermes_cli.shared_utils import env_var_enabled
     if env_var_enabled("HERMES_SAFE_MODE"):
         logger.info("HERMES_SAFE_MODE=1 — outbound webhook registration skipped")
         return []

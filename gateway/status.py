@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Callable, NamedTuple, Optional
 
 from hermes_constants import _get_platform_default_hermes_home, get_hermes_home
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 
 if sys.platform == "win32":
     import msvcrt

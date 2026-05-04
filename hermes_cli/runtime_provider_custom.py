@@ -12,7 +12,7 @@ import os
 from typing import Any, Callable, Dict, Optional
 
 from hermes_cli.providers import custom_provider_aliases, custom_provider_slug
-from utils import base_url_hostname
+from hermes_cli.shared_utils import base_url_hostname
 
 logger = logging.getLogger("hermes_cli.runtime_provider")
 

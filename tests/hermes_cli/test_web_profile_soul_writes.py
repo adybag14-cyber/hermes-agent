@@ -177,7 +177,7 @@ class TestSoulIoIsOffTheEventLoop:
 
     def test_put_soul_writes_off_loop(self, client, profile_dir: Path, monkeypatch):
         seen: list[tuple[str, bool]] = []
-        import utils
+        from hermes_cli import shared_utils as utils
 
         real_write = utils.atomic_write_text
 

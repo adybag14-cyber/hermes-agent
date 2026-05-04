@@ -8,7 +8,7 @@ entry", silently dropping custom_providers and breaking model switching.
 """
 
 import yaml
-from utils import IndentDumper, atomic_yaml_write
+from hermes_cli.shared_utils import IndentDumper, atomic_yaml_write
 
 
 class TestIndentDumperShape:

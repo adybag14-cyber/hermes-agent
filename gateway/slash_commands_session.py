@@ -602,7 +602,7 @@ class GatewaySessionCommandsMixin:
         from run_agent import AIAgent
         from gateway.run import _GATEWAY_HYGIENE_PLATFORM, _seed_hygiene_system_prompt
         from hermes_cli.config import load_config as _load_cfg
-        from utils import is_truthy_value as _is_truthy
+        from hermes_cli.shared_utils import is_truthy_value as _is_truthy
 
         # _compress_context may persist its cached system prompt, and this agent runs outside the
         # live session's prompt environment — restore the exact live prompt so provider blocks stay.

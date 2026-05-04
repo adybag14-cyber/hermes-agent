@@ -215,7 +215,7 @@ def _resolve_cron_context_deliver(deliver: Optional[str]) -> Optional[str]:
     from HERMES_CRON_AUTO_DELIVER_*, or ``local`` when it has no concrete target; other
     elements pass through. Otherwise the scheduler would guess a home channel."""
     from gateway.session_context import get_session_env
-    from utils import is_truthy_value
+    from hermes_cli.shared_utils import is_truthy_value
     if not is_truthy_value(get_session_env("HERMES_CRON_SESSION", "")):
         return deliver
 
@@ -254,7 +254,7 @@ def _validate_cron_base_url(
             resolve_requested_provider,
             _get_named_custom_provider)
         from hermes_cli.auth import PROVIDER_REGISTRY
-        from utils import base_url_host_matches, base_url_hostname
+        from hermes_cli.shared_utils import base_url_host_matches, base_url_hostname
     except Exception:
         return f"Unable to validate base_url override for provider {prov!r}; refused."
 

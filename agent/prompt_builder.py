@@ -27,7 +27,7 @@ from agent.skill_utils import (
     skill_matches_platform, skill_matches_platform_list,
 )
 from tools.threat_patterns import scan_for_threats as _scan_for_threats
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 
 logger = logging.getLogger(__name__)
 

@@ -11,7 +11,7 @@ import re
 from typing import Any, Dict, Optional
 
 from hermes_constants import OPENROUTER_BASE_URL
-from utils import base_url_host_matches
+from hermes_cli.shared_utils import base_url_host_matches
 
 
 def _rp():

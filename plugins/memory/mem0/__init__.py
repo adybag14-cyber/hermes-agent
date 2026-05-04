@@ -108,7 +108,7 @@ class Mem0MemoryProvider(MemoryProvider):
 
     def save_config(self, values, hermes_home):
         """Merge-write config to $HERMES_HOME/mem0.json."""
-        from utils import atomic_json_write
+        from hermes_cli.shared_utils import atomic_json_write
         config_path = Path(hermes_home) / "mem0.json"
         atomic_json_write(config_path, {**_read_mem0_json(config_path), **values}, mode=0o600)
 

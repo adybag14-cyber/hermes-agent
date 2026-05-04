@@ -15,7 +15,7 @@ from hermes_cli.config import cfg_get, get_env_value, load_config, save_config, 
 from hermes_cli.nous_account import format_nous_portal_entitlement_message
 from hermes_cli.nous_subscription import MANAGED_FEATURE_COVERAGE_CATEGORY, NousSubscriptionFeatures
 from tools.tool_backend_helpers import NOUS_MANAGED_PROVIDER, fal_key_is_configured
-from utils import base_url_hostname, is_truthy_value
+from hermes_cli.shared_utils import base_url_hostname, is_truthy_value
 
 logger = logging.getLogger("hermes_cli.tools_config")
 

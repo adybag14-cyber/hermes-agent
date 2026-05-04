@@ -157,7 +157,7 @@ class HonchoMemoryProvider(DialecticMixin, MemoryProvider):
     def save_config(self, values, hermes_home):
         """Merge ``values`` into $HERMES_HOME/honcho.json (Honcho SDK native format)."""
         from pathlib import Path
-        from utils import atomic_json_write
+        from hermes_cli.shared_utils import atomic_json_write
         from plugins.memory.honcho.client import _read_config
         config_path = Path(hermes_home) / "honcho.json"
         try:

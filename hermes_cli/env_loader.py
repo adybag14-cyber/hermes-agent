@@ -11,7 +11,7 @@ import threading
 from pathlib import Path
 
 from dotenv import load_dotenv
-from utils import atomic_replace, fast_safe_load
+from hermes_cli.shared_utils import atomic_replace, fast_safe_load
 
 logger = logging.getLogger(__name__)
 

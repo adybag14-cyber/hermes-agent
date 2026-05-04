@@ -22,7 +22,7 @@ from gateway.config import (
     _getenv_str,
     _has_usable_api_server_key,
 )
-from utils import is_truthy_value
+from hermes_cli.shared_utils import is_truthy_value
 
 # Logger name parity with the origin module: records stay under "gateway.config".
 logger = logging.getLogger("gateway.config")

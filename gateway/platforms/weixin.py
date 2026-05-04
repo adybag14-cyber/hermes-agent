@@ -34,7 +34,7 @@ from gateway.platforms.base import (
     cache_audio_from_bytes_async, cache_document_from_bytes_async, cache_image_from_bytes_async,
 )
 from hermes_constants import get_hermes_home
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 from agent.secret_scope import UnscopedSecretError, get_secret
 
 

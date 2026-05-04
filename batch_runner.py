@@ -515,7 +515,7 @@ class BatchRunner:
     def _save_checkpoint(self, checkpoint_data: Dict[str, Any], lock: Optional[Lock] = None):
         """Atomically write *checkpoint_data* (stamped ``last_updated``), under *lock* if given."""
         checkpoint_data["last_updated"] = datetime.now().isoformat()
-        from utils import atomic_json_write
+        from hermes_cli.shared_utils import atomic_json_write
         if lock:
             with lock:
                 atomic_json_write(self.checkpoint_file, checkpoint_data)

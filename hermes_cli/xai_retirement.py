@@ -167,7 +167,7 @@ def apply_migration(
         shutil.copy2(config_path, backup_path)
 
     from hermes_cli.config import require_readable_config_before_write
-    from utils import atomic_write_text
+    from hermes_cli.shared_utils import atomic_write_text
     require_readable_config_before_write(config_path)
     # Dump to a buffer, then atomic-write: ``open(path, "w")`` truncates before the dump runs, so a
     # crash mid-write would leave config.yaml empty (and with ``--no-backup`` that is the only

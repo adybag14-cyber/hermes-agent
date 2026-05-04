@@ -18,7 +18,7 @@ from hermes_cli.config_migrations import (
     SUPPORT_FLOOR_VERSION,
     support_floor_message,
 )
-from utils import env_var_enabled
+from hermes_cli.shared_utils import env_var_enabled
 
 
 def _backup_path(path: Path, stamp: str) -> Path:

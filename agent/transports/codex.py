@@ -94,7 +94,7 @@ def _is_opencode_responses_backend(params: dict[str, Any]) -> bool:
     except Exception:
         pass
     try:
-        from utils import base_url_hostname
+        from hermes_cli.shared_utils import base_url_hostname
 
         return base_url_hostname(str(params.get("base_url") or "")).lower() == "opencode.ai"
     except Exception:
@@ -243,7 +243,7 @@ _EXTENDED_PROMPT_CACHE_MODEL_RE = re.compile(
 
 def _default_prompt_cache_retention_for_request(model: str, base_url: Any) -> Optional[str]:
     """Return ``24h`` for supported hosts/models (Bedrock Mantle, Meta)."""
-    from utils import base_url_hostname
+    from hermes_cli.shared_utils import base_url_hostname
 
     hostname = base_url_hostname(str(base_url or "")).lower()
     # Meta Model API: caching is opt-in via prompt_cache_retention (0% hits without).
@@ -314,7 +314,7 @@ def _profile_declared_efforts(provider: Any, model: Optional[str], base_url: Any
 
 def _is_azure_foundry_responses(params: dict[str, Any]) -> bool:
     """True for Microsoft Foundry's Responses API (provider id, else host match — not substring)."""
-    from utils import base_url_host_matches
+    from hermes_cli.shared_utils import base_url_host_matches
 
     if str(params.get("provider") or "").strip().lower() == "azure-foundry":
         return True

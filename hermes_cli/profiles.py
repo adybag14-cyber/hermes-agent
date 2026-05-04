@@ -641,7 +641,7 @@ def write_profile_meta(
     # Atomic write: bare open("w") truncates before the dump, and the read path swallows
     # parse errors as {}, so a crashed write would silently drop unspecified fields.
     # See #51356.
-    from utils import atomic_yaml_write
+    from hermes_cli.shared_utils import atomic_yaml_write
     atomic_yaml_write(path, existing, sort_keys=False)
 
 

@@ -424,7 +424,7 @@ _thinking_stop: Optional[threading.Event] = None
 def thinking_sound_enabled() -> bool:
     """Config gate: ``voice.thinking_sound`` (default True)."""
     try:
-        from utils import is_truthy_value
+        from hermes_cli.shared_utils import is_truthy_value
         return is_truthy_value(_voice_config().get("thinking_sound", True), default=True)
     except Exception:
         return True

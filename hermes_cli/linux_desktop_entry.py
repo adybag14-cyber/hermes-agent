@@ -576,7 +576,7 @@ def install_desktop_entry(project_root: Path) -> Optional[Path]:
         # breaks the taskbar pin (nothing later rewrites a file that exists at the right path).
         # The temp+rename dance in utils.atomic_write_text is the codebase's shared implementation — ported
         # from #80547, which closed unmerged with this piece unlanded.
-        from utils import atomic_write_text
+        from hermes_cli.shared_utils import atomic_write_text
 
         atomic_write_text(entry_path, contents, create_mode=0o755)
         # Some launchers (and older Plasma) offer the entry only when it is executable.

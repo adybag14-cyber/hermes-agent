@@ -9,7 +9,7 @@ import contextvars
 import logging
 import os
 from hermes_cli.config import cfg_get
-from utils import env_var_enabled, is_truthy_value
+from hermes_cli.shared_utils import env_var_enabled, is_truthy_value
 
 logger = logging.getLogger("tools.approval")
 

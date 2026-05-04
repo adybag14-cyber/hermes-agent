@@ -21,7 +21,7 @@ from typing import Any, Callable, Dict, List, NamedTuple, Optional, Set
 
 from hermes_constants import get_hermes_home
 from tools import skill_usage
-from utils import atomic_json_write
+from hermes_cli.shared_utils import atomic_json_write
 
 logger = logging.getLogger(__name__)
 

@@ -44,7 +44,7 @@ def _write_update_planned_stop_marker(profile_path: Path, pid: int) -> bool:
     """Write a planned-stop marker into a specific profile home."""
     try:
         from gateway.status import _get_process_start_time
-        from utils import atomic_json_write
+        from hermes_cli.shared_utils import atomic_json_write
         atomic_json_write(
             Path(profile_path) / ".gateway-planned-stop.json",
             {"target_pid": pid, "target_start_time": _get_process_start_time(pid), "stopper_pid": os.getpid(),

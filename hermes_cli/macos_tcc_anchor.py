@@ -25,7 +25,7 @@ from pathlib import Path
 
 from hermes_constants import venv_python_path
 from hermes_cli.managed_uv import _RUNTIME_DIR_NAME
-from utils import atomic_write_text
+from hermes_cli.shared_utils import atomic_write_text
 
 logger = logging.getLogger(__name__)
 
