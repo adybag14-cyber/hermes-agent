@@ -885,7 +885,50 @@ class TestDelegationCredentialResolution(_DelegateConfigIsolatedTestCase):
         self.assertIsNone(creds["base_url"])
         self.assertIsNone(creds["api_key"])
 
+    @patch("hermes_cli.runtime_provider.resolve_runtime_provider")
+    def test_provider_resolves_full_credentials(self, mock_resolve):
+        """When delegation.provider is set, full credentials are resolved."""
+        mock_resolve.return_value = {
+            "provider": "openrouter",
+            "base_url": "https://openrouter.ai/api/v1",
+            "api_key": "sk-or-test-key",
+            "api_mode": "chat_completions",
+        }
+        parent = _make_mock_parent(depth=0)
+        cfg = {"model": "google/gemini-3-flash-preview", "provider": "openrouter"}
+        creds = _resolve_delegation_credentials(cfg, parent)
+        self.assertEqual(creds["model"], "google/gemini-3-flash-preview")
+        self.assertEqual(creds["provider"], "openrouter")
+        self.assertEqual(creds["base_url"], "https://openrouter.ai/api/v1")
+        self.assertEqual(creds["api_key"], "sk-or-test-key")
+        self.assertEqual(creds["api_mode"], "chat_completions")
+        mock_resolve.assert_called_once_with(
+            requested="openrouter",
+            target_model="google/gemini-3-flash-preview",
+        )
 
+    @patch("hermes_cli.runtime_provider.resolve_runtime_provider")
+    def test_provider_resolution_uses_runtime_model_when_config_model_missing(self, mock_resolve):
+        """Named providers should propagate their runtime default model to children."""
+        mock_resolve.return_value = {
+            "provider": "custom",
+            "base_url": "https://my-server.example/v1",
+            "api_key": "sk-test-key",
+            "api_mode": "chat_completions",
+            "model": "server-default-model",
+        }
+        parent = _make_mock_parent(depth=0)
+        cfg = {"provider": "custom:my-server", "model": ""}
+
+        creds = _resolve_delegation_credentials(cfg, parent)
+
+        self.assertEqual(creds["model"], "server-default-model")
+        self.assertEqual(creds["provider"], "custom")
+        self.assertEqual(creds["base_url"], "https://my-server.example/v1")
+        mock_resolve.assert_called_once_with(
+            requested="custom:my-server",
+            target_model=None,
+        )
 
     def test_direct_endpoint_uses_configured_base_url_and_api_key(self):
         parent = _make_mock_parent(depth=0)
@@ -948,6 +991,25 @@ class TestDelegationCredentialResolution(_DelegateConfigIsolatedTestCase):
         self.assertIsNone(creds["api_key"])
         self.assertEqual(creds["provider"], "custom")
 
+    @patch("hermes_cli.runtime_provider.resolve_runtime_provider")
+    def test_nous_provider_resolves_nous_credentials(self, mock_resolve):
+        """Nous provider resolves Nous Portal base_url and api_key."""
+        mock_resolve.return_value = {
+            "provider": "nous",
+            "base_url": "https://inference-api.nousresearch.com/v1",
+            "api_key": "nous-agent-key-xyz",
+            "api_mode": "chat_completions",
+        }
+        parent = _make_mock_parent(depth=0)
+        cfg = {"model": "hermes-3-llama-3.1-8b", "provider": "nous"}
+        creds = _resolve_delegation_credentials(cfg, parent)
+        self.assertEqual(creds["provider"], "nous")
+        self.assertEqual(creds["base_url"], "https://inference-api.nousresearch.com/v1")
+        self.assertEqual(creds["api_key"], "nous-agent-key-xyz")
+        mock_resolve.assert_called_once_with(
+            requested="nous",
+            target_model="hermes-3-llama-3.1-8b",
+        )
 
     @patch("hermes_cli.runtime_provider.resolve_runtime_provider")
     def test_provider_resolution_failure_raises_valueerror(self, mock_resolve):
