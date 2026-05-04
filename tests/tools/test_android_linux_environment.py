@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-
 from tools.environments.android_linux import AndroidLinuxEnvironment
 
 
@@ -34,9 +31,7 @@ def test_android_linux_environment_builds_system_first_runtime_env(tmp_path, mon
     lib_dir = prefix / "lib"
     home_dir = prefix / "home"
     tmp_dir = prefix / "tmp"
-    share_terminfo = prefix / "share" / "terminfo"
-    git_exec = prefix / "libexec" / "git-core"
-    for directory in [bin_dir, lib_dir, home_dir, tmp_dir, share_terminfo, git_exec]:
+    for directory in [bin_dir, lib_dir, home_dir, tmp_dir]:
         directory.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setenv("HERMES_ANDROID_LINUX_PREFIX", str(prefix))
