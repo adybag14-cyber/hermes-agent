@@ -84,7 +84,7 @@ from gateway.platforms.telegram_network import (
     discover_fallback_ips,
     parse_fallback_ip_env,
 )
-from utils import atomic_replace
+from hermes_cli.shared_utils import atomic_replace
 
 
 def check_telegram_requirements() -> bool:

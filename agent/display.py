@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from difflib import unified_diff
 from pathlib import Path
 
-from utils import safe_json_loads
+from hermes_cli.shared_utils import safe_json_loads
 
 # ANSI escape codes for coloring tool failure indicators
 _RED = "\033[31m"
