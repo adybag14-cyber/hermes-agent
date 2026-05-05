@@ -62,7 +62,7 @@ def copy_abi(linux_assets_dir: Path, output_dir: Path, abi: str) -> None:
         if source.is_file():
             shutil.copy2(source, abi_output / dest_name)
 
-    for source in lib_dir.glob("lib*.so*"):
+    for source in sorted(lib_dir.glob("lib*.so*"), key=lambda item: item.name):
         if not source.is_file():
             continue
         dest_name = packaged_library_name(source.name)

@@ -66,7 +66,7 @@ def mirror_extracted_tree(extracted_root: Path, staging_prefix: Path) -> list[di
     inode_first_paths: dict[tuple[int, int], str] = {}
     links: list[dict] = []
 
-    for source in termux_root.rglob("*"):
+    for source in sorted(termux_root.rglob("*"), key=lambda item: item.relative_to(termux_root).as_posix()):
         relative = source.relative_to(termux_root)
         destination = staging_prefix / relative
         if source.is_dir():
