@@ -112,11 +112,14 @@ def test_android_linux_subsystem_reapplies_executable_bits_before_reusing_cached
 
     cached_state_block = bridge.split('readState(context)?.let { state ->', 1)[1]
 
-    assert 'state.optString("execution_mode") == SYSTEM_SHELL_MODE' in cached_state_block
+    assert 'state.optString("execution_mode") == SYSTEM_SHELL_MODE' not in cached_state_block
+    assert 'state.optString("native_library_dir") != currentNativeLibraryDir' in cached_state_block
     assert 'markExecutableTree(File(prefixDir, "bin"))' in cached_state_block
     assert 'markExecutableTree(File(prefixDir, "libexec"))' in cached_state_block
     assert 'launchShellProbe(shellPath, homeDir, buildRunEnvironment(state)).ready' in cached_state_block
     assert 'reset(context)' in cached_state_block
+    assert '"HERMES_ANDROID_SHELL" to SYSTEM_SHELL_PATH' in bridge
+    assert '"HERMES_ANDROID_LINUX_NATIVE_BASH" to state.optString("shell_path")' in bridge
     assert '"HERMES_ANDROID_NATIVE_LIB"' in linux_subsystem
     assert '"HERMES_ANDROID_ALLOW_PREFIX_BIN": ""' in linux_subsystem
     assert '"LD_LIBRARY_PATH": ld_library_path' in linux_subsystem
