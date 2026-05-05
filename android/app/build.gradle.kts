@@ -290,22 +290,57 @@ fun normalizeChaquopyBuildJson(variant: String) {
     exec {
         commandLine(
             resolvedBuildPython(),
-            repoRoot.resolve("scripts/normalize_chaquopy_build_json.py").absolutePath,
+            repoRoot.resolve("scripts/normalize_chaquopy_assets.py").absolutePath,
+            "build-json",
             buildJson.absolutePath,
         )
     }
 }
 
-tasks.configureEach {
-    val taskName = name
-    if (taskName.endsWith("PythonBuildAssets")) {
+fun normalizeChaquopyRequirementsImy(variant: String) {
+    if (variant.isBlank()) {
+        return
+    }
+    val requirementsImy = layout.buildDirectory.file(
+        "python/assets/requirements/${variant.lowercase()}/chaquopy/requirements-common.imy"
+    ).get().asFile
+    if (!requirementsImy.isFile) {
+        return
+    }
+    exec {
+        commandLine(
+            resolvedBuildPython(),
+            repoRoot.resolve("scripts/normalize_chaquopy_assets.py").absolutePath,
+            "requirements-imy",
+            requirementsImy.absolutePath,
+        )
+    }
+}
+
+afterEvaluate {
+    tasks.matching { it.name.endsWith("PythonRequirementsAssets") }.configureEach {
+        val taskName = name
+        doLast {
+            normalizeChaquopyRequirementsImy(
+                taskName.removePrefix("generate").removeSuffix("PythonRequirementsAssets")
+            )
+        }
+    }
+    tasks.matching { it.name.endsWith("PythonBuildAssets") }.configureEach {
+        val taskName = name
+        doFirst {
+            normalizeChaquopyRequirementsImy(
+                taskName.removePrefix("generate").removeSuffix("PythonBuildAssets")
+            )
+        }
         doLast {
             normalizeChaquopyBuildJson(
                 taskName.removePrefix("generate").removeSuffix("PythonBuildAssets")
             )
         }
     }
-    if (taskName.startsWith("merge") && taskName.endsWith("Assets")) {
+    tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }.configureEach {
+        val taskName = name
         doFirst {
             normalizeChaquopyBuildJson(
                 taskName.removePrefix("merge").removeSuffix("Assets")
