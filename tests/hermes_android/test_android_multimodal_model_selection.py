@@ -4,19 +4,19 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_android_embedded_python_runtime_is_upgraded_to_312_in_ci_and_gradle():
+def test_android_embedded_python_runtime_is_upgraded_to_313_in_ci_and_gradle():
     gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
     push_workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
     release_workflow = (REPO_ROOT / ".github/workflows/android-release.yml").read_text(encoding="utf-8")
 
-    assert 'version = "3.12"' in gradle
-    assert '"python3.12"' in gradle
-    assert "python-version: '3.12'" in push_workflow
-    assert "python-version: '3.12'" in release_workflow
+    assert 'version = "3.13"' in gradle
+    assert '"python3"' in gradle
+    assert "python-version: '3.13'" in push_workflow
+    assert "python-version: '3.13'" in release_workflow
     assert "java-version: '21'" in push_workflow
     assert "java-version: '21'" in release_workflow
-    assert 'command -v python3.12' in push_workflow
-    assert 'command -v python3.12' in release_workflow
+    assert 'command -v python3.13' in push_workflow
+    assert 'command -v python3.13' in release_workflow
 
 
 def test_settings_model_selection_uses_one_tap_cards_without_dropdowns():
