@@ -848,6 +848,8 @@ class TestEnvironmentHints:
     def test_native_windows_hint_mentions_git_bash(self):
         assert "native Windows" in NATIVE_WINDOWS_ENVIRONMENT_HINT
         assert "Git Bash" in NATIVE_WINDOWS_ENVIRONMENT_HINT
+        assert "PowerShell" in NATIVE_WINDOWS_ENVIRONMENT_HINT
+        assert "Get-ChildItem" in NATIVE_WINDOWS_ENVIRONMENT_HINT
 
     def test_build_environment_hints_on_wsl(self, monkeypatch):
         import agent.prompt_builder as _pb
@@ -863,6 +865,7 @@ class TestEnvironmentHints:
         result = _pb.build_environment_hints()
         assert "native Windows" in result
         assert "Git Bash" in result
+        assert "PowerShell" in result
 
     def test_build_environment_hints_not_wsl(self, monkeypatch):
         import agent.prompt_builder as _pb

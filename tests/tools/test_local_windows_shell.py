@@ -1,3 +1,4 @@
+import base64
 from unittest.mock import patch
 
 import pytest
@@ -42,6 +43,47 @@ def test_find_bash_rejects_wsl_launcher_without_git_bash(monkeypatch):
         local_env._find_bash()
 
 
+def _decode_encoded_command(wrapped: str) -> str:
+    encoded = wrapped.rsplit(" ", 1)[-1]
+    return base64.b64decode(encoded).decode("utf-16le")
+
+
+def test_windows_wraps_direct_powershell_cmdlets(monkeypatch):
+    local_env._IS_WINDOWS = True
+    monkeypatch.setattr(local_env, "_find_powershell", lambda: "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe")
+
+    command = "Get-ChildItem | Select-Object -First 1 -ExpandProperty Name"
+    wrapped = local_env._wrap_windows_powershell_command(command)
+
+    assert "powershell.exe" in wrapped
+    assert "-EncodedCommand" in wrapped
+    decoded = _decode_encoded_command(wrapped)
+    assert "$ProgressPreference='SilentlyContinue'" in decoded
+    assert decoded.endswith(command)
+
+
+def test_windows_wraps_powershell_variables_and_dotnet_calls(monkeypatch):
+    local_env._IS_WINDOWS = True
+    monkeypatch.setattr(local_env, "_find_powershell", lambda: "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe")
+
+    assert _decode_encoded_command(
+        local_env._wrap_windows_powershell_command("$PSVersionTable.PSVersion.ToString()")
+    ).endswith("$PSVersionTable.PSVersion.ToString()")
+    assert _decode_encoded_command(
+        local_env._wrap_windows_powershell_command("[Environment]::GetEnvironmentVariable('Path', 'User')")
+    ).endswith("[Environment]::GetEnvironmentVariable('Path', 'User')")
+
+
+def test_windows_does_not_wrap_bash_or_explicit_shell_commands(monkeypatch):
+    local_env._IS_WINDOWS = True
+    monkeypatch.setattr(local_env, "_find_powershell", lambda: "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe")
+
+    bash_command = "[ -f pyproject.toml ] && echo yes"
+    assert local_env._wrap_windows_powershell_command("git status --short") == "git status --short"
+    assert local_env._wrap_windows_powershell_command("powershell -Command Get-ChildItem") == "powershell -Command Get-ChildItem"
+    assert local_env._wrap_windows_powershell_command(bash_command) == bash_command
+
+
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows-only live regression")
 def test_local_environment_captures_stdout_on_windows():
     try:
@@ -57,3 +99,26 @@ def test_local_environment_captures_stdout_on_windows():
 
     assert result["returncode"] == 0
     assert "WINDOWS_STDOUT_OK" in result["output"]
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only live regression")
+def test_local_environment_runs_direct_powershell_cmdlets_on_windows():
+    try:
+        local_env._find_bash()
+        local_env._find_powershell()
+    except RuntimeError as exc:
+        pytest.skip(str(exc))
+
+    env = local_env.LocalEnvironment(cwd=str(Path.cwd()), timeout=10)
+    try:
+        result = env.execute(
+            "Get-ChildItem | Select-Object -First 1 -ExpandProperty Name",
+            timeout=10,
+        )
+    finally:
+        env.cleanup()
+
+    assert result["returncode"] == 0
+    assert "command not found" not in result["output"]
+    assert "#< CLIXML" not in result["output"]
+    assert result["output"].strip()

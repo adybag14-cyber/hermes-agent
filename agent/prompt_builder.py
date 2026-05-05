@@ -542,11 +542,14 @@ WSL_ENVIRONMENT_HINT = (
 
 NATIVE_WINDOWS_ENVIRONMENT_HINT = (
     "You are running on native Windows, not WSL. "
-    "The terminal tool uses Git Bash for local shell execution, so prefer "
-    "Git-Bash-compatible commands and forward-slash paths such as "
-    "C:/Users/<username>/... or /c/Users/<username>/.... "
-    "If you need a Windows-only shell feature or builtin, invoke it explicitly "
-    "via powershell -Command ..."
+    "The terminal tool supports Git-Bash-compatible commands and native "
+    "PowerShell commands. Prefer forward-slash paths such as "
+    "C:/Users/<username>/... or /c/Users/<username>/... when using Git Bash. "
+    "When a Windows-native operation is clearer, run PowerShell cmdlets "
+    "directly (for example Get-ChildItem, Get-Process, Select-Object, "
+    "$PSVersionTable, [Environment]::GetEnvironmentVariable(...)); Hermes "
+    "routes PowerShell-shaped commands through powershell.exe. For ambiguous "
+    "syntax, invoke powershell -NoProfile -Command ... explicitly."
 )
 
 

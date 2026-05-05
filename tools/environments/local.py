@@ -1,9 +1,11 @@
 """Local execution environment — spawn-per-call with session snapshot."""
 
+import base64
 import logging
 import os
 import platform
 import re
+import shlex
 import shutil
 import signal
 import subprocess
@@ -141,6 +143,111 @@ def _build_provider_env_blocklist() -> frozenset:
 
 
 _HERMES_PROVIDER_ENV_BLOCKLIST = _build_provider_env_blocklist()
+
+
+_POWERSHELL_LEADING_COMMAND_RE = re.compile(
+    r"^\s*(?:"
+    r"\$|"
+    r"\[[A-Za-z_][\w.]*\](?:::|\s|\(|$)|"
+    r"(?:Add|Clear|Compare|Compress|ConvertFrom|ConvertTo|Copy|Export|ForEach|"
+    r"Format|Get|Import|Invoke|Join|Measure|Move|New|Out|Pop|Push|Read|Remove|"
+    r"Rename|Resolve|Select|Set|Sort|Split|Start|Stop|Tee|Test|Wait|Where|Write)-"
+    r")",
+    re.IGNORECASE,
+)
+
+_POWERSHELL_PIPELINE_RE = re.compile(
+    r"(?:^|[|;]\s*)"
+    r"(?:"
+    r"(?:ForEach|Format|Get|Measure|Select|Sort|Where)-Object\b|"
+    r"(?:Add|Clear|Compare|Compress|ConvertFrom|ConvertTo|Copy|Export|ForEach|"
+    r"Format|Get|Import|Invoke|Join|Measure|Move|New|Out|Pop|Push|Read|Remove|"
+    r"Rename|Resolve|Select|Set|Sort|Split|Start|Stop|Tee|Test|Wait|Where|Write)-"
+    r")",
+    re.IGNORECASE,
+)
+
+_POWERSHELL_NONINTERACTIVE_PREAMBLE = (
+    "$ProgressPreference='SilentlyContinue'; "
+    "if (Get-Variable PSStyle -ErrorAction SilentlyContinue) { "
+    "$PSStyle.OutputRendering='PlainText' }; "
+)
+
+
+def _find_powershell() -> str:
+    """Find a native Windows PowerShell executable for Git Bash to launch."""
+    custom = os.environ.get("HERMES_POWERSHELL_PATH")
+    if custom and os.path.isfile(custom):
+        return _normalize_windows_shell_path(custom)
+
+    for name in ("powershell.exe", "powershell", "pwsh.exe", "pwsh"):
+        found = shutil.which(name)
+        if found:
+            return _normalize_windows_shell_path(found)
+
+    for candidate in (
+        os.path.join(
+            os.environ.get("SystemRoot", r"C:\Windows"),
+            "System32",
+            "WindowsPowerShell",
+            "v1.0",
+            "powershell.exe",
+        ),
+        os.path.join(
+            os.environ.get("ProgramFiles", r"C:\Program Files"),
+            "PowerShell",
+            "7",
+            "pwsh.exe",
+        ),
+    ):
+        if candidate and os.path.isfile(candidate):
+            return _normalize_windows_shell_path(candidate)
+
+    raise RuntimeError(
+        "PowerShell not found. Native Windows PowerShell commands require "
+        "powershell.exe or pwsh.exe on PATH, or HERMES_POWERSHELL_PATH set."
+    )
+
+
+def _looks_like_powershell(command: str) -> bool:
+    """Return True when a command is PowerShell syntax, not Bash syntax."""
+    stripped = command.lstrip()
+    if not stripped:
+        return False
+
+    first_word = re.split(r"\s+", stripped, maxsplit=1)[0].lower()
+    if first_word in {
+        "bash",
+        "bash.exe",
+        "sh",
+        "sh.exe",
+        "cmd",
+        "cmd.exe",
+        "powershell",
+        "powershell.exe",
+        "pwsh",
+        "pwsh.exe",
+    }:
+        return False
+
+    return bool(
+        _POWERSHELL_LEADING_COMMAND_RE.search(stripped)
+        or _POWERSHELL_PIPELINE_RE.search(stripped)
+    )
+
+
+def _wrap_windows_powershell_command(command: str) -> str:
+    """Wrap native PowerShell syntax so Git Bash can execute it on Windows."""
+    if not _IS_WINDOWS or not _looks_like_powershell(command):
+        return command
+
+    script = _POWERSHELL_NONINTERACTIVE_PREAMBLE + command
+    encoded = base64.b64encode(script.encode("utf-16le")).decode("ascii")
+    powershell = shlex.quote(_find_powershell())
+    return (
+        f"{powershell} -NoProfile -NonInteractive "
+        f"-ExecutionPolicy Bypass -EncodedCommand {encoded}"
+    )
 
 
 def _normalize_windows_shell_path(path: str) -> str:
@@ -499,6 +606,7 @@ class LocalEnvironment(BaseEnvironment):
         timeout: int | None = None,
         stdin_data: str | None = None,
     ) -> dict:
+        command = _wrap_windows_powershell_command(command)
         shell_cwd = self._to_shell_path(cwd) if cwd else ""
         return super().execute(
             command,

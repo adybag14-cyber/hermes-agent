@@ -11,6 +11,14 @@ def teardown_function():
     terminal_tool._reset_cached_sudo_passwords()
 
 
+def test_terminal_description_advertises_native_windows_powershell():
+    description = terminal_tool.TERMINAL_TOOL_DESCRIPTION
+
+    assert "PowerShell" in description
+    assert "Get-ChildItem" in description
+    assert "Do NOT claim PowerShell is unavailable" in description
+
+
 def test_searching_for_sudo_does_not_trigger_rewrite(monkeypatch):
     monkeypatch.delenv("SUDO_PASSWORD", raising=False)
     monkeypatch.delenv("HERMES_INTERACTIVE", raising=False)
