@@ -462,6 +462,12 @@ class LocalEnvironment(BaseEnvironment):
             )
             self.cwd = safe_cwd
 
+        native_cwd = self.cwd
+        if _IS_WINDOWS:
+            msys_match = re.match(r"^/([A-Za-z])/(.*)$", native_cwd or "")
+            if msys_match:
+                native_cwd = f"{msys_match.group(1).upper()}:/{msys_match.group(2)}"
+
         proc = subprocess.Popen(
             args,
             text=True,
@@ -472,7 +478,7 @@ class LocalEnvironment(BaseEnvironment):
             stderr=subprocess.STDOUT,
             stdin=subprocess.PIPE if stdin_data is not None else subprocess.DEVNULL,
             preexec_fn=None if _IS_WINDOWS else os.setsid,
-            cwd=self.cwd,
+            cwd=native_cwd,
         )
         if not _IS_WINDOWS:
             try:

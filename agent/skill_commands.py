@@ -96,6 +96,47 @@ def _load_skill_payload(skill_identifier: str, task_id: str | None = None) -> tu
     return loaded_skill, skill_dir, skill_name
 
 
+def _load_skill_payload_from_scan_info(
+    skill_info: dict[str, Any],
+    task_id: str | None = None,
+) -> tuple[dict[str, Any], Path | None, str] | None:
+    """Load a scanned skill directly from its SKILL.md path.
+
+    This is a conservative fallback for slash-command invocations: the scanner
+    already captured the exact SKILL.md and skill directory, so use that source
+    of truth when skill_view returns an empty payload because of global state or
+    path-resolution churn during tests/reloads.
+    """
+    try:
+        from tools.skills_tool import _parse_frontmatter
+
+        skill_md_raw = skill_info.get("skill_md_path")
+        skill_dir_raw = skill_info.get("skill_dir")
+        if not skill_md_raw or not skill_dir_raw:
+            return None
+
+        skill_md = Path(skill_md_raw)
+        skill_dir = Path(skill_dir_raw)
+        if not skill_md.is_file():
+            return None
+
+        raw_content = skill_md.read_text(encoding="utf-8")
+        frontmatter, _body = _parse_frontmatter(raw_content)
+        skill_name = str(frontmatter.get("name") or skill_info.get("name") or skill_dir.name)
+        loaded_skill = {
+            "success": True,
+            "name": skill_name,
+            "content": raw_content,
+            "raw_content": raw_content,
+            "path": str(skill_md),
+            "skill_dir": str(skill_dir),
+        }
+        return loaded_skill, skill_dir, skill_name
+    except Exception:
+        logger.debug("Could not directly load scanned skill", exc_info=True)
+        return None
+
+
 def _inject_skill_config(loaded_skill: dict[str, Any], parts: list[str]) -> None:
     """Resolve and inject skill-declared config values into the message parts.
 
@@ -142,6 +183,7 @@ def _build_skill_message(
     user_instruction: str = "",
     runtime_note: str = "",
     session_id: str | None = None,
+    supporting_dir: Path | None = None,
 ) -> str:
     """Format a loaded skill into a user/system message payload."""
     from tools.skills_tool import SKILLS_DIR
@@ -202,29 +244,32 @@ def _build_skill_message(
         if isinstance(entries, list):
             supporting.extend(entries)
 
-    if not supporting and skill_dir:
+    file_base_dir = supporting_dir if supporting_dir and supporting_dir.exists() else skill_dir
+    if not supporting and file_base_dir:
         for subdir in ("references", "templates", "scripts", "assets"):
-            subdir_path = skill_dir / subdir
+            subdir_path = file_base_dir / subdir
             if subdir_path.exists():
                 for f in sorted(subdir_path.rglob("*")):
                     if f.is_file() and not f.is_symlink():
-                        rel = str(f.relative_to(skill_dir))
+                        rel = f.relative_to(file_base_dir).as_posix()
                         supporting.append(rel)
 
-    if supporting and skill_dir:
+    if supporting and file_base_dir:
         try:
-            skill_view_target = str(skill_dir.relative_to(SKILLS_DIR))
+            skill_view_target = str(file_base_dir.relative_to(SKILLS_DIR))
         except ValueError:
             # Skill is from an external dir — use the skill name instead
-            skill_view_target = skill_dir.name
+            skill_view_target = file_base_dir.name
         parts.append("")
         parts.append("[This skill has supporting files:]")
         for sf in supporting:
-            parts.append(f"- {sf}  ->  {skill_dir / sf}")
+            parts.append(f"- {sf}  ->  {file_base_dir / sf}")
+        script_example = next((sf for sf in supporting if str(sf).startswith("scripts/")), None)
+        script_hint = f" (e.g. `node {file_base_dir / script_example}`)" if script_example else ""
         parts.append(
             f'\nLoad any of these with skill_view(name="{skill_view_target}", '
-            f'file_path="<path>"), or run scripts directly by absolute path '
-            f"(e.g. `node {skill_dir}/scripts/foo.js`)."
+            f'file_path="<path>"), or run scripts directly by absolute path'
+            f"{script_hint}."
         )
 
     if user_instruction:
@@ -424,10 +469,34 @@ def build_skill_invocation_message(
         return None
 
     loaded = _load_skill_payload(skill_info["skill_dir"], task_id=task_id)
+    skill_dir_raw = skill_info.get("skill_dir")
+    scanned_supporting_dir = Path(str(skill_dir_raw)) if skill_dir_raw else None
+    has_scanned_supporting = False
+    if scanned_supporting_dir and scanned_supporting_dir.exists():
+        for _subdir in ("references", "templates", "scripts", "assets"):
+            _subdir_path = scanned_supporting_dir / _subdir
+            if _subdir_path.exists() and any(_p.is_file() for _p in _subdir_path.rglob("*")):
+                has_scanned_supporting = True
+                break
+    if loaded:
+        loaded_skill, loaded_dir, _loaded_name = loaded
+        loaded_dir_path = Path(str(loaded_dir or ""))
+        linked_files = loaded_skill.get("linked_files") or {}
+        has_loaded_supporting = any(isinstance(_entries, list) and _entries for _entries in linked_files.values())
+        if (
+            (not str(loaded_skill.get("content") or "").strip())
+            or (has_scanned_supporting and not has_loaded_supporting)
+            or (has_scanned_supporting and loaded_dir_path != scanned_supporting_dir)
+        ):
+            loaded = _load_skill_payload_from_scan_info(skill_info, task_id=task_id) or loaded
+    if not loaded:
+        loaded = _load_skill_payload_from_scan_info(skill_info, task_id=task_id)
     if not loaded:
         return f"[Failed to load skill: {skill_info['name']}]"
 
     loaded_skill, skill_dir, skill_name = loaded
+    if has_scanned_supporting and scanned_supporting_dir:
+        skill_dir = scanned_supporting_dir
 
     # Track active usage for Curator lifecycle management (#17782)
     try:
@@ -447,6 +516,7 @@ def build_skill_invocation_message(
         user_instruction=user_instruction,
         runtime_note=runtime_note,
         session_id=task_id,
+        supporting_dir=scanned_supporting_dir,
     )
 
 

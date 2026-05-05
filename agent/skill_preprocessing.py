@@ -1,6 +1,7 @@
 """Shared SKILL.md preprocessing helpers."""
 
 import logging
+import platform
 import re
 import subprocess
 from pathlib import Path
@@ -18,6 +19,15 @@ _INLINE_SHELL_RE = re.compile(r"!`([^`\n]+)`")
 
 # Cap inline-shell output so a runaway command can't blow out the context.
 _INLINE_SHELL_MAX_OUTPUT = 4000
+
+
+def _inline_shell_executable() -> str:
+    """Return the shell used for inline SKILL.md snippets."""
+    if platform.system() == "Windows":
+        from tools.environments.local import _find_bash
+
+        return _find_bash()
+    return "bash"
 
 
 def load_skills_config() -> dict:
@@ -67,8 +77,9 @@ def run_inline_shell(command: str, cwd: Path | None, timeout: int) -> str:
     raising, so one bad snippet can't wreck the whole skill message.
     """
     try:
+        shell = _inline_shell_executable()
         completed = subprocess.run(
-            ["bash", "-c", command],
+            [shell, "-c", command],
             cwd=str(cwd) if cwd else None,
             capture_output=True,
             text=True,

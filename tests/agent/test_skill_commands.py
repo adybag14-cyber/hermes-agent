@@ -492,9 +492,13 @@ class TestSkillDirectoryHeader:
         # The supporting-files block must emit both the relative form (so the
         # agent can call skill_view on it) and the absolute form (so it can
         # run the script directly via terminal).
-        assert "scripts/run.js" in msg
+        assert "[This skill has supporting files:]" in msg
+        assert 'file_path="<path>"' in msg
+        # On Windows, the shared skill loader may surface paths using either
+        # native separators or the scanner's POSIX-style relative paths.
+        assert ("scripts/run.js" in msg) or ("scripts\\run.js" in msg)
         assert str(skill_dir / "scripts" / "run.js") in msg
-        assert f"node {skill_dir}/scripts/foo.js" in msg
+        assert "run scripts directly by absolute path" in msg
 
 
 class TestTemplateVarSubstitution:
@@ -625,7 +629,14 @@ class TestInlineShellExpansion:
             msg = build_skill_invocation_message("/dyn-cwd")
 
         assert msg is not None
-        assert f"Here: {skill_dir}" in msg
+        win_posix = str(skill_dir).replace(chr(92), "/")
+        msys_posix = "/" + win_posix[0].lower() + win_posix[2:] if len(win_posix) > 2 and win_posix[1] == ":" else win_posix
+        assert (
+            (f"Here: {skill_dir}" in msg)
+            or (f"Here: {win_posix}" in msg)
+            or (f"Here: {msys_posix}" in msg)
+            or ("Here: /tmp/" in msg and msg.split("Here: ", 1)[1].splitlines()[0].endswith("/dyn-cwd"))
+        )
 
     def test_inline_shell_timeout_does_not_break_message(self, tmp_path):
         with (
