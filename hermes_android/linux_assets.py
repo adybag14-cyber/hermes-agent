@@ -230,6 +230,7 @@ def serializable_manifest(android_abi: str, packages: Iterable[TermuxPackageReco
         }
         for link in links
     ]
+    normalized_links.sort(key=lambda link: (link["path"], link["target"]))
     return {
         "asset_root": ANDROID_LINUX_ASSET_ROOT,
         "android_abi": android_abi,
