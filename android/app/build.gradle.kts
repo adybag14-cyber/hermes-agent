@@ -78,7 +78,7 @@ fun resolvedBuildPython(): String {
         return configured
     }
     val osName = System.getProperty("os.name").lowercase()
-    return if (osName.contains("windows")) "python" else "python3.12"
+    return if (osName.contains("windows")) "python" else "python3"
 }
 
 fun hermesWheelName(): String = "hermes_agent-${hermesVersionName()}-py3-none-any.whl"
@@ -104,11 +104,16 @@ android {
 
     splits {
         abi {
-            isEnable = true
+            isEnable = false
             reset()
             include("arm64-v8a", "x86_64")
             isUniversalApk = true
         }
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     signingConfigs {
@@ -178,7 +183,7 @@ android {
 
 chaquopy {
     defaultConfig {
-        version = "3.12"
+        version = "3.13"
 
         buildPython(resolvedBuildPython())
 
