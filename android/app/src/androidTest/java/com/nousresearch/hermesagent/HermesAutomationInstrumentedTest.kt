@@ -245,4 +245,32 @@ class HermesAutomationInstrumentedTest {
             run.getJSONObject("result").optString("error").contains("accessibility", ignoreCase = true),
         )
     }
+
+    @Test
+    fun appLaunchAutomationOpensHermesPackage() {
+        val created = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "create_app_launch_task",
+                JSONObject()
+                    .put("label", "Launch Hermes smoke")
+                    .put("package_name", app.packageName)
+                    .put("enabled", false),
+            ),
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals("app_launch", created.getJSONObject("automation").getString("action_type"))
+
+        val run = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "run",
+                JSONObject().put("id", created.getJSONObject("automation").getString("id")),
+            ),
+        )
+        assertTrue(run.toString(), run.getBoolean("success"))
+        assertEquals(0, run.getJSONObject("automation").getInt("last_exit_code"))
+        assertEquals("launch_app", run.getJSONObject("result").getString("action"))
+        assertEquals(app.packageName, run.getJSONObject("result").getString("package_name"))
+    }
 }

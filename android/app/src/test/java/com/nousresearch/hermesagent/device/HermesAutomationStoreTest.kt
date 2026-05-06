@@ -164,4 +164,44 @@ class HermesAutomationStoreTest {
         )
         assertFalse(rejected.toString(), rejected.getBoolean("success"))
     }
+
+    @Test
+    fun bridgeCreatesAndRunsAppLaunchRecordsSafely() {
+        val context = RuntimeEnvironment.getApplication()
+        HermesAutomationStore(context).clear()
+
+        val created = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_app_launch_task",
+                org.json.JSONObject()
+                    .put("id", "auto-launch")
+                    .put("package_name", "com.nousresearch.hermesagent.missing")
+                    .put("enabled", false),
+            ),
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals(ACTION_TYPE_APP_LAUNCH, created.getJSONObject("automation").getString("action_type"))
+
+        val run = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "run",
+                org.json.JSONObject().put("id", "auto-launch"),
+            ),
+        )
+        assertFalse(run.toString(), run.getBoolean("success"))
+        assertEquals("launch_app", run.getJSONObject("result").getString("action"))
+        assertEquals("com.nousresearch.hermesagent.missing", run.getJSONObject("result").getString("package_name"))
+        assertFalse(run.getJSONObject("automation").getBoolean("last_success"))
+
+        val rejected = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_app_launch_task",
+                org.json.JSONObject().put("package_name", ""),
+            ),
+        )
+        assertFalse(rejected.toString(), rejected.getBoolean("success"))
+    }
 }

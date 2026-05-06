@@ -14,6 +14,7 @@ object HermesAutomationBridge {
             "create_file_delete_task", "create_file_delete", "delete_file_task" -> createFileDeleteTaskJson(context, arguments)
             "create_system_action_task", "create_system_action", "system_action_task" -> createSystemActionTaskJson(context, arguments)
             "create_ui_action_task", "create_ui_action", "ui_action_task" -> createUiActionTaskJson(context, arguments)
+            "create_app_launch_task", "create_app_launch", "launch_app_task" -> createAppLaunchTaskJson(context, arguments)
             "run", "run_now", "trigger" -> runAutomationJson(context, arguments.optString("id"), "manual")
             "run_trigger", "trigger_event", "run_event" -> runTriggerJson(
                 context,
@@ -169,6 +170,28 @@ object HermesAutomationBridge {
         )
     }
 
+    fun createAppLaunchTaskJson(context: Context, arguments: JSONObject): String {
+        val packageName = stringArgument(
+            arguments,
+            "package_name",
+            "packageName",
+            "package",
+            "app_package",
+            "application_id",
+            "command",
+        )?.trim() ?: return errorJson("create_app_launch_task requires a package_name argument")
+        if (packageName.indexOf('\u0000') >= 0) {
+            return errorJson("create_app_launch_task package_name must not contain NUL bytes")
+        }
+        return createRecordJson(
+            context = context,
+            arguments = arguments,
+            actionType = ACTION_TYPE_APP_LAUNCH,
+            payload = packageName,
+            defaultLabel = "Hermes app launch automation",
+        )
+    }
+
     private fun createRecordJson(
         context: Context,
         arguments: JSONObject,
@@ -258,6 +281,7 @@ object HermesAutomationBridge {
             ACTION_TYPE_FILE_DELETE -> HermesWorkspaceFileBridge.deleteJson(context, expandVariables(record.command, variables))
             ACTION_TYPE_SYSTEM_ACTION -> runSystemActionRecord(context, record, variables)
             ACTION_TYPE_UI_ACTION -> runUiActionRecord(record, variables)
+            ACTION_TYPE_APP_LAUNCH -> HermesAppControlBridge.launchPackage(context, expandVariables(record.command, variables))
             else -> JSONObject(errorJson("Unsupported Android automation action type: ${record.actionType}"))
         }
         val exitCode = rawResult.optInt("exit_code", if (rawResult.optBoolean("success", false)) 0 else -1)
@@ -509,6 +533,7 @@ object HermesAutomationBridge {
         "create_file_delete_task",
         "create_system_action_task",
         "create_ui_action_task",
+        "create_app_launch_task",
         "run",
         "run_trigger",
         "delete",
