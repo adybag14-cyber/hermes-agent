@@ -124,6 +124,7 @@ web/public/ds-assets/
 # Release script temp files
 .release_notes.md
 mini-swe-agent/
+artifacts/
 
 # Nix
 .direnv/
