@@ -10,6 +10,9 @@ object HermesAutomationBridge {
         return when (action.lowercase().ifBlank { "list" }) {
             "list", "list_automations", "status" -> listJson(context)
             "create_shell_task", "create_shell", "create" -> createShellTaskJson(context, arguments)
+            "create_file_write_task", "create_file_write", "write_file_task" -> createFileWriteTaskJson(context, arguments)
+            "create_file_delete_task", "create_file_delete", "delete_file_task" -> createFileDeleteTaskJson(context, arguments)
+            "create_system_action_task", "create_system_action", "system_action_task" -> createSystemActionTaskJson(context, arguments)
             "run", "run_now", "trigger" -> runAutomationJson(context, arguments.optString("id"), "manual")
             "run_trigger", "trigger_event", "run_event" -> runTriggerJson(
                 context,
@@ -51,6 +54,76 @@ object HermesAutomationBridge {
         if (command.indexOf('\u0000') >= 0) {
             return errorJson("create_shell_task command must not contain NUL bytes")
         }
+        return createRecordJson(
+            context = context,
+            arguments = arguments,
+            actionType = ACTION_TYPE_SHELL,
+            payload = command,
+            defaultLabel = "Hermes shell automation",
+        )
+    }
+
+    fun createFileWriteTaskJson(context: Context, arguments: JSONObject): String {
+        val path = stringArgument(arguments, "path", "file_path", "filename", "name")?.trim()
+            ?: return errorJson("create_file_write_task requires a path argument")
+        if (path.indexOf('\u0000') >= 0) {
+            return errorJson("create_file_write_task path must not contain NUL bytes")
+        }
+        val content = stringArgument(arguments, "content", "text", "data", allowEmpty = true)
+            ?: return errorJson("create_file_write_task requires a content argument")
+        val payload = JSONObject()
+            .put("path", path)
+            .put("content", content)
+            .put("append", arguments.optBoolean("append", false))
+            .toString()
+        return createRecordJson(
+            context = context,
+            arguments = arguments,
+            actionType = ACTION_TYPE_FILE_WRITE,
+            payload = payload,
+            defaultLabel = "Hermes file write automation",
+        )
+    }
+
+    fun createFileDeleteTaskJson(context: Context, arguments: JSONObject): String {
+        val path = stringArgument(arguments, "path", "file_path", "filename", "name")?.trim()
+            ?: return errorJson("create_file_delete_task requires a path argument")
+        if (path.indexOf('\u0000') >= 0) {
+            return errorJson("create_file_delete_task path must not contain NUL bytes")
+        }
+        return createRecordJson(
+            context = context,
+            arguments = arguments,
+            actionType = ACTION_TYPE_FILE_DELETE,
+            payload = path,
+            defaultLabel = "Hermes file delete automation",
+        )
+    }
+
+    fun createSystemActionTaskJson(context: Context, arguments: JSONObject): String {
+        val systemAction = stringArgument(arguments, "system_action", "systemAction", "device_action", "command", "target_action")
+            ?.trim()
+            ?.lowercase()
+            ?: return errorJson("create_system_action_task requires a system_action argument")
+        if (systemAction in PRIVILEGED_SHELL_ACTIONS) {
+            return errorJson("create_system_action_task does not store privileged shell commands; use create_shell_task with use_shizuku instead")
+        }
+        return createRecordJson(
+            context = context,
+            arguments = arguments,
+            actionType = ACTION_TYPE_SYSTEM_ACTION,
+            payload = systemAction,
+            defaultLabel = "Hermes Android system automation",
+        )
+    }
+
+    private fun createRecordJson(
+        context: Context,
+        arguments: JSONObject,
+        actionType: String,
+        payload: String,
+        defaultLabel: String,
+    ): String {
         val intervalMinutes = optionalPositiveInt(arguments, "interval_minutes")
             ?: optionalPositiveInt(arguments, "every_minutes")
         if (intervalMinutes != null && intervalMinutes < HermesAutomationScheduler.MIN_INTERVAL_MINUTES) {
@@ -65,9 +138,9 @@ object HermesAutomationBridge {
         val now = System.currentTimeMillis()
         val record = HermesAutomationRecord(
             id = arguments.optString("id").ifBlank { "auto_${UUID.randomUUID().toString().replace("-", "").take(16)}" },
-            label = arguments.optString("label").ifBlank { "Hermes shell automation" }.take(80),
-            actionType = ACTION_TYPE_SHELL,
-            command = command,
+            label = arguments.optString("label").ifBlank { defaultLabel }.take(80),
+            actionType = actionType,
+            command = payload,
             useShizuku = arguments.optBoolean("use_shizuku", false),
             triggerType = triggerType,
             intervalMinutes = intervalMinutes,
@@ -126,18 +199,22 @@ object HermesAutomationBridge {
         record: HermesAutomationRecord,
         trigger: String,
     ): JSONObject {
-        if (record.actionType != ACTION_TYPE_SHELL) {
-            return JSONObject(errorJson("Unsupported Android automation action type: ${record.actionType}"))
-        }
-        val command = expandVariables(record.command, store.listVariables())
-        val rawResult = if (record.useShizuku) {
-            JSONObject(HermesPrivilegedAccessBridge.runShellCommandJson(context, command, AUTOMATION_TIMEOUT_SECONDS))
-        } else {
-            NativeAndroidShellTool.run(context, command, AUTOMATION_TIMEOUT_SECONDS.toLong())
+        val variables = store.listVariables()
+        val rawResult = when (record.actionType) {
+            ACTION_TYPE_SHELL -> runShellRecord(context, record, variables)
+            ACTION_TYPE_FILE_WRITE -> runFileWriteRecord(context, record, variables)
+            ACTION_TYPE_FILE_DELETE -> HermesWorkspaceFileBridge.deleteJson(context, expandVariables(record.command, variables))
+            ACTION_TYPE_SYSTEM_ACTION -> runSystemActionRecord(context, record, variables)
+            else -> JSONObject(errorJson("Unsupported Android automation action type: ${record.actionType}"))
         }
         val exitCode = rawResult.optInt("exit_code", if (rawResult.optBoolean("success", false)) 0 else -1)
         val success = rawResult.optBoolean("success", exitCode == 0) || exitCode == 0
-        val resultText = listOf(rawResult.optString("output"), rawResult.optString("error"))
+        val resultText = listOf(
+            rawResult.optString("output"),
+            rawResult.optString("message"),
+            rawResult.optString("path"),
+            rawResult.optString("error"),
+        )
             .filter { it.isNotBlank() }
             .joinToString("\n")
             .take(MAX_RESULT_CHARS)
@@ -154,6 +231,41 @@ object HermesAutomationBridge {
             .put("trigger", trigger)
             .put("automation", updated.toJson())
             .put("result", rawResult)
+    }
+
+    private fun runShellRecord(context: Context, record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+        val command = expandVariables(record.command, variables)
+        return if (record.useShizuku) {
+            JSONObject(HermesPrivilegedAccessBridge.runShellCommandJson(context, command, AUTOMATION_TIMEOUT_SECONDS))
+        } else {
+            NativeAndroidShellTool.run(context, command, AUTOMATION_TIMEOUT_SECONDS.toLong())
+        }
+    }
+
+    private fun runFileWriteRecord(context: Context, record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+        val payload = runCatching { JSONObject(record.command) }.getOrNull()
+            ?: return JSONObject(errorJson("Saved file_write automation payload is invalid"))
+        val path = expandVariables(payload.optString("path"), variables)
+        val content = expandVariables(payload.optString("content"), variables)
+        return HermesWorkspaceFileBridge.writeTextJson(
+            context = context,
+            rawPath = path,
+            content = content,
+            append = payload.optBoolean("append", false),
+        )
+    }
+
+    private fun runSystemActionRecord(context: Context, record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+        val systemAction = expandVariables(record.command, variables).trim().lowercase()
+        if (systemAction in PRIVILEGED_SHELL_ACTIONS) {
+            return JSONObject(errorJson("Saved system_action automation cannot run privileged shell; use a Shizuku shell task"))
+        }
+        val result = HermesSystemControlBridge.performAction(context, systemAction)
+        return JSONObject()
+            .put("exit_code", if (result.success) 0 else 1)
+            .put("success", result.success)
+            .put("action", result.action)
+            .put("message", result.message)
     }
 
     fun deleteJson(context: Context, id: String): String {
@@ -242,6 +354,16 @@ object HermesAutomationBridge {
         return value.takeIf { it > 0 }
     }
 
+    private fun stringArgument(arguments: JSONObject, vararg keys: String, allowEmpty: Boolean = false): String? {
+        return keys.firstNotNullOfOrNull { key ->
+            if (!arguments.has(key) || arguments.isNull(key)) {
+                null
+            } else {
+                arguments.optString(key).takeIf { allowEmpty || it.isNotBlank() }
+            }
+        }
+    }
+
     private fun recordsToJson(records: List<HermesAutomationRecord>): JSONArray {
         return JSONArray().apply {
             records.forEach { record -> put(record.toJson()) }
@@ -286,6 +408,9 @@ object HermesAutomationBridge {
     private val AUTOMATION_ACTIONS = listOf(
         "list",
         "create_shell_task",
+        "create_file_write_task",
+        "create_file_delete_task",
+        "create_system_action_task",
         "run",
         "run_trigger",
         "delete",
@@ -317,6 +442,7 @@ object HermesAutomationBridge {
         "battery_ok" to TRIGGER_BATTERY_OKAY,
         "battery_normal" to TRIGGER_BATTERY_OKAY,
     )
+    private val PRIVILEGED_SHELL_ACTIONS = setOf("run_privileged_shell", "shizuku_shell", "privileged_shell")
     private val TASKER_VARIABLE_PATTERN = Regex("%([A-Za-z_][A-Za-z0-9_]{1,63})")
     private val BRACE_VARIABLE_PATTERN = Regex("\\{\\{([A-Za-z_][A-Za-z0-9_]{0,63})\\}\\}")
     private const val AUTOMATION_TIMEOUT_SECONDS = 30
