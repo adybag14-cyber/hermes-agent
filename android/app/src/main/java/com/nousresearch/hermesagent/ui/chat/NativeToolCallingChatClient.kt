@@ -8,7 +8,6 @@ import com.nousresearch.hermesagent.api.toJsonObject
 import com.nousresearch.hermesagent.device.HermesAccessibilityController
 import com.nousresearch.hermesagent.device.HermesAccessibilityUiBridge
 import com.nousresearch.hermesagent.device.HermesAutomationBridge
-import com.nousresearch.hermesagent.device.HermesGlobalAction
 import com.nousresearch.hermesagent.device.HermesPrivilegedAccessBridge
 import com.nousresearch.hermesagent.device.HermesSystemControlBridge
 import com.nousresearch.hermesagent.device.HermesWorkspaceFileBridge
@@ -273,11 +272,11 @@ class NativeToolCallingChatClient(
                 value = toolCall.arguments.optString("value"),
                 index = toolCall.arguments.optInt("index", 0),
             )
-            "back", "global_back" -> globalUiActionJson("back", HermesGlobalAction.Back)
-            "home", "global_home" -> globalUiActionJson("home", HermesGlobalAction.Home)
-            "recents", "global_recents" -> globalUiActionJson("recents", HermesGlobalAction.Recents)
-            "notifications", "global_notifications" -> globalUiActionJson("notifications", HermesGlobalAction.Notifications)
-            "quick_settings", "global_quick_settings" -> globalUiActionJson("quick_settings", HermesGlobalAction.QuickSettings)
+            "back", "global_back" -> HermesAccessibilityUiBridge.performGlobalActionJson("back")
+            "home", "global_home" -> HermesAccessibilityUiBridge.performGlobalActionJson("home")
+            "recents", "global_recents" -> HermesAccessibilityUiBridge.performGlobalActionJson("recents")
+            "notifications", "global_notifications" -> HermesAccessibilityUiBridge.performGlobalActionJson("notifications")
+            "quick_settings", "global_quick_settings" -> HermesAccessibilityUiBridge.performGlobalActionJson("quick_settings")
             "open_accessibility_settings" -> HermesSystemControlBridge.performActionJson("open_accessibility_settings")
             else -> JSONObject()
                 .put("success", false)
@@ -297,24 +296,6 @@ class NativeToolCallingChatClient(
             .toString()
     }
 
-    private fun globalUiActionJson(action: String, globalAction: HermesGlobalAction): String {
-        val connected = HermesAccessibilityController.isServiceConnected()
-        val success = connected && HermesAccessibilityController.performAction(globalAction)
-        return JSONObject()
-            .put("success", success)
-            .put("action", action)
-            .put("accessibility_connected", connected)
-            .put(
-                "message",
-                if (success) {
-                    "Performed Android global action: $action"
-                } else {
-                    "Hermes accessibility service is not connected or Android rejected global action: $action"
-                },
-            )
-            .toString()
-    }
-
     private fun systemMessage(): JSONObject {
         return JSONObject()
             .put("role", "system")
@@ -329,7 +310,7 @@ class NativeToolCallingChatClient(
                     "When the user asks about Android settings, phone connectivity, permissions, background runtime, or safe system panels, call android_system_tool. " +
                     "android_system_tool status includes Shizuku/Sui privileged-access state, and it can open Shizuku, wireless debugging, and developer settings setup flows. " +
                     "If Shizuku/Sui is running and the user granted Hermes permission, android_system_tool can run explicit ADB/root-identity shell commands with action run_privileged_shell and a command argument. " +
-                    "When the user asks to create a recurring phone automation, reusable Android task, Tasker-like variable, phone-state trigger, saved file action, or safe saved Android settings action, call android_automation_tool. It can save shell, file-write, file-delete, and safe Android system-action tasks, run them manually, enable/disable/delete them, schedule interval tasks with Android alarms, run boot/power/battery triggers, and expand saved variables in commands and file content. " +
+                    "When the user asks to create a recurring phone automation, reusable Android task, Tasker-like variable, phone-state trigger, saved file action, safe saved Android settings action, or saved visible-UI action, call android_automation_tool. It can save shell, file-write, file-delete, safe Android system-action, and accessibility UI-action tasks, run them manually, enable/disable/delete them, schedule interval tasks with Android alarms, run boot/power/battery triggers, and expand saved variables in commands, file content, and UI selectors. " +
                     "When the user asks to inspect the visible phone screen, click, type, scroll, or use Back/Home/Recents/Quick Settings, call android_ui_tool. " +
                     "android_ui_tool requires the user-enabled Hermes accessibility service for screen snapshots and UI actions. " +
                     "Protected Android settings require user-granted permissions, Shizuku/Sui, accessibility service, or an opened settings panel.",
@@ -376,7 +357,7 @@ class NativeToolCallingChatClient(
                             .put("name", "android_automation_tool")
                             .put(
                                 "description",
-                                "Create, list, run, enable, disable, or delete saved Android automations and variables. Supports shell, file-write, file-delete, and safe Android system-action tasks; manual tasks; interval tasks; boot/power/battery phone-state triggers; and Tasker-style %VARIABLE expansion. Shizuku execution must be explicitly requested per shell task.",
+                                "Create, list, run, enable, disable, or delete saved Android automations and variables. Supports shell, file-write, file-delete, safe Android system-action, and accessibility UI-action tasks; manual tasks; interval tasks; boot/power/battery phone-state triggers; and Tasker-style %VARIABLE expansion. Shizuku execution must be explicitly requested per shell task.",
                             )
                             .put(
                                 "parameters",
@@ -389,7 +370,7 @@ class NativeToolCallingChatClient(
                                                 "action",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "list, create_shell_task, create_file_write_task, create_file_delete_task, create_system_action_task, run, run_trigger, delete, enable, disable, list_variables, set_variable, get_variable, or delete_variable."),
+                                                    .put("description", "list, create_shell_task, create_file_write_task, create_file_delete_task, create_system_action_task, create_ui_action_task, run, run_trigger, delete, enable, disable, list_variables, set_variable, get_variable, or delete_variable."),
                                             )
                                             .put(
                                                 "id",
@@ -434,6 +415,42 @@ class NativeToolCallingChatClient(
                                                     .put("description", "Safe Android system action for create_system_action_task, such as start_background_runtime, stop_background_runtime, open_wifi_panel, or open_accessibility_settings."),
                                             )
                                             .put(
+                                                "ui_action",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Saved accessibility UI action for create_ui_action_task: click, long_click, focus, set_text, scroll_forward, scroll_backward, back, home, recents, notifications, or quick_settings."),
+                                            )
+                                            .put(
+                                                "text_contains",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Saved UI selector: match a visible node whose text contains this value. Saved variables can be referenced as %NAME or {{NAME}}."),
+                                            )
+                                            .put(
+                                                "content_description_contains",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Saved UI selector: match a visible node whose accessibility description contains this value. Saved variables can be referenced as %NAME or {{NAME}}."),
+                                            )
+                                            .put(
+                                                "view_id",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Saved UI selector: match a node by full or partial Android view id."),
+                                            )
+                                            .put(
+                                                "package_name",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Saved UI selector: restrict matching to a package name fragment."),
+                                            )
+                                            .put(
+                                                "index",
+                                                JSONObject()
+                                                    .put("type", "integer")
+                                                    .put("description", "Zero-based saved UI match index when multiple nodes match."),
+                                            )
+                                            .put(
                                                 "trigger",
                                                 JSONObject()
                                                     .put("type", "string")
@@ -467,7 +484,7 @@ class NativeToolCallingChatClient(
                                                 "value",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Variable value for set_variable."),
+                                                    .put("description", "Variable value for set_variable, or text value for create_ui_action_task set_text."),
                                             ),
                                     )
                                     .put("required", JSONArray().put("action")),
