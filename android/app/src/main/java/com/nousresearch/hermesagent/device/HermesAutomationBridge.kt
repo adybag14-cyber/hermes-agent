@@ -26,6 +26,8 @@ object HermesAutomationBridge {
             "create_broadcast_task", "create_send_broadcast_task", "broadcast_task" -> createIntentTaskJson(context, arguments, "send_broadcast")
             "create_activity_task", "create_start_activity_task", "launch_activity_task" -> createIntentTaskJson(context, arguments, "start_activity")
             "create_shizuku_action_task", "create_shizuku_action", "create_privileged_action_task", "privileged_action_task" -> createShizukuActionTaskJson(context, arguments)
+            "export_automations", "export", "backup_automations", "backup" -> exportAutomationsJson(context)
+            "import_automations", "import", "restore_automations", "restore" -> importAutomationsJson(context, arguments)
             "run", "run_now", "trigger" -> runAutomationJson(context, arguments.optString("id"), "manual")
             "run_trigger", "trigger_event", "run_event" -> runTriggerJson(
                 context,
@@ -83,6 +85,90 @@ object HermesAutomationBridge {
             .put("available_actions", JSONArray(AUTOMATION_ACTIONS))
             .put("available_triggers", JSONArray(AUTOMATION_TRIGGERS))
             .put("min_interval_minutes", HermesAutomationScheduler.MIN_INTERVAL_MINUTES)
+            .toString()
+    }
+
+    fun exportAutomationsJson(context: Context): String {
+        val store = HermesAutomationStore(context)
+        val records = store.list()
+        val variables = store.listVariables()
+        return JSONObject()
+            .put("success", true)
+            .put("kind", AUTOMATION_BUNDLE_KIND)
+            .put("schema_version", AUTOMATION_BUNDLE_SCHEMA_VERSION)
+            .put("exported_at_epoch_ms", System.currentTimeMillis())
+            .put("automations", recordsToJson(records))
+            .put("variables", variables)
+            .put("automation_count", records.size)
+            .put("variable_count", variables.length())
+            .toString()
+    }
+
+    fun importAutomationsJson(context: Context, arguments: JSONObject): String {
+        val bundle = runCatching { automationBundleFromArguments(arguments) }.getOrElse { error ->
+            return errorJson("import_automations bundle_json must be valid JSON: ${error.message}")
+        } ?: return errorJson("import_automations requires a bundle, bundle_json, automations, records, or variables argument")
+        if (bundle.optString("kind").isNotBlank() && bundle.optString("kind") != AUTOMATION_BUNDLE_KIND) {
+            return errorJson("Unsupported automation bundle kind: ${bundle.optString("kind")}")
+        }
+        if (arguments.optBoolean("enable_imported", false) && arguments.optBoolean("disable_imported", false)) {
+            return errorJson("import_automations cannot set both enable_imported and disable_imported")
+        }
+        val automationArray = bundle.optJSONArray("automations") ?: bundle.optJSONArray("records") ?: JSONArray()
+        val variables = variablesFromBundle(bundle)
+        if (automationArray.length() == 0 && variables.length() == 0) {
+            return errorJson("import_automations requires at least one automation record or variable")
+        }
+        if (automationArray.length() > MAX_IMPORTED_AUTOMATIONS) {
+            return errorJson("import_automations accepts at most $MAX_IMPORTED_AUTOMATIONS automation records per bundle")
+        }
+        val enabledOverride = when {
+            arguments.has("enable_imported") && !arguments.isNull("enable_imported") -> arguments.optBoolean("enable_imported")
+            arguments.has("disable_imported") && !arguments.isNull("disable_imported") -> !arguments.optBoolean("disable_imported")
+            else -> null
+        }
+        val now = System.currentTimeMillis()
+        val importedRecords = mutableListOf<HermesAutomationRecord>()
+        val importedIds = mutableSetOf<String>()
+        for (index in 0 until automationArray.length()) {
+            val recordJson = automationArray.optJSONObject(index)
+                ?: return errorJson("import_automations automation at index $index must be a JSON object")
+            val record = runCatching { sanitizeImportedRecord(recordJson, now, enabledOverride) }.getOrElse { error ->
+                return errorJson("import_automations record $index is invalid: ${error.message}")
+            }
+            if (!importedIds.add(record.id)) {
+                return errorJson("import_automations bundle contains duplicate automation id: ${record.id}")
+            }
+            importedRecords += record
+        }
+        val store = HermesAutomationStore(context)
+        val replace = arguments.optBoolean("replace", false) ||
+            arguments.optBoolean("replace_existing", false) ||
+            arguments.optBoolean("clear_existing", false)
+        if (replace) {
+            store.list().forEach { existing -> HermesAutomationScheduler.cancel(context, existing.id) }
+            store.replaceAll(importedRecords)
+            store.replaceVariables(variables)
+        } else {
+            importedRecords.forEach { record -> store.upsert(record) }
+            store.mergeVariables(variables)
+        }
+        importedRecords.forEach { record ->
+            if (record.enabled) {
+                HermesAutomationScheduler.schedule(context, record)
+            } else {
+                HermesAutomationScheduler.cancel(context, record.id)
+            }
+        }
+        return JSONObject()
+            .put("success", true)
+            .put("kind", AUTOMATION_BUNDLE_KIND)
+            .put("schema_version", AUTOMATION_BUNDLE_SCHEMA_VERSION)
+            .put("replace", replace)
+            .put("imported_automation_count", importedRecords.size)
+            .put("imported_variable_count", variables.length())
+            .put("automations", recordsToJson(importedRecords))
+            .put("variables", variables)
             .toString()
     }
 
@@ -1402,6 +1488,149 @@ object HermesAutomationBridge {
         }
     }
 
+    private fun automationBundleFromArguments(arguments: JSONObject): JSONObject? {
+        jsonObjectArgument(arguments, "bundle")?.let { return it }
+        jsonObjectArgument(arguments, "bundle_json")?.let { return it }
+        jsonObjectArgument(arguments, "json")?.let { return it }
+        jsonObjectArgument(arguments, "payload")?.let { return it }
+        if (arguments.has("automations") || arguments.has("records") || arguments.has("variables")) {
+            return JSONObject()
+                .put("automations", arguments.optJSONArray("automations") ?: arguments.optJSONArray("records") ?: JSONArray())
+                .put("variables", arguments.optJSONObject("variables") ?: JSONObject())
+        }
+        return null
+    }
+
+    private fun jsonObjectArgument(arguments: JSONObject, key: String): JSONObject? {
+        if (!arguments.has(key) || arguments.isNull(key)) {
+            return null
+        }
+        return when (val value = arguments.opt(key)) {
+            is JSONObject -> value
+            is String -> JSONObject(value)
+            else -> null
+        }
+    }
+
+    private fun variablesFromBundle(bundle: JSONObject): JSONObject {
+        val source = bundle.optJSONObject("variables") ?: return JSONObject()
+        return JSONObject().apply {
+            source.keys().forEach { key ->
+                val normalized = HermesAutomationStore.normalizeVariableName(key) ?: return@forEach
+                if (!source.isNull(key)) {
+                    put(normalized, source.optString(key).take(MAX_VARIABLE_VALUE_CHARS))
+                }
+            }
+        }
+    }
+
+    private fun sanitizeImportedRecord(json: JSONObject, now: Long, enabledOverride: Boolean?): HermesAutomationRecord {
+        val id = json.optString("id").trim().ifBlank {
+            "auto_${UUID.randomUUID().toString().replace("-", "").take(16)}"
+        }
+        rejectNul(id, "automation id")
+        require(id.length <= MAX_AUTOMATION_ID_CHARS) { "automation id must be $MAX_AUTOMATION_ID_CHARS characters or shorter" }
+        val actionType = normalizeActionType(
+            json.optString("action_type")
+                .ifBlank { json.optString("type") }
+                .ifBlank { ACTION_TYPE_SHELL },
+        )
+        require(actionType in AUTOMATION_ACTION_TYPES) {
+            "unsupported action_type $actionType; use one of ${AUTOMATION_ACTION_TYPES.joinToString()}"
+        }
+        val command = json.optString("command").ifBlank { json.optString("payload") }
+        require(command.isNotBlank()) { "command must not be blank" }
+        rejectNul(command, "automation command")
+        val triggerType = normalizeTrigger(
+            json.optString("trigger_type")
+                .ifBlank { json.optString("trigger") }
+                .ifBlank { TRIGGER_MANUAL },
+        ) ?: throw IllegalArgumentException("unsupported trigger_type ${json.optString("trigger_type")}")
+        val triggerPackageName = json.optString("trigger_package_name").trim()
+        rejectNul(triggerPackageName, "trigger_package_name")
+        require(triggerType != TRIGGER_APP_FOREGROUND || triggerPackageName.isNotBlank()) {
+            "app_foreground trigger requires trigger_package_name"
+        }
+        require(triggerType != TRIGGER_NOTIFICATION_POSTED || triggerPackageName.isNotBlank()) {
+            "notification_posted trigger requires trigger_package_name"
+        }
+        val intervalMinutes = importedOptionalInt(json, "interval_minutes", minValue = 1)
+        require(triggerType != TRIGGER_INTERVAL || intervalMinutes != null) { "interval trigger requires interval_minutes" }
+        if (intervalMinutes != null) {
+            require(intervalMinutes >= HermesAutomationScheduler.MIN_INTERVAL_MINUTES) {
+                "interval_minutes must be at least ${HermesAutomationScheduler.MIN_INTERVAL_MINUTES}"
+            }
+        }
+        val triggerTimeMinutes = importedOptionalInt(json, "trigger_time_minutes", minValue = 0)
+        if (triggerTimeMinutes != null) {
+            require(triggerTimeMinutes in 0..1439) { "trigger_time_minutes must be between 0 and 1439" }
+        }
+        require(triggerType != TRIGGER_TIME || triggerTimeMinutes != null) { "time trigger requires trigger_time_minutes" }
+        val triggerDaysOfWeek = json.optString("trigger_days_of_week").trim().uppercase()
+        rejectNul(triggerDaysOfWeek, "trigger_days_of_week")
+        validateImportedDaysOfWeek(triggerDaysOfWeek)
+        val triggerData = importedTriggerData(json)
+        val createdAt = json.optLong("created_at_epoch_ms", now).takeIf { it > 0L } ?: now
+        return HermesAutomationRecord(
+            id = id,
+            label = json.optString("label").ifBlank { "Imported Hermes automation" }.take(80),
+            actionType = actionType,
+            command = command,
+            useShizuku = json.optBoolean("use_shizuku", actionType == ACTION_TYPE_SHIZUKU_ACTION),
+            triggerType = triggerType,
+            triggerPackageName = triggerPackageName,
+            triggerTimeMinutes = triggerTimeMinutes.takeIf { triggerType == TRIGGER_TIME },
+            triggerDaysOfWeek = triggerDaysOfWeek.takeIf { triggerType == TRIGGER_TIME }.orEmpty(),
+            intervalMinutes = intervalMinutes.takeIf { triggerType == TRIGGER_INTERVAL },
+            enabled = enabledOverride ?: recordEnabled(json),
+            createdAtEpochMs = createdAt,
+            updatedAtEpochMs = now,
+            lastRunEpochMs = null,
+            lastExitCode = null,
+            lastSuccess = null,
+            lastResult = "",
+            triggerData = triggerData,
+        )
+    }
+
+    private fun importedOptionalInt(json: JSONObject, key: String, minValue: Int): Int? {
+        if (!json.has(key) || json.isNull(key)) {
+            return null
+        }
+        val value = when (val raw = json.opt(key)) {
+            is Number -> raw.toInt()
+            else -> raw?.toString()?.trim()?.toIntOrNull()
+        } ?: throw IllegalArgumentException("$key must be an integer")
+        require(value >= minValue) { "$key must be at least $minValue" }
+        return value
+    }
+
+    private fun importedTriggerData(json: JSONObject): String {
+        if (!json.has("trigger_data") || json.isNull("trigger_data")) {
+            return ""
+        }
+        val triggerData = when (val raw = json.opt("trigger_data")) {
+            is JSONObject -> raw.toString()
+            is String -> raw.trim()
+            else -> raw?.toString()?.trim().orEmpty()
+        }
+        rejectNul(triggerData, "trigger_data")
+        if (triggerData.isNotBlank()) {
+            JSONObject(triggerData)
+        }
+        return triggerData
+    }
+
+    private fun validateImportedDaysOfWeek(daysCsv: String) {
+        if (daysCsv.isBlank()) {
+            return
+        }
+        daysCsv.split(',').forEach { rawDay ->
+            val day = rawDay.trim()
+            require(day in DAY_ORDER) { "trigger_days_of_week contains unsupported day: $day" }
+        }
+    }
+
     private fun resolveTriggerType(arguments: JSONObject, intervalMinutes: Int?, triggerTimeMinutes: Int?): String? {
         if (intervalMinutes != null) {
             return TRIGGER_INTERVAL
@@ -1765,6 +1994,15 @@ object HermesAutomationBridge {
         return UI_ACTION_SYNONYMS[normalized] ?: normalized
     }
 
+    private fun normalizeActionType(actionType: String): String {
+        val normalized = actionType.trim().lowercase().replace("-", "_").replace(" ", "_")
+        return ACTION_TYPE_SYNONYMS[normalized] ?: normalized
+    }
+
+    private fun rejectNul(value: String, label: String) {
+        require(value.indexOf('\u0000') < 0) { "$label must not contain NUL bytes" }
+    }
+
     private fun hasUiSelector(payload: JSONObject): Boolean {
         return UI_SELECTOR_KEYS.any { key -> payload.optString(key).isNotBlank() }
     }
@@ -1799,6 +2037,8 @@ object HermesAutomationBridge {
         "create_app_launch_task",
         "create_intent_task",
         "create_shizuku_action_task",
+        "export_automations",
+        "import_automations",
         "run",
         "run_trigger",
         "run_app_foreground_trigger",
@@ -1815,6 +2055,29 @@ object HermesAutomationBridge {
         "set_variable",
         "get_variable",
         "delete_variable",
+    )
+    private val AUTOMATION_ACTION_TYPES = setOf(
+        ACTION_TYPE_SHELL,
+        ACTION_TYPE_FILE_WRITE,
+        ACTION_TYPE_FILE_DELETE,
+        ACTION_TYPE_SYSTEM_ACTION,
+        ACTION_TYPE_UI_ACTION,
+        ACTION_TYPE_APP_LAUNCH,
+        ACTION_TYPE_INTENT,
+        ACTION_TYPE_SHIZUKU_ACTION,
+    )
+    private val ACTION_TYPE_SYNONYMS = mapOf(
+        "shizuku" to ACTION_TYPE_SHIZUKU_ACTION,
+        "privileged_action" to ACTION_TYPE_SHIZUKU_ACTION,
+        "android_intent" to ACTION_TYPE_INTENT,
+        "start_activity" to ACTION_TYPE_INTENT,
+        "open_uri" to ACTION_TYPE_INTENT,
+        "send_broadcast" to ACTION_TYPE_INTENT,
+        "ui" to ACTION_TYPE_UI_ACTION,
+        "accessibility" to ACTION_TYPE_UI_ACTION,
+        "launch_app" to ACTION_TYPE_APP_LAUNCH,
+        "system" to ACTION_TYPE_SYSTEM_ACTION,
+        "file" to ACTION_TYPE_FILE_WRITE,
     )
     private val AUTOMATION_TRIGGERS = listOf(
         TRIGGER_MANUAL,
@@ -1991,4 +2254,8 @@ object HermesAutomationBridge {
     private const val MAX_VARIABLE_VALUE_CHARS = 4_000
     private const val MAX_RESULT_CHARS = 2_000
     private const val MAX_EVENT_VALUE_CHARS = 500
+    private const val MAX_IMPORTED_AUTOMATIONS = 200
+    private const val MAX_AUTOMATION_ID_CHARS = 120
+    private const val AUTOMATION_BUNDLE_KIND = "hermes_android_automation_bundle"
+    private const val AUTOMATION_BUNDLE_SCHEMA_VERSION = 1
 }
