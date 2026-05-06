@@ -1147,8 +1147,14 @@ class TestSubprocessTimeoutKill:
     """Bug: proc.wait(timeout) raised TimeoutExpired but process was not killed."""
 
     def test_timeout_kills_process(self):
-        import subprocess, os
-        proc = subprocess.Popen(["sleep", "600"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        import subprocess
+        import sys
+
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(600)"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
         pid = proc.pid
         assert proc.poll() is None
 
