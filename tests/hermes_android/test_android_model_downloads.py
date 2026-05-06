@@ -163,12 +163,14 @@ def test_native_tool_loop_allows_long_file_generation_prompts():
 
 def test_native_tool_loop_has_structured_file_write_tool():
     native_client = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
+    workspace_file_bridge = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/device/HermesWorkspaceFileBridge.kt").read_text(encoding="utf-8")
 
     assert '"file_write_tool", "write_file", "file_tool" -> executeFileWriteTool(toolCall)' in native_client
     assert '.put("name", "file_write_tool")' in native_client
     assert 'prefer file_write_tool so multiline content is written exactly' in native_client
     assert 'file_write_tool can only write inside the Hermes app workspace' in native_client
-    assert 'target.writeText(content, Charsets.UTF_8)' in native_client
+    assert 'target.writeText(content, Charsets.UTF_8)' in workspace_file_bridge
+    assert 'target.appendText(content, Charsets.UTF_8)' in workspace_file_bridge
 
 
 def test_native_android_shell_tool_prefers_system_commands_over_noexec_prefix():
