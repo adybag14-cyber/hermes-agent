@@ -23,6 +23,7 @@ private val ENABLED_TOOLS = listOf(
     "android_automation_trigger",
     "android_automation_file_action",
     "android_automation_system_action",
+    "android_automation_ui_action",
     "android_ui_snapshot",
     "android_ui_action",
     "read_file",

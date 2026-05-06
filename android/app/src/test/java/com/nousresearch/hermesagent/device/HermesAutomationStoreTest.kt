@@ -122,4 +122,46 @@ class HermesAutomationStoreTest {
         )
         assertFalse(rejected.toString(), rejected.getBoolean("success"))
     }
+
+    @Test
+    fun bridgeCreatesAndRunsUiActionRecordsThroughAccessibilityBoundary() {
+        val context = RuntimeEnvironment.getApplication()
+        HermesAutomationStore(context).clear()
+
+        val created = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_ui_action_task",
+                org.json.JSONObject()
+                    .put("id", "auto-ui")
+                    .put("ui_action", "back")
+                    .put("enabled", false),
+            ),
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals(ACTION_TYPE_UI_ACTION, created.getJSONObject("automation").getString("action_type"))
+
+        val run = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "run",
+                org.json.JSONObject().put("id", "auto-ui"),
+            ),
+        )
+        assertFalse(run.toString(), run.getBoolean("success"))
+        assertEquals("back", run.getJSONObject("result").getString("action"))
+        assertFalse(run.getJSONObject("result").getBoolean("accessibility_connected"))
+        assertFalse(run.getJSONObject("automation").getBoolean("last_success"))
+
+        val rejected = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_ui_action_task",
+                org.json.JSONObject()
+                    .put("ui_action", "snapshot")
+                    .put("enabled", false),
+            ),
+        )
+        assertFalse(rejected.toString(), rejected.getBoolean("success"))
+    }
 }

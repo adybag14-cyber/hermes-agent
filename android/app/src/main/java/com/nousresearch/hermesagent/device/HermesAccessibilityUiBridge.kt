@@ -71,6 +71,38 @@ object HermesAccessibilityUiBridge {
         }
     }
 
+    @JvmStatic
+    fun performGlobalActionJson(action: String): String {
+        val normalizedAction = normalizeGlobalAction(action)
+        val globalAction = when (normalizedAction) {
+            "back", "global_back" -> HermesGlobalAction.Back
+            "home", "global_home" -> HermesGlobalAction.Home
+            "recents", "global_recents" -> HermesGlobalAction.Recents
+            "notifications", "global_notifications" -> HermesGlobalAction.Notifications
+            "quick_settings", "global_quick_settings" -> HermesGlobalAction.QuickSettings
+            else -> return errorJson("Unsupported Android global UI action: $action")
+        }
+        val connected = HermesAccessibilityController.isServiceConnected()
+        val success = connected && HermesAccessibilityController.performAction(globalAction)
+        return JSONObject()
+            .put("success", success)
+            .put("action", normalizedAction)
+            .put("accessibility_connected", connected)
+            .put(
+                "message",
+                if (success) {
+                    "Performed Android global action: $normalizedAction"
+                } else {
+                    "Hermes accessibility service is not connected or Android rejected global action: $normalizedAction"
+                },
+            )
+            .toString()
+    }
+
+    private fun normalizeGlobalAction(action: String): String {
+        return action.trim().lowercase().replace("-", "_").replace(" ", "_")
+    }
+
     private fun flattenNodes(root: AccessibilityNodeInfo, limit: Int): List<AccessibilityNodeInfo> {
         val nodes = mutableListOf<AccessibilityNodeInfo>()
 
@@ -175,6 +207,7 @@ object HermesAccessibilityUiBridge {
 
     private fun errorJson(message: String): String {
         return JSONObject().apply {
+            put("success", false)
             put("error", message)
         }.toString()
     }
