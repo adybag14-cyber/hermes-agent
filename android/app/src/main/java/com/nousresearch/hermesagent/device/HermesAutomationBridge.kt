@@ -13,6 +13,7 @@ object HermesAutomationBridge {
             "create_file_write_task", "create_file_write", "write_file_task" -> createFileWriteTaskJson(context, arguments)
             "create_file_delete_task", "create_file_delete", "delete_file_task" -> createFileDeleteTaskJson(context, arguments)
             "create_system_action_task", "create_system_action", "system_action_task" -> createSystemActionTaskJson(context, arguments)
+            "create_ui_action_task", "create_ui_action", "ui_action_task" -> createUiActionTaskJson(context, arguments)
             "run", "run_now", "trigger" -> runAutomationJson(context, arguments.optString("id"), "manual")
             "run_trigger", "trigger_event", "run_event" -> runTriggerJson(
                 context,
@@ -117,6 +118,57 @@ object HermesAutomationBridge {
         )
     }
 
+    fun createUiActionTaskJson(context: Context, arguments: JSONObject): String {
+        val uiAction = normalizeUiAction(
+            stringArgument(arguments, "ui_action", "uiAction", "target_action", "ui_command", "command")
+                ?: return errorJson("create_ui_action_task requires a ui_action argument"),
+        )
+        if (uiAction !in UI_AUTOMATION_ACTIONS) {
+            return errorJson("Unsupported saved UI action: $uiAction. Use one of: ${UI_AUTOMATION_ACTIONS.joinToString()}")
+        }
+
+        val payload = JSONObject().put("ui_action", uiAction)
+        putOptionalExpandedPayloadString(
+            payload,
+            "text_contains",
+            arguments,
+            "text_contains",
+            "textContains",
+            "selector_text",
+            "match_text",
+        )
+        putOptionalExpandedPayloadString(
+            payload,
+            "content_description_contains",
+            arguments,
+            "content_description_contains",
+            "contentDescriptionContains",
+            "content_description",
+            "description_contains",
+        )
+        putOptionalExpandedPayloadString(payload, "view_id", arguments, "view_id", "viewId")
+        putOptionalExpandedPayloadString(payload, "package_name", arguments, "package_name", "packageName")
+        putOptionalExpandedPayloadString(payload, "value", arguments, "value", "text_value", "content", allowEmpty = true)
+        if (arguments.has("index") && !arguments.isNull("index")) {
+            payload.put("index", arguments.optInt("index", 0).coerceAtLeast(0))
+        }
+
+        if (uiAction in UI_SELECTOR_ACTIONS && !hasUiSelector(payload)) {
+            return errorJson("create_ui_action_task selector actions require text_contains, content_description_contains, view_id, or package_name")
+        }
+        if (uiAction == "set_text" && !payload.has("value")) {
+            return errorJson("create_ui_action_task set_text requires a value argument")
+        }
+
+        return createRecordJson(
+            context = context,
+            arguments = arguments,
+            actionType = ACTION_TYPE_UI_ACTION,
+            payload = payload.toString(),
+            defaultLabel = "Hermes UI automation",
+        )
+    }
+
     private fun createRecordJson(
         context: Context,
         arguments: JSONObject,
@@ -205,6 +257,7 @@ object HermesAutomationBridge {
             ACTION_TYPE_FILE_WRITE -> runFileWriteRecord(context, record, variables)
             ACTION_TYPE_FILE_DELETE -> HermesWorkspaceFileBridge.deleteJson(context, expandVariables(record.command, variables))
             ACTION_TYPE_SYSTEM_ACTION -> runSystemActionRecord(context, record, variables)
+            ACTION_TYPE_UI_ACTION -> runUiActionRecord(record, variables)
             else -> JSONObject(errorJson("Unsupported Android automation action type: ${record.actionType}"))
         }
         val exitCode = rawResult.optInt("exit_code", if (rawResult.optBoolean("success", false)) 0 else -1)
@@ -266,6 +319,29 @@ object HermesAutomationBridge {
             .put("success", result.success)
             .put("action", result.action)
             .put("message", result.message)
+    }
+
+    private fun runUiActionRecord(record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+        val payload = runCatching { JSONObject(record.command) }.getOrNull()
+            ?: return JSONObject(errorJson("Saved ui_action automation payload is invalid"))
+        val uiAction = normalizeUiAction(expandVariables(payload.optString("ui_action"), variables))
+        if (uiAction !in UI_AUTOMATION_ACTIONS) {
+            return JSONObject(errorJson("Unsupported saved UI action: $uiAction"))
+        }
+        if (uiAction in UI_GLOBAL_ACTIONS) {
+            return JSONObject(HermesAccessibilityUiBridge.performGlobalActionJson(uiAction))
+        }
+        return JSONObject(
+            HermesAccessibilityUiBridge.performActionJson(
+                action = uiAction,
+                textContains = expandVariables(payload.optString("text_contains"), variables),
+                contentDescriptionContains = expandVariables(payload.optString("content_description_contains"), variables),
+                viewId = expandVariables(payload.optString("view_id"), variables),
+                packageName = expandVariables(payload.optString("package_name"), variables),
+                value = expandVariables(payload.optString("value"), variables),
+                index = payload.optInt("index", 0),
+            ),
+        )
     }
 
     fun deleteJson(context: Context, id: String): String {
@@ -364,6 +440,18 @@ object HermesAutomationBridge {
         }
     }
 
+    private fun putOptionalExpandedPayloadString(
+        payload: JSONObject,
+        targetKey: String,
+        arguments: JSONObject,
+        vararg keys: String,
+        allowEmpty: Boolean = false,
+    ) {
+        stringArgument(arguments, *keys, allowEmpty = allowEmpty)?.let { value ->
+            payload.put(targetKey, value)
+        }
+    }
+
     private fun recordsToJson(records: List<HermesAutomationRecord>): JSONArray {
         return JSONArray().apply {
             records.forEach { record -> put(record.toJson()) }
@@ -383,6 +471,15 @@ object HermesAutomationBridge {
     private fun normalizeTrigger(trigger: String): String? {
         val normalized = trigger.trim().lowercase().replace("-", "_").replace(" ", "_")
         return TRIGGER_SYNONYMS[normalized] ?: normalized.takeIf { it in AUTOMATION_TRIGGERS }
+    }
+
+    private fun normalizeUiAction(action: String): String {
+        val normalized = action.trim().lowercase().replace("-", "_").replace(" ", "_")
+        return UI_ACTION_SYNONYMS[normalized] ?: normalized
+    }
+
+    private fun hasUiSelector(payload: JSONObject): Boolean {
+        return UI_SELECTOR_KEYS.any { key -> payload.optString(key).isNotBlank() }
     }
 
     private fun expandVariables(command: String, variables: JSONObject): String {
@@ -411,6 +508,7 @@ object HermesAutomationBridge {
         "create_file_write_task",
         "create_file_delete_task",
         "create_system_action_task",
+        "create_ui_action_task",
         "run",
         "run_trigger",
         "delete",
@@ -443,6 +541,22 @@ object HermesAutomationBridge {
         "battery_normal" to TRIGGER_BATTERY_OKAY,
     )
     private val PRIVILEGED_SHELL_ACTIONS = setOf("run_privileged_shell", "shizuku_shell", "privileged_shell")
+    private val UI_GLOBAL_ACTIONS = setOf("back", "home", "recents", "notifications", "quick_settings")
+    private val UI_SELECTOR_ACTIONS = setOf("click", "long_click", "focus", "set_text", "scroll_forward", "scroll_backward")
+    private val UI_AUTOMATION_ACTIONS = UI_GLOBAL_ACTIONS + UI_SELECTOR_ACTIONS
+    private val UI_SELECTOR_KEYS = listOf("text_contains", "content_description_contains", "view_id", "package_name")
+    private val UI_ACTION_SYNONYMS = mapOf(
+        "global_back" to "back",
+        "global_home" to "home",
+        "global_recents" to "recents",
+        "global_notifications" to "notifications",
+        "global_quick_settings" to "quick_settings",
+        "type" to "set_text",
+        "text" to "set_text",
+        "input_text" to "set_text",
+        "scroll_down" to "scroll_forward",
+        "scroll_up" to "scroll_backward",
+    )
     private val TASKER_VARIABLE_PATTERN = Regex("%([A-Za-z_][A-Za-z0-9_]{1,63})")
     private val BRACE_VARIABLE_PATTERN = Regex("\\{\\{([A-Za-z_][A-Za-z0-9_]{0,63})\\}\\}")
     private const val AUTOMATION_TIMEOUT_SECONDS = 30
