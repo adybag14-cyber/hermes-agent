@@ -214,4 +214,35 @@ class HermesAutomationInstrumentedTest {
         assertEquals(0, run.getJSONObject("automation").getInt("last_exit_code"))
         assertEquals("stop_background_runtime", run.getJSONObject("result").getString("action"))
     }
+
+    @Test
+    fun uiActionAutomationPersistsAndFailsSafelyAtAccessibilityBoundary() {
+        val created = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "create_ui_action_task",
+                JSONObject()
+                    .put("label", "Missing UI smoke")
+                    .put("ui_action", "click")
+                    .put("text_contains", "HermesMissingNodeForAutomationSmoke")
+                    .put("enabled", false),
+            )
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals("ui_action", created.getJSONObject("automation").getString("action_type"))
+
+        val run = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "run",
+                JSONObject().put("id", created.getJSONObject("automation").getString("id")),
+            )
+        )
+        assertFalse(run.toString(), run.getBoolean("success"))
+        assertFalse(run.getJSONObject("automation").getBoolean("last_success"))
+        assertTrue(
+            run.toString(),
+            run.getJSONObject("result").optString("error").contains("accessibility", ignoreCase = true),
+        )
+    }
 }
