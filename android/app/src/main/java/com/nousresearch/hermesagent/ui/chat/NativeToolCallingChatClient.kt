@@ -11,7 +11,7 @@ import com.nousresearch.hermesagent.device.HermesAutomationBridge
 import com.nousresearch.hermesagent.device.HermesGlobalAction
 import com.nousresearch.hermesagent.device.HermesPrivilegedAccessBridge
 import com.nousresearch.hermesagent.device.HermesSystemControlBridge
-import com.nousresearch.hermesagent.device.HermesLinuxSubsystemBridge
+import com.nousresearch.hermesagent.device.HermesWorkspaceFileBridge
 import com.nousresearch.hermesagent.device.NativeAndroidShellTool
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -19,7 +19,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -216,39 +215,7 @@ class NativeToolCallingChatClient(
                 .toString()
         val append = toolCall.arguments.optBoolean("append", false)
 
-        val state = HermesLinuxSubsystemBridge.ensureInstalled(appContext)
-        val homeDir = File(state.getString("home_path")).apply { mkdirs() }.canonicalFile
-        val appFilesDir = appContext.filesDir.canonicalFile
-        val target = if (File(rawPath).isAbsolute) {
-            File(rawPath)
-        } else {
-            File(homeDir, rawPath)
-        }.canonicalFile
-
-        val allowedRoots = listOf(homeDir, appFilesDir)
-        if (allowedRoots.none { root -> target == root || target.path.startsWith(root.path + File.separator) }) {
-            return JSONObject()
-                .put("exit_code", 13)
-                .put("error", "file_write_tool can only write inside the Hermes app workspace")
-                .put("path", target.absolutePath)
-                .put("cwd", homeDir.absolutePath)
-                .toString()
-        }
-
-        target.parentFile?.mkdirs()
-        if (append) {
-            target.appendText(content, Charsets.UTF_8)
-        } else {
-            target.writeText(content, Charsets.UTF_8)
-        }
-
-        return JSONObject()
-            .put("exit_code", 0)
-            .put("path", target.absolutePath)
-            .put("bytes", target.length())
-            .put("append", append)
-            .put("cwd", homeDir.absolutePath)
-            .toString()
+        return HermesWorkspaceFileBridge.writeTextJson(appContext, rawPath, content, append).toString()
     }
 
     private fun executeAndroidSystemTool(toolCall: ToolCall): String {
@@ -358,11 +325,11 @@ class NativeToolCallingChatClient(
                     "When the user asks to write or replace a text file, prefer file_write_tool so multiline content is written exactly. " +
                     "When the user asks to run a command, inspect the filesystem, read a file, or use a device command, call terminal_tool instead of simulating the result. " +
                     "terminal_tool runs through /system/bin/sh in the Hermes app workspace. " +
-                    "file_write_tool writes UTF-8 text files in the Hermes app workspace. " +
+                    "file_write_tool writes UTF-8 text files in the Hermes app workspace; file_write_tool can only write inside the Hermes app workspace. " +
                     "When the user asks about Android settings, phone connectivity, permissions, background runtime, or safe system panels, call android_system_tool. " +
                     "android_system_tool status includes Shizuku/Sui privileged-access state, and it can open Shizuku, wireless debugging, and developer settings setup flows. " +
                     "If Shizuku/Sui is running and the user granted Hermes permission, android_system_tool can run explicit ADB/root-identity shell commands with action run_privileged_shell and a command argument. " +
-                    "When the user asks to create a recurring phone automation, reusable Android task, Tasker-like variable, or phone-state trigger, call android_automation_tool. It can save shell tasks, run them manually, enable/disable/delete them, schedule interval tasks with Android alarms, run boot/power/battery triggers, and expand saved variables in commands. " +
+                    "When the user asks to create a recurring phone automation, reusable Android task, Tasker-like variable, phone-state trigger, saved file action, or safe saved Android settings action, call android_automation_tool. It can save shell, file-write, file-delete, and safe Android system-action tasks, run them manually, enable/disable/delete them, schedule interval tasks with Android alarms, run boot/power/battery triggers, and expand saved variables in commands and file content. " +
                     "When the user asks to inspect the visible phone screen, click, type, scroll, or use Back/Home/Recents/Quick Settings, call android_ui_tool. " +
                     "android_ui_tool requires the user-enabled Hermes accessibility service for screen snapshots and UI actions. " +
                     "Protected Android settings require user-granted permissions, Shizuku/Sui, accessibility service, or an opened settings panel.",
@@ -409,7 +376,7 @@ class NativeToolCallingChatClient(
                             .put("name", "android_automation_tool")
                             .put(
                                 "description",
-                                "Create, list, run, enable, disable, or delete saved Android shell automations and variables. Supports manual tasks, interval tasks, boot/power/battery phone-state triggers, and Tasker-style %VARIABLE expansion. Shizuku execution must be explicitly requested per task.",
+                                "Create, list, run, enable, disable, or delete saved Android automations and variables. Supports shell, file-write, file-delete, and safe Android system-action tasks; manual tasks; interval tasks; boot/power/battery phone-state triggers; and Tasker-style %VARIABLE expansion. Shizuku execution must be explicitly requested per shell task.",
                             )
                             .put(
                                 "parameters",
@@ -422,7 +389,7 @@ class NativeToolCallingChatClient(
                                                 "action",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "list, create_shell_task, run, run_trigger, delete, enable, disable, list_variables, set_variable, get_variable, or delete_variable."),
+                                                    .put("description", "list, create_shell_task, create_file_write_task, create_file_delete_task, create_system_action_task, run, run_trigger, delete, enable, disable, list_variables, set_variable, get_variable, or delete_variable."),
                                             )
                                             .put(
                                                 "id",
@@ -434,13 +401,37 @@ class NativeToolCallingChatClient(
                                                 "label",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Human-readable label for create_shell_task."),
+                                                    .put("description", "Human-readable label for create_*_task actions."),
                                             )
                                             .put(
                                                 "command",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Shell command for create_shell_task. Saved variables can be referenced as %NAME or {{NAME}}."),
+                                                    .put("description", "Shell command for create_shell_task, or alternate system action value for create_system_action_task. Saved variables can be referenced as %NAME or {{NAME}}."),
+                                            )
+                                            .put(
+                                                "path",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Workspace path for create_file_write_task or create_file_delete_task. Relative paths resolve inside the Hermes app shell home."),
+                                            )
+                                            .put(
+                                                "content",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Text content for create_file_write_task. Saved variables can be referenced as %NAME or {{NAME}}."),
+                                            )
+                                            .put(
+                                                "append",
+                                                JSONObject()
+                                                    .put("type", "boolean")
+                                                    .put("description", "Append instead of replacing content for create_file_write_task."),
+                                            )
+                                            .put(
+                                                "system_action",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Safe Android system action for create_system_action_task, such as start_background_runtime, stop_background_runtime, open_wifi_panel, or open_accessibility_settings."),
                                             )
                                             .put(
                                                 "trigger",
