@@ -162,6 +162,9 @@ class HermesAutomationStore(context: Context) {
 }
 
 const val ACTION_TYPE_SHELL = "shell"
+const val ACTION_TYPE_FILE_WRITE = "file_write"
+const val ACTION_TYPE_FILE_DELETE = "file_delete"
+const val ACTION_TYPE_SYSTEM_ACTION = "system_action"
 const val TRIGGER_MANUAL = "manual"
 const val TRIGGER_INTERVAL = "interval"
 const val TRIGGER_BOOT = "boot"
