@@ -122,4 +122,96 @@ class HermesAutomationInstrumentedTest {
         assertTrue("Expected ${target.absolutePath}", target.isFile)
         assertEquals("trigger-ok", target.readText())
     }
+
+    @Test
+    fun fileAutomationWritesAndDeletesWorkspaceFile() {
+        val linuxState = HermesLinuxSubsystemBridge.ensureInstalled(app)
+        val workspace = File(linuxState.getString("home_path"))
+        val target = File(workspace, "hermes-file-action.txt").apply { delete() }
+
+        val variable = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "set_variable",
+                JSONObject()
+                    .put("name", "%FILE_MESSAGE")
+                    .put("value", "file-action-ok"),
+            )
+        )
+        assertTrue(variable.toString(), variable.getBoolean("success"))
+
+        val writeTask = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "create_file_write_task",
+                JSONObject()
+                    .put("label", "Write file smoke")
+                    .put("path", "hermes-file-action.txt")
+                    .put("content", "%FILE_MESSAGE")
+                    .put("enabled", false),
+            )
+        )
+        assertTrue(writeTask.toString(), writeTask.getBoolean("success"))
+        assertEquals("file_write", writeTask.getJSONObject("automation").getString("action_type"))
+
+        val writeRun = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "run",
+                JSONObject().put("id", writeTask.getJSONObject("automation").getString("id")),
+            )
+        )
+        assertTrue(writeRun.toString(), writeRun.getBoolean("success"))
+        assertTrue("Expected ${target.absolutePath}", target.isFile)
+        assertEquals("file-action-ok", target.readText())
+
+        val deleteTask = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "create_file_delete_task",
+                JSONObject()
+                    .put("label", "Delete file smoke")
+                    .put("path", "hermes-file-action.txt")
+                    .put("enabled", false),
+            )
+        )
+        assertTrue(deleteTask.toString(), deleteTask.getBoolean("success"))
+
+        val deleteRun = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "run",
+                JSONObject().put("id", deleteTask.getJSONObject("automation").getString("id")),
+            )
+        )
+        assertTrue(deleteRun.toString(), deleteRun.getBoolean("success"))
+        assertFalse("Expected ${target.absolutePath} to be deleted", target.exists())
+    }
+
+    @Test
+    fun systemActionAutomationRunsSafeSystemAction() {
+        val created = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "create_system_action_task",
+                JSONObject()
+                    .put("label", "Stop runtime smoke")
+                    .put("system_action", "stop_background_runtime")
+                    .put("enabled", false),
+            )
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals("system_action", created.getJSONObject("automation").getString("action_type"))
+
+        val run = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "run",
+                JSONObject().put("id", created.getJSONObject("automation").getString("id")),
+            )
+        )
+        assertTrue(run.toString(), run.getBoolean("success"))
+        assertEquals(0, run.getJSONObject("automation").getInt("last_exit_code"))
+        assertEquals("stop_background_runtime", run.getJSONObject("result").getString("action"))
+    }
 }

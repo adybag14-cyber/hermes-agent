@@ -82,4 +82,44 @@ class HermesAutomationStoreTest {
         assertTrue(created.toString(), created.getBoolean("success"))
         assertEquals(TRIGGER_POWER_CONNECTED, created.getJSONObject("automation").getString("trigger_type"))
     }
+
+    @Test
+    fun bridgeCreatesFileAndSystemActionRecords() {
+        val context = RuntimeEnvironment.getApplication()
+        HermesAutomationStore(context).clear()
+
+        val fileWrite = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_file_write_task",
+                org.json.JSONObject()
+                    .put("path", "tasker-file.txt")
+                    .put("content", "ok")
+                    .put("enabled", false),
+            ),
+        )
+        assertTrue(fileWrite.toString(), fileWrite.getBoolean("success"))
+        assertEquals(ACTION_TYPE_FILE_WRITE, fileWrite.getJSONObject("automation").getString("action_type"))
+
+        val systemAction = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_system_action_task",
+                org.json.JSONObject()
+                    .put("system_action", "stop_background_runtime")
+                    .put("enabled", false),
+            ),
+        )
+        assertTrue(systemAction.toString(), systemAction.getBoolean("success"))
+        assertEquals(ACTION_TYPE_SYSTEM_ACTION, systemAction.getJSONObject("automation").getString("action_type"))
+
+        val rejected = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_system_action_task",
+                org.json.JSONObject().put("system_action", "run_privileged_shell"),
+            ),
+        )
+        assertFalse(rejected.toString(), rejected.getBoolean("success"))
+    }
 }
