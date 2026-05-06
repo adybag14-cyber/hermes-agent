@@ -553,4 +553,82 @@ class HermesAutomationStoreTest {
         )
         assertFalse(rejected.toString(), rejected.getBoolean("success"))
     }
+
+    @Test
+    fun bridgeExportsAndImportsAutomationBundles() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = HermesAutomationStore(context)
+        store.clear()
+
+        val variable = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "set_variable",
+                org.json.JSONObject()
+                    .put("name", "%message")
+                    .put("value", "bundle-ok"),
+            ),
+        )
+        assertTrue(variable.toString(), variable.getBoolean("success"))
+
+        val created = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_file_write_task",
+                org.json.JSONObject()
+                    .put("id", "auto-bundle")
+                    .put("label", "Bundle smoke")
+                    .put("path", "bundle-smoke.txt")
+                    .put("content", "%MESSAGE")
+                    .put("enabled", false),
+            ),
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+
+        val exported = org.json.JSONObject(HermesAutomationBridge.performActionJson(context, "export_automations"))
+        assertTrue(exported.toString(), exported.getBoolean("success"))
+        assertEquals("hermes_android_automation_bundle", exported.getString("kind"))
+        assertEquals(1, exported.getInt("automation_count"))
+        assertEquals("bundle-ok", exported.getJSONObject("variables").getString("MESSAGE"))
+
+        store.clear()
+        assertNull(store.get("auto-bundle"))
+        assertNull(store.getVariable("MESSAGE"))
+
+        val imported = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "import_automations",
+                org.json.JSONObject()
+                    .put("bundle", exported)
+                    .put("replace", true),
+            ),
+        )
+        assertTrue(imported.toString(), imported.getBoolean("success"))
+        assertEquals(1, imported.getInt("imported_automation_count"))
+        assertEquals(1, imported.getInt("imported_variable_count"))
+        assertEquals("bundle-ok", store.getVariable("MESSAGE"))
+        val record = store.get("auto-bundle")
+        assertEquals(ACTION_TYPE_FILE_WRITE, record?.actionType)
+        assertEquals("Bundle smoke", record?.label)
+        assertFalse(record?.enabled ?: true)
+
+        val rejected = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "import_automations",
+                org.json.JSONObject().put(
+                    "automations",
+                    org.json.JSONArray().put(
+                        org.json.JSONObject()
+                            .put("id", "bad-import")
+                            .put("action_type", "unsupported")
+                            .put("command", "noop"),
+                    ),
+                ),
+            ),
+        )
+        assertFalse(rejected.toString(), rejected.getBoolean("success"))
+        assertTrue(rejected.getString("error").contains("unsupported action_type"))
+    }
 }

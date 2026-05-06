@@ -887,4 +887,64 @@ class HermesAutomationInstrumentedTest {
         assertTrue("Expected ${target.absolutePath}", target.isFile)
         assertTrue(target.readText().matches(Regex("\\d{2}:\\d{2}:(MON|TUE|WED|THU|FRI|SAT|SUN)")))
     }
+
+    @Test
+    fun automationBundleImportRestoresVariablesAndRunsFileTask() {
+        val linuxState = HermesLinuxSubsystemBridge.ensureInstalled(app)
+        val workspace = File(linuxState.getString("home_path"))
+        val target = File(workspace, "hermes-bundle-import.txt").apply { delete() }
+
+        val variable = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "set_variable",
+                JSONObject()
+                    .put("name", "%message")
+                    .put("value", "bundle-restored"),
+            ),
+        )
+        assertTrue(variable.toString(), variable.getBoolean("success"))
+
+        val created = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "create_file_write_task",
+                JSONObject()
+                    .put("id", "auto-bundle-import")
+                    .put("label", "Bundle import smoke")
+                    .put("path", "hermes-bundle-import.txt")
+                    .put("content", "import:%MESSAGE")
+                    .put("enabled", false),
+            ),
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+
+        val exported = JSONObject(HermesAutomationBridge.performActionJson(app, "export_automations"))
+        HermesAutomationStore(app).clear()
+        assertFalse("Expected ${target.absolutePath} to stay absent", target.exists())
+
+        val imported = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "import_automations",
+                JSONObject()
+                    .put("bundle", exported)
+                    .put("replace", true),
+            ),
+        )
+        assertTrue(imported.toString(), imported.getBoolean("success"))
+        assertEquals(1, imported.getInt("imported_automation_count"))
+        assertEquals(1, imported.getInt("imported_variable_count"))
+
+        val run = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "run",
+                JSONObject().put("id", "auto-bundle-import"),
+            ),
+        )
+        assertTrue(run.toString(), run.getBoolean("success"))
+        assertTrue("Expected ${target.absolutePath}", target.isFile)
+        assertEquals("import:bundle-restored", target.readText())
+    }
 }

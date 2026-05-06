@@ -101,6 +101,10 @@ class HermesAutomationStore(context: Context) {
         saveAll(updated)
     }
 
+    fun replaceAll(records: List<HermesAutomationRecord>) {
+        saveAll(records.sortedBy { it.createdAtEpochMs })
+    }
+
     fun remove(id: String): Boolean {
         val existing = list()
         val updated = existing.filterNot { it.id == id }
@@ -144,6 +148,19 @@ class HermesAutomationStore(context: Context) {
         return existed
     }
 
+    fun replaceVariables(variables: JSONObject) {
+        saveVariables(normalizeVariables(variables))
+    }
+
+    fun mergeVariables(variables: JSONObject) {
+        val merged = listVariables()
+        val normalized = normalizeVariables(variables)
+        normalized.keys().forEach { key ->
+            merged.put(key, normalized.optString(key).take(MAX_VARIABLE_VALUE_CHARS))
+        }
+        saveVariables(merged)
+    }
+
     private fun saveAll(records: List<HermesAutomationRecord>) {
         val array = JSONArray().apply {
             records.forEach { record -> put(record.toJson()) }
@@ -167,6 +184,17 @@ class HermesAutomationStore(context: Context) {
                 return null
             }
             return trimmed.uppercase()
+        }
+
+        private fun normalizeVariables(variables: JSONObject): JSONObject {
+            val normalized = JSONObject()
+            variables.keys().forEach { key ->
+                val name = normalizeVariableName(key) ?: return@forEach
+                if (!variables.isNull(key)) {
+                    normalized.put(name, variables.optString(key).take(MAX_VARIABLE_VALUE_CHARS))
+                }
+            }
+            return normalized
         }
 
         private val VARIABLE_NAME_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]{0,63}")
