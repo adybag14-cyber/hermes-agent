@@ -310,7 +310,7 @@ class NativeToolCallingChatClient(
                     "When the user asks about Android settings, phone connectivity, permissions, background runtime, or safe system panels, call android_system_tool. " +
                     "android_system_tool status includes Shizuku/Sui privileged-access state, and it can open Shizuku, wireless debugging, and developer settings setup flows. " +
                     "If Shizuku/Sui is running and the user granted Hermes permission, android_system_tool can run explicit ADB/root-identity shell commands with action run_privileged_shell and a command argument. " +
-                    "When the user asks to create a recurring phone automation, reusable Android task, Tasker-like variable, phone-state trigger, saved file action, safe saved Android settings action, or saved visible-UI action, call android_automation_tool. It can save shell, file-write, file-delete, safe Android system-action, and accessibility UI-action tasks, run them manually, enable/disable/delete them, schedule interval tasks with Android alarms, run boot/power/battery triggers, and expand saved variables in commands, file content, and UI selectors. " +
+                    "When the user asks to create a recurring phone automation, reusable Android task, Tasker-like variable, phone-state trigger, saved file action, safe saved Android settings action, saved visible-UI action, or saved app-launch action, call android_automation_tool. It can save shell, file-write, file-delete, safe Android system-action, accessibility UI-action, and app-launch tasks, run them manually, enable/disable/delete them, schedule interval tasks with Android alarms, run boot/power/battery triggers, and expand saved variables in commands, file content, UI selectors, and package names. " +
                     "When the user asks to inspect the visible phone screen, click, type, scroll, or use Back/Home/Recents/Quick Settings, call android_ui_tool. " +
                     "android_ui_tool requires the user-enabled Hermes accessibility service for screen snapshots and UI actions. " +
                     "Protected Android settings require user-granted permissions, Shizuku/Sui, accessibility service, or an opened settings panel.",
@@ -357,7 +357,7 @@ class NativeToolCallingChatClient(
                             .put("name", "android_automation_tool")
                             .put(
                                 "description",
-                                "Create, list, run, enable, disable, or delete saved Android automations and variables. Supports shell, file-write, file-delete, safe Android system-action, and accessibility UI-action tasks; manual tasks; interval tasks; boot/power/battery phone-state triggers; and Tasker-style %VARIABLE expansion. Shizuku execution must be explicitly requested per shell task.",
+                                "Create, list, run, enable, disable, or delete saved Android automations and variables. Supports shell, file-write, file-delete, safe Android system-action, accessibility UI-action, and app-launch tasks; manual tasks; interval tasks; boot/power/battery phone-state triggers; and Tasker-style %VARIABLE expansion. Shizuku execution must be explicitly requested per shell task.",
                             )
                             .put(
                                 "parameters",
@@ -370,7 +370,7 @@ class NativeToolCallingChatClient(
                                                 "action",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "list, create_shell_task, create_file_write_task, create_file_delete_task, create_system_action_task, create_ui_action_task, run, run_trigger, delete, enable, disable, list_variables, set_variable, get_variable, or delete_variable."),
+                                                    .put("description", "list, create_shell_task, create_file_write_task, create_file_delete_task, create_system_action_task, create_ui_action_task, create_app_launch_task, run, run_trigger, delete, enable, disable, list_variables, set_variable, get_variable, or delete_variable."),
                                             )
                                             .put(
                                                 "id",
@@ -388,7 +388,7 @@ class NativeToolCallingChatClient(
                                                 "command",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Shell command for create_shell_task, or alternate system action value for create_system_action_task. Saved variables can be referenced as %NAME or {{NAME}}."),
+                                                    .put("description", "Shell command for create_shell_task, alternate system action value for create_system_action_task, or alternate package name for create_app_launch_task. Saved variables can be referenced as %NAME or {{NAME}}."),
                                             )
                                             .put(
                                                 "path",
@@ -442,7 +442,7 @@ class NativeToolCallingChatClient(
                                                 "package_name",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Saved UI selector: restrict matching to a package name fragment."),
+                                                    .put("description", "Package name for create_app_launch_task, or saved UI selector package-name fragment for create_ui_action_task. Saved variables can be referenced as %NAME or {{NAME}}."),
                                             )
                                             .put(
                                                 "index",
