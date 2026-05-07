@@ -298,6 +298,59 @@ class TestCleanupResetsEngineCache:
         assert bt._browser_engine_resolved is False
 
 
+class TestChromeFallbackOpenRouting:
+    """Regression: LP open-fallback should use the target URL directly."""
+
+    def test_open_fallback_does_not_require_lp_current_url(self):
+        import tools.browser_tool as bt
+
+        popen_calls = []
+
+        class _FakeProc:
+            returncode = 0
+
+            def wait(self, timeout=None):
+                return None
+
+        def _fake_popen(cmd, **kwargs):
+            popen_calls.append(cmd)
+            return _FakeProc()
+
+        # open -> success JSON, close -> empty JSON
+        stdout_reads = iter([
+            '{"success": true, "data": {"url": "https://example.com"}}',
+            '{"success": true, "data": {}}',
+        ])
+
+        def _fake_open(*_args, **_kwargs):
+            m = MagicMock()
+            m.__enter__.return_value.read.side_effect = lambda: next(stdout_reads)
+            m.__exit__.return_value = False
+            return m
+
+        with patch("tools.browser_tool._chromium_installed", return_value=True), \
+             patch("tools.browser_tool._find_agent_browser", return_value="/usr/bin/agent-browser"), \
+             patch("tools.browser_tool._run_browser_command") as run_lp_eval, \
+             patch("subprocess.Popen", side_effect=_fake_popen), \
+             patch("os.open", return_value=99), \
+             patch("os.close"), \
+             patch("os.unlink"), \
+             patch("os.makedirs"), \
+             patch("builtins.open", side_effect=_fake_open), \
+             patch("tools.browser_tool._socket_safe_tmpdir", return_value="/tmp"), \
+             patch("shutil.rmtree"):
+            result = bt._run_chrome_fallback_command(
+                task_id="lp-open-fallback",
+                command="open",
+                args=["https://example.com"],
+                timeout=10,
+            )
+
+        assert result["success"] is True
+        # No LP eval should be needed for failed open fallback.
+        run_lp_eval.assert_not_called()
+        # Ensure the temp Chrome session was asked to open the target URL.
+        assert any(cmd[-2:] == ["open", "https://example.com"] for cmd in popen_calls)
 
 
 # ---------------------------------------------------------------------------

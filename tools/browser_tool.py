@@ -694,15 +694,21 @@ def _run_chrome_fallback_command(
     """
     import uuid
 
-    # 1. Grab the current URL from the Lightpanda session. Use
-    # ``_engine_override=\"auto\"`` so this helper does not recursively trigger
-    # Lightpanda→Chrome fallback if the eval call itself fails.
-    url_result = _run_browser_command(
-        task_id, "eval", ["window.location.href"], timeout=10, _engine_override="auto"
-    )
+    # 1. Determine the URL Chrome should load.
+    # For a failed LP ``open <url>`` call, retry the same target directly.
+    # For all other commands, grab the current URL from the LP session.
     current_url = None
-    if url_result.get("success"):
-        current_url = url_result.get("data", {}).get("result", "").strip().strip('"').strip("'")
+    if command == "open" and args:
+        current_url = str(args[0] or "").strip()
+
+    if not current_url:
+        # Use ``_engine_override=\"auto\"`` so this helper does not recursively
+        # trigger Lightpanda→Chrome fallback if the eval call itself fails.
+        url_result = _run_browser_command(
+            task_id, "eval", ["window.location.href"], timeout=10, _engine_override="auto"
+        )
+        if url_result.get("success"):
+            current_url = url_result.get("data", {}).get("result", "").strip().strip('"').strip("'")
     if not current_url:
         logger.warning("Chrome fallback: could not determine current URL from LP session")
         return {"success": False, "error": "Chrome fallback failed: could not determine current URL"}
