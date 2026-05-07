@@ -35,6 +35,9 @@ object HermesAutomationBridge {
             "create_shizuku_action_task", "create_shizuku_action", "create_privileged_action_task", "privileged_action_task" -> createShizukuActionTaskJson(context, arguments)
             "create_sunrise_sunset_task", "create_sun_task", "create_solar_task" -> createSunriseSunsetTaskJson(context, arguments)
             "create_notification_task", "create_notify_task", "create_notify", "notify_task" -> createNotificationTaskJson(context, arguments)
+            "create_launcher_shortcut", "create_shortcut", "create_home_screen_shortcut", "pin_automation_shortcut" -> HermesLauncherShortcutBridge.createShortcutJson(context, arguments)
+            "list_launcher_shortcuts", "list_shortcuts", "launcher_shortcuts" -> HermesLauncherShortcutBridge.listShortcutsJson(context)
+            "remove_launcher_shortcut", "delete_launcher_shortcut", "remove_shortcut", "delete_shortcut" -> HermesLauncherShortcutBridge.removeShortcutJson(context, arguments)
             "calculate_sunrise_sunset", "sunrise_sunset", "sun_times", "solar_times" -> calculateSunriseSunsetJson(context, arguments)
             "export_automations", "export", "backup_automations", "backup" -> exportAutomationsJson(context)
             "import_automations", "import", "restore_automations", "restore" -> importAutomationsJson(context, arguments)
@@ -3232,6 +3235,9 @@ object HermesAutomationBridge {
         "create_shizuku_action_task",
         "create_sunrise_sunset_task",
         "create_notification_task",
+        "create_launcher_shortcut",
+        "list_launcher_shortcuts",
+        "remove_launcher_shortcut",
         "calculate_sunrise_sunset",
         "export_automations",
         "import_automations",
