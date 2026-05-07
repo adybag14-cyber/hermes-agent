@@ -220,6 +220,18 @@ class TestChromeFallback:
         )
         assert result == {"success": False, "error": "stop"}
 
+    def test_failed_open_uses_target_without_querying_lightpanda(self):
+        import tools.browser_tool_lightpanda_fallback as fallback
+
+        with patch("tools.browser_tool_session._run_browser_command") as run_command, \
+             patch("tools.browser_tool_install._find_agent_browser", side_effect=FileNotFoundError("stop")):
+            result = fallback._run_chrome_fallback_command(
+                "task1", "open", ["https://example.com/"], timeout=30
+            )
+
+        run_command.assert_not_called()
+        assert result == {"success": False, "error": "stop"}
+
     def test_chrome_fallback_injects_required_sandbox_args(self, tmp_path):
 
         captured_envs = []
@@ -406,7 +418,7 @@ class TestEngineOverride:
     @patch("tools.browser_tool_cdp._get_cdp_override", return_value="")
     @patch("tools.browser_tool._is_camofox_mode", return_value=False)
     def test_no_override_uses_cached_engine(
-        self, _camofox, _cdp, _cloud, _chromium, _local, _find, _session
+        self, _camofox, _cdp, _cloud, _chromium, _local, _find, _session, tmp_path
     ):
         """Lightpanda gets neither auto-injected nor inherited Chrome arguments."""
         import tools.browser_tool as bt
@@ -441,7 +453,12 @@ class TestEngineOverride:
              patch("tools.interrupt.is_interrupted", return_value=False), \
              patch("tools.browser_tool_session._needs_chromium_sandbox_bypass", return_value=True), \
              patch("tools.browser_tool_lifecycle._write_owner_pid"), \
-             patch.dict(os.environ, {}, clear=True):
+             patch.dict(os.environ, {
+                 "HOME": str(tmp_path),
+                 "USERPROFILE": str(tmp_path),
+                 "LOCALAPPDATA": str(tmp_path / "AppData" / "Local"),
+                 "HERMES_HOME": str(tmp_path / ".hermes"),
+             }, clear=True):
             # AppArmor/root detection would normally auto-inject Chromium args.
             bt_session._run_browser_command("task1", "snapshot", [])
 

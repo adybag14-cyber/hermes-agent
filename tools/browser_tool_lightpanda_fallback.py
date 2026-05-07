@@ -123,10 +123,11 @@ def _run_chrome_fallback_command(task_id: str, command: str, args: List[str], ti
     """
     _bt = _origin()
     import uuid
-    # 1. Current URL from the Lightpanda session. ``get url`` is not fallback-eligible,
-    # so this can't recurse; the explicit override strips Chromium-only env flags.
-    url_result = _session._run_browser_command(task_id, "get", ["url"], timeout=10, _engine_override="lightpanda")
-    current_url = str(url_result.get("data", {}).get("url", "")).strip() if url_result.get("success") else None
+    # Failed navigation retries the requested page, not the previous or absent page.
+    current_url = str(args[0] or "").strip() if command == "open" and args else None
+    if not current_url:
+        url_result = _session._run_browser_command(task_id, "get", ["url"], timeout=10, _engine_override="lightpanda")
+        current_url = str(url_result.get("data", {}).get("url", "")).strip() if url_result.get("success") else None
     if not current_url:
         _bt.logger.warning("Chrome fallback: could not determine current URL from LP session")
         return {"success": False, "error": "Chrome fallback failed: could not determine current URL"}
