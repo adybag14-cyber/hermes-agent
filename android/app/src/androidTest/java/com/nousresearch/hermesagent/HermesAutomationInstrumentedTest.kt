@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.nousresearch.hermesagent.device.HermesAutomationBridge
 import com.nousresearch.hermesagent.device.HermesAutomationStore
 import com.nousresearch.hermesagent.device.HermesExternalTriggerReceiver
+import com.nousresearch.hermesagent.device.HermesLauncherShortcutBridge
 import com.nousresearch.hermesagent.device.HermesLinuxSubsystemBridge
 import com.nousresearch.hermesagent.device.HermesNotificationActionBridge
 import org.json.JSONArray
@@ -314,6 +315,65 @@ class HermesAutomationInstrumentedTest {
         assertEquals(0, run.getJSONObject("automation").getInt("last_exit_code"))
         assertEquals("launch_app", run.getJSONObject("result").getString("action"))
         assertEquals(app.packageName, run.getJSONObject("result").getString("package_name"))
+    }
+
+    @Test
+    fun launcherShortcutRunsSavedAutomationFromShortcutIntent() {
+        val linuxState = HermesLinuxSubsystemBridge.ensureInstalled(app)
+        val workspace = File(linuxState.getString("home_path"))
+        val target = File(workspace, "hermes-launcher-shortcut.txt").apply { delete() }
+
+        val created = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "create_file_write_task",
+                JSONObject()
+                    .put("label", "Shortcut smoke")
+                    .put("path", "hermes-launcher-shortcut.txt")
+                    .put("content", "shortcut-ok")
+                    .put("enabled", false),
+            ),
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+        val automationId = created.getJSONObject("automation").getString("id")
+
+        val shortcut = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "create_launcher_shortcut",
+                JSONObject()
+                    .put("automation_id", automationId)
+                    .put("label", "Shortcut smoke")
+                    .put("pin", false),
+            ),
+        )
+        assertTrue(shortcut.toString(), shortcut.getBoolean("success"))
+        assertEquals(automationId, shortcut.getString("automation_id"))
+        assertTrue(shortcut.toString(), shortcut.getBoolean("dynamic_shortcut_created"))
+
+        val listed = JSONObject(HermesAutomationBridge.performActionJson(app, "list_launcher_shortcuts"))
+        assertTrue(listed.toString(), listed.getBoolean("success"))
+        assertTrue(listed.getJSONArray("dynamic_shortcuts").toString().contains(shortcut.getString("shortcut_id")))
+
+        val run = JSONObject(
+            HermesLauncherShortcutBridge.handleShortcutIntentJson(
+                app,
+                HermesLauncherShortcutBridge.shortcutIntent(app, automationId),
+            ),
+        )
+        assertTrue(run.toString(), run.getBoolean("success"))
+        assertEquals("launcher_shortcut", run.getString("trigger"))
+        assertTrue("Expected ${target.absolutePath}", target.isFile)
+        assertEquals("shortcut-ok", target.readText())
+
+        val removed = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "remove_launcher_shortcut",
+                JSONObject().put("automation_id", automationId),
+            ),
+        )
+        assertTrue(removed.toString(), removed.getBoolean("success"))
     }
 
     @Test
