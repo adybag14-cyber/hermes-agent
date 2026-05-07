@@ -100,6 +100,7 @@ def _setup_update_mocks(monkeypatch, tmp_path):
 
 
 
+
 def test_refresh_active_memory_provider_dependencies_reinstalls_active_provider(monkeypatch):
     """#53272/#70636: update must re-run the active provider's dep install."""
     recorded = []

@@ -1115,15 +1115,17 @@ def venv_bin_dir(venv_dir, *, windows: bool | None = None) -> Path:
 
 
 def project_venv_dir(project_root) -> Path | None:
-    """The project's ``venv`` or ``.venv`` dir when one exists (``uv venv`` defaults to ``.venv``).
+    """Find this project's active environment, then prefer ``.venv`` over legacy ``venv``.
 
-    ``uv venv`` defaults to ``.venv`` while our installers create ``venv``, so both layouts are in the wild.
-    Call sites that only knew about ``venv`` silently no-oped on a ``.venv`` install — that is how the
-    Windows shim-lock preflight skipped itself entirely (#79542). ``venv`` wins when both exist, matching
-    what the installers write.
+    Use sys.prefix rather than resolving the interpreter symlink outside a POSIX venv.
     """
     root = Path(project_root)
-    return next((root / n for n in ("venv", ".venv") if (root / n).is_dir()), None)
+    candidates = [root / ".venv", root / "venv"]
+    active_prefix = Path(sys.prefix).resolve()
+    for candidate in candidates:
+        if candidate.is_dir() and candidate.resolve() == active_prefix:
+            return candidate
+    return next((candidate for candidate in candidates if candidate.is_dir()), None)
 
 
 def venv_python_path(venv_dir, *, windows: bool | None = None) -> Path:

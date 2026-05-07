@@ -440,10 +440,15 @@ def _check_command_installation(should_fix: bool, f: Finding) -> None:
     if sys.platform == "win32":
         return
     _section("Command Installation")
-    venv_bin = next((c for c in (PROJECT_ROOT / n / "bin" / "hermes" for n in ("venv", ".venv")) if c.exists()), None)
+    from hermes_constants import project_venv_dir
+    active = Path(sys.prefix) / "bin" / "hermes"
+    preferred = project_venv_dir(PROJECT_ROOT)
+    envs = ([preferred] if preferred is not None else []) + [PROJECT_ROOT / ".venv", PROJECT_ROOT / "venv"]
+    candidates = ([active] if PROJECT_ROOT in active.parents else []) + [env / "bin" / "hermes" for env in envs]
+    venv_bin = next((c for c in candidates if c.exists()), None)
     if venv_bin is None:
-        check_warn("Venv entry point not found", "(hermes not in venv/bin/ or .venv/bin/ — reinstall with pip install -e '.[all]')")
-        return f.manual_issues.append(f"Reinstall entry point: cd {PROJECT_ROOT} && source venv/bin/activate && pip install -e '.[all]'")
+        check_warn("Venv entry point not found", "(hermes not in .venv/bin/ or venv/bin/ — reinstall with pip install -e '.[all]')")
+        return f.manual_issues.append(f"Reinstall entry point: cd {PROJECT_ROOT} && source .venv/bin/activate && pip install -e '.[all]'")
     check_ok(f"Venv entry point exists ({venv_bin.relative_to(PROJECT_ROOT)})")
     # Expected command link directory (mirrors install.sh logic).
     prefix = os.environ.get("PREFIX", "")
