@@ -1,0 +1,164 @@
+name: Hermes v0.13.39 Bootstrap Release v2
+
+on:
+  push:
+    branches:
+      - codex/v0.13.39-bootstrap
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hermes-v0.13.39-bootstrap-v2
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'adybag14-cyber/hermes-agent'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/termux-install-path
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Apply v0.13.39 patch and push source tag
+        id: source
+        env:
+          HERMES_RELEASE_TAG: v0.13.39
+          EXPECTED_BASE_SHA: 8c5ae271204738bace95c624fb7aa8f844f68833
+          PATCH_SHA256: e23466cb08443bd9e0fa566ada806328dabf4a67a87e908e0d6a15c41810fe4e
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          current="$(git rev-parse HEAD)"
+          if [ "$current" = "$EXPECTED_BASE_SHA" ]; then
+            git show origin/codex/v0.13.39-bootstrap:.github/workflows/hermes-v0.13.39-bootstrap.yml > /tmp/hermes-v0.13.39-bootstrap.yml
+            python - <<'PY'
+            import base64
+            import gzip
+            import hashlib
+            import os
+            from pathlib import Path
+            src = Path('/tmp/hermes-v0.13.39-bootstrap.yml').read_text(encoding='utf-8').splitlines()
+            chunks = []
+            capture = False
+            for line in src:
+                if capture:
+                    if line.strip() == 'PATCH_GZ_B64':
+                        break
+                    chunks.append(line.strip())
+                elif "<<'PATCH_GZ_B64'" in line:
+                    capture = True
+            if not chunks:
+                raise SystemExit('embedded patch not found')
+            data = gzip.decompress(base64.b64decode(''.join(chunks)))
+            got = hashlib.sha256(data).hexdigest()
+            want = os.environ['PATCH_SHA256']
+            if got != want:
+                raise SystemExit(f'patch sha256 mismatch: {got} != {want}')
+            Path('/tmp/hermes-v0.13.39.patch').write_bytes(data)
+            PY
+            git apply --index /tmp/hermes-v0.13.39.patch
+            git diff --check --cached
+            git commit -m "feat(android): add Shizuku logcat watcher"
+          else
+            subject="$(git log -1 --format=%s)"
+            if [ "$subject" != "feat(android): add Shizuku logcat watcher" ]; then
+              echo "Unexpected target branch HEAD: $current ($subject)" >&2
+              exit 1
+            fi
+          fi
+          release_commit="$(git rev-parse HEAD)"
+          git tag -f "$HERMES_RELEASE_TAG" "$release_commit"
+          git push origin HEAD:feat/termux-install-path
+          git push origin "refs/tags/$HERMES_RELEASE_TAG"
+          echo "release_commit=$release_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Python 3.13 for Chaquopy
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Restore signing material
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release.keystore
+          cat > android/keystore.properties <<EOF
+          storeFile=release.keystore
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x android/gradlew
+
+      - name: Build signed Android artifacts
+        working-directory: android
+        env:
+          HERMES_RELEASE_TAG: v0.13.39
+          SOURCE_DATE_EPOCH: "315532800"
+        run: |
+          set -euo pipefail
+          rm -rf ../build
+          export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
+          ./gradlew :app:assembleRelease :app:bundleRelease
+
+      - name: Rename artifacts and write checksums
+        env:
+          HERMES_RELEASE_TAG: v0.13.39
+        run: python scripts/android_release_manifest.py --tag "$HERMES_RELEASE_TAG"
+
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HERMES_RELEASE_TAG: v0.13.39
+          RELEASE_COMMIT: ${{ steps.source.outputs.release_commit }}
+        run: |
+          set -euo pipefail
+          title="Hermes Agent ${HERMES_RELEASE_TAG}"
+          notes_file="RELEASE_${HERMES_RELEASE_TAG}.md"
+          if gh release view "$HERMES_RELEASE_TAG" >/dev/null 2>&1; then
+            if [ -f "$notes_file" ]; then
+              gh release edit "$HERMES_RELEASE_TAG" --title "$title" --target "$RELEASE_COMMIT" --notes-file "$notes_file"
+            else
+              gh release edit "$HERMES_RELEASE_TAG" --title "$title" --target "$RELEASE_COMMIT"
+            fi
+          else
+            if [ -f "$notes_file" ]; then
+              gh release create "$HERMES_RELEASE_TAG" --target "$RELEASE_COMMIT" --title "$title" --notes-file "$notes_file"
+            else
+              gh release create "$HERMES_RELEASE_TAG" --target "$RELEASE_COMMIT" --title "$title" --generate-notes
+            fi
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HERMES_RELEASE_TAG: v0.13.39
+        run: |
+          gh release upload "$HERMES_RELEASE_TAG" dist/android-release/*.apk dist/android-release/*.aab dist/android-release/*.sha256 --clobber
