@@ -1,0 +1,131 @@
+name: Hermes v0.13.39 Bootstrap Release
+
+on:
+  push:
+    branches:
+      - codex/v0.13.39-bootstrap
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hermes-v0.13.39-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'adybag14-cyber/hermes-agent'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout target branch
+        uses: actions/checkout@v5
+        with:
+          ref: feat/termux-install-path
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Apply v0.13.39 patch and push source tag
+        id: source
+        env:
+          HERMES_RELEASE_TAG: v0.13.39
+          EXPECTED_BASE_SHA: 8c5ae271204738bace95c624fb7aa8f844f68833
+          PATCH_SHA256: e23466cb08443bd9e0fa566ada806328dabf4a67a87e908e0d6a15c41810fe4e
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_BASE_SHA"
+          cat > /tmp/hermes-v0.13.39.patch.gz.b64 <<'PATCH_GZ_B64'
+          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
+          PATCH_GZ_B64
+          base64 -d /tmp/hermes-v0.13.39.patch.gz.b64 | gzip -d > /tmp/hermes-v0.13.39.patch
+          echo "$PATCH_SHA256  /tmp/hermes-v0.13.39.patch" | sha256sum -c -
+          git apply --index /tmp/hermes-v0.13.39.patch
+          git diff --check --cached
+          git commit -m "feat(android): add Shizuku logcat watcher"
+          release_commit="$(git rev-parse HEAD)"
+          git tag -f "$HERMES_RELEASE_TAG" "$release_commit"
+          git push origin HEAD:feat/termux-install-path
+          git push origin "refs/tags/$HERMES_RELEASE_TAG"
+          echo "release_commit=$release_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Python 3.13 for Chaquopy
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Restore signing material
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release.keystore
+          cat > android/keystore.properties <<EOF
+          storeFile=release.keystore
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x android/gradlew
+
+      - name: Build signed Android artifacts
+        working-directory: android
+        env:
+          HERMES_RELEASE_TAG: v0.13.39
+          SOURCE_DATE_EPOCH: "315532800"
+        run: |
+          set -euo pipefail
+          rm -rf ../build
+          export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
+          ./gradlew :app:assembleRelease :app:bundleRelease
+
+      - name: Rename artifacts and write checksums
+        env:
+          HERMES_RELEASE_TAG: v0.13.39
+        run: python scripts/android_release_manifest.py --tag "$HERMES_RELEASE_TAG"
+
+      - name: Ensure release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HERMES_RELEASE_TAG: v0.13.39
+          RELEASE_COMMIT: ${{ steps.source.outputs.release_commit }}
+        run: |
+          set -euo pipefail
+          title="Hermes Agent ${HERMES_RELEASE_TAG}"
+          notes_file="RELEASE_${HERMES_RELEASE_TAG}.md"
+          if gh release view "$HERMES_RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$HERMES_RELEASE_TAG" --title "$title" --target "$RELEASE_COMMIT" ${notes_file:+--notes-file "$notes_file"}
+          else
+            if [ -f "$notes_file" ]; then
+              gh release create "$HERMES_RELEASE_TAG" --target "$RELEASE_COMMIT" --title "$title" --notes-file "$notes_file"
+            else
+              gh release create "$HERMES_RELEASE_TAG" --target "$RELEASE_COMMIT" --title "$title" --generate-notes
+            fi
+          fi
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HERMES_RELEASE_TAG: v0.13.39
+        run: |
+          gh release upload "$HERMES_RELEASE_TAG" dist/android-release/*.apk dist/android-release/*.aab dist/android-release/*.sha256 --clobber
