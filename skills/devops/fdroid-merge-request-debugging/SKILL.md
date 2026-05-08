@@ -1,7 +1,7 @@
 ---
 name: fdroid-merge-request-debugging
 description: Use when preparing, debugging, or responding to F-Droid fdroiddata merge requests, especially app inclusion metadata, reproducible Binaries checks, checkupdates/autoupdate fixes, reviewer discussion resolution, and GitLab pipeline triage.
-version: 1.0.1
+version: 1.0.2
 metadata:
   hermes:
     tags: [fdroid, android, reproducible-builds, gitlab, release]
@@ -39,6 +39,14 @@ $glab = "C:\Users\Ady\AppData\Local\Programs\glab\glab.exe"
 5. If screenshots were provided, treat them as hints only. Re-query GitLab
    before editing because labels, discussions, pipelines, and suggested changes
    can change quickly during F-Droid review.
+
+For Hermes Agent on the known Windows workstation, the usual paths are:
+
+```powershell
+$HermesRepo = "C:\Users\Ady\work\hermes-agent-fdroid-release"
+$FdroidData = "C:\Users\Ady\work\fdroiddata"
+$AppId = "com.nousresearch.hermesagent"
+```
 
 ## Metadata Rules
 
@@ -95,6 +103,11 @@ verify the APK URL returns `200 OK`, then retry or retrigger the GitLab MR
 pipeline. Do not leave the MR red when the only failure is a delayed release
 asset upload.
 
+If GitHub Actions API calls are rate-limited, avoid `gh run watch` loops. Poll
+the release asset URL with `Invoke-WebRequest -Method Head`, then download the
+`.sha256` sidecar and APK directly and verify `Get-FileHash` against the
+sidecar. This proves the binary is published without burning GitHub API quota.
+
 For GitHub release workflows that remain queued on hosted runners, first check
 the job labels and whether a repo variable such as `HERMES_ANDROID_RUNNER`
 overrides `runs-on`. A temporary self-hosted runner can unblock a release asset
@@ -131,6 +144,21 @@ git commit -m "Address <app> review comments"
 git push origin <branch>
 ```
 
+Make the Windows host noninteractive before long unattended runs:
+
+```powershell
+git config --global credential.interactive false
+git config --global credential.guiPrompt false
+git config --global credential.gitLabAuthModes pat
+[Environment]::SetEnvironmentVariable("GIT_TERMINAL_PROMPT","0","User")
+[Environment]::SetEnvironmentVariable("GCM_INTERACTIVE","never","User")
+[Environment]::SetEnvironmentVariable("GCM_GUI_PROMPT","0","User")
+$env:GIT_TERMINAL_PROMPT = "0"
+$env:GCM_INTERACTIVE = "never"
+$env:GCM_GUI_PROMPT = "0"
+git push --dry-run origin HEAD:<branch>
+```
+
 For GitHub source repos on this Windows machine, prefer the GitHub CLI
 credential helper over Git Credential Manager prompts:
 
@@ -149,6 +177,14 @@ REST API token. If `git push` works but GitLab API calls return `401
 Unauthorized`, keep the branch and pipeline updated and give the exact reviewer
 reply text for the user to paste.
 
+A push with no new commit may not update an MR description even when push
+options are supplied. If only the MR description needs correction, prefer the
+GitLab UI/API when authenticated. If API auth is unavailable and the correction
+is important, use a no-content `git commit --amend --no-edit`, read the current
+remote branch hash with `git ls-remote`, then push with an explicit
+`--force-with-lease=refs/heads/<branch>:<remote-hash>` and updated push-option
+description. Never use an unconditional force push.
+
 Monitor the source-project pipeline, then inspect failed job logs directly:
 
 ```powershell
@@ -161,6 +197,12 @@ Only declare the MR ready when the relevant jobs pass: `fdroid build`,
 `check apk` when `Binaries` is present, `checkupdates`, `fdroid lint`,
 `fdroid rewritemeta`, schema validation, source checks, git redirect, and tools
 checks.
+
+If the first pipeline after a version bump passes every job except
+`fdroid rewritemeta`, fetch the raw job log and apply the Linux formatter diff
+exactly. On Hermes Agent this can intentionally leave `Binaries: ` with a
+single trailing space; local Windows `git diff --check` will complain, but the
+GitLab `fdroid rewritemeta` job is the merge gate.
 
 ## Reviewer Response
 
@@ -187,6 +229,10 @@ When a reviewer asks whether `UpdateCheckMode: Tags` is limited to a specific
 version line, answer from the metadata: unrestricted `Tags` is not limited to
 `0.13.x`; any future semver tag can be detected when `UpdateCheckData` reads
 `versionName` and `versionCode` from the upstream tag.
+
+If the browser still says "Please register or sign in to reply", do not claim a
+thread reply was posted. Put the evidence in the MR description, keep CI green,
+and give the user the exact reviewer reply text to paste.
 
 ## Completion Audit
 
