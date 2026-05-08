@@ -37,6 +37,7 @@ object HermesAutomationBridge {
             "create_notification_task", "create_notify_task", "create_notify", "notify_task" -> createNotificationTaskJson(context, arguments)
             "create_variable_action_task", "create_variable_task", "create_variable_set_task", "create_variable_clear_task" -> createVariableActionTaskJson(context, arguments)
             "create_wait_task", "create_wait", "wait_task", "delay_task" -> createWaitTaskJson(context, arguments)
+            "create_clipboard_task", "create_set_clipboard_task", "set_clipboard_task", "clipboard_task" -> createClipboardTaskJson(context, arguments)
             "create_launcher_shortcut", "create_shortcut", "create_home_screen_shortcut", "pin_automation_shortcut" -> HermesLauncherShortcutBridge.createShortcutJson(context, arguments)
             "list_launcher_shortcuts", "list_shortcuts", "launcher_shortcuts" -> HermesLauncherShortcutBridge.listShortcutsJson(context)
             "remove_launcher_shortcut", "delete_launcher_shortcut", "remove_shortcut", "delete_shortcut" -> HermesLauncherShortcutBridge.removeShortcutJson(context, arguments)
@@ -636,6 +637,43 @@ object HermesAutomationBridge {
             actionType = ACTION_TYPE_WAIT,
             payload = payload,
             defaultLabel = "Hermes wait automation",
+        )
+    }
+
+    fun createClipboardTaskJson(context: Context, arguments: JSONObject): String {
+        val clipboardAction = normalizeClipboardAction(
+            stringArgument(arguments, "clipboard_action", "clipboardAction", "operation", "mode")
+                .orEmpty()
+                .ifBlank { "set" },
+        ) ?: return errorJson("create_clipboard_task supports clipboard_action set")
+        val text = stringArgument(
+            arguments,
+            "clipboard_text",
+            "text",
+            "content",
+            "value",
+            allowEmpty = true,
+        ) ?: return errorJson("create_clipboard_task requires clipboard_text, text, content, or value")
+        if (text.indexOf('\u0000') >= 0) {
+            return errorJson("create_clipboard_task text must not contain NUL bytes")
+        }
+        val label = stringArgument(arguments, "clipboard_label", "label_text", "clip_label")
+            ?.take(MAX_CLIPBOARD_LABEL_CHARS)
+            ?: "Hermes"
+        if (label.indexOf('\u0000') >= 0) {
+            return errorJson("create_clipboard_task label must not contain NUL bytes")
+        }
+        val payload = JSONObject()
+            .put("clipboard_action", clipboardAction)
+            .put("text", text)
+            .put("label", label)
+            .toString()
+        return createRecordJson(
+            context = context,
+            arguments = arguments,
+            actionType = ACTION_TYPE_CLIPBOARD_ACTION,
+            payload = payload,
+            defaultLabel = "Hermes clipboard automation",
         )
     }
 
@@ -1269,6 +1307,7 @@ object HermesAutomationBridge {
             ACTION_TYPE_NOTIFICATION_ACTION -> runNotificationActionRecord(context, record, variables)
             ACTION_TYPE_VARIABLE_ACTION -> runVariableActionRecord(store, record, variables)
             ACTION_TYPE_WAIT -> runWaitRecord(record, variables)
+            ACTION_TYPE_CLIPBOARD_ACTION -> runClipboardActionRecord(context, record, variables)
             else -> JSONObject(errorJson("Unsupported Android automation action type: ${record.actionType}"))
         }
         val exitCode = rawResult.optInt("exit_code", if (rawResult.optBoolean("success", false)) 0 else -1)
@@ -1467,6 +1506,24 @@ object HermesAutomationBridge {
             Thread.currentThread().interrupt()
             JSONObject(errorJson("Saved wait automation was interrupted"))
         }
+    }
+
+    private fun runClipboardActionRecord(
+        context: Context,
+        record: HermesAutomationRecord,
+        variables: JSONObject,
+    ): JSONObject {
+        val payload = runCatching { JSONObject(record.command) }.getOrNull()
+            ?: return JSONObject(errorJson("Saved clipboard_action automation payload is invalid"))
+        val clipboardAction = normalizeClipboardAction(expandVariables(payload.optString("clipboard_action"), variables))
+            ?: return JSONObject(errorJson("Unsupported saved clipboard action: ${payload.optString("clipboard_action")}"))
+        if (clipboardAction != CLIPBOARD_ACTION_SET) {
+            return JSONObject(errorJson("Unsupported saved clipboard action: $clipboardAction"))
+        }
+        val text = expandVariables(payload.optString("text"), variables)
+        val label = expandVariables(payload.optString("label").ifBlank { "Hermes" }, variables)
+            .take(MAX_CLIPBOARD_LABEL_CHARS)
+        return HermesClipboardActionBridge.setClipboardJson(context, text, label)
     }
 
     fun deleteJson(context: Context, id: String): String {
@@ -3454,6 +3511,13 @@ object HermesAutomationBridge {
         }
     }
 
+    private fun normalizeClipboardAction(action: String): String? {
+        return when (action.trim().lowercase().replace("-", "_").replace(" ", "_")) {
+            "set", "copy", "write", "set_clipboard", "clipboard_set" -> CLIPBOARD_ACTION_SET
+            else -> null
+        }
+    }
+
     private fun constantTimeEquals(left: String, right: String): Boolean {
         return MessageDigest.isEqual(left.toByteArray(Charsets.UTF_8), right.toByteArray(Charsets.UTF_8))
     }
@@ -3481,6 +3545,7 @@ object HermesAutomationBridge {
         "create_notification_task",
         "create_variable_action_task",
         "create_wait_task",
+        "create_clipboard_task",
         "create_launcher_shortcut",
         "list_launcher_shortcuts",
         "remove_launcher_shortcut",
@@ -3532,6 +3597,7 @@ object HermesAutomationBridge {
         ACTION_TYPE_NOTIFICATION_ACTION,
         ACTION_TYPE_VARIABLE_ACTION,
         ACTION_TYPE_WAIT,
+        ACTION_TYPE_CLIPBOARD_ACTION,
     )
     private val ACTION_TYPE_SYNONYMS = mapOf(
         "shizuku" to ACTION_TYPE_SHIZUKU_ACTION,
@@ -3551,6 +3617,8 @@ object HermesAutomationBridge {
         "variable_clear" to ACTION_TYPE_VARIABLE_ACTION,
         "delay" to ACTION_TYPE_WAIT,
         "sleep" to ACTION_TYPE_WAIT,
+        "clipboard" to ACTION_TYPE_CLIPBOARD_ACTION,
+        "set_clipboard" to ACTION_TYPE_CLIPBOARD_ACTION,
         "android_intent" to ACTION_TYPE_INTENT,
         "start_activity" to ACTION_TYPE_INTENT,
         "open_uri" to ACTION_TYPE_INTENT,
@@ -3802,9 +3870,11 @@ object HermesAutomationBridge {
     private val BRACE_VARIABLE_PATTERN = Regex("\\{\\{([A-Za-z_][A-Za-z0-9_]{0,63})\\}\\}")
     private const val VARIABLE_ACTION_SET = "set"
     private const val VARIABLE_ACTION_CLEAR = "clear"
+    private const val CLIPBOARD_ACTION_SET = "set"
     private const val AUTOMATION_TIMEOUT_SECONDS = 30
     private const val MAX_WAIT_DURATION_MS = 60_000L
     private const val MAX_VARIABLE_VALUE_CHARS = 4_000
+    private const val MAX_CLIPBOARD_LABEL_CHARS = 80
     private const val MAX_RESULT_CHARS = 2_000
     private const val MAX_EVENT_VALUE_CHARS = 500
     private const val MAX_NOTIFICATION_BUTTONS = 3
