@@ -6,13 +6,14 @@ Capture, launch, tap, type, and swipe an ADB-visible Android emulator or phone.
 .\scripts\android-emulator-visual-probe.ps1 -Action status
 .\scripts\android-emulator-visual-probe.ps1 -Action launch
 .\scripts\android-emulator-visual-probe.ps1 -Action screenshot -Open
+.\scripts\android-emulator-visual-probe.ps1 -Action wide-screenshot -Open
 .\scripts\android-emulator-visual-probe.ps1 -Action tap -X 520 -Y 1810
 .\scripts\android-emulator-visual-probe.ps1 -Action text -Text "write a flappy bird html game"
 .\scripts\android-emulator-visual-probe.ps1 -Action swipe -X 500 -Y 1800 -X2 500 -Y 400
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet("status", "launch", "screenshot", "tap", "text", "keyevent", "swipe")]
+    [ValidateSet("status", "launch", "screenshot", "wide-screenshot", "tap", "text", "keyevent", "swipe")]
     [string]$Action = "screenshot",
 
     [string]$Serial,
@@ -30,6 +31,11 @@ param(
     [string]$Activity,
 
     [string]$OutDir = "artifacts/emulator-visual",
+    [string]$WideSize = "1920x1080",
+    [int]$WideDensity = 240,
+    [int]$WaitMs = 1500,
+    [switch]$NoLaunch,
+    [switch]$KeepSize,
     [switch]$Open
 )
 
@@ -107,6 +113,32 @@ function Convert-TextForAdbInput {
     return ($Value -replace " ", "%s" -replace '"', '\"' -replace "'", "\'")
 }
 
+function Invoke-HermesLaunch {
+    if ($Activity) {
+        Invoke-Adb "shell" "am" "start" "-n" "$Package/$Activity"
+    } else {
+        Invoke-Adb "shell" "monkey" "-p" $Package "-c" "android.intent.category.LAUNCHER" "1"
+    }
+}
+
+function Save-AdbScreenshot {
+    if (!(Test-Path -LiteralPath $OutDir)) {
+        New-Item -ItemType Directory -Path $OutDir | Out-Null
+    }
+    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $fileName = "hermes-$($script:Serial)-$timestamp.png"
+    $localPath = Join-Path $OutDir $fileName
+    $remotePath = "/sdcard/$fileName"
+    Invoke-Adb "shell" "screencap" "-p" $remotePath | Out-Null
+    Invoke-Adb "pull" $remotePath $localPath | Out-Null
+    Invoke-Adb "shell" "rm" $remotePath | Out-Null
+    $resolved = (Resolve-Path -LiteralPath $localPath).Path
+    if ($Open) {
+        Invoke-Item -LiteralPath $resolved
+    }
+    $resolved
+}
+
 $script:Adb = Resolve-Adb
 $script:Serial = Get-AdbDevice -RequestedSerial $Serial
 
@@ -129,28 +161,32 @@ switch ($Action) {
         } | ConvertTo-Json -Depth 4
     }
     "launch" {
-        if ($Activity) {
-            Invoke-Adb "shell" "am" "start" "-n" "$Package/$Activity"
-        } else {
-            Invoke-Adb "shell" "monkey" "-p" $Package "-c" "android.intent.category.LAUNCHER" "1"
-        }
+        Invoke-HermesLaunch
     }
     "screenshot" {
-        if (!(Test-Path -LiteralPath $OutDir)) {
-            New-Item -ItemType Directory -Path $OutDir | Out-Null
+        Save-AdbScreenshot
+    }
+    "wide-screenshot" {
+        if ($WideSize -notmatch '^\d+x\d+$') {
+            throw "-WideSize must look like 1920x1080."
         }
-        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $fileName = "hermes-$($script:Serial)-$timestamp.png"
-        $localPath = Join-Path $OutDir $fileName
-        $remotePath = "/sdcard/$fileName"
-        Invoke-Adb "shell" "screencap" "-p" $remotePath | Out-Null
-        Invoke-Adb "pull" $remotePath $localPath | Out-Null
-        Invoke-Adb "shell" "rm" $remotePath | Out-Null
-        $resolved = (Resolve-Path -LiteralPath $localPath).Path
-        if ($Open) {
-            Invoke-Item -LiteralPath $resolved
+        if ($WideDensity -le 0) {
+            throw "-WideDensity must be greater than zero."
         }
-        $resolved
+        try {
+            Invoke-Adb "shell" "wm" "size" $WideSize | Out-Null
+            Invoke-Adb "shell" "wm" "density" "$WideDensity" | Out-Null
+            if (-not $NoLaunch) {
+                Invoke-HermesLaunch | Out-Null
+            }
+            Start-Sleep -Milliseconds $WaitMs
+            Save-AdbScreenshot
+        } finally {
+            if (-not $KeepSize) {
+                Invoke-Adb "shell" "wm" "size" "reset" | Out-Null
+                Invoke-Adb "shell" "wm" "density" "reset" | Out-Null
+            }
+        }
     }
     "tap" {
         Require-Coordinate -Name "X" -Value $X
