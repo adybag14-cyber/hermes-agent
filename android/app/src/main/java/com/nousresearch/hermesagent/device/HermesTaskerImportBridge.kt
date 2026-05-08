@@ -217,6 +217,19 @@ object HermesTaskerImportBridge {
                             .toString(),
                     )
             }
+            TASKER_SET_CLIPBOARD -> {
+                val text = argText(action, 0)
+                if (text.indexOf('\u0000') >= 0) return null
+                base.put("action_type", ACTION_TYPE_CLIPBOARD_ACTION)
+                    .put(
+                        "command",
+                        JSONObject()
+                            .put("clipboard_action", "set")
+                            .put("text", text.take(MAX_CLIPBOARD_TEXT_CHARS))
+                            .put("label", "Tasker import")
+                            .toString(),
+                    )
+            }
             in TASKER_GLOBAL_UI_ACTIONS -> {
                 base.put("action_type", ACTION_TYPE_UI_ACTION)
                     .put(
@@ -380,6 +393,7 @@ object HermesTaskerImportBridge {
     private const val TASKER_GO_HOME = 25
     private const val TASKER_WAIT = 30
     private const val TASKER_BROWSE_URL = 104
+    private const val TASKER_SET_CLIPBOARD = 105
     private const val TASKER_RUN_SHELL = 123
     private const val TASKER_DEVELOPER_SETTINGS = 197
     private const val TASKER_AIRPLANE_MODE_SETTINGS = 201
@@ -403,6 +417,7 @@ object HermesTaskerImportBridge {
     private const val MAX_WAIT_DURATION_MS = 60_000L
     private const val MAX_NOTIFICATION_FIELD_CHARS = 120
     private const val MAX_NOTIFICATION_TEXT_CHARS = 2_000
+    private const val MAX_CLIPBOARD_TEXT_CHARS = 8_000
     private val ANDROID_PACKAGE_REGEX = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z][A-Za-z0-9_]*)+")
     private val DOCTYPE_REGEX = Regex("<!\\s*DOCTYPE", RegexOption.IGNORE_CASE)
     private val ENTITY_REGEX = Regex("<!\\s*ENTITY", RegexOption.IGNORE_CASE)
@@ -427,6 +442,7 @@ object HermesTaskerImportBridge {
         TASKER_GO_HOME to "Go Home",
         TASKER_WAIT to "Wait",
         TASKER_BROWSE_URL to "Browse URL",
+        TASKER_SET_CLIPBOARD to "Set Clipboard",
         TASKER_RUN_SHELL to "Run Shell",
         TASKER_DEVELOPER_SETTINGS to "Developer Settings",
         TASKER_AIRPLANE_MODE_SETTINGS to "Airplane Mode Settings",

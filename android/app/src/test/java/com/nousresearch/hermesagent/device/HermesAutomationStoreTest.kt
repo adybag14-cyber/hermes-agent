@@ -1,5 +1,7 @@
 package com.nousresearch.hermesagent.device
 
+import android.content.ClipboardManager
+import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -62,6 +64,39 @@ class HermesAutomationStoreTest {
         assertTrue(store.removeVariable("message"))
         assertNull(store.getVariable("MESSAGE"))
         assertFalse(store.setVariable("bad name", "nope"))
+    }
+
+    @Test
+    fun bridgeCreatesAndRunsClipboardRecords() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = HermesAutomationStore(context)
+        store.clear()
+        store.setVariable("MESSAGE", "clipboard-ok")
+
+        val created = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_clipboard_task",
+                org.json.JSONObject()
+                    .put("id", "auto-clipboard")
+                    .put("clipboard_text", "Tasker %MESSAGE")
+                    .put("clipboard_label", "Hermes test"),
+            ),
+        )
+
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals(ACTION_TYPE_CLIPBOARD_ACTION, created.getJSONObject("automation").getString("action_type"))
+
+        val run = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "run",
+                org.json.JSONObject().put("id", "auto-clipboard"),
+            ),
+        )
+        assertTrue(run.toString(), run.getBoolean("success"))
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        assertEquals("Tasker clipboard-ok", clipboard.primaryClip?.getItemAt(0)?.coerceToText(context).toString())
     }
 
     @Test
@@ -1081,6 +1116,10 @@ class HermesAutomationStoreTest {
                   <Str sr="arg0" ve="3">https://nousresearch.com/</Str>
                 </Action>
                 <Action sr="act3" ve="7">
+                  <code>105</code>
+                  <Str sr="arg0" ve="3">Copy %MESSAGE</Str>
+                </Action>
+                <Action sr="act4" ve="7">
                   <code>9999</code>
                 </Action>
               </Task>
@@ -1103,14 +1142,15 @@ class HermesAutomationStoreTest {
         assertTrue(imported.toString(), imported.getBoolean("success"))
         assertEquals("tasker_xml", imported.getString("source"))
         assertEquals(1, imported.getInt("tasker_task_count"))
-        assertEquals(3, imported.getInt("tasker_imported_action_count"))
+        assertEquals(4, imported.getInt("tasker_imported_action_count"))
         assertEquals(1, imported.getJSONArray("tasker_skipped_actions").length())
-        assertEquals(3, imported.getInt("imported_automation_count"))
+        assertEquals(4, imported.getInt("imported_automation_count"))
         assertEquals("hello", store.getVariable("MESSAGE"))
 
         val records = store.list()
         assertTrue(records.any { it.actionType == ACTION_TYPE_SHELL && it.command == "printf tasker-shell-ok" })
         assertTrue(records.any { it.actionType == ACTION_TYPE_INTENT && it.command.contains("nousresearch.com") })
+        assertTrue(records.any { it.actionType == ACTION_TYPE_CLIPBOARD_ACTION && it.command.contains("Copy %MESSAGE") })
         assertTrue(records.none { it.enabled })
 
         val fileRecord = records.first { it.actionType == ACTION_TYPE_FILE_WRITE }
@@ -1209,8 +1249,12 @@ class HermesAutomationStoreTest {
                 <Action><code>247</code></Action>
                 <Action><code>219</code></Action>
                 <Action><code>197</code></Action>
+                <Action><code>201</code></Action>
                 <Action><code>206</code></Action>
+                <Action><code>218</code></Action>
+                <Action><code>220</code></Action>
                 <Action><code>236</code></Action>
+                <Action><code>237</code></Action>
                 <Action><code>956</code></Action>
               </Task>
             </TaskerData>
@@ -1226,9 +1270,9 @@ class HermesAutomationStoreTest {
             ),
         )
         assertTrue(imported.toString(), imported.getBoolean("success"))
-        assertEquals(8, imported.getInt("tasker_imported_action_count"))
+        assertEquals(12, imported.getInt("tasker_imported_action_count"))
         assertEquals(0, imported.getJSONArray("tasker_skipped_actions").length())
-        assertEquals(8, imported.getInt("imported_automation_count"))
+        assertEquals(12, imported.getInt("imported_automation_count"))
 
         val records = store.list()
         val uiActions = records
@@ -1244,8 +1288,12 @@ class HermesAutomationStoreTest {
         assertEquals(
             setOf(
                 "open_developer_options",
+                "open_airplane_mode_settings",
                 "open_wifi_panel",
+                "open_bluetooth_settings",
+                "open_mobile_network_settings",
                 "open_accessibility_settings",
+                "open_notification_listener_settings",
                 "open_nfc_settings",
             ),
             systemActions,
