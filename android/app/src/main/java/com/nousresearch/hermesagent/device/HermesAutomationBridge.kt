@@ -66,6 +66,7 @@ object HermesAutomationBridge {
             "logcat_watcher_status", "start_logcat_watcher", "stop_logcat_watcher", "scan_logcat_entries", "reset_logcat_watcher_cursor", "reset_logcat_cursor", "clear_logcat_watcher_cursor" -> HermesLogcatWatcherBridge.performActionJson(context, action, arguments)
             "sensor_watcher_status", "sensor_status", "watch_sensor_status", "watch_sensors_status", "start_sensor_watcher", "start_sensor_watch", "watch_sensors", "watch_sensor", "stop_sensor_watcher", "stop_sensor_watch" -> HermesSensorWatcherBridge.performActionJson(context, action, arguments)
             "calendar_watcher_status", "calendar_status", "watch_calendar_status", "start_calendar_watcher", "start_calendar_watch", "watch_calendar", "watch_calendar_events", "stop_calendar_watcher", "stop_calendar_watch", "scan_calendar_events", "scan_calendar", "run_calendar_watch_once", "reset_calendar_watcher_cursor", "reset_calendar_cursor", "clear_calendar_watcher_cursor" -> HermesCalendarWatcherBridge.performActionJson(context, action, arguments)
+            "location_watcher_status", "location_status", "watch_location_status", "watch_locations_status", "start_location_watcher", "start_location_watch", "watch_location", "watch_locations", "stop_location_watcher", "stop_location_watch", "scan_location", "scan_locations", "scan_location_once", "run_location_watch_once" -> HermesLocationWatcherBridge.performActionJson(context, action, arguments)
             "run", "run_now", "trigger" -> runAutomationJson(context, arguments.optString("id"), "manual")
             "run_trigger", "trigger_event", "run_event" -> runTriggerJson(
                 context,
@@ -4249,6 +4250,10 @@ object HermesAutomationBridge {
         "stop_calendar_watcher",
         "scan_calendar_events",
         "reset_calendar_watcher_cursor",
+        "location_watcher_status",
+        "start_location_watcher",
+        "stop_location_watcher",
+        "scan_location",
         "run",
         "run_trigger",
         "run_app_foreground_trigger",
