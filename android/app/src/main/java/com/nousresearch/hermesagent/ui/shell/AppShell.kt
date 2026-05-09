@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nousresearch.hermesagent.R
@@ -219,8 +220,18 @@ private fun HermesTopBar(
                     modifier = Modifier.size(34.dp),
                 )
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(section.title(strings), style = MaterialTheme.typography.titleLarge)
-                    Text(subtitle, style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        text = section.title(strings),
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 Surface(
                     color = MaterialTheme.colorScheme.secondary,
@@ -231,6 +242,8 @@ private fun HermesTopBar(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         color = MaterialTheme.colorScheme.onSecondary,
                         style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -261,7 +274,15 @@ private fun HermesBottomNavigation(
                         contentDescription = section.navigationLabel(strings),
                     )
                 },
-                label = { Text(section.navigationLabel(strings)) },
+                label = {
+                    Text(
+                        text = section.navigationLabel(strings),
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                },
             )
         }
     }
