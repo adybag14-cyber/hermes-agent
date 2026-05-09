@@ -11,4 +11,15 @@
     <string name="hermes_automation_widget_empty_status">No automation set</string>
     <string name="hermes_automation_widget_ready_status">Tap to run</string>
     <string name="hermes_automation_widget_run">Run</string>
+    <string name="hermes_tasker_plugin_label">Run Hermes automation</string>
+    <string name="hermes_tasker_plugin_title">Run Hermes automation</string>
+    <string name="hermes_tasker_plugin_summary">Choose a saved Hermes automation for Tasker to run through the Locale plugin action.</string>
+    <string name="hermes_tasker_plugin_existing_automation">Saved automation</string>
+    <string name="hermes_tasker_plugin_no_automations">No saved Hermes automations</string>
+    <string name="hermes_tasker_plugin_manual_id">Automation ID</string>
+    <string name="hermes_tasker_plugin_manual_id_hint">Existing Hermes automation id</string>
+    <string name="hermes_tasker_plugin_blurb_label">Tasker action label</string>
+    <string name="hermes_tasker_plugin_label_hint">Optional label shown in Tasker</string>
+    <string name="hermes_tasker_plugin_save">Save</string>
+    <string name="hermes_tasker_plugin_missing_id">Choose or enter a Hermes automation ID.</string>
 </resources>
