@@ -3349,6 +3349,13 @@ def main():
         except Exception:
             pass
 
+        try:
+            from hermes_cli.main_termux_snapshots import _prompt_termux_snapshot_cleanup_on_launch
+
+            _prompt_termux_snapshot_cleanup_on_launch()
+        except Exception:
+            logger.debug("Termux snapshot cleanup prompt unavailable", exc_info=True)
+
     if _try_termux_fast_tui_launch():
         return
     if _try_termux_fast_cli_launch():

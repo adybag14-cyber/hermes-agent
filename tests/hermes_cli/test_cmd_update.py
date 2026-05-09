@@ -1034,6 +1034,12 @@ def test_is_termux_env_true_for_termux_prefix():
     assert hm._is_termux_env({"PREFIX": "/data/data/com.termux/files/usr"}) is True
 
 
+def test_is_termux_env_false_for_non_termux_prefix():
+    from hermes_cli import main as hm
+
+    assert hm._is_termux_env({"PREFIX": "/usr/local"}) is False
+
+
 def test_load_installable_optional_extras_supports_termux_group(tmp_path, monkeypatch):
     from hermes_cli import main as hm
 
