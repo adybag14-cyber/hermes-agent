@@ -59,6 +59,17 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".device.HermesTaskerPluginEditActivity"
+            android:exported="true"
+            android:label="@string/hermes_tasker_plugin_label">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".backend.HermesRuntimeService"
             android:exported="false"
@@ -138,6 +149,15 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="com.nousresearch.hermesagent.EXTERNAL_TRIGGER" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".device.HermesTaskerPluginFireReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
             </intent-filter>
         </receiver>
 
