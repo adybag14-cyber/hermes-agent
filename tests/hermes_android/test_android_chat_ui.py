@@ -48,8 +48,9 @@ def test_chat_view_model_persists_history_and_supports_native_command_feedback()
 
 
 
-def test_empty_chat_layout_centers_welcome_state_instead_of_leaving_blank_gap():
+def test_empty_chat_layout_scrolls_welcome_state_on_small_or_large_font_screens():
     chat_screen = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/ChatScreen.kt").read_text(encoding="utf-8")
 
-    assert 'Box(' in chat_screen
-    assert 'contentAlignment = Alignment.Center' in chat_screen
+    assert 'LazyColumn(' in chat_screen
+    assert 'EmptyChatHint(' in chat_screen
+    assert 'contentPadding = PaddingValues(vertical = 8.dp)' in chat_screen
