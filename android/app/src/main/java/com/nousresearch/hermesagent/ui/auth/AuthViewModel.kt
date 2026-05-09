@@ -44,6 +44,8 @@ data class AuthUiState(
     val globalStatus: String = "Use Corr3xt to sign into the app or connect provider accounts.",
     val pendingMethodLabel: String = "",
     val hasPendingRequest: Boolean = false,
+    val apiKeyFallbackMethodId: String = "",
+    val apiKeyFallbackLabel: String = "",
     val options: List<AuthOptionUiState> = emptyList(),
 )
 
@@ -137,10 +139,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
             if (!probe.reachable) {
                 authSessionStore.clearPendingRequest()
+                val apiKeyFallbackAvailable = option.scope == AuthScope.RuntimeProvider &&
+                    option.runtimeProvider.isNotBlank()
                 val failureStatus = when (probe.status) {
                     "unknown_host" -> currentStrings().authHostCouldNotBeResolved(probe.host)
                     "network_error" -> currentStrings().authPageCouldNotBeReached(probe.errorName)
                     else -> probe.status.ifBlank { currentStrings().authTryAgain() }
+                }.let { status ->
+                    if (apiKeyFallbackAvailable) {
+                        "$status ${currentStrings().authApiKeyFallbackAvailable(option.label)}"
+                    } else {
+                        status
+                    }
                 }
                 _uiState.update {
                     it.copy(
@@ -148,6 +158,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         globalStatus = failureStatus,
                         pendingMethodLabel = "",
                         hasPendingRequest = false,
+                        apiKeyFallbackMethodId = if (apiKeyFallbackAvailable) option.id else "",
+                        apiKeyFallbackLabel = if (apiKeyFallbackAvailable) option.label else "",
                     )
                 }
                 return@launch
@@ -162,17 +174,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         globalStatus = currentStrings().authOpenedCorr3xt(option.label),
                         pendingMethodLabel = option.label,
                         hasPendingRequest = true,
+                        apiKeyFallbackMethodId = "",
+                        apiKeyFallbackLabel = "",
                     )
                 }
             } catch (_: ActivityNotFoundException) {
                 authSessionStore.clearPendingRequest()
                 _uiState.update {
-                    it.copy(globalStatus = currentStrings().authNoBrowser())
+                    it.copy(
+                        globalStatus = currentStrings().authNoBrowser(),
+                        apiKeyFallbackMethodId = if (option.scope == AuthScope.RuntimeProvider) option.id else "",
+                        apiKeyFallbackLabel = if (option.scope == AuthScope.RuntimeProvider) option.label else "",
+                    )
                 }
             } catch (_: RuntimeException) {
                 authSessionStore.clearPendingRequest()
                 _uiState.update {
-                    it.copy(globalStatus = currentStrings().authTryAgain())
+                    it.copy(
+                        globalStatus = currentStrings().authTryAgain(),
+                        apiKeyFallbackMethodId = if (option.scope == AuthScope.RuntimeProvider) option.id else "",
+                        apiKeyFallbackLabel = if (option.scope == AuthScope.RuntimeProvider) option.label else "",
+                    )
                 }
             }
         }
@@ -198,6 +220,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _uiState.update {
             it.copy(
                 globalStatus = currentStrings().authApiKeySetupReady(option.label),
+                apiKeyFallbackMethodId = "",
+                apiKeyFallbackLabel = "",
             )
         }
     }
@@ -208,6 +232,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(
                 pendingMethodLabel = "",
                 hasPendingRequest = false,
+                apiKeyFallbackMethodId = "",
+                apiKeyFallbackLabel = "",
                 globalStatus = currentStrings().authCanceled(),
             )
         }
@@ -283,6 +309,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             globalStatus = globalStatus,
             pendingMethodLabel = pendingMethodLabel,
             hasPendingRequest = pending != null,
+            apiKeyFallbackMethodId = "",
+            apiKeyFallbackLabel = "",
             options = options,
         )
     }
