@@ -1089,6 +1089,90 @@ class HermesAutomationStoreTest {
     }
 
     @Test
+    fun bridgeExposesProviderBackedLocationWatcherActions() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = HermesAutomationStore(context)
+        store.clear()
+
+        val status = org.json.JSONObject(HermesAutomationBridge.performActionJson(context, "location_watcher_status"))
+        assertTrue(status.toString(), status.getBoolean("success"))
+        assertTrue(status.getJSONArray("available_actions").toString().contains("start_location_watcher"))
+        assertEquals(0, status.getInt("enabled_location_record_count"))
+
+        val emptyStart = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "start_location_watcher",
+                org.json.JSONObject().put("min_interval_ms", 1),
+            ),
+        )
+        assertFalse(emptyStart.toString(), emptyStart.getBoolean("success"))
+        assertTrue(emptyStart.getString("error").contains("location automation"))
+
+        val created = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_file_write_task",
+                org.json.JSONObject()
+                    .put("id", "auto-location-watch")
+                    .put("path", "location-watch.txt")
+                    .put("content", "%LAT|%LON|%LOCACC|%LOCPROVIDER|%LOCNAME")
+                    .put("trigger", "location")
+                    .put("latitude", 37.7749)
+                    .put("longitude", -122.4194)
+                    .put("radius_meters", 150)
+                    .put("location_provider", "gps")
+                    .put("location_name", "office"),
+            ),
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals(1, HermesLocationWatcherBridge.enabledLocationRecordCount(context))
+
+        val scan = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "scan_location",
+                org.json.JSONObject()
+                    .put(
+                        "locations",
+                        org.json.JSONArray()
+                            .put(
+                                org.json.JSONObject()
+                                    .put("latitude", 37.7849)
+                                    .put("longitude", -122.4194)
+                                    .put("accuracy_meters", 10.0)
+                                    .put("location_provider", "gps")
+                                    .put("location_name", "Hermes Office"),
+                            )
+                            .put(
+                                org.json.JSONObject()
+                                    .put("latitude", 37.7750)
+                                    .put("longitude", -122.4195)
+                                    .put("accuracy_meters", 12.5)
+                                    .put("location_provider", "gps")
+                                    .put("location_name", "Hermes Office"),
+                            ),
+                    ),
+            ),
+        )
+        assertTrue(scan.toString(), scan.getBoolean("success"))
+        assertEquals(TRIGGER_LOCATION, scan.getString("trigger"))
+        assertEquals(2, scan.getInt("scanned_location_count"))
+        assertEquals(1, scan.getInt("matched_count"))
+        assertEquals("37.775", store.getVariable("LAT"))
+        assertEquals("-122.4195", store.getVariable("LON"))
+        assertEquals("12.5", store.getVariable("LOCACC"))
+        assertEquals("gps", store.getVariable("LOCPROVIDER"))
+        assertEquals("Hermes Office", store.getVariable("LOCNAME"))
+
+        val triggerResult = scan.getJSONArray("results").getJSONObject(0)
+        val recordResult = triggerResult.getJSONArray("results").getJSONObject(0)
+        assertTrue(recordResult.toString(), recordResult.getBoolean("success"))
+        val filePath = recordResult.getJSONObject("result").getString("path")
+        assertEquals("37.775|-122.4195|12.5|gps|Hermes Office", java.io.File(filePath).readText())
+    }
+
+    @Test
     fun bridgeCreatesAndRunsSensorTriggerRecords() {
         val context = RuntimeEnvironment.getApplication()
         val store = HermesAutomationStore(context)
