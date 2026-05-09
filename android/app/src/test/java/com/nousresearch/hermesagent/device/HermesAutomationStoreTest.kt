@@ -1091,6 +1091,89 @@ class HermesAutomationStoreTest {
     }
 
     @Test
+    fun bridgeExposesProviderBackedSensorWatcherActions() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = HermesAutomationStore(context)
+        store.clear()
+        HermesSensorWatcherBridge.stopJson(context)
+
+        val list = org.json.JSONObject(HermesAutomationBridge.performActionJson(context, "list"))
+        assertTrue(list.getJSONArray("available_actions").toString().contains("start_sensor_watcher"))
+        assertTrue(list.getJSONArray("available_actions").toString().contains("sensor_watcher_status"))
+
+        val status = org.json.JSONObject(HermesAutomationBridge.performActionJson(context, "sensor_watcher_status"))
+        assertTrue(status.toString(), status.getBoolean("success"))
+        assertFalse(status.getBoolean("running"))
+        assertFalse(status.getBoolean("requires_shizuku"))
+        assertTrue(status.getBoolean("durable_foreground_service"))
+        assertFalse(status.getBoolean("foreground_service_running"))
+        assertFalse(status.getBoolean("watcher_desired"))
+        assertEquals(0, status.getInt("enabled_sensor_record_count"))
+        assertEquals(0, status.getJSONArray("enabled_watched_sensor_types").length())
+
+        val emptyStart = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "start_sensor_watcher",
+                org.json.JSONObject().put("min_interval_ms", 1),
+            ),
+        )
+        assertFalse(emptyStart.toString(), emptyStart.getBoolean("success"))
+        assertTrue(emptyStart.getString("error").contains("sensor_type"))
+        assertFalse(
+            org.json.JSONObject(HermesAutomationBridge.performActionJson(context, "sensor_watcher_status"))
+                .getBoolean("watcher_desired"),
+        )
+
+        val created = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "create_file_write_task",
+                org.json.JSONObject()
+                    .put("id", "auto-sensor-watch")
+                    .put("path", "sensor-watch.txt")
+                    .put("content", "%SENSOR_TYPE|%SENSOR_EVENT|%SENSOR_VALUE_NAME|%SENSOR_VALUE")
+                    .put("trigger", "sensor")
+                    .put("sensor_type", "accelerometer")
+                    .put("sensor_event", "shake")
+                    .put("value_name", "x")
+                    .put("min_value", 12.0),
+            ),
+        )
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals(listOf("accelerometer"), HermesSensorWatcherBridge.enabledSensorTypes(context))
+
+        val dispatched = org.json.JSONObject(
+            HermesSensorWatcherBridge.dispatchSensorReadingJson(
+                context,
+                HermesSensorReading(
+                    sensorType = "accelerometer",
+                    sensorName = "test accelerometer",
+                    values = listOf(13.0, 0.0, 0.0),
+                    accuracy = "high",
+                    timestampNanos = 42L,
+                ),
+            ),
+        )
+        assertTrue(dispatched.toString(), dispatched.getBoolean("success"))
+        assertEquals(TRIGGER_SENSOR, dispatched.getString("trigger"))
+        assertTrue(dispatched.getJSONArray("sensor_event_names").toString().contains("shake"))
+        assertEquals(1, dispatched.getInt("matched_count"))
+        assertEquals("accelerometer", store.getVariable("SENSOR_TYPE"))
+        assertEquals("shake", store.getVariable("SENSOR_EVENT"))
+        assertEquals("x", store.getVariable("SENSOR_VALUE_NAME"))
+        assertEquals("13", store.getVariable("SENSOR_VALUE"))
+        assertEquals("m/s^2", store.getVariable("SENSOR_UNIT"))
+        assertEquals("high", store.getVariable("SENSOR_ACCURACY"))
+
+        val triggerResult = dispatched.getJSONArray("results").getJSONObject(0)
+        val recordResult = triggerResult.getJSONArray("results").getJSONObject(0)
+        assertTrue(recordResult.toString(), recordResult.getBoolean("success"))
+        val filePath = recordResult.getJSONObject("result").getString("path")
+        assertEquals("accelerometer|shake|x|13", java.io.File(filePath).readText())
+    }
+
+    @Test
     fun bridgeCreatesAndRunsLogcatEntryTriggerRecords() {
         val context = RuntimeEnvironment.getApplication()
         val store = HermesAutomationStore(context)
