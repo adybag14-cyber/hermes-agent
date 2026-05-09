@@ -62,6 +62,15 @@ object AuthCatalog {
             scope = AuthScope.AppAccount,
         ),
         AuthOption(
+            id = "openrouter",
+            label = "OpenRouter",
+            description = "Use an OpenRouter API key for Hermes Android remote model calls.",
+            scope = AuthScope.RuntimeProvider,
+            runtimeProvider = "openrouter",
+            defaultBaseUrl = "https://openrouter.ai/api/v1",
+            defaultModel = "anthropic/claude-sonnet-4",
+        ),
+        AuthOption(
             id = "chatgpt",
             label = "ChatGPT",
             description = "Authenticate ChatGPT Web access and sync it into Hermes Android automatically.",

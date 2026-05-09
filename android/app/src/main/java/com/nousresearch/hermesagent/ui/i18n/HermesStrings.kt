@@ -504,6 +504,33 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "Corr3xt auth page could not be reached: $errorName. Use a reachable auth URL or configure this provider with an API key in Settings."
     }
 
+    fun authApiKeyFallbackAvailable(label: String): String = when (language) {
+        AppLanguage.CHINESE -> "可改用 $label 的安全 API 密钥设置继续。"
+        AppLanguage.SPANISH -> "Puedes continuar con la configuración segura de clave API para $label."
+        AppLanguage.GERMAN -> "Du kannst stattdessen mit der sicheren API-Schlüssel-Einrichtung für $label fortfahren."
+        AppLanguage.PORTUGUESE -> "Você pode continuar com a configuração segura por chave API para $label."
+        AppLanguage.FRENCH -> "Vous pouvez continuer avec la configuration sécurisée par clé API pour $label."
+        AppLanguage.ENGLISH -> "You can continue with secure API-key setup for $label."
+    }
+
+    fun authApiKeyFallbackTitle(): String = when (language) {
+        AppLanguage.CHINESE -> "改用 API 密钥"
+        AppLanguage.SPANISH -> "Usar clave API"
+        AppLanguage.GERMAN -> "API-Schlüssel verwenden"
+        AppLanguage.PORTUGUESE -> "Usar chave API"
+        AppLanguage.FRENCH -> "Utiliser une clé API"
+        AppLanguage.ENGLISH -> "Use API key instead"
+    }
+
+    fun authApiKeyFallbackDescription(label: String): String = when (language) {
+        AppLanguage.CHINESE -> "Hermes 会预选 $label，密钥会保存在 Android 加密存储中，并同步到本地 Python 运行时环境。"
+        AppLanguage.SPANISH -> "Hermes preseleccionará $label, guardará la clave en el almacenamiento cifrado de Android y la sincronizará con el runtime local de Python."
+        AppLanguage.GERMAN -> "Hermes wählt $label vor, speichert den Schlüssel verschlüsselt unter Android und synchronisiert ihn mit der lokalen Python-Runtime."
+        AppLanguage.PORTUGUESE -> "O Hermes vai pré-selecionar $label, salvar a chave no armazenamento criptografado do Android e sincronizá-la com o runtime Python local."
+        AppLanguage.FRENCH -> "Hermes présélectionnera $label, enregistrera la clé dans le stockage chiffré Android et la synchronisera avec le runtime Python local."
+        AppLanguage.ENGLISH -> "Hermes will preselect $label, save the key in Android encrypted storage, and sync it into the local Python runtime."
+    }
+
     fun useApiKeyInSettings(): String = when (language) {
         AppLanguage.CHINESE -> "在设置中使用 API 密钥"
         AppLanguage.SPANISH -> "Usar clave API en Ajustes"
@@ -511,6 +538,15 @@ data class HermesStrings(
         AppLanguage.PORTUGUESE -> "Usar chave API nas Configurações"
         AppLanguage.FRENCH -> "Utiliser une clé API dans Paramètres"
         AppLanguage.ENGLISH -> "Use API key in Settings"
+    }
+
+    fun setUpApiKeyFor(label: String): String = when (language) {
+        AppLanguage.CHINESE -> "设置 $label API 密钥"
+        AppLanguage.SPANISH -> "Configurar clave API de $label"
+        AppLanguage.GERMAN -> "$label-API-Schlüssel einrichten"
+        AppLanguage.PORTUGUESE -> "Configurar chave API do $label"
+        AppLanguage.FRENCH -> "Configurer la clé API $label"
+        AppLanguage.ENGLISH -> "Set up $label API key"
     }
 
     fun authApiKeySetupReady(label: String): String = when (language) {
