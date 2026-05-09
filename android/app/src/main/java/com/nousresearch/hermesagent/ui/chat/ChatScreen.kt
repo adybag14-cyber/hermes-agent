@@ -43,6 +43,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -280,17 +281,20 @@ fun ChatScreen(
                         modifier = Modifier.weight(1f),
                     )
                 } else if (uiState.messages.isEmpty()) {
-                    Box(
+                    LazyColumn(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp),
                     ) {
-                        EmptyChatHint(
-                            onNewChat = viewModel::startNewConversation,
-                            onOpenAccounts = { onNavigateToSection(AppSection.Accounts) },
-                            onOpenSettings = { onNavigateToSection(AppSection.Settings) },
-                        )
+                        item {
+                            EmptyChatHint(
+                                onNewChat = viewModel::startNewConversation,
+                                onOpenAccounts = { onNavigateToSection(AppSection.Accounts) },
+                                onOpenSettings = { onNavigateToSection(AppSection.Settings) },
+                            )
+                        }
                     }
                 } else {
                     LazyColumn(
@@ -353,8 +357,19 @@ private fun ChatHeaderCard(
                 tint = MaterialTheme.colorScheme.primary,
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(strings.chatTitle.ifBlank { "Hermes Chat" }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Text(displayTitle, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = strings.chatTitle.ifBlank { "Hermes Chat" },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = displayTitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -416,20 +431,37 @@ private fun EmptyChatHint(
                 .padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(strings.welcomeToHermes.ifBlank { "Welcome to Hermes" }, style = MaterialTheme.typography.titleMedium)
-            Text(strings.welcomeDescription)
+            Text(
+                text = strings.welcomeToHermes.ifBlank { "Welcome to Hermes" },
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(strings.welcomeDescription, style = MaterialTheme.typography.bodyMedium)
             Button(onClick = onNewChat, modifier = Modifier.fillMaxWidth()) {
-                Text(strings.newChat.ifBlank { "New chat" })
+                Text(
+                    text = strings.newChat.ifBlank { "New chat" },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Button(onClick = onOpenAccounts, modifier = Modifier.weight(1f)) {
-                    Text(strings.accounts.ifBlank { "Accounts" })
+                Button(onClick = onOpenAccounts, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = strings.accounts.ifBlank { "Accounts" },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                Button(onClick = onOpenSettings, modifier = Modifier.weight(1f)) {
-                    Text(strings.settings.ifBlank { "Settings" })
+                Button(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = strings.settings.ifBlank { "Settings" },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
@@ -621,51 +653,62 @@ private fun ChatComposer(
                     }
                 }
             }
-            Row(
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInputChange,
                 modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onAttachImage, modifier = Modifier.testTag("HermesChatAttachImageButton")) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_action_image),
-                        contentDescription = strings.addImage(),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-                IconButton(onClick = onMic) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_action_mic),
-                        contentDescription = "Voice input",
-                        tint = if (isListening) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = onInputChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("HermesChatInput"),
-                    shape = RoundedCornerShape(28.dp),
-                    label = { Text(strings.messageHermes.ifBlank { "Message Hermes" }) },
-                    maxLines = 5,
-                    supportingText = {
-                        Text(
-                            strings.chatCommandsTip(isListening),
-                            textAlign = TextAlign.Start,
+                    .fillMaxWidth()
+                    .testTag("HermesChatInput"),
+                shape = RoundedCornerShape(28.dp),
+                leadingIcon = {
+                    IconButton(onClick = onAttachImage, modifier = Modifier.testTag("HermesChatAttachImageButton")) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_action_image),
+                            contentDescription = strings.addImage(),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
                         )
-                    },
+                    }
+                },
+                trailingIcon = {
+                    IconButton(onClick = onMic) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_action_mic),
+                            contentDescription = "Voice input",
+                            tint = if (isListening) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                },
+                placeholder = {
+                    Text(
+                        text = strings.messageHermes.ifBlank { "Message Hermes" },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                maxLines = 4,
+                supportingText = {
+                    Text(
+                        text = strings.chatCommandsTip(isListening),
+                        textAlign = TextAlign.Start,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+            )
+            Button(
+                onClick = onSend,
+                enabled = !isSending && (input.isNotBlank() || attachments.isNotEmpty()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("HermesChatSendButton"),
+            ) {
+                Text(
+                    text = if (isSending) "…" else strings.send.ifBlank { "Send" },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Button(
-                    onClick = onSend,
-                    enabled = !isSending && (input.isNotBlank() || attachments.isNotEmpty()),
-                    modifier = Modifier.testTag("HermesChatSendButton"),
-                ) {
-                    Text(if (isSending) "…" else strings.send.ifBlank { "Send" })
-                }
             }
         }
     }
