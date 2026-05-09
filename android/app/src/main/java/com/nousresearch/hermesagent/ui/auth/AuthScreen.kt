@@ -134,6 +134,36 @@ fun AuthScreen(
                     }
                 }
 
+                if (uiState.apiKeyFallbackMethodId.isNotBlank()) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        tonalElevation = 1.dp,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(strings.authApiKeyFallbackTitle(), style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                strings.authApiKeyFallbackDescription(uiState.apiKeyFallbackLabel),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            Button(
+                                onClick = {
+                                    viewModel.prepareApiKeySetup(uiState.apiKeyFallbackMethodId)
+                                    onOpenSettings()
+                                },
+                            ) {
+                                Text(strings.setUpApiKeyFor(uiState.apiKeyFallbackLabel))
+                            }
+                        }
+                    }
+                }
+
                 uiState.options.forEach { option ->
                     Surface(
                         modifier = Modifier.fillMaxWidth(),

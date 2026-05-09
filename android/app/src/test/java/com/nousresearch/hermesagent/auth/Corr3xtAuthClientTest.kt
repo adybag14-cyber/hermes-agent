@@ -1,7 +1,9 @@
 package com.nousresearch.hermesagent.auth
 
 import com.nousresearch.hermesagent.data.AuthCatalog
+import com.nousresearch.hermesagent.data.AuthScope
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -34,5 +36,27 @@ class Corr3xtAuthClientTest {
         assertEquals("hermes-android", uri.getQueryParameter("client"))
         assertEquals("hermesagent://auth/callback", uri.getQueryParameter("redirect_uri"))
         assertEquals("state-123", uri.getQueryParameter("state"))
+    }
+
+    @Test
+    fun authCatalog_includesOpenRouterForApiKeySetup() {
+        val option = requireNotNull(AuthCatalog.find("openrouter"))
+
+        assertEquals(AuthScope.RuntimeProvider, option.scope)
+        assertEquals("openrouter", option.runtimeProvider)
+        assertEquals("https://openrouter.ai/api/v1", option.defaultBaseUrl)
+        assertTrue(option.defaultModel.isNotBlank())
+    }
+
+    @Test
+    fun runtimeProviderAuthOptionsDeclareApiKeyFallbackTargets() {
+        val runtimeOptions = AuthCatalog.options.filter { it.scope == AuthScope.RuntimeProvider }
+
+        assertTrue(runtimeOptions.isNotEmpty())
+        runtimeOptions.forEach { option ->
+            assertTrue("${option.id} should declare runtimeProvider", option.runtimeProvider.isNotBlank())
+            assertTrue("${option.id} should declare defaultBaseUrl", option.defaultBaseUrl.isNotBlank())
+            assertTrue("${option.id} should declare defaultModel", option.defaultModel.isNotBlank())
+        }
     }
 }
