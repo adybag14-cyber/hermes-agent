@@ -145,13 +145,34 @@ class NativeToolCallingChatClient(
 
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
-            require(response.isSuccessful) { "Native chat request failed: ${response.code} $body" }
+            if (!response.isSuccessful) {
+                throw IllegalStateException(formatNativeChatError(response.code, body))
+            }
             val root = JSONObject(body)
             val message = root
                 .getJSONArray("choices")
                 .getJSONObject(0)
                 .getJSONObject("message")
             return AssistantMessage.fromJson(message)
+        }
+    }
+
+    private fun formatNativeChatError(statusCode: Int, body: String): String {
+        val parsedMessage = runCatching {
+            val root = JSONObject(body)
+            val error = root.optJSONObject("error")
+            error?.optString("message")?.takeIf { it.isNotBlank() }
+                ?: root.optString("message").takeIf { it.isNotBlank() }
+        }.getOrNull().orEmpty()
+        val diagnostic = parsedMessage.ifBlank { body }.trim()
+        val lower = diagnostic.lowercase()
+        if ("exceed_context_size" in lower || "exceeds the available context size" in lower) {
+            return "The local model ran out of context. Hermes now uses a compact Android tool prompt, but this model still could not fit the request. Start a new chat, clear history, or choose a model with a larger context window."
+        }
+        return if (diagnostic.isNotBlank()) {
+            "Native chat request failed ($statusCode): ${diagnostic.take(MAX_NATIVE_ERROR_CHARS)}"
+        } else {
+            "Native chat request failed ($statusCode)."
         }
     }
 
@@ -308,23 +329,162 @@ class NativeToolCallingChatClient(
             .put(
                 "content",
                 "You are Hermes running inside the native Android app. " +
-                    "You have functions named terminal_tool, file_write_tool, android_system_tool, android_automation_tool, and android_ui_tool. " +
-                    "When the user asks to write or replace a text file, prefer file_write_tool so multiline content is written exactly. " +
-                    "When the user asks to run a command, inspect the filesystem, read a file, or use a device command, call terminal_tool instead of simulating the result. " +
-                    "terminal_tool runs through /system/bin/sh in the Hermes app workspace. " +
-                    "file_write_tool writes UTF-8 text files in the Hermes app workspace; file_write_tool can only write inside the Hermes app workspace. " +
-                    "When the user asks about Android settings, phone connectivity, Wi-Fi hotspot/tethering, permissions, background runtime, app enable/disable, app data clearing, app force-stop, or safe system panels, call android_system_tool. " +
-                    "android_system_tool status includes Shizuku/Sui privileged-access state, and it can open Shizuku, wireless debugging, and developer settings setup flows. " +
-                    "If Shizuku/Sui is running and the user granted Hermes permission, android_system_tool can run explicit ADB/root-identity shell commands with action run_privileged_shell and a command argument. " +
-                    "For Tasker-style Shizuku actions, android_system_tool can run grant_runtime_permission, revoke_runtime_permission, force_stop_app, clear_app_data, enable_app, disable_app, set_app_enabled, Wi-Fi/Bluetooth/mobile-data toggles, airplane-mode toggles, Wi-Fi tethering toggles, DND mode, power saver, end call, screen off, global navigation/statusbar actions, mobile network type bitmask changes, work-profile/user actions, and custom Android settings get/set/delete with explicit package_name, permission, enabled, dnd_mode, user_id, network_types_bitmask, or setting arguments where needed. " +
-                    "When the user asks to create a recurring phone automation, reusable Android task, Tasker-like variable, time/day trigger, phone-state trigger, app-foreground trigger, notification trigger, calendar event trigger, location trigger, sensor trigger, logcat entry trigger, Shizuku availability trigger, sunrise/sunset calculation, saved notification action, saved variable set/clear/transform action, saved clipboard action, saved Tasker Flash/toast action, saved vibration action, saved file action, safe saved Android settings action, saved visible-UI action, saved Android intent, broadcast, URI, activity launch, saved app-launch action, Quick Settings tile automation, home-screen widget automation, or backup/restore Hermes automations, call android_automation_tool. It can save shell, file-write, file-delete, variable set/clear/append/add/subtract/literal-replace, clipboard set, Tasker Flash/toast messages, vibration, safe Android system-action, accessibility UI-action, app-launch, Android intent, Shizuku package-permission/data-clear/connectivity/custom-setting/tethering/DND/power/global-navigation/mobile-network/user-profile, offline sunrise/sunset, and notification post/update/cancel tasks with optional bounded progress and status text, configure a user-added Hermes Quick Settings tile or home-screen widget to run a saved automation, expose Tasker/Locale action, condition, and event plugins so Tasker can bind to saved automations, query Hermes/Shizuku state, and react to verified Hermes automation/Shizuku events, calculate sun times directly, export/import Hermes automation bundles, run tasks manually, enable/disable/delete them, schedule interval and time-of-day tasks with Android alarms, run boot/power/battery/time/app-foreground/notification-posted/calendar-event/location/sensor/logcat-entry/Shizuku-state triggers, watch enabled calendar-event records with start_calendar_watcher after the user grants calendar access, watch enabled location records with start_location_watcher after the user grants Android location access, and expand saved variables in commands, file content, clipboard text, toast messages, UI selectors, intent fields, package names, trigger packages, Shizuku state fields, sunrise/sunset location/date/timezone fields, notification action fields, variable action fields, and notification, calendar, location, sensor, logcat, or time event fields. " +
-                    "When the user asks to inspect the visible phone screen, click, type, scroll, or use Back/Home/Recents/Quick Settings, call android_ui_tool. " +
-                    "android_ui_tool requires the user-enabled Hermes accessibility service for screen snapshots and UI actions. " +
-                    "Protected Android settings require user-granted permissions, Shizuku/Sui, accessibility service, or an opened settings panel.",
+                    "Use tools when work requires real files, shell commands, Android UI, Android settings, Shizuku/Sui, or saved Tasker-style automation. " +
+                    "Use terminal_tool for shell commands and inspection, file_write_tool for exact text file creation, android_ui_tool for visible-screen actions, android_system_tool for device/settings/Shizuku operations, and android_automation_tool for saved tasks, triggers, notifications, variables, widgets, and Tasker/Locale plugin actions. " +
+                    "When the user asks to write or replace multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
+                    "Ask for or report missing Android permissions instead of pretending protected settings changed. Keep replies brief and report real tool results.",
             )
     }
 
+    private fun compactToolSpecs(): JSONArray {
+        return JSONArray()
+            .put(
+                functionSpec(
+                    name = "terminal_tool",
+                    description = "Run /system/bin/sh in the Hermes workspace.",
+                    properties = JSONObject()
+                        .put("command", stringProp("Shell command."))
+                        .put("timeout_seconds", intProp("Optional timeout.")),
+                    required = JSONArray().put("command"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "file_write_tool",
+                    description = "Write UTF-8 text inside the Hermes workspace.",
+                    properties = JSONObject()
+                        .put("path", stringProp("Workspace path."))
+                        .put("content", stringProp("Exact text content."))
+                        .put("append", boolProp("Append instead of replace.")),
+                    required = JSONArray().put("path").put("content"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_system_tool",
+                    description = "Read phone state, open safe settings panels, or run explicit Shizuku/Sui actions.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, run_privileged_shell, open_*_settings, grant/revoke permission, force_stop_app, clear_app_data, enable/disable app, connectivity/DND/power/profile/custom-setting actions."))
+                        .put("command", stringProp("Command for run_privileged_shell."))
+                        .put("package_name", stringProp("Android package name."))
+                        .put("permission", stringProp("Android permission."))
+                        .put("enabled", boolProp("Desired enabled state."))
+                        .put("setting_namespace", stringProp("system, secure, or global."))
+                        .put("setting_name", stringProp("Android settings key."))
+                        .put("setting_value", stringProp("Android settings value."))
+                        .put("dnd_mode", stringProp("DND mode."))
+                        .put("user_id", stringProp("Android user/profile id."))
+                        .put("network_types_bitmask", stringProp("Mobile network bitmask."))
+                        .put("slot_id", stringProp("SIM slot id."))
+                        .put("timeout_seconds", intProp("Optional timeout.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_ui_tool",
+                    description = "Inspect or control the visible Android UI through Hermes accessibility.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, snapshot, click, long_click, focus, set_text, scroll_forward, scroll_backward, back, home, recents, notifications, quick_settings, open_accessibility_settings."))
+                        .put("text_contains", stringProp("Visible text selector."))
+                        .put("content_description_contains", stringProp("Accessibility description selector."))
+                        .put("view_id", stringProp("Android view id selector."))
+                        .put("package_name", stringProp("Package filter."))
+                        .put("value", stringProp("Text for set_text."))
+                        .put("index", intProp("Zero-based match index."))
+                        .put("limit", intProp("Snapshot node limit.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_automation_tool",
+                    description = "Create, run, manage, import, or trigger saved Hermes/Tasker-style Android automations.",
+                    properties = JSONObject()
+                        .put("action", stringProp("list, run, delete, enable, disable, export/import, import_tasker_xml, create_*_task, set/get/delete_variable, watcher status/start/stop/scan, run_*_trigger, widget/tile actions."))
+                        .put("id", stringProp("Automation id."))
+                        .put("label", stringProp("Automation label."))
+                        .put("command", stringProp("Shell/system/intent command."))
+                        .put("path", stringProp("Workspace path."))
+                        .put("content", stringProp("File content."))
+                        .put("append", boolProp("Append file content."))
+                        .put("system_action", stringProp("Safe Android system action."))
+                        .put("ui_action", stringProp("Saved UI action."))
+                        .put("shizuku_action", stringProp("Saved Shizuku/Sui action."))
+                        .put("notification_action", stringProp("post, update, cancel, or clear."))
+                        .put("notification_id", scalarProp("Notification id."))
+                        .put("notification_title", stringProp("Notification title."))
+                        .put("notification_text", stringProp("Notification text."))
+                        .put("status_text", stringProp("Short notification status text."))
+                        .put("progress_value", scalarProp("Notification progress value."))
+                        .put("progress_max", scalarProp("Notification progress max."))
+                        .put("progress_indeterminate", boolProp("Indeterminate progress."))
+                        .put("package_name", stringProp("Android package name."))
+                        .put("permission", stringProp("Android permission."))
+                        .put("enabled", boolProp("Automation enabled state."))
+                        .put("target_enabled", boolProp("Target enabled state."))
+                        .put("trigger", stringProp("manual, time, boot, power, app, notification, calendar, location, sensor, logcat, external, or Shizuku trigger."))
+                        .put("time", stringProp("Time trigger such as 08:30."))
+                        .put("days_of_week", stringProp("Day filter."))
+                        .put("name", stringProp("Variable name."))
+                        .put("value", stringProp("Variable or UI value."))
+                        .put("clipboard_text", stringProp("Clipboard text."))
+                        .put("toast_text", stringProp("Toast or Tasker Flash text."))
+                        .put("latitude", scalarProp("Latitude."))
+                        .put("longitude", scalarProp("Longitude."))
+                        .put("radius_meters", scalarProp("Location radius."))
+                        .put("tasker_xml", stringProp("Tasker XML to import."))
+                        .put("tasker_data_uri", stringProp("Tasker data URI to import."))
+                        .put("bundle_json", stringProp("Hermes automation bundle JSON.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+    }
+
+    private fun functionSpec(
+        name: String,
+        description: String,
+        properties: JSONObject,
+        required: JSONArray = JSONArray(),
+    ): JSONObject {
+        val parameters = JSONObject()
+            .put("type", "object")
+            .put("properties", properties)
+        if (required.length() > 0) {
+            parameters.put("required", required)
+        }
+        return JSONObject()
+            .put("type", "function")
+            .put(
+                "function",
+                JSONObject()
+                    .put("name", name)
+                    .put("description", description)
+                    .put("parameters", parameters),
+            )
+    }
+
+    private fun stringProp(description: String): JSONObject {
+        return JSONObject().put("type", "string").put("description", description)
+    }
+
+    private fun intProp(description: String): JSONObject {
+        return JSONObject().put("type", "integer").put("description", description)
+    }
+
+    private fun boolProp(description: String): JSONObject {
+        return JSONObject().put("type", "boolean").put("description", description)
+    }
+
+    private fun scalarProp(description: String): JSONObject {
+        return JSONObject()
+            .put("type", JSONArray().put("string").put("integer").put("number"))
+            .put("description", description)
+    }
+
+    @Suppress("UNREACHABLE_CODE")
     private fun toolSpecs(): JSONArray {
+        return compactToolSpecs()
         return JSONArray()
             .put(
                 JSONObject()
@@ -1419,6 +1579,7 @@ class NativeToolCallingChatClient(
         private const val NATIVE_TOOL_MAX_TOKENS = 512
         private const val PRIVILEGED_TOOL_TIMEOUT_SECONDS = 30
         private const val MAX_TOOL_RESULT_CHARS = 12_000
+        private const val MAX_NATIVE_ERROR_CHARS = 360
         private const val DEFAULT_UI_SNAPSHOT_LIMIT = 80
         private val ANDROID_UI_ACTIONS = listOf(
             "status",

@@ -40,3 +40,20 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     assert 'parseStream(source, onDelta, onComplete, onError)' in sse_client
     assert 'runCatching { extractDelta(payload) }' in sse_client
     assert 'catch (error: Exception)' in sse_client
+
+
+def test_android_chat_ui_and_native_tool_prompt_stay_compact_on_large_font_phone_screens():
+    chat_screen = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/ChatScreen.kt").read_text(encoding="utf-8")
+    app_shell = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/shell/AppShell.kt").read_text(encoding="utf-8")
+    native_tool_client = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
+
+    assert 'placeholder = {' in chat_screen
+    assert 'label = { Text(strings.messageHermes' not in chat_screen
+    assert '.fillMaxWidth()\n                    .testTag("HermesChatSendButton")' in chat_screen
+    assert 'TextOverflow.Ellipsis' in chat_screen
+    assert 'softWrap = false' in app_shell
+    assert 'style = MaterialTheme.typography.labelSmall' in app_shell
+    assert 'return compactToolSpecs()' in native_tool_client
+    assert 'formatNativeChatError' in native_tool_client
+    assert 'The local model ran out of context' in native_tool_client
+    assert 'Native chat request failed: ${response.code} $body' not in native_tool_client
