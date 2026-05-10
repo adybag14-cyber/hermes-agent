@@ -6,12 +6,14 @@ are made.
 """
 
 import ast
+import copy
 import inspect
 import io
 import json
 import logging
 import math
 import re
+import sys
 import threading
 import time
 import uuid
@@ -5682,10 +5684,11 @@ class TestSystemPromptStability:
 
 
 class TestBudgetPressure:
-    """Budget exhaustion grace call system."""
+    """Iteration-pressure hints preserve tool results and grace-call state."""
 
     def test_grace_call_flags_initialized(self, agent):
         """Agent should have budget grace call flags."""
+        assert agent._budget_pressure_enabled is True
         assert agent._budget_exhausted_injected is False
         assert agent._budget_grace_call is False
 
@@ -5720,45 +5723,126 @@ class TestBudgetPressure:
         agent.max_iterations = 0
         assert agent._get_budget_warning(0) is None
 
-    def test_unlimited_max_iterations_disable_budget_warnings(self, agent):
-        agent.max_iterations = math.inf
-        assert agent._get_budget_warning(500) is None
+    @pytest.mark.parametrize("limit", [sys.maxsize, math.inf])
+    def test_unlimited_max_iterations_disable_budget_warnings(self, agent, limit):
+        agent.max_iterations = limit
+        assert agent._get_budget_warning(sys.maxsize - 1) is None
 
     def test_injects_into_json_tool_result(self, agent):
         """Warning should be injected as _budget_warning field in JSON tool results."""
-        import json
         agent.max_iterations = 10
         messages = [
             {"role": "tool", "content": json.dumps({"output": "done", "exit_code": 0}), "tool_call_id": "tc1"}
         ]
-        warning = agent._get_budget_warning(9)
-        assert warning is not None
-        # Simulate the injection logic
-        last_content = messages[-1]["content"]
-        parsed = json.loads(last_content)
-        parsed["_budget_warning"] = warning
-        messages[-1]["content"] = json.dumps(parsed, ensure_ascii=False)
+        agent._inject_budget_warning_into_last_tool_result(messages, 9)
+
         result = json.loads(messages[-1]["content"])
         assert "_budget_warning" in result
         assert "BUDGET WARNING" in result["_budget_warning"]
         assert result["output"] == "done"  # original content preserved
+        assert result["exit_code"] == 0
+        assert messages[-1]["tool_call_id"] == "tc1"
 
-    def test_appends_to_non_json_tool_result(self, agent):
-        """Warning should be appended as text for non-JSON tool results."""
+    @pytest.mark.parametrize("content", ["plain text result", "[1, 2]", "null", "17"])
+    def test_appends_to_non_object_tool_result(self, agent, content):
+        """Plain text and JSON scalar/list results retain their original text."""
         agent.max_iterations = 10
         messages = [
-            {"role": "tool", "content": "plain text result", "tool_call_id": "tc1"}
+            {"role": "tool", "content": content, "tool_call_id": "tc1"}
         ]
-        warning = agent._get_budget_warning(9)
-        # Simulate injection logic for non-JSON
-        last_content = messages[-1]["content"]
-        try:
-            import json
-            json.loads(last_content)
-        except (json.JSONDecodeError, TypeError):
-            messages[-1]["content"] = last_content + f"\n\n{warning}"
-        assert "plain text result" in messages[-1]["content"]
+
+        agent._inject_budget_warning_into_last_tool_result(messages, 9)
+
+        assert messages[-1]["content"].startswith(content + "\n\n")
         assert "BUDGET WARNING" in messages[-1]["content"]
+
+    def test_structured_media_result_keeps_content_blocks(self, agent):
+        agent.max_iterations = 10
+        content = [
+            {"type": "text", "text": "image and audio evidence"},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,AAAA"}},
+            {"type": "input_audio", "input_audio": {"data": "AAAA", "format": "wav"}},
+        ]
+        original = copy.deepcopy(content)
+        messages = [{"role": "tool", "content": content, "tool_call_id": "media"}]
+
+        agent._inject_budget_warning_into_last_tool_result(messages, 9)
+
+        result = messages[0]["content"]
+        assert isinstance(result, list)
+        assert result[:-1] == original
+        assert result[-1]["type"] == "text"
+        assert "BUDGET WARNING" in result[-1]["text"]
+        # A warning must not mutate a media list held by another consumer.
+        assert content == original
+
+    @pytest.mark.parametrize(
+        "content",
+        [
+            '{"output": "done", "nested": {"count": 2}}',
+            "plain text result",
+            "[1, 2]",
+            [{"type": "text", "text": "done"}],
+        ],
+    )
+    def test_repeated_injection_is_idempotent(self, agent, content):
+        agent.max_iterations = 10
+        messages = [{"role": "tool", "content": copy.deepcopy(content), "tool_call_id": "tc1"}]
+
+        agent._inject_budget_warning_into_last_tool_result(messages, 9)
+        once = copy.deepcopy(messages)
+        agent._inject_budget_warning_into_last_tool_result(messages, 9)
+
+        assert messages == once
+
+    def test_only_final_tool_result_receives_warning(self, agent):
+        agent.max_iterations = 10
+        messages = [
+            {"role": "assistant", "content": "checking"},
+            {"role": "tool", "content": "first result", "tool_call_id": "first"},
+            {"role": "tool", "content": "last result", "tool_call_id": "last"},
+        ]
+        prefix = copy.deepcopy(messages[:-1])
+
+        agent._inject_budget_warning_into_last_tool_result(messages, 9)
+
+        assert messages[:-1] == prefix
+        assert "BUDGET WARNING" in messages[-1]["content"]
+
+    @pytest.mark.parametrize(
+        "messages",
+        [
+            [],
+            [{"role": "user", "content": "hello"}],
+            [{"role": "assistant", "content": "finished"}],
+            [
+                {"role": "tool", "content": "old result", "tool_call_id": "old"},
+                {"role": "user", "content": "next turn"},
+            ],
+        ],
+    )
+    def test_no_final_tool_result_is_unchanged(self, agent, messages):
+        agent.max_iterations = 10
+        original = copy.deepcopy(messages)
+
+        agent._inject_budget_warning_into_last_tool_result(messages, 9)
+
+        assert messages == original
+
+    @pytest.mark.parametrize(
+        ("limit", "used", "enabled"),
+        [(10, 9, False), (10, 6, True), (0, 0, True), (sys.maxsize, sys.maxsize - 1, True)],
+        ids=["disabled", "below-threshold", "zero", "unlimited"],
+    )
+    def test_inactive_pressure_does_not_mutate_result(self, agent, limit, used, enabled):
+        agent.max_iterations = limit
+        agent._budget_pressure_enabled = enabled
+        messages = [{"role": "tool", "content": '{"output": "unchanged"}', "tool_call_id": "tc1"}]
+        original = copy.deepcopy(messages)
+
+        agent._inject_budget_warning_into_last_tool_result(messages, used)
+
+        assert messages == original
 
 
 class TestSafeWriter:

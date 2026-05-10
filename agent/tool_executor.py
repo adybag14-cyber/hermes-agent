@@ -1032,7 +1032,7 @@ def _finalize_tool_batch(agent, messages: list, effective_task_id: str, num_tool
     enforce_turn_budget(messages[-num_tools:], env=get_active_env(effective_task_id), config=budget)
     agent._apply_pending_steer_to_tool_results(messages, num_tools)
     inject_budget_warning = getattr(agent, "_inject_budget_warning_into_last_tool_result", None)
-    if inject_budget_warning is not None:
+    if callable(inject_budget_warning):
         inject_budget_warning(messages, api_call_count)
 
 

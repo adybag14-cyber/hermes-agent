@@ -641,6 +641,120 @@ class TestSegmentedDispatchIntegration:
         assert "preserve malformed-call steer after budget enforcement" in messages[0]["content"]
 
 
+class TestIterationBudgetWarningIntegration:
+    @pytest.mark.parametrize("dispatch", ["concurrent", "sequential", "mixed"])
+    def test_warning_is_added_once_after_the_complete_batch(self, agent, dispatch):
+        """Real executors finalize once; mixed segments cannot each emit a hint."""
+        agent.max_iterations = 10
+        if dispatch == "sequential":
+            calls = [
+                _tc("terminal", '{"command":"first"}', call_id="first"),
+                _tc("terminal", '{"command":"last"}', call_id="last"),
+            ]
+            execute = agent._execute_tool_calls_sequential
+        else:
+            calls = [
+                _tc("web_search", '{"query":"first"}', call_id="first"),
+                _tc("web_search", '{"query":"second"}', call_id="second"),
+            ]
+            execute = agent._execute_tool_calls_concurrent
+            if dispatch == "mixed":
+                calls.extend([
+                    _tc("terminal", '{"command":"barrier"}', call_id="barrier"),
+                    _tc("web_search", '{"query":"third"}', call_id="third"),
+                    _tc("web_search", '{"query":"last"}', call_id="last"),
+                ])
+                assert _kinds(_plan_tool_batch_segments(calls)) == [
+                    "parallel", "sequential", "parallel",
+                ]
+                execute = agent._execute_tool_calls
+
+        messages = []
+        observations = []
+        inject = agent._inject_budget_warning_into_last_tool_result
+
+        def observe_warning(results, used):
+            observations.append([result["tool_call_id"] for result in results])
+            inject(results, used)
+
+        def fake_handle(name, args, task_id, **kwargs):
+            return json.dumps({"output": kwargs["tool_call_id"]})
+
+        with (
+            patch("model_tools.handle_function_call", side_effect=fake_handle) as handler,
+            patch.object(
+                agent, "_inject_budget_warning_into_last_tool_result",
+                side_effect=observe_warning,
+            ) as warning,
+        ):
+            execute(SimpleNamespace(content="", tool_calls=calls), messages, "task-1", 9)
+
+        expected_ids = [call.id for call in calls]
+        assert handler.call_count == len(calls)
+        assert [result["tool_call_id"] for result in messages] == expected_ids
+        assert observations == [expected_ids]
+        warning.assert_called_once_with(messages, 9)
+        results = [json.loads(message["content"]) for message in messages]
+        assert [result["output"] for result in results] == expected_ids
+        assert all("_budget_warning" not in result for result in results[:-1])
+        assert "BUDGET WARNING" in results[-1]["_budget_warning"]
+
+    @pytest.mark.parametrize("executor_name", ["concurrent", "sequential"])
+    def test_partial_segment_does_not_emit_warning(self, agent, executor_name):
+        from agent import tool_executor
+
+        agent.max_iterations = 10
+        name = "web_search" if executor_name == "concurrent" else "terminal"
+        argument_key = "query" if name == "web_search" else "command"
+        calls = [
+            _tc(name, json.dumps({argument_key: call_id}), call_id=call_id)
+            for call_id in ("first", "last")
+        ]
+        messages = []
+        execute = getattr(tool_executor, "execute_tool_calls_" + executor_name)
+
+        with (
+            patch("model_tools.handle_function_call", return_value='{"output": "done"}'),
+            patch.object(
+                agent, "_inject_budget_warning_into_last_tool_result",
+                wraps=agent._inject_budget_warning_into_last_tool_result,
+            ) as warning,
+        ):
+            execute(
+                agent, SimpleNamespace(content="", tool_calls=calls), messages,
+                "task-1", 9, finalize=False,
+            )
+
+        warning.assert_not_called()
+        assert [result["tool_call_id"] for result in messages] == ["first", "last"]
+        assert all("BUDGET WARNING" not in result["content"] for result in messages)
+
+    def test_whole_batch_warning_survives_result_budget_enforcement(self, agent):
+        agent.max_iterations = 10
+        calls = [
+            _tc("web_search", '{"query":"first"}', call_id="first"),
+            _tc("web_search", '{"query":"second"}', call_id="second"),
+            _tc("terminal", '{"command":"large"}', call_id="last"),
+        ]
+        messages = []
+        budget = BudgetConfig(default_result_size=10_000, turn_budget=48, preview_size=16)
+
+        def fake_handle(name, args, task_id, **kwargs):
+            return "L" * 1_000 if kwargs["tool_call_id"] == "last" else "small"
+
+        with (
+            patch("model_tools.handle_function_call", side_effect=fake_handle),
+            patch("agent.tool_executor._budget_for_agent", return_value=budget),
+        ):
+            agent._execute_tool_calls(
+                SimpleNamespace(content="", tool_calls=calls), messages, "task-1", 9,
+            )
+
+        _assert_budget_replaced(messages[-1]["content"])
+        assert all("BUDGET WARNING" not in result["content"] for result in messages[:-1])
+        assert messages[-1]["content"].count("BUDGET WARNING") == 1
+
+
 class TestPathCanonicalization:
     """Regression tests for _canonical_path / _extract_parallel_scope_path fixes.
 
@@ -682,7 +796,12 @@ class TestPathCanonicalization:
         target.touch()
 
         alias_dir = tmp_path / "alias"
-        alias_dir.symlink_to(real_dir)
+        try:
+            alias_dir.symlink_to(real_dir, target_is_directory=True)
+        except OSError as exc:
+            if getattr(exc, "winerror", None) == 1314:
+                pytest.skip("This Windows host does not grant symlink creation privilege")
+            raise
 
         real_path = _canonical_path(str(target))
         alias_path = _canonical_path(str(alias_dir / "config.json"))

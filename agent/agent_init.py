@@ -530,8 +530,9 @@ _CONTROL_STATE: Dict[str, Any] = {
 
 # Per-turn bookkeeping: budgets, activity tracking, rate-limit/credits telemetry.
 _TURN_STATE: Dict[str, Any] = {
-    # Iteration budget: notify the LLM only on exhaustion (one message, one grace call, then
-    # a forced summary) — intermediate pressure warnings made models give up early.
+    # Finite-turn reminders retain the fork's 70/90 percent thresholds;
+    # unlimited turns and the existing hard-stop/grace-call lifecycle are unchanged.
+    "_budget_pressure_enabled": True,
     "_budget_exhausted_injected": False,
     "_budget_grace_call": False,
     "_run_budget_started_at": None,  # set by turn_context.prepare_turn when a budget is active
