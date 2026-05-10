@@ -174,6 +174,7 @@ object LiteRtLmOpenAiProxy {
             val speculativeDecoding: Boolean,
             val speculativeDecodingSupported: Boolean,
             val speculativeDecodingPolicy: String,
+            val gpuPolicy: String,
         )
 
         private val engineInitResult = initializeEngine(
@@ -209,6 +210,7 @@ object LiteRtLmOpenAiProxy {
                             put("speculative_decoding", engineInitResult.speculativeDecoding)
                             put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)
                             put("mtp_policy", engineInitResult.speculativeDecodingPolicy)
+                            put("gpu_policy", engineInitResult.gpuPolicy)
                             put("model", modelName)
                         }
                     )
@@ -249,26 +251,27 @@ object LiteRtLmOpenAiProxy {
         ): EngineInitResult {
             var lastError: Throwable? = null
             val openClAvailable = hasLoadableOpenClLibrary()
+            val gpuPolicy = gpuBackendPolicy(context, openClAvailable)
             val speculativeDecoding = speculativeDecodingDecision(modelPath)
-            val backends = if (isTranslatedArm64OnX86(context) || !openClAvailable) {
-                listOf(Backend.CPU() to "cpu")
-            } else {
+            val backends = if (gpuPolicy.enabled) {
                 listOf(
                     Backend.GPU() to "gpu",
                     Backend.CPU() to "cpu",
                 )
-            }
-            val visionBackend = when {
-                !supportImage -> null
-                openClAvailable -> Backend.GPU()
-                else -> Backend.CPU()
-            }
-            val visionBackendLabel = when {
-                !supportImage -> "none"
-                openClAvailable -> "gpu"
-                else -> "cpu"
+            } else {
+                listOf(Backend.CPU() to "cpu")
             }
             for ((backend, label) in backends) {
+                val visionBackend = when {
+                    !supportImage -> null
+                    label == "gpu" -> Backend.GPU()
+                    else -> Backend.CPU()
+                }
+                val visionBackendLabel = when {
+                    !supportImage -> "none"
+                    label == "gpu" -> "gpu"
+                    else -> "cpu"
+                }
                 val attempts = if (speculativeDecoding.enabled) {
                     listOf(
                         true to speculativeDecoding.policy,
@@ -302,6 +305,7 @@ object LiteRtLmOpenAiProxy {
                             speculativeDecoding = enableMtp,
                             speculativeDecodingSupported = speculativeDecoding.supported,
                             speculativeDecodingPolicy = mtpPolicy,
+                            gpuPolicy = gpuPolicy.description,
                         )
                     } catch (error: Throwable) {
                         lastError = error
@@ -318,6 +322,62 @@ object LiteRtLmOpenAiProxy {
             val enabled: Boolean,
             val policy: String,
         )
+
+        private data class GpuBackendPolicy(
+            val enabled: Boolean,
+            val description: String,
+        )
+
+        private fun gpuBackendPolicy(context: Context, openClAvailable: Boolean): GpuBackendPolicy {
+            if (isTranslatedArm64OnX86(context)) {
+                return GpuBackendPolicy(
+                    enabled = false,
+                    description = "disabled: translated arm64 package on x86 emulator/device",
+                )
+            }
+            if (Build.SUPPORTED_ABIS.any { it.startsWith("x86") }) {
+                return GpuBackendPolicy(
+                    enabled = false,
+                    description = "disabled: x86 emulator/device build",
+                )
+            }
+            if (openClAvailable) {
+                return GpuBackendPolicy(
+                    enabled = true,
+                    description = "enabled: OpenCL library was loadable",
+                )
+            }
+            if (Build.SUPPORTED_ABIS.any { it.startsWith("arm") }) {
+                val identity = androidHardwareIdentity()
+                val deviceLabel = if (listOf("qualcomm", "qcom", "snapdragon", "adreno").any { it in identity }) {
+                    "ARM Qualcomm/Adreno"
+                } else {
+                    "ARM Android"
+                }
+                return GpuBackendPolicy(
+                    enabled = true,
+                    description = "enabled: $deviceLabel device; attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable",
+                )
+            }
+            return GpuBackendPolicy(
+                enabled = false,
+                description = "disabled: no ARM ABI or loadable OpenCL GPU path detected",
+            )
+        }
+
+        private fun androidHardwareIdentity(): String {
+            val socManufacturer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Build.SOC_MANUFACTURER else ""
+            val socModel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Build.SOC_MODEL else ""
+            return listOf(
+                Build.MANUFACTURER,
+                Build.BRAND,
+                Build.DEVICE,
+                Build.HARDWARE,
+                Build.BOARD,
+                socManufacturer,
+                socModel,
+            ).joinToString(" ").lowercase(Locale.US)
+        }
 
         private fun speculativeDecodingDecision(modelPath: String): SpeculativeDecodingDecision {
             val supported = runCatching {

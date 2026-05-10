@@ -50,10 +50,14 @@ def test_model_catalog_prefers_verified_sub_5gb_litert_lm_mobile_models():
 
     assert 'gemma-4-e2b-litert-lm' in catalog
     assert 'litert-community/gemma-4-E2B-it-litert-lm' in catalog
+    assert '6e5c4f1e395deb959c494953478fa5cec4b8008f' in catalog
     assert '2_588_147_712' in catalog
+    assert '8_000_000_000' in catalog
     assert 'gemma-4-e4b-litert-lm' in catalog
     assert 'litert-community/gemma-4-E4B-it-litert-lm' in catalog
+    assert '28299f30ee4d43294517a4ac93abd6163412f07f' in catalog
     assert '3_659_530_240' in catalog
+    assert '12_000_000_000' in catalog
     assert 'Gemma 4 MTP support' in catalog
     assert 'gemma-3-1b-it-litert-lm' in catalog
     assert 'litert-community/Gemma3-1B-IT' in catalog
@@ -141,15 +145,21 @@ def test_litert_proxy_bounds_generation_with_executor_timeout_and_cancel():
     assert 'LiteRT-LM generation timed out after' in proxy
 
 
-def test_litert_proxy_skips_gpu_when_opencl_is_missing():
+def test_litert_proxy_attempts_gpu_on_real_arm_devices_with_cpu_fallback():
     proxy = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
 
     assert 'val openClAvailable = hasLoadableOpenClLibrary()' in proxy
-    assert 'isTranslatedArm64OnX86(context) || !openClAvailable' in proxy
+    assert 'val gpuPolicy = gpuBackendPolicy(context, openClAvailable)' in proxy
+    assert 'if (gpuPolicy.enabled)' in proxy
+    assert 'disabled: translated arm64 package on x86 emulator/device' in proxy
+    assert 'disabled: x86 emulator/device build' in proxy
+    assert 'ARM Qualcomm/Adreno' in proxy
+    assert 'attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable' in proxy
     assert 'System.loadLibrary("OpenCL")' in proxy
     assert '"/vendor/lib64/libOpenCL.so"' in proxy
     assert '"/system/vendor/lib64/libOpenCL.so"' in proxy
     assert 'System.load(file.absolutePath)' in proxy
+    assert 'put("gpu_policy", engineInitResult.gpuPolicy)' in proxy
     assert 'visionBackend = visionBackend' in proxy
     assert 'else -> "cpu"' in proxy
     assert 'maxNumTokens = maxTokens.takeIf { it > 0 }' in proxy
