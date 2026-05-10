@@ -105,11 +105,11 @@ object AuthCatalog {
         AuthOption(
             id = "qwen",
             label = "Qwen",
-            description = "Paste a Qwen access token or API key and sync it into Hermes Android.",
+            description = "Use a Qwen Cloud / DashScope API key for Hermes Android remote model calls.",
             scope = AuthScope.RuntimeProvider,
-            runtimeProvider = "qwen-oauth",
-            defaultBaseUrl = "https://portal.qwen.ai/v1",
-            defaultModel = "qwen3-coder-plus",
+            runtimeProvider = "alibaba",
+            defaultBaseUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            defaultModel = "qwen3.6-plus",
             browserSignInSupported = false,
         ),
         AuthOption(

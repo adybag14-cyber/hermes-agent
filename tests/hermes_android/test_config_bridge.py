@@ -75,10 +75,12 @@ def test_auth_bridge_supports_anthropic_gemini_and_zai_bundles(tmp_path, monkeyp
     write_provider_auth_bundle("anthropic", api_key="anthropic-key", access_token="anthropic-oauth")
     write_provider_auth_bundle("gemini", api_key="gemini-key")
     write_provider_auth_bundle("zai", api_key="glm-key")
+    write_provider_auth_bundle("alibaba", api_key="dashscope-key")
 
     anthropic_bundle = read_provider_auth_bundle("anthropic")
     gemini_bundle = read_provider_auth_bundle("gemini")
     zai_bundle = read_provider_auth_bundle("zai")
+    alibaba_bundle = read_provider_auth_bundle("alibaba")
 
     assert anthropic_bundle["configured"] is True
     assert anthropic_bundle["api_key"] == "anthropic-key"
@@ -87,6 +89,9 @@ def test_auth_bridge_supports_anthropic_gemini_and_zai_bundles(tmp_path, monkeyp
     assert gemini_bundle["api_key"] == "gemini-key"
     assert zai_bundle["configured"] is True
     assert zai_bundle["api_key"] == "glm-key"
+    assert alibaba_bundle["configured"] is True
+    assert alibaba_bundle["api_key"] == "dashscope-key"
+    assert provider_env_key("alibaba") == "DASHSCOPE_API_KEY"
 
 
 

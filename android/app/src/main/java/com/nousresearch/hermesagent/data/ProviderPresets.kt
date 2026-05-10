@@ -5,6 +5,7 @@ data class ProviderPreset(
     val label: String,
     val baseUrl: String,
     val modelHint: String,
+    val apiKeyUrl: String = "",
 )
 
 data class ModelSelectionPreset(
@@ -53,42 +54,56 @@ object ProviderPresets {
             label = "OpenRouter",
             baseUrl = "https://openrouter.ai/api/v1",
             modelHint = "anthropic/claude-sonnet-4",
+            apiKeyUrl = "https://openrouter.ai/keys",
         ),
         ProviderPreset(
             id = "openai",
             label = "OpenAI",
             baseUrl = "https://api.openai.com/v1",
             modelHint = "gpt-4.1",
+            apiKeyUrl = "https://platform.openai.com/api-keys",
         ),
         ProviderPreset(
             id = "chatgpt-web",
             label = "ChatGPT Web",
             baseUrl = "https://chatgpt.com/backend-api/f",
             modelHint = "gpt-5-thinking",
+            apiKeyUrl = "https://chatgpt.com/",
         ),
         ProviderPreset(
             id = "anthropic",
             label = "Claude / Anthropic",
             baseUrl = "https://api.anthropic.com",
             modelHint = "claude-sonnet-4",
+            apiKeyUrl = "https://console.anthropic.com/settings/keys",
         ),
         ProviderPreset(
             id = "gemini",
             label = "Gemini / Google AI Studio",
             baseUrl = "https://generativelanguage.googleapis.com/v1beta/openai",
             modelHint = "gemini-2.5-pro",
+            apiKeyUrl = "https://aistudio.google.com/apikey",
+        ),
+        ProviderPreset(
+            id = "alibaba",
+            label = "Qwen Cloud / DashScope",
+            baseUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            modelHint = "qwen3.6-plus",
+            apiKeyUrl = "https://home.qwencloud.com/api-keys",
         ),
         ProviderPreset(
             id = "qwen-oauth",
-            label = "Qwen OAuth",
+            label = "Qwen OAuth (advanced)",
             baseUrl = "https://portal.qwen.ai/v1",
             modelHint = "qwen3-coder-plus",
+            apiKeyUrl = "https://chat.qwen.ai/",
         ),
         ProviderPreset(
             id = "zai",
             label = "Z.AI / GLM",
             baseUrl = "https://api.z.ai/api/paas/v4",
             modelHint = "glm-5",
+            apiKeyUrl = "https://z.ai/manage-apikey/apikey-list",
         ),
         ProviderPreset(
             id = "nous",

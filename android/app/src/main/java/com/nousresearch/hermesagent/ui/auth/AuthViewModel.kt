@@ -147,8 +147,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val apiKeyFallbackAvailable = option.scope == AuthScope.RuntimeProvider &&
                     option.runtimeProvider.isNotBlank()
                 val failureStatus = when (probe.status) {
-                    "unknown_host" -> currentStrings().authHostCouldNotBeResolved(probe.host)
-                    "network_error" -> currentStrings().authPageCouldNotBeReached(probe.errorName)
+                    "unknown_host" -> if (option.scope == AuthScope.AppAccount) {
+                        currentStrings().authAppSignInHostCouldNotBeResolved(probe.host)
+                    } else {
+                        currentStrings().authHostCouldNotBeResolved(probe.host)
+                    }
+                    "network_error" -> if (option.scope == AuthScope.AppAccount) {
+                        currentStrings().authAppSignInPageCouldNotBeReached(probe.errorName)
+                    } else {
+                        currentStrings().authPageCouldNotBeReached(probe.errorName)
+                    }
                     else -> probe.status.ifBlank { currentStrings().authTryAgain() }
                 }.let { status ->
                     if (apiKeyFallbackAvailable) {
