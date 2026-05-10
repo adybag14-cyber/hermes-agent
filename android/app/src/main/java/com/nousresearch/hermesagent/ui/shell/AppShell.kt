@@ -80,6 +80,13 @@ fun AppShellScreen(
         }
     }
 
+    fun navigateToSection(section: AppSection) {
+        if (section == AppSection.Settings && currentSection != AppSection.Settings) {
+            settingsViewModel.reload()
+        }
+        currentSection = section
+    }
+
     val pageBottomClearance = if (currentActions.isNotEmpty() && currentSection != AppSection.Hermes) 104.dp else 24.dp
 
     LaunchedEffect(currentSection) {
@@ -100,7 +107,7 @@ fun AppShellScreen(
                 bottomBar = {
                     HermesBottomNavigation(
                         currentSection = currentSection,
-                        onSelect = { currentSection = it },
+                        onSelect = ::navigateToSection,
                     )
                 },
                 floatingActionButton = {
@@ -128,7 +135,7 @@ fun AppShellScreen(
                                 viewModel = chatViewModel,
                                 settingsViewModel = settingsViewModel,
                                 authViewModel = authViewModel,
-                                onNavigateToSection = { currentSection = it },
+                                onNavigateToSection = ::navigateToSection,
                                 onContextActionsChanged = ::setActions,
                                 onOpenContextActions = { showActionSheet = true },
                             )
@@ -136,10 +143,10 @@ fun AppShellScreen(
                             HermesSetupScreen(
                                 uiState = bootUiState,
                                 onRetry = onRetryHermes,
-                                onOpenAccounts = { currentSection = AppSection.Accounts },
-                                onOpenPortal = { currentSection = AppSection.NousPortal },
-                                onOpenDevice = { currentSection = AppSection.Device },
-                                onOpenSettings = { currentSection = AppSection.Settings },
+                                onOpenAccounts = { navigateToSection(AppSection.Accounts) },
+                                onOpenPortal = { navigateToSection(AppSection.NousPortal) },
+                                onOpenDevice = { navigateToSection(AppSection.Device) },
+                                onOpenSettings = { navigateToSection(AppSection.Settings) },
                                 onContextActionsChanged = ::setActions,
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -150,10 +157,7 @@ fun AppShellScreen(
                         modifier = Modifier.fillMaxSize(),
                         viewModel = authViewModel,
                         extraBottomSpacing = pageBottomClearance,
-                        onOpenSettings = {
-                            settingsViewModel.reload()
-                            currentSection = AppSection.Settings
-                        },
+                        onOpenSettings = { navigateToSection(AppSection.Settings) },
                         onContextActionsChanged = ::setActions,
                     )
 
