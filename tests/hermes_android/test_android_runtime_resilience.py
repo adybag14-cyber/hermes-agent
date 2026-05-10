@@ -8,6 +8,7 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     application = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/HermesApplication.kt").read_text(encoding="utf-8")
     runtime_service = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/HermesRuntimeService.kt").read_text(encoding="utf-8")
     boot_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/boot/BootViewModel.kt").read_text(encoding="utf-8")
+    boot_screen = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/boot/BootScreen.kt").read_text(encoding="utf-8")
     chat_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/ChatViewModel.kt").read_text(encoding="utf-8")
     native_tool_client = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
     sse_client = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/api/HermesSseClient.kt").read_text(encoding="utf-8")
@@ -28,6 +29,10 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     assert 'delay(startupDelayMillis)' in boot_view_model
     assert 'checkHealth(runtime.baseUrl, runtime.apiKey)' in boot_view_model
     assert 'Hermes backend health check failed' in boot_view_model
+    assert 'init {' not in boot_view_model
+    assert 'LaunchedEffect(Unit)' in boot_screen
+    assert 'withFrameNanos { }' in boot_screen
+    assert 'viewModel.refresh()' in boot_screen
 
     assert 'runCatching {' in chat_view_model
     assert 'client.streamChatCompletion(' in chat_view_model

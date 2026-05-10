@@ -47,17 +47,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
 import com.nousresearch.hermesagent.R
+import com.nousresearch.hermesagent.backend.HermesRuntimeManager
 import com.nousresearch.hermesagent.data.AppSettingsStore
 import com.nousresearch.hermesagent.ui.i18n.AppLanguage
 import com.nousresearch.hermesagent.ui.i18n.LocalHermesStrings
 import com.nousresearch.hermesagent.ui.i18n.hermesStringsFor
 import com.nousresearch.hermesagent.ui.shell.ShellActionItem
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 private const val DEFAULT_NOUS_PORTAL_URL = "https://portal.nousresearch.com"
@@ -76,21 +78,17 @@ class NousPortalViewModel(application: Application) : AndroidViewModel(applicati
     private val _uiState = MutableStateFlow(NousPortalUiState())
     val uiState: StateFlow<NousPortalUiState> = _uiState.asStateFlow()
 
-    init {
-        refresh()
-    }
-
     fun refresh() {
         viewModelScope.launch {
             val strings = currentStrings()
             _uiState.value = runCatching {
-                if (!Python.isStarted()) {
-                    Python.start(AndroidPlatform(getApplication()))
+                val payload = withContext(Dispatchers.IO) {
+                    HermesRuntimeManager.ensurePythonStarted(getApplication())
+                    Python.getInstance()
+                        .getModule("hermes_android.nous_portal_bridge")
+                        .callAttr("read_nous_portal_state_json")
+                        .toString()
                 }
-                val payload = Python.getInstance()
-                    .getModule("hermes_android.nous_portal_bridge")
-                    .callAttr("read_nous_portal_state_json")
-                    .toString()
                 val json = JSONObject(payload)
                 val loggedIn = json.optBoolean("logged_in", false)
                 NousPortalUiState(

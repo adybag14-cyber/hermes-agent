@@ -10,7 +10,9 @@ def test_app_shell_has_accounts_tab_and_auth_screen():
 
     assert 'Accounts(' in shell_models
     assert 'label = "Accounts"' in shell_models
-    assert 'AppSection.Accounts -> AuthScreen' in app_shell
+    accounts_branch = app_shell.split("AppSection.Accounts -> {", 1)[1].split("AppSection.NousPortal ->", 1)[0]
+    assert 'val authViewModel: AuthViewModel = viewModel()' in accounts_branch
+    assert 'AuthScreen(' in accounts_branch
 
 
 def test_auth_screen_lists_requested_sign_in_methods_and_pending_fallback_ui():
