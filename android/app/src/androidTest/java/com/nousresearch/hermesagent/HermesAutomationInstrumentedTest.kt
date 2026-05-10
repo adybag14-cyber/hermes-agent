@@ -280,6 +280,55 @@ class HermesAutomationInstrumentedTest {
         assertEquals(1, device.getInt("remote_dispatch_count"))
         assertEquals("OpenGUI dispatch smoke", device.getString("last_dispatch_task_name"))
         assertTrue(devices.getJSONArray("compatible_device_queries").toString().contains("OpenGUI devices"))
+
+        val commandDevices = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "operator_command",
+                JSONObject().put("command", "!opengui devices"),
+            )
+        )
+        assertTrue(commandDevices.toString(), commandDevices.getBoolean("success"))
+        assertTrue(commandDevices.getBoolean("handled"))
+        assertEquals("devices", commandDevices.getJSONObject("parsed_command").getString("type"))
+        assertEquals(1, commandDevices.getInt("online_device_count"))
+
+        val commandStatus = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "operator_command",
+                JSONObject().put("command", "!opengui status 42"),
+            )
+        )
+        assertTrue(commandStatus.toString(), commandStatus.getBoolean("success"))
+        assertEquals("status", commandStatus.getJSONObject("parsed_command").getString("type"))
+        assertEquals("completed", commandStatus.getString("status"))
+
+        val commandDispatch = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "operator_command",
+                JSONObject()
+                    .put("command", "/do OpenGUI dispatch smoke")
+                    .put("dispatch_channel", "telegram"),
+            )
+        )
+        assertTrue(commandDispatch.toString(), commandDispatch.getBoolean("success"))
+        assertEquals("do_task", commandDispatch.getJSONObject("parsed_command").getString("type"))
+        assertEquals("opengui_im_command", commandDispatch.getString("dispatch_source"))
+        assertEquals("telegram", commandDispatch.getString("dispatch_channel"))
+        assertEquals(1, commandDispatch.getInt("matched_count"))
+
+        val commandPause = JSONObject(
+            HermesAutomationBridge.performActionJson(
+                app,
+                "operator_command",
+                JSONObject().put("command", "!opengui pause 42"),
+            )
+        )
+        assertTrue(commandPause.toString(), commandPause.getBoolean("success"))
+        assertFalse(commandPause.getBoolean("handled"))
+        assertEquals("pause", commandPause.getJSONObject("parsed_command").getString("type"))
     }
 
     @Test

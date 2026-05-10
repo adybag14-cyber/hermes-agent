@@ -28,6 +28,7 @@ object HermesAutomationBridge {
             "operator_devices", "devices", "standby_devices", "remote_devices", "opengui_devices" -> operatorDevicesJson(context)
             "operator_standby_status", "standby_status", "remote_dispatch_status", "dispatch_status" -> operatorStandbyStatusJson(context)
             "operator_execution_status", "execution_status", "remote_execution_status", "opengui_execution_status" -> operatorExecutionStatusJson(context, arguments)
+            "operator_command", "opengui_command", "remote_command", "im_command", "discord_command", "telegram_command", "feishu_command" -> operatorCommandJson(context, arguments)
             "create_shell_task", "create_shell", "create" -> createShellTaskJson(context, arguments)
             "create_file_write_task", "create_file_write", "write_file_task" -> createFileWriteTaskJson(context, arguments)
             "create_file_delete_task", "create_file_delete", "delete_file_task" -> createFileDeleteTaskJson(context, arguments)
@@ -273,6 +274,66 @@ object HermesAutomationBridge {
                 )
             )
             .toString()
+    }
+
+    fun operatorCommandJson(context: Context, arguments: JSONObject): String {
+        val command = stringArgument(arguments, "command", "text", "message", "raw_text", "rawText", allowEmpty = true)
+            .orEmpty()
+            .trim()
+        if (command.isBlank()) {
+            return errorJson("operator_command requires command, text, or message")
+        }
+        if (command.indexOf('\u0000') >= 0) {
+            return errorJson("operator_command text must not contain NUL bytes")
+        }
+        val prefix = stringArgument(arguments, "command_prefix", "prefix", allowEmpty = true)
+            .orEmpty()
+            .ifBlank { "!opengui" }
+        val channel = stringArgument(arguments, "dispatch_channel", "channel", "platform", allowEmpty = true)
+            .orEmpty()
+            .ifBlank { "im" }
+            .take(MAX_EVENT_VALUE_CHARS)
+        val parsed = parseOperatorCommand(command, prefix)
+        return when (parsed.type) {
+            OperatorCommandType.HELP -> operatorCommandHelpJson(parsed)
+            OperatorCommandType.LIST_TASKS -> withParsedOperatorCommand(listJson(context), parsed)
+            OperatorCommandType.DEVICES -> withParsedOperatorCommand(operatorDevicesJson(context), parsed)
+            OperatorCommandType.STATUS -> {
+                val statusArgs = JSONObject()
+                parsed.executionId?.let { statusArgs.put("executionId", it) }
+                withParsedOperatorCommand(operatorExecutionStatusJson(context, statusArgs), parsed)
+            }
+            OperatorCommandType.RUN_TASK -> {
+                val taskId = parsed.taskId.orEmpty()
+                val dispatchArgs = JSONObject()
+                    .put("taskId", taskId)
+                    .put("taskName", taskId)
+                    .put("executionId", stringArgument(arguments, "execution_id", "executionId", allowEmpty = true).orEmpty().ifBlank {
+                        "opengui-command-${System.currentTimeMillis()}"
+                    })
+                    .put("dispatch_source", "opengui_im_command")
+                    .put("dispatch_channel", channel)
+                    .put("allow_disabled", arguments.optBoolean("allow_disabled", false))
+                withParsedOperatorCommand(runRemoteDispatchJson(context, dispatchArgs), parsed)
+            }
+            OperatorCommandType.DO_TASK -> {
+                val description = parsed.description.orEmpty().take(MAX_VARIABLE_VALUE_CHARS)
+                val dispatchArgs = JSONObject()
+                    .put("taskName", description)
+                    .put("taskId", description.take(MAX_EVENT_VALUE_CHARS))
+                    .put("executionId", stringArgument(arguments, "execution_id", "executionId", allowEmpty = true).orEmpty().ifBlank {
+                        "opengui-command-${System.currentTimeMillis()}"
+                    })
+                    .put("dispatch_source", "opengui_im_command")
+                    .put("dispatch_channel", channel)
+                    .put("allow_disabled", arguments.optBoolean("allow_disabled", false))
+                withParsedOperatorCommand(runRemoteDispatchJson(context, dispatchArgs), parsed)
+            }
+            OperatorCommandType.CANCEL,
+            OperatorCommandType.PAUSE,
+            OperatorCommandType.RESUME -> operatorCommandRecognizedButNotActiveJson(parsed)
+            OperatorCommandType.FREE_TEXT -> operatorCommandFreeTextJson(parsed)
+        }
     }
 
     fun exportAutomationsJson(context: Context): String {
@@ -4491,6 +4552,187 @@ object HermesAutomationBridge {
         }
     }
 
+    private enum class OperatorCommandType(val wireName: String) {
+        HELP("help"),
+        LIST_TASKS("list_tasks"),
+        RUN_TASK("run_task"),
+        DO_TASK("do_task"),
+        STATUS("status"),
+        CANCEL("cancel"),
+        PAUSE("pause"),
+        RESUME("resume"),
+        DEVICES("devices"),
+        FREE_TEXT("free_text"),
+    }
+
+    private data class ParsedOperatorCommand(
+        val type: OperatorCommandType,
+        val rawText: String,
+        val strippedText: String,
+        val taskId: String? = null,
+        val executionId: String? = null,
+        val description: String? = null,
+        val feedback: String? = null,
+    ) {
+        fun toJson(): JSONObject {
+            return JSONObject()
+                .put("type", type.wireName)
+                .put("raw_text", rawText)
+                .put("stripped_text", strippedText)
+                .put("task_id", taskId ?: JSONObject.NULL)
+                .put("execution_id", executionId ?: JSONObject.NULL)
+                .put("description", description ?: JSONObject.NULL)
+                .put("feedback", feedback ?: JSONObject.NULL)
+        }
+    }
+
+    private fun parseOperatorCommand(text: String, prefix: String): ParsedOperatorCommand {
+        val rawText = text.trim()
+        val stripped = stripOperatorCommandPrefix(rawText, prefix)
+        if (Regex("^/?(?:tasks?|list)\\b", RegexOption.IGNORE_CASE).containsMatchIn(stripped)) {
+            return ParsedOperatorCommand(OperatorCommandType.LIST_TASKS, rawText, stripped)
+        }
+        Regex("^/?run\\s+(\\S+)", RegexOption.IGNORE_CASE).find(stripped)?.let { match ->
+            return ParsedOperatorCommand(
+                type = OperatorCommandType.RUN_TASK,
+                rawText = rawText,
+                strippedText = stripped,
+                taskId = match.groupValues[1].trim(),
+            )
+        }
+        Regex("^/?do\\s+(.+)", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(stripped)?.let { match ->
+            return ParsedOperatorCommand(
+                type = OperatorCommandType.DO_TASK,
+                rawText = rawText,
+                strippedText = stripped,
+                description = match.groupValues[1].trim(),
+            )
+        }
+        Regex("^/?status(?:\\s+(\\S+))?\\b", RegexOption.IGNORE_CASE).find(stripped)?.let { match ->
+            return ParsedOperatorCommand(
+                type = OperatorCommandType.STATUS,
+                rawText = rawText,
+                strippedText = stripped,
+                executionId = match.groupValues.getOrNull(1)?.trim()?.ifBlank { null },
+            )
+        }
+        Regex("^/?cancel(?:\\s+(\\S+))?\\b", RegexOption.IGNORE_CASE).find(stripped)?.let { match ->
+            return ParsedOperatorCommand(
+                type = OperatorCommandType.CANCEL,
+                rawText = rawText,
+                strippedText = stripped,
+                executionId = match.groupValues.getOrNull(1)?.trim()?.ifBlank { null },
+            )
+        }
+        Regex("^/?pause(?:\\s+(\\S+))?\\b", RegexOption.IGNORE_CASE).find(stripped)?.let { match ->
+            return ParsedOperatorCommand(
+                type = OperatorCommandType.PAUSE,
+                rawText = rawText,
+                strippedText = stripped,
+                executionId = match.groupValues.getOrNull(1)?.trim()?.ifBlank { null },
+            )
+        }
+        Regex("^/?resume(?:\\s+(.+))?$", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(stripped)?.let { match ->
+            val args = match.groupValues.getOrNull(1).orEmpty().trim()
+            val idAndFeedback = Regex("^(\\S+)(?:\\s+([\\s\\S]+))?$").find(args)
+            return ParsedOperatorCommand(
+                type = OperatorCommandType.RESUME,
+                rawText = rawText,
+                strippedText = stripped,
+                executionId = idAndFeedback?.groupValues?.getOrNull(1)?.trim()?.ifBlank { null },
+                feedback = idAndFeedback?.groupValues?.getOrNull(2)?.trim()?.ifBlank { null } ?: args.ifBlank { null },
+            )
+        }
+        if (Regex("^/?devices?\\b", RegexOption.IGNORE_CASE).containsMatchIn(stripped)) {
+            return ParsedOperatorCommand(OperatorCommandType.DEVICES, rawText, stripped)
+        }
+        if (Regex("^/?help\\b", RegexOption.IGNORE_CASE).containsMatchIn(stripped)) {
+            return ParsedOperatorCommand(OperatorCommandType.HELP, rawText, stripped)
+        }
+        if (Regex("^(?:task\\s+list|\u4efb\u52a1\u5217\u8868)$", RegexOption.IGNORE_CASE).matches(stripped)) {
+            return ParsedOperatorCommand(OperatorCommandType.LIST_TASKS, rawText, stripped)
+        }
+        Regex("^(?:\u6267\u884c|\u8fd0\u884c)\\s*[:\uFF1A]?\\s*(\\S+)").find(stripped)?.let { match ->
+            return ParsedOperatorCommand(
+                type = OperatorCommandType.RUN_TASK,
+                rawText = rawText,
+                strippedText = stripped,
+                taskId = match.groupValues[1].trim(),
+            )
+        }
+        Regex("^\u505a\\s*[:\uFF1A]?\\s*(.+)", RegexOption.DOT_MATCHES_ALL).find(stripped)?.let { match ->
+            return ParsedOperatorCommand(
+                type = OperatorCommandType.DO_TASK,
+                rawText = rawText,
+                strippedText = stripped,
+                description = match.groupValues[1].trim(),
+            )
+        }
+        return when (stripped) {
+            "\u72b6\u6001" -> ParsedOperatorCommand(OperatorCommandType.STATUS, rawText, stripped)
+            "\u53d6\u6d88" -> ParsedOperatorCommand(OperatorCommandType.CANCEL, rawText, stripped)
+            "\u6682\u505c" -> ParsedOperatorCommand(OperatorCommandType.PAUSE, rawText, stripped)
+            "\u6062\u590d" -> ParsedOperatorCommand(OperatorCommandType.RESUME, rawText, stripped)
+            "\u5e2e\u52a9" -> ParsedOperatorCommand(OperatorCommandType.HELP, rawText, stripped)
+            else -> ParsedOperatorCommand(OperatorCommandType.FREE_TEXT, rawText, stripped)
+        }
+    }
+
+    private fun stripOperatorCommandPrefix(text: String, prefix: String): String {
+        val trimmed = text.trim()
+        val safePrefix = prefix.trim()
+        if (safePrefix.isBlank()) {
+            return trimmed
+        }
+        val lowerText = trimmed.lowercase()
+        val lowerPrefix = safePrefix.lowercase()
+        if (lowerText != lowerPrefix && !lowerText.startsWith("$lowerPrefix ")) {
+            return trimmed
+        }
+        return trimmed.substring(safePrefix.length).trim().ifBlank { "help" }
+    }
+
+    private fun operatorCommandHelpJson(parsed: ParsedOperatorCommand): String {
+        return JSONObject()
+            .put("success", true)
+            .put("handled", true)
+            .put("parsed_command", parsed.toJson())
+            .put("reply_lines", JSONArray(OPENGUI_COMPATIBLE_COMMAND_HELP))
+            .put("compatible_prefixes", JSONArray(listOf("!opengui", "/")))
+            .toString()
+    }
+
+    private fun operatorCommandRecognizedButNotActiveJson(parsed: ParsedOperatorCommand): String {
+        return JSONObject()
+            .put("success", true)
+            .put("handled", false)
+            .put("status", "recognized_not_active")
+            .put("parsed_command", parsed.toJson())
+            .put(
+                "message",
+                "Hermes recognized this OpenGUI IM command, but local Android automations run synchronously in this bridge. Use operator_execution_status for completed runs, or disable/delete saved automations.",
+            )
+            .toString()
+    }
+
+    private fun operatorCommandFreeTextJson(parsed: ParsedOperatorCommand): String {
+        return JSONObject()
+            .put("success", true)
+            .put("handled", false)
+            .put("status", "free_text")
+            .put("parsed_command", parsed.toJson())
+            .put("message", "Send /help or !opengui help to view supported remote commands.")
+            .put("compatible_prefixes", JSONArray(listOf("!opengui", "/")))
+            .toString()
+    }
+
+    private fun withParsedOperatorCommand(resultJson: String, parsed: ParsedOperatorCommand): String {
+        return JSONObject(resultJson)
+            .put("parsed_command", parsed.toJson())
+            .put("handled", true)
+            .toString()
+    }
+
     private fun booleanArgument(arguments: JSONObject, vararg keys: String): Boolean? {
         for (key in keys) {
             if (!arguments.has(key) || arguments.isNull(key)) {
@@ -4522,11 +4764,22 @@ object HermesAutomationBridge {
             .toString()
     }
 
+    private val OPENGUI_COMPATIBLE_COMMAND_HELP = listOf(
+        "Hermes OpenGUI-compatible remote commands",
+        "/tasks - list saved Hermes automations",
+        "/run <id> - run a matching saved remote-dispatch automation",
+        "/do <description> - dispatch to an enabled automation with the same label",
+        "/status [executionId] - inspect recent execution status",
+        "/devices - list this standby Hermes device",
+        "/pause, /resume, and /cancel are recognized for compatibility; current local runs are synchronous",
+    )
+
     private val AUTOMATION_ACTIONS = listOf(
         "list",
         "operator_devices",
         "operator_standby_status",
         "operator_execution_status",
+        "operator_command",
         "run_history",
         "create_shell_task",
         "create_file_write_task",
