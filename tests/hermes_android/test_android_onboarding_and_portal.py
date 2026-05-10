@@ -45,3 +45,19 @@ def test_portal_screen_auto_loads_and_uses_contextual_actions():
     assert 'Minimize portal' in portal
     assert 'Try embedded preview' not in portal
     assert 'Reload preview' not in portal
+
+
+def test_portal_python_refresh_is_deferred_until_portal_is_visible():
+    portal = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/portal/NousPortalScreen.kt").read_text(encoding="utf-8")
+    app_shell = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/shell/AppShell.kt").read_text(encoding="utf-8")
+
+    portal_view_model = portal.split("class NousPortalViewModel", 1)[1].split("@Composable", 1)[0]
+
+    assert "init {" not in portal_view_model
+    assert "HermesRuntimeManager.ensurePythonStarted(getApplication())" in portal
+    assert "withContext(Dispatchers.IO)" in portal
+    assert "LaunchedEffect(strings.language) {" in portal
+    portal_branch = app_shell.split("AppSection.NousPortal -> {", 1)[1].split("AppSection.Device ->", 1)[0]
+
+    assert "val portalViewModel: NousPortalViewModel = viewModel()" in portal_branch
+    assert "val portalViewModel: NousPortalViewModel = viewModel()" not in app_shell.split("val settingsState", 1)[0]

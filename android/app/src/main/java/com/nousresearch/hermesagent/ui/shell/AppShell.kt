@@ -65,11 +65,7 @@ fun AppShellScreen(
     var currentActions by remember { mutableStateOf<List<ShellActionItem>>(emptyList()) }
     var showActionSheet by rememberSaveable { mutableStateOf(false) }
 
-    val authViewModel: AuthViewModel = viewModel()
     val settingsViewModel: SettingsViewModel = viewModel()
-    val deviceViewModel: DeviceViewModel = viewModel()
-    val portalViewModel: NousPortalViewModel = viewModel()
-    val chatViewModel: ChatViewModel = viewModel()
     val settingsState by settingsViewModel.uiState.collectAsState()
     val strings = hermesStringsFor(AppLanguage.fromTag(settingsState.languageTag))
 
@@ -130,6 +126,8 @@ fun AppShellScreen(
                     when (currentSection) {
                     AppSection.Hermes -> {
                         if (bootUiState.ready) {
+                            val authViewModel: AuthViewModel = viewModel()
+                            val chatViewModel: ChatViewModel = viewModel()
                             ChatScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 viewModel = chatViewModel,
@@ -153,27 +151,36 @@ fun AppShellScreen(
                         }
                     }
 
-                    AppSection.Accounts -> AuthScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        viewModel = authViewModel,
-                        extraBottomSpacing = pageBottomClearance,
-                        onOpenSettings = { navigateToSection(AppSection.Settings) },
-                        onContextActionsChanged = ::setActions,
-                    )
+                    AppSection.Accounts -> {
+                        val authViewModel: AuthViewModel = viewModel()
+                        AuthScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            viewModel = authViewModel,
+                            extraBottomSpacing = pageBottomClearance,
+                            onOpenSettings = { navigateToSection(AppSection.Settings) },
+                            onContextActionsChanged = ::setActions,
+                        )
+                    }
 
-                    AppSection.NousPortal -> NousPortalScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        viewModel = portalViewModel,
-                        extraBottomSpacing = pageBottomClearance,
-                        onContextActionsChanged = ::setActions,
-                    )
+                    AppSection.NousPortal -> {
+                        val portalViewModel: NousPortalViewModel = viewModel()
+                        NousPortalScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            viewModel = portalViewModel,
+                            extraBottomSpacing = pageBottomClearance,
+                            onContextActionsChanged = ::setActions,
+                        )
+                    }
 
-                    AppSection.Device -> DeviceScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        viewModel = deviceViewModel,
-                        extraBottomSpacing = pageBottomClearance,
-                        onContextActionsChanged = ::setActions,
-                    )
+                    AppSection.Device -> {
+                        val deviceViewModel: DeviceViewModel = viewModel()
+                        DeviceScreen(
+                            modifier = Modifier.fillMaxSize(),
+                            viewModel = deviceViewModel,
+                            extraBottomSpacing = pageBottomClearance,
+                            onContextActionsChanged = ::setActions,
+                        )
+                    }
 
                     AppSection.Settings -> SettingsScreen(
                         modifier = Modifier.fillMaxSize(),

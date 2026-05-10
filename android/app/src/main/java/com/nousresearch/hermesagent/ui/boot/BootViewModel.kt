@@ -27,10 +27,6 @@ class BootViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(BootUiState())
     val uiState: StateFlow<BootUiState> = _uiState.asStateFlow()
 
-    init {
-        refresh()
-    }
-
     fun refresh() {
         _uiState.value = BootUiState(status = "Booting Hermes runtime…")
         val startupDelayMillis = if (firstRefresh) 1000L else 0L
