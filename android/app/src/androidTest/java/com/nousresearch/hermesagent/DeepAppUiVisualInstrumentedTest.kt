@@ -108,6 +108,40 @@ class DeepAppUiVisualInstrumentedTest {
         capture("08-portal-spanish")
     }
 
+    @Test
+    fun signinQwenCommandReloadsSettingsProviderProfile() {
+        AppSettingsStore(app).save(
+            AppSettings(
+                provider = "openrouter",
+                baseUrl = "https://openrouter.ai/api/v1",
+                model = "anthropic/claude-sonnet-4",
+                onDeviceBackend = BackendKind.NONE.persistedValue,
+                languageTag = "en",
+            )
+        )
+
+        composeRule.setContent {
+            AppShellScreen(
+                bootUiState = BootUiState(
+                    status = "Hermes backend is ready",
+                    ready = true,
+                    probeResult = "signin-qwen-test",
+                    baseUrl = "http://127.0.0.1:15436/v1",
+                ),
+                onRetryHermes = {},
+            )
+        }
+
+        composeRule.onNodeWithTag("HermesChatInput").performTextInput("/signin qwen")
+        composeRule.onNodeWithText("Send").performClick()
+        composeRule.onAllNodesWithText("Settings")[0].assertIsDisplayed()
+        assertTrue(
+            composeRule.onAllNodesWithText("Current provider profile: Qwen Cloud / DashScope")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        )
+    }
+
     private fun capture(name: String) {
         composeRule.waitForIdle()
         val outputDir = File(app.filesDir, "hermes-ui-visuals").apply { mkdirs() }
