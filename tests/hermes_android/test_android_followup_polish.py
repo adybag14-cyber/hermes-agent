@@ -242,6 +242,12 @@ def test_android_automation_exposes_operator_standby_history_for_remote_dispatch
     assert 'OpenGUI devices' in bridge
     assert 'compatible_device_queries' in bridge
     assert 'operator_execution_status' in bridge
+    assert 'operator_command' in bridge
+    assert 'parseOperatorCommand' in bridge
+    assert 'OPENGUI_COMPATIBLE_COMMAND_HELP' in bridge
+    assert '!opengui' in bridge
+    assert '/run <id>' in bridge
+    assert 'opengui_im_command' in bridge
     assert 'OpenGUI /status [executionId]' in bridge
     assert 'run_history' in bridge
     assert 'run_remote_dispatch' in bridge
@@ -263,6 +269,8 @@ def test_android_automation_exposes_operator_standby_history_for_remote_dispatch
     assert 'last_dispatch_task_name' in bridge
     assert 'Tasker plugin' in bridge
     assert 'operator_devices' in chat_client
+    assert 'operator_command' in chat_client
+    assert 'IM command strings such as !opengui devices' in chat_client
     assert 'standby device listing' in chat_client
     assert 'automationStandbyStatus' in view_model
     assert 'operatorStandbyReady' in view_model
