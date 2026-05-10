@@ -86,14 +86,14 @@ object ProviderPresets {
         ),
         ProviderPreset(
             id = "alibaba",
-            label = "Qwen Cloud / DashScope",
+            label = "Qwen Cloud / DashScope API key",
             baseUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
             modelHint = "qwen3.6-plus",
             apiKeyUrl = "https://home.qwencloud.com/api-keys",
         ),
         ProviderPreset(
             id = "qwen-oauth",
-            label = "Qwen OAuth (advanced)",
+            label = "Qwen OAuth / Qwen Chat token",
             baseUrl = "https://portal.qwen.ai/v1",
             modelHint = "qwen3-coder-plus",
             apiKeyUrl = "https://chat.qwen.ai/",
@@ -119,7 +119,7 @@ object ProviderPresets {
         ),
     )
 
-    val androidSettingsDefaults = defaults.filterNot { it.id == "qwen-oauth" }
+    val androidSettingsDefaults = defaults
 
     fun find(id: String): ProviderPreset? = defaults.firstOrNull { it.id == id }
 
