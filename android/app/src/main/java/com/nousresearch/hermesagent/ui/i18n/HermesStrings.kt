@@ -288,6 +288,15 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "Paste the key for the selected provider, then tap Save to restart the local Hermes backend with the new config."
     }
 
+    fun openProviderKeyPage(providerLabel: String): String = when (language) {
+        AppLanguage.CHINESE -> "打开 $providerLabel 密钥页面"
+        AppLanguage.SPANISH -> "Abrir página de claves de $providerLabel"
+        AppLanguage.GERMAN -> "$providerLabel-Schlüsselseite öffnen"
+        AppLanguage.PORTUGUESE -> "Abrir página de chaves do $providerLabel"
+        AppLanguage.FRENCH -> "Ouvrir la page de clés $providerLabel"
+        AppLanguage.ENGLISH -> "Open $providerLabel key page"
+    }
+
     fun toolProfileTitle(): String = when (language) {
         AppLanguage.CHINESE -> "Android Alpha 工具配置"
         AppLanguage.SPANISH -> "Perfil de herramientas Android alpha"
@@ -504,6 +513,24 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "Corr3xt auth page could not be reached: $errorName. Use a reachable auth URL or configure this provider with an API key in Settings."
     }
 
+    fun authAppSignInHostCouldNotBeResolved(host: String): String = when (language) {
+        AppLanguage.CHINESE -> "无法解析 Corr3xt 应用登录主机 $host。在设置可访问的 Corr3xt URL 前，应用登录不可用；运行时提供商请在设置中使用安全 API 密钥或令牌。"
+        AppLanguage.SPANISH -> "No se pudo resolver el host de inicio de sesión Corr3xt $host. El inicio de sesión de la app no está disponible hasta configurar una URL Corr3xt accesible; los proveedores de runtime usan claves API o tokens seguros en Ajustes."
+        AppLanguage.GERMAN -> "Der Corr3xt-App-Anmeldehost $host konnte nicht aufgelöst werden. Die App-Anmeldung ist nicht verfügbar, bis eine erreichbare Corr3xt-URL gesetzt ist; Runtime-Anbieter nutzen sichere API-Schlüssel oder Tokens in Einstellungen."
+        AppLanguage.PORTUGUESE -> "Não foi possível resolver o host de login Corr3xt $host. O login do app fica indisponível até configurar uma URL Corr3xt acessível; provedores de runtime usam chaves API ou tokens seguros nas Configurações."
+        AppLanguage.FRENCH -> "Impossible de résoudre l’hôte de connexion Corr3xt $host. La connexion à l’application est indisponible tant qu’une URL Corr3xt joignable n’est pas définie ; les fournisseurs runtime utilisent des clés API ou jetons sécurisés dans Paramètres."
+        AppLanguage.ENGLISH -> "Corr3xt app sign-in host $host could not be resolved. App sign-in is unavailable until a reachable Corr3xt URL is set; runtime providers use secure API keys or tokens in Settings."
+    }
+
+    fun authAppSignInPageCouldNotBeReached(errorName: String): String = when (language) {
+        AppLanguage.CHINESE -> "无法访问 Corr3xt 应用登录页面：$errorName。在设置可访问的 Corr3xt URL 前，应用登录不可用；运行时提供商请在设置中使用安全 API 密钥或令牌。"
+        AppLanguage.SPANISH -> "No se pudo abrir la página de inicio de sesión Corr3xt: $errorName. El inicio de sesión de la app no está disponible hasta configurar una URL Corr3xt accesible; los proveedores de runtime usan claves API o tokens seguros en Ajustes."
+        AppLanguage.GERMAN -> "Die Corr3xt-App-Anmeldeseite konnte nicht erreicht werden: $errorName. Die App-Anmeldung ist nicht verfügbar, bis eine erreichbare Corr3xt-URL gesetzt ist; Runtime-Anbieter nutzen sichere API-Schlüssel oder Tokens in Einstellungen."
+        AppLanguage.PORTUGUESE -> "Não foi possível acessar a página de login Corr3xt: $errorName. O login do app fica indisponível até configurar uma URL Corr3xt acessível; provedores de runtime usam chaves API ou tokens seguros nas Configurações."
+        AppLanguage.FRENCH -> "Impossible d’atteindre la page de connexion Corr3xt : $errorName. La connexion à l’application est indisponible tant qu’une URL Corr3xt joignable n’est pas définie ; les fournisseurs runtime utilisent des clés API ou jetons sécurisés dans Paramètres."
+        AppLanguage.ENGLISH -> "Corr3xt app sign-in page could not be reached: $errorName. App sign-in is unavailable until a reachable Corr3xt URL is set; runtime providers use secure API keys or tokens in Settings."
+    }
+
     fun authApiKeyFallbackAvailable(label: String): String = when (language) {
         AppLanguage.CHINESE -> "可改用 $label 的安全 API 密钥设置继续。"
         AppLanguage.SPANISH -> "Puedes continuar con la configuración segura de clave API para $label."
@@ -618,11 +645,11 @@ data class HermesStrings(
                 AppLanguage.ENGLISH -> fallback
             }
             "qwen" -> when (language) {
-                AppLanguage.CHINESE -> "粘贴 Qwen 访问令牌或 API 密钥并同步到 Hermes Android。"
-                AppLanguage.SPANISH -> "Pega un token de acceso o clave API de Qwen y sincronízalo con Hermes Android."
-                AppLanguage.GERMAN -> "Füge ein Qwen-Zugriffstoken oder einen API-Schlüssel ein und synchronisiere es mit Hermes Android."
-                AppLanguage.PORTUGUESE -> "Cole um token de acesso ou chave API Qwen e sincronize-o com o Hermes Android."
-                AppLanguage.FRENCH -> "Collez un jeton d’accès ou une clé API Qwen et synchronisez-le avec Hermes Android."
+                AppLanguage.CHINESE -> "使用 Qwen Cloud / DashScope API 密钥进行 Hermes Android 远程模型调用。"
+                AppLanguage.SPANISH -> "Usa una clave API de Qwen Cloud / DashScope para llamadas remotas de Hermes Android."
+                AppLanguage.GERMAN -> "Nutze einen Qwen-Cloud-/DashScope-API-Schlüssel für Hermes-Android-Remote-Modellaufrufe."
+                AppLanguage.PORTUGUESE -> "Use uma chave API Qwen Cloud / DashScope para chamadas remotas do Hermes Android."
+                AppLanguage.FRENCH -> "Utilisez une clé API Qwen Cloud / DashScope pour les appels de modèle distants Hermes Android."
                 AppLanguage.ENGLISH -> fallback
             }
             "zai" -> when (language) {

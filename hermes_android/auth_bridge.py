@@ -30,6 +30,8 @@ PROVIDER_ENV_KEYS = {
     "custom": "OPENAI_API_KEY",
     "gemini": "GOOGLE_API_KEY",
     "chatgpt-web": "CHATGPT_WEB_ACCESS_TOKEN",
+    "alibaba": "DASHSCOPE_API_KEY",
+    "dashscope": "DASHSCOPE_API_KEY",
     "zai": "GLM_API_KEY",
 }
 
@@ -48,6 +50,12 @@ PROVIDER_AUTH_BUNDLE_KEYS = {
     },
     "zai": {
         "api_key": "GLM_API_KEY",
+    },
+    "alibaba": {
+        "api_key": "DASHSCOPE_API_KEY",
+    },
+    "dashscope": {
+        "api_key": "DASHSCOPE_API_KEY",
     },
 }
 

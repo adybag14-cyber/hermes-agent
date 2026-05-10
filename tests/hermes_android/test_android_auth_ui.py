@@ -61,8 +61,12 @@ def test_provider_presets_include_chatgpt_claude_gemini_qwen_and_zai():
     assert 'id = "chatgpt-web"' in presets
     assert 'id = "anthropic"' in presets
     assert 'id = "gemini"' in presets
+    assert 'id = "alibaba"' in presets
     assert 'id = "qwen-oauth"' in presets
     assert 'id = "zai"' in presets
+    assert 'apiKeyUrl = "https://openrouter.ai/keys"' in presets
+    assert 'apiKeyUrl = "https://home.qwencloud.com/api-keys"' in presets
+    assert 'apiKeyUrl = "https://z.ai/manage-apikey/apikey-list"' in presets
 
 
 def test_auth_callback_hardening_strings_and_base_url_validation_exist():
@@ -82,6 +86,8 @@ def test_auth_callback_hardening_strings_and_base_url_validation_exist():
     assert 'viewModelScope.launch' in auth_view_model
     assert 'Corr3xtAuthClient.probeStartUri' in auth_view_model
     assert 'currentStrings().authCheckingCorr3xt(option.label)' in auth_view_model
+    assert 'authAppSignInHostCouldNotBeResolved' in auth_view_model
+    assert 'authAppSignInPageCouldNotBeReached' in auth_view_model
     assert 'currentStrings().authHostCouldNotBeResolved(probe.host)' in auth_view_model
     assert 'currentStrings().authPageCouldNotBeReached(probe.errorName)' in auth_view_model
     assert 'fun prepareApiKeySetup' in auth_view_model
@@ -94,6 +100,8 @@ def test_auth_callback_hardening_strings_and_base_url_validation_exist():
     assert 'authCheckingCorr3xt' in strings
     assert 'authHostCouldNotBeResolved' in strings
     assert 'authPageCouldNotBeReached' in strings
+    assert 'authAppSignInHostCouldNotBeResolved' in strings
+    assert 'App sign-in is unavailable until a reachable Corr3xt URL is set' in strings
     assert 'Use API key in Settings' in strings
     assert 'secure API-key setup' in strings
     assert 'Unable to open Corr3xt: no browser is available' in strings
@@ -119,7 +127,23 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
         block = auth_models.split(f'id = "{provider}"', 1)[1].split("AuthOption(", 1)[0]
         assert "browserSignInSupported = false" in block
 
+    qwen_block = auth_models.split('id = "qwen"', 1)[1].split("AuthOption(", 1)[0]
+    assert 'runtimeProvider = "alibaba"' in qwen_block
+    assert 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' in qwen_block
     assert "if (option.supportsBrowserSignIn)" in auth_screen
     assert "strings.setUpApiKeyFor(option.label)" in auth_screen
     assert "prepareApiKeySetup(methodId)" in auth_view_model
     assert "providers use secure API keys or tokens in Settings" in strings
+
+
+def test_settings_opens_official_provider_key_pages():
+    settings_screen = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/settings/SettingsScreen.kt").read_text(encoding="utf-8")
+    settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
+    strings = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
+
+    assert "providerPreset?.apiKeyUrl" in settings_screen
+    assert "viewModel::openProviderKeyPage" in settings_screen
+    assert "Intent.ACTION_VIEW" in settings_view_model
+    assert "Uri.parse(target)" in settings_view_model
+    assert "openProviderKeyPage(providerLabel)" in settings_screen
+    assert "Open $providerLabel key page" in strings
