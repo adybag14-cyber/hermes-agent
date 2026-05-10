@@ -554,8 +554,6 @@ class NativeToolCallingChatClient(
                     "permission",
                     "force stop",
                     "clear app data",
-                    "open browser",
-                    "open url",
                 ).any { it in lower }
             ) {
                 add("android_system_tool")
@@ -586,6 +584,10 @@ class NativeToolCallingChatClient(
                     "widget",
                     "tile",
                     "profile",
+                    "open browser",
+                    "launch browser",
+                    "open url",
+                    "browse url",
                 ).any { it in lower }
             ) {
                 add("android_automation_tool")

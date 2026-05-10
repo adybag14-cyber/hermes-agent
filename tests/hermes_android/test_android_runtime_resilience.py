@@ -66,6 +66,9 @@ def test_android_chat_ui_and_native_tool_prompt_stay_compact_on_large_font_phone
     assert 'systemMessage(toolsEnabled = initialToolSpecs.length() > 0)' in native_tool_client
     assert 'Keep replies brief and direct.' in native_tool_client
     assert 'inferredToolNames(userText: String)' in native_tool_client
+    assert '"launch browser"' in native_tool_client
+    assert '"browse url"' in native_tool_client
+    assert 'create_intent_task: start_activity, open_uri, or send_broadcast' in native_tool_client
     assert 'explicitlyRequestedToolNames(userText)' in native_tool_client
     assert 'formatNativeChatError' in native_tool_client
     assert 'The local model ran out of context' in native_tool_client
