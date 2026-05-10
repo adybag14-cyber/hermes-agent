@@ -1,6 +1,8 @@
 package com.nousresearch.hermesagent.ui.settings
 
 import android.app.Application
+import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.chaquo.python.Python
@@ -89,6 +91,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             else -> BackendKind.NONE.persistedValue
         }
         updateOnDeviceBackend(backendValue)
+    }
+
+    fun openProviderKeyPage(url: String) {
+        val target = url.trim()
+        if (target.isBlank()) {
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching {
+            getApplication<Application>().startActivity(intent)
+        }.onSuccess {
+            _uiState.update { it.copy(status = "Opened provider key page") }
+        }.onFailure { error ->
+            _uiState.update {
+                it.copy(status = "Unable to open provider key page: ${error::class.java.simpleName}")
+            }
+        }
     }
 
     fun startLocalRuntimeForFlavor(runtimeFlavor: String) {

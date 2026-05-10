@@ -96,6 +96,7 @@ fun SettingsScreen(
                         onBaseUrlChange = viewModel::updateBaseUrl,
                         onModelChange = viewModel::updateModel,
                         onApiKeyChange = viewModel::updateApiKey,
+                        onOpenProviderKeyPage = viewModel::openProviderKeyPage,
                         onSave = viewModel::save,
                         strings = strings,
                     )
@@ -149,6 +150,7 @@ private fun RemoteFallbackCard(
     onBaseUrlChange: (String) -> Unit,
     onModelChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
+    onOpenProviderKeyPage: (String) -> Unit,
     onSave: () -> Unit,
     strings: com.nousresearch.hermesagent.ui.i18n.HermesStrings,
 ) {
@@ -183,6 +185,11 @@ private fun RemoteFallbackCard(
                 }
             }
             Text(strings.currentProviderProfile(providerLabel), style = MaterialTheme.typography.bodySmall)
+            providerPreset?.apiKeyUrl?.takeIf { it.isNotBlank() }?.let { apiKeyUrl ->
+                Button(onClick = { onOpenProviderKeyPage(apiKeyUrl) }) {
+                    Text(strings.openProviderKeyPage(providerLabel))
+                }
+            }
             OutlinedTextField(
                 value = baseUrl,
                 onValueChange = onBaseUrlChange,
