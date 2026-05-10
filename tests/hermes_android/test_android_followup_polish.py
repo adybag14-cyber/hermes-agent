@@ -100,6 +100,8 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'runtimeFlavorOverride' in downloads_view_model
     assert 'RecommendedLocalModelPreset' in downloads_view_model
     assert 'qwen35-08b-q4km-gguf' in downloads_view_model
+    assert 'revision = "6e5c4f1e395deb959c494953478fa5cec4b8008f"' in downloads_view_model
+    assert 'Edge Gallery 1.0.13 MTP path' in downloads_view_model
     assert 'restartDownloadOnMobileData(' in downloads_view_model
     assert 'Enter any Hugging Face repo' in strings
     assert 'One-tap local models' in strings
@@ -131,6 +133,9 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'put("speculative_decoding", engineInitResult.speculativeDecoding)' in litert_proxy
     assert 'put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)' in litert_proxy
     assert 'put("mtp_policy", engineInitResult.speculativeDecodingPolicy)' in litert_proxy
+    assert 'put("gpu_policy", engineInitResult.gpuPolicy)' in litert_proxy
+    assert 'ARM Qualcomm/Adreno' in litert_proxy
+    assert 'attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable' in litert_proxy
     assert 'libOpenCL.so' in manifest
     assert 'libvndksupport.so' in manifest
 

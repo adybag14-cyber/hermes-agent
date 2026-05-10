@@ -610,8 +610,9 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 description = "First-class Gemma 4 local runtime target for Hermes mobile chat, image-capable runtime plumbing, MTP acceleration, and Android agent tools.",
                 repoOrUrl = "litert-community/gemma-4-E2B-it-litert-lm",
                 filePath = "",
+                revision = "6e5c4f1e395deb959c494953478fa5cec4b8008f",
                 runtimeFlavor = "LiteRT-LM",
-                testedLabel = "Gemma 4 mobile path",
+                testedLabel = "Edge Gallery 1.0.13 MTP path",
             ),
             RecommendedLocalModelPreset(
                 id = "gemma3-1b-litert-lm",
