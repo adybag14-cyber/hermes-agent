@@ -19,7 +19,7 @@ def test_auth_screen_lists_requested_sign_in_methods_and_pending_fallback_ui():
     app_shell = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/shell/AppShell.kt").read_text(encoding="utf-8")
     settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
 
-    for label in ["Email", "Google", "Phone", "ChatGPT", "Claude", "Gemini", "Qwen", "Z.AI"]:
+    for label in ["Email", "Google", "Phone", "ChatGPT", "Claude", "Gemini", "Qwen Cloud", "Qwen OAuth", "Z.AI"]:
         assert label in auth_models
     assert 'Corr3xt auth base URL' in auth_screen
     assert 'Pending Corr3xt sign-in' in auth_screen
@@ -131,19 +131,25 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     auth_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/auth/AuthViewModel.kt").read_text(encoding="utf-8")
     strings = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
 
-    for provider in ["openrouter", "chatgpt", "claude", "gemini", "qwen", "zai"]:
+    provider_presets = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/data/ProviderPresets.kt").read_text(encoding="utf-8")
+
+    for provider in ["openrouter", "chatgpt", "claude", "gemini", "qwen", "qwen-oauth", "zai"]:
         block = auth_models.split(f'id = "{provider}"', 1)[1].split("AuthOption(", 1)[0]
         assert "browserSignInSupported = false" in block
 
     qwen_block = auth_models.split('id = "qwen"', 1)[1].split("AuthOption(", 1)[0]
     assert 'runtimeProvider = "alibaba"' in qwen_block
     assert 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1' in qwen_block
+    qwen_oauth_block = auth_models.split('id = "qwen-oauth"', 1)[1].split("AuthOption(", 1)[0]
+    assert 'runtimeProvider = "qwen-oauth"' in qwen_oauth_block
+    assert 'https://portal.qwen.ai/v1' in qwen_oauth_block
     assert "if (option.supportsBrowserSignIn)" in auth_screen
     assert "enabled = option.browserSignInEnabled" in auth_screen
     assert "browserSignInEnabled = option.scope != AuthScope.AppAccount || corr3xtConfigured" in auth_view_model
     assert "strings.setUpApiKeyFor(option.label)" in auth_screen
     assert "prepareApiKeySetup(methodId)" in auth_view_model
     assert "providers use secure API keys or tokens in Settings" in strings
+    assert "Qwen OAuth / Qwen Chat token" in provider_presets
 
 
 def test_settings_opens_official_provider_key_pages():
@@ -158,9 +164,11 @@ def test_settings_opens_official_provider_key_pages():
     assert "Uri.parse(target)" in settings_view_model
     assert "addCategory(Intent.CATEGORY_BROWSABLE)" in settings_view_model
     assert "openProviderKeyPage(providerLabel)" in settings_screen
-    assert "Open $providerLabel key page" in strings
+    assert "Open $providerLabel setup page" in strings
     assert "ProviderPresets.androidSettingsDefaults.forEach" in settings_screen
-    assert 'androidSettingsDefaults = defaults.filterNot { it.id == "qwen-oauth" }' in provider_presets
+    assert "androidSettingsDefaults = defaults" in provider_presets
+    assert "PasswordVisualTransformation()" in settings_screen
+    assert "KeyboardType.Password" in settings_screen
 
 
 def test_settings_provider_switch_applies_selected_provider_defaults():

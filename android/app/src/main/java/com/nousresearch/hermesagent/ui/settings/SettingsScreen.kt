@@ -24,8 +24,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nousresearch.hermesagent.backend.BackendKind
 import com.nousresearch.hermesagent.data.ProviderPresets
@@ -213,6 +216,9 @@ private fun RemoteFallbackCard(
                 onValueChange = onApiKeyChange,
                 label = { Text(strings.apiKeyLabel()) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             )
             Text(strings.apiKeyHelp(), style = MaterialTheme.typography.bodySmall)
             Button(onClick = onSave) {

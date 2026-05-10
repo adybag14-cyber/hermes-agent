@@ -137,12 +137,12 @@ data class HermesStrings(
     }
 
     fun apiKeyLabel(): String = when (language) {
-        AppLanguage.CHINESE -> "API 密钥"
-        AppLanguage.SPANISH -> "Clave API"
-        AppLanguage.GERMAN -> "API-Schlüssel"
-        AppLanguage.PORTUGUESE -> "Chave API"
-        AppLanguage.FRENCH -> "Clé API"
-        AppLanguage.ENGLISH -> "API Key"
+        AppLanguage.CHINESE -> "API 密钥 / 令牌"
+        AppLanguage.SPANISH -> "Clave API / token"
+        AppLanguage.GERMAN -> "API-Schlüssel / Token"
+        AppLanguage.PORTUGUESE -> "Chave API / token"
+        AppLanguage.FRENCH -> "Clé API / jeton"
+        AppLanguage.ENGLISH -> "API key / token"
     }
 
     fun saveLabel(): String = when (language) {
@@ -254,12 +254,12 @@ data class HermesStrings(
             AppLanguage.ENGLISH -> "1. Accounts: sign in through Corr3xt with email, phone, or Google; configure provider keys in Settings."
         }
         2 -> when (language) {
-            AppLanguage.CHINESE -> "2. 设置：选择提供商，确认基础 URL/模型，并保存 API 密钥。"
-            AppLanguage.SPANISH -> "2. Ajustes: elige proveedor, confirma la URL base/modelo y guarda la clave API."
-            AppLanguage.GERMAN -> "2. Einstellungen: Wähle Anbieter, prüfe Basis-URL/Modell und speichere den API-Schlüssel."
-            AppLanguage.PORTUGUESE -> "2. Configurações: escolha provedor, confirme URL base/modelo e salve a chave API."
-            AppLanguage.FRENCH -> "2. Réglages : choisissez le fournisseur, vérifiez l’URL de base/le modèle et enregistrez la clé API."
-            AppLanguage.ENGLISH -> "2. Settings: choose a provider, confirm the base URL/model, and save your API key."
+            AppLanguage.CHINESE -> "2. 设置：选择提供商，确认基础 URL/模型，并保存 API 密钥或令牌。"
+            AppLanguage.SPANISH -> "2. Ajustes: elige proveedor, confirma la URL base/modelo y guarda la clave API o token."
+            AppLanguage.GERMAN -> "2. Einstellungen: Wähle Anbieter, prüfe Basis-URL/Modell und speichere den API-Schlüssel oder Token."
+            AppLanguage.PORTUGUESE -> "2. Configurações: escolha provedor, confirme URL base/modelo e salve a chave API ou token."
+            AppLanguage.FRENCH -> "2. Réglages : choisissez le fournisseur, vérifiez l’URL de base/le modèle et enregistrez la clé API ou le jeton."
+            AppLanguage.ENGLISH -> "2. Settings: choose a provider, confirm the base URL/model, and save your API key or token."
         }
         3 -> when (language) {
             AppLanguage.CHINESE -> "3. 设备：如果希望 Hermes 直接编辑真实手机文件，请授予共享文件夹访问权限。"
@@ -280,21 +280,21 @@ data class HermesStrings(
     }
 
     fun apiKeyHelp(): String = when (language) {
-        AppLanguage.CHINESE -> "粘贴所选提供商的密钥，然后点保存以重启本地 Hermes 后端并应用新配置。"
-        AppLanguage.SPANISH -> "Pega la clave del proveedor seleccionado y pulsa Guardar para reiniciar el backend local de Hermes con la nueva configuración."
-        AppLanguage.GERMAN -> "Füge den Schlüssel für den gewählten Anbieter ein und tippe auf Speichern, um das lokale Hermes-Backend mit der neuen Konfiguration neu zu starten."
-        AppLanguage.PORTUGUESE -> "Cole a chave do provedor selecionado e toque em Salvar para reiniciar o backend local do Hermes com a nova configuração."
-        AppLanguage.FRENCH -> "Collez la clé du fournisseur sélectionné puis appuyez sur Enregistrer pour redémarrer le backend local Hermes avec la nouvelle configuration."
-        AppLanguage.ENGLISH -> "Paste the key for the selected provider, then tap Save to restart the local Hermes backend with the new config."
+        AppLanguage.CHINESE -> "粘贴所选提供商的 API 密钥或访问令牌，然后点保存以重启本地 Hermes 后端并应用新配置。"
+        AppLanguage.SPANISH -> "Pega la clave API o token de acceso del proveedor seleccionado y pulsa Guardar para reiniciar el backend local de Hermes con la nueva configuración."
+        AppLanguage.GERMAN -> "Füge den API-Schlüssel oder Zugriffstoken für den gewählten Anbieter ein und tippe auf Speichern, um das lokale Hermes-Backend mit der neuen Konfiguration neu zu starten."
+        AppLanguage.PORTUGUESE -> "Cole a chave API ou token de acesso do provedor selecionado e toque em Salvar para reiniciar o backend local do Hermes com a nova configuração."
+        AppLanguage.FRENCH -> "Collez la clé API ou le jeton d’accès du fournisseur sélectionné puis appuyez sur Enregistrer pour redémarrer le backend local Hermes avec la nouvelle configuration."
+        AppLanguage.ENGLISH -> "Paste the API key or access token for the selected provider, then tap Save to restart the local Hermes backend with the new config."
     }
 
     fun openProviderKeyPage(providerLabel: String): String = when (language) {
-        AppLanguage.CHINESE -> "打开 $providerLabel 密钥页面"
-        AppLanguage.SPANISH -> "Abrir página de claves de $providerLabel"
-        AppLanguage.GERMAN -> "$providerLabel-Schlüsselseite öffnen"
-        AppLanguage.PORTUGUESE -> "Abrir página de chaves do $providerLabel"
-        AppLanguage.FRENCH -> "Ouvrir la page de clés $providerLabel"
-        AppLanguage.ENGLISH -> "Open $providerLabel key page"
+        AppLanguage.CHINESE -> "打开 $providerLabel 设置页面"
+        AppLanguage.SPANISH -> "Abrir página de configuración de $providerLabel"
+        AppLanguage.GERMAN -> "$providerLabel-Einrichtungsseite öffnen"
+        AppLanguage.PORTUGUESE -> "Abrir página de configuração do $providerLabel"
+        AppLanguage.FRENCH -> "Ouvrir la page de configuration $providerLabel"
+        AppLanguage.ENGLISH -> "Open $providerLabel setup page"
     }
 
     fun toolProfileTitle(): String = when (language) {
@@ -786,6 +786,14 @@ data class HermesStrings(
                 AppLanguage.FRENCH -> "Utilisez une clé API Qwen Cloud / DashScope pour les appels de modèle distants Hermes Android."
                 AppLanguage.ENGLISH -> fallback
             }
+            "qwen-oauth" -> when (language) {
+                AppLanguage.CHINESE -> "复用 Qwen OAuth / Qwen Chat 令牌，匹配 Python CLI 的 qwen-oauth 提供商。"
+                AppLanguage.SPANISH -> "Reutiliza un token de Qwen OAuth / Qwen Chat, igual que el proveedor qwen-oauth de la CLI Python."
+                AppLanguage.GERMAN -> "Verwende einen Qwen-OAuth-/Qwen-Chat-Token wie beim qwen-oauth-Anbieter der Python-CLI."
+                AppLanguage.PORTUGUESE -> "Reutilize um token Qwen OAuth / Qwen Chat, igual ao provedor qwen-oauth da CLI Python."
+                AppLanguage.FRENCH -> "Réutilisez un jeton Qwen OAuth / Qwen Chat, comme le fournisseur qwen-oauth de la CLI Python."
+                AppLanguage.ENGLISH -> fallback
+            }
             "zai" -> when (language) {
                 AppLanguage.CHINESE -> "使用 Z.AI / GLM API 密钥进行 Hermes Android 远程模型调用。"
                 AppLanguage.SPANISH -> "Usa una clave API de Z.AI / GLM para llamadas remotas de Hermes Android."
@@ -1010,12 +1018,12 @@ data class HermesStrings(
     }
 
     fun remoteFallbackDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "本地模型不可用时，Hermes 可以使用远程 OpenAI 兼容提供商。点一个提供商即可填入常用默认值。"
-        AppLanguage.SPANISH -> "Cuando no haya un modelo local disponible, Hermes puede usar un proveedor remoto compatible con OpenAI. Toca un proveedor para rellenar valores comunes."
-        AppLanguage.GERMAN -> "Wenn kein lokales Modell verfügbar ist, kann Hermes einen OpenAI-kompatiblen Remote-Anbieter nutzen. Tippe auf einen Anbieter, um Standardwerte einzutragen."
-        AppLanguage.PORTUGUESE -> "Quando não houver modelo local disponível, o Hermes pode usar um provedor remoto compatível com OpenAI. Toque em um provedor para preencher padrões comuns."
-        AppLanguage.FRENCH -> "Quand aucun modèle local n’est disponible, Hermes peut utiliser un fournisseur distant compatible OpenAI. Touchez un fournisseur pour remplir les valeurs courantes."
-        AppLanguage.ENGLISH -> "When no local model is available, Hermes can use a remote OpenAI-compatible provider. Tap a provider to fill common defaults."
+        AppLanguage.CHINESE -> "本地模型不可用时，Hermes 可以使用远程 OpenAI 兼容提供商。点一个提供商即可填入常用默认值；设置会打开官方密钥或登录页面。"
+        AppLanguage.SPANISH -> "Cuando no haya un modelo local disponible, Hermes puede usar un proveedor remoto compatible con OpenAI. Toca un proveedor para rellenar valores comunes; la configuración abre la página oficial de claves o inicio de sesión."
+        AppLanguage.GERMAN -> "Wenn kein lokales Modell verfügbar ist, kann Hermes einen OpenAI-kompatiblen Remote-Anbieter nutzen. Tippe auf einen Anbieter, um Standardwerte einzutragen; die Einrichtung öffnet die offizielle Schlüssel- oder Anmeldeseite."
+        AppLanguage.PORTUGUESE -> "Quando não houver modelo local disponível, o Hermes pode usar um provedor remoto compatível com OpenAI. Toque em um provedor para preencher padrões comuns; a configuração abre a página oficial de chaves ou login."
+        AppLanguage.FRENCH -> "Quand aucun modèle local n’est disponible, Hermes peut utiliser un fournisseur distant compatible OpenAI. Touchez un fournisseur pour remplir les valeurs courantes ; la configuration ouvre la page officielle de clés ou de connexion."
+        AppLanguage.ENGLISH -> "When no local model is available, Hermes can use a remote OpenAI-compatible provider. Tap a provider to fill common defaults; setup opens the official key or sign-in page."
     }
 
     fun remoteOnly(): String = when (language) {

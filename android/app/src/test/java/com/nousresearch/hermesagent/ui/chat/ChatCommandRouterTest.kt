@@ -17,7 +17,7 @@ class ChatCommandRouterTest {
         assertEquals("qwen", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared qwen API-key setup in Settings. Paste the provider key there to power Hermes.",
+            "Prepared qwen API-key/token setup in Settings. Paste the provider credential there to power Hermes.",
             result.feedback,
         )
     }
@@ -32,7 +32,22 @@ class ChatCommandRouterTest {
         assertEquals("zai", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared zai API-key setup in Settings. Paste the provider key there to power Hermes.",
+            "Prepared zai API-key/token setup in Settings. Paste the provider credential there to power Hermes.",
+            result.feedback,
+        )
+    }
+
+    @Test
+    fun signinQwenOauthAliasPreparesTokenSetupInSettings() {
+        val host = RecordingCommandHost()
+
+        val result = ChatCommandRouter.execute("/signin qwen-cli", host.asHost())
+
+        assertTrue(result.handled)
+        assertEquals("qwen-oauth", host.startedAuthMethods.single())
+        assertEquals(AppSection.Settings, host.sections.single())
+        assertEquals(
+            "Prepared qwen-oauth API-key/token setup in Settings. Paste the provider credential there to power Hermes.",
             result.feedback,
         )
     }
