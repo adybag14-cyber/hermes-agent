@@ -194,6 +194,7 @@ def test_settings_opens_official_provider_key_pages():
 def test_settings_provider_switch_applies_selected_provider_defaults():
     settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
     auth_runtime_applier = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/auth/AuthRuntimeApplier.kt").read_text(encoding="utf-8")
+    runtime_manager = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/HermesRuntimeManager.kt").read_text(encoding="utf-8")
 
     assert "val providerChanged = provider != it.provider" in settings_view_model
     assert 'baseUrl = if (providerChanged && provider != "custom") preset?.baseUrl.orEmpty() else it.baseUrl' in settings_view_model
@@ -201,3 +202,5 @@ def test_settings_provider_switch_applies_selected_provider_defaults():
     assert 'ProviderPresets.runtimeConfigBaseUrl(snapshot.provider, snapshot.baseUrl)' in settings_view_model
     assert 'val runtimeConfigBaseUrl = ProviderPresets.runtimeConfigBaseUrl(session.runtimeProvider, resolvedBaseUrl)' in auth_runtime_applier
     assert 'runtimeConfigBaseUrl,' in auth_runtime_applier
+    assert 'import com.nousresearch.hermesagent.data.ProviderPresets' in runtime_manager
+    assert 'ProviderPresets.runtimeConfigBaseUrl(settings.provider, settings.baseUrl)' in runtime_manager

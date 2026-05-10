@@ -6,6 +6,7 @@ import android.os.Looper
 import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.nousresearch.hermesagent.data.AppSettingsStore
+import com.nousresearch.hermesagent.data.ProviderPresets
 import com.nousresearch.hermesagent.device.DeviceStateWriter
 import com.nousresearch.hermesagent.device.HermesLinuxSubsystemBridge
 import java.io.File
@@ -120,7 +121,11 @@ object HermesRuntimeManager {
             refreshPythonRuntimeEnvironment(appContext)
             val effectiveProvider = if (localBackendStatus.started) "custom" else settings.provider
             val effectiveModel = if (localBackendStatus.started) localBackendStatus.modelName else settings.model
-            val effectiveBaseUrl = if (localBackendStatus.started) localBackendStatus.baseUrl else settings.baseUrl
+            val effectiveBaseUrl = if (localBackendStatus.started) {
+                localBackendStatus.baseUrl
+            } else {
+                ProviderPresets.runtimeConfigBaseUrl(settings.provider, settings.baseUrl)
+            }
             Python.getInstance().getModule("hermes_android.config_bridge").callAttr(
                 "write_runtime_config",
                 effectiveProvider,
