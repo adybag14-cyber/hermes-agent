@@ -105,28 +105,14 @@ object HermesRuntimeManager {
                 DeviceStateWriter.write(appContext)
                 return currentState
             }
-            if (selectedLocalBackend != BackendKind.NONE) {
-                currentState = RuntimeState(
-                    started = false,
-                    hermesHome = File(appContext.filesDir, "hermes-home").absolutePath,
-                    modelName = localBackendStatus.modelName.ifBlank { settings.model },
-                    error = localBackendStatus.statusMessage.ifBlank {
-                        "Selected local backend ${selectedLocalBackend.persistedValue} did not start."
-                    },
-                )
-                DeviceStateWriter.write(appContext)
-                return currentState
-            }
+            val localBackendFallbackWarning =
+                localBackendFallbackWarning(selectedLocalBackend, localBackendStatus)
 
             ensurePythonStarted(appContext)
             refreshPythonRuntimeEnvironment(appContext)
-            val effectiveProvider = if (localBackendStatus.started) "custom" else settings.provider
-            val effectiveModel = if (localBackendStatus.started) localBackendStatus.modelName else settings.model
-            val effectiveBaseUrl = if (localBackendStatus.started) {
-                localBackendStatus.baseUrl
-            } else {
-                ProviderPresets.runtimeConfigBaseUrl(settings.provider, settings.baseUrl)
-            }
+            val effectiveProvider = settings.provider
+            val effectiveModel = settings.model
+            val effectiveBaseUrl = ProviderPresets.runtimeConfigBaseUrl(settings.provider, settings.baseUrl)
             Python.getInstance().getModule("hermes_android.config_bridge").callAttr(
                 "write_runtime_config",
                 effectiveProvider,
@@ -145,7 +131,7 @@ object HermesRuntimeManager {
                 apiKey = status.optString("api_server_key").ifBlank { null },
                 hermesHome = status.optString("hermes_home").ifBlank { null },
                 modelName = status.optString("api_server_model_name").ifBlank { null },
-                probeResult = probeResult,
+                probeResult = probeResult.withLocalBackendWarning(localBackendFallbackWarning),
             )
             DeviceStateWriter.write(appContext)
             currentState
@@ -189,4 +175,28 @@ object HermesRuntimeManager {
     }
 
     fun currentState(): RuntimeState = currentState
+
+    internal fun localBackendFallbackWarning(
+        selectedLocalBackend: BackendKind,
+        localBackendStatus: LocalBackendStatus,
+    ): String? {
+        if (selectedLocalBackend == BackendKind.NONE || localBackendStatus.started) {
+            return null
+        }
+        val reason = localBackendStatus.statusMessage.ifBlank {
+            "Selected local backend ${selectedLocalBackend.persistedValue} did not start."
+        }
+        return "Local ${selectedLocalBackend.persistedValue} backend unavailable: $reason. " +
+            "Using saved remote provider."
+    }
+
+    internal fun String?.withLocalBackendWarning(warning: String?): String? {
+        val trimmedWarning = warning.orEmpty().trim()
+        val trimmedProbe = orEmpty().trim()
+        return when {
+            trimmedWarning.isBlank() -> trimmedProbe.ifBlank { null }
+            trimmedProbe.isBlank() -> trimmedWarning
+            else -> "$trimmedProbe\n$trimmedWarning"
+        }
+    }
 }
