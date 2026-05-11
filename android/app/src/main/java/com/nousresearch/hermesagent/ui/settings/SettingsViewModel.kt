@@ -296,9 +296,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
         _uiState.update {
             it.copy(
-                provider = "custom",
-                baseUrl = "",
-                model = "",
                 onDeviceBackend = backendValue,
                 onDeviceSummary = OnDeviceBackendManager.preferredDownloadSummary(getApplication(), backendValue),
                 status = "Starting local Hermes runtime…",

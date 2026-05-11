@@ -6,8 +6,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.chaquo.python.Python
 import com.nousresearch.hermesagent.backend.BackendKind
 import com.nousresearch.hermesagent.backend.HermesRuntimeManager
+import com.nousresearch.hermesagent.backend.OnDeviceBackendManager
 import com.nousresearch.hermesagent.backend.PythonBootProbe
+import com.nousresearch.hermesagent.data.AppSettings
 import com.nousresearch.hermesagent.data.AppSettingsStore
+import com.nousresearch.hermesagent.data.LocalModelDownloadStore
 import com.nousresearch.hermesagent.device.HermesLinuxSubsystemBridge
 import com.nousresearch.hermesagent.device.HermesSystemControlBridge
 import org.json.JSONArray
@@ -29,6 +32,7 @@ class NativeAgentRuntimeSmokeTest {
     @After
     fun tearDown() {
         HermesRuntimeManager.stop()
+        OnDeviceBackendManager.stopAll()
     }
 
     @Test
@@ -136,6 +140,35 @@ class NativeAgentRuntimeSmokeTest {
         assertEquals(terminalResult.toString(), 0, terminalResult.optInt("exit_code", -1))
         assertTrue(terminalResult.toString(), terminalResult.optString("output").contains("tool-ok"))
         assertEquals("tool-ok", File(homePath, "hermes-tool-smoke.txt").readText())
+    }
+
+    @Test
+    fun embeddedRuntimeFallsBackToRemoteProviderWhenSelectedLocalModelIsMissing() {
+        LocalModelDownloadStore(context).apply {
+            saveDownloads(emptyList())
+            setPreferredDownloadId("")
+        }
+        AppSettingsStore(context).save(
+            AppSettings(
+                provider = "openrouter",
+                baseUrl = "",
+                model = "anthropic/claude-sonnet-4",
+                onDeviceBackend = BackendKind.LLAMA_CPP.persistedValue,
+            )
+        )
+
+        val state = HermesRuntimeManager.ensureStarted(context)
+        val backendStatus = OnDeviceBackendManager.currentStatus()
+
+        assertTrue(state.error.orEmpty(), state.started)
+        assertTrue("baseUrl=${state.baseUrl}", state.baseUrl.orEmpty().startsWith("http://127.0.0.1:"))
+        assertEquals(BackendKind.LLAMA_CPP, backendStatus.backendKind)
+        assertFalse("Local backend must remain stopped when no model is preferred", backendStatus.started)
+        assertTrue(
+            state.probeResult.orEmpty(),
+            state.probeResult.orEmpty()
+                .contains("Local llama.cpp backend unavailable: No preferred local model is ready for llama.cpp yet"),
+        )
     }
 
     private fun shellQuote(value: String): String {
