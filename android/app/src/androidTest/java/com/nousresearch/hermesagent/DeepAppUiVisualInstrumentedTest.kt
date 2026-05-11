@@ -25,6 +25,7 @@ import com.nousresearch.hermesagent.backend.OnDeviceBackendManager
 import com.nousresearch.hermesagent.data.AppSettings
 import com.nousresearch.hermesagent.data.AppSettingsStore
 import com.nousresearch.hermesagent.data.LocalModelDownloadStore
+import com.nousresearch.hermesagent.device.HermesProviderSetupWebActivity
 import com.nousresearch.hermesagent.ui.boot.BootUiState
 import com.nousresearch.hermesagent.ui.shell.AppShellScreen
 import org.junit.After
@@ -152,7 +153,7 @@ class DeepAppUiVisualInstrumentedTest {
         }
 
         val qwenSetupOpened = AtomicBoolean(false)
-        val qwenSetupIntent = browserOpenFor(Uri.parse("https://home.qwencloud.com/api-keys")) {
+        val qwenSetupIntent = providerSetupOpenFor(Uri.parse("https://home.qwencloud.com/api-keys")) {
             qwenSetupOpened.set(true)
         }
         Intents.init()
@@ -201,7 +202,7 @@ class DeepAppUiVisualInstrumentedTest {
         }
 
         val openAiSetupOpened = AtomicBoolean(false)
-        val openAiSetupIntent = browserOpenFor(
+        val openAiSetupIntent = providerSetupOpenFor(
             Uri.parse("https://platform.openai.com/settings/organization/api-keys")
         ) {
             openAiSetupOpened.set(true)
@@ -314,26 +315,25 @@ class DeepAppUiVisualInstrumentedTest {
         }
     }
 
-    private fun browserOpenFor(uri: Uri, onMatch: (() -> Unit)? = null): Matcher<Intent> {
+    private fun providerSetupOpenFor(uri: Uri, onMatch: (() -> Unit)? = null): Matcher<Intent> {
         return object : TypeSafeMatcher<Intent>() {
             override fun describeTo(description: Description) {
-                description.appendText("browser open intent for ").appendValue(uri)
+                description.appendText("Hermes provider setup intent for ").appendValue(uri)
             }
 
             override fun matchesSafely(intent: Intent): Boolean {
-                val target = if (intent.action == Intent.ACTION_CHOOSER) {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-                } else {
-                    intent
-                }
-                val matches = target?.action == Intent.ACTION_VIEW && target.data == uri
+                val matches = intent.component?.className == HermesProviderSetupWebActivity::class.java.name &&
+                    intent.getStringExtra(PROVIDER_SETUP_URL_EXTRA) == uri.toString()
                 if (matches) {
                     onMatch?.invoke()
                 }
                 return matches
             }
         }
+    }
+
+    private companion object {
+        private const val PROVIDER_SETUP_URL_EXTRA = "com.nousresearch.hermesagent.PROVIDER_SETUP_URL"
     }
 
     private class TestHttpServer(private val responseCodeForTarget: (String) -> Int) : AutoCloseable {
