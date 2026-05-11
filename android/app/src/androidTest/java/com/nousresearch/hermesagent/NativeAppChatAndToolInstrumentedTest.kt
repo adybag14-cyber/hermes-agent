@@ -292,8 +292,8 @@ class NativeAppChatAndToolInstrumentedTest {
         private const val MODEL_FILE_NAME = "gemma-4-E2B-it.litertlm"
         private const val MODEL_RELATIVE_PATH = "hermes-home/downloads/models/$MODEL_FILE_NAME"
         private const val MODEL_SOURCE_URL =
-            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
-        private const val MODEL_REVISION = "84b6978eff6e4eea02825bc2ee4ea48579f13109"
+            "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/7fa1d78473894f7e736a21d920c3aa80f950c0db/gemma-4-E2B-it.litertlm"
+        private const val MODEL_REVISION = "7fa1d78473894f7e736a21d920c3aa80f950c0db"
         private const val MODEL_BYTES = 2_583_085_056L
         private const val QWEN_MODEL_ID = "Qwen3.5 0.8B Q4_K_M GGUF"
         private const val QWEN_REPO = "bartowski/Qwen_Qwen3.5-0.8B-GGUF"
