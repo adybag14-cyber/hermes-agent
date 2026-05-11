@@ -1,16 +1,31 @@
 package com.nousresearch.hermesagent.device
 
+import android.accessibilityservice.AccessibilityService
+import android.graphics.Bitmap
 import android.graphics.Rect
+import android.os.Build
 import android.os.Bundle
+import android.util.Base64
+import android.view.Display
 import android.view.accessibility.AccessibilityNodeInfo
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 object HermesAccessibilityUiBridge {
     private const val DEFAULT_LIMIT = 80
     private const val MAX_LIMIT = 200
+    private const val SCREENSHOT_TIMEOUT_MS = 5_000L
+    private const val DEFAULT_SCREENSHOT_MAX_EDGE_PX = 1_600
+    private const val MIN_SCREENSHOT_MAX_EDGE_PX = 256
+    private const val MAX_SCREENSHOT_MAX_EDGE_PX = 4_096
     private const val DEFAULT_TAP_DURATION_MS = 80L
     private const val DEFAULT_LONG_PRESS_DURATION_MS = 650L
     private const val DEFAULT_SWIPE_DURATION_MS = 450L
@@ -49,6 +64,60 @@ object HermesAccessibilityUiBridge {
             }.toString()
         }.getOrElse { error ->
             errorJson(error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    @JvmStatic
+    fun captureScreenshotJson(
+        saveFile: Boolean,
+        includeBase64: Boolean,
+        maxImageEdgePx: Int,
+    ): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return errorJson("Android visual screenshot capture requires API 30 or newer")
+        }
+        val service = HermesAccessibilityController.currentService()
+            ?: return errorJson("Hermes accessibility service is not connected")
+        val resolvedMaxEdge = (maxImageEdgePx.takeIf { it > 0 } ?: DEFAULT_SCREENSHOT_MAX_EDGE_PX)
+            .coerceIn(MIN_SCREENSHOT_MAX_EDGE_PX, MAX_SCREENSHOT_MAX_EDGE_PX)
+        val executor = Executors.newSingleThreadExecutor()
+        val latch = CountDownLatch(1)
+        val result = AtomicReference<String>()
+
+        try {
+            service.takeScreenshot(
+                Display.DEFAULT_DISPLAY,
+                executor,
+                object : AccessibilityService.TakeScreenshotCallback {
+                    override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
+                        result.set(
+                            runCatching {
+                                screenshotToJson(
+                                    service = service,
+                                    screenshot = screenshot,
+                                    saveFile = saveFile,
+                                    includeBase64 = includeBase64,
+                                    maxImageEdgePx = resolvedMaxEdge,
+                                )
+                            }.getOrElse { error ->
+                                errorJson(error.message ?: error.javaClass.simpleName)
+                            },
+                        )
+                        latch.countDown()
+                    }
+
+                    override fun onFailure(errorCode: Int) {
+                        result.set(errorJson("Android screenshot capture failed with error code $errorCode"))
+                        latch.countDown()
+                    }
+                },
+            )
+            if (!latch.await(SCREENSHOT_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                return errorJson("Timed out waiting for Android screenshot capture")
+            }
+            return result.get() ?: errorJson("Android screenshot capture returned no result")
+        } finally {
+            executor.shutdownNow()
         }
     }
 
@@ -448,6 +517,84 @@ object HermesAccessibilityUiBridge {
             ?.toString()
             .orEmpty()
             .ifBlank { HermesAccessibilityController.currentForegroundPackageName() }
+    }
+
+    private fun screenshotToJson(
+        service: HermesAccessibilityService,
+        screenshot: AccessibilityService.ScreenshotResult,
+        saveFile: Boolean,
+        includeBase64: Boolean,
+        maxImageEdgePx: Int,
+    ): String {
+        val buffer = screenshot.hardwareBuffer
+        try {
+            val source = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
+                ?: throw IOException("Android returned an unreadable screenshot buffer")
+            val bitmap = source.copy(Bitmap.Config.ARGB_8888, false)
+            val scaled = scaleBitmapForToolResult(bitmap, maxImageEdgePx)
+            val pngBytes = ByteArrayOutputStream().use { output ->
+                if (!scaled.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                    throw IOException("Failed to encode Android screenshot as PNG")
+                }
+                output.toByteArray()
+            }
+            val imageHash = sha256Hex(pngBytes)
+            val imagePath = if (saveFile) {
+                val dir = File(service.filesDir, "hermes-screenshots").apply { mkdirs() }
+                val file = File(dir, "screen-${System.currentTimeMillis()}.png")
+                file.writeBytes(pngBytes)
+                file.absolutePath
+            } else {
+                ""
+            }
+            val output = JSONObject()
+                .put("success", true)
+                .put("action", "screenshot")
+                .put("accessibility_connected", true)
+                .put("current_app_name", currentAppName())
+                .put("image_width", scaled.width)
+                .put("image_height", scaled.height)
+                .put("image_mime_type", "image/png")
+                .put("image_bytes", pngBytes.size)
+                .put("image_sha256", imageHash)
+                .put("screenshot_hash", imageHash.take(16))
+                .put("screenshot_hash_kind", "png_sha256_64")
+                .put("saved_file", saveFile)
+                .put("image_path", imagePath)
+                .put("include_base64", includeBase64)
+                .put("max_image_edge_px", maxImageEdgePx)
+                .put(
+                    "message",
+                    "Captured an Android visual screenshot through the Hermes accessibility service.",
+                )
+            if (includeBase64) {
+                output.put("image_base64", Base64.encodeToString(pngBytes, Base64.NO_WRAP))
+            }
+            if (scaled !== bitmap) {
+                scaled.recycle()
+            }
+            bitmap.recycle()
+            return output.toString()
+        } finally {
+            buffer.close()
+        }
+    }
+
+    private fun scaleBitmapForToolResult(bitmap: Bitmap, maxImageEdgePx: Int): Bitmap {
+        val maxEdge = maxOf(bitmap.width, bitmap.height)
+        if (maxEdge <= maxImageEdgePx) {
+            return bitmap
+        }
+        val scale = maxImageEdgePx.toFloat() / maxEdge.toFloat()
+        val width = (bitmap.width * scale).toInt().coerceAtLeast(1)
+        val height = (bitmap.height * scale).toInt().coerceAtLeast(1)
+        return Bitmap.createScaledBitmap(bitmap, width, height, true)
+    }
+
+    private fun sha256Hex(bytes: ByteArray): String {
+        return MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
     }
 
     private fun JSONObject.putScreenMetrics(metrics: HermesScreenMetrics): JSONObject {

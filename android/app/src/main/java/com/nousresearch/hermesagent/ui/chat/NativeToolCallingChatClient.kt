@@ -345,6 +345,10 @@ class NativeToolCallingChatClient(
         return when (action.ifBlank { "status" }) {
             "status", "read_status" -> androidUiStatusJson()
             "snapshot", "screen_snapshot", "read_screen" -> executeAndroidSnapshotTool(toolCall)
+            "screenshot",
+            "screen_image",
+            "visual_snapshot",
+            "capture_screenshot" -> executeAndroidScreenshotTool(toolCall)
             "parse_opengui_action",
             "parse_open_gui_action",
             "parse_gui_action" -> executeOpenGuiActionTool(toolCall, parseOnly = true)
@@ -423,6 +427,17 @@ class NativeToolCallingChatClient(
     private fun executeAndroidSnapshotTool(toolCall: ToolCall): String {
         val result = HermesAccessibilityUiBridge.snapshotJson(
             limit = toolCall.arguments.optInt("limit", DEFAULT_UI_SNAPSHOT_LIMIT),
+        )
+        rememberOpenGuiScreenHashFromResult(result)
+        return result
+    }
+
+    private fun executeAndroidScreenshotTool(toolCall: ToolCall): String {
+        val arguments = toolCall.arguments
+        val result = HermesAccessibilityUiBridge.captureScreenshotJson(
+            saveFile = optionalBooleanArgument(arguments, "save_file", "save", "persist") ?: true,
+            includeBase64 = optionalBooleanArgument(arguments, "include_base64", "base64", "inline_image") ?: false,
+            maxImageEdgePx = optionalIntArgument(arguments, "max_image_edge_px", "max_edge_px", "max_edge") ?: 0,
         )
         rememberOpenGuiScreenHashFromResult(result)
         return result
@@ -762,6 +777,9 @@ class NativeToolCallingChatClient(
             .put("coordinate_arguments", JSONArray(UI_COORDINATE_ARGUMENTS))
             .put("opengui_action_arguments", JSONArray(OPEN_GUI_ACTION_ARGUMENTS))
             .put("snapshot_hash_support", true)
+            .put("screenshot_capture_supported", android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R)
+            .put("screenshot_capture_api_level", 30)
+            .put("screenshot_file_output", true)
             .put("opengui_screen_review_supported", true)
             .put("recent_snapshot_hash_count", recentOpenGuiScreenHashes.size)
             .put("active_package", HermesAccessibilityController.currentForegroundPackageName())
@@ -797,11 +815,32 @@ class NativeToolCallingChatClient(
         }
     }
 
+    private fun optionalIntArgument(arguments: JSONObject, vararg keys: String): Int? {
+        val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return null
+        return when (val value = arguments.opt(key)) {
+            is Number -> value.toInt()
+            else -> value?.toString()?.trim()?.toIntOrNull()
+        }
+    }
+
     private fun optionalLongArgument(arguments: JSONObject, vararg keys: String): Long? {
         val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return null
         return when (val value = arguments.opt(key)) {
             is Number -> value.toLong()
             else -> value?.toString()?.trim()?.toLongOrNull()
+        }
+    }
+
+    private fun optionalBooleanArgument(arguments: JSONObject, vararg keys: String): Boolean? {
+        val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return null
+        return when (val value = arguments.opt(key)) {
+            is Boolean -> value
+            is Number -> value.toInt() != 0
+            else -> when (value?.toString()?.trim()?.lowercase()) {
+                "1", "true", "yes", "on", "enabled" -> true
+                "0", "false", "no", "off", "disabled" -> false
+                else -> null
+            }
         }
     }
 
@@ -876,7 +915,7 @@ class NativeToolCallingChatClient(
                     name = "android_ui_tool",
                     description = "Inspect or control the visible Android UI through Hermes accessibility. OpenGUI-compatible execution includes local repeated-action and screen-state review guards that can return requires_replan before a likely loop continues.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, snapshot, parse_opengui_action, opengui_action, click, long_click, focus, set_text, type, scroll_forward, scroll_backward, scroll, scroll_up, scroll_down, scroll_left, scroll_right, tap, long_press, swipe, open_app, launch_app, back, home, press_back, press_home, recents, notifications, quick_settings, open_accessibility_settings."))
+                        .put("action", stringProp("status, snapshot, screenshot, visual_snapshot, parse_opengui_action, opengui_action, click, long_click, focus, set_text, type, scroll_forward, scroll_backward, scroll, scroll_up, scroll_down, scroll_left, scroll_right, tap, long_press, swipe, drag, open_app, launch_app, back, home, press_back, press_home, recents, notifications, quick_settings, open_accessibility_settings."))
                         .put("raw_action", stringProp("OpenGUI-style VLM action text for parse_opengui_action or opengui_action, such as Action: click(start_box='<point>500 250</point>')."))
                         .put("screen_hash", stringProp("Optional OpenGUI pHash or Hermes snapshot ui_state_hash for screen-state loop review."))
                         .put("text_contains", stringProp("Visible text selector."))
@@ -897,7 +936,10 @@ class NativeToolCallingChatClient(
                         .put("coordinate_space", stringProp("absolute_px by default, or normalized/percent."))
                         .put("duration_ms", intProp("Gesture duration in milliseconds."))
                         .put("direction", stringProp("Scroll finger direction: up, down, left, or right."))
-                        .put("distance_px", scalarProp("Optional scroll distance in screen pixels.")),
+                        .put("distance_px", scalarProp("Optional scroll distance in screen pixels."))
+                        .put("save_file", boolProp("For screenshot/visual_snapshot, save PNG in the Hermes app files directory. Defaults true."))
+                        .put("include_base64", boolProp("For screenshot/visual_snapshot, include base64 PNG bytes inline. Defaults false to keep tool results small."))
+                        .put("max_image_edge_px", intProp("For screenshot/visual_snapshot, resize the longest image edge before returning or saving.")),
                     required = JSONArray().put("action"),
                 ),
             )
@@ -2329,6 +2371,10 @@ class NativeToolCallingChatClient(
         private val ANDROID_UI_ACTIONS = listOf(
             "status",
             "snapshot",
+            "screenshot",
+            "screen_image",
+            "visual_snapshot",
+            "capture_screenshot",
             "parse_opengui_action",
             "opengui_action",
             "open_gui_action",
@@ -2349,6 +2395,7 @@ class NativeToolCallingChatClient(
             "tap",
             "long_press",
             "swipe",
+            "drag",
             "open_app",
             "launch_app",
             "back",
@@ -2390,6 +2437,9 @@ class NativeToolCallingChatClient(
             "duration_ms",
             "direction",
             "distance_px",
+            "save_file",
+            "include_base64",
+            "max_image_edge_px",
         )
     }
 }
