@@ -13,8 +13,10 @@ object HermesAccessibilityUiBridge {
     private const val DEFAULT_TAP_DURATION_MS = 80L
     private const val DEFAULT_LONG_PRESS_DURATION_MS = 650L
     private const val DEFAULT_SWIPE_DURATION_MS = 450L
+    private const val DEFAULT_SCROLL_DURATION_MS = 500L
     private const val MIN_GESTURE_DURATION_MS = 1L
     private const val MAX_GESTURE_DURATION_MS = 5_000L
+    private const val DEFAULT_SCROLL_DISTANCE_FRACTION = 0.5f
     private val NORMALIZED_COORDINATE_SPACES = setOf("normalized", "normalised", "relative", "fraction", "unit", "unit_interval")
     private val PERCENT_COORDINATE_SPACES = setOf("percent", "percentage", "normalized_percent", "normalised_percent")
 
@@ -173,6 +175,132 @@ object HermesAccessibilityUiBridge {
     }
 
     @JvmStatic
+    fun performScrollGestureJson(
+        direction: String,
+        x: Double?,
+        y: Double?,
+        distancePx: Double?,
+        durationMs: Long,
+        coordinateSpace: String,
+    ): String {
+        return runCatching {
+            if (!HermesAccessibilityController.isServiceConnected()) {
+                return errorJson("Hermes accessibility service is not connected")
+            }
+            val metrics = HermesAccessibilityController.screenMetrics()
+                ?: return errorJson("Screen metrics are not available")
+            if (metrics.width <= 0 || metrics.height <= 0) {
+                return errorJson("Screen metrics are not valid")
+            }
+
+            val normalizedDirection = normalizeScrollDirection(direction)
+            val start = if (x != null || y != null) {
+                resolveCoordinatePoint(
+                    x = x,
+                    y = y,
+                    metrics = metrics,
+                    coordinateSpace = coordinateSpace,
+                    xLabel = "x",
+                    yLabel = "y",
+                )
+            } else {
+                defaultScrollStartPoint(normalizedDirection, metrics)
+            }
+            val distance = resolvedScrollDistance(normalizedDirection, distancePx, metrics)
+            val end = scrollEndPoint(start, normalizedDirection, distance, metrics)
+            val duration = (durationMs.takeIf { it > 0L } ?: DEFAULT_SCROLL_DURATION_MS)
+                .coerceIn(MIN_GESTURE_DURATION_MS, MAX_GESTURE_DURATION_MS)
+            val performed = HermesAccessibilityController.performSwipe(start.x, start.y, end.x, end.y, duration)
+
+            JSONObject().apply {
+                put("success", performed)
+                put("action", "scroll")
+                put("direction", normalizedDirection)
+                put("accessibility_connected", true)
+                put("current_app_name", currentAppName())
+                put("coordinate_space", resolvedCoordinateSpaceLabel(coordinateSpace))
+                put("requested_coordinate_space", coordinateSpace.ifBlank { "absolute_px" })
+                put("duration_ms", duration)
+                put("distance_px", distance.toDouble())
+                putScreenMetrics(metrics)
+                put("scale_factor", 1.0)
+                put("resolved_coordinates", JSONArray(listOf(start, end).map { point -> point.toJson() }))
+                put(
+                    "message",
+                    if (performed) {
+                        "Dispatched Android accessibility scroll gesture: $normalizedDirection"
+                    } else {
+                        "Android rejected accessibility scroll gesture: $normalizedDirection"
+                    },
+                )
+            }.toString()
+        }.getOrElse { error ->
+            errorJson(error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    @JvmStatic
+    fun performTextInputJson(
+        value: String,
+        textContains: String,
+        contentDescriptionContains: String,
+        viewId: String,
+        packageName: String,
+        index: Int,
+    ): String {
+        return runCatching {
+            val service = HermesAccessibilityController.currentService()
+                ?: return errorJson("Hermes accessibility service is not connected")
+            val root = service.rootInActiveWindow
+                ?: return errorJson("No active accessibility window is available")
+            val nodes = flattenNodes(root, MAX_LIMIT)
+            val hasSelector = textContains.isNotBlank() ||
+                contentDescriptionContains.isNotBlank() ||
+                viewId.isNotBlank() ||
+                packageName.isNotBlank()
+            val target = if (hasSelector) {
+                val matches = nodes.filter { node ->
+                    matchesSelector(node, textContains, contentDescriptionContains, viewId, packageName)
+                }
+                val resolvedIndex = index.coerceAtLeast(0)
+                if (matches.isEmpty()) {
+                    return errorJson("No accessibility node matched the requested selector")
+                }
+                if (resolvedIndex >= matches.size) {
+                    return errorJson("Requested match index $resolvedIndex but only ${matches.size} node(s) matched")
+                }
+                findEditableNode(matches[resolvedIndex])
+                    ?: throw IOException("No editable accessibility node matched the selector")
+            } else {
+                nodes.firstOrNull { node -> node.isFocused && isEditableNode(node) }
+                    ?: nodes.firstOrNull { node -> isEditableNode(node) }
+                    ?: throw IOException("No focused or editable accessibility node is available")
+            }
+            val arguments = Bundle().apply {
+                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
+            }
+            val performed = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+            JSONObject().apply {
+                put("success", performed)
+                put("action", "type")
+                put("accessibility_connected", true)
+                put("current_app_name", currentAppName())
+                put("matched_node", nodeJson(target, nodes.indexOf(target).coerceAtLeast(0)))
+                put(
+                    "message",
+                    if (performed) {
+                        "Set text on Android editable field"
+                    } else {
+                        "Android rejected text input for editable field"
+                    },
+                )
+            }.toString()
+        }.getOrElse { error ->
+            errorJson(error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    @JvmStatic
     fun performGlobalActionJson(action: String): String {
         val normalizedAction = normalizeGlobalAction(action)
         val globalAction = when (normalizedAction) {
@@ -213,6 +341,16 @@ object HermesAccessibilityUiBridge {
         }
     }
 
+    private fun normalizeScrollDirection(direction: String): String {
+        return when (direction.trim().lowercase().replace("-", "_").replace(" ", "_")) {
+            "down", "scroll_down", "finger_down" -> "down"
+            "left", "scroll_left", "finger_left" -> "left"
+            "right", "scroll_right", "finger_right" -> "right"
+            "up", "scroll_up", "finger_up", "" -> "up"
+            else -> throw IOException("Unsupported scroll direction: $direction")
+        }
+    }
+
     private fun resolvedGestureDuration(action: String, durationMs: Long): Long {
         val defaultDuration = when (action) {
             "long_press" -> DEFAULT_LONG_PRESS_DURATION_MS
@@ -250,6 +388,40 @@ object HermesAccessibilityUiBridge {
             else -> value
         }
         return resolved.coerceIn(0.0, axisMax).toFloat()
+    }
+
+    private fun defaultScrollStartPoint(direction: String, metrics: HermesScreenMetrics): CoordinatePoint {
+        val widthMax = (metrics.width - 1).coerceAtLeast(0).toFloat()
+        val heightMax = (metrics.height - 1).coerceAtLeast(0).toFloat()
+        return when (direction) {
+            "down" -> CoordinatePoint(widthMax * 0.5f, heightMax * 0.25f)
+            "left" -> CoordinatePoint(widthMax * 0.75f, heightMax * 0.5f)
+            "right" -> CoordinatePoint(widthMax * 0.25f, heightMax * 0.5f)
+            else -> CoordinatePoint(widthMax * 0.5f, heightMax * 0.75f)
+        }
+    }
+
+    private fun resolvedScrollDistance(direction: String, distancePx: Double?, metrics: HermesScreenMetrics): Float {
+        val axis = if (direction == "left" || direction == "right") metrics.width else metrics.height
+        val defaultDistance = axis * DEFAULT_SCROLL_DISTANCE_FRACTION
+        val requested = distancePx?.toFloat()?.takeIf { it.isFinite() && it > 0f }
+        return (requested ?: defaultDistance).coerceIn(1f, axis.toFloat().coerceAtLeast(1f))
+    }
+
+    private fun scrollEndPoint(
+        start: CoordinatePoint,
+        direction: String,
+        distance: Float,
+        metrics: HermesScreenMetrics,
+    ): CoordinatePoint {
+        val maxX = (metrics.width - 1).coerceAtLeast(0).toFloat()
+        val maxY = (metrics.height - 1).coerceAtLeast(0).toFloat()
+        return when (direction) {
+            "down" -> CoordinatePoint(start.x, (start.y + distance).coerceIn(0f, maxY))
+            "left" -> CoordinatePoint((start.x - distance).coerceIn(0f, maxX), start.y)
+            "right" -> CoordinatePoint((start.x + distance).coerceIn(0f, maxX), start.y)
+            else -> CoordinatePoint(start.x, (start.y - distance).coerceIn(0f, maxY))
+        }
     }
 
     private fun resolvedCoordinateSpaceLabel(coordinateSpace: String): String {
@@ -330,7 +502,7 @@ object HermesAccessibilityUiBridge {
             "scroll_forward" -> findSelfOrAncestor(node) { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) == true
             "scroll_backward" -> findSelfOrAncestor(node) { it.isScrollable }?.performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) == true
             "set_text" -> {
-                val editableTarget = findSelfOrAncestor(node) { it.isEditable || it.actionList.any { actionItem -> actionItem.id == AccessibilityNodeInfo.ACTION_SET_TEXT } }
+                val editableTarget = findEditableNode(node)
                     ?: throw IOException("No editable accessibility node matched the selector")
                 val arguments = Bundle().apply {
                     putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
@@ -339,6 +511,14 @@ object HermesAccessibilityUiBridge {
             }
             else -> throw IOException("Unsupported accessibility action: $action")
         }
+    }
+
+    private fun findEditableNode(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        return findSelfOrAncestor(node) { candidate -> isEditableNode(candidate) }
+    }
+
+    private fun isEditableNode(node: AccessibilityNodeInfo): Boolean {
+        return node.isEditable || node.actionList.any { actionItem -> actionItem.id == AccessibilityNodeInfo.ACTION_SET_TEXT }
     }
 
     private fun findSelfOrAncestor(node: AccessibilityNodeInfo, predicate: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
