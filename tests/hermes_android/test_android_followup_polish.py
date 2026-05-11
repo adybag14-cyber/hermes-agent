@@ -344,8 +344,12 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
     assert 'HermesScreenMetrics' in controller
 
     assert 'fun performCoordinateGestureJson(' in ui_bridge
+    assert 'fun performScrollGestureJson(' in ui_bridge
+    assert 'fun performTextInputJson(' in ui_bridge
     assert 'NORMALIZED_COORDINATE_SPACES' in ui_bridge
     assert 'PERCENT_COORDINATE_SPACES' in ui_bridge
+    assert 'defaultScrollStartPoint' in ui_bridge
+    assert 'resolvedScrollDistance' in ui_bridge
     assert 'resolved_coordinates' in ui_bridge
     assert 'screen_width' in ui_bridge
     assert 'screen_height' in ui_bridge
@@ -360,6 +364,15 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
         '"coordinate_tap"',
         '"coordinate_click"',
         '"coordinate_swipe"',
+        '"scroll"',
+        '"scroll_up"',
+        '"scroll_down"',
+        '"scroll_left"',
+        '"scroll_right"',
+        '"type"',
+        '"type_text"',
+        '"press_home"',
+        '"press_back"',
     ]:
         assert action in chat_client
 
@@ -372,8 +385,13 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
         '"y2"',
         '"coordinate_space"',
         '"duration_ms"',
+        '"direction"',
+        '"distance_px"',
     ]:
         assert argument in chat_client
 
     assert 'executeAndroidCoordinateGesture' in chat_client
+    assert 'executeAndroidScrollGesture' in chat_client
+    assert 'hasCoordinateGestureArguments' in chat_client
+    assert 'executeAndroidSelectorAction' in chat_client
     assert 'coordinate_arguments' in chat_client
