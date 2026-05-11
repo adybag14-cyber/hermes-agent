@@ -1,7 +1,11 @@
 package com.nousresearch.hermesagent
 
+import android.app.Activity
 import android.app.Application
+import android.app.Instrumentation
+import android.content.Intent
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -10,6 +14,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.intent.Intents
+import androidx.test.espresso.intent.Intents.intended
+import androidx.test.espresso.intent.Intents.intending
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasData
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -26,6 +35,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.hamcrest.Matchers.allOf
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileOutputStream
@@ -115,7 +125,7 @@ class DeepAppUiVisualInstrumentedTest {
     }
 
     @Test
-    fun signinQwenCommandReloadsSettingsProviderProfile() {
+    fun signinQwenCommandOpensSetupPageAndReloadsSettingsProviderProfile() {
         AppSettingsStore(app).save(
             AppSettings(
                 provider = "openrouter",
@@ -138,14 +148,27 @@ class DeepAppUiVisualInstrumentedTest {
             )
         }
 
-        composeRule.onNodeWithTag("HermesChatInput").performTextInput("/signin qwen")
-        composeRule.onNodeWithText("Send").performClick()
-        composeRule.onAllNodesWithText("Settings")[0].assertIsDisplayed()
-        assertTrue(
-            composeRule.onAllNodesWithText("Current provider profile: Qwen Cloud / DashScope")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
+        val qwenSetupIntent = allOf(
+            hasAction(Intent.ACTION_VIEW),
+            hasData(Uri.parse("https://home.qwencloud.com/api-keys")),
         )
+        Intents.init()
+        try {
+            intending(qwenSetupIntent).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+
+            composeRule.onNodeWithTag("HermesChatInput").performTextInput("/signin qwen")
+            composeRule.onNodeWithText("Send").performClick()
+
+            intended(qwenSetupIntent)
+            composeRule.onAllNodesWithText("Settings")[0].assertIsDisplayed()
+            assertTrue(
+                composeRule.onAllNodesWithText("Current provider profile: Qwen Cloud / DashScope API key")
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            )
+        } finally {
+            Intents.release()
+        }
     }
 
     @Test
