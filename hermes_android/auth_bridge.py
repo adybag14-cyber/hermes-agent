@@ -234,10 +234,17 @@ def read_provider_auth_bundle_json(provider: str) -> str:
 
 def write_provider_api_key(provider: str, api_key: str) -> dict[str, Any]:
     normalized = str(provider or "").strip().lower()
+    api_key_value = str(api_key or "").strip()
+    if not api_key_value:
+        return {
+            "provider": normalized,
+            "saved": False,
+            "reason": "blank_api_key_preserved",
+        }
     if normalized == "qwen-oauth":
-        return write_provider_auth_bundle(normalized, access_token=api_key)
+        return write_provider_auth_bundle(normalized, access_token=api_key_value)
     env_key = provider_env_key(normalized)
-    save_env_value(env_key, api_key)
+    save_env_value(env_key, api_key_value)
     return {"provider": normalized, "env_key": env_key, "saved": True}
 
 
