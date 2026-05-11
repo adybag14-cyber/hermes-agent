@@ -10,6 +10,13 @@ import java.io.IOException
 object HermesAccessibilityUiBridge {
     private const val DEFAULT_LIMIT = 80
     private const val MAX_LIMIT = 200
+    private const val DEFAULT_TAP_DURATION_MS = 80L
+    private const val DEFAULT_LONG_PRESS_DURATION_MS = 650L
+    private const val DEFAULT_SWIPE_DURATION_MS = 450L
+    private const val MIN_GESTURE_DURATION_MS = 1L
+    private const val MAX_GESTURE_DURATION_MS = 5_000L
+    private val NORMALIZED_COORDINATE_SPACES = setOf("normalized", "normalised", "relative", "fraction", "unit", "unit_interval")
+    private val PERCENT_COORDINATE_SPACES = setOf("percent", "percentage", "normalized_percent", "normalised_percent")
 
     @JvmStatic
     fun snapshotJson(limit: Int): String {
@@ -23,6 +30,13 @@ object HermesAccessibilityUiBridge {
             JSONObject().apply {
                 put("accessibility_connected", true)
                 put("active_package", root.packageName?.toString().orEmpty())
+                put("current_app_name", root.packageName?.toString().orEmpty())
+                put("coordinate_space", "absolute_px")
+                put("scale_factor", 1.0)
+                put("normalized_coordinate_support", true)
+                HermesAccessibilityController.screenMetrics()?.let { metrics ->
+                    putScreenMetrics(metrics)
+                }
                 put("node_count", nodes.size)
                 put("nodes", JSONArray(nodes.mapIndexed { index, node -> nodeJson(node, index) }))
             }.toString()
@@ -72,6 +86,93 @@ object HermesAccessibilityUiBridge {
     }
 
     @JvmStatic
+    fun performCoordinateGestureJson(
+        action: String,
+        x: Double?,
+        y: Double?,
+        x1: Double?,
+        y1: Double?,
+        x2: Double?,
+        y2: Double?,
+        durationMs: Long,
+        coordinateSpace: String,
+    ): String {
+        return runCatching {
+            if (!HermesAccessibilityController.isServiceConnected()) {
+                return errorJson("Hermes accessibility service is not connected")
+            }
+            val metrics = HermesAccessibilityController.screenMetrics()
+                ?: return errorJson("Screen metrics are not available")
+            if (metrics.width <= 0 || metrics.height <= 0) {
+                return errorJson("Screen metrics are not valid")
+            }
+
+            val normalizedAction = normalizeCoordinateAction(action)
+            val duration = resolvedGestureDuration(normalizedAction, durationMs)
+            val points = mutableListOf<CoordinatePoint>()
+            val performed = when (normalizedAction) {
+                "tap", "long_press" -> {
+                    val point = resolveCoordinatePoint(
+                        x = x ?: x1,
+                        y = y ?: y1,
+                        metrics = metrics,
+                        coordinateSpace = coordinateSpace,
+                        xLabel = "x",
+                        yLabel = "y",
+                    )
+                    points += point
+                    HermesAccessibilityController.performTap(point.x, point.y, duration)
+                }
+                "swipe" -> {
+                    val start = resolveCoordinatePoint(
+                        x = x1 ?: x,
+                        y = y1 ?: y,
+                        metrics = metrics,
+                        coordinateSpace = coordinateSpace,
+                        xLabel = "x1",
+                        yLabel = "y1",
+                    )
+                    val end = resolveCoordinatePoint(
+                        x = x2,
+                        y = y2,
+                        metrics = metrics,
+                        coordinateSpace = coordinateSpace,
+                        xLabel = "x2",
+                        yLabel = "y2",
+                    )
+                    points += start
+                    points += end
+                    HermesAccessibilityController.performSwipe(start.x, start.y, end.x, end.y, duration)
+                }
+                else -> return errorJson("Unsupported coordinate UI action: $action")
+            }
+
+            JSONObject().apply {
+                put("success", performed)
+                put("action", normalizedAction)
+                put("accessibility_connected", true)
+                put("current_app_name", currentAppName())
+                put("coordinate_space", resolvedCoordinateSpaceLabel(coordinateSpace))
+                put("requested_coordinate_space", coordinateSpace.ifBlank { "absolute_px" })
+                put("duration_ms", duration)
+                putScreenMetrics(metrics)
+                put("scale_factor", 1.0)
+                put("resolved_coordinates", JSONArray(points.map { point -> point.toJson() }))
+                put(
+                    "message",
+                    if (performed) {
+                        "Dispatched Android accessibility gesture: $normalizedAction"
+                    } else {
+                        "Android rejected accessibility gesture: $normalizedAction"
+                    },
+                )
+            }.toString()
+        }.getOrElse { error ->
+            errorJson(error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    @JvmStatic
     fun performGlobalActionJson(action: String): String {
         val normalizedAction = normalizeGlobalAction(action)
         val globalAction = when (normalizedAction) {
@@ -101,6 +202,79 @@ object HermesAccessibilityUiBridge {
 
     private fun normalizeGlobalAction(action: String): String {
         return action.trim().lowercase().replace("-", "_").replace(" ", "_")
+    }
+
+    private fun normalizeCoordinateAction(action: String): String {
+        return when (action.trim().lowercase().replace("-", "_").replace(" ", "_")) {
+            "tap_at", "click_at", "coordinate_tap", "coordinate_click", "gesture_tap" -> "tap"
+            "long_press_at", "coordinate_long_press", "gesture_long_press" -> "long_press"
+            "drag", "coordinate_swipe", "gesture_swipe" -> "swipe"
+            else -> action.trim().lowercase().replace("-", "_").replace(" ", "_")
+        }
+    }
+
+    private fun resolvedGestureDuration(action: String, durationMs: Long): Long {
+        val defaultDuration = when (action) {
+            "long_press" -> DEFAULT_LONG_PRESS_DURATION_MS
+            "swipe" -> DEFAULT_SWIPE_DURATION_MS
+            else -> DEFAULT_TAP_DURATION_MS
+        }
+        return durationMs.takeIf { it > 0L }
+            ?.coerceIn(MIN_GESTURE_DURATION_MS, MAX_GESTURE_DURATION_MS)
+            ?: defaultDuration
+    }
+
+    private fun resolveCoordinatePoint(
+        x: Double?,
+        y: Double?,
+        metrics: HermesScreenMetrics,
+        coordinateSpace: String,
+        xLabel: String,
+        yLabel: String,
+    ): CoordinatePoint {
+        return CoordinatePoint(
+            x = resolveCoordinate(x, metrics.width, coordinateSpace, xLabel),
+            y = resolveCoordinate(y, metrics.height, coordinateSpace, yLabel),
+        )
+    }
+
+    private fun resolveCoordinate(rawValue: Double?, axisSize: Int, coordinateSpace: String, label: String): Float {
+        val value = rawValue ?: throw IOException("$label coordinate is required")
+        if (value.isNaN() || value.isInfinite()) {
+            throw IOException("$label coordinate must be finite")
+        }
+        val axisMax = (axisSize - 1).coerceAtLeast(0).toDouble()
+        val resolved = when (resolvedCoordinateSpaceLabel(coordinateSpace)) {
+            "normalized" -> value * axisMax
+            "percent" -> (value / 100.0) * axisMax
+            else -> value
+        }
+        return resolved.coerceIn(0.0, axisMax).toFloat()
+    }
+
+    private fun resolvedCoordinateSpaceLabel(coordinateSpace: String): String {
+        val normalized = coordinateSpace.trim().lowercase().replace("-", "_").replace(" ", "_")
+        return when {
+            normalized in NORMALIZED_COORDINATE_SPACES -> "normalized"
+            normalized in PERCENT_COORDINATE_SPACES -> "percent"
+            else -> "absolute_px"
+        }
+    }
+
+    private fun currentAppName(): String {
+        return HermesAccessibilityController.currentService()
+            ?.rootInActiveWindow
+            ?.packageName
+            ?.toString()
+            .orEmpty()
+            .ifBlank { HermesAccessibilityController.currentForegroundPackageName() }
+    }
+
+    private fun JSONObject.putScreenMetrics(metrics: HermesScreenMetrics): JSONObject {
+        put("screen_width", metrics.width)
+        put("screen_height", metrics.height)
+        put("density", metrics.density.toDouble())
+        return this
     }
 
     private fun flattenNodes(root: AccessibilityNodeInfo, limit: Int): List<AccessibilityNodeInfo> {
@@ -202,6 +376,14 @@ object HermesAccessibilityUiBridge {
                     put("bottom", bounds.bottom)
                 },
             )
+        }
+    }
+
+    private data class CoordinatePoint(val x: Float, val y: Float) {
+        fun toJson(): JSONObject {
+            return JSONObject()
+                .put("x", x.toDouble())
+                .put("y", y.toDouble())
         }
     }
 
