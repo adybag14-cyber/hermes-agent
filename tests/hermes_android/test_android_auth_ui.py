@@ -74,7 +74,8 @@ def test_provider_presets_include_chatgpt_claude_gemini_qwen_and_zai():
     assert 'id = "alibaba"' in presets
     assert 'id = "qwen-oauth"' in presets
     assert 'id = "zai"' in presets
-    assert 'apiKeyUrl = "https://openrouter.ai/keys"' in presets
+    assert 'apiKeyUrl = "https://openrouter.ai/settings/keys"' in presets
+    assert 'https://openrouter.ai/keys' in presets
     assert 'apiKeyUrl = "https://platform.openai.com/settings/organization/api-keys"' in presets
     assert 'apiKeyUrl = "https://home.qwencloud.com/api-keys"' in presets
     assert 'apiKeyUrl = "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/"' in presets
@@ -89,6 +90,10 @@ def test_provider_presets_include_chatgpt_claude_gemini_qwen_and_zai():
     assert 'fun setupClipboardText(providerId: String): String' in presets
     assert 'fun providerIdForSetupUrl(url: String): String?' in presets
     assert 'fun runtimeConfigBaseUrl(providerId: String, baseUrl: String): String' in presets
+    assert 'fun apiKeyEnvVars(providerId: String): List<String>' in presets
+    assert 'fun parseCredentialInput(providerId: String, input: String): ParsedProviderCredential' in presets
+    assert 'DASHSCOPE_API_KEY' in presets
+    assert 'ZAI_API_KEY' in presets
     assert 'providerId == "zai" && normalized == presetDefault -> ""' in presets
 
 
@@ -212,6 +217,7 @@ def test_settings_opens_official_provider_key_pages():
     assert "providerPreset?.apiKeyUrl" in settings_screen
     assert "viewModel::openProviderKeyPage" in settings_screen
     assert "viewModel::copyProviderKeyPage" in settings_screen
+    assert "ProviderPresets.credentialInputHelp(providerId)" in settings_screen
     assert "Intent.ACTION_VIEW" in browser_launcher
     assert "Uri.parse(targetUrl)" in settings_view_model
     assert "HermesExternalBrowserLauncher.open" in settings_view_model
@@ -238,6 +244,9 @@ def test_settings_opens_official_provider_key_pages():
     assert "androidSettingsDefaults = defaults" in provider_presets
     assert "PasswordVisualTransformation()" in settings_screen
     assert "KeyboardType.Password" in settings_screen
+    assert "ProviderPresets.parseCredentialInput(snapshot.provider, snapshot.apiKey)" in settings_view_model
+    assert "parsedCredential.importedFromEnvLine" in settings_view_model
+    assert "imported ${parsedCredential.sourceLabel} into secure storage" in settings_view_model
 
 
 def test_settings_can_import_saved_python_provider_credentials_without_blank_overwrite():
@@ -252,7 +261,7 @@ def test_settings_can_import_saved_python_provider_credentials_without_blank_ove
     assert "read_provider_auth_bundle_json" in settings_view_model
     assert "HermesRuntimeManager.ensurePythonStarted(app)" in settings_view_model
     assert "secretsStore.saveApiKey(snapshot.provider, apiKey)" in settings_view_model
-    assert "val providerApiKey = snapshot.apiKey.trim()" in settings_view_model
+    assert "val providerApiKey = parsedCredential.apiKey" in settings_view_model
     assert "if (providerApiKey.isNotBlank())" in settings_view_model
     assert "Blank API key field left existing Hermes credentials untouched" in settings_view_model
     assert "write_provider_auth_bundle" in settings_view_model
