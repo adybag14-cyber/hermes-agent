@@ -54,6 +54,10 @@ object HermesModelDownloadManager {
         "deepseek-ai/deepseek-r1-distill-qwen-1.5b" to "litert-community/DeepSeek-R1-Distill-Qwen-1.5B",
         "microsoft/phi-4-mini-instruct" to "litert-community/Phi-4-mini-instruct",
     )
+    private val LITERT_ALIAS_REVISIONS = mapOf(
+        "litert-community/gemma-4-e2b-it-litert-lm" to "7fa1d78473894f7e736a21d920c3aa80f950c0db",
+        "litert-community/gemma-4-e4b-it-litert-lm" to "9695417f248178c63a9f318c6e0c56cb917cb837",
+    )
     private val GGUF_RECOMMENDED_REPOS = mapOf(
         "qwen/qwen2.5-1.5b-instruct" to "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
         "deepseek-ai/deepseek-r1-distill-qwen-1.5b" to "unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
@@ -503,7 +507,7 @@ object HermesModelDownloadManager {
         if (runtimeFlavor.equals("LiteRT-LM", ignoreCase = true)) {
             val aliasRepoId = liteRtAlias(repoId)
             if (!aliasRepoId.isNullOrBlank() && aliasRepoId.lowercase(Locale.US) != repoId.lowercase(Locale.US)) {
-                val aliasRevision = "main"
+                val aliasRevision = LITERT_ALIAS_REVISIONS[aliasRepoId.lowercase(Locale.US)] ?: "main"
                 val aliasRuntimeNative = findCompatibleRepoFile(
                     loadRepoFiles(repoId = aliasRepoId, revision = aliasRevision, hfToken = hfToken),
                     runtimeFlavor,

@@ -542,7 +542,10 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 destinationFileName.equals(preset.filePath.substringAfterLast('/'), ignoreCase = true) ||
                 destinationPath.substringAfterLast('/').equals(preset.filePath.substringAfterLast('/'), ignoreCase = true))
         val repoMatches = repoOrUrl.equals(preset.repoOrUrl, ignoreCase = true)
+        val revisionMatches = preset.revision.equals("main", ignoreCase = true) ||
+            revision.equals(preset.revision, ignoreCase = true)
         return runtimeFlavor.equals(preset.runtimeFlavor, ignoreCase = true) &&
+            revisionMatches &&
             (exactFileMatches || repoMatches)
     }
 
@@ -610,7 +613,17 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 description = "First-class Gemma 4 local runtime target for Hermes mobile chat, image-capable runtime plumbing, MTP acceleration, and Android agent tools.",
                 repoOrUrl = "litert-community/gemma-4-E2B-it-litert-lm",
                 filePath = "",
-                revision = "6e5c4f1e395deb959c494953478fa5cec4b8008f",
+                revision = "7fa1d78473894f7e736a21d920c3aa80f950c0db",
+                runtimeFlavor = "LiteRT-LM",
+                testedLabel = "Edge Gallery 1.0.13 MTP path",
+            ),
+            RecommendedLocalModelPreset(
+                id = "gemma4-e4b-litert-lm",
+                title = "Gemma 4 E4B (LiteRT-LM)",
+                description = "Larger Gemma 4 LiteRT-LM model under the 5 GB testing ceiling, using Google AI Edge Gallery's current MTP-updated artifact for higher quality local agent replies on high-RAM phones.",
+                repoOrUrl = "litert-community/gemma-4-E4B-it-litert-lm",
+                filePath = "",
+                revision = "9695417f248178c63a9f318c6e0c56cb917cb837",
                 runtimeFlavor = "LiteRT-LM",
                 testedLabel = "Edge Gallery 1.0.13 MTP path",
             ),

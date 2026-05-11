@@ -100,7 +100,10 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'runtimeFlavorOverride' in downloads_view_model
     assert 'RecommendedLocalModelPreset' in downloads_view_model
     assert 'qwen35-08b-q4km-gguf' in downloads_view_model
-    assert 'revision = "6e5c4f1e395deb959c494953478fa5cec4b8008f"' in downloads_view_model
+    assert 'revision = "7fa1d78473894f7e736a21d920c3aa80f950c0db"' in downloads_view_model
+    assert 'gemma4-e4b-litert-lm' in downloads_view_model
+    assert 'revision = "9695417f248178c63a9f318c6e0c56cb917cb837"' in downloads_view_model
+    assert 'revisionMatches' in downloads_view_model
     assert 'Edge Gallery 1.0.13 MTP path' in downloads_view_model
     assert 'restartDownloadOnMobileData(' in downloads_view_model
     assert 'Enter any Hugging Face repo' in strings
@@ -111,6 +114,9 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'compatibilityHintForFile' in download_manager
     assert 'does not publish a native LiteRT-LM artifact' in download_manager
     assert 'does not publish a .litertlm or .task file' in download_manager
+    assert 'LITERT_ALIAS_REVISIONS' in download_manager
+    assert '7fa1d78473894f7e736a21d920c3aa80f950c0db' in download_manager
+    assert '9695417f248178c63a9f318c6e0c56cb917cb837' in download_manager
     assert 'litert-community/gemma-4-E2B-it-litert-lm' in download_manager
     assert 'litert-community/gemma-4-E4B-it-litert-lm' in download_manager
     assert 'litert-community/Gemma3-1B-IT' in download_manager

@@ -50,15 +50,17 @@ def test_model_catalog_prefers_verified_sub_5gb_litert_lm_mobile_models():
 
     assert 'gemma-4-e2b-litert-lm' in catalog
     assert 'litert-community/gemma-4-E2B-it-litert-lm' in catalog
-    assert '6e5c4f1e395deb959c494953478fa5cec4b8008f' in catalog
-    assert '2_588_147_712' in catalog
+    assert '7fa1d78473894f7e736a21d920c3aa80f950c0db' in catalog
+    assert '2_583_085_056' in catalog
     assert '8_000_000_000' in catalog
     assert 'gemma-4-e4b-litert-lm' in catalog
     assert 'litert-community/gemma-4-E4B-it-litert-lm' in catalog
-    assert '28299f30ee4d43294517a4ac93abd6163412f07f' in catalog
-    assert '3_659_530_240' in catalog
+    assert '9695417f248178c63a9f318c6e0c56cb917cb837' in catalog
+    assert '3_654_467_584' in catalog
     assert '12_000_000_000' in catalog
     assert 'Gemma 4 MTP support' in catalog
+    assert '"mtp"' in catalog
+    assert '"speculative-decoding"' in catalog
     assert 'gemma-3-1b-it-litert-lm' in catalog
     assert 'litert-community/Gemma3-1B-IT' in catalog
     assert 'gemma-3-4b-it-vision-task' in catalog
