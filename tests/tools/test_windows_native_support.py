@@ -308,26 +308,25 @@ class TestPidExistsOSErrorWidening:
 
 
 class TestTzdataDependencyDeclared:
-    """Windows installs must pull tzdata for zoneinfo to work."""
+    """Windows and Termux installs need tzdata without a host timezone DB."""
 
-    def test_pyproject_declares_tzdata_for_win32(self):
+    @pytest.mark.parametrize("platform", ["win32", "linux"])
+    def test_pyproject_supplies_tzdata_without_system_database(self, platform):
+        import tomllib
+        from packaging.requirements import Requirement
+
         root = Path(__file__).resolve().parents[2]
-        source = (root / "pyproject.toml").read_text(encoding="utf-8")
-        # The dependency line should be conditional on sys_platform == 'win32'
-        # and should NOT be in the core dependencies for Linux/macOS. We do
-        # not care about the exact pinned version (which is bumped over time)
-        # — only that tzdata is declared with a win32 marker. This is an
-        # invariant check, not a snapshot test.
-        import re
-        # Match `"tzdata` … `; sys_platform == 'win32'"` allowing any version
-        # specifier in between (==X.Y.Z, >=X.Y.Z,<W, etc.) and either quote
-        # style on the marker.
-        pattern = re.compile(
-            r'"tzdata[^"]*;\s*sys_platform\s*==\s*[\'"]win32[\'"]\s*"'
-        )
-        assert pattern.search(source), (
-            "tzdata must be a Windows-only dep in pyproject.toml dependencies "
-            "(declared with a `; sys_platform == 'win32'` marker)"
+        metadata = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+        requirements = [Requirement(value) for value in metadata["project"]["dependencies"]]
+        assert any(
+            requirement.name.lower() == "tzdata"
+            and (
+                requirement.marker is None
+                or requirement.marker.evaluate({"sys_platform": platform})
+            )
+            for requirement in requirements
+        ), (
+            f"tzdata must be available on {platform} without a system timezone database"
         )
 
 
@@ -723,6 +722,153 @@ class TestLocalEnvironmentWindowsTempDir:
         assert "_default_terminal_temp_dir()" in source
 
 
+@pytest.mark.windows_only
+class TestLocalWindowsCwdInterop:
+    """Native Windows path forms round-trip through the existing shell hooks."""
+
+    @pytest.mark.parametrize(
+        ("native", "shell"),
+        [
+            (r"C:\Users\sample\repo", "/c/Users/sample/repo"),
+            ("D:/work/project", "/d/work/project"),
+            (r"\\server\share\folder name", "//server/share/folder name"),
+            (r"\\?\C:\work\folder name", "/c/work/folder name"),
+            (r"\\?\UNC\server\share\folder name", "//server/share/folder name"),
+            ("/c/work/already-posix", "/c/work/already-posix"),
+        ],
+    )
+    def test_native_paths_convert_for_git_bash(self, native, shell):
+        from tools.environments.local import _windows_to_msys_path
+
+        assert _windows_to_msys_path(native) == shell
+
+    @pytest.mark.parametrize(
+        ("shell", "native"),
+        [
+            ("/c/work/repo", r"C:\work\repo"),
+            ("/mnt/d/work/repo", r"D:\work\repo"),
+            ("/cygdrive/d/work/repo", r"D:\work\repo"),
+            ("//server/share/folder name", r"\\server\share\folder name"),
+        ],
+    )
+    def test_shell_paths_convert_for_native_consumers(self, shell, native):
+        from tools.environments.local import _msys_to_windows_path
+
+        assert _msys_to_windows_path(shell) == native
+
+    def test_wrapper_uses_existing_cwd_translation_hook(self, tmp_path):
+        import shlex
+        from tools.environments.local import LocalEnvironment, _windows_to_msys_path
+
+        folder = tmp_path / "folder with spaces"
+        folder.mkdir()
+        with mock.patch.object(LocalEnvironment, "init_session"):
+            env = LocalEnvironment(cwd="\\\\?\\" + str(folder), timeout=10, env={})
+
+        wrapped = env._wrap_command("pwd", env.cwd)
+
+        expected = shlex.quote(_windows_to_msys_path(str(folder)))
+        assert f"builtin cd -- {expected} || exit 126" in wrapped
+
+    def test_cwd_marker_preserves_per_command_observation(self, tmp_path):
+        from tools.environments.local import LocalEnvironment, _windows_to_msys_path
+
+        folder = tmp_path / "observed folder"
+        folder.mkdir()
+        env = object.__new__(LocalEnvironment)
+        env.cwd = str(tmp_path)
+        env._cwd_marker = "__HERMES_CWD_native_test__"
+        shell_cwd = _windows_to_msys_path(str(folder))
+        result = {"output": f"done\n{env._cwd_marker}{shell_cwd}{env._cwd_marker}\n"}
+
+        env._update_cwd(result)
+
+        assert env.cwd == str(folder)
+        assert result["cwd"] == str(folder)
+        assert result["cwd_observed"] is True
+        assert result["output"] == "done"
+
+
+class TestWindowsBashCandidateRecognition:
+    @pytest.mark.parametrize(
+        "candidate",
+        [
+            r"C:\Windows\System32\bash.exe",
+            "C:/WINDOWS/Sysnative/bash.exe",
+            r"C:\Users\sample\AppData\Local\Microsoft\WindowsApps\bash.exe",
+        ],
+    )
+    def test_wsl_launcher_paths_are_not_git_bash(self, candidate):
+        from tools.environments.local import _is_windows_wsl_bash
+
+        assert _is_windows_wsl_bash(candidate) is True
+
+    @pytest.mark.parametrize("candidate", [None, "", r"C:\Program Files\Git\bin\bash.exe", "/usr/bin/bash"])
+    def test_other_shell_paths_are_not_misclassified(self, candidate):
+        from tools.environments.local import _is_windows_wsl_bash
+
+        assert _is_windows_wsl_bash(candidate) is False
+
+
+@pytest.mark.windows_only
+class TestNativeGitBashSelection:
+    @pytest.mark.parametrize(
+        "wsl_bash",
+        [
+            r"C:\Windows\System32\bash.exe",
+            r"C:\Windows\Sysnative\bash.exe",
+            r"C:\Users\sample\AppData\Local\Microsoft\WindowsApps\bash.exe",
+        ],
+    )
+    def test_wsl_only_candidate_is_rejected_without_launching(self, monkeypatch, tmp_path, wsl_bash):
+        import tools.environments.local as local_mod
+
+        monkeypatch.setenv("HERMES_GIT_BASH_PATH", wsl_bash)
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        monkeypatch.setenv("ProgramFiles", str(tmp_path))
+        monkeypatch.setenv("ProgramFiles(x86)", str(tmp_path))
+        monkeypatch.setattr(local_mod.os.path, "isfile", lambda path: path == wsl_bash)
+        monkeypatch.setattr(local_mod.shutil, "which", lambda name: wsl_bash)
+        with mock.patch.object(local_mod, "_bash_starts", return_value=True) as probe:
+            with pytest.raises(RuntimeError, match="Git Bash not found"):
+                local_mod._find_bash()
+
+        probe.assert_not_called()
+
+    def test_broken_override_falls_back_to_healthy_portable_git(self, monkeypatch, tmp_path):
+        import tools.environments.local as local_mod
+
+        broken = str(tmp_path / "broken" / "bash.exe")
+        portable = str(tmp_path / "hermes" / "git" / "bin" / "bash.exe")
+        monkeypatch.setenv("HERMES_GIT_BASH_PATH", broken)
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        monkeypatch.setenv("ProgramFiles", str(tmp_path / "system"))
+        monkeypatch.setenv("ProgramFiles(x86)", str(tmp_path / "system32"))
+        monkeypatch.setattr(local_mod.os.path, "isfile", lambda path: path in {broken, portable})
+        monkeypatch.setattr(local_mod.shutil, "which", lambda name: r"C:\Windows\System32\bash.exe")
+
+        with mock.patch.object(local_mod, "_bash_starts", side_effect=lambda path: path == portable) as probe:
+            assert local_mod._find_bash() == portable
+
+        assert probe.call_args_list == [mock.call(broken), mock.call(portable)]
+
+    def test_healthy_path_git_bash_remains_available(self, monkeypatch, tmp_path):
+        import tools.environments.local as local_mod
+
+        git_bash = str(tmp_path / "custom-git" / "bin" / "bash.exe")
+        monkeypatch.delenv("HERMES_GIT_BASH_PATH", raising=False)
+        monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+        monkeypatch.setenv("ProgramFiles", str(tmp_path))
+        monkeypatch.setenv("ProgramFiles(x86)", str(tmp_path))
+        monkeypatch.setattr(local_mod.os.path, "isfile", lambda path: False)
+        monkeypatch.setattr(local_mod.shutil, "which", lambda name: git_bash)
+
+        with mock.patch.object(local_mod, "_bash_starts", return_value=True) as probe:
+            assert local_mod._find_bash() == git_bash
+
+        probe.assert_called_once_with(git_bash)
+
+
 class TestLocalEnvironmentPathInjectionGated:
     """Sane PATH completion must stay POSIX-only."""
 
@@ -933,7 +1079,8 @@ class TestWindowlessGatewayRestartSpec:
     hidden-console respawn spec (normalized interpreter + stable cwd + env
     overlay)."""
 
-    def test_noop_on_non_windows(self):
+    @staticmethod
+    def _assert_non_windows_noop():
         import hermes_cli.gateway_windows as gw
 
         argv = ["/path/venv/bin/python", "-m", "hermes_cli.main", "gateway", "run"]
@@ -941,6 +1088,14 @@ class TestWindowlessGatewayRestartSpec:
         assert new_argv == argv
         assert cwd == ""
         assert env == {}
+
+    @pytest.mark.linux_only
+    def test_noop_on_linux(self):
+        self._assert_non_windows_noop()
+
+    @pytest.mark.macos_only
+    def test_noop_on_macos(self):
+        self._assert_non_windows_noop()
 
     def test_empty_argv_is_safe(self):
         import hermes_cli.gateway_windows as gw

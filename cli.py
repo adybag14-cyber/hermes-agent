@@ -1595,13 +1595,14 @@ def _replay_output_history() -> None:
 
 
 def _pt_print_ansi(text: str) -> None:
-    """``_pt_print(ANSI(text))``, falling back to ``print`` when stdout is not a real console."""
+    """Use the renderer, or the fallback stream when no console buffer exists."""
     try:
         _pt_print(_PT_ANSI(text))
     except Exception:
         # NoConsoleScreenBufferError (Windows) / OSError when stdout is e.g. a worker log file.
         with suppress(Exception):
-            print(text)
+            sys.stdout.write(f"{text}\n")
+            sys.stdout.flush()
 
 
 def _cprint(text: str):
@@ -1615,7 +1616,7 @@ def _cprint(text: str):
     try:
         from prompt_toolkit.application import get_app_or_none, run_in_terminal
     except Exception:
-        _pt_print(_PT_ANSI(text))
+        _pt_print_ansi(text)
         return
 
     try:
@@ -1642,7 +1643,7 @@ def _cprint(text: str):
     except Exception:
         current_loop = None
     if loop is None or (current_loop is loop and loop.is_running()):
-        _pt_print(_PT_ANSI(text))
+        _pt_print_ansi(text)
         return
 
     def _schedule():
@@ -1651,7 +1652,7 @@ def _cprint(text: str):
         # Never fall back to a bare print on error: the sync path already printed.
         with suppress(Exception):
             import inspect as _inspect
-            coro = run_in_terminal(lambda: _pt_print(_PT_ANSI(text)))
+            coro = run_in_terminal(lambda: _pt_print_ansi(text))
             if coro is not None and (_inspect.isawaitable(coro) or _inspect.iscoroutine(coro)):
                 _asyncio.ensure_future(coro)
 

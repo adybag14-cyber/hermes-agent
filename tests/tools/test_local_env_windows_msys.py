@@ -83,9 +83,9 @@ class TestWindowsToMsysPath:
         assert _windows_to_msys_path(r"C:\Users\NVIDIA") == r"C:\Users\NVIDIA"
 
     @pytest.mark.windows_only
-    def test_does_not_translate_non_drive_path(self):
+    def test_keeps_posix_path_and_normalizes_unc_path(self):
         assert _windows_to_msys_path("/tmp/foo") == "/tmp/foo"
-        assert _windows_to_msys_path(r"\\server\share") == r"\\server\share"
+        assert _windows_to_msys_path(r"\\server\share") == "//server/share"
 
 
 # ---------------------------------------------------------------------------

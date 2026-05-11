@@ -110,6 +110,8 @@ def _msys_to_windows_path(cwd: str) -> str:
     """``/c/Users/x`` / ``/cygdrive/c/..`` / ``/mnt/c/..`` -> native ``C:\\Users\\x`` so
     ``isdir``/``Popen(cwd=)`` find it. No-op off Windows, for empty input and for
     multi-segment POSIX paths like ``/home/x``; idempotent on native paths."""
+    if _IS_WINDOWS and cwd and cwd.startswith("//"):
+        return cwd.replace("/", "\\")
     m = _IS_WINDOWS and cwd and re.match(r'^/(?:(?:cygdrive|mnt)/)?([a-zA-Z])(/.*)?$', cwd)
     if not m:
         return cwd
@@ -143,6 +145,14 @@ def _resolve_local_initial_cwd(cwd: str) -> str:
 def _windows_to_msys_path(cwd: str) -> str:
     """Native ``C:\\Users\\x`` -> Git Bash ``/c/Users/x`` so ``builtin cd`` resolves
     it. No-op off Windows / for non-drive paths."""
+    if not _IS_WINDOWS or not cwd:
+        return cwd
+    if cwd[:8].lower() == "\\\\?\\unc\\":
+        cwd = "\\\\" + cwd[8:]
+    elif cwd.startswith("\\\\?\\") and re.match(r"^[a-zA-Z]:[\\/]", cwd[4:]):
+        cwd = cwd[4:]
+    if cwd.startswith("\\\\") and not cwd.startswith(("\\\\?\\", "\\\\.\\")):
+        return cwd.replace("\\", "/")
     m = _IS_WINDOWS and cwd and re.match(r'^([a-zA-Z]):[\\/]*(.*)$', cwd)
     if not m:
         return cwd
@@ -342,6 +352,17 @@ def build_subprocess_env(
 
 
 # --- Shell discovery ---
+def _is_windows_wsl_bash(candidate: str | None) -> bool:
+    """Recognize WSL launchers, which cannot act as native Git Bash."""
+    if not candidate:
+        return False
+    normalized = ntpath.normcase(ntpath.normpath(candidate))
+    return normalized.endswith((
+        r"\windows\system32\bash.exe", r"\windows\sysnative\bash.exe",
+        r"\microsoft\windowsapps\bash.exe",
+    ))
+
+
 def _windows_bash_candidates(custom: "str | None") -> list[str]:
     """Ordered bash.exe candidates on Windows: HERMES_GIT_BASH_PATH, our portable Git
     under %LOCALAPPDATA%\\hermes\\git (PortableGit ``bin`` and MinGit ``usr\\bin``),
@@ -357,9 +378,9 @@ def _windows_bash_candidates(custom: "str | None") -> list[str]:
         lad and os.path.join(lad, "Programs", "Git", "bin"),
     ]
     raw = [custom or "", *(os.path.join(r, "bash.exe") for r in roots if r)]
-    candidates = list(dict.fromkeys(c for c in raw if c and os.path.isfile(c)))
+    candidates = list(dict.fromkeys(c for c in raw if c and os.path.isfile(c) and not _is_windows_wsl_bash(c)))
     found = shutil.which("bash")
-    if found and found not in candidates:
+    if found and found not in candidates and not _is_windows_wsl_bash(found):
         candidates.append(found)
     return candidates
 
@@ -378,7 +399,7 @@ def _find_bash() -> str:
         if _bash_starts(candidate):
             if candidate != custom and custom and os.path.isfile(custom):
                 logger.warning(
-                    "HERMES_GIT_BASH_PATH=%s fails to start; using %s instead", custom, candidate)
+                    "HERMES_GIT_BASH_PATH=%s is not a usable native Git Bash; using %s instead", custom, candidate)
             return candidate
     if candidates:
         probe_details = "\n".join(

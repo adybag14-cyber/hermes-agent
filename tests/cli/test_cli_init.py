@@ -164,6 +164,82 @@ class TestBusyInputMode:
 
 
 class TestPromptToolkitTerminalCompatibility:
+    def test_cprint_falls_back_when_prompt_toolkit_output_has_no_console(self, monkeypatch, capsys):
+        import cli
+        import prompt_toolkit.application as app_mod
+
+        def _raise_no_console(*_args, **_kwargs):
+            raise RuntimeError("no console buffer")
+
+        monkeypatch.setattr(app_mod, "get_app_or_none", lambda: None)
+        monkeypatch.setattr(cli, "_pt_print", _raise_no_console)
+
+        cli._cprint("fallback works")
+
+        assert "fallback works" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("failing_operation", ["write", "flush"])
+    def test_cprint_swallows_broken_fallback_stdout(self, monkeypatch, failing_operation):
+        import cli
+        import prompt_toolkit.application as app_mod
+
+        attempted = []
+
+        class BrokenStdout:
+            def write(self, text):
+                attempted.append(("write", text))
+                if failing_operation == "write":
+                    raise OSError("closed output")
+
+            def flush(self):
+                attempted.append(("flush", None))
+                if failing_operation == "flush":
+                    raise OSError("broken output")
+
+        def no_console(*_args, **_kwargs):
+            raise RuntimeError("no console buffer")
+
+        monkeypatch.setattr(app_mod, "get_app_or_none", lambda: None)
+        monkeypatch.setattr(cli, "_pt_print", no_console)
+        with monkeypatch.context() as output_patch:
+            output_patch.setattr(cli.sys, "stdout", BrokenStdout())
+            cli._cprint("best-effort output")
+        assert attempted[0] == ("write", "best-effort output\n")
+        if failing_operation == "flush":
+            assert attempted[1] == ("flush", None)
+
+    @pytest.mark.parametrize("callback_mode", ["awaitable", "sync_then_raise"])
+    def test_cprint_cross_thread_output_is_scheduled_once(self, monkeypatch, callback_mode):
+        import asyncio
+        from types import SimpleNamespace
+
+        import cli
+        import prompt_toolkit.application as app_mod
+
+        printed = []
+        loop = asyncio.new_event_loop()
+        monkeypatch.setattr(app_mod, "get_app_or_none", lambda: SimpleNamespace(_is_running=True, loop=loop))
+        monkeypatch.setattr(cli, "_PT_ANSI", lambda text: text)
+        monkeypatch.setattr(cli, "_pt_print", printed.append)
+
+        if callback_mode == "awaitable":
+            async def run_in_terminal(callback):
+                callback()
+        else:
+            def run_in_terminal(callback):
+                callback()
+                raise RuntimeError("renderer failed after output")
+
+        monkeypatch.setattr(app_mod, "run_in_terminal", run_in_terminal)
+        try:
+            cli._cprint("one background line")
+            assert printed == []
+            loop.run_until_complete(asyncio.sleep(0))
+            assert printed == ["one background line"]
+        finally:
+            loop.close()
+
+    @pytest.mark.linux_only
     def test_lf_enter_binding_respects_multiline_shortcuts(self):
         """Ctrl+J is reserved by default, with legacy LF-submit available as an opt-out.
 
@@ -261,6 +337,7 @@ class TestPromptToolkitTerminalCompatibility:
 
 
 
+    @pytest.mark.linux_only
     def test_cpr_gating_posix_suppresses_without_ssh(self, monkeypatch):
         """POSIX suppresses CPR without SSH.
 
@@ -721,5 +798,3 @@ class TestRootLevelProviderOverride:
         })
         assert result["model"]["default"] == "flat-default-model"
         assert result["model"]["provider"] == "auto"
-
-
