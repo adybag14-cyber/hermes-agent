@@ -366,6 +366,9 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
     app_bridge = (
         REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/device/HermesAppControlBridge.kt"
     ).read_text(encoding="utf-8")
+    accessibility_config = (
+        REPO_ROOT / "android/app/src/main/res/xml/hermes_accessibility_service.xml"
+    ).read_text(encoding="utf-8")
 
     assert 'GestureDescription' in controller
     assert 'dispatchGesture' in controller
@@ -374,6 +377,12 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
     assert 'HermesScreenMetrics' in controller
 
     assert 'fun performCoordinateGestureJson(' in ui_bridge
+    assert 'fun captureScreenshotJson(' in ui_bridge
+    assert 'takeScreenshot(' in ui_bridge
+    assert 'Bitmap.wrapHardwareBuffer' in ui_bridge
+    assert 'hermes-screenshots' in ui_bridge
+    assert 'image_sha256' in ui_bridge
+    assert 'screenshot_hash_kind' in ui_bridge
     assert 'fun performScrollGestureJson(' in ui_bridge
     assert 'fun performTextInputJson(' in ui_bridge
     assert 'NORMALIZED_COORDINATE_SPACES' in ui_bridge
@@ -393,6 +402,10 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
         '"tap"',
         '"long_press"',
         '"swipe"',
+        '"drag"',
+        '"screenshot"',
+        '"visual_snapshot"',
+        '"capture_screenshot"',
         '"open_app"',
         '"launch_app"',
         '"coordinate_tap"',
@@ -424,6 +437,9 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
         '"duration_ms"',
         '"direction"',
         '"distance_px"',
+        '"save_file"',
+        '"include_base64"',
+        '"max_image_edge_px"',
         '"class_name"',
         '"app_name"',
     ]:
@@ -435,6 +451,9 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
     assert 'executeAndroidSelectorAction' in chat_client
     assert 'coordinate_arguments' in chat_client
     assert 'opengui_action_arguments' in chat_client
+    assert 'screenshot_capture_supported' in chat_client
+    assert 'executeAndroidScreenshotTool' in chat_client
+    assert 'optionalBooleanArgument' in chat_client
     assert 'normalized_coordinate_support' in chat_client
     assert 'screen_width' in chat_client
     assert 'HermesAppControlBridge.launchApp' in chat_client
@@ -460,6 +479,7 @@ def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
     assert 'repeated-action and screen-state review guards' in chat_client
     assert 'ui_state_hash' in chat_client
     assert 'screen_hash' in chat_client
+    assert 'android:canTakeScreenshot="true"' in accessibility_config
 
 
 def test_android_ui_tool_reviews_repeated_opengui_actions_before_execution():
