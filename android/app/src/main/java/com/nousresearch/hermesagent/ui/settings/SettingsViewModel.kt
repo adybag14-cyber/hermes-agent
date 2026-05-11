@@ -287,7 +287,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 languageTag = snapshot.languageTag,
             )
             settingsStore.save(updatedSettings)
-            secretsStore.saveApiKey(snapshot.provider, snapshot.apiKey)
 
             val app = getApplication<Application>()
             val localBackendStatus = OnDeviceBackendManager.ensureConfigured(app, snapshot.onDeviceBackend)
@@ -310,11 +309,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 effectiveModel,
                 effectiveBaseUrl,
             )
-            Python.getInstance().getModule("hermes_android.auth_bridge").callAttr(
-                "write_provider_api_key",
-                snapshot.provider,
-                snapshot.apiKey,
-            )
+            val providerApiKey = snapshot.apiKey.trim()
+            val preservedBlankCredential = providerApiKey.isBlank() && snapshot.provider != "custom"
+            if (providerApiKey.isNotBlank()) {
+                secretsStore.saveApiKey(snapshot.provider, providerApiKey)
+                Python.getInstance().getModule("hermes_android.auth_bridge").callAttr(
+                    "write_provider_api_key",
+                    snapshot.provider,
+                    providerApiKey,
+                )
+            }
             HermesRuntimeManager.stop()
             HermesRuntimeManager.ensureStarted(app)
             _uiState.update {
@@ -327,10 +331,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     useLocalBackend -> "On-device backend ready and Hermes runtime restarted"
                     backendKind != BackendKind.NONE -> "${localBackendStatus.statusMessage}. Hermes stayed on your saved remote provider."
                     snapshot.dataSaverMode -> "Settings saved. Data saver mode now keeps heavy downloads on Wi‑Fi / unmetered networks."
+                    preservedBlankCredential -> "Settings saved and backend restarted. Blank API key field left existing Hermes credentials untouched."
                     else -> "Settings saved and backend restarted"
                 }
                 it.copy(
                     onDeviceSummary = backendSummary,
+                    apiKey = providerApiKey.ifBlank { it.apiKey },
                     status = statusMessage,
                 )
             }

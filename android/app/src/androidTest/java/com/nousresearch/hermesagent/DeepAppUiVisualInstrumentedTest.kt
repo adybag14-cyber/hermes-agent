@@ -102,11 +102,9 @@ class DeepAppUiVisualInstrumentedTest {
 
         composeRule.onNodeWithText("🇪🇸 Español").performScrollTo().performClick()
         assertTrue(composeRule.onAllNodesWithText("Idioma de la app").fetchSemanticsNodes().isNotEmpty())
-        assertTrue(
-            composeRule.onAllNodesWithText(
-                "Aún no hay un modelo local compatible seleccionado. Descárgalo y márcalo como preferido primero."
-            ).fetchSemanticsNodes().isNotEmpty()
-        )
+        composeRule.onNodeWithText(
+            "Aún no hay un modelo local compatible seleccionado. Descárgalo y márcalo como preferido primero."
+        ).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Modelos locales con un toque").performScrollTo()
         assertTrue(composeRule.onAllNodesWithText("Descargar e iniciar").fetchSemanticsNodes().isNotEmpty())
         capture("05-settings-spanish")

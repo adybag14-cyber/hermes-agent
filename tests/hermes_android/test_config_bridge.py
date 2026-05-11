@@ -43,6 +43,22 @@ def test_auth_bridge_reads_and_writes_provider_api_key(tmp_path, monkeypatch):
     assert read_provider_api_key("openrouter") == "sk-test"
 
 
+def test_auth_bridge_preserves_existing_key_on_blank_write(tmp_path, monkeypatch):
+    hermes_home = tmp_path / ".hermes"
+    hermes_home.mkdir()
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+
+    write_provider_api_key("openrouter", "sk-existing")
+    result = write_provider_api_key("openrouter", "")
+
+    assert result == {
+        "provider": "openrouter",
+        "saved": False,
+        "reason": "blank_api_key_preserved",
+    }
+    assert read_provider_api_key("openrouter") == "sk-existing"
+
+
 def test_auth_bridge_supports_chatgpt_web_session_and_access_tokens(tmp_path, monkeypatch):
     hermes_home = tmp_path / ".hermes"
     hermes_home.mkdir()
