@@ -9,6 +9,14 @@ data class ProviderPreset(
     val fallbackSetupUrls: List<String> = emptyList(),
 )
 
+data class ParsedProviderCredential(
+    val apiKey: String,
+    val sourceLabel: String = "",
+) {
+    val importedFromEnvLine: Boolean
+        get() = sourceLabel.isNotBlank()
+}
+
 data class ProviderSetupTarget(
     val providerId: String,
     val url: String,
@@ -68,8 +76,12 @@ object ProviderPresets {
             label = "OpenRouter",
             baseUrl = "https://openrouter.ai/api/v1",
             modelHint = "anthropic/claude-sonnet-4",
-            apiKeyUrl = "https://openrouter.ai/keys",
-            fallbackSetupUrls = listOf("https://openrouter.ai/docs/quickstart"),
+            apiKeyUrl = "https://openrouter.ai/settings/keys",
+            fallbackSetupUrls = listOf(
+                "https://openrouter.ai/keys",
+                "https://openrouter.ai/docs/api-keys",
+                "https://openrouter.ai/docs/quickstart",
+            ),
         ),
         ProviderPreset(
             id = "openai",
@@ -196,6 +208,49 @@ object ProviderPresets {
         }
     }
 
+    fun apiKeyEnvVars(providerId: String): List<String> {
+        return when (providerId.trim().lowercase()) {
+            "openrouter" -> listOf("OPENROUTER_API_KEY")
+            "openai", "custom" -> listOf("OPENAI_API_KEY")
+            "anthropic" -> listOf("ANTHROPIC_API_KEY", "ANTHROPIC_TOKEN")
+            "gemini" -> listOf("GOOGLE_API_KEY", "GEMINI_API_KEY")
+            "chatgpt-web" -> listOf("CHATGPT_WEB_ACCESS_TOKEN")
+            "alibaba", "dashscope" -> listOf("DASHSCOPE_API_KEY", "QWEN_API_KEY")
+            "qwen-oauth" -> listOf("QWEN_ACCESS_TOKEN", "QWEN_API_KEY", "DASHSCOPE_API_KEY")
+            "zai" -> listOf("GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY")
+            "nous" -> listOf("NOUS_API_KEY")
+            else -> listOf(providerId.trim().uppercase().replace('-', '_') + "_API_KEY")
+        }.distinct()
+    }
+
+    fun credentialInputHelp(providerId: String): String {
+        val envVars = apiKeyEnvVars(providerId)
+        val primary = envVars.firstOrNull().orEmpty()
+        val aliases = envVars.drop(1).joinToString(separator = ", ")
+        return if (aliases.isBlank()) {
+            "Paste a raw key or a CLI env line such as $primary=..."
+        } else {
+            "Paste a raw key or a CLI env line such as $primary=...; also accepts $aliases."
+        }
+    }
+
+    fun parseCredentialInput(providerId: String, input: String): ParsedProviderCredential {
+        val trimmed = input.trim()
+        if (trimmed.isBlank()) {
+            return ParsedProviderCredential("")
+        }
+        val envVars = apiKeyEnvVars(providerId)
+        envVars.forEach { envVar ->
+            extractEnvValue(trimmed, envVar)?.let { value ->
+                return ParsedProviderCredential(value, envVar)
+            }
+        }
+        extractAnyLikelyCredential(trimmed)?.let { value ->
+            return ParsedProviderCredential(value, "env")
+        }
+        return ParsedProviderCredential(unquote(trimmed))
+    }
+
     fun modelSelections(providerId: String): List<ModelSelectionPreset> {
         val providerHint = find(providerId)?.modelHint.orEmpty().takeIf { it.isNotBlank() }?.let {
             ModelSelectionPreset(
@@ -209,5 +264,51 @@ object ProviderPresets {
 
     private fun Int.floorMod(divisor: Int): Int {
         return ((this % divisor) + divisor) % divisor
+    }
+
+    private fun extractEnvValue(input: String, envVar: String): String? {
+        val escapedEnvVar = Regex.escape(envVar)
+        val patterns = listOf(
+            Regex("""(?im)^\s*(?:export\s+|set\s+|setx\s+)?$escapedEnvVar\s*=\s*(.+?)\s*$"""),
+            Regex("""(?im)^\s*\${'$'}env:$escapedEnvVar\s*=\s*(.+?)\s*$"""),
+            Regex("""(?im)["']$escapedEnvVar["']\s*:\s*["']([^"']+)["']"""),
+        )
+        return patterns.firstNotNullOfOrNull { pattern ->
+            pattern.find(input)?.groupValues?.getOrNull(1)?.let(::cleanCredentialValue)
+        }
+    }
+
+    private fun extractAnyLikelyCredential(input: String): String? {
+        val assignment = Regex("""(?im)^\s*(?:export\s+|set\s+|setx\s+|\${'$'}env:)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s*$""")
+            .findAll(input)
+            .firstOrNull { match ->
+                val key = match.groupValues[1].uppercase()
+                key.endsWith("_API_KEY") || key.endsWith("_ACCESS_TOKEN") || key.endsWith("_TOKEN")
+            }
+        return assignment?.groupValues?.getOrNull(2)?.let(::cleanCredentialValue)
+    }
+
+    private fun cleanCredentialValue(value: String): String {
+        return unquote(
+            value.trim()
+                .substringBefore(" #")
+                .substringBefore(" //")
+                .trim()
+                .trimEnd(';'),
+        )
+    }
+
+    private fun unquote(value: String): String {
+        val trimmed = value.trim()
+        if (trimmed.length < 2) {
+            return trimmed
+        }
+        val first = trimmed.first()
+        val last = trimmed.last()
+        return if ((first == '"' && last == '"') || (first == '\'' && last == '\'')) {
+            trimmed.substring(1, trimmed.length - 1).trim()
+        } else {
+            trimmed
+        }
     }
 }

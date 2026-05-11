@@ -350,7 +350,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 effectiveModel,
                 effectiveBaseUrl,
             )
-            val providerApiKey = snapshot.apiKey.trim()
+            val parsedCredential = ProviderPresets.parseCredentialInput(snapshot.provider, snapshot.apiKey)
+            val providerApiKey = parsedCredential.apiKey
             val preservedBlankCredential = providerApiKey.isBlank() && snapshot.provider != "custom"
             if (providerApiKey.isNotBlank()) {
                 secretsStore.saveApiKey(snapshot.provider, providerApiKey)
@@ -371,6 +372,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 val statusMessage = when {
                     useLocalBackend -> "On-device backend ready and Hermes runtime restarted"
                     backendKind != BackendKind.NONE -> "${localBackendStatus.statusMessage}. Hermes stayed on your saved remote provider."
+                    parsedCredential.importedFromEnvLine -> "Settings saved, imported ${parsedCredential.sourceLabel} into secure storage, and backend restarted"
                     snapshot.dataSaverMode -> "Settings saved. Data saver mode now keeps heavy downloads on Wi‑Fi / unmetered networks."
                     preservedBlankCredential -> "Settings saved and backend restarted. Blank API key field left existing Hermes credentials untouched."
                     else -> "Settings saved and backend restarted"
