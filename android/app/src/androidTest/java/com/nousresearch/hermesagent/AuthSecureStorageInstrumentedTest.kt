@@ -125,4 +125,40 @@ class AuthSecureStorageInstrumentedTest {
             python.getModule("hermes_android.auth_bridge").callAttr("clear_provider_auth_bundle", "qwen-oauth")
         }
     }
+
+    @Test
+    fun settingsSaveAcceptsQwenEnvStyleApiKeyIntoEncryptedPrefs() {
+        context.deleteSharedPreferences("hermes_android_settings")
+        context.deleteSharedPreferences("hermes_android_secrets")
+        AppSettingsStore(app).save(
+            AppSettings(
+                provider = "alibaba",
+                baseUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+                model = "qwen3.6-plus",
+            )
+        )
+
+        lateinit var viewModel: SettingsViewModel
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            viewModel = SettingsViewModel(app)
+            viewModel.updateApiKey("export DASHSCOPE_API_KEY='sk-qwen-android-test'")
+            viewModel.save()
+        }
+
+        val deadline = SystemClock.elapsedRealtime() + 60_000L
+        var status = ""
+        while (SystemClock.elapsedRealtime() < deadline) {
+            status = viewModel.uiState.value.status
+            if (status.contains("backend restarted") || status.contains("failed")) {
+                break
+            }
+            Thread.sleep(250L)
+        }
+        assertTrue(status, status.contains("imported DASHSCOPE_API_KEY into secure storage"))
+        assertEquals("sk-qwen-android-test", SecureSecretsStore(app).loadApiKey("alibaba"))
+        assertEquals("sk-qwen-android-test", viewModel.uiState.value.apiKey)
+        if (Python.isStarted()) {
+            Python.getInstance().getModule("hermes_android.auth_bridge").callAttr("clear_provider_auth_bundle", "alibaba")
+        }
+    }
 }

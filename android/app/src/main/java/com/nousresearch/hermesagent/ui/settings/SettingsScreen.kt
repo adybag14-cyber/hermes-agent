@@ -242,6 +242,7 @@ private fun RemoteFallbackCard(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
             )
             Text(strings.apiKeyHelp(), style = MaterialTheme.typography.bodySmall)
+            Text(ProviderPresets.credentialInputHelp(providerId), style = MaterialTheme.typography.bodySmall)
             Button(onClick = onSave) {
                 Text(strings.saveLabel())
             }

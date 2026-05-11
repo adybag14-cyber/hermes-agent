@@ -45,4 +45,32 @@ class ProviderPresetsTest {
         assertEquals(6, first.total)
         assertEquals(1, first.nextIndex)
     }
+
+    @Test
+    fun parsesProviderEnvStyleCredentialInput() {
+        assertEquals(
+            "sk-or-v1-test",
+            ProviderPresets.parseCredentialInput("openrouter", "OPENROUTER_API_KEY=sk-or-v1-test").apiKey,
+        )
+        assertEquals(
+            "sk-qwen-test",
+            ProviderPresets.parseCredentialInput("alibaba", "export DASHSCOPE_API_KEY='sk-qwen-test'").apiKey,
+        )
+        assertEquals(
+            "glm-test",
+            ProviderPresets.parseCredentialInput("zai", "\$env:ZAI_API_KEY=\"glm-test\"").apiKey,
+        )
+        assertEquals(
+            "google-test",
+            ProviderPresets.parseCredentialInput("gemini", "{\"GOOGLE_API_KEY\":\"google-test\"}").apiKey,
+        )
+    }
+
+    @Test
+    fun rawProviderCredentialInputIsPreserved() {
+        assertEquals(
+            "sk-raw-test",
+            ProviderPresets.parseCredentialInput("openrouter", "sk-raw-test").apiKey,
+        )
+    }
 }
