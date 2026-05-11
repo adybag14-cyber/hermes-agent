@@ -352,22 +352,32 @@ class NativeToolCallingChatClient(
             "swipe",
             "drag",
             "coordinate_swipe" -> executeAndroidCoordinateGesture(toolCall, "swipe")
-            "click",
-            "long_click",
-            "focus",
-            "scroll_forward",
-            "scroll_backward",
-            "set_text" -> HermesAccessibilityUiBridge.performActionJson(
-                action = action,
+            "scroll",
+            "scroll_up",
+            "scroll_down",
+            "scroll_left",
+            "scroll_right" -> executeAndroidScrollGesture(toolCall, action)
+            "type",
+            "type_text" -> HermesAccessibilityUiBridge.performTextInputJson(
+                value = stringArgument(toolCall.arguments, "value", "text", "content").orEmpty(),
                 textContains = toolCall.arguments.optString("text_contains"),
                 contentDescriptionContains = toolCall.arguments.optString("content_description_contains"),
                 viewId = toolCall.arguments.optString("view_id"),
                 packageName = toolCall.arguments.optString("package_name"),
-                value = toolCall.arguments.optString("value"),
                 index = toolCall.arguments.optInt("index", 0),
             )
-            "back", "global_back" -> HermesAccessibilityUiBridge.performGlobalActionJson("back")
-            "home", "global_home" -> HermesAccessibilityUiBridge.performGlobalActionJson("home")
+            "click" -> if (hasCoordinateGestureArguments(toolCall.arguments)) {
+                executeAndroidCoordinateGesture(toolCall, "tap")
+            } else {
+                executeAndroidSelectorAction(toolCall, action)
+            }
+            "long_click",
+            "focus",
+            "scroll_forward",
+            "scroll_backward",
+            "set_text" -> executeAndroidSelectorAction(toolCall, action)
+            "back", "global_back", "press_back" -> HermesAccessibilityUiBridge.performGlobalActionJson("back")
+            "home", "global_home", "press_home" -> HermesAccessibilityUiBridge.performGlobalActionJson("home")
             "recents", "global_recents" -> HermesAccessibilityUiBridge.performGlobalActionJson("recents")
             "notifications", "global_notifications" -> HermesAccessibilityUiBridge.performGlobalActionJson("notifications")
             "quick_settings", "global_quick_settings" -> HermesAccessibilityUiBridge.performGlobalActionJson("quick_settings")
@@ -390,6 +400,44 @@ class NativeToolCallingChatClient(
             y1 = optionalDoubleArgument(arguments, "y1", "start_y", "from_y"),
             x2 = optionalDoubleArgument(arguments, "x2", "end_x", "to_x"),
             y2 = optionalDoubleArgument(arguments, "y2", "end_y", "to_y"),
+            durationMs = optionalLongArgument(arguments, "duration_ms", "duration", "gesture_duration_ms") ?: 0L,
+            coordinateSpace = stringArgument(arguments, "coordinate_space", "coordinates", "coord_space").orEmpty(),
+        )
+    }
+
+    private fun hasCoordinateGestureArguments(arguments: JSONObject): Boolean {
+        return optionalDoubleArgument(arguments, "x", "screen_x", "tap_x") != null ||
+            optionalDoubleArgument(arguments, "y", "screen_y", "tap_y") != null ||
+            optionalDoubleArgument(arguments, "x1", "start_x", "from_x") != null ||
+            optionalDoubleArgument(arguments, "y1", "start_y", "from_y") != null
+    }
+
+    private fun executeAndroidSelectorAction(toolCall: ToolCall, action: String): String {
+        return HermesAccessibilityUiBridge.performActionJson(
+            action = action,
+            textContains = toolCall.arguments.optString("text_contains"),
+            contentDescriptionContains = toolCall.arguments.optString("content_description_contains"),
+            viewId = toolCall.arguments.optString("view_id"),
+            packageName = toolCall.arguments.optString("package_name"),
+            value = toolCall.arguments.optString("value"),
+            index = toolCall.arguments.optInt("index", 0),
+        )
+    }
+
+    private fun executeAndroidScrollGesture(toolCall: ToolCall, action: String): String {
+        val arguments = toolCall.arguments
+        val direction = when (action) {
+            "scroll_down" -> "down"
+            "scroll_left" -> "left"
+            "scroll_right" -> "right"
+            "scroll_up" -> "up"
+            else -> stringArgument(arguments, "direction", "scroll_direction").orEmpty()
+        }
+        return HermesAccessibilityUiBridge.performScrollGestureJson(
+            direction = direction,
+            x = optionalDoubleArgument(arguments, "x", "start_x"),
+            y = optionalDoubleArgument(arguments, "y", "start_y"),
+            distancePx = optionalDoubleArgument(arguments, "distance_px", "distance", "scroll_distance_px"),
             durationMs = optionalLongArgument(arguments, "duration_ms", "duration", "gesture_duration_ms") ?: 0L,
             coordinateSpace = stringArgument(arguments, "coordinate_space", "coordinates", "coord_space").orEmpty(),
         )
@@ -496,7 +544,7 @@ class NativeToolCallingChatClient(
                     name = "android_ui_tool",
                     description = "Inspect or control the visible Android UI through Hermes accessibility.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, snapshot, click, long_click, focus, set_text, scroll_forward, scroll_backward, tap, long_press, swipe, back, home, recents, notifications, quick_settings, open_accessibility_settings."))
+                        .put("action", stringProp("status, snapshot, click, long_click, focus, set_text, type, scroll_forward, scroll_backward, scroll, scroll_up, scroll_down, scroll_left, scroll_right, tap, long_press, swipe, back, home, press_back, press_home, recents, notifications, quick_settings, open_accessibility_settings."))
                         .put("text_contains", stringProp("Visible text selector."))
                         .put("content_description_contains", stringProp("Accessibility description selector."))
                         .put("view_id", stringProp("Android view id selector."))
@@ -511,7 +559,9 @@ class NativeToolCallingChatClient(
                         .put("x2", scalarProp("Swipe end x coordinate."))
                         .put("y2", scalarProp("Swipe end y coordinate."))
                         .put("coordinate_space", stringProp("absolute_px by default, or normalized/percent."))
-                        .put("duration_ms", intProp("Gesture duration in milliseconds.")),
+                        .put("duration_ms", intProp("Gesture duration in milliseconds."))
+                        .put("direction", stringProp("Scroll finger direction: up, down, left, or right."))
+                        .put("distance_px", scalarProp("Optional scroll distance in screen pixels.")),
                     required = JSONArray().put("action"),
                 ),
             )
@@ -1571,7 +1621,7 @@ class NativeToolCallingChatClient(
                             .put("name", "android_ui_tool")
                             .put(
                                 "description",
-                                "Inspect or control the visible Android UI through the user-enabled Hermes accessibility service. Supports status, screen snapshots, selector-based click/type/scroll/focus, coordinate tap/long-press/swipe gestures, and global Back/Home/Recents/notifications/quick-settings actions.",
+                                "Inspect or control the visible Android UI through the user-enabled Hermes accessibility service. Supports status, screen snapshots, selector-based click/type/scroll/focus, OpenGUI-style scroll/type/press aliases, coordinate tap/long-press/swipe gestures, and global Back/Home/Recents/notifications/quick-settings actions.",
                             )
                             .put(
                                 "parameters",
@@ -1584,7 +1634,7 @@ class NativeToolCallingChatClient(
                                                 "action",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "status, snapshot, click, long_click, focus, set_text, scroll_forward, scroll_backward, tap, long_press, swipe, back, home, recents, notifications, quick_settings, or open_accessibility_settings."),
+                                                    .put("description", "status, snapshot, click, long_click, focus, set_text, type, scroll_forward, scroll_backward, scroll, scroll_up, scroll_down, scroll_left, scroll_right, tap, long_press, swipe, back, home, press_back, press_home, recents, notifications, quick_settings, or open_accessibility_settings."),
                                             )
                                             .put(
                                                 "text_contains",
@@ -1675,6 +1725,18 @@ class NativeToolCallingChatClient(
                                                 JSONObject()
                                                     .put("type", "integer")
                                                     .put("description", "Gesture duration in milliseconds."),
+                                            )
+                                            .put(
+                                                "direction",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "Scroll finger direction for action=scroll: up, down, left, or right. Defaults to up."),
+                                            )
+                                            .put(
+                                                "distance_px",
+                                                JSONObject()
+                                                    .put("type", "number")
+                                                    .put("description", "Optional scroll distance in screen pixels. Defaults to half the relevant screen axis."),
                                             ),
                                     )
                                     .put("required", JSONArray().put("action")),
@@ -1915,13 +1977,21 @@ class NativeToolCallingChatClient(
             "long_click",
             "focus",
             "set_text",
+            "type",
             "scroll_forward",
             "scroll_backward",
+            "scroll",
+            "scroll_up",
+            "scroll_down",
+            "scroll_left",
+            "scroll_right",
             "tap",
             "long_press",
             "swipe",
             "back",
             "home",
+            "press_back",
+            "press_home",
             "recents",
             "notifications",
             "quick_settings",
@@ -1945,6 +2015,8 @@ class NativeToolCallingChatClient(
             "y2",
             "coordinate_space",
             "duration_ms",
+            "direction",
+            "distance_px",
         )
     }
 }
