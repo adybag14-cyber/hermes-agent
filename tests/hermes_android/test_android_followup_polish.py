@@ -324,3 +324,56 @@ def test_android_automation_exposes_operator_standby_history_for_remote_dispatch
     assert 'remoteDispatchCount' in view_model
     assert 'lastDispatchTaskName' in view_model
     assert 'OperatorStandbyCard(uiState = uiState)' in device
+
+
+def test_android_ui_tool_has_opengui_style_coordinate_gesture_parity():
+    controller = (
+        REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/device/HermesAccessibilityController.kt"
+    ).read_text(encoding="utf-8")
+    ui_bridge = (
+        REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/device/HermesAccessibilityUiBridge.kt"
+    ).read_text(encoding="utf-8")
+    chat_client = (
+        REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+    ).read_text(encoding="utf-8")
+
+    assert 'GestureDescription' in controller
+    assert 'dispatchGesture' in controller
+    assert 'fun performTap(' in controller
+    assert 'fun performSwipe(' in controller
+    assert 'HermesScreenMetrics' in controller
+
+    assert 'fun performCoordinateGestureJson(' in ui_bridge
+    assert 'NORMALIZED_COORDINATE_SPACES' in ui_bridge
+    assert 'PERCENT_COORDINATE_SPACES' in ui_bridge
+    assert 'resolved_coordinates' in ui_bridge
+    assert 'screen_width' in ui_bridge
+    assert 'screen_height' in ui_bridge
+    assert 'current_app_name' in ui_bridge
+    assert 'scale_factor' in ui_bridge
+    assert 'normalized_coordinate_support' in ui_bridge
+
+    for action in [
+        '"tap"',
+        '"long_press"',
+        '"swipe"',
+        '"coordinate_tap"',
+        '"coordinate_click"',
+        '"coordinate_swipe"',
+    ]:
+        assert action in chat_client
+
+    for argument in [
+        '"x"',
+        '"y"',
+        '"x1"',
+        '"y1"',
+        '"x2"',
+        '"y2"',
+        '"coordinate_space"',
+        '"duration_ms"',
+    ]:
+        assert argument in chat_client
+
+    assert 'executeAndroidCoordinateGesture' in chat_client
+    assert 'coordinate_arguments' in chat_client
