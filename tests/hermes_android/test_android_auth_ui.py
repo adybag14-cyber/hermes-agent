@@ -170,6 +170,7 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert "browserSignInEnabled = option.scope != AuthScope.AppAccount || corr3xtConfigured" in auth_view_model
     assert "providerSetupUrl = ProviderPresets.find(option.runtimeProvider)?.apiKeyUrl.orEmpty()" in auth_view_model
     assert "fun openProviderSetupPage(methodId: String)" in auth_view_model
+    assert "prepareApiKeySetup(methodId)\n            openProviderSetupPage(methodId)" in auth_view_model
     assert "getApplication<Application>().startActivity(browserIntent)" in auth_view_model
     assert "fun copyProviderSetupUrl(methodId: String)" in auth_view_model
     assert "ClipData.newPlainText(\"Hermes ${option.label} setup URL\", setupUrl)" in auth_view_model
