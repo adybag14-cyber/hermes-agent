@@ -1446,6 +1446,14 @@ def _replay_output_history() -> None:
         _OUTPUT_HISTORY_REPLAYING = False
 
 
+def _safe_pt_print(text: str) -> None:
+    try:
+        _pt_print(_PT_ANSI(text))
+    except Exception:
+        sys.stdout.write(f"{text}\n")
+        sys.stdout.flush()
+
+
 def _cprint(text: str):
     """Print ANSI-colored text through prompt_toolkit's native renderer.
 
@@ -1467,7 +1475,7 @@ def _cprint(text: str):
     try:
         from prompt_toolkit.application import get_app_or_none, run_in_terminal
     except Exception:
-        _pt_print(_PT_ANSI(text))
+        _safe_pt_print(text)
         return
 
     app = None
@@ -1480,7 +1488,7 @@ def _cprint(text: str):
     # direct prompt_toolkit print is safe and matches existing behavior
     # (spinner frames, streamed tokens, tool activity prefixes, …).
     if app is None or not getattr(app, "_is_running", False):
-        _pt_print(_PT_ANSI(text))
+        _safe_pt_print(text)
         return
 
     try:
@@ -1488,7 +1496,7 @@ def _cprint(text: str):
     except Exception:
         loop = None
     if loop is None:
-        _pt_print(_PT_ANSI(text))
+        _safe_pt_print(text)
         return
 
     import asyncio as _asyncio
@@ -1504,7 +1512,7 @@ def _cprint(text: str):
         current_loop = None
     # Same thread as the app's loop → safe to print directly.
     if current_loop is loop and loop.is_running():
-        _pt_print(_PT_ANSI(text))
+        _safe_pt_print(text)
         return
 
     # Cross-thread emission: ask the app's event loop to schedule a
@@ -1513,20 +1521,14 @@ def _cprint(text: str):
     # fails we fall back to a direct print so the line isn't lost.
     def _schedule():
         try:
-            run_in_terminal(lambda: _pt_print(_PT_ANSI(text)))
+            run_in_terminal(lambda: _safe_pt_print(text))
         except Exception:
-            try:
-                _pt_print(_PT_ANSI(text))
-            except Exception:
-                pass
+            _safe_pt_print(text)
 
     try:
         loop.call_soon_threadsafe(_schedule)
     except Exception:
-        try:
-            _pt_print(_PT_ANSI(text))
-        except Exception:
-            pass
+        _safe_pt_print(text)
 
 
 # ---------------------------------------------------------------------------
