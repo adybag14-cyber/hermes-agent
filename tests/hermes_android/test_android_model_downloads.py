@@ -120,8 +120,9 @@ def test_runtime_manager_rechecks_local_backend_instead_of_returning_stale_remot
     assert 'selectedLocalBackend == BackendKind.NONE' in runtime_manager
     assert '!currentState.baseUrl.isNullOrBlank()' in runtime_manager
     assert 'OnDeviceBackendManager.ensureConfigured(' in runtime_manager
-    assert 'selectedLocalBackend != BackendKind.NONE' in runtime_manager
-    assert 'error = localBackendStatus.statusMessage.ifBlank' in runtime_manager
+    assert 'localBackendFallbackWarning(selectedLocalBackend, localBackendStatus)' in runtime_manager
+    assert 'Using saved remote provider.' in runtime_manager
+    assert 'probeResult.withLocalBackendWarning(localBackendFallbackWarning)' in runtime_manager
 
 
 def test_litert_runtime_rejects_web_task_flatbuffers_before_engine_start():
