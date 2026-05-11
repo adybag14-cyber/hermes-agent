@@ -51,9 +51,10 @@ class TestConfigureWindowsStdio:
         yield
         sys.modules.pop("hermes_cli.stdio", None)
 
-    def test_no_op_on_posix(self):
+    def test_no_op_on_posix(self, monkeypatch):
         from hermes_cli import stdio
 
+        monkeypatch.setattr(stdio, "is_windows", lambda: False)
         assert stdio.is_windows() is False
         result = stdio.configure_windows_stdio()
         assert result is False
@@ -288,8 +289,12 @@ class TestSigkillFallback:
 
     def test_getattr_fallback_prefers_sigkill_when_present(self):
         """On POSIX the fallback is a no-op: real SIGKILL wins."""
-        result = getattr(signal, "SIGKILL", signal.SIGTERM)
-        assert result == signal.SIGKILL
+        fake_signal = MagicMock()
+        fake_signal.SIGKILL = 9
+        fake_signal.SIGTERM = 15
+
+        result = getattr(fake_signal, "SIGKILL", fake_signal.SIGTERM)
+        assert result == 9
 
     @pytest.mark.parametrize(
         "module_path, line_pattern",
@@ -778,6 +783,66 @@ class TestLocalEnvironmentWindowsTempDir:
         assert "if _IS_WINDOWS:" in source
         assert "get_hermes_home" in source
         assert 'cache_dir = get_hermes_home() / "cache" / "terminal"' in source
+
+    def test_windows_native_cwd_translates_for_git_bash_cd(self, monkeypatch):
+        import tools.environments.local as local_mod
+
+        monkeypatch.setattr(local_mod, "_IS_WINDOWS", True)
+        env = object.__new__(local_mod.LocalEnvironment)
+
+        assert env._cwd_for_shell(r"C:\Users\adyba\repo") == "/c/Users/adyba/repo"
+        assert env._cwd_for_shell("D:/work/project") == "/d/work/project"
+        assert env._cwd_for_shell(r"\\server\share\repo") == "//server/share/repo"
+        assert env._cwd_for_shell("/c/Users/adyba/repo") == "/c/Users/adyba/repo"
+
+    def test_windows_shell_cwd_marker_translates_back_to_native(self, monkeypatch):
+        import tools.environments.local as local_mod
+
+        native = r"C:\Users\adyba\repo"
+        monkeypatch.setattr(local_mod, "_IS_WINDOWS", True)
+        monkeypatch.setattr(local_mod.os.path, "isdir", lambda path: path == native)
+        env = object.__new__(local_mod.LocalEnvironment)
+        env.cwd = r"C:\Users\adyba"
+
+        env._set_cwd_from_shell("/c/Users/adyba/repo")
+
+        assert env.cwd == native
+
+    def test_wrap_command_uses_shell_cwd_hook(self):
+        from tools.environments.base import BaseEnvironment
+
+        class _Env(BaseEnvironment):
+            def _run_bash(self, *args, **kwargs):  # pragma: no cover - not used
+                raise NotImplementedError
+
+            def cleanup(self):  # pragma: no cover - not used
+                pass
+
+            def _cwd_for_shell(self, cwd: str) -> str:
+                return "/converted/cwd"
+
+        env = _Env(cwd=r"C:\Users\adyba\repo", timeout=10, env={})
+        wrapped = env._wrap_command("pwd", env.cwd)
+
+        assert "builtin cd -- /converted/cwd || exit 126" in wrapped
+
+    def test_find_bash_skips_wsl_bash_before_git_for_windows(self, monkeypatch):
+        import tools.environments.local as local_mod
+
+        git_bash = r"C:\Program Files\Git\bin\bash.exe"
+        monkeypatch.setattr(local_mod, "_IS_WINDOWS", True)
+        monkeypatch.delenv("HERMES_GIT_BASH_PATH", raising=False)
+        monkeypatch.setenv("LOCALAPPDATA", r"C:\Users\adyba\AppData\Local")
+        monkeypatch.setenv("ProgramFiles", r"C:\Program Files")
+        monkeypatch.setenv("ProgramFiles(x86)", r"C:\Program Files (x86)")
+        monkeypatch.setattr(
+            local_mod.shutil,
+            "which",
+            lambda name: r"C:\Windows\system32\bash.exe" if name == "bash" else None,
+        )
+        monkeypatch.setattr(local_mod.os.path, "isfile", lambda path: path == git_bash)
+
+        assert local_mod._find_bash() == git_bash
 
 
 class TestLocalEnvironmentPathInjectionGated:

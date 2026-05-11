@@ -172,6 +172,20 @@ class TestBusyInputMode:
 
 
 class TestPromptToolkitTerminalCompatibility:
+    def test_cprint_falls_back_when_prompt_toolkit_output_has_no_console(self, monkeypatch, capsys):
+        import cli
+        import prompt_toolkit.application as app_mod
+
+        def _raise_no_console(*_args, **_kwargs):
+            raise RuntimeError("no console buffer")
+
+        monkeypatch.setattr(app_mod, "get_app_or_none", lambda: None)
+        monkeypatch.setattr(cli, "_pt_print", _raise_no_console)
+
+        cli._cprint("fallback works")
+
+        assert "fallback works" in capsys.readouterr().out
+
     def test_lf_enter_binds_to_submit_handler_posix(self):
         """Some thin PTYs deliver Enter as LF/c-j instead of CR/enter.
 

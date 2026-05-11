@@ -2471,6 +2471,25 @@ class AIAgent:
                     file=sys.stderr,
                 )
                 _config_context_length = None
+        if _config_context_length is not None and isinstance(_model_cfg, dict):
+            configured_provider = str(_model_cfg.get("provider") or "").strip().lower()
+            current_provider = str(self.provider or "").strip().lower()
+            if configured_provider and current_provider:
+                try:
+                    from hermes_cli.models import normalize_provider
+
+                    configured_provider = normalize_provider(configured_provider)
+                    current_provider = normalize_provider(current_provider)
+                except Exception:
+                    pass
+                if configured_provider != current_provider:
+                    logger.info(
+                        "Ignoring model.context_length=%r from config provider %r for runtime provider %r",
+                        _config_context_length,
+                        configured_provider,
+                        current_provider,
+                    )
+                    _config_context_length = None
 
         # Resolve custom_providers list once for reuse below (startup
         # context-length override and plugin context-engine init).

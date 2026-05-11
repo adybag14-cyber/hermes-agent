@@ -3,13 +3,19 @@
 from unittest.mock import patch, MagicMock, call
 
 
-def _build_agent(model_cfg, custom_providers=None, model="anthropic/claude-opus-4.6"):
+def _build_agent(
+    model_cfg,
+    custom_providers=None,
+    model="anthropic/claude-opus-4.6",
+    provider=None,
+    base_url=None,
+):
     """Build an AIAgent with the given model config."""
     cfg = {"model": model_cfg}
     if custom_providers is not None:
         cfg["custom_providers"] = custom_providers
 
-    base_url = model_cfg.get("base_url", "")
+    base_url = model_cfg.get("base_url", "") if base_url is None else base_url
 
     with (
         patch("hermes_cli.config.load_config", return_value=cfg),
@@ -24,6 +30,7 @@ def _build_agent(model_cfg, custom_providers=None, model="anthropic/claude-opus-
             model=model,
             api_key="test-key-1234567890",
             base_url=base_url,
+            provider=provider,
             quiet_mode=True,
             skip_context_files=True,
             skip_memory=True,
@@ -66,6 +73,24 @@ def test_string_numeric_context_length_works():
     assert agent._config_context_length == 256000
     for c in mock_logger.warning.call_args_list:
         assert "Invalid" not in str(c)
+
+
+def test_config_context_length_ignored_for_provider_override():
+    """A local endpoint context override must not poison explicit provider runs."""
+    agent = _build_agent(
+        {
+            "default": "local-model.gguf",
+            "provider": "custom",
+            "base_url": "http://127.0.0.1:18191/v1",
+            "context_length": 40072,
+        },
+        model="gpt-5-thinking",
+        provider="chatgpt-web",
+        base_url="https://chatgpt.com/backend-api/f",
+    )
+
+    assert agent._config_context_length is None
+    assert agent.context_compressor.context_length == 400_000
 
 
 def test_custom_providers_invalid_context_length_warns():

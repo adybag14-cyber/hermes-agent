@@ -348,6 +348,10 @@ class BaseEnvironment(ABC):
     # Session snapshot (init_session)
     # ------------------------------------------------------------------
 
+    def _cwd_for_shell(self, cwd: str) -> str:
+        """Return *cwd* in the path syntax expected by the backend shell."""
+        return cwd
+
     def init_session(self):
         """Capture login shell environment into a snapshot file.
 
@@ -359,7 +363,7 @@ class BaseEnvironment(ABC):
         # Restore configured cwd after login shell profile scripts, which may
         # change the working directory (e.g. bashrc `cd ~`).  Without this,
         # pwd -P captures the profile's directory, not terminal.cwd.
-        _quoted_cwd = shlex.quote(self.cwd)
+        _quoted_cwd = shlex.quote(self._cwd_for_shell(self.cwd))
         # Quote the snapshot / cwd-file paths so Git Bash on Windows handles
         # ``C:/Users/...``-shaped paths without glob-splitting the colon or
         # tripping on drive letters.  On POSIX this is a no-op (no colons /
@@ -441,7 +445,7 @@ class BaseEnvironment(ABC):
 
         # Preserve bare ``~`` expansion, but rewrite ``~/...`` through
         # ``$HOME`` so suffixes with spaces remain a single shell word.
-        quoted_cwd = self._quote_cwd_for_cd(cwd)
+        quoted_cwd = self._quote_cwd_for_cd(self._cwd_for_shell(cwd))
         # ``--`` keeps hyphen-prefixed directory names from being parsed as options.
         parts.append(f"builtin cd -- {quoted_cwd} || exit 126")
 
@@ -721,6 +725,9 @@ class BaseEnvironment(ABC):
         """Extract CWD from command output. Override for local file-based read."""
         self._extract_cwd_from_output(result)
 
+    def _set_cwd_from_shell(self, cwd_path: str) -> None:
+        self.cwd = cwd_path
+
     def _extract_cwd_from_output(self, result: dict):
         """Parse the __HERMES_CWD_{session}__ marker from stdout output.
 
@@ -741,7 +748,7 @@ class BaseEnvironment(ABC):
 
         cwd_path = output[first + len(marker) : last].strip()
         if cwd_path:
-            self.cwd = cwd_path
+            self._set_cwd_from_shell(cwd_path)
 
         # Strip the marker line AND the \n we injected before it.
         # The wrapper emits: printf '\n__MARKER__%s__MARKER__\n'
@@ -840,4 +847,3 @@ class BaseEnvironment(ABC):
         from tools.terminal_tool import _transform_sudo_command
 
         return _transform_sudo_command(command)
-
