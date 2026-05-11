@@ -99,7 +99,7 @@ object ChatCommandRouter {
                 } else if (host.startAuthMethod(method)) {
                     if (method in runtimeProviderAuthMethods) {
                         host.navigateToSection(AppSection.Settings)
-                        ChatCommandResult(handled = true, feedback = "Prepared $method API-key/token setup in Settings. Paste the provider credential there to power Hermes.")
+                        ChatCommandResult(handled = true, feedback = "Prepared $method API-key/token setup in Settings and opened the provider setup page. Paste the provider credential there to power Hermes.")
                     } else {
                         host.navigateToSection(AppSection.Accounts)
                         ChatCommandResult(handled = true, feedback = "Opened Corr3xt app sign-in for $method. Complete it in your browser, then come back to Hermes.")

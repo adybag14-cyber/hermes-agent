@@ -17,7 +17,7 @@ class ChatCommandRouterTest {
         assertEquals("qwen", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared qwen API-key/token setup in Settings. Paste the provider credential there to power Hermes.",
+            "Prepared qwen API-key/token setup in Settings and opened the provider setup page. Paste the provider credential there to power Hermes.",
             result.feedback,
         )
     }
@@ -32,7 +32,7 @@ class ChatCommandRouterTest {
         assertEquals("zai", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared zai API-key/token setup in Settings. Paste the provider credential there to power Hermes.",
+            "Prepared zai API-key/token setup in Settings and opened the provider setup page. Paste the provider credential there to power Hermes.",
             result.feedback,
         )
     }
@@ -47,7 +47,7 @@ class ChatCommandRouterTest {
         assertEquals("qwen-oauth", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared qwen-oauth API-key/token setup in Settings. Paste the provider credential there to power Hermes.",
+            "Prepared qwen-oauth API-key/token setup in Settings and opened the provider setup page. Paste the provider credential there to power Hermes.",
             result.feedback,
         )
     }

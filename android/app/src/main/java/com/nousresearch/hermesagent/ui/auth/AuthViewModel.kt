@@ -129,6 +129,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val option = AuthCatalog.find(methodId) ?: return false
         if (!option.browserSignInSupported && option.scope == AuthScope.RuntimeProvider) {
             prepareApiKeySetup(methodId)
+            openProviderSetupPage(methodId)
             return true
         }
         val candidateBaseUrl = _uiState.value.corr3xtBaseUrl.trim()
