@@ -219,11 +219,15 @@ def test_settings_can_import_saved_python_provider_credentials_without_blank_ove
     assert "read_provider_auth_bundle_json" in settings_view_model
     assert "HermesRuntimeManager.ensurePythonStarted(app)" in settings_view_model
     assert "secretsStore.saveApiKey(snapshot.provider, apiKey)" in settings_view_model
+    assert "val providerApiKey = snapshot.apiKey.trim()" in settings_view_model
+    assert "if (providerApiKey.isNotBlank())" in settings_view_model
+    assert "Blank API key field left existing Hermes credentials untouched" in settings_view_model
     assert "write_provider_auth_bundle" in settings_view_model
     assert "write_runtime_config" in settings_view_model
     assert "No saved Hermes credential found for $providerLabel" in settings_view_model
     assert "Imported saved Hermes credential for $providerLabel" in settings_view_model
     assert "def read_provider_auth_bundle_json(provider: str) -> str:" in auth_bridge
+    assert '"reason": "blank_api_key_preserved"' in auth_bridge
     assert '"zai": {' in auth_bridge
     assert 'if normalized == "qwen-oauth":' in auth_bridge
 
