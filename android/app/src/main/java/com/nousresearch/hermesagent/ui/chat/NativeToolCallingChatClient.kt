@@ -341,6 +341,17 @@ class NativeToolCallingChatClient(
             "snapshot", "screen_snapshot", "read_screen" -> HermesAccessibilityUiBridge.snapshotJson(
                 limit = toolCall.arguments.optInt("limit", DEFAULT_UI_SNAPSHOT_LIMIT),
             )
+            "tap",
+            "tap_at",
+            "coordinate_tap",
+            "coordinate_click",
+            "click_at" -> executeAndroidCoordinateGesture(toolCall, "tap")
+            "long_press",
+            "long_press_at",
+            "coordinate_long_press" -> executeAndroidCoordinateGesture(toolCall, "long_press")
+            "swipe",
+            "drag",
+            "coordinate_swipe" -> executeAndroidCoordinateGesture(toolCall, "swipe")
             "click",
             "long_click",
             "focus",
@@ -369,21 +380,63 @@ class NativeToolCallingChatClient(
         }
     }
 
+    private fun executeAndroidCoordinateGesture(toolCall: ToolCall, action: String): String {
+        val arguments = toolCall.arguments
+        return HermesAccessibilityUiBridge.performCoordinateGestureJson(
+            action = action,
+            x = optionalDoubleArgument(arguments, "x", "screen_x", "tap_x"),
+            y = optionalDoubleArgument(arguments, "y", "screen_y", "tap_y"),
+            x1 = optionalDoubleArgument(arguments, "x1", "start_x", "from_x"),
+            y1 = optionalDoubleArgument(arguments, "y1", "start_y", "from_y"),
+            x2 = optionalDoubleArgument(arguments, "x2", "end_x", "to_x"),
+            y2 = optionalDoubleArgument(arguments, "y2", "end_y", "to_y"),
+            durationMs = optionalLongArgument(arguments, "duration_ms", "duration", "gesture_duration_ms") ?: 0L,
+            coordinateSpace = stringArgument(arguments, "coordinate_space", "coordinates", "coord_space").orEmpty(),
+        )
+    }
+
     private fun androidUiStatusJson(): String {
         return JSONObject()
             .put("accessibility_service_enabled", HermesAccessibilityController.isServiceEnabled(appContext))
             .put("accessibility_connected", HermesAccessibilityController.isServiceConnected())
             .put("available_ui_actions", JSONArray(ANDROID_UI_ACTIONS))
             .put("selection_arguments", JSONArray(UI_SELECTOR_ARGUMENTS))
-            .put("message", "Enable the Hermes accessibility service before using snapshot, click, set_text, scroll, or global navigation actions.")
+            .put("coordinate_arguments", JSONArray(UI_COORDINATE_ARGUMENTS))
+            .put("message", "Enable the Hermes accessibility service before using snapshot, selector actions, coordinate tap/swipe, or global navigation actions.")
             .toString()
+    }
+
+    private fun stringArgument(arguments: JSONObject, vararg keys: String): String? {
+        return keys.firstNotNullOfOrNull { key ->
+            if (!arguments.has(key) || arguments.isNull(key)) {
+                null
+            } else {
+                arguments.optString(key).takeIf { it.isNotBlank() }
+            }
+        }
+    }
+
+    private fun optionalDoubleArgument(arguments: JSONObject, vararg keys: String): Double? {
+        val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return null
+        return when (val value = arguments.opt(key)) {
+            is Number -> value.toDouble()
+            else -> value?.toString()?.trim()?.toDoubleOrNull()
+        }
+    }
+
+    private fun optionalLongArgument(arguments: JSONObject, vararg keys: String): Long? {
+        val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return null
+        return when (val value = arguments.opt(key)) {
+            is Number -> value.toLong()
+            else -> value?.toString()?.trim()?.toLongOrNull()
+        }
     }
 
     private fun systemMessage(toolsEnabled: Boolean): JSONObject {
         val content = if (toolsEnabled) {
             "You are Hermes running inside the native Android app. " +
                 "Use tools when work requires real files, shell commands, Android UI, Android settings, Shizuku/Sui, or saved Tasker-style automation. " +
-                "Use terminal_tool for shell commands and inspection, file_write_tool for exact text file creation, android_ui_tool for visible-screen actions, android_system_tool for device/settings/Shizuku operations, and android_automation_tool for saved tasks, triggers, notifications, variables, widgets, and Tasker/Locale plugin actions. " +
+                "Use terminal_tool for shell commands and inspection, file_write_tool for exact text file creation, android_ui_tool for visible-screen selectors and coordinate gestures, android_system_tool for device/settings/Shizuku operations, and android_automation_tool for saved tasks, triggers, notifications, variables, widgets, and Tasker/Locale plugin actions. " +
                 "When the user asks to write or replace multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                 "Ask for or report missing Android permissions instead of pretending protected settings changed. Keep replies brief and report real tool results."
         } else {
@@ -443,14 +496,22 @@ class NativeToolCallingChatClient(
                     name = "android_ui_tool",
                     description = "Inspect or control the visible Android UI through Hermes accessibility.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, snapshot, click, long_click, focus, set_text, scroll_forward, scroll_backward, back, home, recents, notifications, quick_settings, open_accessibility_settings."))
+                        .put("action", stringProp("status, snapshot, click, long_click, focus, set_text, scroll_forward, scroll_backward, tap, long_press, swipe, back, home, recents, notifications, quick_settings, open_accessibility_settings."))
                         .put("text_contains", stringProp("Visible text selector."))
                         .put("content_description_contains", stringProp("Accessibility description selector."))
                         .put("view_id", stringProp("Android view id selector."))
                         .put("package_name", stringProp("Package filter."))
                         .put("value", stringProp("Text for set_text."))
                         .put("index", intProp("Zero-based match index."))
-                        .put("limit", intProp("Snapshot node limit.")),
+                        .put("limit", intProp("Snapshot node limit."))
+                        .put("x", scalarProp("Tap x coordinate, or swipe start x when x1 is omitted."))
+                        .put("y", scalarProp("Tap y coordinate, or swipe start y when y1 is omitted."))
+                        .put("x1", scalarProp("Swipe start x coordinate."))
+                        .put("y1", scalarProp("Swipe start y coordinate."))
+                        .put("x2", scalarProp("Swipe end x coordinate."))
+                        .put("y2", scalarProp("Swipe end y coordinate."))
+                        .put("coordinate_space", stringProp("absolute_px by default, or normalized/percent."))
+                        .put("duration_ms", intProp("Gesture duration in milliseconds.")),
                     required = JSONArray().put("action"),
                 ),
             )
@@ -1510,7 +1571,7 @@ class NativeToolCallingChatClient(
                             .put("name", "android_ui_tool")
                             .put(
                                 "description",
-                                "Inspect or control the visible Android UI through the user-enabled Hermes accessibility service. Supports status, screen snapshots, selector-based click/type/scroll/focus, and global Back/Home/Recents/notifications/quick-settings actions.",
+                                "Inspect or control the visible Android UI through the user-enabled Hermes accessibility service. Supports status, screen snapshots, selector-based click/type/scroll/focus, coordinate tap/long-press/swipe gestures, and global Back/Home/Recents/notifications/quick-settings actions.",
                             )
                             .put(
                                 "parameters",
@@ -1523,7 +1584,7 @@ class NativeToolCallingChatClient(
                                                 "action",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "status, snapshot, click, long_click, focus, set_text, scroll_forward, scroll_backward, back, home, recents, notifications, quick_settings, or open_accessibility_settings."),
+                                                    .put("description", "status, snapshot, click, long_click, focus, set_text, scroll_forward, scroll_backward, tap, long_press, swipe, back, home, recents, notifications, quick_settings, or open_accessibility_settings."),
                                             )
                                             .put(
                                                 "text_contains",
@@ -1566,6 +1627,54 @@ class NativeToolCallingChatClient(
                                                 JSONObject()
                                                     .put("type", "integer")
                                                     .put("description", "Maximum nodes to return for snapshot."),
+                                            )
+                                            .put(
+                                                "x",
+                                                JSONObject()
+                                                    .put("type", "number")
+                                                    .put("description", "Tap x coordinate, or swipe start x when x1 is omitted."),
+                                            )
+                                            .put(
+                                                "y",
+                                                JSONObject()
+                                                    .put("type", "number")
+                                                    .put("description", "Tap y coordinate, or swipe start y when y1 is omitted."),
+                                            )
+                                            .put(
+                                                "x1",
+                                                JSONObject()
+                                                    .put("type", "number")
+                                                    .put("description", "Swipe start x coordinate."),
+                                            )
+                                            .put(
+                                                "y1",
+                                                JSONObject()
+                                                    .put("type", "number")
+                                                    .put("description", "Swipe start y coordinate."),
+                                            )
+                                            .put(
+                                                "x2",
+                                                JSONObject()
+                                                    .put("type", "number")
+                                                    .put("description", "Swipe end x coordinate."),
+                                            )
+                                            .put(
+                                                "y2",
+                                                JSONObject()
+                                                    .put("type", "number")
+                                                    .put("description", "Swipe end y coordinate."),
+                                            )
+                                            .put(
+                                                "coordinate_space",
+                                                JSONObject()
+                                                    .put("type", "string")
+                                                    .put("description", "absolute_px by default, or normalized/percent."),
+                                            )
+                                            .put(
+                                                "duration_ms",
+                                                JSONObject()
+                                                    .put("type", "integer")
+                                                    .put("description", "Gesture duration in milliseconds."),
                                             ),
                                     )
                                     .put("required", JSONArray().put("action")),
@@ -1808,6 +1917,9 @@ class NativeToolCallingChatClient(
             "set_text",
             "scroll_forward",
             "scroll_backward",
+            "tap",
+            "long_press",
+            "swipe",
             "back",
             "home",
             "recents",
@@ -1823,6 +1935,16 @@ class NativeToolCallingChatClient(
             "value",
             "index",
             "limit",
+        )
+        private val UI_COORDINATE_ARGUMENTS = listOf(
+            "x",
+            "y",
+            "x1",
+            "y1",
+            "x2",
+            "y2",
+            "coordinate_space",
+            "duration_ms",
         )
     }
 }
