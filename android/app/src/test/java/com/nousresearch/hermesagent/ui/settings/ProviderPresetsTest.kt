@@ -53,8 +53,16 @@ class ProviderPresetsTest {
             ProviderPresets.parseCredentialInput("openrouter", "OPENROUTER_API_KEY=sk-or-v1-test").apiKey,
         )
         assertEquals(
+            "sk-or-v1-setx",
+            ProviderPresets.parseCredentialInput("openrouter", "setx OPENROUTER_API_KEY sk-or-v1-setx").apiKey,
+        )
+        assertEquals(
             "sk-qwen-test",
             ProviderPresets.parseCredentialInput("alibaba", "export DASHSCOPE_API_KEY='sk-qwen-test'").apiKey,
+        )
+        assertEquals(
+            "sk-qwen-yaml",
+            ProviderPresets.parseCredentialInput("alibaba", "DASHSCOPE_API_KEY: sk-qwen-yaml").apiKey,
         )
         assertEquals(
             "glm-test",
@@ -63,6 +71,17 @@ class ProviderPresetsTest {
         assertEquals(
             "google-test",
             ProviderPresets.parseCredentialInput("gemini", "{\"GOOGLE_API_KEY\":\"google-test\"}").apiKey,
+        )
+    }
+
+    @Test
+    fun parsesGenericCliCredentialBlocks() {
+        val parsedJson = ProviderPresets.parseCredentialInput("openrouter", """{"api_key":"sk-generic-json"}""")
+        assertEquals("sk-generic-json", parsedJson.apiKey)
+        assertEquals("credential block", parsedJson.sourceLabel)
+        assertEquals(
+            "qwen-generic-token",
+            ProviderPresets.parseCredentialInput("qwen-oauth", "access_token: qwen-generic-token").apiKey,
         )
     }
 
