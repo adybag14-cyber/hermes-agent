@@ -1,6 +1,7 @@
 package com.nousresearch.hermesagent.backend
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -39,6 +40,62 @@ class LiteRtLmOpenAiProxyTest {
             "gemma-4-E4B-it.litertlm is not a valid LiteRT-LM bundle. Download the .litertlm artifact from the LiteRT-LM repo.",
             error,
         )
+    }
+
+    @Test
+    fun memorySafeModalityDecision_keepsSmallModelMultimodalEnabled() {
+        val decision = LiteRtLmOpenAiProxy.memorySafeModalityDecision(
+            totalRamBytes = 4_000_000_000L,
+            modelBytes = 1_000_000_000L,
+            requestedImage = true,
+            requestedAudio = true,
+        )
+
+        assertTrue(decision.supportImage)
+        assertTrue(decision.supportAudio)
+        assertTrue(decision.policy, decision.policy.contains("requested image and audio"))
+    }
+
+    @Test
+    fun memorySafeModalityDecision_startsLargeGemma4TextOnlyOnFourGbDevice() {
+        val decision = LiteRtLmOpenAiProxy.memorySafeModalityDecision(
+            totalRamBytes = 4_000_000_000L,
+            modelBytes = 2_583_085_056L,
+            requestedImage = true,
+            requestedAudio = true,
+        )
+
+        assertFalse(decision.supportImage)
+        assertFalse(decision.supportAudio)
+        assertTrue(decision.policy, decision.policy.startsWith("text-only memory guard"))
+        assertTrue(decision.policy, decision.policy.contains("8.0GB RAM recommended"))
+    }
+
+    @Test
+    fun memorySafeModalityDecision_keepsGemma4E2bMultimodalOnEightGbDevice() {
+        val decision = LiteRtLmOpenAiProxy.memorySafeModalityDecision(
+            totalRamBytes = 8_000_000_000L,
+            modelBytes = 2_583_085_056L,
+            requestedImage = true,
+            requestedAudio = true,
+        )
+
+        assertTrue(decision.supportImage)
+        assertTrue(decision.supportAudio)
+    }
+
+    @Test
+    fun memorySafeModalityDecision_requiresMoreRamForE4bMultimodal() {
+        val decision = LiteRtLmOpenAiProxy.memorySafeModalityDecision(
+            totalRamBytes = 10_000_000_000L,
+            modelBytes = 3_654_467_584L,
+            requestedImage = true,
+            requestedAudio = true,
+        )
+
+        assertFalse(decision.supportImage)
+        assertFalse(decision.supportAudio)
+        assertTrue(decision.policy, decision.policy.contains("12.0GB RAM recommended"))
     }
 
     private fun validateModelArtifact(file: File): String? {
