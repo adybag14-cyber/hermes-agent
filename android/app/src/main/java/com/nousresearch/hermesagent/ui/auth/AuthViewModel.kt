@@ -20,6 +20,7 @@ import com.nousresearch.hermesagent.data.AuthSessionStore
 import com.nousresearch.hermesagent.data.PendingAuthRequest
 import com.nousresearch.hermesagent.data.ProviderPresets
 import com.nousresearch.hermesagent.data.ProviderSetupTarget
+import com.nousresearch.hermesagent.device.BrowserLaunchResult
 import com.nousresearch.hermesagent.device.HermesExternalBrowserLauncher
 import com.nousresearch.hermesagent.device.HermesProviderSetupWebActivity
 import com.nousresearch.hermesagent.ui.i18n.AppLanguage
@@ -222,11 +223,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             authSessionStore.savePendingRequest(pendingRequest)
-            val launch = HermesExternalBrowserLauncher.open(
-                context = getApplication(),
-                uri = startUri,
-                title = "Open ${option.label} sign-in",
-            )
+            val launch = openAuthStartPage(startUri, "Open ${option.label} sign-in")
             if (launch.success) {
                 _uiState.update { current ->
                     current.copy(
@@ -264,11 +261,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val state = UUID.randomUUID().toString()
         val startRequest = OpenRouterOAuthClient.createStartRequest(state)
         authSessionStore.savePendingRequest(startRequest.pendingRequest)
-        val launch = HermesExternalBrowserLauncher.open(
-            context = getApplication(),
-            uri = startRequest.startUri,
-            title = "Open OpenRouter sign-in",
-        )
+        val launch = openAuthStartPage(startRequest.startUri, "Open OpenRouter sign-in")
         if (launch.success) {
             _uiState.update {
                 it.copy(
@@ -293,6 +286,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         return true
+    }
+
+    private fun openAuthStartPage(uri: Uri, title: String): BrowserLaunchResult {
+        val inAppLaunch = HermesProviderSetupWebActivity.openInApp(
+            context = getApplication(),
+            uri = uri,
+            title = title,
+        )
+        if (inAppLaunch.success) {
+            return inAppLaunch
+        }
+        return HermesExternalBrowserLauncher.open(
+            context = getApplication(),
+            uri = uri,
+            title = title,
+        )
     }
 
     fun copyPendingSignInUrl() {

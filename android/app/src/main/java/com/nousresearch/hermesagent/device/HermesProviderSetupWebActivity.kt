@@ -24,6 +24,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import com.nousresearch.hermesagent.R
+import com.nousresearch.hermesagent.data.AuthSessionStore
 
 @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 class HermesProviderSetupWebActivity : Activity() {
@@ -68,6 +69,7 @@ class HermesProviderSetupWebActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(getColor(R.color.hermes_background))
+            setPadding(0, statusBarInsetPx(), 0, 0)
         }
 
         titleText = TextView(this).apply {
@@ -182,7 +184,9 @@ class HermesProviderSetupWebActivity : Activity() {
         if (canOpen(uri)) {
             return false
         }
-        openExternal(uri.toString())
+        if (!openHermesAuthCallback(uri)) {
+            openExternal(uri.toString())
+        }
         return true
     }
 
@@ -197,7 +201,7 @@ class HermesProviderSetupWebActivity : Activity() {
         }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(28, 28, 28, 28)
+            setPadding(28, 28 + statusBarInsetPx(), 28, 28)
             setBackgroundColor(getColor(R.color.hermes_background))
         }
         root.addView(TextView(this).apply {
@@ -251,6 +255,15 @@ class HermesProviderSetupWebActivity : Activity() {
         )
     }
 
+    private fun statusBarInsetPx(): Int {
+        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) {
+            resources.getDimensionPixelSize(resourceId)
+        } else {
+            0
+        }
+    }
+
     private fun currentUrl(): String {
         return webView?.url.orEmpty().ifBlank { setupUri.toString() }
     }
@@ -270,7 +283,9 @@ class HermesProviderSetupWebActivity : Activity() {
     private fun openExternal(url: String) {
         val targetUri = Uri.parse(url.trim())
         if (!canOpen(targetUri)) {
-            copyToClipboard(url)
+            if (!openHermesAuthCallback(targetUri)) {
+                copyToClipboard(url)
+            }
             return
         }
         val result = HermesExternalBrowserLauncher.open(
@@ -282,6 +297,21 @@ class HermesProviderSetupWebActivity : Activity() {
             copyToClipboard(url)
             Toast.makeText(this, "No external browser opened; URL copied.", Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun openHermesAuthCallback(uri: Uri): Boolean {
+        if (!AuthSessionStore.isAuthCallback(uri)) {
+            return false
+        }
+        return runCatching {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, uri).apply {
+                    addCategory(Intent.CATEGORY_BROWSABLE)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                },
+            )
+            finish()
+        }.isSuccess
     }
 
     companion object {
@@ -303,6 +333,19 @@ class HermesProviderSetupWebActivity : Activity() {
             val external = HermesExternalBrowserLauncher.open(context, uri, title)
             if (external.success) {
                 return external
+            }
+            val appContext = context.applicationContext
+            return runCatching {
+                appContext.startActivity(createIntent(appContext, uri, title))
+                BrowserLaunchResult(success = true)
+            }.getOrElse { error ->
+                BrowserLaunchResult(success = false, errorName = error::class.java.simpleName)
+            }
+        }
+
+        fun openInApp(context: Context, uri: Uri, title: String): BrowserLaunchResult {
+            if (!canOpen(uri)) {
+                return BrowserLaunchResult(success = false, errorName = "UnsupportedScheme")
             }
             val appContext = context.applicationContext
             return runCatching {
