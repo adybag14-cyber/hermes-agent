@@ -43,6 +43,12 @@ object LiteRtLmOpenAiProxy {
         val supportAudio: Boolean = false,
     )
 
+    internal data class ModalityDecision(
+        val supportImage: Boolean,
+        val supportAudio: Boolean,
+        val policy: String,
+    )
+
     private const val DEFAULT_GENERATION_TIMEOUT_MS = 120_000L
     private const val MIN_GENERATION_TIMEOUT_MS = 5_000L
     private const val MAX_GENERATION_TIMEOUT_MS = 300_000L
@@ -224,7 +230,11 @@ object LiteRtLmOpenAiProxy {
                             put("image_input_supported", engineInitResult.supportsImageInput)
                             put("audio_input_supported", engineInitResult.supportsAudioInput)
                             put("modality_policy", engineInitResult.modalityPolicy)
-                            put("multimodal_fallback", engineInitResult.modalityPolicy.startsWith("text-only fallback"))
+                            put(
+                                "multimodal_fallback",
+                                engineInitResult.modalityPolicy.startsWith("text-only fallback") ||
+                                    engineInitResult.modalityPolicy.startsWith("text-only memory guard"),
+                            )
                             put("speculative_decoding", engineInitResult.speculativeDecoding)
                             put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)
                             put("mtp_policy", engineInitResult.speculativeDecodingPolicy)
@@ -273,7 +283,13 @@ object LiteRtLmOpenAiProxy {
             var lastError: Throwable? = null
             val openClAvailable = hasLoadableOpenClLibrary()
             val gpuPolicy = gpuBackendPolicy(context, openClAvailable)
-            val speculativeDecoding = speculativeDecodingDecision(modelPath)
+            val speculativeDecoding = speculativeDecodingDecision(context, modelPath)
+            val modalityDecision = memorySafeModalityDecision(
+                totalRamBytes = totalDeviceRamBytes(context),
+                modelBytes = runCatching { File(modelPath).length() }.getOrDefault(0L),
+                requestedImage = supportImage,
+                requestedAudio = supportAudio,
+            )
             val backends = if (gpuPolicy.enabled) {
                 listOf(
                     Backend.GPU() to "gpu",
@@ -349,21 +365,14 @@ object LiteRtLmOpenAiProxy {
                 return null
             }
 
-            val requestedModalityPolicy = if (supportImage || supportAudio) {
-                buildString {
-                    append("requested")
-                    if (supportImage) append(" image")
-                    if (supportImage && supportAudio) append(" and")
-                    if (supportAudio) append(" audio")
-                    append(" adapter support")
-                }
-            } else {
-                "text-only"
-            }
-            tryInitialize(supportImage, supportAudio, requestedModalityPolicy)?.let { return it }
+            tryInitialize(
+                modalityDecision.supportImage,
+                modalityDecision.supportAudio,
+                modalityDecision.policy,
+            )?.let { return it }
 
             val multimodalError = lastError
-            if (supportImage || supportAudio) {
+            if (modalityDecision.supportImage || modalityDecision.supportAudio) {
                 val fallbackPolicy =
                     "text-only fallback: multimodal adapter initialization failed on this device (${shortError(multimodalError)})"
                 tryInitialize(
@@ -509,7 +518,7 @@ object LiteRtLmOpenAiProxy {
             ).joinToString(" ").lowercase(Locale.US)
         }
 
-        private fun speculativeDecodingDecision(modelPath: String): SpeculativeDecodingDecision {
+        private fun speculativeDecodingDecision(context: Context, modelPath: String): SpeculativeDecodingDecision {
             val supported = runCatching {
                 Capabilities(modelPath).use { capabilities ->
                     capabilities.hasSpeculativeDecodingSupport()
@@ -529,6 +538,16 @@ object LiteRtLmOpenAiProxy {
                     supported = true,
                     enabled = false,
                     policy = "disabled: x86 emulator/device build",
+                )
+            }
+            val modelBytes = runCatching { File(modelPath).length() }.getOrDefault(0L)
+            val totalRamBytes = totalDeviceRamBytes(context)
+            val minimumRamBytes = minimumRamForLargeModelExtras(modelBytes)
+            if (minimumRamBytes > 0L && totalRamBytes > 0L && totalRamBytes < minimumRamBytes) {
+                return SpeculativeDecodingDecision(
+                    supported = true,
+                    enabled = false,
+                    policy = "disabled: memory guard for Gemma 4 MTP on ${formatRamGb(totalRamBytes)}GB RAM device; ${formatRamGb(minimumRamBytes)}GB RAM recommended",
                 )
             }
             return SpeculativeDecodingDecision(
@@ -581,6 +600,8 @@ object LiteRtLmOpenAiProxy {
             if (requestContainsImage(requestMessages) && !supportsImageInput) {
                 val errorMessage = if (engineInitResult.modalityPolicy.startsWith("text-only fallback")) {
                     "image input is unavailable because LiteRT-LM fell back to text-only after multimodal adapter initialization failed on this device. Check /health modality_policy for details."
+                } else if (engineInitResult.modalityPolicy.startsWith("text-only memory guard")) {
+                    "image input is unavailable because Hermes started this large local LiteRT-LM model in text-only mode to avoid an out-of-memory crash on this device. Check /health modality_policy for details."
                 } else {
                     "image input requires a LiteRT-LM model started with image support, such as Gemma 4, Gemma 3n, or Gemma 3 vision models"
                 }
@@ -1035,5 +1056,68 @@ object LiteRtLmOpenAiProxy {
     }
 
     private const val SOCKET_READ_TIMEOUT = 0
+    internal fun memorySafeModalityDecision(
+        totalRamBytes: Long,
+        modelBytes: Long,
+        requestedImage: Boolean,
+        requestedAudio: Boolean,
+    ): ModalityDecision {
+        if (!requestedImage && !requestedAudio) {
+            return ModalityDecision(
+                supportImage = false,
+                supportAudio = false,
+                policy = "text-only",
+            )
+        }
+
+        val requestedLabel = buildString {
+            append("requested")
+            if (requestedImage) append(" image")
+            if (requestedImage && requestedAudio) append(" and")
+            if (requestedAudio) append(" audio")
+            append(" adapter support")
+        }
+        val minimumRamBytes = minimumRamForLargeModelExtras(modelBytes)
+        if (minimumRamBytes > 0L) {
+            val shouldGuard = if (totalRamBytes > 0L) {
+                totalRamBytes < minimumRamBytes
+            } else {
+                true
+            }
+            if (shouldGuard) {
+                val currentRam = if (totalRamBytes > 0L) {
+                    "${formatRamGb(totalRamBytes)}GB RAM"
+                } else {
+                    "unknown RAM"
+                }
+                return ModalityDecision(
+                    supportImage = false,
+                    supportAudio = false,
+                    policy = "text-only memory guard: skipped $requestedLabel for a ${formatRamGb(modelBytes)}GB model on $currentRam; ${formatRamGb(minimumRamBytes)}GB RAM recommended",
+                )
+            }
+        }
+        return ModalityDecision(
+            supportImage = requestedImage,
+            supportAudio = requestedAudio,
+            policy = requestedLabel,
+        )
+    }
+
+    private fun minimumRamForLargeModelExtras(modelBytes: Long): Long {
+        return when {
+            modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES -> 12_000_000_000L
+            modelBytes >= LARGE_MULTIMODAL_MODEL_SIZE_FLOOR_BYTES -> 8_000_000_000L
+            modelBytes >= MEDIUM_MULTIMODAL_MODEL_SIZE_FLOOR_BYTES -> 6_000_000_000L
+            else -> 0L
+        }
+    }
+
+    private fun formatRamGb(bytes: Long): String {
+        return "%.1f".format(Locale.US, bytes / 1_000_000_000.0)
+    }
+
     private const val GEMMA4_E4B_SIZE_FLOOR_BYTES = 3_000_000_000L
+    private const val LARGE_MULTIMODAL_MODEL_SIZE_FLOOR_BYTES = 2_000_000_000L
+    private const val MEDIUM_MULTIMODAL_MODEL_SIZE_FLOOR_BYTES = 1_500_000_000L
 }

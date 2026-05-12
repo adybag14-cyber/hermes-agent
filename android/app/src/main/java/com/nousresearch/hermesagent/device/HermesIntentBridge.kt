@@ -4,7 +4,9 @@ import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.Browser
 import androidx.core.content.FileProvider
 import org.json.JSONArray
 import org.json.JSONObject
@@ -63,10 +65,10 @@ object HermesIntentBridge {
         if (intentAction.isNotBlank()) {
             intent.action = intentAction
         }
-        var resolvedDataUri: Uri? = null
+        var resolvedOpenUri: ResolvedOpenUri? = null
         payload.optString("data_uri").takeIf { it.isNotBlank() }?.let { rawUri ->
             val resolved = resolveOpenUri(context, intentTaskAction, rawUri)
-            resolvedDataUri = resolved.uri
+            resolvedOpenUri = resolved
             if (resolved.mimeType.isNullOrBlank()) {
                 intent.data = resolved.uri
             } else {
@@ -76,11 +78,18 @@ object HermesIntentBridge {
                 intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
         }
-        if (intentTaskAction == INTENT_TASK_OPEN_URI && shouldAddBrowsableCategory(resolvedDataUri ?: intent.data)) {
+        if (intentTaskAction == INTENT_TASK_OPEN_URI) {
+            intent.putExtra(Browser.EXTRA_APPLICATION_ID, context.packageName)
+        }
+        if (intentTaskAction == INTENT_TASK_OPEN_URI && shouldAddBrowsableCategory(resolvedOpenUri?.uri ?: intent.data)) {
             intent.addCategory(Intent.CATEGORY_BROWSABLE)
         }
-        payload.optString("package_name").takeIf { it.isNotBlank() }?.let { packageName ->
+        val explicitPackageName = payload.optString("package_name").takeIf { it.isNotBlank() }
+        explicitPackageName?.let { packageName ->
             intent.setPackage(packageName)
+        }
+        if (explicitPackageName == null && resolvedOpenUri?.preferBrowserPackage == true) {
+            preferredBrowserPackage(context)?.let { intent.setPackage(it) }
         }
         resolveComponent(payload)?.let { component ->
             intent.component = component
@@ -121,6 +130,8 @@ object HermesIntentBridge {
             uri = contentUri,
             mimeType = mimeTypeFor(localFile),
             grantReadPermission = true,
+            preferBrowserPackage = localFile.extension.equals("html", ignoreCase = true) ||
+                localFile.extension.equals("htm", ignoreCase = true),
         )
     }
 
@@ -161,6 +172,40 @@ object HermesIntentBridge {
 
     private fun shouldAddBrowsableCategory(uri: Uri?): Boolean {
         return uri?.scheme?.lowercase() in BROWSABLE_URI_SCHEMES
+    }
+
+    private fun preferredBrowserPackage(context: Context): String? {
+        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+        }
+        val packageManager = context.packageManager
+        val resolved = packageManager.resolveActivity(browserIntent, PackageManager.MATCH_DEFAULT_ONLY)
+            ?.activityInfo
+            ?.packageName
+            .orEmpty()
+
+        val candidates = packageManager
+            .queryIntentActivities(browserIntent, PackageManager.MATCH_DEFAULT_ONLY)
+            .mapNotNull { it.activityInfo?.packageName }
+            .distinct()
+        return selectPreferredBrowserPackage(resolved, candidates)
+    }
+
+    internal fun selectPreferredBrowserPackage(resolvedPackage: String, candidatePackages: List<String>): String? {
+        val resolved = resolvedPackage.takeUnless { it == "android" || it == "com.android.intentresolver" }
+        if (!resolved.isNullOrBlank()) {
+            return resolved
+        }
+        val preferredPackages = listOf(
+            "com.android.chrome",
+            "com.chrome.beta",
+            "com.chrome.dev",
+            "org.mozilla.firefox",
+            "org.mozilla.firefox_beta",
+            "com.brave.browser",
+            "com.microsoft.emmx",
+        )
+        return preferredPackages.firstOrNull { it in candidatePackages } ?: candidatePackages.firstOrNull()
     }
 
     private fun validatePayload(payload: JSONObject): String? {
@@ -302,6 +347,7 @@ object HermesIntentBridge {
         val uri: Uri,
         val mimeType: String? = null,
         val grantReadPermission: Boolean = false,
+        val preferBrowserPackage: Boolean = false,
     )
 
     private const val INTENT_TASK_START_ACTIVITY = "start_activity"
