@@ -31,6 +31,10 @@ from hermes_android.linux_assets import (
     write_manifest,
 )
 
+ANDROID_SPAWN_NEEDED = b"libandroid-spawn.so\0"
+BIONIC_LIBC_NEEDED = b"libc.so\0"
+BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
+
 
 def download_bytes(url: str, attempts: int = 3) -> bytes:
     last_error: Exception | None = None
@@ -211,6 +215,27 @@ def prune_staging_prefix(prefix_dir: Path) -> None:
             shutil.rmtree(path, ignore_errors=True)
 
 
+def patch_android_spawn_needed_to_libc(path: Path) -> bool:
+    payload = path.read_bytes()
+    if ANDROID_SPAWN_NEEDED not in payload:
+        return False
+    replacement = BIONIC_LIBC_NEEDED + (b"\0" * (len(ANDROID_SPAWN_NEEDED) - len(BIONIC_LIBC_NEEDED)))
+    path.write_bytes(payload.replace(ANDROID_SPAWN_NEEDED, replacement))
+    return True
+
+
+def create_bionic_llama_server_launcher(prefix_dir: Path) -> None:
+    source = prefix_dir / "bin" / "llama-server"
+    if not source.is_file():
+        return
+    destination = prefix_dir / "bin" / BIONIC_LLAMA_SERVER_NAME
+    shutil.copy2(source, destination)
+    if patch_android_spawn_needed_to_libc(destination):
+        destination.chmod(0o755)
+    else:
+        destination.unlink(missing_ok=True)
+
+
 def prepare_assets(output_dir: Path) -> None:
     for android_abi, termux_arch in ANDROID_TO_TERMUX_ARCH.items():
         index_url = TERMUX_PACKAGES_INDEX_TEMPLATE.format(termux_arch=termux_arch)
@@ -231,6 +256,7 @@ def prepare_assets(output_dir: Path) -> None:
                 links.extend(mirror_data_tar(tar, prefix_dir))
 
         prune_staging_prefix(prefix_dir)
+        create_bionic_llama_server_launcher(prefix_dir)
         for extra_dir in [prefix_dir / "home", prefix_dir / "tmp"]:
             extra_dir.mkdir(parents=True, exist_ok=True)
 

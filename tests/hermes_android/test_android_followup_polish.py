@@ -83,6 +83,19 @@ def test_settings_backend_toggles_sync_with_download_runtime_target_controls():
     assert 'AppSettingsStore(application)' in downloads_view_model
 
 
+def test_settings_secret_store_initialization_stays_off_startup_main_thread():
+    settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
+    secure_store = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/data/SecureSecretsStore.kt").read_text(encoding="utf-8")
+
+    assert "private val secretsStore by lazy" in settings_view_model
+    assert "apiKey = \"\"" in settings_view_model.split("private fun loadInitialState()", 1)[1].split("fun reload()", 1)[0]
+    assert "loadApiKeyForProvider(_uiState.value.provider)" in settings_view_model
+    assert "withContext(Dispatchers.IO)" in settings_view_model.split("private fun loadApiKeyForProvider", 1)[1]
+    assert "EncryptedSharedPreferences.create(" in secure_store
+    assert "private val preferences by lazy" in secure_store
+    assert "MasterKey.Builder(appContext)" in secure_store
+
+
 def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     downloads_section = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/settings/LocalModelDownloadsSection.kt").read_text(encoding="utf-8")
     downloads_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/settings/LocalModelDownloadsViewModel.kt").read_text(encoding="utf-8")

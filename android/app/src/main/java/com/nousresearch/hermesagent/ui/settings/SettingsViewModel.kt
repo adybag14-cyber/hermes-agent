@@ -47,11 +47,17 @@ private data class SettingsSaveResult(
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
     private val settingsStore = AppSettingsStore(application)
-    private val secretsStore = SecureSecretsStore(application)
+    private val secretsStore by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        SecureSecretsStore(getApplication<Application>())
+    }
     private val providerSetupOpenIndexes = mutableMapOf<String, Int>()
 
     private val _uiState = MutableStateFlow(loadInitialState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+
+    init {
+        loadApiKeyForProvider(_uiState.value.provider)
+    }
 
     private fun loadInitialState(): SettingsUiState {
         val stored = settingsStore.load()
@@ -59,7 +65,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             provider = stored.provider,
             baseUrl = stored.baseUrl,
             model = stored.model,
-            apiKey = secretsStore.loadApiKey(stored.provider),
+            apiKey = "",
             dataSaverMode = stored.dataSaverMode,
             onDeviceBackend = stored.onDeviceBackend,
             languageTag = AppLanguage.fromTag(stored.languageTag).tag,
@@ -68,19 +74,26 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun reload() {
-        _uiState.value = loadInitialState()
+        val reloaded = loadInitialState()
+        _uiState.value = reloaded
+        loadApiKeyForProvider(reloaded.provider)
     }
 
     fun updateProvider(provider: String) {
         val preset = ProviderPresets.find(provider)
+        var shouldLoadApiKey = false
         _uiState.update {
             val providerChanged = provider != it.provider
+            shouldLoadApiKey = providerChanged
             it.copy(
                 provider = provider,
                 baseUrl = if (providerChanged && provider != "custom") preset?.baseUrl.orEmpty() else it.baseUrl,
                 model = if (providerChanged && provider != "custom") preset?.modelHint.orEmpty() else it.model,
-                apiKey = if (provider == it.provider) it.apiKey else secretsStore.loadApiKey(provider),
+                apiKey = if (providerChanged) "" else it.apiKey,
             )
+        }
+        if (shouldLoadApiKey) {
+            loadApiKeyForProvider(provider)
         }
     }
 
@@ -88,6 +101,27 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateModel(value: String) = _uiState.update { it.copy(model = value) }
     fun updateApiKey(value: String) = _uiState.update { it.copy(apiKey = value) }
     fun updateDataSaverMode(enabled: Boolean) = _uiState.update { it.copy(dataSaverMode = enabled) }
+
+    private fun loadApiKeyForProvider(provider: String) {
+        if (provider.isBlank() || provider == "custom") {
+            return
+        }
+        viewModelScope.launch {
+            val storedKey = withContext(Dispatchers.IO) {
+                secretsStore.loadApiKey(provider)
+            }
+            if (storedKey.isBlank()) {
+                return@launch
+            }
+            _uiState.update {
+                if (it.provider == provider && it.apiKey.isBlank()) {
+                    it.copy(apiKey = storedKey)
+                } else {
+                    it
+                }
+            }
+        }
+    }
 
     fun updateOnDeviceBackend(value: String) {
         _uiState.update {

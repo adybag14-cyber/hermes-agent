@@ -18,6 +18,7 @@ object HermesLinuxSubsystemBridge {
     private const val EXECUTION_MODE = "embedded_termux"
     private const val SYSTEM_SHELL_MODE = "android_system_shell"
     private const val SYSTEM_SHELL_PATH = "/system/bin/sh"
+    private const val RUNTIME_LAYOUT_VERSION = 2
 
     private data class ShellLaunchProbe(
         val ready: Boolean,
@@ -35,6 +36,10 @@ object HermesLinuxSubsystemBridge {
                 return@let
             }
             if (state.optString("native_library_dir") != currentNativeLibraryDir) {
+                reset(context)
+                return@let
+            }
+            if (state.optInt("runtime_layout_version", 0) != RUNTIME_LAYOUT_VERSION) {
                 reset(context)
                 return@let
             }
@@ -80,10 +85,11 @@ object HermesLinuxSubsystemBridge {
             val manifest = JSONObject(readAssetText(context.assets, "$ASSET_ROOT/$androidAbi/manifest.json"))
             recreateLinks(prefixDir, manifest)
             val bashPath = File(prefixDir, "bin/bash").absolutePath
-            val nativeBashPath = File(context.applicationInfo.nativeLibraryDir.orEmpty(), "libhermes_android_bash.so").absolutePath
-            val nativeLlamaServerPath = File(context.applicationInfo.nativeLibraryDir.orEmpty(), "libhermes_android_llama_server.so").absolutePath
+            val llamaServerPath = File(prefixDir, "bin/llama-server").absolutePath
+            val bionicLlamaServerPath = File(prefixDir, "bin/llama-server-bionic").absolutePath
             val embeddedState = JSONObject().apply {
                 put("enabled", true)
+                put("runtime_layout_version", RUNTIME_LAYOUT_VERSION)
                 put("app_version_code", currentAppVersionCode)
                 put("asset_manifest_sha256", currentAssetFingerprint)
                 put("execution_mode", EXECUTION_MODE)
@@ -91,12 +97,13 @@ object HermesLinuxSubsystemBridge {
                 put("termux_arch", manifest.optString("termux_arch"))
                 put("uses_termux", true)
                 put("prefix_path", prefixDir.absolutePath)
-                put("shell_path", nativeBashPath)
-                put("bash_path", nativeBashPath)
+                put("shell_path", bashPath)
+                put("bash_path", bashPath)
                 put("prefix_bash_path", bashPath)
                 put("native_library_dir", context.applicationInfo.nativeLibraryDir.orEmpty())
-                put("native_bash_path", nativeBashPath)
-                put("native_llama_server_path", nativeLlamaServerPath)
+                put("native_bash_path", bashPath)
+                put("native_llama_server_path", llamaServerPath)
+                put("bionic_llama_server_path", bionicLlamaServerPath)
                 put("bin_path", File(prefixDir, "bin").absolutePath)
                 put("lib_path", File(prefixDir, "lib").absolutePath)
                 put("home_path", File(prefixDir, "home").absolutePath)
@@ -104,7 +111,7 @@ object HermesLinuxSubsystemBridge {
                 put("root_packages", manifest.optJSONArray("root_packages"))
                 put("packages", manifest.optJSONArray("packages"))
             }
-            val launchProbe = launchShellProbe(nativeBashPath, File(prefixDir, "home"), buildRunEnvironment(embeddedState))
+            val launchProbe = launchShellProbe(bashPath, File(prefixDir, "home"), buildRunEnvironment(embeddedState))
             if (launchProbe.ready) {
                 embeddedState
             } else {
@@ -169,11 +176,11 @@ object HermesLinuxSubsystemBridge {
         return mapOf(
             "PREFIX" to prefixPath,
             "TERMUX_PREFIX" to prefixPath,
-            "PATH" to listOf("/system/bin", "/system/xbin", System.getenv("PATH").orEmpty())
+            "PATH" to listOf(binPath, "/system/bin", "/system/xbin", System.getenv("PATH").orEmpty())
                 .filter { it.isNotBlank() }
                 .distinct()
                 .joinToString(":"),
-            "LD_LIBRARY_PATH" to listOf(nativeExecutableDir, nativeLibraryDir, libPath, System.getenv("LD_LIBRARY_PATH").orEmpty())
+            "LD_LIBRARY_PATH" to listOf(libPath, nativeExecutableDir, nativeLibraryDir, System.getenv("LD_LIBRARY_PATH").orEmpty())
                 .filter { it.isNotBlank() }
                 .distinct()
                 .joinToString(":"),
@@ -207,6 +214,7 @@ object HermesLinuxSubsystemBridge {
         val tmpDir = File(nativeRoot, "tmp").apply { mkdirs() }
         return JSONObject().apply {
             put("enabled", true)
+            put("runtime_layout_version", RUNTIME_LAYOUT_VERSION)
             put("app_version_code", appVersionCode)
             put("asset_manifest_sha256", assetManifestSha256)
             put("execution_mode", SYSTEM_SHELL_MODE)
@@ -219,6 +227,7 @@ object HermesLinuxSubsystemBridge {
             put("native_library_dir", context.applicationInfo.nativeLibraryDir.orEmpty())
             put("native_bash_path", nativeExecutablePath(context, "libhermes_android_bash.so"))
             put("native_llama_server_path", nativeExecutablePath(context, "libhermes_android_llama_server.so"))
+            put("bionic_llama_server_path", nativeExecutablePath(context, "libhermes_android_llama_server_bionic_spawn.so"))
             put("bin_path", "/system/bin")
             put("lib_path", "")
             put("home_path", homeDir.absolutePath)

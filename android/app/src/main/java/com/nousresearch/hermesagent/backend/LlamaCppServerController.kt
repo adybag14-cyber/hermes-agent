@@ -152,14 +152,20 @@ object LlamaCppServerController {
         if (pageSize < ANDROID_16K_PAGE_SIZE_BYTES) {
             return defaultPath
         }
-        val nativeDir = linuxState.optString("native_library_dir")
-            .ifBlank { context.applicationInfo.nativeLibraryDir.orEmpty() }
-        val bionicSpawnPath = File(nativeDir, BIONIC_SPAWN_LLAMA_SERVER_LIBRARY_NAME)
+        val bionicSpawnPath = File(
+            linuxState.optString("bionic_llama_server_path").ifBlank {
+                val nativeDir = linuxState.optString("native_library_dir")
+                    .ifBlank { context.applicationInfo.nativeLibraryDir.orEmpty() }
+                File(nativeDir, LEGACY_BIONIC_SPAWN_LLAMA_SERVER_LIBRARY_NAME).absolutePath
+            }
+        )
         return if (bionicSpawnPath.isFile) bionicSpawnPath.absolutePath else defaultPath
     }
 
     private fun llamaServerCompatibilitySuffix(llamaServerPath: String): String {
-        return if (llamaServerPath.endsWith(BIONIC_SPAWN_LLAMA_SERVER_LIBRARY_NAME)) {
+        return if (llamaServerPath.endsWith(BIONIC_LLAMA_SERVER_NAME) ||
+            llamaServerPath.endsWith(LEGACY_BIONIC_SPAWN_LLAMA_SERVER_LIBRARY_NAME)
+        ) {
             " using the Android 16 KB page-size libc posix_spawn compatibility launcher"
         } else {
             ""
@@ -217,5 +223,6 @@ object LlamaCppServerController {
     }
 
     private const val ANDROID_16K_PAGE_SIZE_BYTES = 16_384L
-    private const val BIONIC_SPAWN_LLAMA_SERVER_LIBRARY_NAME = "libhermes_android_llama_server_bionic_spawn.so"
+    private const val BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
+    private const val LEGACY_BIONIC_SPAWN_LLAMA_SERVER_LIBRARY_NAME = "libhermes_android_llama_server_bionic_spawn.so"
 }
