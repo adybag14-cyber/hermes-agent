@@ -199,4 +199,41 @@ class AuthSecureStorageInstrumentedTest {
             }
         }
     }
+
+    @Test
+    fun accountsSaveAcceptsZaiBearerTokenIntoEncryptedAuthSession() {
+        context.deleteSharedPreferences("hermes_android_auth")
+        context.deleteSharedPreferences("hermes_android_settings")
+        context.deleteSharedPreferences("hermes_android_secrets")
+
+        lateinit var viewModel: AuthViewModel
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            viewModel = AuthViewModel(app)
+            viewModel.updateProviderCredentialInput("zai", "Authorization: Bearer zai-secure-token-test")
+            viewModel.saveProviderCredential("zai")
+        }
+
+        try {
+            val deadline = SystemClock.elapsedRealtime() + 60_000L
+            var status = ""
+            while (SystemClock.elapsedRealtime() < deadline) {
+                status = viewModel.uiState.value.globalStatus
+                if (status.contains("Saved Z.AI credential") || status.contains("Unable to save")) {
+                    break
+                }
+                Thread.sleep(250L)
+            }
+            assertTrue(status, status.contains("Saved Z.AI credential from Bearer"))
+            assertEquals(
+                "zai-secure-token-test",
+                SecureSecretsStore(app).loadAuthSessionSecrets("zai").apiKey,
+            )
+            assertEquals("zai", AppSettingsStore(app).load().provider)
+            assertEquals("glm-5", AppSettingsStore(app).load().model)
+        } finally {
+            if (Python.isStarted()) {
+                Python.getInstance().getModule("hermes_android.auth_bridge").callAttr("clear_provider_auth_bundle", "zai")
+            }
+        }
+    }
 }
