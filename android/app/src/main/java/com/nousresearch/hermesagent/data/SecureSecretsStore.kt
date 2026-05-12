@@ -11,17 +11,23 @@ interface AuthSessionSecretStore {
 }
 
 class SecureSecretsStore(context: Context) : AuthSessionSecretStore {
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    private val appContext = context.applicationContext
 
-    private val preferences = EncryptedSharedPreferences.create(
-        context,
-        PREFS_NAME,
-        masterKey,
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-    )
+    private val masterKey by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        MasterKey.Builder(appContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+    }
+
+    private val preferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        EncryptedSharedPreferences.create(
+            appContext,
+            PREFS_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+        )
+    }
 
     fun loadApiKey(provider: String): String {
         return preferences.getString(providerKey(provider), "").orEmpty()
