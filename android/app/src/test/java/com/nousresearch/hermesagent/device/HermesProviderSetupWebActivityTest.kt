@@ -46,6 +46,19 @@ class HermesProviderSetupWebActivityTest {
     }
 
     @Test
+    fun openInAppStartsInternalProviderSetupViewerForAuthAndSetupUrls() {
+        val context = RuntimeEnvironment.getApplication()
+        val uri = Uri.parse("https://openrouter.ai/auth")
+
+        val result = HermesProviderSetupWebActivity.openInApp(context, uri, "Open OpenRouter sign-in")
+        val started = Shadows.shadowOf(context).nextStartedActivity
+
+        assertTrue(result.success)
+        assertEquals(HermesProviderSetupWebActivity::class.java.name, started.component?.className)
+        assertEquals(uri.toString(), started.getStringExtra(HermesProviderSetupWebActivity.EXTRA_URL))
+    }
+
+    @Test
     fun openRejectsUnsupportedOrHostlessUris() {
         val context = RuntimeEnvironment.getApplication()
 
