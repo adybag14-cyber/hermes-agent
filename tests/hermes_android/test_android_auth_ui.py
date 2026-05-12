@@ -133,6 +133,11 @@ def test_auth_callback_hardening_strings_and_base_url_validation_exist():
     assert 'authApiKeySetupReady(option.label)' in auth_view_model
     assert 'currentStrings().authOpenedCorr3xt(option.label)' in auth_view_model
     assert 'HermesExternalBrowserLauncher.open' in auth_view_model
+    open_auth_start_page = auth_view_model.split("private fun openAuthStartPage", 1)[1].split("fun copyPendingSignInUrl", 1)[0]
+    assert "val externalLaunch = HermesExternalBrowserLauncher.open" in open_auth_start_page
+    assert "if (externalLaunch.success)" in open_auth_start_page
+    assert "return HermesProviderSetupWebActivity.openInApp" in open_auth_start_page
+    assert open_auth_start_page.index("HermesExternalBrowserLauncher.open") < open_auth_start_page.index("HermesProviderSetupWebActivity.openInApp")
     assert 'Intent.createChooser' in browser_launcher
     assert 'putExtra(Browser.EXTRA_APPLICATION_ID' in browser_launcher
     assert 'copyAuthStartUrl(pendingRequest.startUrl, updateStatus = false)' in auth_view_model

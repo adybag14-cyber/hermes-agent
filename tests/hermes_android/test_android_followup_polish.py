@@ -339,6 +339,16 @@ def test_android_automation_exposes_operator_standby_history_for_remote_dispatch
     assert 'OpenGUI devices' in bridge
     assert 'compatible_device_queries' in bridge
     assert 'operator_execution_status' in bridge
+    assert 'role_routing_supported' in bridge
+    assert 'standby_dispatch_supported' in bridge
+    assert 'long_running_task_state_supported' in bridge
+    assert 'execution_review_supported' in bridge
+    assert 'structured_results_supported' in bridge
+    assert 'structured_result_schema' in bridge
+    assert '"planner"' in bridge
+    assert '"executor_vlm"' in bridge
+    assert '"summarizer"' in bridge
+    assert 'execution_state_strategy' in bridge
     assert 'operator_command' in bridge
     assert 'parseOperatorCommand' in bridge
     assert 'operatorCommandTextFromArguments' in bridge
