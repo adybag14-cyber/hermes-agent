@@ -245,6 +245,9 @@ object ProviderPresets {
                 return ParsedProviderCredential(value, envVar)
             }
         }
+        extractBearerCredential(trimmed)?.let { value ->
+            return ParsedProviderCredential(value, "Bearer")
+        }
         extractAnyLikelyCredential(trimmed)?.let { value ->
             return ParsedProviderCredential(value, "env")
         }
@@ -286,6 +289,22 @@ object ProviderPresets {
                 key.endsWith("_API_KEY") || key.endsWith("_ACCESS_TOKEN") || key.endsWith("_TOKEN")
             }
         return assignment?.groupValues?.getOrNull(2)?.let(::cleanCredentialValue)
+    }
+
+    private fun extractBearerCredential(input: String): String? {
+        val inline = Regex("""(?im)^\s*(?:authorization\s*:\s*)?bearer\s+(.+?)\s*$""")
+            .find(input)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let(::cleanCredentialValue)
+        if (!inline.isNullOrBlank()) {
+            return inline
+        }
+        return Regex("""(?i)["']?authorization["']?\s*[:=]\s*["']bearer\s+([^"'\s]+)""")
+            .find(input)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let(::cleanCredentialValue)
     }
 
     private fun cleanCredentialValue(value: String): String {
