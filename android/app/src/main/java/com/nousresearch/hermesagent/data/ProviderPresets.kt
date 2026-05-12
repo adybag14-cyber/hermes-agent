@@ -248,6 +248,9 @@ object ProviderPresets {
         extractBearerCredential(trimmed)?.let { value ->
             return ParsedProviderCredential(value, "Bearer")
         }
+        extractGenericCredential(trimmed)?.let { value ->
+            return ParsedProviderCredential(value, "credential block")
+        }
         extractAnyLikelyCredential(trimmed)?.let { value ->
             return ParsedProviderCredential(value, "env")
         }
@@ -273,6 +276,8 @@ object ProviderPresets {
         val escapedEnvVar = Regex.escape(envVar)
         val patterns = listOf(
             Regex("""(?im)^\s*(?:export\s+|set\s+|setx\s+)?$escapedEnvVar\s*=\s*(.+?)\s*$"""),
+            Regex("""(?im)^\s*setx\s+$escapedEnvVar\s+(.+?)\s*$"""),
+            Regex("""(?im)^\s*$escapedEnvVar\s*:\s*(.+?)\s*$"""),
             Regex("""(?im)^\s*\${'$'}env:$escapedEnvVar\s*=\s*(.+?)\s*$"""),
             Regex("""(?im)["']$escapedEnvVar["']\s*:\s*["']([^"']+)["']"""),
         )
@@ -301,6 +306,23 @@ object ProviderPresets {
             return inline
         }
         return Regex("""(?i)["']?authorization["']?\s*[:=]\s*["']bearer\s+([^"'\s]+)""")
+            .find(input)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let(::cleanCredentialValue)
+    }
+
+    private fun extractGenericCredential(input: String): String? {
+        val names = """(?:api[_-]?key|access[_-]?token|auth[_-]?token|session[_-]?token|token|secret)"""
+        val quoted = Regex("""(?i)["']$names["']\s*:\s*["']([^"']+)["']""")
+            .find(input)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let(::cleanCredentialValue)
+        if (!quoted.isNullOrBlank()) {
+            return quoted
+        }
+        return Regex("""(?im)^\s*$names\s*[:=]\s*(.+?)\s*$""")
             .find(input)
             ?.groupValues
             ?.getOrNull(1)
