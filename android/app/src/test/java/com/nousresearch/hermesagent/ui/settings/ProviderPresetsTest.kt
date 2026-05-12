@@ -67,6 +67,22 @@ class ProviderPresetsTest {
     }
 
     @Test
+    fun parsesBearerTokenCredentialInput() {
+        assertEquals(
+            "qwen-oauth-token",
+            ProviderPresets.parseCredentialInput("qwen-oauth", "Bearer qwen-oauth-token").apiKey,
+        )
+        assertEquals(
+            "zai-oauth-token",
+            ProviderPresets.parseCredentialInput("zai", "Authorization: Bearer zai-oauth-token").apiKey,
+        )
+        assertEquals(
+            "openrouter-token",
+            ProviderPresets.parseCredentialInput("openrouter", """{"Authorization":"Bearer openrouter-token"}""").apiKey,
+        )
+    }
+
+    @Test
     fun rawProviderCredentialInputIsPreserved() {
         assertEquals(
             "sk-raw-test",
