@@ -289,15 +289,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun openAuthStartPage(uri: Uri, title: String): BrowserLaunchResult {
-        val inAppLaunch = HermesProviderSetupWebActivity.openInApp(
+        val externalLaunch = HermesExternalBrowserLauncher.open(
             context = getApplication(),
             uri = uri,
             title = title,
         )
-        if (inAppLaunch.success) {
-            return inAppLaunch
+        if (externalLaunch.success) {
+            return externalLaunch
         }
-        return HermesExternalBrowserLauncher.open(
+
+        return HermesProviderSetupWebActivity.openInApp(
             context = getApplication(),
             uri = uri,
             title = title,
