@@ -309,6 +309,10 @@ object HermesAutomationBridge {
             .put("success", true)
             .put("open_gui_compatible", true)
             .put("role_routing_supported", true)
+            .put("standby_dispatch_supported", true)
+            .put("long_running_task_state_supported", true)
+            .put("execution_review_supported", true)
+            .put("structured_results_supported", true)
             .put("single_runtime_fallback", true)
             .put("active_provider", activeProvider)
             .put("active_provider_label", activeProviderLabel)
@@ -322,6 +326,31 @@ object HermesAutomationBridge {
             .put(
                 "routing_strategy",
                 "OpenGUI-style role routing is exposed to remote dispatchers. Hermes defaults planner, supervisor, VLM, and summarizer roles to the active local LiteRT-LM or remote provider, while action execution stays on Android-native tools.",
+            )
+            .put(
+                "execution_state_strategy",
+                "Hermes keeps OpenGUI-compatible standby state, run history, execution lifecycle requests, UI review guards, and structured result summaries in the Android automation store so remote dispatchers can resume supervision from the latest phone-side result.",
+            )
+            .put(
+                "structured_result_schema",
+                JSONArray(
+                    listOf(
+                        "status",
+                        "summary",
+                        "success",
+                        "exit_code",
+                        "duration_ms",
+                        "automation_id",
+                        "automation_label",
+                        "action_type",
+                        "trigger",
+                        "dispatch_source",
+                        "dispatch_channel",
+                        "remote_execution_id",
+                        "remote_task_id",
+                        "remote_task_name",
+                    )
+                )
             )
             .put(
                 "compatible_model_routing_queries",
