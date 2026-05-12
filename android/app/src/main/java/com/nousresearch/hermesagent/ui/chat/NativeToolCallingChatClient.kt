@@ -858,6 +858,7 @@ class NativeToolCallingChatClient(
                 "Use terminal_tool for shell commands and inspection, file_write_tool for exact text file creation, android_ui_tool for visible-screen selectors and coordinate gestures, android_system_tool for device/settings/Shizuku operations, and android_automation_tool for saved tasks, triggers, notifications, variables, widgets, and Tasker/Locale plugin actions. " +
                 "If a planner emits OpenGUI-style raw GUI actions such as click(start_box=...), pass that text to android_ui_tool action=parse_opengui_action or action=opengui_action; call_user/need_login/asset_risk/delete_confirm are surfaced as a visible phone handoff. " +
                 "When the user asks to write or replace multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
+                "When the user asks to create an HTML file and open it in a browser, first write the file with file_write_tool, then call android_automation_tool with action=open_uri and data_uri set to that workspace filename. " +
                 "Ask for or report missing Android permissions instead of pretending protected settings changed. Keep replies brief and report real tool results."
         } else {
             "You are Hermes running inside the native Android app. Keep replies brief and direct."

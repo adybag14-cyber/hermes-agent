@@ -91,6 +91,41 @@ class NativeAppChatAndToolInstrumentedTest {
     }
 
     @Test
+    fun nativeAppChatUsesGemma4ToWriteHtmlGameAndOpenBrowser() {
+        val modelFile = File(app.filesDir, MODEL_RELATIVE_PATH)
+        assumeTrue("Gemma 4 LiteRT-LM model is not provisioned at ${modelFile.absolutePath}", modelFile.isFile)
+        assertEquals("Gemma 4 LiteRT-LM model size", MODEL_BYTES, modelFile.length())
+        seedPreferredGemma4Model(modelFile)
+
+        val runtime = HermesRuntimeManager.ensureStarted(app)
+        assertTrue(runtime.error.orEmpty(), runtime.started)
+        val backendStatus = OnDeviceBackendManager.currentStatus()
+        assertEquals(BackendKind.LITERT_LM, backendStatus.backendKind)
+        assertEquals(MODEL_ID, backendStatus.modelName)
+
+        val linuxState = HermesLinuxSubsystemBridge.ensureInstalled(app)
+        val workspace = File(linuxState.getString("home_path"))
+        val htmlFile = File(workspace, "hermes-gemma-flappy.html").apply { delete() }
+
+        val result = NativeToolCallingChatClient(app).send(
+            baseUrl = backendStatus.baseUrl.removeSuffix("/v1"),
+            modelName = backendStatus.modelName,
+            sessionId = "gemma4-flappy-browser-smoke",
+            userText = "Create a tiny Flappy Bird style HTML game and open it in the browser. " +
+                "Use file_write_tool to write hermes-gemma-flappy.html. The HTML must include <canvas id=\"game\" and the marker HERMES_GEMMA_FLAPPY. " +
+                "Then use android_automation_tool with action open_uri and data_uri hermes-gemma-flappy.html. " +
+                "After both tools return, reply HERMES_GEMMA_FLAPPY_OPENED.",
+        )
+
+        assertTrue("Expected Gemma 4 native chat to execute file and browser tools: ${result.content}", result.executedToolCalls >= 2)
+        assertFalse("Expected a nonblank Gemma 4 browser automation reply", result.content.isBlank())
+        assertTrue("Expected Gemma 4 native chat tool call to create ${htmlFile.absolutePath}", htmlFile.isFile)
+        val html = htmlFile.readText()
+        assertTrue(html, html.contains("<canvas id=\"game\"") || html.contains("<canvas id='game'"))
+        assertTrue(html, html.contains("HERMES_GEMMA_FLAPPY"))
+    }
+
+    @Test
     fun nativeAppChatUsesQwenGgufAndFileWriteToolOnDevice() {
         val modelFile = File(
             app.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),

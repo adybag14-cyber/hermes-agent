@@ -127,7 +127,8 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'put("accelerator", runtimeBackendLabel)' in litert_proxy
     assert 'com.google.ai.edge.litertlm:litertlm-android:0.11.0' in gradle
     assert 'ExperimentalFlags.enableSpeculativeDecoding' in litert_proxy
-    assert 'speculativeDecodingDecision(modelPath)' in litert_proxy
+    assert 'speculativeDecodingDecision(context, modelPath)' in litert_proxy
+    assert 'memory guard for Gemma 4 MTP' in litert_proxy
     assert 'ExperimentalFlags.enableSpeculativeDecoding = false' in litert_proxy
     assert litert_proxy.index('ExperimentalFlags.enableSpeculativeDecoding = enableMtp') < litert_proxy.index('candidate = Engine(')
     assert 'disabled: Gemma 4 MTP failed during $label engine initialization; retried without MTP' in litert_proxy
@@ -187,8 +188,13 @@ def test_android_intent_bridge_can_open_generated_workspace_html_with_fileprovid
     assert 'FileProvider.getUriForFile(' in intent_bridge
     assert 'Intent.FLAG_GRANT_READ_URI_PERMISSION' in intent_bridge
     assert '"html", "htm" -> "text/html"' in intent_bridge
-    assert 'shouldAddBrowsableCategory(resolvedDataUri ?: intent.data)' in intent_bridge
+    assert 'shouldAddBrowsableCategory(resolvedOpenUri?.uri ?: intent.data)' in intent_bridge
     assert 'BROWSABLE_URI_SCHEMES = setOf("http", "https")' in intent_bridge
+    assert 'Browser.EXTRA_APPLICATION_ID' in intent_bridge
+    assert 'preferBrowserPackage' in intent_bridge
+    assert 'selectPreferredBrowserPackage' in intent_bridge
+    assert '<queries>' in manifest
+    assert 'android:scheme="https"' in manifest
     assert 'fun intentAutomationCanOpenGeneratedHermesHtmlFileWhenBrowserIsAvailable()' in automation_test
     assert 'hermes-flappy-browser-smoke.html' in automation_test
 
