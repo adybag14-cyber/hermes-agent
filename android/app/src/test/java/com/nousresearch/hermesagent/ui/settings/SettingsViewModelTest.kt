@@ -1,6 +1,7 @@
 package com.nousresearch.hermesagent.ui.settings
 
-import com.nousresearch.hermesagent.device.HermesProviderSetupWebActivity
+import android.content.Intent
+import android.provider.Browser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,22 +15,22 @@ import org.robolectric.annotation.Config
 @Config(application = android.app.Application::class)
 class SettingsViewModelTest {
     @Test
-    fun openProviderKeyPageUsesHermesViewerForProviderSetupUrls() {
+    fun openProviderKeyPageUsesExternalBrowserForProviderSetupUrls() {
         val application = RuntimeEnvironment.getApplication()
         val viewModel = SettingsViewModel(application)
 
         viewModel.openProviderKeyPage("https://docs.qwencloud.com/api-reference/preparation/api-key")
 
         val started = Shadows.shadowOf(application).nextStartedActivity
-        assertEquals(HermesProviderSetupWebActivity::class.java.name, started.component?.className)
+        assertEquals(Intent.ACTION_VIEW, started.action)
         assertEquals(
             "https://docs.qwencloud.com/api-reference/preparation/api-key",
-            started.getStringExtra("com.nousresearch.hermesagent.PROVIDER_SETUP_URL"),
+            started.data.toString(),
         )
         assertEquals(
-            "Open Qwen Cloud / DashScope API key setup page",
-            started.getStringExtra("com.nousresearch.hermesagent.PROVIDER_SETUP_TITLE"),
+            application.packageName,
+            started.getStringExtra(Browser.EXTRA_APPLICATION_ID),
         )
-        assertTrue(viewModel.uiState.value.status.contains("in Hermes"))
+        assertTrue(viewModel.uiState.value.status.contains("in your browser"))
     }
 }
