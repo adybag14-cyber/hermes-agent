@@ -386,6 +386,9 @@ def test_settings_provider_switch_applies_selected_provider_defaults():
     assert 'model = if (providerChanged && provider != "custom") preset?.modelHint.orEmpty() else it.model' in settings_view_model
     assert 'ProviderPresets.runtimeConfigBaseUrl(snapshot.provider, snapshot.baseUrl)' in settings_view_model
     assert 'val runtimeConfigBaseUrl = ProviderPresets.runtimeConfigBaseUrl(session.runtimeProvider, resolvedBaseUrl)' in auth_runtime_applier
+    assert 'import com.nousresearch.hermesagent.data.SecureSecretsStore' in auth_runtime_applier
+    assert 'val providerCredential = session.apiKey' in auth_runtime_applier
+    assert 'SecureSecretsStore(appContext).saveApiKey(session.runtimeProvider, providerCredential)' in auth_runtime_applier
     assert 'runtimeConfigBaseUrl,' in auth_runtime_applier
     assert "private val restartScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)" in auth_runtime_applier
     assert "restartRuntimeAsync(appContext)" in auth_runtime_applier

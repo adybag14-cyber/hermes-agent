@@ -8,6 +8,7 @@ import com.nousresearch.hermesagent.data.AppSettingsStore
 import com.nousresearch.hermesagent.data.AuthScope
 import com.nousresearch.hermesagent.data.AuthSession
 import com.nousresearch.hermesagent.data.ProviderPresets
+import com.nousresearch.hermesagent.data.SecureSecretsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +29,13 @@ object AuthRuntimeApplier {
         val resolvedBaseUrl = session.baseUrl.ifBlank { preset?.baseUrl.orEmpty() }
         val runtimeConfigBaseUrl = ProviderPresets.runtimeConfigBaseUrl(session.runtimeProvider, resolvedBaseUrl)
         val resolvedModel = session.model.ifBlank { preset?.modelHint.orEmpty() }
+        val providerCredential = session.apiKey
+            .ifBlank { session.accessToken }
+            .ifBlank { session.sessionToken }
+
+        if (providerCredential.isNotBlank()) {
+            SecureSecretsStore(appContext).saveApiKey(session.runtimeProvider, providerCredential)
+        }
 
         HermesRuntimeManager.ensurePythonStarted(appContext)
         val python = Python.getInstance()
