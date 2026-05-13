@@ -86,9 +86,16 @@ def test_settings_backend_toggles_sync_with_download_runtime_target_controls():
 def test_settings_secret_store_initialization_stays_off_startup_main_thread():
     settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
     secure_store = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/data/SecureSecretsStore.kt").read_text(encoding="utf-8")
+    initial_state_block = settings_view_model.split("private fun loadInitialState()", 1)[1].split("fun reload()", 1)[0]
 
     assert "private val secretsStore by lazy" in settings_view_model
-    assert "apiKey = \"\"" in settings_view_model.split("private fun loadInitialState()", 1)[1].split("fun reload()", 1)[0]
+    assert "apiKey = \"\"" in initial_state_block
+    assert "defaultOnDeviceSummary(stored.onDeviceBackend)" in initial_state_block
+    assert "preferredDownloadSummary" not in initial_state_block
+    assert "refreshOnDeviceSummary(reloaded.onDeviceBackend)" in settings_view_model
+    assert "refreshOnDeviceSummary(_uiState.value.onDeviceBackend)" not in settings_view_model
+    assert "OnDeviceBackendManager.preferredDownloadSummary(getApplication(), backendValue)" in settings_view_model
+    assert "withContext(Dispatchers.IO)" in settings_view_model.split("private fun refreshOnDeviceSummary", 1)[1]
     assert "loadApiKeyForProvider(_uiState.value.provider)" in settings_view_model
     assert "withContext(Dispatchers.IO)" in settings_view_model.split("private fun loadApiKeyForProvider", 1)[1]
     assert "EncryptedSharedPreferences.create(" in secure_store

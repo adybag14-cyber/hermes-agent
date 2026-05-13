@@ -19,6 +19,7 @@ import com.nousresearch.hermesagent.data.SecureSecretsStore
 import com.nousresearch.hermesagent.device.HermesProviderSetupWebActivity
 import com.nousresearch.hermesagent.ui.i18n.AppLanguage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,6 +52,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         SecureSecretsStore(getApplication<Application>())
     }
     private val providerSetupOpenIndexes = mutableMapOf<String, Int>()
+    private var onDeviceSummaryJob: Job? = null
 
     private val _uiState = MutableStateFlow(loadInitialState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -69,7 +71,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             dataSaverMode = stored.dataSaverMode,
             onDeviceBackend = stored.onDeviceBackend,
             languageTag = AppLanguage.fromTag(stored.languageTag).tag,
-            onDeviceSummary = OnDeviceBackendManager.preferredDownloadSummary(getApplication(), stored.onDeviceBackend),
+            onDeviceSummary = defaultOnDeviceSummary(stored.onDeviceBackend),
         )
     }
 
@@ -77,6 +79,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val reloaded = loadInitialState()
         _uiState.value = reloaded
         loadApiKeyForProvider(reloaded.provider)
+        refreshOnDeviceSummary(reloaded.onDeviceBackend)
     }
 
     fun updateProvider(provider: String) {
@@ -127,9 +130,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update {
             it.copy(
                 onDeviceBackend = value,
-                onDeviceSummary = OnDeviceBackendManager.preferredDownloadSummary(getApplication(), value),
+                onDeviceSummary = defaultOnDeviceSummary(value),
             )
         }
+        refreshOnDeviceSummary(value)
     }
 
     fun syncOnDeviceBackendWithRuntimeFlavor(runtimeFlavor: String) {
@@ -139,6 +143,40 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             else -> BackendKind.NONE.persistedValue
         }
         updateOnDeviceBackend(backendValue)
+    }
+
+    private fun defaultOnDeviceSummary(backendValue: String): String {
+        return if (BackendKind.fromPersistedValue(backendValue) == BackendKind.NONE) {
+            "Remote provider mode"
+        } else {
+            "Checking preferred local model…"
+        }
+    }
+
+    private fun refreshOnDeviceSummary(backendValue: String) {
+        onDeviceSummaryJob?.cancel()
+        if (BackendKind.fromPersistedValue(backendValue) == BackendKind.NONE) {
+            _uiState.update {
+                if (it.onDeviceBackend == backendValue) {
+                    it.copy(onDeviceSummary = "Remote provider mode")
+                } else {
+                    it
+                }
+            }
+            return
+        }
+        onDeviceSummaryJob = viewModelScope.launch {
+            val summary = withContext(Dispatchers.IO) {
+                OnDeviceBackendManager.preferredDownloadSummary(getApplication(), backendValue)
+            }
+            _uiState.update {
+                if (it.onDeviceBackend == backendValue) {
+                    it.copy(onDeviceSummary = summary)
+                } else {
+                    it
+                }
+            }
+        }
     }
 
     fun openProviderKeyPage(url: String) {
