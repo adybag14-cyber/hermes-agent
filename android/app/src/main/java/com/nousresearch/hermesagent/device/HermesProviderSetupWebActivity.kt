@@ -60,8 +60,7 @@ class HermesProviderSetupWebActivity : Activity() {
     }
 
     override fun onDestroy() {
-        webView?.destroy()
-        webView = null
+        releaseWebView()
         super.onDestroy()
     }
 
@@ -191,11 +190,7 @@ class HermesProviderSetupWebActivity : Activity() {
     }
 
     private fun showFallback(pageTitle: String, url: String, message: String) {
-        webView?.let { existing ->
-            runCatching { existing.stopLoading() }
-            runCatching { existing.destroy() }
-        }
-        webView = null
+        releaseWebView()
         if (::progressBar.isInitialized) {
             progressBar.visibility = View.GONE
         }
@@ -266,6 +261,15 @@ class HermesProviderSetupWebActivity : Activity() {
 
     private fun currentUrl(): String {
         return webView?.url.orEmpty().ifBlank { setupUri.toString() }
+    }
+
+    private fun releaseWebView() {
+        webView?.let { existing ->
+            runCatching { existing.stopLoading() }
+            (existing.parent as? ViewGroup)?.removeView(existing)
+            runCatching { existing.destroy() }
+        }
+        webView = null
     }
 
     private fun copyToClipboard(url: String, showToast: Boolean = true) {
