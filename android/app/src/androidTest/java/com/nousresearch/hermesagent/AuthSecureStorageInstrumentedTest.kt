@@ -265,7 +265,7 @@ class AuthSecureStorageInstrumentedTest {
                 SecureSecretsStore(app).loadAuthSessionSecrets("zai").apiKey,
             )
             assertEquals("zai", AppSettingsStore(app).load().provider)
-            assertEquals("glm-5", AppSettingsStore(app).load().model)
+            assertEquals("glm-5.1", AppSettingsStore(app).load().model)
         } finally {
             if (Python.isStarted()) {
                 Python.getInstance().getModule("hermes_android.auth_bridge").callAttr("clear_provider_auth_bundle", "zai")
