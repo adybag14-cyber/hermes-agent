@@ -15,6 +15,7 @@ import com.nousresearch.hermesagent.device.DeviceStateWriter
 import com.nousresearch.hermesagent.device.HermesLauncherShortcutBridge
 import com.nousresearch.hermesagent.ui.boot.BootScreen
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -26,7 +27,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         handleAuthCallback(intent)
         handleShortcutIntent(intent)
-        DeviceStateWriter.write(applicationContext)
+        writeDeviceStateAsync()
         setContent {
             BootScreen()
         }
@@ -37,7 +38,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         handleAuthCallback(intent)
         handleShortcutIntent(intent)
-        DeviceStateWriter.write(applicationContext)
+        writeDeviceStateAsync()
     }
 
     private fun handleAuthCallback(intent: Intent?) {
@@ -70,5 +71,16 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             HermesLauncherShortcutBridge.handleShortcutIntentJson(applicationContext, intent)
         }
+    }
+
+    private fun writeDeviceStateAsync() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            delay(STARTUP_DEVICE_STATE_DELAY_MS)
+            DeviceStateWriter.write(applicationContext)
+        }
+    }
+
+    companion object {
+        private const val STARTUP_DEVICE_STATE_DELAY_MS = 2500L
     }
 }

@@ -14,7 +14,9 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     sse_client = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/api/HermesSseClient.kt").read_text(encoding="utf-8")
 
     assert "BACKGROUND_RUNTIME_STARTUP_DELAY_MS = 1500L" in application
+    assert "STARTUP_BACKGROUND_WORK_DELAY_MS = 5000L" in application
     assert "DeviceStateWriter.write(this@HermesApplication)" in application
+    assert "delay(STARTUP_BACKGROUND_WORK_DELAY_MS)" in application
     assert "delay(BACKGROUND_RUNTIME_STARTUP_DELAY_MS)" in application
 
     assert "CoroutineScope(SupervisorJob() + Dispatchers.IO)" in runtime_service
@@ -52,6 +54,16 @@ def test_android_python_runtime_smoke_resets_local_backend_selection_before_remo
 
     assert 'AppSettingsStore(context).let { store ->' in runtime_smoke
     assert 'onDeviceBackend = BackendKind.NONE.persistedValue' in runtime_smoke
+
+
+def test_main_activity_keeps_device_state_refresh_off_the_startup_thread():
+    main_activity = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/MainActivity.kt").read_text(encoding="utf-8")
+
+    assert "private fun writeDeviceStateAsync()" in main_activity
+    assert "STARTUP_DEVICE_STATE_DELAY_MS = 2500L" in main_activity
+    assert "handleShortcutIntent(intent)\n        writeDeviceStateAsync()" in main_activity
+    assert "handleShortcutIntent(intent)\n        DeviceStateWriter.write(applicationContext)" not in main_activity
+    assert "lifecycleScope.launch(Dispatchers.IO) {\n            delay(STARTUP_DEVICE_STATE_DELAY_MS)\n            DeviceStateWriter.write(applicationContext)\n        }" in main_activity
 
 
 def test_android_chat_ui_and_native_tool_prompt_stay_compact_on_large_font_phone_screens():

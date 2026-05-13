@@ -21,6 +21,7 @@ class HermesApplication : Application() {
         instance = this
 
         appScope.launch(Dispatchers.IO) {
+            delay(STARTUP_BACKGROUND_WORK_DELAY_MS)
             DeviceStateWriter.write(this@HermesApplication)
             if (DeviceCapabilityStore(this@HermesApplication).load().backgroundPersistenceEnabled) {
                 delay(BACKGROUND_RUNTIME_STARTUP_DELAY_MS)
@@ -34,6 +35,7 @@ class HermesApplication : Application() {
     }
 
     companion object {
+        private const val STARTUP_BACKGROUND_WORK_DELAY_MS = 5000L
         private const val BACKGROUND_RUNTIME_STARTUP_DELAY_MS = 1500L
 
         lateinit var instance: HermesApplication
