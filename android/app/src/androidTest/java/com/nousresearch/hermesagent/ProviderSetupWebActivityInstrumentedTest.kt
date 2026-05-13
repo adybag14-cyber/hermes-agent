@@ -1,19 +1,25 @@
 package com.nousresearch.hermesagent
 
+import android.app.Activity
+import android.app.Instrumentation
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
-import android.os.SystemClock
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.widget.Button
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.intent.Intents
+import androidx.test.espresso.intent.Intents.intending
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nousresearch.hermesagent.data.ProviderPresets
 import com.nousresearch.hermesagent.device.HermesExternalBrowserLauncher
 import com.nousresearch.hermesagent.device.HermesProviderSetupWebActivity
+import org.hamcrest.Description
+import org.hamcrest.TypeSafeMatcher
 import org.junit.After
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -21,6 +27,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.FileInputStream
+import java.util.concurrent.atomic.AtomicBoolean
 
 @RunWith(AndroidJUnit4::class)
 class ProviderSetupWebActivityInstrumentedTest {
@@ -41,18 +48,35 @@ class ProviderSetupWebActivityInstrumentedTest {
             resolved?.packageName != context.packageName,
         )
 
-        val result = HermesProviderSetupWebActivity.open(context, uri, "Open Qwen setup")
+        val qwenDocsOpened = AtomicBoolean(false)
+        val qwenDocsIntent = object : TypeSafeMatcher<Intent>() {
+            override fun describeTo(description: Description) {
+                description.appendText("Qwen Cloud setup browser intent")
+            }
 
-        assertTrue(result.toString(), result.success)
-        val expectedPackage = resolved?.packageName.orEmpty()
-        var lastDump = ""
-        assertTrue(
-            "Expected provider setup to reach $expectedPackage, dumpsys=${lastDump.take(1000)}",
-            eventually(timeoutMs = 10_000L) {
-                lastDump = shellOutput("dumpsys activity activities")
-                lastDump.contains(expectedPackage) || lastDump.contains("ResolverActivity")
-            },
-        )
+            override fun matchesSafely(intent: Intent): Boolean {
+                val targetIntent = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+                val targetUri = intent.data ?: targetIntent?.data ?: return false
+                val matches = intent.action in setOf(Intent.ACTION_VIEW, Intent.ACTION_CHOOSER) &&
+                    targetUri == uri
+                if (matches) {
+                    qwenDocsOpened.set(true)
+                }
+                return matches
+            }
+        }
+
+        Intents.init()
+        try {
+            intending(qwenDocsIntent).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+
+            val result = HermesProviderSetupWebActivity.open(context, uri, "Open Qwen setup")
+
+            assertTrue(result.toString(), result.success)
+            assertTrue("Expected provider setup to launch the Qwen docs browser intent", qwenDocsOpened.get())
+        } finally {
+            Intents.release()
+        }
     }
 
     @Test
@@ -92,6 +116,7 @@ class ProviderSetupWebActivityInstrumentedTest {
                     }
 
                     webView?.stopLoading()
+                    activity.finish()
                 }
             }
         }
@@ -157,14 +182,4 @@ class ProviderSetupWebActivityInstrumentedTest {
         }
     }
 
-    private fun eventually(timeoutMs: Long, block: () -> Boolean): Boolean {
-        val deadline = SystemClock.elapsedRealtime() + timeoutMs
-        while (SystemClock.elapsedRealtime() < deadline) {
-            if (block()) {
-                return true
-            }
-            SystemClock.sleep(250L)
-        }
-        return block()
-    }
 }
