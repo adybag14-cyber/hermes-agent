@@ -707,6 +707,91 @@ class TestPruning:
 # Spawn env sanitization
 # =========================================================================
 
+class TestBackgroundShellModes:
+    @staticmethod
+    def _capture_pipe_spawn(registry, tmp_path):
+        proc = MagicMock()
+        proc.pid = 4321
+        proc.stdout = iter([])
+        proc.poll.return_value = None
+        with (
+            patch("tools.process_registry._find_shell", return_value="test-bash"),
+            patch("tools.process_registry.subprocess.Popen", return_value=proc) as popen,
+            patch("tools.process_registry.threading.Thread"),
+            patch.object(registry, "_safe_host_start_time", return_value=123456),
+            patch.object(registry, "_write_checkpoint"),
+        ):
+            session = registry.spawn_local(
+                "echo ready", cwd=str(tmp_path), use_pty=False,
+                task_id="current-task", owner_task_id="owning-task",
+            )
+        assert session.host_start_time == 123456
+        assert session.owner_task_id == "owning-task"
+        assert session.command == "echo ready"
+        argv = popen.call_args.args[0]
+        kwargs = popen.call_args.kwargs
+        assert argv[0] == "test-bash"
+        assert argv[2] == "set +m; echo ready"
+        assert kwargs["stdin"] == subprocess.DEVNULL
+        assert kwargs["start_new_session"] is True
+        assert kwargs["cwd"] == str(tmp_path)
+        return argv, kwargs
+
+    @pytest.mark.windows_only
+    def test_windows_pipe_uses_non_login_shell_with_detached_stdin(self, registry, tmp_path):
+        argv, kwargs = self._capture_pipe_spawn(registry, tmp_path)
+        assert argv[1] == "-c"
+        assert kwargs["creationflags"] & subprocess.CREATE_NO_WINDOW
+
+    @pytest.mark.linux_only
+    def test_linux_pipe_retains_login_shell(self, registry, tmp_path):
+        argv, kwargs = self._capture_pipe_spawn(registry, tmp_path)
+        assert argv[1] == "-lic"
+        assert "creationflags" not in kwargs
+
+    @pytest.mark.macos_only
+    def test_macos_pipe_retains_login_shell(self, registry, tmp_path):
+        argv, kwargs = self._capture_pipe_spawn(registry, tmp_path)
+        assert argv[1] == "-lic"
+        assert "creationflags" not in kwargs
+
+    @pytest.mark.windows_only
+    def test_windows_pty_retains_interactive_login_shell(self, registry, tmp_path):
+        pty = MagicMock()
+        pty.pid = 4321
+        winpty = MagicMock()
+        winpty.PtyProcess.spawn.return_value = pty
+        with (
+            patch.dict(sys.modules, {"winpty": winpty}),
+            patch("tools.process_registry._find_shell", return_value="test-bash"),
+            patch("tools.process_registry.subprocess.Popen") as popen,
+            patch("tools.process_registry.threading.Thread"),
+            patch.object(registry, "_safe_host_start_time", return_value=123456),
+            patch.object(registry, "_write_checkpoint"),
+        ):
+            session = registry.spawn_local("echo ready", cwd=str(tmp_path), use_pty=True)
+
+        popen.assert_not_called()
+        assert winpty.PtyProcess.spawn.call_args.args[0] == ["test-bash", "-lic", "set +m; echo ready"]
+        assert session._pty is pty
+        assert session.host_start_time == 123456
+
+    @pytest.mark.windows_only
+    def test_recycled_windows_pid_is_rejected_before_any_termination(self):
+        from tools import process_registry as pr
+
+        with (
+            patch.object(pr.ProcessRegistry, "_host_pid_is_ours", return_value=False) as identity,
+            patch.object(pr.subprocess, "run") as taskkill,
+            patch.object(pr.os, "kill") as kill,
+        ):
+            pr.ProcessRegistry._terminate_host_pid(4321, expected_start=123456)
+
+        identity.assert_called_once_with(4321, 123456)
+        taskkill.assert_not_called()
+        kill.assert_not_called()
+
+
 class TestSpawnEnvSanitization:
     def test_spawn_local_strips_blocked_vars_from_background_env(self, registry):
         captured = {}
@@ -1453,7 +1538,7 @@ class TestTerminateHostPidWindows:
         assert "/T" in captured["args"], "Tree flag required to reach descendants"
         assert "/F" in captured["args"], "Force flag required for headless Chromium"
 
-class TestTerminateHostPidPosix:
+class _TerminateHostPidPosixContract:
     """POSIX branch walks the tree via psutil and SIGTERMs children first."""
 
     def test_posix_walks_tree_and_terminates_children_then_parent(self, monkeypatch):
@@ -1511,6 +1596,16 @@ class TestTerminateHostPidPosix:
         pr.ProcessRegistry._terminate_host_pid(12345)
 
         assert kill_calls == [(12345, signal.SIGTERM)]
+
+
+@pytest.mark.linux_only
+class TestTerminateHostPidPosix(_TerminateHostPidPosixContract):
+    """Only execute the mocked POSIX termination branch on its real host."""
+
+
+@pytest.mark.macos_only
+class TestTerminateHostPidDarwin(_TerminateHostPidPosixContract):
+    """Keep the same POSIX contract covered by the macOS CI lane."""
 
 
 # =========================================================================

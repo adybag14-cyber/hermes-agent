@@ -86,8 +86,19 @@ class ChatGPTWebMessagesMixin:
     @staticmethod
     def _chatgpt_web_answer_only_mode(original_request: str) -> str:
         lowered = str(original_request or "").strip().lower()
-        if "answer only" not in lowered:
+        terminal_output_only = any(
+            phrase in lowered
+            for phrase in (
+                "reply with the exact text it printed",
+                "reply with the exact terminal output",
+                "answer with only the terminal output",
+                "answer with the exact terminal output",
+            )
+        )
+        if "answer only" not in lowered and not terminal_output_only:
             return ""
+        if terminal_output_only:
+            return "result"
         if (("yes/no" in lowered) or ("yes or no" in lowered)) and "matching path" in lowered:
             return "yes_no_path"
         if (
@@ -485,6 +496,11 @@ class ChatGPTWebMessagesMixin:
             return None
 
         answer_only_mode = cls._chatgpt_web_answer_only_mode(request_text)
+        if answer_only_mode == "result":
+            for output_text in reversed(tool_outputs):
+                lines = cls._chatgpt_web_terminal_output_lines(output_text)
+                if lines:
+                    return "\n".join(lines).strip()
         if answer_only_mode == "yes_no" and cls._chatgpt_web_extract_path_exists_target(request_text):
             for output_text in reversed(tool_outputs):
                 yes_no = cls._chatgpt_web_extract_yes_no(output_text)
@@ -905,6 +921,16 @@ class ChatGPTWebMessagesMixin:
             return synthesized
         answer_only_mode = self._chatgpt_web_answer_only_mode(original_request)
         if answer_only_mode in {"yes_no", "verified", "path"}:
+            return synthesized
+        if answer_only_mode == "result" and any(
+            phrase in request_lower
+            for phrase in (
+                "reply with the exact text it printed",
+                "reply with the exact terminal output",
+                "answer with only the terminal output",
+                "answer with the exact terminal output",
+            )
+        ):
             return synthesized
         if answer_only_mode == "result" and (
             self._chatgpt_web_request_mentions_whoami(original_request)

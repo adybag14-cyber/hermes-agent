@@ -325,9 +325,17 @@ class ChatGPTWebToolsMixin:
         if whoami_requested and pwd_requested:
             return "whoami && pwd"
 
-        explicit_run = re.search(r"\brun\s+(.+?)(?:\.\s*answer only.*|$)", text, re.IGNORECASE | re.DOTALL)
+        explicit_run = re.search(
+            r"\brun\s+(?:(?:this|the|exact)\s+)?(?:(?:shell|terminal)\s+)?command\s*:\s*(.+?)(?:\.\s*(?:after|then|answer|keep going)\b|$)",
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not explicit_run:
+            explicit_run = re.search(r"\brun\s+(.+?)(?:\.\s*answer only.*|$)", text, re.IGNORECASE | re.DOTALL)
         if explicit_run:
-            command = explicit_run.group(1).strip().strip('"\'`').rstrip(".")
+            command = explicit_run.group(1).strip().rstrip(".").strip()
+            if len(command) >= 2 and command[0] == command[-1] and command[0] in "\"'`":
+                command = command[1:-1].strip()
             command_lower = command.lower()
             if re.search(r"\b(?:python|script)\b.*\bthat\b", command_lower):
                 command = ""
@@ -336,7 +344,7 @@ class ChatGPTWebToolsMixin:
 
         backtick_match = re.search(r"`([^`]+)`", text)
         if backtick_match:
-            command = backtick_match.group(1).strip().strip('"\'`').rstrip(".")
+            command = backtick_match.group(1).strip().rstrip(".").strip()
             if command:
                 return command
 
