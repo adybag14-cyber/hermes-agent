@@ -13,6 +13,7 @@ import com.nousresearch.hermesagent.data.AppSettingsStore
 import com.nousresearch.hermesagent.data.LocalModelDownloadStore
 import com.nousresearch.hermesagent.device.HermesLinuxSubsystemBridge
 import com.nousresearch.hermesagent.device.HermesSystemControlBridge
+import com.nousresearch.hermesagent.models.HermesModelDownloadManager
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
@@ -26,11 +27,14 @@ import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
 class NativeAgentRuntimeSmokeTest {
+    private val heldModelFiles = mutableListOf<Pair<File, File>>()
+
     private val context: Context
         get() = ApplicationProvider.getApplicationContext()
 
     @After
     fun tearDown() {
+        restoreHeldModelFiles()
         HermesRuntimeManager.stop()
         OnDeviceBackendManager.stopAll()
     }
@@ -144,34 +148,101 @@ class NativeAgentRuntimeSmokeTest {
 
     @Test
     fun embeddedRuntimeFallsBackToRemoteProviderWhenSelectedLocalModelIsMissing() {
-        LocalModelDownloadStore(context).apply {
-            saveDownloads(emptyList())
-            setPreferredDownloadId("")
-        }
-        AppSettingsStore(context).save(
-            AppSettings(
-                provider = "openrouter",
-                baseUrl = "",
-                model = "anthropic/claude-sonnet-4",
-                onDeviceBackend = BackendKind.LLAMA_CPP.persistedValue,
+        withoutAutoImportedModelFiles {
+            LocalModelDownloadStore(context).apply {
+                saveDownloads(emptyList())
+                setPreferredDownloadId("")
+            }
+            AppSettingsStore(context).save(
+                AppSettings(
+                    provider = "openrouter",
+                    baseUrl = "",
+                    model = "anthropic/claude-sonnet-4",
+                    onDeviceBackend = BackendKind.LLAMA_CPP.persistedValue,
+                )
             )
-        )
 
-        val state = HermesRuntimeManager.ensureStarted(context)
-        val backendStatus = OnDeviceBackendManager.currentStatus()
+            val state = HermesRuntimeManager.ensureStarted(context)
+            val backendStatus = OnDeviceBackendManager.currentStatus()
 
-        assertTrue(state.error.orEmpty(), state.started)
-        assertTrue("baseUrl=${state.baseUrl}", state.baseUrl.orEmpty().startsWith("http://127.0.0.1:"))
-        assertEquals(BackendKind.LLAMA_CPP, backendStatus.backendKind)
-        assertFalse("Local backend must remain stopped when no model is preferred", backendStatus.started)
-        assertTrue(
-            state.probeResult.orEmpty(),
-            state.probeResult.orEmpty()
-                .contains("Local llama.cpp backend unavailable: No preferred local model is ready for llama.cpp yet"),
-        )
+            assertTrue(state.error.orEmpty(), state.started)
+            assertTrue("baseUrl=${state.baseUrl}", state.baseUrl.orEmpty().startsWith("http://127.0.0.1:"))
+            assertEquals(BackendKind.LLAMA_CPP, backendStatus.backendKind)
+            assertFalse("Local backend must remain stopped when no model is preferred", backendStatus.started)
+            assertTrue(
+                state.probeResult.orEmpty(),
+                state.probeResult.orEmpty()
+                    .contains("Local llama.cpp backend unavailable: No preferred local model is ready for llama.cpp yet"),
+            )
+        }
     }
 
     private fun shellQuote(value: String): String {
         return "'" + value.replace("'", "'\\''") + "'"
+    }
+
+    private fun <T> withoutAutoImportedModelFiles(block: () -> T): T {
+        moveImportableModelFilesOutOfAutoImportPath()
+        return try {
+            block()
+        } finally {
+            restoreHeldModelFiles()
+        }
+    }
+
+    private fun moveImportableModelFilesOutOfAutoImportPath() {
+        val modelsDirectory = HermesModelDownloadManager.modelsDirectory(context)
+        restoreLingeringHeldModelFiles(modelsDirectory)
+        modelsDirectory.listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.isImportableModelFileForSmokeTest() }
+            .forEachIndexed { index, file ->
+                val holdFile = File(
+                    file.parentFile,
+                    "${file.name}$TEST_HOLD_SUFFIX.${System.nanoTime()}.$index",
+                )
+                if (file.renameTo(holdFile)) {
+                    heldModelFiles += holdFile to file
+                }
+            }
+    }
+
+    private fun restoreHeldModelFiles() {
+        heldModelFiles.asReversed().forEach { (holdFile, originalFile) ->
+            if (holdFile.isFile && !originalFile.exists()) {
+                holdFile.renameTo(originalFile)
+            }
+        }
+        heldModelFiles.clear()
+    }
+
+    private fun restoreLingeringHeldModelFiles(modelsDirectory: File) {
+        modelsDirectory.listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.name.contains(TEST_HOLD_SUFFIX) }
+            .forEach { holdFile ->
+                val originalName = holdFile.name.substringBefore(TEST_HOLD_SUFFIX)
+                if (originalName.isNotBlank()) {
+                    val originalFile = File(holdFile.parentFile, originalName)
+                    if (!originalFile.exists()) {
+                        holdFile.renameTo(originalFile)
+                    }
+                }
+            }
+    }
+
+    private fun File.isImportableModelFileForSmokeTest(): Boolean {
+        val lower = name.lowercase()
+        return lower.endsWith(".gguf") ||
+            lower.endsWith(".litertlm") ||
+            (lower.endsWith(".task") &&
+                !lower.endsWith("-web.task") &&
+                !lower.endsWith("_web.task") &&
+                "-web." !in lower &&
+                "_web." !in lower)
+    }
+
+    private companion object {
+        const val TEST_HOLD_SUFFIX = ".hermes-smoke-hold"
     }
 }
