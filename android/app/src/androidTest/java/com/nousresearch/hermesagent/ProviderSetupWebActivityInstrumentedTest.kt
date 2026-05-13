@@ -172,8 +172,8 @@ class ProviderSetupWebActivityInstrumentedTest {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
         val ready: (String) -> Boolean = {
             it.hasUiText(expectedTitle) ||
-                it.hasUiText("Back") ||
-                it.hasUiText("Open in browser")
+                it.hasUiTexts("Back", "Browser", "Copy", "Close") ||
+                it.hasUiTexts("Open in browser", "Copy URL", "Close")
         }
         val hierarchy = waitForWindowHierarchy(ready = ready)
         if (ready(hierarchy)) {
