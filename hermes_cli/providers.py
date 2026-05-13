@@ -24,9 +24,14 @@ class HermesOverlay:
     base_url_override: str = ""           # override if models.dev URL is wrong/missing
     base_url_env_var: str = ""            # env var for user-custom base URL
     keyless: bool = False                 # served anonymously — no credential exists to configure
+    prefer_extra_env_vars: bool = False  # dedicated billing keys may outrank catalog defaults
 
 
 HERMES_OVERLAYS: Dict[str, HermesOverlay] = {
+    "zai-coding-plan": HermesOverlay(
+        prefer_extra_env_vars=True,
+        extra_env_vars=("GLM_CODING_PLAN_API_KEY", "ZAI_CODING_PLAN_API_KEY", "GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY"),
+        base_url_override="https://api.z.ai/api/coding/paas/v4", base_url_env_var="GLM_CODING_PLAN_BASE_URL"),
     "chatgpt-web": HermesOverlay(
         transport="chatgpt_web", auth_type="oauth_external",
         extra_env_vars=("CHATGPT_WEB_ACCESS_TOKEN", "CHATGPT_WEB_SESSION_TOKEN"),
@@ -119,6 +124,7 @@ class ProviderDef:
 # -- Aliases: human-friendly / legacy names grouped by canonical (models.dev where possible) id;
 # ``ALIASES`` is the inverted lookup table. ---------------------------------------------------
 _ALIAS_GROUPS: Dict[str, Tuple[str, ...]] = {
+    "zai-coding-plan": ("glm-coding-plan", "zai-coding", "zai_coding_plan", "z-ai-coding-plan"),
     "openrouter": ("openai",), "zai": ("glm", "z-ai", "z.ai", "zhipu"), "xai": ("x-ai", "x.ai", "grok"),
     "xai-oauth": ("grok-oauth", "xai-oauth", "x-ai-oauth", "xai-grok-oauth"),
     "nvidia": ("nim", "nvidia-nim", "build-nvidia", "nemotron"),
@@ -146,6 +152,7 @@ ALIASES: Dict[str, str] = {alias: canon for canon, aliases in _ALIAS_GROUPS.item
 # -- Display labels for providers not in the models.dev catalog ---------------
 
 _LABEL_OVERRIDES: Dict[str, str] = {
+    "zai-coding-plan": "Z.AI Coding Plan",
     "moa": "Mixture of Agents", "nous": "Nous Portal", "openai-codex": "ChatGPT or Codex Subscription",
     "copilot-acp": "GitHub Copilot ACP", "stepfun": "StepFun Step Plan", "xiaomi": "Xiaomi MiMo", "gmi": "GMI Cloud",
     "upstage": "Upstage Solar", "actual": "Actual Computer", "tencent-tokenhub": "Tencent TokenHub",
@@ -197,8 +204,9 @@ def get_provider(name: str, *, allow_network: bool = True) -> Optional[ProviderD
     overlay = HERMES_OVERLAYS.get(canonical)
     if mdev_info is not None:
         ov = overlay or HermesOverlay()
-        env_vars = list(mdev_info.env)
-        for ev in ov.extra_env_vars:
+        env_vars = list(ov.extra_env_vars if ov.prefer_extra_env_vars else mdev_info.env)
+        remaining = mdev_info.env if ov.prefer_extra_env_vars else ov.extra_env_vars
+        for ev in remaining:
             if ev not in env_vars:
                 env_vars.append(ev)
         return _overlay_pdef(canonical, ov, mdev_info.name, tuple(env_vars), ov.base_url_override or mdev_info.api,

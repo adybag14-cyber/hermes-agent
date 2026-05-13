@@ -197,6 +197,9 @@ _REGISTRY_ROWS: Tuple[Any, ...] = (
      ("GOOGLE_API_KEY", "GEMINI_API_KEY"), "GEMINI_BASE_URL"),
     ("zai", "Z.AI / GLM", "https://api.z.ai/api/paas/v4",
      ("GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY"), "GLM_BASE_URL"),
+    ("zai-coding-plan", "Z.AI Coding Plan", "https://api.z.ai/api/coding/paas/v4",
+     ("GLM_CODING_PLAN_API_KEY", "ZAI_CODING_PLAN_API_KEY", "GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY"),
+     "GLM_CODING_PLAN_BASE_URL"),
     # Legacy platform.moonshot.ai keys use this endpoint (OpenAI-compat); sk-kimi- (Kimi Code)
     # keys are auto-redirected to api.kimi.com/coding by _resolve_kimi_base_url().
     ("kimi-coding", "Kimi / Moonshot", "https://api.moonshot.ai/v1",
@@ -1250,6 +1253,8 @@ def _refuse_env_adoption_if_config_corrupt() -> None:
 # (plugins/model-providers/<name>/) are layered on at call time; this hardcoded
 # table remains authoritative for existing names.
 _PROVIDER_ALIASES: Dict[str, str] = {
+    "glm-coding-plan": "zai-coding-plan", "zai-coding": "zai-coding-plan",
+    "zai_coding_plan": "zai-coding-plan", "z-ai-coding-plan": "zai-coding-plan",
     "glm": "zai", "z-ai": "zai", "z.ai": "zai", "zhipu": "zai",
     "google": "gemini", "google-gemini": "gemini", "google-ai-studio": "gemini",
     "x-ai": "xai", "x.ai": "xai", "grok": "xai",

@@ -41,6 +41,10 @@ class TestParseModelInput:
         assert provider == "openrouter"
         assert model == "anthropic/claude-sonnet-4.5"
 
+    def test_zai_coding_plan_alias_resolved(self):
+        provider, model = parse_model_input("glm-coding-plan:custom-glm-model", "openrouter")
+        assert provider == "zai-coding-plan"
+        assert model == "custom-glm-model"
 
 # -- curated_models_for_provider ---------------------------------------------
 
@@ -75,6 +79,7 @@ class TestNormalizeProvider:
 
     def test_known_aliases(self):
         assert normalize_provider("glm") == "zai"
+        assert normalize_provider("glm-coding-plan") == "zai-coding-plan"
         assert normalize_provider("kimi") == "kimi-coding"
         assert normalize_provider("moonshot") == "kimi-coding"
         assert normalize_provider("step") == "stepfun"
@@ -95,6 +100,16 @@ class TestProviderLabel:
 
 class TestProviderModelIds:
 
+
+    def test_zai_coding_plan_uses_profile_fallback_without_credentials(self, monkeypatch):
+        from providers import get_provider_profile
+
+        profile = get_provider_profile("zai-coding-plan")
+        monkeypatch.setattr("hermes_cli.auth.resolve_api_key_provider_credentials", lambda *_args: {})
+        assert profile.fallback_models
+        models = provider_model_ids("glm-coding-plan", force_refresh=True)
+        assert models == list(profile.fallback_models)
+        assert [model for model, _description in curated_models_for_provider("zai-coding-plan")] == models
 
     def test_stepfun_prefers_live_catalog(self):
         with patch(

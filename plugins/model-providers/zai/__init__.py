@@ -73,3 +73,21 @@ zai = ZaiProfile(
 )
 
 register_provider(zai)
+
+# The fork exposes the subscription endpoint separately so its credentials
+# and routing remain distinct while sharing the current GLM request policy.
+zai_coding_plan = ZaiProfile(
+    name="zai-coding-plan",
+    aliases=("glm-coding-plan", "zai-coding", "zai_coding_plan", "z-ai-coding-plan"),
+    env_vars=(
+        "GLM_CODING_PLAN_API_KEY", "ZAI_CODING_PLAN_API_KEY",
+        "GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY",
+    ),
+    display_name="Z.AI Coding Plan",
+    description="Z.AI GLM Coding Plan (dedicated coding endpoint)",
+    signup_url="https://z.ai/",
+    fallback_models=("glm-5.1", "glm-5", "glm-5v-turbo", "glm-4.7"),
+    base_url="https://api.z.ai/api/coding/paas/v4",
+)
+
+register_provider(zai_coding_plan)

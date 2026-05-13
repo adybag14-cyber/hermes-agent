@@ -153,6 +153,7 @@ _XAI_MODELS = _xai_curated_models()
 
 # Curated per-provider lists. ``-cn`` twins share the international catalog on a domestic endpoint.
 _PROVIDER_MODELS: dict[str, list[str]] = {
+    "zai-coding-plan": ["glm-5.1", "glm-5", "glm-5v-turbo", "glm-4.7"],
     "moa": ["default"],
     "nous": [mid for mid, _ in OPENROUTER_MODELS if mid not in _OPENROUTER_ONLY and not mid.endswith(":free")],
     # Used by /model counts and provider_model_ids fallback when /v1/models is unavailable.
@@ -331,6 +332,7 @@ CANONICAL_PROVIDERS: list[ProviderEntry] = [ProviderEntry(*row) for row in (
     ("vertex", "Google Vertex AI", "Google Vertex AI (Gemini via GCP; OAuth2 service account or ADC, GCP billing/quotas)"),
     ("deepseek", "DeepSeek", "DeepSeek (V3, R1, coder, direct API)"), ("xai", "xAI", "xAI Grok (Direct API)"),
     ("zai", "Z.AI / GLM", "Z.AI / GLM (Zhipu direct API)"),
+    ("zai-coding-plan", "Z.AI Coding Plan", "Z.AI GLM Coding Plan (dedicated coding endpoint)"),
     ("kimi-coding", "Kimi / Kimi Coding Plan", "Kimi Coding Plan (api.kimi.com & Moonshot API)"),
     ("kimi-coding-cn", "Kimi / Moonshot (China)", "Kimi / Moonshot China (Domestic direct API)"),
     ("stepfun", "StepFun Step Plan", "StepFun Step Plan (Agent / coding models via Step Plan API)"),
@@ -442,6 +444,8 @@ def group_providers(slugs):
 
 
 _PROVIDER_ALIASES = dict((
+    ("glm-coding-plan", "zai-coding-plan"), ("zai-coding", "zai-coding-plan"),
+    ("zai_coding_plan", "zai-coding-plan"), ("z-ai-coding-plan", "zai-coding-plan"),
     ("chatgpt", "chatgpt-web"), ("chatgpt.com", "chatgpt-web"), ("openai-chatgpt", "chatgpt-web"),
     ("glm", "zai"), ("z-ai", "zai"), ("z.ai", "zai"), ("zhipu", "zai"), ("github", "copilot"),
     ("github-copilot", "copilot"), ("github-models", "copilot"), ("github-model", "copilot"),
