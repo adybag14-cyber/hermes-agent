@@ -288,12 +288,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val launch = openAuthStartPage(
             uri = startRequest.startUri,
             title = "Open OpenRouter sign-in",
-            preferInApp = true,
         )
         if (launch.success) {
             _uiState.update {
                 it.copy(
-                    globalStatus = "Opened OpenRouter sign-in in Hermes. Approve Hermes; the local callback will save the API key securely. Use Browser or Copy if the page stalls.",
+                    globalStatus = "Opened OpenRouter sign-in in your browser. Approve Hermes; the local callback will save the API key securely. Use Copy sign-in URL if the page stalls.",
                     pendingMethodLabel = option.label,
                     hasPendingRequest = true,
                     pendingStartUrl = startRequest.pendingRequest.startUrl,
@@ -320,21 +319,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private fun openAuthStartPage(
         uri: Uri,
         title: String,
-        preferInApp: Boolean = false,
     ): BrowserLaunchResult {
-        return if (preferInApp) {
-            HermesProviderSetupWebActivity.openInApp(
-                context = getApplication(),
-                uri = uri,
-                title = title,
-            )
-        } else {
-            HermesExternalBrowserLauncher.open(
-                context = getApplication(),
-                uri = uri,
-                title = title,
-            )
-        }
+        return HermesExternalBrowserLauncher.open(
+            context = getApplication(),
+            uri = uri,
+            title = title,
+        )
     }
 
     fun copyPendingSignInUrl() {
@@ -448,7 +438,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(globalStatus = "Provider setup URL must start with https:// or http://") }
             return
         }
-        val launch = HermesProviderSetupWebActivity.openInApp(
+        val launch = HermesProviderSetupWebActivity.open(
             context = getApplication(),
             uri = uri,
             title = "Open ${option.label} setup page",
@@ -510,9 +500,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         target: ProviderSetupTarget,
     ): String {
         val cycleHint = if (target.total > 1) {
-            " in Hermes ${target.displayIndex}/${target.total}; copied all official setup URLs. Tap Open again for the next fallback if this page stalls."
+            " in your browser ${target.displayIndex}/${target.total}; copied all official setup URLs. Tap Open again for the next fallback if this page stalls."
         } else {
-            " in Hermes. If this page stalls, use Browser or Copy from the setup viewer."
+            " in your browser or Hermes fallback. If this page stalls, use Copy setup URL."
         }
         val qwenLegacyHint = if (providerId == "qwen-oauth") {
             " Qwen OAuth is legacy; choose Qwen Cloud for new API-key setup."
