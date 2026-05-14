@@ -39,6 +39,12 @@ PYPROJECT_FILE = REPO_ROOT / "pyproject.toml"
 
 # Auto-extracted from noreply emails + manual overrides
 AUTHOR_MAP = {
+    # adybag14-cyber Hermes Android app branch
+    "adybag14-cyber@users.noreply.github.com": "adybag14-cyber",
+    "adybag14@gmail.com": "adybag14-cyber",
+    "tdarei@example.com": "tdarei",
+    "wasm@ss2-wasm.local": "adybag14-cyber",
+
     # teknium (multiple emails)
     "teknium1@gmail.com": "teknium1",
     "mgongzai@gmail.com": "vKongv",
