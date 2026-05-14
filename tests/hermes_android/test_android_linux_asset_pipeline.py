@@ -5,7 +5,14 @@ from io import BytesIO
 from pathlib import Path
 
 from hermes_android.linux_assets import serializable_manifest
-from scripts.prepare_android_linux_assets import create_bionic_llama_server_launcher, mirror_data_tar
+from scripts.prepare_android_linux_assets import (
+    create_bionic_llama_server_launcher,
+    download_first_available,
+    mirror_data_tar,
+    termux_main_base_urls,
+    termux_package_url,
+    termux_packages_index_url,
+)
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -27,6 +34,9 @@ def test_prepare_android_linux_assets_script_exists_and_is_wired_into_gradle():
     assert "useLegacyPackaging = true" in gradle
     assert "create_bionic_llama_server_launcher" in script
     assert "patch_android_spawn_needed_to_libc" in script
+    assert "download_first_available" in script
+    assert "HERMES_TERMUX_MAIN_BASE_URLS" in script
+    assert "https://mirror.mwt.me/termux/main" in script
     assert "libandroid-spawn.so" in script
     assert "libhermes_android_bash.so" in native_script
     assert "libhermes_android_llama_server.so" in native_script
@@ -42,6 +52,53 @@ def test_prepare_android_linux_assets_script_imports_from_android_workdir():
 
     assert result.returncode == 0, result.stderr
     assert "Prepare Android Linux CLI assets" in result.stdout
+
+
+def test_prepare_android_linux_assets_supports_termux_mirror_override(monkeypatch):
+    monkeypatch.setenv(
+        "HERMES_TERMUX_MAIN_BASE_URLS",
+        "https://one.example/termux-main; https://two.example/termux-main/; https://one.example/termux-main",
+    )
+
+    assert termux_main_base_urls() == (
+        "https://one.example/termux-main",
+        "https://two.example/termux-main",
+    )
+    assert (
+        termux_packages_index_url("https://one.example/termux-main", "x86_64")
+        == "https://one.example/termux-main/dists/stable/main/binary-x86_64/Packages"
+    )
+    assert (
+        termux_package_url("https://one.example/termux-main", "/pool/main/bash.deb")
+        == "https://one.example/termux-main/pool/main/bash.deb"
+    )
+
+
+def test_prepare_android_linux_assets_downloads_from_later_mirror(monkeypatch):
+    calls = []
+
+    def fake_download_bytes(url, attempts=3):
+        calls.append((url, attempts))
+        if "primary.example" in url:
+            raise RuntimeError("primary timed out")
+        return b"mirror-ok"
+
+    monkeypatch.setattr("scripts.prepare_android_linux_assets.download_bytes", fake_download_bytes)
+
+    payload, url = download_first_available(
+        [
+            "https://primary.example/termux-main/dists/stable/main/binary-x86_64/Packages",
+            "https://mirror.example/termux-main/dists/stable/main/binary-x86_64/Packages",
+        ],
+        attempts=1,
+    )
+
+    assert payload == b"mirror-ok"
+    assert url.startswith("https://mirror.example/")
+    assert calls == [
+        ("https://primary.example/termux-main/dists/stable/main/binary-x86_64/Packages", 1),
+        ("https://mirror.example/termux-main/dists/stable/main/binary-x86_64/Packages", 1),
+    ]
 
 
 def test_linux_asset_manifest_normalizes_windows_link_targets():
