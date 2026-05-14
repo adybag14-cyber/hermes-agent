@@ -71,7 +71,7 @@ class ProviderSetupWebActivityInstrumentedTest {
     }
 
     @Test
-    fun providerSetupOpenUsesUnpinnedChooserForCurrentQwenSetupTarget() {
+    fun providerSetupOpenHandsOffCurrentQwenSetupTargetToRealBrowser() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val target = requireNotNull(ProviderPresets.setupTarget("alibaba", 0))
         val uri = Uri.parse(target.url)
@@ -83,21 +83,14 @@ class ProviderSetupWebActivityInstrumentedTest {
             resolved?.packageName != context.packageName,
         )
 
-        val qwenDocsOpened = AtomicBoolean(false)
-        val qwenDocsIntent = providerSetupChooserFor(uri) {
-            qwenDocsOpened.set(true)
-        }
-        Intents.init()
-        try {
-            intending(qwenDocsIntent).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+        val result = HermesProviderSetupWebActivity.open(context, uri, "Open Qwen setup")
 
-            val result = HermesProviderSetupWebActivity.open(context, uri, "Open Qwen setup")
-
-            assertTrue(result.toString(), result.success)
-            assertTrue("Expected provider setup to launch an unpinned chooser", qwenDocsOpened.get())
-        } finally {
-            Intents.release()
-        }
+        assertTrue(result.toString(), result.success)
+        val foregroundPackage = waitForForegroundPackage(expectedPackage = resolved!!.packageName)
+        assertTrue(
+            "Expected provider setup to focus the external browser ${resolved.packageName}, got '$foregroundPackage'",
+            foregroundPackage == resolved.packageName,
+        )
     }
 
     @Test
@@ -377,5 +370,27 @@ class ProviderSetupWebActivityInstrumentedTest {
                 return matches
             }
         }
+    }
+
+    private fun waitForForegroundPackage(expectedPackage: String): String {
+        val deadline = SystemClock.elapsedRealtime() + 15_000L
+        var lastPackage = currentForegroundPackage()
+        while (SystemClock.elapsedRealtime() < deadline) {
+            if (lastPackage == expectedPackage) {
+                return lastPackage
+            }
+            SystemClock.sleep(250L)
+            lastPackage = currentForegroundPackage()
+        }
+        return lastPackage
+    }
+
+    private fun currentForegroundPackage(): String {
+        val output = shellOutput("dumpsys window")
+        return FOCUS_PACKAGE_REGEX.find(output)?.groupValues?.getOrNull(1).orEmpty()
+    }
+
+    companion object {
+        private val FOCUS_PACKAGE_REGEX = Regex("""mCurrentFocus=Window\{[^ ]+ u\d+ ([^/\s]+)/""")
     }
 }
