@@ -242,6 +242,8 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert "No ${option.label} setup page responded from Hermes" in auth_view_model
     assert "const val DEFAULT_TIMEOUT_MS = 6_000" in provider_setup_probe
     assert "const val MAX_STATUS_LENGTH = 900" in provider_setup_probe
+    assert "mobileUnsupportedPhrases" in provider_setup_probe
+    assert "mobile unsupported page" in provider_setup_probe
     assert 'setRequestProperty("User-Agent", "HermesAgentAndroidProviderSetup/1.0")' in provider_setup_probe
     assert "ProviderSetupUrlProbe.MAX_STATUS_LENGTH" in auth_view_model
     assert "private val providerSetupOpenIndexes = mutableMapOf<String, Int>()" in auth_view_model

@@ -14,6 +14,15 @@ data class ProviderSetupProbeResult(
 object ProviderSetupUrlProbe {
     const val DEFAULT_TIMEOUT_MS = 6_000
     const val MAX_STATUS_LENGTH = 900
+    private const val MAX_BODY_PROBE_CHARS = 8_192
+
+    private val mobileUnsupportedPhrases = listOf(
+        "not available on mobile devices",
+        "does not currently support mobile access",
+        "currently not support mobile access",
+        "please copy the link below and open it on a desktop",
+        "use a desktop browser",
+    )
 
     fun probe(url: String, timeoutMs: Int = DEFAULT_TIMEOUT_MS): ProviderSetupProbeResult {
         val target = url.trim()
@@ -33,10 +42,25 @@ object ProviderSetupUrlProbe {
             }
             connection.use {
                 val code = responseCode
+                val statusLabel = "HTTP $code"
+                if (code in 200..499) {
+                    val body = readProbeBody(connection)
+                    val normalizedBody = body.lowercase()
+                    val mobileUnsupported = mobileUnsupportedPhrases.any { phrase ->
+                        normalizedBody.contains(phrase)
+                    }
+                    if (mobileUnsupported) {
+                        return@use ProviderSetupProbeResult(
+                            url = target,
+                            reachable = false,
+                            statusLabel = "$statusLabel; mobile unsupported page",
+                        )
+                    }
+                }
                 ProviderSetupProbeResult(
                     url = target,
                     reachable = code in 200..499,
-                    statusLabel = "HTTP $code",
+                    statusLabel = statusLabel,
                 )
             }
         } catch (_: UnknownHostException) {
@@ -51,6 +75,26 @@ object ProviderSetupUrlProbe {
             block()
         } finally {
             disconnect()
+        }
+    }
+
+    private fun readProbeBody(connection: HttpURLConnection): String {
+        val stream = runCatching { connection.inputStream }.getOrNull()
+            ?: connection.errorStream
+            ?: return ""
+        return stream.use { input ->
+            input.reader(Charsets.UTF_8).use { reader ->
+                val buffer = CharArray(1_024)
+                val builder = StringBuilder()
+                while (builder.length < MAX_BODY_PROBE_CHARS) {
+                    val read = reader.read(buffer, 0, minOf(buffer.size, MAX_BODY_PROBE_CHARS - builder.length))
+                    if (read <= 0) {
+                        break
+                    }
+                    builder.append(buffer, 0, read)
+                }
+                builder.toString()
+            }
         }
     }
 }
