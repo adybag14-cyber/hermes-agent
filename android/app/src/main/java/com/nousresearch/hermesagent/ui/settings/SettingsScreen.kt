@@ -161,9 +161,9 @@ private fun RemoteFallbackCard(
     onBaseUrlChange: (String) -> Unit,
     onModelChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
-    onOpenProviderKeyPage: (String) -> Unit,
-    onCopyProviderKeyPage: (String) -> Unit,
-    onCheckProviderKeyPage: (String) -> Unit,
+    onOpenProviderKeyPage: (String, String) -> Unit,
+    onCopyProviderKeyPage: (String, String) -> Unit,
+    onCheckProviderKeyPage: (String, String) -> Unit,
     onImportProviderCredential: () -> Unit,
     onSave: () -> Unit,
     strings: com.nousresearch.hermesagent.ui.i18n.HermesStrings,
@@ -205,13 +205,13 @@ private fun RemoteFallbackCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Button(onClick = { onOpenProviderKeyPage(apiKeyUrl) }) {
+                    Button(onClick = { onOpenProviderKeyPage(providerId, apiKeyUrl) }) {
                         Text(strings.openProviderKeyPage(providerLabel))
                     }
-                    Button(onClick = { onCopyProviderKeyPage(apiKeyUrl) }) {
+                    Button(onClick = { onCopyProviderKeyPage(providerId, apiKeyUrl) }) {
                         Text(strings.copyProviderSetupUrl())
                     }
-                    Button(onClick = { onCheckProviderKeyPage(apiKeyUrl) }) {
+                    Button(onClick = { onCheckProviderKeyPage(providerId, apiKeyUrl) }) {
                         Text(strings.checkProviderSetupUrl())
                     }
                 }
