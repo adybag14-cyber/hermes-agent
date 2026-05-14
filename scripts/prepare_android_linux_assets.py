@@ -26,7 +26,7 @@ from hermes_android.linux_assets import (
     resolve_dependency_closure,
     serializable_manifest,
     strip_termux_prefix,
-    TERMUX_PACKAGES_INDEX_TEMPLATE,
+    TERMUX_MAIN_BASE_URL,
     verify_sha256,
     write_manifest,
 )
@@ -34,6 +34,31 @@ from hermes_android.linux_assets import (
 ANDROID_SPAWN_NEEDED = b"libandroid-spawn.so\0"
 BIONIC_LIBC_NEEDED = b"libc.so\0"
 BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
+DEFAULT_TERMUX_MAIN_BASE_URLS = (
+    TERMUX_MAIN_BASE_URL,
+    "https://packages-cf.termux.dev/apt/termux-main",
+    "https://mirror.mwt.me/termux/main",
+    "https://termux.librehat.com/apt/termux-main",
+)
+
+
+def termux_main_base_urls() -> tuple[str, ...]:
+    configured = os.environ.get("HERMES_TERMUX_MAIN_BASE_URLS", "")
+    candidates = configured.replace(";", ",").split(",") if configured else DEFAULT_TERMUX_MAIN_BASE_URLS
+    normalized: list[str] = []
+    for candidate in candidates:
+        value = candidate.strip().rstrip("/")
+        if value and value not in normalized:
+            normalized.append(value)
+    return tuple(normalized)
+
+
+def termux_packages_index_url(base_url: str, termux_arch: str) -> str:
+    return f"{base_url}/dists/stable/main/binary-{termux_arch}/Packages"
+
+
+def termux_package_url(base_url: str, filename: str) -> str:
+    return f"{base_url}/{filename.lstrip('/')}"
 
 
 def download_bytes(url: str, attempts: int = 3) -> bytes:
@@ -45,6 +70,16 @@ def download_bytes(url: str, attempts: int = 3) -> bytes:
         except Exception as exc:  # pragma: no cover - exercised by live smoke checks
             last_error = exc
     raise RuntimeError(f"Failed to download {url}: {last_error}")
+
+
+def download_first_available(urls: list[str], attempts: int = 3) -> tuple[bytes, str]:
+    errors: list[str] = []
+    for url in urls:
+        try:
+            return download_bytes(url, attempts=attempts), url
+        except Exception as exc:  # pragma: no cover - exercised by live smoke checks
+            errors.append(f"{url}: {exc}")
+    raise RuntimeError("Failed to download from all Termux mirrors: " + "; ".join(errors))
 
 
 def _termux_root(extracted_root: Path) -> Path:
@@ -237,9 +272,16 @@ def create_bionic_llama_server_launcher(prefix_dir: Path) -> None:
 
 
 def prepare_assets(output_dir: Path) -> None:
+    termux_base_urls = termux_main_base_urls()
     for android_abi, termux_arch in ANDROID_TO_TERMUX_ARCH.items():
-        index_url = TERMUX_PACKAGES_INDEX_TEMPLATE.format(termux_arch=termux_arch)
-        records = parse_packages_index(download_bytes(index_url).decode("utf-8", "ignore"))
+        index_payload, index_url = download_first_available(
+            [termux_packages_index_url(base_url, termux_arch) for base_url in termux_base_urls],
+        )
+        selected_base_url = index_url.split("/dists/", 1)[0]
+        package_base_urls = tuple(
+            dict.fromkeys((selected_base_url, *termux_base_urls))
+        )
+        records = parse_packages_index(index_payload.decode("utf-8", "ignore"))
         packages = resolve_dependency_closure(records)
 
         prefix_dir = asset_prefix_dir(output_dir, android_abi)
@@ -249,7 +291,9 @@ def prepare_assets(output_dir: Path) -> None:
 
         links: list[dict] = []
         for package in packages:
-            payload = download_bytes(package.download_url)
+            payload, _ = download_first_available(
+                [termux_package_url(base_url, package.filename) for base_url in package_base_urls],
+            )
             verify_sha256(payload, package.sha256)
             data_bytes, data_name = load_data_tar_bytes_from_deb(payload)
             with open_data_tar(data_bytes, data_name) as tar:
