@@ -90,9 +90,11 @@ def test_provider_presets_include_chatgpt_claude_gemini_qwen_and_zai():
     assert 'apiKeyUrl = "https://openrouter.ai/settings/keys"' in presets
     assert 'https://openrouter.ai/keys' in presets
     assert 'apiKeyUrl = "https://platform.openai.com/settings/organization/api-keys"' in presets
-    assert 'apiKeyUrl = "https://docs.qwencloud.com/api-reference/preparation/api-key"' in presets
+    assert 'apiKeyUrl = "https://modelstudio.console.alibabacloud.com/?tab=playground"' in presets
+    assert 'https://www.alibabacloud.com/help/en/model-studio/get-api-key' in presets
     assert 'https://home.qwencloud.com/api-keys' in presets
-    assert 'apiKeyUrl = "https://docs.qwencloud.com/coding-plan/tools/cline"' in presets
+    assert 'https://www.alibabacloud.com/help/en/model-studio/coding-plan' in presets
+    assert 'https://docs.qwencloud.com/coding-plan/tools/cline' in presets
     assert 'apiKeyUrl = "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/"' in presets
     assert 'apiKeyUrl = "https://z.ai/manage-apikey/apikey-list"' in presets
     assert 'fallbackSetupUrls = listOf(' in presets
@@ -105,7 +107,7 @@ def test_provider_presets_include_chatgpt_claude_gemini_qwen_and_zai():
     assert 'fun setupTarget(providerId: String, requestedIndex: Int): ProviderSetupTarget?' in presets
     assert 'private fun Int.floorMod(divisor: Int): Int' in presets
     assert 'fun setupClipboardText(providerId: String): String' in presets
-    assert 'fun providerIdForSetupUrl(url: String): String?' in presets
+    assert 'fun providerIdForSetupUrl(url: String, preferredProviderId: String = ""): String?' in presets
     assert 'fun runtimeConfigBaseUrl(providerId: String, baseUrl: String): String' in presets
     assert 'fun apiKeyEnvVars(providerId: String): List<String>' in presets
     assert 'fun parseCredentialInput(providerId: String, input: String): ParsedProviderCredential' in presets
@@ -273,7 +275,7 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert 'status = "Signed in with OpenRouter OAuth and saved the API key securely."' in openrouter_oauth
     assert "const val DEFAULT_PORT = 3000" in openrouter_loopback
     assert 'scheme("http")' in openrouter_loopback
-    assert 'encodedAuthority("$CALLBACK_HOST:$port")' in openrouter_loopback
+    assert 'encodedAuthority("$CALLBACK_URL_HOST:$port")' in openrouter_loopback
     assert 'private const val CALLBACK_HOST = "127.0.0.1"' in openrouter_loopback
     assert 'private const val CALLBACK_PATH = "/hermes/openrouter/callback"' in openrouter_loopback
     assert "OpenRouterOAuthClient.exchangeCallbackForSession" in openrouter_loopback
@@ -319,7 +321,7 @@ def test_settings_opens_official_provider_key_pages():
     assert "putExtra(Browser.EXTRA_APPLICATION_ID" in browser_launcher
     assert "ClipboardManager" in settings_view_model
     assert "ClipData.newPlainText" in settings_view_model
-    assert "ProviderPresets.providerIdForSetupUrl(target)" in settings_view_model
+    assert "ProviderPresets.providerIdForSetupUrl(target, providerId)" in settings_view_model
     assert "ProviderPresets.setupClipboardText(it)" in settings_view_model
     assert "private val providerSetupOpenIndexes = mutableMapOf<String, Int>()" in settings_view_model
     assert "ProviderPresets.setupTarget(providerId, nextIndex)" in settings_view_model
@@ -330,7 +332,7 @@ def test_settings_opens_official_provider_key_pages():
     assert "addCategory(Intent.CATEGORY_BROWSABLE)" in browser_launcher
     assert "openProviderKeyPage(providerLabel)" in settings_screen
     assert "copyProviderSetupUrl()" in settings_screen
-    assert "onCheckProviderKeyPage(apiKeyUrl)" in settings_screen
+    assert "onCheckProviderKeyPage(providerId, apiKeyUrl)" in settings_screen
     assert "strings.checkProviderSetupUrl()" in settings_screen
     assert "importSavedProviderCredential()" in settings_screen
     assert "Use saved Hermes credential" in strings

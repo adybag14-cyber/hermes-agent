@@ -39,7 +39,7 @@ class ProviderSetupWebActivityInstrumentedTest {
     @Test
     fun providerSetupOpenUsesExternalBrowserForQwenCloudWhenAvailable() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val uri = Uri.parse("https://home.qwencloud.com/api-keys")
+        val uri = Uri.parse("https://modelstudio.console.alibabacloud.com/?tab=playground")
         val browserIntent = HermesExternalBrowserLauncher.createBrowserIntent(context, uri)
         val resolved = browserIntent.resolveActivity(context.packageManager)
         assumeTrue("No browser is installed on this test device", resolved != null)
