@@ -174,7 +174,11 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'put("speculative_decoding", engineInitResult.speculativeDecoding)' in litert_proxy
     assert 'put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)' in litert_proxy
     assert 'put("mtp_policy", engineInitResult.speculativeDecodingPolicy)' in litert_proxy
-    assert 'put("gpu_policy", engineInitResult.gpuPolicy)' in litert_proxy
+    assert 'put("gpu_policy", engineInitResult.gpuPolicy.description)' in litert_proxy
+    assert 'put("gpu_attempted", engineInitResult.gpuPolicy.enabled)' in litert_proxy
+    assert 'put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")' in litert_proxy
+    assert 'put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)' in litert_proxy
+    assert 'put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)' in litert_proxy
     assert 'ARM Qualcomm/Adreno' in litert_proxy
     assert 'attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable' in litert_proxy
     assert 'libOpenCL.so' in manifest

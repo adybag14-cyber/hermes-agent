@@ -163,7 +163,11 @@ def test_litert_proxy_attempts_gpu_on_real_arm_devices_with_cpu_fallback():
     assert '"/vendor/lib64/libOpenCL.so"' in proxy
     assert '"/system/vendor/lib64/libOpenCL.so"' in proxy
     assert 'System.load(file.absolutePath)' in proxy
-    assert 'put("gpu_policy", engineInitResult.gpuPolicy)' in proxy
+    assert 'put("gpu_policy", engineInitResult.gpuPolicy.description)' in proxy
+    assert 'put("gpu_attempted", engineInitResult.gpuPolicy.enabled)' in proxy
+    assert 'put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")' in proxy
+    assert 'put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)' in proxy
+    assert 'put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)' in proxy
     assert 'visionBackend = visionBackend' in proxy
     assert 'else -> "cpu"' in proxy
     assert 'maxNumTokens = maxNumTokens' in proxy
