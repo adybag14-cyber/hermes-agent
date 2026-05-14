@@ -99,6 +99,36 @@ class LiteRtLmOpenAiProxyTest {
     }
 
     @Test
+    fun gpuBackendPolicy_disablesGpuOnX86EmulatorBuilds() {
+        val policy = LiteRtLmOpenAiProxy.decideGpuBackendPolicy(
+            isTranslatedArm64OnX86 = false,
+            supportedAbis = listOf("x86_64"),
+            openClAvailable = true,
+            hardwareIdentity = "google sdk_gphone64_x86_64",
+        )
+
+        assertFalse(policy.enabled)
+        assertTrue(policy.openClAvailable)
+        assertEquals("disabled: x86 emulator/device build", policy.description)
+    }
+
+    @Test
+    fun gpuBackendPolicy_attemptsGpuOnQualcommAdrenoArmDevices() {
+        val policy = LiteRtLmOpenAiProxy.decideGpuBackendPolicy(
+            isTranslatedArm64OnX86 = false,
+            supportedAbis = listOf("arm64-v8a", "armeabi-v7a"),
+            openClAvailable = false,
+            hardwareIdentity = "qualcomm snapdragon adreno",
+        )
+
+        assertTrue(policy.enabled)
+        assertFalse(policy.openClAvailable)
+        assertTrue(policy.deviceIdentity.contains("adreno"))
+        assertTrue(policy.description, policy.description.contains("ARM Qualcomm/Adreno"))
+        assertTrue(policy.description, policy.description.contains("CPU fallback"))
+    }
+
+    @Test
     fun speculativeDecodingDecision_autoEnablesCapabilityBackedGemma4OnArm64() {
         val decision = LiteRtLmOpenAiProxy.decideSpeculativeDecoding(
             capabilitiesSupported = true,

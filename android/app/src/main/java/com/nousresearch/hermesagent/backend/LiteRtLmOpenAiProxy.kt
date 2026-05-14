@@ -68,6 +68,13 @@ object LiteRtLmOpenAiProxy {
         val policy: String,
     )
 
+    internal data class GpuBackendPolicy(
+        val enabled: Boolean,
+        val openClAvailable: Boolean,
+        val deviceIdentity: String,
+        val description: String,
+    )
+
     private const val DEFAULT_GENERATION_TIMEOUT_MS = 300_000L
     private const val MIN_GENERATION_TIMEOUT_MS = 5_000L
     private const val MAX_GENERATION_TIMEOUT_MS = 300_000L
@@ -224,7 +231,7 @@ object LiteRtLmOpenAiProxy {
             val speculativeDecoding: Boolean,
             val speculativeDecodingSupported: Boolean,
             val speculativeDecodingPolicy: String,
-            val gpuPolicy: String,
+            val gpuPolicy: GpuBackendPolicy,
             val maxNumTokens: Int?,
             val contextWindowPolicy: String,
         )
@@ -279,7 +286,11 @@ object LiteRtLmOpenAiProxy {
                             put("speculative_decoding", engineInitResult.speculativeDecoding)
                             put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)
                             put("mtp_policy", engineInitResult.speculativeDecodingPolicy)
-                            put("gpu_policy", engineInitResult.gpuPolicy)
+                            put("gpu_policy", engineInitResult.gpuPolicy.description)
+                            put("gpu_attempted", engineInitResult.gpuPolicy.enabled)
+                            put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")
+                            put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)
+                            put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)
                             put("max_num_tokens", engineInitResult.maxNumTokens ?: JSONObject.NULL)
                             put("context_window_policy", engineInitResult.contextWindowPolicy)
                             put("model", modelName)
@@ -393,7 +404,7 @@ object LiteRtLmOpenAiProxy {
                                 speculativeDecoding = enableMtp,
                                 speculativeDecodingSupported = speculativeDecoding.supported,
                                 speculativeDecodingPolicy = mtpPolicy,
-                                gpuPolicy = gpuPolicy.description,
+                                gpuPolicy = gpuPolicy,
                                 maxNumTokens = maxNumTokens,
                                 contextWindowPolicy = contextWindowPolicy,
                             )
@@ -441,11 +452,6 @@ object LiteRtLmOpenAiProxy {
                 ?: "unknown error"
         }
 
-        private data class GpuBackendPolicy(
-            val enabled: Boolean,
-            val description: String,
-        )
-
         private fun resolveEngineMaxNumTokens(
             context: Context,
             modelPath: String,
@@ -470,39 +476,11 @@ object LiteRtLmOpenAiProxy {
         }
 
         private fun gpuBackendPolicy(context: Context, openClAvailable: Boolean): GpuBackendPolicy {
-            if (isTranslatedArm64OnX86(context)) {
-                return GpuBackendPolicy(
-                    enabled = false,
-                    description = "disabled: translated arm64 package on x86 emulator/device",
-                )
-            }
-            if (Build.SUPPORTED_ABIS.any { it.startsWith("x86") }) {
-                return GpuBackendPolicy(
-                    enabled = false,
-                    description = "disabled: x86 emulator/device build",
-                )
-            }
-            if (openClAvailable) {
-                return GpuBackendPolicy(
-                    enabled = true,
-                    description = "enabled: OpenCL library was loadable",
-                )
-            }
-            if (Build.SUPPORTED_ABIS.any { it.startsWith("arm") }) {
-                val identity = androidHardwareIdentity()
-                val deviceLabel = if (listOf("qualcomm", "qcom", "snapdragon", "adreno").any { it in identity }) {
-                    "ARM Qualcomm/Adreno"
-                } else {
-                    "ARM Android"
-                }
-                return GpuBackendPolicy(
-                    enabled = true,
-                    description = "enabled: $deviceLabel device; attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable",
-                )
-            }
-            return GpuBackendPolicy(
-                enabled = false,
-                description = "disabled: no ARM ABI or loadable OpenCL GPU path detected",
+            return decideGpuBackendPolicy(
+                isTranslatedArm64OnX86 = isTranslatedArm64OnX86(context),
+                supportedAbis = Build.SUPPORTED_ABIS.toList(),
+                openClAvailable = openClAvailable,
+                hardwareIdentity = androidHardwareIdentity(),
             )
         }
 
@@ -1082,6 +1060,54 @@ object LiteRtLmOpenAiProxy {
             supportAudio = requestedAudio,
             policy = requestedLabel,
         )
+    }
+
+    internal fun decideGpuBackendPolicy(
+        isTranslatedArm64OnX86: Boolean,
+        supportedAbis: List<String>,
+        openClAvailable: Boolean,
+        hardwareIdentity: String,
+    ): GpuBackendPolicy {
+        val normalizedIdentity = hardwareIdentity.lowercase(Locale.US)
+        return when {
+            isTranslatedArm64OnX86 -> GpuBackendPolicy(
+                enabled = false,
+                openClAvailable = openClAvailable,
+                deviceIdentity = normalizedIdentity,
+                description = "disabled: translated arm64 package on x86 emulator/device",
+            )
+            supportedAbis.any { it.startsWith("x86") } -> GpuBackendPolicy(
+                enabled = false,
+                openClAvailable = openClAvailable,
+                deviceIdentity = normalizedIdentity,
+                description = "disabled: x86 emulator/device build",
+            )
+            openClAvailable -> GpuBackendPolicy(
+                enabled = true,
+                openClAvailable = true,
+                deviceIdentity = normalizedIdentity,
+                description = "enabled: OpenCL library was loadable",
+            )
+            supportedAbis.any { it.startsWith("arm") } -> {
+                val deviceLabel = if (listOf("qualcomm", "qcom", "snapdragon", "adreno").any { it in normalizedIdentity }) {
+                    "ARM Qualcomm/Adreno"
+                } else {
+                    "ARM Android"
+                }
+                GpuBackendPolicy(
+                    enabled = true,
+                    openClAvailable = false,
+                    deviceIdentity = normalizedIdentity,
+                    description = "enabled: $deviceLabel device; attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable",
+                )
+            }
+            else -> GpuBackendPolicy(
+                enabled = false,
+                openClAvailable = openClAvailable,
+                deviceIdentity = normalizedIdentity,
+                description = "disabled: no ARM ABI or loadable OpenCL GPU path detected",
+            )
+        }
     }
 
     internal fun decideSpeculativeDecoding(

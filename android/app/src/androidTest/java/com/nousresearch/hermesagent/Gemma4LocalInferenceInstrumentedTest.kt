@@ -70,6 +70,13 @@ class Gemma4LocalInferenceInstrumentedTest {
         assertTrue(health.toString(), health.has("image_input_supported"))
         assertTrue(health.toString(), health.has("audio_input_supported"))
         assertTrue(health.toString(), health.has("modality_policy"))
+        assertTrue(health.toString(), health.has("accelerator"))
+        assertTrue(health.toString(), health.has("gpu_policy"))
+        assertTrue(health.toString(), health.has("gpu_attempted"))
+        assertTrue(health.toString(), health.has("gpu_fallback_to_cpu"))
+        assertTrue(health.toString(), health.has("opencl_available"))
+        assertTrue(health.toString(), health.has("hardware_identity"))
+        assertTrue(health.toString(), health.has("mtp_policy"))
         if (health.optBoolean("multimodal_fallback", false)) {
             assertFalse(health.toString(), health.optBoolean("image_input_supported", true))
             assertFalse(health.toString(), health.optBoolean("audio_input_supported", true))
