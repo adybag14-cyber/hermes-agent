@@ -40,7 +40,8 @@ class ProviderSetupWebActivityInstrumentedTest {
     @Test
     fun providerSetupOpenUsesExternalBrowserForQwenCloudWhenAvailable() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val uri = Uri.parse("https://modelstudio.console.alibabacloud.com/?tab=playground")
+        val target = requireNotNull(ProviderPresets.setupTarget("alibaba", 0))
+        val uri = Uri.parse(target.url)
         val browserIntent = HermesExternalBrowserLauncher.createBrowserIntent(context, uri)
         val resolved = browserIntent.resolveActivity(context.packageManager)
         assumeTrue("No browser is installed on this test device", resolved != null)
@@ -49,8 +50,8 @@ class ProviderSetupWebActivityInstrumentedTest {
             resolved?.packageName != context.packageName,
         )
 
-        val qwenAccountOpened = AtomicBoolean(false)
-        val qwenAccountIntent = object : TypeSafeMatcher<Intent>() {
+        val qwenDocsOpened = AtomicBoolean(false)
+        val qwenDocsIntent = object : TypeSafeMatcher<Intent>() {
             override fun describeTo(description: Description) {
                 description.appendText("Qwen Cloud setup browser intent")
             }
@@ -61,7 +62,7 @@ class ProviderSetupWebActivityInstrumentedTest {
                 val matches = intent.action in setOf(Intent.ACTION_VIEW, Intent.ACTION_CHOOSER) &&
                     targetUri == uri
                 if (matches) {
-                    qwenAccountOpened.set(true)
+                    qwenDocsOpened.set(true)
                 }
                 return matches
             }
@@ -69,12 +70,12 @@ class ProviderSetupWebActivityInstrumentedTest {
 
         Intents.init()
         try {
-            intending(qwenAccountIntent).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+            intending(qwenDocsIntent).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
 
             val result = HermesProviderSetupWebActivity.open(context, uri, "Open Qwen setup")
 
             assertTrue(result.toString(), result.success)
-            assertTrue("Expected provider setup to launch the Qwen account browser intent", qwenAccountOpened.get())
+            assertTrue("Expected provider setup to launch the Qwen docs browser intent", qwenDocsOpened.get())
         } finally {
             Intents.release()
         }
