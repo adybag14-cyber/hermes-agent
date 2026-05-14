@@ -103,3 +103,30 @@ def test_android_linux_environment_derives_native_library_dir_from_shell_path(tm
     assert child_env["HERMES_ANDROID_SHELL"] == "/system/bin/sh"
     assert child_env["HERMES_ANDROID_NATIVE_SHELL"] == str(shell_path)
     assert child_env["LD_LIBRARY_PATH"].startswith(str(native_dir))
+
+
+def test_android_shell_spawn_uses_platform_safe_process_options(monkeypatch):
+    import os
+    import subprocess
+
+    environment = AndroidLinuxEnvironment.__new__(AndroidLinuxEnvironment)
+    environment.process_shell_path = "test-only-shell"
+    monkeypatch.setattr(environment, "_build_run_env", lambda: {"ANDROID_TEST_VALUE": "kept"})
+    captured = {}
+    process = object()
+
+    def spawn(argv, **kwargs):
+        captured.update(argv=argv, **kwargs)
+        return process
+
+    monkeypatch.setattr("tools.environments.android_linux.subprocess.Popen", spawn)
+    assert environment._run_bash("printf ready") is process
+    assert captured["argv"] == ["test-only-shell", "-c", "printf ready"]
+    assert captured["env"] == {"ANDROID_TEST_VALUE": "kept"}
+    assert captured["stdin"] == subprocess.DEVNULL
+    if os.name == "nt":
+        assert "preexec_fn" not in captured
+        assert captured["creationflags"] == subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        assert captured["preexec_fn"] is os.setsid
+        assert "creationflags" not in captured

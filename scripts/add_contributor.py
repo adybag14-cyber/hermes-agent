@@ -120,7 +120,7 @@ def add_contributor(email: str, login: str, comment: str = "") -> int:
     body = login + "\n"
     if comment:
         body += f"# {comment}\n"
-    path.write_text(body, encoding="utf-8")
+    path.write_text(body, encoding="utf-8", newline="\n")
     print(f"added: contributors/emails/{email} -> {login}")
     return 0
 
