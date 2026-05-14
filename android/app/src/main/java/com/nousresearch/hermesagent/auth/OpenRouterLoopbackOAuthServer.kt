@@ -24,6 +24,7 @@ data class OpenRouterLoopbackServerStart(
 object OpenRouterLoopbackOAuthServer {
     const val DEFAULT_PORT = 3000
     private const val CALLBACK_HOST = "127.0.0.1"
+    private const val CALLBACK_URL_HOST = "localhost"
     private const val CALLBACK_PATH = "/hermes/openrouter/callback"
     private const val SERVER_TIMEOUT_MS = 5 * 60 * 1000
 
@@ -33,7 +34,7 @@ object OpenRouterLoopbackOAuthServer {
     fun callbackUrlForState(state: String, port: Int = DEFAULT_PORT): String {
         return Uri.Builder()
             .scheme("http")
-            .encodedAuthority("$CALLBACK_HOST:$port")
+            .encodedAuthority("$CALLBACK_URL_HOST:$port")
             .path(CALLBACK_PATH)
             .appendQueryParameter("method", "openrouter")
             .appendQueryParameter("provider", "openrouter")
