@@ -43,7 +43,7 @@ class ProviderSetupWebActivityInstrumentedTest {
     @Test
     fun providerSetupOpenUsesExternalBrowserForQwenCloudWhenAvailable() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val uri = Uri.parse("https://docs.qwencloud.com/api-reference/preparation/api-key")
+        val uri = Uri.parse("https://home.qwencloud.com/api-keys")
         val browserIntent = HermesExternalBrowserLauncher.createBrowserIntent(context, uri)
         val resolved = browserIntent.resolveActivity(context.packageManager)
         assumeTrue("No browser is installed on this test device", resolved != null)
@@ -52,19 +52,19 @@ class ProviderSetupWebActivityInstrumentedTest {
             resolved?.packageName != context.packageName,
         )
 
-        val qwenDocsOpened = AtomicBoolean(false)
-        val qwenDocsIntent = providerSetupChooserFor(uri) {
-            qwenDocsOpened.set(true)
+        val qwenAccountOpened = AtomicBoolean(false)
+        val qwenAccountIntent = providerSetupChooserFor(uri) {
+            qwenAccountOpened.set(true)
         }
 
         Intents.init()
         try {
-            intending(qwenDocsIntent).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+            intending(qwenAccountIntent).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
 
             val result = HermesProviderSetupWebActivity.open(context, uri, "Open Qwen setup")
 
             assertTrue(result.toString(), result.success)
-            assertTrue("Expected provider setup to launch the Qwen docs browser intent", qwenDocsOpened.get())
+            assertTrue("Expected provider setup to launch the Qwen account browser intent", qwenAccountOpened.get())
         } finally {
             Intents.release()
         }

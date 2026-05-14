@@ -120,10 +120,10 @@ object ProviderPresets {
             label = "Qwen Cloud / DashScope API key",
             baseUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
             modelHint = "qwen3.6-plus",
-            apiKeyUrl = "https://docs.qwencloud.com/api-reference/preparation/api-key",
+            apiKeyUrl = "https://home.qwencloud.com/api-keys",
             fallbackSetupUrls = listOf(
+                "https://docs.qwencloud.com/api-reference/preparation/api-key",
                 "https://docs.qwencloud.com/developer-guides/administration/api-keys",
-                "https://home.qwencloud.com/api-keys",
                 "https://account.alibabacloud.com/login/login.htm",
             ),
         ),
@@ -132,12 +132,12 @@ object ProviderPresets {
             label = "Qwen Coding Plan",
             baseUrl = "https://coding-intl.dashscope.aliyuncs.com/v1",
             modelHint = "qwen3.6-plus",
-            apiKeyUrl = "https://docs.qwencloud.com/coding-plan/tools/cline",
+            apiKeyUrl = "https://home.qwencloud.com/api-keys",
             fallbackSetupUrls = listOf(
+                "https://docs.qwencloud.com/coding-plan/tools/cline",
                 "https://docs.qwencloud.com/coding-plan/overview",
                 "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/model-providers/",
                 "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/",
-                "https://home.qwencloud.com/api-keys",
             ),
         ),
         ProviderPreset(
@@ -217,8 +217,12 @@ object ProviderPresets {
         return setupUrls(providerId).joinToString(separator = "\n")
     }
 
-    fun providerIdForSetupUrl(url: String): String? {
+    fun providerIdForSetupUrl(url: String, preferredProviderId: String = ""): String? {
         val normalized = url.trim()
+        val preferred = preferredProviderId.trim()
+        if (preferred.isNotBlank() && setupUrls(preferred).any { it == normalized }) {
+            return preferred
+        }
         return defaults.firstOrNull { preset ->
             setupUrls(preset.id).any { it == normalized }
         }?.id

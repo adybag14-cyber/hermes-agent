@@ -189,32 +189,36 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun openProviderKeyPage(url: String) {
+        openProviderKeyPage(providerId = "", url = url)
+    }
+
+    fun openProviderKeyPage(providerId: String, url: String) {
         val requestedUrl = url.trim()
         if (requestedUrl.isBlank()) {
             return
         }
-        val providerId = ProviderPresets.providerIdForSetupUrl(requestedUrl)
-        val setupTarget = providerId?.let { nextProviderSetupTarget(it) }
+        val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(requestedUrl, providerId)
+        val setupTarget = resolvedProviderId?.let { nextProviderSetupTarget(it) }
         val targetUrl = setupTarget?.url ?: requestedUrl
         val uri = Uri.parse(targetUrl)
         if (uri.scheme !in setOf("http", "https")) {
             _uiState.update { it.copy(status = "Provider setup URL must start with https:// or http://") }
             return
         }
-        val providerLabel = providerId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
+        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
         val launch = HermesProviderSetupWebActivity.open(
             context = getApplication(),
             uri = uri,
             title = "Open $providerLabel setup page",
         )
         if (launch.success) {
-            copyProviderKeyPage(targetUrl, updateSuccessStatus = false)
+            copyProviderKeyPage(resolvedProviderId.orEmpty(), targetUrl, updateSuccessStatus = false)
             _uiState.update {
-                it.copy(status = providerSetupOpenedStatus(providerLabel, providerId.orEmpty(), setupTarget))
+                it.copy(status = providerSetupOpenedStatus(providerLabel, resolvedProviderId.orEmpty(), setupTarget))
             }
-            probeProviderKeyPages(providerLabel, urlsForProviderKeyPage(providerId, requestedUrl))
+            probeProviderKeyPages(providerLabel, urlsForProviderKeyPage(resolvedProviderId, requestedUrl))
         } else {
-            copyProviderKeyPage(targetUrl, updateSuccessStatus = false)
+            copyProviderKeyPage(resolvedProviderId.orEmpty(), targetUrl, updateSuccessStatus = false)
             _uiState.update {
                 it.copy(status = "Unable to open setup page (${launch.errorName.ifBlank { "setup_page_error" }}); copied the provider setup URLs.")
             }
@@ -222,14 +226,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun checkProviderKeyPage(url: String) {
+        checkProviderKeyPage(providerId = "", url = url)
+    }
+
+    fun checkProviderKeyPage(providerId: String, url: String) {
         val requestedUrl = url.trim()
         if (requestedUrl.isBlank()) {
             return
         }
-        val providerId = ProviderPresets.providerIdForSetupUrl(requestedUrl)
-        val providerLabel = providerId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
-        val urls = urlsForProviderKeyPage(providerId, requestedUrl)
-        copyProviderKeyPage(requestedUrl, updateSuccessStatus = false)
+        val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(requestedUrl, providerId)
+        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
+        val urls = urlsForProviderKeyPage(resolvedProviderId, requestedUrl)
+        copyProviderKeyPage(resolvedProviderId.orEmpty(), requestedUrl, updateSuccessStatus = false)
         _uiState.update { it.copy(status = "Checking $providerLabel setup pages from this device...") }
         probeProviderKeyPages(providerLabel, urls)
     }
@@ -299,7 +307,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun copyProviderKeyPage(url: String) {
-        copyProviderKeyPage(url, updateSuccessStatus = true)
+        copyProviderKeyPage(providerId = "", url = url)
+    }
+
+    fun copyProviderKeyPage(providerId: String, url: String) {
+        copyProviderKeyPage(providerId, url, updateSuccessStatus = true)
     }
 
     fun importSavedProviderCredential() {
@@ -401,16 +413,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun copyProviderKeyPage(url: String, updateSuccessStatus: Boolean) {
+    private fun copyProviderKeyPage(providerId: String, url: String, updateSuccessStatus: Boolean) {
         val target = url.trim()
         if (target.isBlank()) {
             return
         }
-        val providerId = ProviderPresets.providerIdForSetupUrl(target)
-        val setupText = providerId?.let { ProviderPresets.setupClipboardText(it) }
+        val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(target, providerId)
+        val setupText = resolvedProviderId?.let { ProviderPresets.setupClipboardText(it) }
             .orEmpty()
             .ifBlank { target }
-        val fallbackCount = providerId?.let { ProviderPresets.setupUrls(it).size - 1 } ?: 0
+        val fallbackCount = resolvedProviderId?.let { ProviderPresets.setupUrls(it).size - 1 } ?: 0
         val clipboard = getApplication<Application>().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboard?.setPrimaryClip(ClipData.newPlainText("Hermes provider setup URLs", setupText))
         if (updateSuccessStatus) {
