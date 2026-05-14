@@ -125,6 +125,9 @@ class NativeAppChatAndToolInstrumentedTest {
             "Expected browser handoff marker from android_automation_tool: $openResult",
             openResult.optBoolean("external_activity_handoff"),
         )
+        assertEquals("http", openResult.getString("resolved_uri_scheme"))
+        assertTrue(openResult.toString(), openResult.getBoolean("served_local_file"))
+        Thread.sleep(2_000)
         assertTrue("Expected Gemma 4 native chat tool call to create ${htmlFile.absolutePath}", htmlFile.isFile)
         val html = htmlFile.readText()
         assertTrue(html, html.contains("<canvas id=\"game\"") || html.contains("<canvas id='game'"))

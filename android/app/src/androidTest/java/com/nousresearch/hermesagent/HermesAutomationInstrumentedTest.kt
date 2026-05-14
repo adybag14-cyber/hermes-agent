@@ -1038,6 +1038,10 @@ class HermesAutomationInstrumentedTest {
         assertTrue(opened.toString(), opened.getBoolean("success"))
         assertEquals("open_uri", opened.getString("action"))
         assertEquals(htmlFile.absolutePath, opened.getString("data_uri"))
+        assertEquals("http", opened.getString("resolved_uri_scheme"))
+        assertTrue(opened.toString(), opened.getBoolean("served_local_file"))
+        // Let the browser consume the handoff before instrumentation teardown.
+        Thread.sleep(2_000)
     }
 
     @Test
