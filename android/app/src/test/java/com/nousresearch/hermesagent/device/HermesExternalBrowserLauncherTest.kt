@@ -1,10 +1,13 @@
 package com.nousresearch.hermesagent.device
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.provider.Browser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,6 +63,29 @@ class HermesExternalBrowserLauncherTest {
     }
 
     @Test
+    @Suppress("DEPRECATION")
+    fun openCanForceChooserForProviderAuthLinks() {
+        val context = RuntimeEnvironment.getApplication()
+        registerBrowser(context, "com.brave.browser_nightly")
+        val uri = Uri.parse("https://openrouter.ai/auth")
+
+        val result = HermesExternalBrowserLauncher.open(
+            context = context,
+            uri = uri,
+            title = "Open OpenRouter sign-in",
+            forceChooser = true,
+        )
+        val started = Shadows.shadowOf(context).nextStartedActivity
+        val wrapped = started.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+
+        assertTrue(result.success)
+        assertEquals(Intent.ACTION_CHOOSER, started.action)
+        assertEquals(Intent.ACTION_VIEW, wrapped?.action)
+        assertEquals(uri, wrapped?.data)
+        assertNull(wrapped?.`package`)
+    }
+
+    @Test
     fun openRejectsUnsupportedSchemes() {
         val context = RuntimeEnvironment.getApplication()
 
@@ -71,5 +97,19 @@ class HermesExternalBrowserLauncherTest {
 
         assertFalse(result.success)
         assertEquals("UnsupportedScheme", result.errorName)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun registerBrowser(context: android.content.Context, packageName: String) {
+        val browserProbe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+        }
+        val resolveInfo = ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                this.packageName = packageName
+                name = "$packageName.BrowserActivity"
+            }
+        }
+        Shadows.shadowOf(context.packageManager).addResolveInfoForIntent(browserProbe, resolveInfo)
     }
 }
