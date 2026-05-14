@@ -48,6 +48,12 @@ object HermesIntentBridge {
                 successJson(intentTaskAction, payload, "Started Android intent").also { result ->
                     if (intentTaskAction == INTENT_TASK_OPEN_URI) {
                         result.put("external_activity_handoff", true)
+                        builtIntent.resolvedOpenUri?.let { resolved ->
+                            result.put("resolved_uri", resolved.uri.toString())
+                            result.put("resolved_mime_type", resolved.mimeType.orEmpty())
+                            result.put("resolved_with_file_provider", resolved.grantReadPermission)
+                            result.put("preferred_browser_package", intent.getPackage().orEmpty())
+                        }
                         localBackendRelease?.let { result.put("local_backend_release", it) }
                     }
                     builtIntent.resolvedContentUri?.let { result.put("resolved_content_uri", it.toString()) }
@@ -154,6 +160,7 @@ object HermesIntentBridge {
         }
         return BuiltIntent(
             intent = intent,
+            resolvedOpenUri = resolvedOpenUri,
             resolvedContentUri = resolvedOpenUri?.uri?.takeIf { resolvedOpenUri?.grantReadPermission == true },
             resolvedMimeType = resolvedOpenUri?.mimeType,
             resolvedUriScheme = resolvedOpenUri?.uri?.scheme,
@@ -434,6 +441,7 @@ object HermesIntentBridge {
 
     private data class BuiltIntent(
         val intent: Intent,
+        val resolvedOpenUri: ResolvedOpenUri?,
         val resolvedContentUri: Uri? = null,
         val resolvedMimeType: String? = null,
         val resolvedUriScheme: String? = null,
