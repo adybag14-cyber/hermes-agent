@@ -54,21 +54,8 @@ class ProviderSetupWebActivityInstrumentedTest {
         )
 
         val qwenDocsOpened = AtomicBoolean(false)
-        val qwenDocsIntent = object : TypeSafeMatcher<Intent>() {
-            override fun describeTo(description: Description) {
-                description.appendText("Qwen Cloud setup browser intent")
-            }
-
-            override fun matchesSafely(intent: Intent): Boolean {
-                val targetIntent = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-                val targetUri = intent.data ?: targetIntent?.data ?: return false
-                val matches = intent.action in setOf(Intent.ACTION_VIEW, Intent.ACTION_CHOOSER) &&
-                    targetUri == uri
-                if (matches) {
-                    qwenDocsOpened.set(true)
-                }
-                return matches
-            }
+        val qwenDocsIntent = providerSetupChooserFor(uri) {
+            qwenDocsOpened.set(true)
         }
 
         Intents.init()
@@ -85,7 +72,7 @@ class ProviderSetupWebActivityInstrumentedTest {
     }
 
     @Test
-    fun providerSetupOpenHandsOffCurrentQwenSetupTargetToRealBrowser() {
+    fun providerSetupOpenUsesUnpinnedChooserForCurrentQwenSetupTarget() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val target = requireNotNull(ProviderPresets.setupTarget("alibaba", 0))
         val uri = Uri.parse(target.url)
@@ -97,14 +84,21 @@ class ProviderSetupWebActivityInstrumentedTest {
             resolved?.packageName != context.packageName,
         )
 
-        val result = HermesProviderSetupWebActivity.open(context, uri, "Open Qwen setup")
+        val qwenDocsOpened = AtomicBoolean(false)
+        val qwenDocsIntent = providerSetupChooserFor(uri) {
+            qwenDocsOpened.set(true)
+        }
+        Intents.init()
+        try {
+            intending(qwenDocsIntent).respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
 
-        assertTrue(result.toString(), result.success)
-        val foregroundPackage = waitForForegroundPackage(expectedPackage = resolved!!.packageName)
-        assertTrue(
-            "Expected provider setup to focus the external browser ${resolved.packageName}, got '$foregroundPackage'",
-            foregroundPackage == resolved.packageName,
-        )
+            val result = HermesProviderSetupWebActivity.open(context, uri, "Open Qwen setup")
+
+            assertTrue(result.toString(), result.success)
+            assertTrue("Expected provider setup to launch an unpinned chooser", qwenDocsOpened.get())
+        } finally {
+            Intents.release()
+        }
     }
 
     @Test
@@ -371,6 +365,7 @@ class ProviderSetupWebActivityInstrumentedTest {
             override fun describeTo(description: Description) {
                 description.appendText("provider setup chooser for ").appendValue(uri)
             }
+
 
             override fun matchesSafely(intent: Intent): Boolean {
                 val targetIntent = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
