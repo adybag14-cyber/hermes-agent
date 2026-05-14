@@ -11,17 +11,23 @@ data class BrowserLaunchResult(
 )
 
 object HermesExternalBrowserLauncher {
-    fun createBrowserIntent(context: Context, uri: Uri): Intent {
+    fun createBrowserIntent(context: Context, uri: Uri, preferInstalledBrowser: Boolean = true): Intent {
+        val appContext = context.applicationContext
         return Intent(Intent.ACTION_VIEW, uri).apply {
             addCategory(Intent.CATEGORY_BROWSABLE)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra(Browser.EXTRA_APPLICATION_ID, context.packageName)
+            putExtra(Browser.EXTRA_APPLICATION_ID, appContext.packageName)
+            if (preferInstalledBrowser) {
+                HermesIntentBridge.preferredBrowserPackage(appContext)?.let { packageName ->
+                    setPackage(packageName)
+                }
+            }
         }
     }
 
     fun createChooserIntent(context: Context, uri: Uri, title: String): Intent {
         return Intent.createChooser(
-            createBrowserIntent(context, uri),
+            createBrowserIntent(context, uri, preferInstalledBrowser = false),
             title.ifBlank { "Open link" },
         ).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

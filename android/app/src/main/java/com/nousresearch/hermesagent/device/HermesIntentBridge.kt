@@ -205,7 +205,7 @@ object HermesIntentBridge {
         return uri?.scheme?.lowercase() in BROWSABLE_URI_SCHEMES
     }
 
-    private fun preferredBrowserPackage(context: Context): String? {
+    internal fun preferredBrowserPackage(context: Context): String? {
         val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).apply {
             addCategory(Intent.CATEGORY_BROWSABLE)
         }

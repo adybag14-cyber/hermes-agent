@@ -1,10 +1,13 @@
 package com.nousresearch.hermesagent.device
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ResolveInfo
 import android.net.Uri
 import android.provider.Browser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -31,9 +34,22 @@ class HermesExternalBrowserLauncherTest {
     }
 
     @Test
+    fun createBrowserIntentPinsDiscoveredBrowserForProviderAndOAuthLinks() {
+        val context = RuntimeEnvironment.getApplication()
+        registerBrowser(context, "com.android.chrome")
+        val uri = Uri.parse("https://openrouter.ai/auth")
+
+        val intent = HermesExternalBrowserLauncher.createBrowserIntent(context, uri)
+
+        assertEquals("com.android.chrome", intent.`package`)
+        assertEquals(uri, intent.data)
+    }
+
+    @Test
     @Suppress("DEPRECATION")
     fun createChooserIntentRemainsAvailableAsFallback() {
         val context = RuntimeEnvironment.getApplication()
+        registerBrowser(context, "com.android.chrome")
         val uri = Uri.parse("https://docs.qwencloud.com/api-reference/preparation/api-key")
 
         val intent = HermesExternalBrowserLauncher.createChooserIntent(context, uri, "Open Qwen setup")
@@ -43,6 +59,7 @@ class HermesExternalBrowserLauncherTest {
         assertTrue(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
         assertEquals(Intent.ACTION_VIEW, wrapped?.action)
         assertEquals(uri, wrapped?.data)
+        assertNull(wrapped?.`package`)
     }
 
     @Test
@@ -71,5 +88,19 @@ class HermesExternalBrowserLauncherTest {
 
         assertFalse(result.success)
         assertEquals("UnsupportedScheme", result.errorName)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun registerBrowser(context: android.content.Context, packageName: String) {
+        val browserProbe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com")).apply {
+            addCategory(Intent.CATEGORY_BROWSABLE)
+        }
+        val resolveInfo = ResolveInfo().apply {
+            activityInfo = ActivityInfo().apply {
+                this.packageName = packageName
+                name = "$packageName.BrowserActivity"
+            }
+        }
+        Shadows.shadowOf(context.packageManager).addResolveInfoForIntent(browserProbe, resolveInfo)
     }
 }
