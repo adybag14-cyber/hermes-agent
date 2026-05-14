@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import posixpath
 import shutil
@@ -24,16 +25,26 @@ from hermes_android.linux_assets import (
     open_data_tar,
     parse_packages_index,
     resolve_dependency_closure,
+    ROOT_PACKAGES,
     serializable_manifest,
     strip_termux_prefix,
-    TERMUX_PACKAGES_INDEX_TEMPLATE,
+    TERMUX_MAIN_BASE_URL,
     verify_sha256,
     write_manifest,
+    TermuxPackageRecord,
 )
 
 ANDROID_SPAWN_NEEDED = b"libandroid-spawn.so\0"
 BIONIC_LIBC_NEEDED = b"libc.so\0"
 BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
+DEFAULT_LOCK_FILE = REPO_ROOT / "hermes_android" / "termux_linux_assets.lock.json"
+LOCK_FILE_VERSION = 1
+TERMUX_MAIN_FALLBACK_BASE_URLS = (
+    "https://termux.librehat.com/apt/termux-main",
+    "https://mirror.rinarin.dev/termux/termux-main",
+    TERMUX_MAIN_BASE_URL,
+    "https://packages-cf.termux.dev/apt/termux-main",
+)
 
 
 def download_bytes(url: str, attempts: int = 3) -> bytes:
@@ -45,6 +56,97 @@ def download_bytes(url: str, attempts: int = 3) -> bytes:
         except Exception as exc:  # pragma: no cover - exercised by live smoke checks
             last_error = exc
     raise RuntimeError(f"Failed to download {url}: {last_error}")
+
+
+def configured_termux_main_base_urls() -> list[str]:
+    configured = []
+    for key in ("HERMES_TERMUX_MAIN_BASE_URLS", "HERMES_TERMUX_MAIN_BASE_URL"):
+        raw = os.environ.get(key, "")
+        configured.extend(item.strip() for item in raw.replace(";", ",").split(",") if item.strip())
+    configured.extend(TERMUX_MAIN_FALLBACK_BASE_URLS)
+    return list(dict.fromkeys(url.rstrip("/") for url in configured if url.strip()))
+
+
+def _termux_main_url(base_url: str, relative_path: str) -> str:
+    return f"{base_url.rstrip('/')}/{relative_path.lstrip('/')}"
+
+
+def _packages_index_path(termux_arch: str) -> str:
+    return f"dists/stable/main/binary-{termux_arch}/Packages"
+
+
+def download_termux_main_path(relative_path: str) -> bytes:
+    errors: list[str] = []
+    for base_url in configured_termux_main_base_urls():
+        url = _termux_main_url(base_url, relative_path)
+        try:
+            return download_bytes(url)
+        except Exception as exc:  # pragma: no cover - exercised by live release builds
+            errors.append(f"{url}: {exc}")
+    raise RuntimeError(f"Failed to download Termux path {relative_path}: {'; '.join(errors)}")
+
+
+def read_packages_index(termux_arch: str) -> dict[str, TermuxPackageRecord]:
+    return parse_packages_index(download_termux_main_path(_packages_index_path(termux_arch)).decode("utf-8", "ignore"))
+
+
+def _package_record_to_json(record: TermuxPackageRecord) -> dict:
+    return {
+        "name": record.name,
+        "version": record.version,
+        "filename": record.filename,
+        "sha256": record.sha256,
+        "depends": list(record.depends),
+    }
+
+
+def _package_record_from_json(payload: dict) -> TermuxPackageRecord:
+    return TermuxPackageRecord(
+        name=str(payload["name"]),
+        version=str(payload["version"]),
+        filename=str(payload["filename"]),
+        sha256=str(payload["sha256"]),
+        depends=tuple(str(item) for item in payload.get("depends", [])),
+    )
+
+
+def build_lock_payload() -> dict:
+    architectures = {}
+    for android_abi, termux_arch in ANDROID_TO_TERMUX_ARCH.items():
+        packages = resolve_dependency_closure(read_packages_index(termux_arch))
+        architectures[android_abi] = {
+            "termux_arch": termux_arch,
+            "packages": [_package_record_to_json(package) for package in packages],
+        }
+    return {
+        "version": LOCK_FILE_VERSION,
+        "termux_main_base_url": TERMUX_MAIN_BASE_URL,
+        "root_packages": list(ROOT_PACKAGES),
+        "architectures": architectures,
+    }
+
+
+def write_lock_file(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def load_lock_file(path: Path) -> dict | None:
+    if not path.is_file():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("version") != LOCK_FILE_VERSION:
+        raise ValueError(f"Unsupported Termux asset lock file version in {path}")
+    return payload
+
+
+def locked_packages(lock_payload: dict, android_abi: str, termux_arch: str) -> list[TermuxPackageRecord]:
+    arch_payload = lock_payload.get("architectures", {}).get(android_abi)
+    if not arch_payload:
+        raise KeyError(f"Termux asset lock file does not contain Android ABI {android_abi}")
+    if arch_payload.get("termux_arch") != termux_arch:
+        raise ValueError(f"Termux asset lock file maps {android_abi} to {arch_payload.get('termux_arch')}, not {termux_arch}")
+    return [_package_record_from_json(item) for item in arch_payload.get("packages", [])]
 
 
 def _termux_root(extracted_root: Path) -> Path:
@@ -236,11 +338,21 @@ def create_bionic_llama_server_launcher(prefix_dir: Path) -> None:
         destination.unlink(missing_ok=True)
 
 
-def prepare_assets(output_dir: Path) -> None:
+def prepare_assets(output_dir: Path, lock_file: Path | None = DEFAULT_LOCK_FILE, refresh_lock_file: bool = False) -> None:
+    lock_payload = None
+    if lock_file is not None:
+        if refresh_lock_file:
+            lock_payload = build_lock_payload()
+            write_lock_file(lock_file, lock_payload)
+        else:
+            lock_payload = load_lock_file(lock_file)
+
     for android_abi, termux_arch in ANDROID_TO_TERMUX_ARCH.items():
-        index_url = TERMUX_PACKAGES_INDEX_TEMPLATE.format(termux_arch=termux_arch)
-        records = parse_packages_index(download_bytes(index_url).decode("utf-8", "ignore"))
-        packages = resolve_dependency_closure(records)
+        if lock_payload:
+            packages = locked_packages(lock_payload, android_abi, termux_arch)
+        else:
+            records = read_packages_index(termux_arch)
+            packages = resolve_dependency_closure(records)
 
         prefix_dir = asset_prefix_dir(output_dir, android_abi)
         if prefix_dir.exists():
@@ -249,7 +361,7 @@ def prepare_assets(output_dir: Path) -> None:
 
         links: list[dict] = []
         for package in packages:
-            payload = download_bytes(package.download_url)
+            payload = download_termux_main_path(package.filename)
             verify_sha256(payload, package.sha256)
             data_bytes, data_name = load_data_tar_bytes_from_deb(payload)
             with open_data_tar(data_bytes, data_name) as tar:
@@ -266,13 +378,26 @@ def prepare_assets(output_dir: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Prepare Android Linux CLI assets for Hermes Android builds")
     parser.add_argument("--output-dir", required=True, help="Directory where generated assets should be written")
+    parser.add_argument(
+        "--lock-file",
+        default=str(DEFAULT_LOCK_FILE),
+        help="Pinned Termux package lock file used for reproducible release builds",
+    )
+    parser.add_argument("--refresh-lock-file", action="store_true", help="Refresh the pinned Termux package lock file")
+    parser.add_argument("--lock-only", action="store_true", help="Only refresh the lock file, without extracting assets")
     args = parser.parse_args()
     output_dir = Path(args.output_dir).expanduser().resolve()
+    lock_file = Path(args.lock_file).expanduser().resolve() if args.lock_file else None
+    if args.lock_only:
+        if lock_file is None:
+            raise ValueError("--lock-only requires --lock-file")
+        write_lock_file(lock_file, build_lock_payload())
+        return
     asset_root = output_dir / ANDROID_LINUX_ASSET_ROOT
     if asset_root.exists():
         shutil.rmtree(asset_root)
     asset_root.mkdir(parents=True, exist_ok=True)
-    prepare_assets(output_dir)
+    prepare_assets(output_dir, lock_file=lock_file, refresh_lock_file=args.refresh_lock_file)
 
 
 if __name__ == "__main__":

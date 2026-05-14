@@ -1,0 +1,840 @@
+{
+  "architectures": {
+    "arm64-v8a": {
+      "packages": [
+        {
+          "depends": [
+            "libandroid-support",
+            "libiconv",
+            "readline"
+          ],
+          "filename": "pool/main/b/bash/bash_5.3.9_aarch64.deb",
+          "name": "bash",
+          "sha256": "3eabe8532138a802e6193b647df6366be5b678629dcb8d79abf80d23c51b3791",
+          "version": "5.3.9"
+        },
+        {
+          "depends": [
+            "libandroid-selinux"
+          ],
+          "filename": "pool/main/b/busybox/busybox_1.37.0-3_aarch64.deb",
+          "name": "busybox",
+          "sha256": "c2cb3ad48e30f232d9dce8cc7e2412b5d7c3825689b75dd7384de89eb08f6b46",
+          "version": "1.37.0-3"
+        },
+        {
+          "depends": [
+            "libbz2"
+          ],
+          "filename": "pool/main/b/bzip2/bzip2_1.0.8-8_aarch64.deb",
+          "name": "bzip2",
+          "sha256": "7b904d820c34b6c043067ca3c8cb67465413ea5eae3f529a0e05a9ae0df2b89a",
+          "version": "1.0.8-8"
+        },
+        {
+          "depends": [
+            "libandroid-selinux",
+            "libandroid-support",
+            "libgmp",
+            "libiconv",
+            "openssl"
+          ],
+          "filename": "pool/main/c/coreutils/coreutils_9.11_aarch64.deb",
+          "name": "coreutils",
+          "sha256": "7b7d25bd39bc041cec8bf26475dc24277deb16ee3d2a06629a9dfe4a341d2b79",
+          "version": "9.11"
+        },
+        {
+          "depends": [
+            "libcurl"
+          ],
+          "filename": "pool/main/c/curl/curl_8.20.0_aarch64.deb",
+          "name": "curl",
+          "sha256": "ca9dd72a4e1032e4fcab724b83f700641fbad75b13ff0291646e316103b836bf",
+          "version": "8.20.0"
+        },
+        {
+          "depends": [
+            "libiconv"
+          ],
+          "filename": "pool/main/d/diffutils/diffutils_3.12-2_aarch64.deb",
+          "name": "diffutils",
+          "sha256": "ab039ac163550ebb73a601f104da2dfb8bbd26f028086821c48edaa2384e68d2",
+          "version": "3.12-2"
+        },
+        {
+          "depends": [
+            "libandroid-support"
+          ],
+          "filename": "pool/main/f/findutils/findutils_4.10.0-1_aarch64.deb",
+          "name": "findutils",
+          "sha256": "a7e9c3db936370077b5a8b012f4d47e994dd64192cc6e4a12ad9f99e82d3fcb5",
+          "version": "4.10.0-1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "libgmp",
+            "libmpfr",
+            "readline"
+          ],
+          "filename": "pool/main/g/gawk/gawk_5.3.2_aarch64.deb",
+          "name": "gawk",
+          "sha256": "4e5c3163cf0e845434f25560db21920bf7970a7d7fb4462bd73360258c879717",
+          "version": "5.3.2"
+        },
+        {
+          "depends": [
+            "libcurl",
+            "libexpat",
+            "libiconv",
+            "less",
+            "openssl",
+            "pcre2",
+            "zlib"
+          ],
+          "filename": "pool/main/g/git/git_2.54.0_aarch64.deb",
+          "name": "git",
+          "sha256": "d3917008fc734871d2b2a91a742342269243cdfcbb7b50abaddc0ba77743b010",
+          "version": "2.54.0"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "pcre2"
+          ],
+          "filename": "pool/main/g/grep/grep_3.12-3_aarch64.deb",
+          "name": "grep",
+          "sha256": "a2819b49c621b61567e39c5c647d5ed6fe9d51eab71ed73eebf18be76719457d",
+          "version": "3.12-3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/g/gzip/gzip_1.14-1_aarch64.deb",
+          "name": "gzip",
+          "sha256": "5af23d04f40ef62401ed4f99dbb2087740e44aa8ae8c9f3c0ac2d56aa6551348",
+          "version": "1.14-1"
+        },
+        {
+          "depends": [
+            "ncurses",
+            "pcre2"
+          ],
+          "filename": "pool/main/l/less/less_692_aarch64.deb",
+          "name": "less",
+          "sha256": "b974b37261e650a7c6181f0cd899db56f1f8968fe2c25f41cfccefa3321bf726",
+          "version": "692"
+        },
+        {
+          "depends": [
+            "libandroid-spawn",
+            "libc++",
+            "libcurl"
+          ],
+          "filename": "pool/main/l/llama-cpp/llama-cpp_0.0.0-b9131-0_aarch64.deb",
+          "name": "llama-cpp",
+          "sha256": "712f0e4115dec7674dad88f3c5525c250fd3160b72c3b934ffa0b8a7072393d6",
+          "version": "0.0.0-b9131-0"
+        },
+        {
+          "depends": [
+            "ncurses"
+          ],
+          "filename": "pool/main/p/procps/procps_3.3.17-6_aarch64.deb",
+          "name": "procps",
+          "sha256": "a55809b0bf5de6c3462fdff18325ebcf27bce79e6cb49cd5b7ba52a8ff45af11",
+          "version": "3.3.17-6"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/s/sed/sed_4.9-2_aarch64.deb",
+          "name": "sed",
+          "sha256": "c355057bc410eba0b462210ad12d05e63a5f5593bbfc93d2c9cde1116384eacf",
+          "version": "4.9-2"
+        },
+        {
+          "depends": [
+            "libacl",
+            "libandroid-glob",
+            "libandroid-selinux",
+            "libiconv"
+          ],
+          "filename": "pool/main/t/tar/tar_1.35-2_aarch64.deb",
+          "name": "tar",
+          "sha256": "f7279dd13a80962e2551ad74b7782c0a97286f5c8d0044e5fbc5017f22197b15",
+          "version": "1.35-2"
+        },
+        {
+          "depends": [
+            "libandroid-glob",
+            "libandroid-posix-semaphore",
+            "libcap-ng",
+            "libsmartcols",
+            "ncurses",
+            "zlib"
+          ],
+          "filename": "pool/main/u/util-linux/util-linux_2.41.3_aarch64.deb",
+          "name": "util-linux",
+          "sha256": "47bc311f6bf020c2af076e578c8130ae0e753f4600d84d6b6e36e10c16eda024",
+          "version": "2.41.3"
+        },
+        {
+          "depends": [
+            "liblzma"
+          ],
+          "filename": "pool/main/x/xz-utils/xz-utils_5.8.3_aarch64.deb",
+          "name": "xz-utils",
+          "sha256": "7e7999d0b967e4aa4f57c0c8f66dcacd83b310252278047404376d171961f03f",
+          "version": "5.8.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-support/libandroid-support_29-1_aarch64.deb",
+          "name": "libandroid-support",
+          "sha256": "f2f145d6135ad4843ac9670153be3e3944dc1e6f1736d46d2306c28f2b86f517",
+          "version": "29-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libi/libiconv/libiconv_1.18-1_aarch64.deb",
+          "name": "libiconv",
+          "sha256": "b19e6f348034bb48d2a5590b5cb242769f682c476717374d134d004cc663dc84",
+          "version": "1.18-1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "ncurses"
+          ],
+          "filename": "pool/main/r/readline/readline_8.3.3_aarch64.deb",
+          "name": "readline",
+          "sha256": "e50fb67f40753247dbb83efb17c7fbee0ac868ffcb5b5555d44d76ec8d90b4b1",
+          "version": "8.3.3"
+        },
+        {
+          "depends": [
+            "pcre2"
+          ],
+          "filename": "pool/main/liba/libandroid-selinux/libandroid-selinux_14.0.0.11-1_aarch64.deb",
+          "name": "libandroid-selinux",
+          "sha256": "00afd8c34087c2864737b51fd9d104dc5e955f6ec3c0f50c0c7ef5b4a56866b9",
+          "version": "14.0.0.11-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libb/libbz2/libbz2_1.0.8-8_aarch64.deb",
+          "name": "libbz2",
+          "sha256": "4335d7f060650b0aabef545d1334c2f9f280223d5962e13c24a00ec934b794ba",
+          "version": "1.0.8-8"
+        },
+        {
+          "depends": [
+            "libc++"
+          ],
+          "filename": "pool/main/libg/libgmp/libgmp_6.3.0-2_aarch64.deb",
+          "name": "libgmp",
+          "sha256": "5a3c1325638946ca212ddcb89bffb2c4459b4c90757d6e69f820e176534037fa",
+          "version": "6.3.0-2"
+        },
+        {
+          "depends": [
+            "ca-certificates",
+            "zlib"
+          ],
+          "filename": "pool/main/o/openssl/openssl_1:3.6.2_aarch64.deb",
+          "name": "openssl",
+          "sha256": "6b55190e4a86affb8a3ed15e25e18fbfd8608cc5c65df45c70fc72abc9772a14",
+          "version": "1:3.6.2"
+        },
+        {
+          "depends": [
+            "libnghttp2",
+            "libnghttp3",
+            "libngtcp2",
+            "libssh2",
+            "openssl",
+            "zlib"
+          ],
+          "filename": "pool/main/libc/libcurl/libcurl_8.20.0_aarch64.deb",
+          "name": "libcurl",
+          "sha256": "12c9afa203bd6ffbb7492a16356cdff00be509d4a5d0c367e8ddf0c87dc9127f",
+          "version": "8.20.0"
+        },
+        {
+          "depends": [
+            "libgmp"
+          ],
+          "filename": "pool/main/libm/libmpfr/libmpfr_4.2.1-1_aarch64.deb",
+          "name": "libmpfr",
+          "sha256": "5edf5a36e6f4773dc827d37ea515db27c242d3631f3030188a3324be2e00e4c6",
+          "version": "4.2.1-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libe/libexpat/libexpat_2.8.1_aarch64.deb",
+          "name": "libexpat",
+          "sha256": "c9133fcef551551fc78f8cfea115754328bdbc8481eebd63ffc6e1552471585b",
+          "version": "2.8.1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/p/pcre2/pcre2_10.47_aarch64.deb",
+          "name": "pcre2",
+          "sha256": "51f915d22de639bfca6ec029ae613987bbe3bc73626eede13319fd2e95f50b63",
+          "version": "10.47"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/z/zlib/zlib_1.3.2_aarch64.deb",
+          "name": "zlib",
+          "sha256": "75e7d0af17fcc3b40004309fdc00a1ddb9ae08346dce5e269902c34ac3966ac9",
+          "version": "1.3.2"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/n/ncurses/ncurses_6.6.20260307+really6.5.20250830_aarch64.deb",
+          "name": "ncurses",
+          "sha256": "f44bbfdc3d42ec0217bffa978309390e59cea5a48a9a83226d4a496c42ad0b99",
+          "version": "6.6.20260307+really6.5.20250830"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-spawn/libandroid-spawn_0.3_aarch64.deb",
+          "name": "libandroid-spawn",
+          "sha256": "7988fa788ef48ab5da9660443905a2e4099ac36221739d72f5c39acc644b4d1c",
+          "version": "0.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libc/libc++/libc++_29_aarch64.deb",
+          "name": "libc++",
+          "sha256": "bb9f12113c137aa0e8513bb51cc49fe77a5ce3ca39ab9e92c57d228ecdf00222",
+          "version": "29"
+        },
+        {
+          "depends": [
+            "attr"
+          ],
+          "filename": "pool/main/liba/libacl/libacl_2.3.2_aarch64.deb",
+          "name": "libacl",
+          "sha256": "5c6a681edddd0daf1320622d0ef8f79c9f389d0597f5c2bfe9587f4aaa06b29d",
+          "version": "2.3.2"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-glob/libandroid-glob_0.6-3_aarch64.deb",
+          "name": "libandroid-glob",
+          "sha256": "2276ae8adedf0db76c2f4ffc94cc4cceb2f4f5d78e021b54e2e046d1233e7826",
+          "version": "0.6-3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-posix-semaphore/libandroid-posix-semaphore_0.1-4_aarch64.deb",
+          "name": "libandroid-posix-semaphore",
+          "sha256": "0efa8677a0166315ba4e685863712eba0ca0a1732827492f38226e2723730c7a",
+          "version": "0.1-4"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libc/libcap-ng/libcap-ng_2:0.9.3_aarch64.deb",
+          "name": "libcap-ng",
+          "sha256": "4b8085605029eb4a88eacb4850e28a4294bd0bef865dbe00271d98f99234d1e5",
+          "version": "2:0.9.3"
+        },
+        {
+          "depends": [
+            "libandroid-posix-semaphore"
+          ],
+          "filename": "pool/main/libs/libsmartcols/libsmartcols_2.41.3_aarch64.deb",
+          "name": "libsmartcols",
+          "sha256": "d134b295a1e3fb0b2be7d85020d41fcec4ab1292ef93f8ddcdf90e3379e444ca",
+          "version": "2.41.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libl/liblzma/liblzma_5.8.3_aarch64.deb",
+          "name": "liblzma",
+          "sha256": "594925a313879f590fbd24050305551a78eadd9a9319f6e612389b1a521113c6",
+          "version": "5.8.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.03.19_all.deb",
+          "name": "ca-certificates",
+          "sha256": "ce6925a2eae6a8fe205c6cef1ca14aa8fc43e2e4784b15017563ee3f02bcc159",
+          "version": "1:2026.03.19"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libn/libnghttp2/libnghttp2_1.69.0_aarch64.deb",
+          "name": "libnghttp2",
+          "sha256": "4f82ebd9b900b82fddacf9b09bb5b0b2886c20d1f7e5e71a99bfdf69effa4682",
+          "version": "1.69.0"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libn/libnghttp3/libnghttp3_1.15.0_aarch64.deb",
+          "name": "libnghttp3",
+          "sha256": "948d726bda800cfa36f95a82d0cc0cd8dbba53d0fc81fe39df5f5132f92884ec",
+          "version": "1.15.0"
+        },
+        {
+          "depends": [
+            "openssl"
+          ],
+          "filename": "pool/main/libn/libngtcp2/libngtcp2_1.22.1_aarch64.deb",
+          "name": "libngtcp2",
+          "sha256": "08215d81e34673a4c5fd7c423c88b65ff0bfc4432f0946ec203988afcb145f43",
+          "version": "1.22.1"
+        },
+        {
+          "depends": [
+            "openssl",
+            "zlib"
+          ],
+          "filename": "pool/main/libs/libssh2/libssh2_1.11.1-1_aarch64.deb",
+          "name": "libssh2",
+          "sha256": "696fa234ecef90c649a579a2e5e08d5e498039fb0ad80521bd288f2599637ef3",
+          "version": "1.11.1-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/a/attr/attr_2.5.2-1_aarch64.deb",
+          "name": "attr",
+          "sha256": "f81bb14a1ded6c0857b9af94937d68bb2d64ec6c9fb31f3da8c646e54c68dd72",
+          "version": "2.5.2-1"
+        }
+      ],
+      "termux_arch": "aarch64"
+    },
+    "x86_64": {
+      "packages": [
+        {
+          "depends": [
+            "libandroid-support",
+            "libiconv",
+            "readline"
+          ],
+          "filename": "pool/main/b/bash/bash_5.3.9_x86_64.deb",
+          "name": "bash",
+          "sha256": "7972279fa7537ecefca067e2309c4a25402b462029f82db743f49a6f61962581",
+          "version": "5.3.9"
+        },
+        {
+          "depends": [
+            "libandroid-selinux"
+          ],
+          "filename": "pool/main/b/busybox/busybox_1.37.0-3_x86_64.deb",
+          "name": "busybox",
+          "sha256": "505aab0c3b6a4cf0bf214a7b6ff2c784f126a6fdaa103f8cfee046db1a80a731",
+          "version": "1.37.0-3"
+        },
+        {
+          "depends": [
+            "libbz2"
+          ],
+          "filename": "pool/main/b/bzip2/bzip2_1.0.8-8_x86_64.deb",
+          "name": "bzip2",
+          "sha256": "1a44821b7573ab8e1df88a517e7201954b77eb99f9368af0ba05d2cdf9a23b3e",
+          "version": "1.0.8-8"
+        },
+        {
+          "depends": [
+            "libandroid-selinux",
+            "libandroid-support",
+            "libgmp",
+            "libiconv",
+            "openssl"
+          ],
+          "filename": "pool/main/c/coreutils/coreutils_9.11_x86_64.deb",
+          "name": "coreutils",
+          "sha256": "ac829292c3da7756b68a909c1e5450ad9d7d96c86c26ee1b9c54054b721be9fb",
+          "version": "9.11"
+        },
+        {
+          "depends": [
+            "libcurl"
+          ],
+          "filename": "pool/main/c/curl/curl_8.20.0_x86_64.deb",
+          "name": "curl",
+          "sha256": "c272bf7679c8addc314576f7687f609d992dc367478cda369a539a51f8a75fa4",
+          "version": "8.20.0"
+        },
+        {
+          "depends": [
+            "libiconv"
+          ],
+          "filename": "pool/main/d/diffutils/diffutils_3.12-2_x86_64.deb",
+          "name": "diffutils",
+          "sha256": "027f349acf5c23c2482d2060c8c78daa91abd7d8f3a9ada61e824e0701c66d44",
+          "version": "3.12-2"
+        },
+        {
+          "depends": [
+            "libandroid-support"
+          ],
+          "filename": "pool/main/f/findutils/findutils_4.10.0-1_x86_64.deb",
+          "name": "findutils",
+          "sha256": "7d708a76d6ef19cf2cc4c915bc194595e999d008508482ec3af7159ed2c72997",
+          "version": "4.10.0-1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "libgmp",
+            "libmpfr",
+            "readline"
+          ],
+          "filename": "pool/main/g/gawk/gawk_5.3.2_x86_64.deb",
+          "name": "gawk",
+          "sha256": "8f15b9220b0bae5bda926e7971ce76e2eb181350d16a0f458f76ff1242edb972",
+          "version": "5.3.2"
+        },
+        {
+          "depends": [
+            "libcurl",
+            "libexpat",
+            "libiconv",
+            "less",
+            "openssl",
+            "pcre2",
+            "zlib"
+          ],
+          "filename": "pool/main/g/git/git_2.54.0_x86_64.deb",
+          "name": "git",
+          "sha256": "bd9844a542afbb8e3ba542565ff02bbbb718526dbc2ae605aee60798610c7b15",
+          "version": "2.54.0"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "pcre2"
+          ],
+          "filename": "pool/main/g/grep/grep_3.12-3_x86_64.deb",
+          "name": "grep",
+          "sha256": "2469d26137060b6dc1d9a480fc2ac5159bcd5dbb91e1e1b0947c985460cd1212",
+          "version": "3.12-3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/g/gzip/gzip_1.14-1_x86_64.deb",
+          "name": "gzip",
+          "sha256": "5f9f3f55038f2edcc58afb8b197b77fcdbcbaec46f98150d88d0a45817240b92",
+          "version": "1.14-1"
+        },
+        {
+          "depends": [
+            "ncurses",
+            "pcre2"
+          ],
+          "filename": "pool/main/l/less/less_692_x86_64.deb",
+          "name": "less",
+          "sha256": "64ca16c883a18e8f9ecc1d29e2e2fc2a6c006bc142aeeed4788e90b178075034",
+          "version": "692"
+        },
+        {
+          "depends": [
+            "libandroid-spawn",
+            "libc++",
+            "libcurl"
+          ],
+          "filename": "pool/main/l/llama-cpp/llama-cpp_0.0.0-b9131-0_x86_64.deb",
+          "name": "llama-cpp",
+          "sha256": "f69205c3e0d40bb909dacc68919c0713eca9a5f873eefa71211b5a629d13573e",
+          "version": "0.0.0-b9131-0"
+        },
+        {
+          "depends": [
+            "ncurses"
+          ],
+          "filename": "pool/main/p/procps/procps_3.3.17-6_x86_64.deb",
+          "name": "procps",
+          "sha256": "46a05ce0dde79f1960255d4248a45823fb24b3e076dc896d501ab471053e2375",
+          "version": "3.3.17-6"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/s/sed/sed_4.9-2_x86_64.deb",
+          "name": "sed",
+          "sha256": "c420b2dc8bcb3a87fbffa5c23e27e6be923736f09d5fe627d9cf672a4468b70a",
+          "version": "4.9-2"
+        },
+        {
+          "depends": [
+            "libacl",
+            "libandroid-glob",
+            "libandroid-selinux",
+            "libiconv"
+          ],
+          "filename": "pool/main/t/tar/tar_1.35-2_x86_64.deb",
+          "name": "tar",
+          "sha256": "5ab70ad46ad7957f150448e342bc36b037ec8123cd961c3b2b49a50b913120e4",
+          "version": "1.35-2"
+        },
+        {
+          "depends": [
+            "libandroid-glob",
+            "libandroid-posix-semaphore",
+            "libcap-ng",
+            "libsmartcols",
+            "ncurses",
+            "zlib"
+          ],
+          "filename": "pool/main/u/util-linux/util-linux_2.41.3_x86_64.deb",
+          "name": "util-linux",
+          "sha256": "dffc26e7faedbf84437d3a847c3c0f037fc9b02467964980ef4accb4d498c675",
+          "version": "2.41.3"
+        },
+        {
+          "depends": [
+            "liblzma"
+          ],
+          "filename": "pool/main/x/xz-utils/xz-utils_5.8.3_x86_64.deb",
+          "name": "xz-utils",
+          "sha256": "3a12d8451ad9449c969059190331153e96c97e42fb78bd079868676360bd0d8a",
+          "version": "5.8.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-support/libandroid-support_29-1_x86_64.deb",
+          "name": "libandroid-support",
+          "sha256": "665900760c05959ec076082a0941f05bd452f301e5a70bdfa7383fd3404d44d5",
+          "version": "29-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libi/libiconv/libiconv_1.18-1_x86_64.deb",
+          "name": "libiconv",
+          "sha256": "c171356580d85f58d3eedc9c5f49b563d80afb18c92cbbb0382295d539bc0719",
+          "version": "1.18-1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "ncurses"
+          ],
+          "filename": "pool/main/r/readline/readline_8.3.3_x86_64.deb",
+          "name": "readline",
+          "sha256": "e69d768ba81246700c244aea31a1fd728f6cc9698ca3031b6f7b7250ea77f8dd",
+          "version": "8.3.3"
+        },
+        {
+          "depends": [
+            "pcre2"
+          ],
+          "filename": "pool/main/liba/libandroid-selinux/libandroid-selinux_14.0.0.11-1_x86_64.deb",
+          "name": "libandroid-selinux",
+          "sha256": "99cf96556683ddb53f7d645ca1720e10523c4796ce5b41c583da9f89a47679ce",
+          "version": "14.0.0.11-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libb/libbz2/libbz2_1.0.8-8_x86_64.deb",
+          "name": "libbz2",
+          "sha256": "f6f81d38a40c1626202da1e87727e5a3e6de296b1c0eb252af8948646b164ca0",
+          "version": "1.0.8-8"
+        },
+        {
+          "depends": [
+            "libc++"
+          ],
+          "filename": "pool/main/libg/libgmp/libgmp_6.3.0-2_x86_64.deb",
+          "name": "libgmp",
+          "sha256": "743e742d1d2900bffecf17e85487c830df871653bcdaede223425d2c62ac1b49",
+          "version": "6.3.0-2"
+        },
+        {
+          "depends": [
+            "ca-certificates",
+            "zlib"
+          ],
+          "filename": "pool/main/o/openssl/openssl_1:3.6.2_x86_64.deb",
+          "name": "openssl",
+          "sha256": "f40db6bb1eb45784498211966715657494178b913338fb0b2352b75e47c9f250",
+          "version": "1:3.6.2"
+        },
+        {
+          "depends": [
+            "libnghttp2",
+            "libnghttp3",
+            "libngtcp2",
+            "libssh2",
+            "openssl",
+            "zlib"
+          ],
+          "filename": "pool/main/libc/libcurl/libcurl_8.20.0_x86_64.deb",
+          "name": "libcurl",
+          "sha256": "b8049ecfb0b7dd7d4b3e5ed77b343d567e0005b5b4152b48abc034ef3ac10038",
+          "version": "8.20.0"
+        },
+        {
+          "depends": [
+            "libgmp"
+          ],
+          "filename": "pool/main/libm/libmpfr/libmpfr_4.2.1-1_x86_64.deb",
+          "name": "libmpfr",
+          "sha256": "e960d1f016257264c9d66213a8ba1ad8c3d8b888d0b387537425c6f688a5fb8a",
+          "version": "4.2.1-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libe/libexpat/libexpat_2.8.1_x86_64.deb",
+          "name": "libexpat",
+          "sha256": "6d22dfb591ce92ea3780851db0feee6febfb1acaaed778c45508ee691f6f5bf1",
+          "version": "2.8.1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/p/pcre2/pcre2_10.47_x86_64.deb",
+          "name": "pcre2",
+          "sha256": "8e4fb14ba014f9b2d5e07b6ed9c519b31d00a6e7ddeb5804c3b076a6c841c2fb",
+          "version": "10.47"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/z/zlib/zlib_1.3.2_x86_64.deb",
+          "name": "zlib",
+          "sha256": "c61b089dd30981452f5953b2bad4c4e7857062b2abd971f87fb0aec441bc02f4",
+          "version": "1.3.2"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/n/ncurses/ncurses_6.6.20260307+really6.5.20250830_x86_64.deb",
+          "name": "ncurses",
+          "sha256": "3f30f53c6a41c8450d146d4d42611a44be6ba0a8de1e8bb4dc903109a5fc3ff1",
+          "version": "6.6.20260307+really6.5.20250830"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-spawn/libandroid-spawn_0.3_x86_64.deb",
+          "name": "libandroid-spawn",
+          "sha256": "778b109cb78719faaae0643eee943146a5ab1056bf607036c5ea258636d11868",
+          "version": "0.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libc/libc++/libc++_29_x86_64.deb",
+          "name": "libc++",
+          "sha256": "a4325afa2ecde73742499766e2a46202003e5cb3dcd2b7773ae25f386f3fecfa",
+          "version": "29"
+        },
+        {
+          "depends": [
+            "attr"
+          ],
+          "filename": "pool/main/liba/libacl/libacl_2.3.2_x86_64.deb",
+          "name": "libacl",
+          "sha256": "8a8effd278f7f094281f866cc7ce6147938aa6a03ed27b98ab5f81b8c40e392f",
+          "version": "2.3.2"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-glob/libandroid-glob_0.6-3_x86_64.deb",
+          "name": "libandroid-glob",
+          "sha256": "33b5d2ce934e89d50363e7ea267cea697da937d14de9fcea78cc7271956ef86e",
+          "version": "0.6-3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-posix-semaphore/libandroid-posix-semaphore_0.1-4_x86_64.deb",
+          "name": "libandroid-posix-semaphore",
+          "sha256": "4bde3f8bc00fa59761544593f0606a05e4b449801f1c79038c42ce66988d0eb0",
+          "version": "0.1-4"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libc/libcap-ng/libcap-ng_2:0.9.3_x86_64.deb",
+          "name": "libcap-ng",
+          "sha256": "e57f9fc68636646ac79af757b78d56248c89b431d8ee01a9d7ff8d71dc2abcf6",
+          "version": "2:0.9.3"
+        },
+        {
+          "depends": [
+            "libandroid-posix-semaphore"
+          ],
+          "filename": "pool/main/libs/libsmartcols/libsmartcols_2.41.3_x86_64.deb",
+          "name": "libsmartcols",
+          "sha256": "494d8abbf7932905512196be3908f0a134fc51ecf811bcf10be57a255d5fbc76",
+          "version": "2.41.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libl/liblzma/liblzma_5.8.3_x86_64.deb",
+          "name": "liblzma",
+          "sha256": "f3edc2556a2364b4126b865b0904379a3bd8602d14cd846539110277aea7730e",
+          "version": "5.8.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.03.19_all.deb",
+          "name": "ca-certificates",
+          "sha256": "ce6925a2eae6a8fe205c6cef1ca14aa8fc43e2e4784b15017563ee3f02bcc159",
+          "version": "1:2026.03.19"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libn/libnghttp2/libnghttp2_1.69.0_x86_64.deb",
+          "name": "libnghttp2",
+          "sha256": "1d480a573d8cea288e90bdbf6053ca19c95c58ff65049db7b3ad80c27cffacea",
+          "version": "1.69.0"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libn/libnghttp3/libnghttp3_1.15.0_x86_64.deb",
+          "name": "libnghttp3",
+          "sha256": "d196a1c7959085dbb7d50ae9ac261e5e9ecefc87e67faac4c58479677f9985b6",
+          "version": "1.15.0"
+        },
+        {
+          "depends": [
+            "openssl"
+          ],
+          "filename": "pool/main/libn/libngtcp2/libngtcp2_1.22.1_x86_64.deb",
+          "name": "libngtcp2",
+          "sha256": "531cc70cbdc0296d32d2b8416d6e5565b3db58e59010f34f89f37f4d4ab4ace1",
+          "version": "1.22.1"
+        },
+        {
+          "depends": [
+            "openssl",
+            "zlib"
+          ],
+          "filename": "pool/main/libs/libssh2/libssh2_1.11.1-1_x86_64.deb",
+          "name": "libssh2",
+          "sha256": "b01f0d1a8fdd7416ac1755436ab8c767617c10fdc5f089a01a5de8182125a575",
+          "version": "1.11.1-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/a/attr/attr_2.5.2-1_x86_64.deb",
+          "name": "attr",
+          "sha256": "4af46af73496edad1aa7a0b23feefe57e8d813af76e6cd8161c3b2bf1202723b",
+          "version": "2.5.2-1"
+        }
+      ],
+      "termux_arch": "x86_64"
+    }
+  },
+  "root_packages": [
+    "bash",
+    "busybox",
+    "bzip2",
+    "coreutils",
+    "curl",
+    "diffutils",
+    "findutils",
+    "gawk",
+    "git",
+    "grep",
+    "gzip",
+    "less",
+    "llama-cpp",
+    "procps",
+    "sed",
+    "tar",
+    "util-linux",
+    "xz-utils"
+  ],
+  "termux_main_base_url": "https://packages.termux.dev/apt/termux-main",
+  "version": 1
+}

@@ -14,6 +14,7 @@ val generatedPythonBuildLibDir = repoRoot.resolve("build/lib")
 val hermesWheelDir = layout.buildDirectory.dir("hermes-wheel")
 val generatedHermesLinuxAssetsDir = layout.buildDirectory.dir("generated/hermes-linux-assets")
 val generatedHermesNativeLibsDir = layout.buildDirectory.dir("generated/hermes-native-libs")
+val hermesLinuxAssetLockFile = repoRoot.resolve("hermes_android/termux_linux_assets.lock.json")
 val skipHermesAndroidLinuxAssets = providers.gradleProperty("skipHermesAndroidLinuxAssets")
     .map { it.equals("true", ignoreCase = true) }
     .getOrElse(false)
@@ -263,6 +264,7 @@ val prepareHermesAndroidLinuxAssets = tasks.register<Exec>("prepareHermesAndroid
     group = "android"
     description = "Download and normalize the Android Linux command-suite assets."
     val outputDir = generatedHermesLinuxAssetsDir.get().asFile
+    inputs.file(hermesLinuxAssetLockFile)
     outputs.dir(outputDir)
     doFirst {
         outputDir.mkdirs()
@@ -272,6 +274,8 @@ val prepareHermesAndroidLinuxAssets = tasks.register<Exec>("prepareHermesAndroid
         repoRoot.resolve("scripts/prepare_android_linux_assets.py").absolutePath,
         "--output-dir",
         outputDir.absolutePath,
+        "--lock-file",
+        hermesLinuxAssetLockFile.absolutePath,
     )
 }
 
