@@ -6,6 +6,11 @@ on:
       - feat/termux-install-path
   pull_request:
   workflow_dispatch:
+    inputs:
+      play_registration_snippet:
+        description: Optional Android developer verification snippet for a signed package-ownership APK.
+        required: false
+        type: string
 
 concurrency:
   group: android-${{ github.ref }}
@@ -13,6 +18,7 @@ concurrency:
 
 jobs:
   smoke:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.play_registration_snippet == '' }}
     runs-on: ${{ fromJSON(vars.HERMES_ANDROID_RUNNER || '["ubuntu-latest"]') }}
     timeout-minutes: 20
 
@@ -69,4 +75,146 @@ jobs:
         with:
           name: hermes-agent-android-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  signed-play-verification:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.play_registration_snippet != '' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Python 3.13 for Chaquopy
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Restore signing material
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x android/gradlew
+
+      - name: Build signed Play verification APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          PLAY_REGISTRATION_SNIPPET: ${{ inputs.play_registration_snippet }}
+          SOURCE_DATE_EPOCH: "315532800"
+        run: |
+          work="$RUNNER_TEMP/hermes-play-verification"
+          rm -rf "$work" dist/play-verification
+          mkdir -p "$work/app/src/main/assets" dist/play-verification
+          printf '%s\n' "$PLAY_REGISTRATION_SNIPPET" > "$work/app/src/main/assets/adi-registration.properties"
+
+          cat > "$work/settings.gradle.kts" <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+
+          rootProject.name = "HermesPlayVerification"
+          include(":app")
+          EOF
+
+          cat > "$work/build.gradle.kts" <<'EOF'
+          plugins {
+              id("com.android.application") version "8.9.3" apply false
+          }
+          EOF
+
+          cat > "$work/app/build.gradle.kts" <<'EOF'
+          plugins {
+              id("com.android.application")
+          }
+
+          android {
+              namespace = "com.nousresearch.hermesagent"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "com.nousresearch.hermesagent"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "play-verification"
+              }
+
+              signingConfigs {
+                  create("release") {
+                      storeFile = file(System.getenv("RUNNER_TEMP") + "/release.keystore")
+                      storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                      keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                      keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+                  }
+              }
+
+              buildTypes {
+                  release {
+                      signingConfig = signingConfigs.getByName("release")
+                  }
+              }
+          }
+          EOF
+
+          cat > "$work/app/src/main/AndroidManifest.xml" <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:label="Hermes Agent" />
+          </manifest>
+          EOF
+
+          android/gradlew -p "$work" :app:assembleRelease --no-daemon
+          cp "$work/app/build/outputs/apk/release/app-release.apk" dist/play-verification/hermes-agent-play-verification.apk
+
+      - name: Verify signed Play verification APK
+        env:
+          PLAY_REGISTRATION_SNIPPET: ${{ inputs.play_registration_snippet }}
+        run: |
+          apk="dist/play-verification/hermes-agent-play-verification.apk"
+          test -n "$apk"
+          test "$(stat -c%s "$apk")" -le 167772160
+          unzip -p "$apk" assets/adi-registration.properties | grep -Fx "$PLAY_REGISTRATION_SNIPPET"
+          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
+          "$apksigner" verify --print-certs "$apk"
+
+      - name: Upload signed Play verification APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: hermes-agent-play-verification-apk
+          path: dist/play-verification/hermes-agent-play-verification.apk
           if-no-files-found: error
