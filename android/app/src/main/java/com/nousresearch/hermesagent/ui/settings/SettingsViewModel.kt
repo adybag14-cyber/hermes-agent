@@ -15,6 +15,7 @@ import com.nousresearch.hermesagent.auth.ProviderSetupProbeResult
 import com.nousresearch.hermesagent.auth.ProviderSetupUrlProbe
 import com.nousresearch.hermesagent.data.AppSettings
 import com.nousresearch.hermesagent.data.AppSettingsStore
+import com.nousresearch.hermesagent.data.HermesNetworkPolicy
 import com.nousresearch.hermesagent.data.ProviderPresets
 import com.nousresearch.hermesagent.data.ProviderSetupTarget
 import com.nousresearch.hermesagent.data.SecureSecretsStore
@@ -36,6 +37,7 @@ data class SettingsUiState(
     val model: String = "",
     val apiKey: String = "",
     val dataSaverMode: Boolean = false,
+    val offlineAirplaneMode: Boolean = false,
     val onDeviceBackend: String = BackendKind.NONE.persistedValue,
     val liteRtLmSpeculativeDecodingMode: String = "auto",
     val languageTag: String = AppLanguage.ENGLISH.tag,
@@ -72,6 +74,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             model = stored.model,
             apiKey = "",
             dataSaverMode = stored.dataSaverMode,
+            offlineAirplaneMode = stored.offlineAirplaneMode,
             onDeviceBackend = stored.onDeviceBackend,
             liteRtLmSpeculativeDecodingMode = normalizeSpeculativeDecodingMode(
                 stored.liteRtLmSpeculativeDecodingMode,
@@ -110,6 +113,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateModel(value: String) = _uiState.update { it.copy(model = value) }
     fun updateApiKey(value: String) = _uiState.update { it.copy(apiKey = value) }
     fun updateDataSaverMode(enabled: Boolean) = _uiState.update { it.copy(dataSaverMode = enabled) }
+    fun updateOfflineAirplaneMode(enabled: Boolean) {
+        val existing = settingsStore.load()
+        settingsStore.save(existing.copy(offlineAirplaneMode = enabled))
+        if (enabled) {
+            HermesRuntimeManager.stop()
+        }
+        _uiState.update {
+            it.copy(
+                offlineAirplaneMode = enabled,
+                status = if (enabled) {
+                    "Offline airplane mode is on. Hermes will block portal, provider setup, model downloads, and HTTP automations while local backends and localhost stay available."
+                } else {
+                    "Offline airplane mode is off. Hermes internet features are available again."
+                },
+            )
+        }
+    }
     fun updateLiteRtLmSpeculativeDecodingMode(value: String) = _uiState.update {
         it.copy(liteRtLmSpeculativeDecodingMode = normalizeSpeculativeDecodingMode(value))
     }
@@ -200,6 +220,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(requestedUrl, providerId)
         val setupTarget = resolvedProviderId?.let { nextProviderSetupTarget(it) }
         val targetUrl = setupTarget?.url ?: requestedUrl
+        if (HermesNetworkPolicy.isExternalNetworkBlocked(getApplication(), targetUrl)) {
+            _uiState.update {
+                it.copy(status = HermesNetworkPolicy.offlineBlockedMessage("provider setup page"))
+            }
+            return
+        }
         val uri = Uri.parse(targetUrl)
         if (uri.scheme !in setOf("http", "https")) {
             _uiState.update { it.copy(status = "Provider setup URL must start with https:// or http://") }
@@ -237,6 +263,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(requestedUrl, providerId)
         val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
         val urls = urlsForProviderKeyPage(resolvedProviderId, requestedUrl)
+        if (urls.any { HermesNetworkPolicy.isExternalNetworkBlocked(getApplication(), it) }) {
+            _uiState.update {
+                it.copy(status = HermesNetworkPolicy.offlineBlockedMessage("provider setup check"))
+            }
+            return
+        }
         copyProviderKeyPage(resolvedProviderId.orEmpty(), requestedUrl, updateSuccessStatus = false)
         _uiState.update { it.copy(status = "Checking $providerLabel setup pages from this device...") }
         probeProviderKeyPages(providerLabel, urls)
@@ -252,9 +284,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         if (urls.isEmpty()) {
             return
         }
+        if (urls.any { HermesNetworkPolicy.isExternalNetworkBlocked(getApplication(), it) }) {
+            _uiState.update {
+                it.copy(status = HermesNetworkPolicy.offlineBlockedMessage("provider setup check"))
+            }
+            return
+        }
         viewModelScope.launch {
             val results = withContext(Dispatchers.IO) {
-                urls.map(ProviderSetupUrlProbe::probe)
+                urls.map { url -> ProviderSetupUrlProbe.probe(url, context = getApplication()) }
             }
             val status = providerSetupProbeStatus(providerLabel, results)
             _uiState.update { it.copy(status = status) }
@@ -367,6 +405,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 model = resolvedModel,
                 corr3xtBaseUrl = existingSettings.corr3xtBaseUrl,
                 dataSaverMode = existingSettings.dataSaverMode,
+                offlineAirplaneMode = existingSettings.offlineAirplaneMode,
+                portalEnabled = existingSettings.portalEnabled,
                 onDeviceBackend = existingSettings.onDeviceBackend,
                 liteRtLmSpeculativeDecodingMode = existingSettings.liteRtLmSpeculativeDecodingMode,
                 languageTag = existingSettings.languageTag,
@@ -476,6 +516,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         model = snapshot.model,
                         corr3xtBaseUrl = existingSettings.corr3xtBaseUrl,
                         dataSaverMode = snapshot.dataSaverMode,
+                        offlineAirplaneMode = snapshot.offlineAirplaneMode,
+                        portalEnabled = existingSettings.portalEnabled,
                         onDeviceBackend = snapshot.onDeviceBackend,
                         liteRtLmSpeculativeDecodingMode = snapshot.liteRtLmSpeculativeDecodingMode,
                         languageTag = snapshot.languageTag,
@@ -521,6 +563,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     }
                     val statusMessage = when {
                         useLocalBackend -> "On-device backend ready and Hermes runtime restarted"
+                        snapshot.offlineAirplaneMode -> "${localBackendStatus.statusMessage}. Offline airplane mode kept remote fallback disabled."
                         backendKind != BackendKind.NONE -> "${localBackendStatus.statusMessage}. Hermes stayed on your saved remote provider."
                         parsedCredential.importedFromEnvLine -> "Settings saved, imported ${parsedCredential.sourceLabel} into secure storage, and backend restarted"
                         snapshot.dataSaverMode -> "Settings saved. Data saver mode now keeps heavy downloads on Wi-Fi / unmetered networks."
