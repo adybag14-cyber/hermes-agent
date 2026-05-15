@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 ZIP_TIMESTAMP = (1980, 2, 1, 0, 0, 0)
+PYC_UNCHECKED_HASH_HEADER = (1).to_bytes(4, "little") + (b"\0" * 8)
 
 
 def normalize_build_json(path: Path) -> None:
@@ -28,7 +29,7 @@ def normalize_pyc(payload: bytes) -> bytes:
         code = marshal.loads(payload[16:])
     except Exception:
         return payload
-    return payload[:16] + marshal.dumps(code, 2)
+    return payload[:4] + PYC_UNCHECKED_HASH_HEADER + marshal.dumps(code, 2)
 
 
 def normalize_requirements_imy(path: Path) -> None:
