@@ -1,8 +1,19 @@
+import importlib.util
+import marshal
 from pathlib import Path
 import tomllib
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _load_chaquopy_normalizer():
+    script_path = REPO_ROOT / "scripts/normalize_chaquopy_assets.py"
+    spec = importlib.util.spec_from_file_location("normalize_chaquopy_assets", script_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_chaquopy_build_preinstalls_android_stubs():
@@ -30,7 +41,31 @@ def test_chaquopy_asset_normalizer_removes_local_install_urls_and_canonicalizes_
 
     assert 'name.endswith(".dist-info/direct_url.json")' in script
     assert "marshal.dumps(code, 2)" in script
+    assert "PYC_UNCHECKED_HASH_HEADER" in script
     assert "zipfile.ZIP_STORED" in script
+
+
+def test_chaquopy_pyc_normalizer_rewrites_invalidation_header():
+    normalizer = _load_chaquopy_normalizer()
+    code = compile("value = 1\n", "module.py", "exec")
+    body = marshal.dumps(code, 2)
+    magic = importlib.util.MAGIC_NUMBER
+    timestamp_pyc = (
+        magic
+        + (0).to_bytes(4, "little")
+        + (123).to_bytes(4, "little")
+        + (10).to_bytes(4, "little")
+        + body
+    )
+    checked_hash_pyc = magic + (3).to_bytes(4, "little") + b"12345678" + body
+
+    normalized_timestamp = normalizer.normalize_pyc(timestamp_pyc)
+    normalized_checked_hash = normalizer.normalize_pyc(checked_hash_pyc)
+
+    assert normalized_timestamp == normalized_checked_hash
+    assert normalized_timestamp[:4] == magic
+    assert normalized_timestamp[4:8] == (1).to_bytes(4, "little")
+    assert normalized_timestamp[8:16] == b"\0" * 8
 
 
 def test_android_wheel_includes_iteration_limits_module():
