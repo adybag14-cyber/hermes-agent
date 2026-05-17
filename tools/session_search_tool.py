@@ -12,7 +12,8 @@ keeping the main model's context window clean.
 Flow:
   1. FTS5 search finds matching messages ranked by relevance
   2. Groups by session, takes the top N unique sessions (default 3)
-  3. Loads each session's conversation, truncates to ~100k chars centered on matches
+  3. Builds focused excerpts from the FTS snippets/context instead of loading
+     the full session transcript up front
   4. Sends to the configured auxiliary model with a focused summarization prompt
   5. Returns per-session summaries with metadata
 """
@@ -69,7 +70,6 @@ def _format_timestamp(ts: Union[int, float, str, None]) -> str:
                 return dt.strftime("%B %d, %Y at %I:%M %p")
             return ts
     except (ValueError, OSError, OverflowError) as e:
-        # Log specific errors for debugging while gracefully handling edge cases
         logging.debug("Failed to format timestamp %s: %s", ts, e, exc_info=True)
     except Exception as e:
         logging.debug("Unexpected error formatting timestamp %s: %s", ts, e, exc_info=True)
@@ -85,12 +85,10 @@ def _format_conversation(messages: List[Dict[str, Any]]) -> str:
         tool_name = msg.get("tool_name")
 
         if role == "TOOL" and tool_name:
-            # Truncate long tool outputs
             if len(content) > 500:
                 content = content[:250] + "\n...[truncated]...\n" + content[-250:]
             parts.append(f"[TOOL:{tool_name}]: {content}")
         elif role == "ASSISTANT":
-            # Include tool call names if present
             tool_calls = msg.get("tool_calls")
             if tool_calls and isinstance(tool_calls, list):
                 tc_names = []
@@ -108,6 +106,82 @@ def _format_conversation(messages: List[Dict[str, Any]]) -> str:
             parts.append(f"[{role}]: {content}")
 
     return "\n\n".join(parts)
+
+
+def _format_search_context(context: Any) -> str:
+    """Normalize db.search_messages() context into transcript-like text."""
+    if isinstance(context, str):
+        return context.strip()
+
+    if not isinstance(context, list):
+        return ""
+
+    parts = []
+    for item in context:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role", "unknown")).upper()
+        content = item.get("content") or ""
+        if not content:
+            continue
+        parts.append(f"[{role}]: {content}")
+
+    return "\n\n".join(parts)
+
+
+def _build_search_excerpt(
+    match_rows: List[Dict[str, Any]], query: str, max_chars: int = MAX_SESSION_CHARS
+) -> str:
+    """Build a compact summarization corpus from ranked FTS hit windows.
+
+    search_messages() already returns a match snippet plus nearby-message context.
+    Re-using those windows avoids formatting entire long sessions before we know
+    what parts are relevant to the query.
+    """
+    sections = []
+    seen_blocks = set()
+
+    for idx, row in enumerate(match_rows, start=1):
+        snippet = str(row.get("snippet") or "").strip()
+        context = _format_search_context(row.get("context"))
+        content = str(row.get("content") or "").strip()
+
+        block_parts = []
+        if snippet:
+            block_parts.append(f"Match snippet:\n{snippet}")
+        if context:
+            block_parts.append(f"Nearby conversation:\n{context}")
+        elif content:
+            block_parts.append(f"Matched message:\n{content}")
+
+        if not block_parts:
+            continue
+
+        block = f"[MATCH {idx}]\n" + "\n\n".join(block_parts)
+        normalized = re.sub(r"\s+", " ", block).strip().lower()
+        if normalized in seen_blocks:
+            continue
+        seen_blocks.add(normalized)
+
+        candidate = "\n\n".join(sections + [block]) if sections else block
+        if len(candidate) > max_chars:
+            break
+        sections.append(block)
+
+    if not sections:
+        return ""
+
+    excerpt = (
+        f"Search query: {query}\n"
+        "Conversation excerpts around the strongest full-text matches:\n\n"
+        + "\n\n".join(sections)
+    )
+
+    if len(excerpt) <= max_chars:
+        return excerpt
+
+    suffix = "\n\n...[additional matches truncated]..."
+    return excerpt[: max_chars - len(suffix)] + suffix
 
 
 def _truncate_around_matches(
@@ -133,21 +207,17 @@ def _truncate_around_matches(
     query_lower = query.lower().strip()
     match_positions: list[int] = []
 
-    # --- 1. Full-phrase search ------------------------------------------------
     phrase_pat = re.compile(re.escape(query_lower))
     match_positions = [m.start() for m in phrase_pat.finditer(text_lower)]
 
-    # --- 2. Proximity co-occurrence of all terms (within 200 chars) -----------
     if not match_positions:
         terms = query_lower.split()
         if len(terms) > 1:
-            # Collect every occurrence of each term
             term_positions: dict[str, list[int]] = {}
             for t in terms:
                 term_positions[t] = [
                     m.start() for m in re.finditer(re.escape(t), text_lower)
                 ]
-            # Slide through positions of the rarest term and check proximity
             rarest = min(terms, key=lambda t: len(term_positions.get(t, [])))
             for pos in term_positions.get(rarest, []):
                 if all(
@@ -157,7 +227,6 @@ def _truncate_around_matches(
                 ):
                     match_positions.append(pos)
 
-    # --- 3. Individual term positions (last resort) ---------------------------
     if not match_positions:
         terms = query_lower.split()
         for t in terms:
@@ -165,18 +234,16 @@ def _truncate_around_matches(
                 match_positions.append(m.start())
 
     if not match_positions:
-        # Nothing at all — take from the start
         truncated = full_text[:max_chars]
         suffix = "\n\n...[later conversation truncated]..." if max_chars < len(full_text) else ""
         return truncated + suffix
 
-    # --- Pick window that covers the most match positions ---------------------
     match_positions.sort()
 
     best_start = 0
     best_count = 0
     for candidate in match_positions:
-        ws = max(0, candidate - max_chars // 4)  # bias: 25% before, 75% after
+        ws = max(0, candidate - max_chars // 4)
         we = ws + max_chars
         if we > len(full_text):
             ws = max(0, len(full_text) - max_chars)
@@ -218,7 +285,7 @@ async def _summarize_session(
         f"Search topic: {query}\n"
         f"Session source: {source}\n"
         f"Session date: {started}\n\n"
-        f"CONVERSATION TRANSCRIPT:\n{conversation_text}\n\n"
+        f"CONVERSATION CONTEXT:\n{conversation_text}\n\n"
         f"Summarize this conversation with focus on: {query}"
     )
 
@@ -237,7 +304,6 @@ async def _summarize_session(
             content = extract_content_or_reasoning(response)
             if content:
                 return content
-            # Reasoning-only / empty — let the retry loop handle it
             logging.warning("Session search LLM returned empty content (attempt %d/%d)", attempt + 1, max_retries)
             if attempt < max_retries - 1:
                 await asyncio.sleep(1 * (attempt + 1))
@@ -259,9 +325,6 @@ async def _summarize_session(
                 return None
 
 
-# Sources that are excluded from session browsing/searching by default.
-# Third-party integrations (Paperclip agents, etc.) tag their sessions with
-# HERMES_SESSION_SOURCE=tool so they don't clutter the user's session history.
 _HIDDEN_SESSION_SOURCES = ("tool",)
 
 
@@ -272,9 +335,8 @@ def _list_recent_sessions(db, limit: int, current_session_id: str = None) -> str
             limit=limit + 5,
             exclude_sources=list(_HIDDEN_SESSION_SOURCES),
             order_by_last_active=True,
-        )  # fetch extra to skip current
+        )
 
-        # Resolve current session lineage to exclude it
         current_root = None
         if current_session_id:
             try:
@@ -295,7 +357,6 @@ def _list_recent_sessions(db, limit: int, current_session_id: str = None) -> str
             sid = s.get("id", "")
             if current_root and (sid == current_root or sid == current_session_id):
                 continue
-            # Skip child/delegation sessions (they have parent_session_id)
             if s.get("parent_session_id"):
                 continue
             results.append({
@@ -346,35 +407,28 @@ def session_search(
             from hermes_state import format_session_db_unavailable
             return tool_error(format_session_db_unavailable(), success=False)
 
-    # Defensive: models (especially open-source) may send non-int limit values
-    # (None when JSON null, string "int", or even a type object).  Coerce to a
-    # safe integer before any arithmetic/comparison to prevent TypeError.
     if not isinstance(limit, int):
         try:
             limit = int(limit)
         except (TypeError, ValueError):
             limit = 3
-    limit = max(1, min(limit, 5))  # Clamp to [1, 5]
+    limit = max(1, min(limit, 5))
 
-    # Recent sessions mode: when query is empty, return metadata for recent sessions.
-    # No LLM calls — just DB queries for titles, previews, timestamps.
     if not query or not query.strip():
         return _list_recent_sessions(db, limit, current_session_id)
 
     query = query.strip()
 
     try:
-        # Parse role filter
         role_list = None
         if role_filter and role_filter.strip():
             role_list = [r.strip() for r in role_filter.split(",") if r.strip()]
 
-        # FTS5 search -- get matches ranked by relevance
         raw_results = db.search_messages(
             query=query,
             role_filter=role_list,
             exclude_sources=list(_HIDDEN_SESSION_SOURCES),
-            limit=50,  # Get more matches to find unique sessions
+            limit=50,
             offset=0,
         )
 
@@ -387,10 +441,7 @@ def session_search(
                 "message": "No matching sessions found.",
             }, ensure_ascii=False)
 
-        # Resolve child sessions to their parent — delegation stores detailed
-        # content in child sessions, but the user's conversation is the parent.
         def _resolve_to_parent(session_id: str) -> str:
-            """Walk delegation chain to find the root parent session ID."""
             visited = set()
             sid = session_id
             while sid and sid not in visited:
@@ -418,36 +469,53 @@ def session_search(
             _resolve_to_parent(current_session_id) if current_session_id else None
         )
 
-        # Group by resolved (parent) session_id, dedup, skip the current
-        # session lineage. Compression and delegation create child sessions
-        # that still belong to the same active conversation.
-        seen_sessions = {}
+        seen_sessions: Dict[str, Dict[str, Any]] = {}
         for result in raw_results:
             raw_sid = result["session_id"]
             resolved_sid = _resolve_to_parent(raw_sid)
-            # Skip the current session lineage — the agent already has that
-            # context, even if older turns live in parent fragments.
             if current_lineage_root and resolved_sid == current_lineage_root:
                 continue
             if current_session_id and raw_sid == current_session_id:
                 continue
-            if resolved_sid not in seen_sessions:
-                result = dict(result)
-                result["session_id"] = resolved_sid
-                seen_sessions[resolved_sid] = result
-            if len(seen_sessions) >= limit:
-                break
 
-        # Prepare all sessions for parallel summarization
-        tasks = []
-        for session_id, match_info in seen_sessions.items():
-            try:
-                messages = db.get_messages_as_conversation(session_id)
-                if not messages:
+            bucket = seen_sessions.get(resolved_sid)
+            if bucket is None:
+                if len(seen_sessions) >= limit:
                     continue
+                match_result = dict(result)
+                match_result["matched_session_id"] = raw_sid
+                match_result["session_id"] = resolved_sid
+                seen_sessions[resolved_sid] = {
+                    "match_info": match_result,
+                    "matches": [match_result],
+                }
+                continue
+
+            if len(bucket["matches"]) >= 5:
+                continue
+
+            match_result = dict(result)
+            match_result["matched_session_id"] = raw_sid
+            match_result["session_id"] = resolved_sid
+            bucket["matches"].append(match_result)
+
+        tasks = []
+        for session_id, session_bucket in seen_sessions.items():
+            match_info = session_bucket["match_info"]
+            session_matches = session_bucket["matches"]
+            try:
                 session_meta = db.get_session(session_id) or {}
-                conversation_text = _format_conversation(messages)
-                conversation_text = _truncate_around_matches(conversation_text, query)
+                conversation_text = _build_search_excerpt(session_matches, query)
+                if not conversation_text:
+                    matched_session_id = match_info.get("matched_session_id") or session_id
+                    messages = db.get_messages_as_conversation(
+                        matched_session_id,
+                        include_ancestors=matched_session_id != session_id,
+                    )
+                    if not messages:
+                        continue
+                    conversation_text = _format_conversation(messages)
+                    conversation_text = _truncate_around_matches(conversation_text, query)
                 tasks.append((session_id, match_info, conversation_text, session_meta))
             except Exception as e:
                 logging.warning(
@@ -457,9 +525,7 @@ def session_search(
                     exc_info=True,
                 )
 
-        # Summarize all sessions in parallel
         async def _summarize_all() -> List[Union[str, Exception]]:
-            """Summarize all sessions with bounded concurrency."""
             max_concurrency = min(_get_session_search_max_concurrency(), max(1, len(tasks)))
             semaphore = asyncio.Semaphore(max_concurrency)
 
@@ -474,12 +540,6 @@ def session_search(
             return await asyncio.gather(*coros, return_exceptions=True)
 
         try:
-            # Use _run_async() which properly manages event loops across
-            # CLI, gateway, and worker-thread contexts.  The previous
-            # pattern (asyncio.run() in a ThreadPoolExecutor) created a
-            # disposable event loop that conflicted with cached
-            # AsyncOpenAI/httpx clients bound to a different loop,
-            # causing deadlocks in gateway mode (#2681).
             from model_tools import _run_async
             results = _run_async(_summarize_all())
         except concurrent.futures.TimeoutError:
@@ -501,11 +561,6 @@ def session_search(
                 )
                 result = None
 
-            # Prefer resolved parent session metadata over FTS5 match metadata.
-            # match_info carries source/model from the *child* session that contained
-            # the FTS5 hit; after _resolve_to_parent() the session_id points to the
-            # root, so session_meta has the authoritative platform/source for the
-            # session the user actually cares about (#15909).
             entry = {
                 "session_id": session_id,
                 "when": _format_timestamp(
@@ -518,8 +573,6 @@ def session_search(
             if result:
                 entry["summary"] = result
             else:
-                # Fallback: raw preview so matched sessions aren't silently
-                # dropped when the summarizer is unavailable (fixes #3409).
                 preview = (conversation_text[:500] + "\n…[truncated]") if conversation_text else "No preview available."
                 entry["summary"] = f"[Raw preview — summarization unavailable]\n{preview}"
 
@@ -594,7 +647,6 @@ SESSION_SEARCH_SCHEMA = {
 }
 
 
-# --- Registry ---
 from tools.registry import registry, tool_error
 
 registry.register(
