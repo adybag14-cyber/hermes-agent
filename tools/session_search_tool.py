@@ -25,29 +25,80 @@ import re
 from typing import Dict, Any, List, Optional, Union
 
 from agent.auxiliary_client import async_call_llm, extract_content_or_reasoning
+
 MAX_SESSION_CHARS = 100_000
 MAX_SUMMARY_TOKENS = 10000
 
 
-def _get_session_search_max_concurrency(default: int = 3) -> int:
-    """Read auxiliary.session_search.max_concurrency with sane bounds."""
+def _get_session_search_int(
+    key: str,
+    default: int,
+    *,
+    min_value: int = 0,
+    max_value: Optional[int] = None,
+) -> int:
+    """Read an integer auxiliary.session_search override with bounds."""
     try:
         from hermes_cli.config import load_config
+
         config = load_config()
     except ImportError:
         return default
+
     aux = config.get("auxiliary", {}) if isinstance(config, dict) else {}
     task_config = aux.get("session_search", {}) if isinstance(aux, dict) else {}
     if not isinstance(task_config, dict):
         return default
-    raw = task_config.get("max_concurrency")
+
+    raw = task_config.get(key)
     if raw is None:
         return default
+
     try:
         value = int(raw)
     except (TypeError, ValueError):
         return default
-    return max(1, min(value, 5))
+
+    value = max(min_value, value)
+    if max_value is not None:
+        value = min(value, max_value)
+    return value
+
+
+def _get_session_search_max_concurrency(default: int = 3) -> int:
+    """Read auxiliary.session_search.max_concurrency with sane bounds."""
+    return _get_session_search_int(
+        "max_concurrency",
+        default,
+        min_value=1,
+        max_value=5,
+    )
+
+
+def _get_session_search_default_limit(default: int = 3) -> int:
+    """Read auxiliary.session_search.default_limit with the public tool bounds."""
+    return _get_session_search_int(
+        "default_limit",
+        default,
+        min_value=1,
+        max_value=5,
+    )
+
+
+def _get_session_search_max_attempts(default: int = 3) -> int:
+    """Read auxiliary.session_search.max_retries with 0 meaning no retries.
+
+    Historically the tool used a hard-coded 3-attempt loop. Preserve that
+    default, but allow operators to set 0 so slow local backends get a single
+    attempt without retry amplification.
+    """
+    attempts = _get_session_search_int(
+        "max_retries",
+        default,
+        min_value=0,
+        max_value=5,
+    )
+    return 1 if attempts == 0 else attempts
 
 
 def _format_timestamp(ts: Union[int, float, str, None]) -> str:
@@ -60,11 +111,13 @@ def _format_timestamp(ts: Union[int, float, str, None]) -> str:
     try:
         if isinstance(ts, (int, float)):
             from datetime import datetime
+
             dt = datetime.fromtimestamp(ts)
             return dt.strftime("%B %d, %Y at %I:%M %p")
         if isinstance(ts, str):
             if ts.replace(".", "").replace("-", "").isdigit():
                 from datetime import datetime
+
                 dt = datetime.fromtimestamp(float(ts))
                 return dt.strftime("%B %d, %Y at %I:%M %p")
             return ts
@@ -196,7 +249,12 @@ def _truncate_around_matches(
 
 
 async def _summarize_session(
-    conversation_text: str, query: str, session_meta: Dict[str, Any]
+    conversation_text: str,
+    query: str,
+    session_meta: Dict[str, Any],
+    *,
+    max_summary_tokens: Optional[int] = None,
+    max_retries: Optional[int] = None,
 ) -> Optional[str]:
     """Summarize a single session conversation focused on the search query."""
     system_prompt = (
@@ -222,8 +280,18 @@ async def _summarize_session(
         f"Summarize this conversation with focus on: {query}"
     )
 
-    max_retries = 3
-    for attempt in range(max_retries):
+    if max_summary_tokens is None:
+        max_summary_tokens = _get_session_search_int(
+            "max_summary_tokens",
+            MAX_SUMMARY_TOKENS,
+            min_value=128,
+            max_value=32000,
+        )
+    if max_retries is None:
+        max_retries = _get_session_search_max_attempts()
+
+    attempt_limit = max(1, max_retries)
+    for attempt in range(attempt_limit):
         try:
             response = await async_call_llm(
                 task="session_search",
@@ -232,14 +300,18 @@ async def _summarize_session(
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.1,
-                max_tokens=MAX_SUMMARY_TOKENS,
+                max_tokens=max_summary_tokens,
             )
             content = extract_content_or_reasoning(response)
             if content:
                 return content
             # Reasoning-only / empty — let the retry loop handle it
-            logging.warning("Session search LLM returned empty content (attempt %d/%d)", attempt + 1, max_retries)
-            if attempt < max_retries - 1:
+            logging.warning(
+                "Session search LLM returned empty content (attempt %d/%d)",
+                attempt + 1,
+                attempt_limit,
+            )
+            if attempt < attempt_limit - 1:
                 await asyncio.sleep(1 * (attempt + 1))
                 continue
             return content
@@ -247,12 +319,12 @@ async def _summarize_session(
             logging.warning("No auxiliary model available for session summarization")
             return None
         except Exception as e:
-            if attempt < max_retries - 1:
+            if attempt < attempt_limit - 1:
                 await asyncio.sleep(1 * (attempt + 1))
             else:
                 logging.warning(
                     "Session summarization failed after %d attempts: %s",
-                    max_retries,
+                    attempt_limit,
                     e,
                     exc_info=True,
                 )
@@ -298,25 +370,30 @@ def _list_recent_sessions(db, limit: int, current_session_id: str = None) -> str
             # Skip child/delegation sessions (they have parent_session_id)
             if s.get("parent_session_id"):
                 continue
-            results.append({
-                "session_id": sid,
-                "title": s.get("title") or None,
-                "source": s.get("source", ""),
-                "started_at": s.get("started_at", ""),
-                "last_active": s.get("last_active", ""),
-                "message_count": s.get("message_count", 0),
-                "preview": s.get("preview", ""),
-            })
+            results.append(
+                {
+                    "session_id": sid,
+                    "title": s.get("title") or None,
+                    "source": s.get("source", ""),
+                    "started_at": s.get("started_at", ""),
+                    "last_active": s.get("last_active", ""),
+                    "message_count": s.get("message_count", 0),
+                    "preview": s.get("preview", ""),
+                }
+            )
             if len(results) >= limit:
                 break
 
-        return json.dumps({
-            "success": True,
-            "mode": "recent",
-            "results": results,
-            "count": len(results),
-            "message": f"Showing {len(results)} most recent sessions. Use a keyword query to search specific topics.",
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": True,
+                "mode": "recent",
+                "results": results,
+                "count": len(results),
+                "message": f"Showing {len(results)} most recent sessions. Use a keyword query to search specific topics.",
+            },
+            ensure_ascii=False,
+        )
     except Exception as e:
         logging.error("Error listing recent sessions: %s", e, exc_info=True)
         return tool_error(f"Failed to list recent sessions: {e}", success=False)
@@ -325,7 +402,7 @@ def _list_recent_sessions(db, limit: int, current_session_id: str = None) -> str
 def session_search(
     query: str,
     role_filter: str = None,
-    limit: int = 3,
+    limit: Optional[int] = 3,
     db=None,
     current_session_id: str = None,
 ) -> str:
@@ -344,16 +421,19 @@ def session_search(
         except Exception:
             logging.debug("SessionDB unavailable for session_search", exc_info=True)
             from hermes_state import format_session_db_unavailable
+
             return tool_error(format_session_db_unavailable(), success=False)
 
+    default_limit = _get_session_search_default_limit()
+
     # Defensive: models (especially open-source) may send non-int limit values
-    # (None when JSON null, string "int", or even a type object).  Coerce to a
+    # (None when JSON null, string "int", or even a type object). Coerce to a
     # safe integer before any arithmetic/comparison to prevent TypeError.
     if not isinstance(limit, int):
         try:
             limit = int(limit)
         except (TypeError, ValueError):
-            limit = 3
+            limit = default_limit
     limit = max(1, min(limit, 5))  # Clamp to [1, 5]
 
     # Recent sessions mode: when query is empty, return metadata for recent sessions.
@@ -379,13 +459,16 @@ def session_search(
         )
 
         if not raw_results:
-            return json.dumps({
-                "success": True,
-                "query": query,
-                "results": [],
-                "count": 0,
-                "message": "No matching sessions found.",
-            }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "success": True,
+                    "query": query,
+                    "results": [],
+                    "count": 0,
+                    "message": "No matching sessions found.",
+                },
+                ensure_ascii=False,
+            )
 
         # Resolve child sessions to their parent — delegation stores detailed
         # content in child sessions, but the user's conversation is the parent.
@@ -438,6 +521,12 @@ def session_search(
             if len(seen_sessions) >= limit:
                 break
 
+        max_session_chars = _get_session_search_int(
+            "max_session_chars",
+            MAX_SESSION_CHARS,
+            min_value=1000,
+        )
+
         # Prepare all sessions for parallel summarization
         tasks = []
         for session_id, match_info in seen_sessions.items():
@@ -447,7 +536,11 @@ def session_search(
                     continue
                 session_meta = db.get_session(session_id) or {}
                 conversation_text = _format_conversation(messages)
-                conversation_text = _truncate_around_matches(conversation_text, query)
+                conversation_text = _truncate_around_matches(
+                    conversation_text,
+                    query,
+                    max_chars=max_session_chars,
+                )
                 tasks.append((session_id, match_info, conversation_text, session_meta))
             except Exception as e:
                 logging.warning(
@@ -457,6 +550,14 @@ def session_search(
                     exc_info=True,
                 )
 
+        max_summary_tokens = _get_session_search_int(
+            "max_summary_tokens",
+            MAX_SUMMARY_TOKENS,
+            min_value=128,
+            max_value=32000,
+        )
+        max_summary_attempts = _get_session_search_max_attempts()
+
         # Summarize all sessions in parallel
         async def _summarize_all() -> List[Union[str, Exception]]:
             """Summarize all sessions with bounded concurrency."""
@@ -465,39 +566,50 @@ def session_search(
 
             async def _bounded_summary(text: str, meta: Dict[str, Any]) -> Optional[str]:
                 async with semaphore:
-                    return await _summarize_session(text, query, meta)
+                    return await _summarize_session(
+                        text,
+                        query,
+                        meta,
+                        max_summary_tokens=max_summary_tokens,
+                        max_retries=max_summary_attempts,
+                    )
 
-            coros = [
-                _bounded_summary(text, meta)
-                for _, _, text, meta in tasks
-            ]
+            coros = [_bounded_summary(text, meta) for _, _, text, meta in tasks]
             return await asyncio.gather(*coros, return_exceptions=True)
 
         try:
             # Use _run_async() which properly manages event loops across
-            # CLI, gateway, and worker-thread contexts.  The previous
+            # CLI, gateway, and worker-thread contexts. The previous
             # pattern (asyncio.run() in a ThreadPoolExecutor) created a
             # disposable event loop that conflicted with cached
             # AsyncOpenAI/httpx clients bound to a different loop,
             # causing deadlocks in gateway mode (#2681).
             from model_tools import _run_async
+
             results = _run_async(_summarize_all())
         except concurrent.futures.TimeoutError:
             logging.warning(
                 "Session summarization timed out after 60 seconds",
                 exc_info=True,
             )
-            return json.dumps({
-                "success": False,
-                "error": "Session summarization timed out. Try a more specific query or reduce the limit.",
-            }, ensure_ascii=False)
+            return json.dumps(
+                {
+                    "success": False,
+                    "error": "Session summarization timed out. Try a more specific query or reduce the limit.",
+                },
+                ensure_ascii=False,
+            )
 
         summaries = []
-        for (session_id, match_info, conversation_text, session_meta), result in zip(tasks, results):
+        for (session_id, match_info, conversation_text, session_meta), result in zip(
+            tasks, results
+        ):
             if isinstance(result, Exception):
                 logging.warning(
                     "Failed to summarize session %s: %s",
-                    session_id, result, exc_info=True,
+                    session_id,
+                    result,
+                    exc_info=True,
                 )
                 result = None
 
@@ -511,7 +623,8 @@ def session_search(
                 "when": _format_timestamp(
                     session_meta.get("started_at") or match_info.get("session_started")
                 ),
-                "source": session_meta.get("source") or match_info.get("source", "unknown"),
+                "source": session_meta.get("source")
+                or match_info.get("source", "unknown"),
                 "model": session_meta.get("model") or match_info.get("model"),
             }
 
@@ -520,18 +633,27 @@ def session_search(
             else:
                 # Fallback: raw preview so matched sessions aren't silently
                 # dropped when the summarizer is unavailable (fixes #3409).
-                preview = (conversation_text[:500] + "\n…[truncated]") if conversation_text else "No preview available."
-                entry["summary"] = f"[Raw preview — summarization unavailable]\n{preview}"
+                preview = (
+                    conversation_text[:500] + "\n…[truncated]"
+                    if conversation_text
+                    else "No preview available."
+                )
+                entry["summary"] = (
+                    f"[Raw preview — summarization unavailable]\n{preview}"
+                )
 
             summaries.append(entry)
 
-        return json.dumps({
-            "success": True,
-            "query": query,
-            "results": summaries,
-            "count": len(summaries),
-            "sessions_searched": len(seen_sessions),
-        }, ensure_ascii=False)
+        return json.dumps(
+            {
+                "success": True,
+                "query": query,
+                "results": summaries,
+                "count": len(summaries),
+                "sessions_searched": len(seen_sessions),
+            },
+            ensure_ascii=False,
+        )
 
     except Exception as e:
         logging.error("Session search failed: %s", e, exc_info=True)
@@ -542,6 +664,7 @@ def check_session_search_requirements() -> bool:
     """Requires SQLite state database and an auxiliary text model."""
     try:
         from hermes_state import DEFAULT_DB_PATH
+
         return DEFAULT_DB_PATH.parent.exists()
     except ImportError:
         return False
@@ -604,9 +727,10 @@ registry.register(
     handler=lambda args, **kw: session_search(
         query=args.get("query") or "",
         role_filter=args.get("role_filter"),
-        limit=args.get("limit", 3),
+        limit=args.get("limit"),
         db=kw.get("db"),
-        current_session_id=kw.get("current_session_id")),
+        current_session_id=kw.get("current_session_id"),
+    ),
     check_fn=check_session_search_requirements,
     emoji="🔍",
 )
