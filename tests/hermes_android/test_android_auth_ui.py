@@ -90,9 +90,12 @@ def test_provider_presets_include_chatgpt_claude_gemini_qwen_and_zai():
     assert 'apiKeyUrl = "https://openrouter.ai/settings/keys"' in presets
     assert 'https://openrouter.ai/keys' in presets
     assert 'apiKeyUrl = "https://platform.openai.com/settings/organization/api-keys"' in presets
-    assert 'apiKeyUrl = "https://docs.qwencloud.com/api-reference/preparation/api-key"' in presets
+    assert 'apiKeyUrl = "https://docs.qwencloud.com/developer-guides/administration/api-keys"' in presets
+    assert 'https://modelstudio.console.alibabacloud.com/?tab=playground' in presets
+    assert 'https://www.alibabacloud.com/help/en/model-studio/get-api-key' in presets
     assert 'https://home.qwencloud.com/api-keys' in presets
-    assert 'apiKeyUrl = "https://docs.qwencloud.com/coding-plan/tools/cline"' in presets
+    assert 'https://www.alibabacloud.com/help/en/model-studio/coding-plan' in presets
+    assert 'https://docs.qwencloud.com/coding-plan/tools/cline' in presets
     assert 'apiKeyUrl = "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/"' in presets
     assert 'apiKeyUrl = "https://z.ai/manage-apikey/apikey-list"' in presets
     assert 'fallbackSetupUrls = listOf(' in presets
@@ -105,7 +108,7 @@ def test_provider_presets_include_chatgpt_claude_gemini_qwen_and_zai():
     assert 'fun setupTarget(providerId: String, requestedIndex: Int): ProviderSetupTarget?' in presets
     assert 'private fun Int.floorMod(divisor: Int): Int' in presets
     assert 'fun setupClipboardText(providerId: String): String' in presets
-    assert 'fun providerIdForSetupUrl(url: String): String?' in presets
+    assert 'fun providerIdForSetupUrl(url: String, preferredProviderId: String = ""): String?' in presets
     assert 'fun runtimeConfigBaseUrl(providerId: String, baseUrl: String): String' in presets
     assert 'fun apiKeyEnvVars(providerId: String): List<String>' in presets
     assert 'fun parseCredentialInput(providerId: String, input: String): ParsedProviderCredential' in presets
@@ -147,9 +150,8 @@ def test_auth_callback_hardening_strings_and_base_url_validation_exist():
     assert 'currentStrings().authOpenedCorr3xt(option.label)' in auth_view_model
     assert 'HermesExternalBrowserLauncher.open' in auth_view_model
     open_auth_start_page = auth_view_model.split("private fun openAuthStartPage", 1)[1].split("fun copyPendingSignInUrl", 1)[0]
-    assert "preferInApp" not in open_auth_start_page
+    assert "return HermesExternalBrowserLauncher.open" in open_auth_start_page
     assert "HermesProviderSetupWebActivity.openInApp" not in open_auth_start_page
-    assert "HermesExternalBrowserLauncher.open" in open_auth_start_page
     assert 'Intent.createChooser' in browser_launcher
     assert 'putExtra(Browser.EXTRA_APPLICATION_ID' in browser_launcher
     assert 'copyAuthStartUrl(pendingRequest.startUrl, updateStatus = false)' in auth_view_model
@@ -233,15 +235,16 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert "providerSetupUrl = ProviderPresets.find(option.runtimeProvider)?.apiKeyUrl.orEmpty()" in auth_view_model
     assert "fun openProviderSetupPage(methodId: String)" in auth_view_model
     assert "fun checkProviderSetupPages(methodId: String)" in auth_view_model
-    assert "probeProviderSetupPages(option.label, option.runtimeProvider)" in auth_view_model
     assert "ProviderSetupUrlProbe::probe" in auth_view_model
     assert "data class ProviderSetupProbeResult" in provider_setup_probe
     assert "object ProviderSetupUrlProbe" in provider_setup_probe
     assert "Checking ${option.label} setup pages from this device" in auth_view_model
     assert "setup is reachable from Hermes" in auth_view_model
-    assert "No $optionLabel setup page responded from Hermes" in auth_view_model
+    assert "No ${option.label} setup page responded from Hermes" in auth_view_model
     assert "const val DEFAULT_TIMEOUT_MS = 6_000" in provider_setup_probe
     assert "const val MAX_STATUS_LENGTH = 900" in provider_setup_probe
+    assert "mobileUnsupportedPhrases" in provider_setup_probe
+    assert "mobile unsupported page" in provider_setup_probe
     assert 'setRequestProperty("User-Agent", "HermesAgentAndroidProviderSetup/1.0")' in provider_setup_probe
     assert "ProviderSetupUrlProbe.MAX_STATUS_LENGTH" in auth_view_model
     assert "private val providerSetupOpenIndexes = mutableMapOf<String, Int>()" in auth_view_model
@@ -276,8 +279,8 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert 'status = "Signed in with OpenRouter OAuth and saved the API key securely."' in openrouter_oauth
     assert "const val DEFAULT_PORT = 3000" in openrouter_loopback
     assert 'scheme("http")' in openrouter_loopback
-    assert 'encodedAuthority("$CALLBACK_HOST:$port")' in openrouter_loopback
-    assert 'private const val CALLBACK_HOST = "localhost"' in openrouter_loopback
+    assert 'encodedAuthority("$CALLBACK_URL_HOST:$port")' in openrouter_loopback
+    assert 'private const val CALLBACK_HOST = "127.0.0.1"' in openrouter_loopback
     assert 'private const val CALLBACK_PATH = "/hermes/openrouter/callback"' in openrouter_loopback
     assert "OpenRouterOAuthClient.exchangeCallbackForSession" in openrouter_loopback
     assert "AuthRuntimeApplier.apply(context, session)" in openrouter_loopback
@@ -308,10 +311,8 @@ def test_settings_opens_official_provider_key_pages():
     assert "ProviderPresets.credentialInputHelp(providerId)" in settings_screen
     assert "Intent.ACTION_VIEW" in browser_launcher
     assert "Uri.parse(targetUrl)" in settings_view_model
-    assert "HermesProviderSetupWebActivity.open(" in settings_view_model
-    assert "HermesProviderSetupWebActivity.openInApp" not in settings_view_model
+    assert "HermesProviderSetupWebActivity.open" in settings_view_model
     assert "fun checkProviderKeyPage(url: String)" in settings_view_model
-    assert "probeProviderKeyPages(providerLabel, urlsForProviderKeyPage(providerId, requestedUrl))" in settings_view_model
     assert "ProviderSetupUrlProbe::probe" in settings_view_model
     assert "ProviderSetupUrlProbe.MAX_STATUS_LENGTH" in settings_view_model
     assert "Checking $providerLabel setup pages from this device" in settings_view_model
@@ -325,7 +326,7 @@ def test_settings_opens_official_provider_key_pages():
     assert "putExtra(Browser.EXTRA_APPLICATION_ID" in browser_launcher
     assert "ClipboardManager" in settings_view_model
     assert "ClipData.newPlainText" in settings_view_model
-    assert "ProviderPresets.providerIdForSetupUrl(target)" in settings_view_model
+    assert "ProviderPresets.providerIdForSetupUrl(target, providerId)" in settings_view_model
     assert "ProviderPresets.setupClipboardText(it)" in settings_view_model
     assert "private val providerSetupOpenIndexes = mutableMapOf<String, Int>()" in settings_view_model
     assert "ProviderPresets.setupTarget(providerId, nextIndex)" in settings_view_model
@@ -336,7 +337,7 @@ def test_settings_opens_official_provider_key_pages():
     assert "addCategory(Intent.CATEGORY_BROWSABLE)" in browser_launcher
     assert "openProviderKeyPage(providerLabel)" in settings_screen
     assert "copyProviderSetupUrl()" in settings_screen
-    assert "onCheckProviderKeyPage(apiKeyUrl)" in settings_screen
+    assert "onCheckProviderKeyPage(providerId, apiKeyUrl)" in settings_screen
     assert "strings.checkProviderSetupUrl()" in settings_screen
     assert "importSavedProviderCredential()" in settings_screen
     assert "Use saved Hermes credential" in strings
@@ -390,9 +391,6 @@ def test_settings_provider_switch_applies_selected_provider_defaults():
     assert 'model = if (providerChanged && provider != "custom") preset?.modelHint.orEmpty() else it.model' in settings_view_model
     assert 'ProviderPresets.runtimeConfigBaseUrl(snapshot.provider, snapshot.baseUrl)' in settings_view_model
     assert 'val runtimeConfigBaseUrl = ProviderPresets.runtimeConfigBaseUrl(session.runtimeProvider, resolvedBaseUrl)' in auth_runtime_applier
-    assert 'import com.nousresearch.hermesagent.data.SecureSecretsStore' in auth_runtime_applier
-    assert 'val providerCredential = session.apiKey' in auth_runtime_applier
-    assert 'SecureSecretsStore(appContext).saveApiKey(session.runtimeProvider, providerCredential)' in auth_runtime_applier
     assert 'runtimeConfigBaseUrl,' in auth_runtime_applier
     assert "private val restartScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)" in auth_runtime_applier
     assert "restartRuntimeAsync(appContext)" in auth_runtime_applier

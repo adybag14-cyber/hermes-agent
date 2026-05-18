@@ -34,9 +34,22 @@ class HermesExternalBrowserLauncherTest {
     }
 
     @Test
+    fun createBrowserIntentPinsDiscoveredBrowserForProviderAndOAuthLinks() {
+        val context = RuntimeEnvironment.getApplication()
+        registerBrowser(context, "com.android.chrome")
+        val uri = Uri.parse("https://openrouter.ai/auth")
+
+        val intent = HermesExternalBrowserLauncher.createBrowserIntent(context, uri)
+
+        assertEquals("com.android.chrome", intent.`package`)
+        assertEquals(uri, intent.data)
+    }
+
+    @Test
     @Suppress("DEPRECATION")
     fun createChooserIntentRemainsAvailableAsFallback() {
         val context = RuntimeEnvironment.getApplication()
+        registerBrowser(context, "com.android.chrome")
         val uri = Uri.parse("https://docs.qwencloud.com/api-reference/preparation/api-key")
 
         val intent = HermesExternalBrowserLauncher.createChooserIntent(context, uri, "Open Qwen setup")
@@ -46,6 +59,7 @@ class HermesExternalBrowserLauncherTest {
         assertTrue(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
         assertEquals(Intent.ACTION_VIEW, wrapped?.action)
         assertEquals(uri, wrapped?.data)
+        assertNull(wrapped?.`package`)
     }
 
     @Test

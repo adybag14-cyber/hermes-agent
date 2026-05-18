@@ -14,6 +14,8 @@ import com.nousresearch.hermesagent.api.HermesSseClient
 import com.nousresearch.hermesagent.backend.HermesRuntimeManager
 import com.nousresearch.hermesagent.backend.OnDeviceBackendManager
 import com.nousresearch.hermesagent.data.ConversationStore
+import com.nousresearch.hermesagent.data.HermesNetworkPolicy
+import com.nousresearch.hermesagent.data.StoredConversationAttachment
 import com.nousresearch.hermesagent.data.StoredConversationMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -168,8 +170,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
         val sessionId = conversationStore.currentSessionId()
         val now = System.currentTimeMillis()
-        val persistedUserText = buildPersistedUserText(text, attachments)
-        val userMessage = ChatUiMessage(UUID.randomUUID().toString(), "user", persistedUserText, now)
+        val userMessage = ChatUiMessage(UUID.randomUUID().toString(), "user", text, now, attachments)
         val assistantMessageId = UUID.randomUUID().toString()
         val assistantPlaceholder = ChatUiMessage(assistantMessageId, "assistant", "", now + 1)
 
@@ -256,7 +257,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            val client = HermesSseClient(baseUrl = endpoint.baseUrl, apiKey = endpoint.apiKey)
+            val client = HermesSseClient(
+                baseUrl = endpoint.baseUrl,
+                apiKey = endpoint.apiKey,
+                networkGuard = { url ->
+                    HermesNetworkPolicy.requireExternalNetworkAllowed(
+                        getApplication<Application>(),
+                        url,
+                        actionLabel = "chat request",
+                    )
+                },
+            )
             val request = ChatCompletionRequest(
                 model = endpoint.modelName,
                 messages = listOf(ChatMessage(role = "user", content = text, contentParts = userContentParts)),
@@ -387,6 +398,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     role = message.role,
                     content = message.content,
                     createdAtEpochMs = message.createdAtEpochMs,
+                    attachments = message.attachments.map { attachment ->
+                        StoredConversationAttachment(
+                            uri = attachment.uri,
+                            displayName = attachment.displayName,
+                            mimeType = attachment.mimeType,
+                            sizeBytes = attachment.sizeBytes,
+                        )
+                    },
                 ),
             )
         }
@@ -416,16 +435,6 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
         val mimeType = app.contentResolver.getType(uri).orEmpty().ifBlank { "image/*" }
         return AttachmentDetails(displayName = displayName, mimeType = mimeType, sizeBytes = sizeBytes)
-    }
-
-    private fun buildPersistedUserText(text: String, attachments: List<ChatAttachment>): String {
-        if (attachments.isEmpty()) {
-            return text
-        }
-        val attachmentSummary = attachments.joinToString("\n") { attachment ->
-            "[image: ${attachment.displayName}]"
-        }
-        return listOf(text, attachmentSummary).filter { it.isNotBlank() }.joinToString("\n")
     }
 
     private fun buildUserContentParts(text: String, attachments: List<ChatAttachment>): List<ChatContentPart> {
@@ -464,6 +473,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 role = message.role,
                 content = message.content,
                 createdAtEpochMs = message.createdAtEpochMs,
+                attachments = message.attachments.map { attachment ->
+                    ChatAttachment(
+                        uri = attachment.uri,
+                        displayName = attachment.displayName,
+                        mimeType = attachment.mimeType,
+                        sizeBytes = attachment.sizeBytes,
+                    )
+                },
             )
         }
     }

@@ -49,35 +49,37 @@ class ProviderPresetsTest {
         val wrapped = requireNotNull(ProviderPresets.setupTarget("qwen-oauth", 6))
 
         assertEquals("https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/", first.url)
-        assertEquals("https://home.qwencloud.com/api-keys", second.url)
+        assertEquals("https://docs.qwencloud.com/api-reference/preparation/api-key", second.url)
         assertEquals(first.url, wrapped.url)
         assertEquals(6, first.total)
         assertEquals(1, first.nextIndex)
     }
 
     @Test
-    fun qwenCloudOpensDocsBeforeHeavyAccountLoginPages() {
+    fun qwenCloudOpensMobileSafeDocsBeforeConsoleFallbacks() {
         val first = requireNotNull(ProviderPresets.setupTarget("alibaba", 0))
         val second = requireNotNull(ProviderPresets.setupTarget("alibaba", 1))
         val third = requireNotNull(ProviderPresets.setupTarget("alibaba", 2))
 
-        assertEquals("https://docs.qwencloud.com/api-reference/preparation/api-key", first.url)
-        assertEquals("https://docs.qwencloud.com/developer-guides/administration/api-keys", second.url)
-        assertEquals("https://home.qwencloud.com/api-keys", third.url)
-        assertEquals(4, first.total)
+        assertEquals("https://docs.qwencloud.com/developer-guides/administration/api-keys", first.url)
+        assertEquals("https://modelstudio.console.alibabacloud.com/?tab=playground", second.url)
+        assertEquals("https://www.alibabacloud.com/help/en/model-studio/get-api-key", third.url)
+        assertEquals(6, first.total)
     }
 
     @Test
     fun qwenCodingPlanUsesDedicatedEndpointAndCliEnvAliases() {
         val preset = requireNotNull(ProviderPresets.find("alibaba-coding-plan"))
-        val target = requireNotNull(ProviderPresets.setupTarget("alibaba-coding-plan", 1))
+        val firstTarget = requireNotNull(ProviderPresets.setupTarget("alibaba-coding-plan", 0))
+        val secondTarget = requireNotNull(ProviderPresets.setupTarget("alibaba-coding-plan", 1))
         val envHelp = ProviderPresets.credentialInputHelp("alibaba-coding-plan")
 
         assertEquals("https://coding-intl.dashscope.aliyuncs.com/v1", preset.baseUrl)
         assertEquals("qwen3.6-plus", preset.modelHint)
+        assertEquals("https://docs.qwencloud.com/coding-plan/overview", firstTarget.url)
         assertEquals(
-            "https://docs.qwencloud.com/coding-plan/overview",
-            target.url,
+            "https://modelstudio.console.alibabacloud.com/?tab=playground",
+            secondTarget.url,
         )
         assertEquals(
             "sk-bailian-test",
@@ -95,6 +97,23 @@ class ProviderPresetsTest {
         )
         assertEquals(true, envHelp.contains("BAILIAN_CODING_PLAN_API_KEY"))
         assertEquals(true, envHelp.contains("ALIBABA_CODING_PLAN_API_KEY"))
+    }
+
+    @Test
+    fun providerIdForSetupUrlHonorsPreferredProviderForSharedSetupPages() {
+        val qwenAccountUrl = "https://modelstudio.console.alibabacloud.com/?tab=playground"
+        val zaiAccountUrl = "https://z.ai/manage-apikey/apikey-list"
+
+        assertEquals("alibaba", ProviderPresets.providerIdForSetupUrl(qwenAccountUrl))
+        assertEquals(
+            "alibaba-coding-plan",
+            ProviderPresets.providerIdForSetupUrl(qwenAccountUrl, "alibaba-coding-plan"),
+        )
+        assertEquals("zai", ProviderPresets.providerIdForSetupUrl(zaiAccountUrl))
+        assertEquals(
+            "zai-coding-plan",
+            ProviderPresets.providerIdForSetupUrl(zaiAccountUrl, "zai-coding-plan"),
+        )
     }
 
     @Test

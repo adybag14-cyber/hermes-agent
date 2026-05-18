@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -17,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
@@ -75,6 +77,26 @@ fun SettingsScreen(
                         onSelectLanguage = viewModel::selectLanguage,
                         strings = strings,
                     )
+                    AppearanceCard(
+                        chatDisplayMode = uiState.chatDisplayMode,
+                        keywordHighlightingEnabled = uiState.keywordHighlightingEnabled,
+                        themePrimaryHex = uiState.themePrimaryHex,
+                        themeSecondaryHex = uiState.themeSecondaryHex,
+                        themeBackgroundHex = uiState.themeBackgroundHex,
+                        themeSurfaceHex = uiState.themeSurfaceHex,
+                        themeSurfaceVariantHex = uiState.themeSurfaceVariantHex,
+                        themeCardShape = uiState.themeCardShape,
+                        onChatDisplayModeChange = viewModel::updateChatDisplayMode,
+                        onKeywordHighlightingChange = viewModel::updateKeywordHighlighting,
+                        onPrimaryHexChange = viewModel::updateThemePrimaryHex,
+                        onSecondaryHexChange = viewModel::updateThemeSecondaryHex,
+                        onBackgroundHexChange = viewModel::updateThemeBackgroundHex,
+                        onSurfaceHexChange = viewModel::updateThemeSurfaceHex,
+                        onSurfaceVariantHexChange = viewModel::updateThemeSurfaceVariantHex,
+                        onCardShapeChange = viewModel::updateThemeCardShape,
+                        onApplyPreset = viewModel::applyThemePreset,
+                        onSaveAppearance = viewModel::saveAppearance,
+                    )
                     OnDeviceInferenceCard(
                         onDeviceBackend = uiState.onDeviceBackend,
                         speculativeDecodingMode = uiState.liteRtLmSpeculativeDecodingMode,
@@ -84,8 +106,13 @@ fun SettingsScreen(
                         summary = uiState.onDeviceSummary,
                         strings = strings,
                     )
+                    OfflineAirplaneCard(
+                        enabled = uiState.offlineAirplaneMode,
+                        onChange = viewModel::updateOfflineAirplaneMode,
+                    )
                     LocalModelDownloadsSection(
                         dataSaverMode = uiState.dataSaverMode,
+                        offlineAirplaneMode = uiState.offlineAirplaneMode,
                         onDataSaverModeChange = viewModel::updateDataSaverMode,
                         selectedBackend = uiState.onDeviceBackend,
                         onRuntimeFlavorSelected = viewModel::syncOnDeviceBackendWithRuntimeFlavor,
@@ -117,6 +144,189 @@ fun SettingsScreen(
                         Text(uiState.status)
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppearanceCard(
+    chatDisplayMode: String,
+    keywordHighlightingEnabled: Boolean,
+    themePrimaryHex: String,
+    themeSecondaryHex: String,
+    themeBackgroundHex: String,
+    themeSurfaceHex: String,
+    themeSurfaceVariantHex: String,
+    themeCardShape: String,
+    onChatDisplayModeChange: (String) -> Unit,
+    onKeywordHighlightingChange: (Boolean) -> Unit,
+    onPrimaryHexChange: (String) -> Unit,
+    onSecondaryHexChange: (String) -> Unit,
+    onBackgroundHexChange: (String) -> Unit,
+    onSurfaceHexChange: (String) -> Unit,
+    onSurfaceVariantHexChange: (String) -> Unit,
+    onCardShapeChange: (String) -> Unit,
+    onApplyPreset: (AppearanceThemePreset) -> Unit,
+    onSaveAppearance: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Theme and chat layout", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Tune compact or expanded chat, keyword highlighting, app colours, and rounded or squared cards.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text("Chat display", style = MaterialTheme.typography.titleSmall)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    modifier = Modifier.testTag("ChatDisplayCompact"),
+                    onClick = { onChatDisplayModeChange("compact") },
+                    enabled = chatDisplayMode != "compact",
+                ) {
+                    Text("Compact")
+                }
+                Button(
+                    modifier = Modifier.testTag("ChatDisplayExpanded"),
+                    onClick = { onChatDisplayModeChange("expanded") },
+                    enabled = chatDisplayMode != "expanded",
+                ) {
+                    Text("Expanded")
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Keyword and skill highlighting", style = MaterialTheme.typography.titleSmall)
+                    Text("Subtle pills for commands, tools, skills, attachments, and agent actions.", style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = keywordHighlightingEnabled, onCheckedChange = onKeywordHighlightingChange)
+            }
+            Text("Colour presets", style = MaterialTheme.typography.titleSmall)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                appearanceThemePresets.forEach { preset ->
+                    Button(onClick = { onApplyPreset(preset) }) {
+                        Text(preset.label)
+                    }
+                }
+            }
+            OutlinedTextField(
+                value = themePrimaryHex,
+                onValueChange = onPrimaryHexChange,
+                label = { Text("Accent / user bubble hex") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = themeSecondaryHex,
+                onValueChange = onSecondaryHexChange,
+                label = { Text("Secondary accent hex") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = themeBackgroundHex,
+                onValueChange = onBackgroundHexChange,
+                label = { Text("Background hex") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = themeSurfaceHex,
+                onValueChange = onSurfaceHexChange,
+                label = { Text("Composer/card surface hex") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = themeSurfaceVariantHex,
+                onValueChange = onSurfaceVariantHexChange,
+                label = { Text("Assistant/card panel hex") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            Text("Cards and boxes", style = MaterialTheme.typography.titleSmall)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf("rounded", "soft", "square").forEach { shape ->
+                    Button(
+                        modifier = Modifier.testTag("CardShape-$shape"),
+                        onClick = { onCardShapeChange(shape) },
+                        enabled = themeCardShape != shape,
+                    ) {
+                        Text(shape.replaceFirstChar { it.uppercase() })
+                    }
+                }
+            }
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("SaveAppearanceButton"),
+                onClick = onSaveAppearance,
+            ) {
+                Text("Save appearance")
+            }
+        }
+    }
+}
+
+@Composable
+private fun OfflineAirplaneCard(
+    enabled: Boolean,
+    onChange: (Boolean) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Offline airplane mode", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Blocks Hermes internet features while keeping local files, localhost model runtimes, and on-device automation available.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(checked = enabled, onCheckedChange = onChange)
+            }
+            Button(onClick = { onChange(!enabled) }) {
+                Text(if (enabled) "Turn app internet back on" else "Cut app internet")
             }
         }
     }
@@ -161,9 +371,9 @@ private fun RemoteFallbackCard(
     onBaseUrlChange: (String) -> Unit,
     onModelChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
-    onOpenProviderKeyPage: (String) -> Unit,
-    onCopyProviderKeyPage: (String) -> Unit,
-    onCheckProviderKeyPage: (String) -> Unit,
+    onOpenProviderKeyPage: (String, String) -> Unit,
+    onCopyProviderKeyPage: (String, String) -> Unit,
+    onCheckProviderKeyPage: (String, String) -> Unit,
     onImportProviderCredential: () -> Unit,
     onSave: () -> Unit,
     strings: com.nousresearch.hermesagent.ui.i18n.HermesStrings,
@@ -205,13 +415,13 @@ private fun RemoteFallbackCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Button(onClick = { onOpenProviderKeyPage(apiKeyUrl) }) {
+                    Button(onClick = { onOpenProviderKeyPage(providerId, apiKeyUrl) }) {
                         Text(strings.openProviderKeyPage(providerLabel))
                     }
-                    Button(onClick = { onCopyProviderKeyPage(apiKeyUrl) }) {
+                    Button(onClick = { onCopyProviderKeyPage(providerId, apiKeyUrl) }) {
                         Text(strings.copyProviderSetupUrl())
                     }
-                    Button(onClick = { onCheckProviderKeyPage(apiKeyUrl) }) {
+                    Button(onClick = { onCheckProviderKeyPage(providerId, apiKeyUrl) }) {
                         Text(strings.checkProviderSetupUrl())
                     }
                 }

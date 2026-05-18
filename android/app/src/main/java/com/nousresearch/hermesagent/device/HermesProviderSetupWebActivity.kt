@@ -25,6 +25,7 @@ import android.widget.TextView
 import android.widget.Toast
 import com.nousresearch.hermesagent.R
 import com.nousresearch.hermesagent.data.AuthSessionStore
+import com.nousresearch.hermesagent.data.HermesNetworkPolicy
 
 @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 class HermesProviderSetupWebActivity : Activity() {
@@ -44,6 +45,10 @@ class HermesProviderSetupWebActivity : Activity() {
         setupUri = Uri.parse(requestedUrl)
         if (!canOpen(setupUri)) {
             showFallback(requestedTitle, requestedUrl, "Provider setup URL must start with https:// or http://")
+            return
+        }
+        if (HermesNetworkPolicy.isExternalNetworkBlocked(this, requestedUrl)) {
+            showFallback(requestedTitle, requestedUrl, HermesNetworkPolicy.offlineBlockedMessage("provider setup page"))
             return
         }
 
@@ -265,12 +270,7 @@ class HermesProviderSetupWebActivity : Activity() {
 
     private fun releaseWebView() {
         webView?.let { existing ->
-            runCatching { existing.webChromeClient = null }
-            runCatching { existing.webViewClient = WebViewClient() }
             runCatching { existing.stopLoading() }
-            runCatching { existing.loadUrl("about:blank") }
-            runCatching { existing.clearHistory() }
-            runCatching { existing.removeAllViews() }
             (existing.parent as? ViewGroup)?.removeView(existing)
             runCatching { existing.destroy() }
         }

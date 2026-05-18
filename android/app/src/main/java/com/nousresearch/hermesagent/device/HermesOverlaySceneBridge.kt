@@ -267,21 +267,46 @@ object HermesOverlaySceneBridge {
             }
         }
 
-        if (screenWidthPx <= 0) {
-            screenWidthPx = (DEFAULT_WIDTH_DP * density).roundToInt()
-        }
-        if (screenHeightPx <= 0) {
-            screenHeightPx = (640 * density).roundToInt()
-        }
+        return resolveLayoutMetrics(
+            payload = payload,
+            density = density,
+            screenWidthPx = screenWidthPx,
+            screenHeightPx = screenHeightPx,
+            safeInsetLeftPx = safeInsetLeftPx,
+            safeInsetTopPx = safeInsetTopPx,
+            safeInsetRightPx = safeInsetRightPx,
+            safeInsetBottomPx = safeInsetBottomPx,
+        )
+    }
 
-        val usableWidthPx = (screenWidthPx - safeInsetLeftPx - safeInsetRightPx)
-            .coerceAtLeast((160 * density).roundToInt())
-        val usableHeightPx = (screenHeightPx - safeInsetTopPx - safeInsetBottomPx)
-            .coerceAtLeast((240 * density).roundToInt())
+    internal fun resolveLayoutMetrics(
+        payload: JSONObject,
+        density: Float,
+        screenWidthPx: Int,
+        screenHeightPx: Int,
+        safeInsetLeftPx: Int = 0,
+        safeInsetTopPx: Int = 0,
+        safeInsetRightPx: Int = 0,
+        safeInsetBottomPx: Int = 0,
+    ): OverlayLayoutMetrics {
+        val resolvedDensity = if (density > 0f) density else 1f
+        val resolvedSafeInsetLeftPx = safeInsetLeftPx.coerceAtLeast(0)
+        val resolvedSafeInsetTopPx = safeInsetTopPx.coerceAtLeast(0)
+        val resolvedSafeInsetRightPx = safeInsetRightPx.coerceAtLeast(0)
+        val resolvedSafeInsetBottomPx = safeInsetBottomPx.coerceAtLeast(0)
+        val resolvedScreenWidthPx = screenWidthPx.takeIf { it > 0 }
+            ?: (DEFAULT_WIDTH_DP * resolvedDensity).roundToInt()
+        val resolvedScreenHeightPx = screenHeightPx.takeIf { it > 0 }
+            ?: (640 * resolvedDensity).roundToInt()
+
+        val usableWidthPx = (resolvedScreenWidthPx - resolvedSafeInsetLeftPx - resolvedSafeInsetRightPx)
+            .coerceAtLeast((160 * resolvedDensity).roundToInt())
+        val usableHeightPx = (resolvedScreenHeightPx - resolvedSafeInsetTopPx - resolvedSafeInsetBottomPx)
+            .coerceAtLeast((240 * resolvedDensity).roundToInt())
         val shortEdgePx = min(usableWidthPx, usableHeightPx)
         val longEdgePx = max(usableWidthPx, usableHeightPx)
-        val shortEdgeDp = shortEdgePx / density
-        val usableHeightDp = usableHeightPx / density
+        val shortEdgeDp = shortEdgePx / resolvedDensity
+        val usableHeightDp = usableHeightPx / resolvedDensity
         val orientation = if (usableWidthPx >= usableHeightPx) "landscape" else "portrait"
 
         val requestedWidthDp = payload.optInt("width_dp", DEFAULT_WIDTH_DP)
@@ -297,15 +322,15 @@ object HermesOverlaySceneBridge {
             }
             WIDTH_MODE_PX -> payload.optInt("width_px", 0)
                 .takeIf { it > 0 }
-                ?: (requestedWidthDp * density).roundToInt()
-            else -> (requestedWidthDp * density).roundToInt()
+                ?: (requestedWidthDp * resolvedDensity).roundToInt()
+            else -> (requestedWidthDp * resolvedDensity).roundToInt()
         }
         val edgeMarginDp = when {
             shortEdgeDp < 360f -> 8
             shortEdgeDp < 600f -> 12
             else -> OVERLAY_EDGE_MARGIN_DP
         }
-        val edgeMarginPx = (edgeMarginDp * density).roundToInt().coerceAtLeast(1)
+        val edgeMarginPx = (edgeMarginDp * resolvedDensity).roundToInt().coerceAtLeast(1)
         val maxWidthFraction = when {
             shortEdgeDp < 360f -> 0.96f
             orientation == "landscape" -> 0.72f
@@ -314,30 +339,30 @@ object HermesOverlaySceneBridge {
         val availableWidthPx = min(
             usableWidthPx - (edgeMarginPx * 2),
             (usableWidthPx * maxWidthFraction).roundToInt(),
-        ).coerceAtLeast((160 * density).roundToInt())
-        val minWidthPx = (MIN_WIDTH_DP * density).roundToInt().coerceAtMost(availableWidthPx)
+        ).coerceAtLeast((160 * resolvedDensity).roundToInt())
+        val minWidthPx = (MIN_WIDTH_DP * resolvedDensity).roundToInt().coerceAtMost(availableWidthPx)
         val resolvedWidthPx = requestedWidthPx.coerceIn(minWidthPx, availableWidthPx)
         val verticalInsetPx = ((usableHeightPx * 0.08f).roundToInt())
-            .coerceIn((20 * density).roundToInt(), (72 * density).roundToInt())
+            .coerceIn((20 * resolvedDensity).roundToInt(), (72 * resolvedDensity).roundToInt())
         val maxHeightPx = (usableHeightPx - (verticalInsetPx * 2))
-            .coerceAtLeast((160 * density).roundToInt())
+            .coerceAtLeast((160 * resolvedDensity).roundToInt())
         val textMaxLines = when {
             shortEdgeDp < 360f || usableHeightDp < 520f -> 6
             orientation == "landscape" -> 8
             else -> 12
         }
-        val textMaxHeightPx = (maxHeightPx - (112 * density).roundToInt())
-            .coerceAtLeast((96 * density).roundToInt())
+        val textMaxHeightPx = (maxHeightPx - (112 * resolvedDensity).roundToInt())
+            .coerceAtLeast((96 * resolvedDensity).roundToInt())
         return OverlayLayoutMetrics(
-            screenWidthPx = screenWidthPx,
-            screenHeightPx = screenHeightPx,
+            screenWidthPx = resolvedScreenWidthPx,
+            screenHeightPx = resolvedScreenHeightPx,
             usableWidthPx = usableWidthPx,
             usableHeightPx = usableHeightPx,
-            safeInsetLeftPx = safeInsetLeftPx,
-            safeInsetTopPx = safeInsetTopPx,
-            safeInsetRightPx = safeInsetRightPx,
-            safeInsetBottomPx = safeInsetBottomPx,
-            density = density,
+            safeInsetLeftPx = resolvedSafeInsetLeftPx,
+            safeInsetTopPx = resolvedSafeInsetTopPx,
+            safeInsetRightPx = resolvedSafeInsetRightPx,
+            safeInsetBottomPx = resolvedSafeInsetBottomPx,
+            density = resolvedDensity,
             orientation = orientation,
             shortEdgePx = shortEdgePx,
             longEdgePx = longEdgePx,

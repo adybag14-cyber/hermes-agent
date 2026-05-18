@@ -46,54 +46,12 @@ import os
 import re
 import asyncio
 import time
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
+from typing import List, Dict, Any, Optional
 import httpx
-# NOTE: `from firecrawl import Firecrawl` is deliberately NOT at module top —
-# the SDK pulls ~200 ms of imports (httpcore, firecrawl.v1/v2 type trees) and
-# we only need it when the backend is actually "firecrawl". We expose
-# ``Firecrawl`` as a thin proxy that imports the SDK on first call/
-# isinstance check, so both (a) the in-module ``Firecrawl(...)`` construction
-# site in _get_firecrawl_client() works unchanged, and (b) tests using
-# ``patch("tools.web_tools.Firecrawl", ...)`` keep working.
-if TYPE_CHECKING:
-    from firecrawl import Firecrawl  # noqa: F401 — type hints only
-
-_FIRECRAWL_CLS_CACHE: Optional[type] = None
-
-
-def _load_firecrawl_cls() -> type:
-    """Import and cache ``firecrawl.Firecrawl``."""
-    global _FIRECRAWL_CLS_CACHE
-    if _FIRECRAWL_CLS_CACHE is None:
-        try:
-            from tools.lazy_deps import ensure as _lazy_ensure
-            _lazy_ensure("search.firecrawl", prompt=False)
-        except ImportError:
-            pass
-        except Exception as e:
-            raise ImportError(str(e))
-        from firecrawl import Firecrawl as _cls
-        _FIRECRAWL_CLS_CACHE = _cls
-    return _FIRECRAWL_CLS_CACHE
-
-
-class _FirecrawlProxy:
-    """Module-level proxy that looks like ``firecrawl.Firecrawl`` but imports lazily."""
-
-    __slots__ = ()
-
-    def __call__(self, *args, **kwargs):
-        return _load_firecrawl_cls()(*args, **kwargs)
-
-    def __instancecheck__(self, obj):
-        return isinstance(obj, _load_firecrawl_cls())
-
-    def __repr__(self):
-        return "<lazy firecrawl.Firecrawl proxy>"
-
-
-Firecrawl = _FirecrawlProxy()
-
+try:
+    from firecrawl import Firecrawl
+except Exception:  # pragma: no cover - optional dependency / Android fallback
+    Firecrawl = None
 from agent.auxiliary_client import (
     async_call_llm,
     extract_content_or_reasoning,
@@ -108,7 +66,6 @@ from tools.managed_tool_gateway import (
 from tools.tool_backend_helpers import managed_nous_tools_enabled, prefers_gateway
 from tools.url_safety import is_safe_url
 from tools.website_policy import check_website_access
-import sys
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +92,7 @@ def _get_backend() -> str:
     keys manually without running setup.
     """
     configured = (_load_web_config().get("backend") or "").lower().strip()
-    if configured in {"parallel", "firecrawl", "tavily", "exa", "searxng", "brave-free", "ddgs"}:
+    if configured in ("parallel", "firecrawl", "tavily", "exa", "searxng", "brave-free", "ddgs"):
         return configured
 
     # Fallback for manual / legacy config — pick the highest-priority
@@ -511,13 +468,6 @@ def _get_parallel_client():
 
     Requires PARALLEL_API_KEY environment variable.
     """
-    try:
-        from tools.lazy_deps import ensure as _lazy_ensure
-        _lazy_ensure("search.parallel", prompt=False)
-    except ImportError:
-        pass
-    except Exception as e:
-        raise ImportError(str(e))
     from parallel import Parallel
     global _parallel_client
     if _parallel_client is None:
@@ -536,13 +486,6 @@ def _get_async_parallel_client():
 
     Requires PARALLEL_API_KEY environment variable.
     """
-    try:
-        from tools.lazy_deps import ensure as _lazy_ensure
-        _lazy_ensure("search.parallel", prompt=False)
-    except ImportError:
-        pass
-    except Exception as e:
-        raise ImportError(str(e))
     from parallel import AsyncParallel
     global _async_parallel_client
     if _async_parallel_client is None:
@@ -575,9 +518,7 @@ def _tavily_request(endpoint: str, payload: dict) -> dict:
     payload["api_key"] = api_key
     url = f"{_TAVILY_BASE_URL}/{endpoint.lstrip('/')}"
     logger.info("Tavily %s request to %s", endpoint, url)
-    # Tavily /crawl requires Bearer auth in header (body-only auth returns 401)
-    headers = {"Authorization": f"Bearer {api_key}"} if endpoint.strip("/") == "crawl" else {}
-    response = httpx.post(url, json=payload, headers=headers, timeout=60)
+    response = httpx.post(url, json=payload, timeout=60)
     response.raise_for_status()
     return response.json()
 
@@ -739,8 +680,7 @@ def _resolve_web_extract_auxiliary(model: Optional[str] = None) -> tuple[Optiona
     extra_body: Dict[str, Any] = {}
     if client is not None and _is_nous_auxiliary_client(client):
         from agent.auxiliary_client import get_auxiliary_extra_body
-        from agent.portal_tags import nous_portal_tags
-        extra_body = get_auxiliary_extra_body() or {"tags": nous_portal_tags()}
+        extra_body = get_auxiliary_extra_body() or {"tags": ["product=hermes-agent"]}
 
     return client, effective_model, extra_body
 
@@ -1160,13 +1100,6 @@ def _get_exa_client():
 
     Requires EXA_API_KEY environment variable.
     """
-    try:
-        from tools.lazy_deps import ensure as _lazy_ensure
-        _lazy_ensure("search.exa", prompt=False)
-    except ImportError:
-        pass
-    except Exception as e:
-        raise ImportError(str(e))
     from exa_py import Exa
     global _exa_client
     if _exa_client is None:
@@ -1252,7 +1185,7 @@ def _parallel_search(query: str, limit: int = 5) -> dict:
         return {"error": "Interrupted", "success": False}
 
     mode = os.getenv("PARALLEL_SEARCH_MODE", "agentic").lower().strip()
-    if mode not in {"fast", "one-shot", "agentic"}:
+    if mode not in ("fast", "one-shot", "agentic"):
         mode = "agentic"
 
     logger.info("Parallel search: '%s' (mode=%s, limit=%d)", query, mode, limit)
@@ -1575,7 +1508,7 @@ async def web_extract_tool(
                     "include_images": False,
                 })
                 results = _normalize_tavily_documents(raw, fallback_url=safe_urls[0] if safe_urls else "")
-            elif backend in {"searxng", "brave-free", "ddgs"}:
+            elif backend in ("searxng", "brave-free", "ddgs"):
                 # These backends are search-only — they cannot extract URL content
                 _label = {"searxng": "SearXNG", "brave-free": "Brave Search (free tier)", "ddgs": "DuckDuckGo (ddgs)"}[backend]
                 return json.dumps({
@@ -1959,7 +1892,7 @@ async def web_crawl_tool(
             return cleaned_result
 
         # SearXNG / Brave Search (free tier) / DuckDuckGo (ddgs) are search-only — they cannot crawl
-        if backend in {"searxng", "brave-free", "ddgs"}:
+        if backend in ("searxng", "brave-free", "ddgs"):
             _label = {"searxng": "SearXNG", "brave-free": "Brave Search (free tier)", "ddgs": "DuckDuckGo (ddgs)"}[backend]
             return json.dumps({
                 "error": f"{_label} is a search-only backend and cannot crawl URLs. "
@@ -2262,7 +2195,7 @@ def check_firecrawl_api_key() -> bool:
 def check_web_api_key() -> bool:
     """Check whether the configured web backend is available."""
     configured = _load_web_config().get("backend", "").lower().strip()
-    if configured in {"exa", "parallel", "firecrawl", "tavily", "searxng", "brave-free", "ddgs"}:
+    if configured in ("exa", "parallel", "firecrawl", "tavily", "searxng", "brave-free", "ddgs"):
         return _is_backend_available(configured)
     return any(
         _is_backend_available(backend)
@@ -2308,14 +2241,15 @@ if __name__ == "__main__":
             print("   Using Brave Search free tier (search only)")
         elif backend == "ddgs":
             print("   Using DuckDuckGo via ddgs package (search only)")
-        elif firecrawl_url_available:
-            print(f"   Using self-hosted Firecrawl: {os.getenv('FIRECRAWL_API_URL').strip().rstrip('/')}")
-        elif firecrawl_key_available:
-            print("   Using direct Firecrawl cloud API")
-        elif tool_gateway_available:
-            print(f"   Using Firecrawl tool-gateway: {_get_firecrawl_gateway_url()}")
         else:
-            print("   Firecrawl backend selected but not configured")
+            if firecrawl_url_available:
+                print(f"   Using self-hosted Firecrawl: {os.getenv('FIRECRAWL_API_URL').strip().rstrip('/')}")
+            elif firecrawl_key_available:
+                print("   Using direct Firecrawl cloud API")
+            elif tool_gateway_available:
+                print(f"   Using Firecrawl tool-gateway: {_get_firecrawl_gateway_url()}")
+            else:
+                print("   Firecrawl backend selected but not configured")
     else:
         print("❌ No web search backend configured")
         print(
@@ -2331,7 +2265,7 @@ if __name__ == "__main__":
         print(f"✅ Auxiliary model available: {default_summarizer_model}")
 
     if not web_available:
-        sys.exit(1)
+        exit(1)
 
     print("🛠️  Web tools ready for use!")
     

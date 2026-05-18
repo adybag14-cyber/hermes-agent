@@ -11,15 +11,15 @@ import com.chaquo.python.Python
 import com.nousresearch.hermesagent.backend.BackendKind
 import com.nousresearch.hermesagent.backend.HermesRuntimeManager
 import com.nousresearch.hermesagent.backend.OnDeviceBackendManager
-import com.nousresearch.hermesagent.auth.ProviderSetupProbeResult
 import com.nousresearch.hermesagent.auth.ProviderSetupUrlProbe
-import com.nousresearch.hermesagent.data.AppSettings
 import com.nousresearch.hermesagent.data.AppSettingsStore
+import com.nousresearch.hermesagent.data.HermesNetworkPolicy
 import com.nousresearch.hermesagent.data.ProviderPresets
 import com.nousresearch.hermesagent.data.ProviderSetupTarget
 import com.nousresearch.hermesagent.data.SecureSecretsStore
 import com.nousresearch.hermesagent.device.HermesProviderSetupWebActivity
 import com.nousresearch.hermesagent.ui.i18n.AppLanguage
+import com.nousresearch.hermesagent.ui.theme.normalizeThemeHex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,9 +36,18 @@ data class SettingsUiState(
     val model: String = "",
     val apiKey: String = "",
     val dataSaverMode: Boolean = false,
+    val offlineAirplaneMode: Boolean = false,
     val onDeviceBackend: String = BackendKind.NONE.persistedValue,
     val liteRtLmSpeculativeDecodingMode: String = "auto",
     val languageTag: String = AppLanguage.ENGLISH.tag,
+    val chatDisplayMode: String = "compact",
+    val keywordHighlightingEnabled: Boolean = true,
+    val themePrimaryHex: String = "#8C7BFF",
+    val themeSecondaryHex: String = "#C6A15B",
+    val themeBackgroundHex: String = "#090B10",
+    val themeSurfaceHex: String = "#11141C",
+    val themeSurfaceVariantHex: String = "#1B202B",
+    val themeCardShape: String = "rounded",
     val onDeviceSummary: String = "Remote provider mode",
     val status: String = "",
 )
@@ -72,11 +81,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             model = stored.model,
             apiKey = "",
             dataSaverMode = stored.dataSaverMode,
+            offlineAirplaneMode = stored.offlineAirplaneMode,
             onDeviceBackend = stored.onDeviceBackend,
             liteRtLmSpeculativeDecodingMode = normalizeSpeculativeDecodingMode(
                 stored.liteRtLmSpeculativeDecodingMode,
             ),
             languageTag = AppLanguage.fromTag(stored.languageTag).tag,
+            chatDisplayMode = normalizeChatDisplayMode(stored.chatDisplayMode),
+            keywordHighlightingEnabled = stored.keywordHighlightingEnabled,
+            themePrimaryHex = normalizeThemeHex(stored.themePrimaryHex, "#8C7BFF"),
+            themeSecondaryHex = normalizeThemeHex(stored.themeSecondaryHex, "#C6A15B"),
+            themeBackgroundHex = normalizeThemeHex(stored.themeBackgroundHex, "#090B10"),
+            themeSurfaceHex = normalizeThemeHex(stored.themeSurfaceHex, "#11141C"),
+            themeSurfaceVariantHex = normalizeThemeHex(stored.themeSurfaceVariantHex, "#1B202B"),
+            themeCardShape = normalizeThemeCardShape(stored.themeCardShape),
             onDeviceSummary = defaultOnDeviceSummary(stored.onDeviceBackend),
         )
     }
@@ -110,8 +128,101 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateModel(value: String) = _uiState.update { it.copy(model = value) }
     fun updateApiKey(value: String) = _uiState.update { it.copy(apiKey = value) }
     fun updateDataSaverMode(enabled: Boolean) = _uiState.update { it.copy(dataSaverMode = enabled) }
+    fun updateOfflineAirplaneMode(enabled: Boolean) {
+        val existing = settingsStore.load()
+        settingsStore.save(existing.copy(offlineAirplaneMode = enabled))
+        if (enabled) {
+            HermesRuntimeManager.stop()
+        }
+        _uiState.update {
+            it.copy(
+                offlineAirplaneMode = enabled,
+                status = if (enabled) {
+                    "Offline airplane mode is on. Hermes will block portal, provider setup, model downloads, and HTTP automations while local backends and localhost stay available."
+                } else {
+                    "Offline airplane mode is off. Hermes internet features are available again."
+                },
+            )
+        }
+    }
     fun updateLiteRtLmSpeculativeDecodingMode(value: String) = _uiState.update {
         it.copy(liteRtLmSpeculativeDecodingMode = normalizeSpeculativeDecodingMode(value))
+    }
+    fun updateChatDisplayMode(value: String) {
+        val normalized = normalizeChatDisplayMode(value)
+        settingsStore.save(settingsStore.load().copy(chatDisplayMode = normalized))
+        _uiState.update {
+            it.copy(
+                chatDisplayMode = normalized,
+                status = "Chat display mode set to ${normalized.replaceFirstChar { char -> char.uppercase() }}.",
+            )
+        }
+    }
+    fun updateKeywordHighlighting(enabled: Boolean) {
+        settingsStore.save(settingsStore.load().copy(keywordHighlightingEnabled = enabled))
+        _uiState.update {
+            it.copy(
+                keywordHighlightingEnabled = enabled,
+                status = if (enabled) "Keyword highlighting is on." else "Keyword highlighting is off.",
+            )
+        }
+    }
+    fun updateThemePrimaryHex(value: String) = _uiState.update { it.copy(themePrimaryHex = value) }
+    fun updateThemeSecondaryHex(value: String) = _uiState.update { it.copy(themeSecondaryHex = value) }
+    fun updateThemeBackgroundHex(value: String) = _uiState.update { it.copy(themeBackgroundHex = value) }
+    fun updateThemeSurfaceHex(value: String) = _uiState.update { it.copy(themeSurfaceHex = value) }
+    fun updateThemeSurfaceVariantHex(value: String) = _uiState.update { it.copy(themeSurfaceVariantHex = value) }
+    fun updateThemeCardShape(value: String) {
+        val normalized = normalizeThemeCardShape(value)
+        settingsStore.save(settingsStore.load().copy(themeCardShape = normalized))
+        _uiState.update {
+            it.copy(
+                themeCardShape = normalized,
+                status = "Card shape set to ${normalized.replaceFirstChar { char -> char.uppercase() }}.",
+            )
+        }
+    }
+
+    fun applyThemePreset(preset: AppearanceThemePreset) {
+        _uiState.update {
+            it.copy(
+                themePrimaryHex = preset.primaryHex,
+                themeSecondaryHex = preset.secondaryHex,
+                themeBackgroundHex = preset.backgroundHex,
+                themeSurfaceHex = preset.surfaceHex,
+                themeSurfaceVariantHex = preset.surfaceVariantHex,
+                status = "Loaded ${preset.label} colours. Save appearance to persist them.",
+            )
+        }
+    }
+
+    fun saveAppearance() {
+        val snapshot = _uiState.value
+        val existing = settingsStore.load()
+        val updated = existing.copy(
+            chatDisplayMode = normalizeChatDisplayMode(snapshot.chatDisplayMode),
+            keywordHighlightingEnabled = snapshot.keywordHighlightingEnabled,
+            themePrimaryHex = normalizeThemeHex(snapshot.themePrimaryHex, "#8C7BFF"),
+            themeSecondaryHex = normalizeThemeHex(snapshot.themeSecondaryHex, "#C6A15B"),
+            themeBackgroundHex = normalizeThemeHex(snapshot.themeBackgroundHex, "#090B10"),
+            themeSurfaceHex = normalizeThemeHex(snapshot.themeSurfaceHex, "#11141C"),
+            themeSurfaceVariantHex = normalizeThemeHex(snapshot.themeSurfaceVariantHex, "#1B202B"),
+            themeCardShape = normalizeThemeCardShape(snapshot.themeCardShape),
+        )
+        settingsStore.save(updated)
+        _uiState.update {
+            it.copy(
+                chatDisplayMode = updated.chatDisplayMode,
+                keywordHighlightingEnabled = updated.keywordHighlightingEnabled,
+                themePrimaryHex = updated.themePrimaryHex,
+                themeSecondaryHex = updated.themeSecondaryHex,
+                themeBackgroundHex = updated.themeBackgroundHex,
+                themeSurfaceHex = updated.themeSurfaceHex,
+                themeSurfaceVariantHex = updated.themeSurfaceVariantHex,
+                themeCardShape = updated.themeCardShape,
+                status = "Appearance saved.",
+            )
+        }
     }
 
     private fun loadApiKeyForProvider(provider: String) {
@@ -189,32 +300,41 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun openProviderKeyPage(url: String) {
+        openProviderKeyPage(providerId = "", url = url)
+    }
+
+    fun openProviderKeyPage(providerId: String, url: String) {
         val requestedUrl = url.trim()
         if (requestedUrl.isBlank()) {
             return
         }
-        val providerId = ProviderPresets.providerIdForSetupUrl(requestedUrl)
-        val setupTarget = providerId?.let { nextProviderSetupTarget(it) }
+        val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(requestedUrl, providerId)
+        val setupTarget = resolvedProviderId?.let { nextProviderSetupTarget(it) }
         val targetUrl = setupTarget?.url ?: requestedUrl
+        if (HermesNetworkPolicy.isExternalNetworkBlocked(getApplication(), targetUrl)) {
+            _uiState.update {
+                it.copy(status = HermesNetworkPolicy.offlineBlockedMessage("provider setup page"))
+            }
+            return
+        }
         val uri = Uri.parse(targetUrl)
         if (uri.scheme !in setOf("http", "https")) {
             _uiState.update { it.copy(status = "Provider setup URL must start with https:// or http://") }
             return
         }
-        val providerLabel = providerId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
+        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
         val launch = HermesProviderSetupWebActivity.open(
             context = getApplication(),
             uri = uri,
             title = "Open $providerLabel setup page",
         )
         if (launch.success) {
-            copyProviderKeyPage(targetUrl, updateSuccessStatus = false)
+            copyProviderKeyPage(resolvedProviderId.orEmpty(), targetUrl, updateSuccessStatus = false)
             _uiState.update {
-                it.copy(status = providerSetupOpenedStatus(providerLabel, providerId.orEmpty(), setupTarget))
+                it.copy(status = providerSetupOpenedStatus(providerLabel, resolvedProviderId.orEmpty(), setupTarget))
             }
-            probeProviderKeyPages(providerLabel, urlsForProviderKeyPage(providerId, requestedUrl))
         } else {
-            copyProviderKeyPage(targetUrl, updateSuccessStatus = false)
+            copyProviderKeyPage(resolvedProviderId.orEmpty(), targetUrl, updateSuccessStatus = false)
             _uiState.update {
                 it.copy(status = "Unable to open setup page (${launch.errorName.ifBlank { "setup_page_error" }}); copied the provider setup URLs.")
             }
@@ -222,54 +342,46 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun checkProviderKeyPage(url: String) {
+        checkProviderKeyPage(providerId = "", url = url)
+    }
+
+    fun checkProviderKeyPage(providerId: String, url: String) {
         val requestedUrl = url.trim()
         if (requestedUrl.isBlank()) {
             return
         }
-        val providerId = ProviderPresets.providerIdForSetupUrl(requestedUrl)
-        val providerLabel = providerId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
-        val urls = urlsForProviderKeyPage(providerId, requestedUrl)
-        copyProviderKeyPage(requestedUrl, updateSuccessStatus = false)
-        _uiState.update { it.copy(status = "Checking $providerLabel setup pages from this device...") }
-        probeProviderKeyPages(providerLabel, urls)
-    }
-
-    private fun urlsForProviderKeyPage(providerId: String?, requestedUrl: String): List<String> {
-        return providerId?.let { ProviderPresets.setupUrls(it) }
+        val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(requestedUrl, providerId)
+        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
+        val urls = resolvedProviderId?.let { ProviderPresets.setupUrls(it) }
             .orEmpty()
             .ifEmpty { listOf(requestedUrl) }
-    }
-
-    private fun probeProviderKeyPages(providerLabel: String, urls: List<String>) {
-        if (urls.isEmpty()) {
+        if (urls.any { HermesNetworkPolicy.isExternalNetworkBlocked(getApplication(), it) }) {
+            _uiState.update {
+                it.copy(status = HermesNetworkPolicy.offlineBlockedMessage("provider setup check"))
+            }
             return
         }
+        copyProviderKeyPage(resolvedProviderId.orEmpty(), requestedUrl, updateSuccessStatus = false)
+        _uiState.update { it.copy(status = "Checking $providerLabel setup pages from this device...") }
         viewModelScope.launch {
             val results = withContext(Dispatchers.IO) {
-                urls.map(ProviderSetupUrlProbe::probe)
+                urls.map { url -> ProviderSetupUrlProbe.probe(url, context = getApplication()) }
             }
-            val status = providerSetupProbeStatus(providerLabel, results)
-            _uiState.update { it.copy(status = status) }
-        }
-    }
-
-    private fun providerSetupProbeStatus(
-        providerLabel: String,
-        results: List<ProviderSetupProbeResult>,
-    ): String {
-        val reachable = results.filter { it.reachable }
-        val firstReachable = reachable.firstOrNull()
-        return if (firstReachable != null) {
-            val fallbackHint = if (reachable.size < results.size) {
-                " ${results.size - reachable.size} fallback page(s) did not respond cleanly; tap Open again to cycle official alternatives."
+            val reachable = results.filter { it.reachable }
+            val firstReachable = reachable.firstOrNull()
+            val status = if (firstReachable != null) {
+                val fallbackHint = if (reachable.size < results.size) {
+                    " ${results.size - reachable.size} fallback page(s) did not respond cleanly; tap Open again to cycle official alternatives."
+                } else {
+                    ""
+                }
+                "$providerLabel setup is reachable from Hermes: ${firstReachable.url} (${firstReachable.statusLabel}). ${reachable.size}/${results.size} official setup page(s) responded; copied all setup URLs.$fallbackHint"
             } else {
-                ""
+                val failureSummary = results.joinToString(separator = "; ") { "${it.url}: ${it.statusLabel}" }
+                "No $providerLabel setup page responded from Hermes. Copied all setup URLs. $failureSummary"
+                    .take(ProviderSetupUrlProbe.MAX_STATUS_LENGTH)
             }
-            "$providerLabel setup is reachable from Hermes: ${firstReachable.url} (${firstReachable.statusLabel}). ${reachable.size}/${results.size} official setup page(s) responded; copied all setup URLs.$fallbackHint"
-        } else {
-            val failureSummary = results.joinToString(separator = "; ") { "${it.url}: ${it.statusLabel}" }
-            "No $providerLabel setup page responded from Hermes. Copied all setup URLs. $failureSummary"
-                .take(ProviderSetupUrlProbe.MAX_STATUS_LENGTH)
+            _uiState.update { it.copy(status = status) }
         }
     }
 
@@ -288,7 +400,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val cycleHint = if (target != null && target.total > 1) {
             " in your browser ${target.displayIndex}/${target.total}; copied all official setup URLs. Tap Open again for the next fallback if this page stalls."
         } else {
-            " in your browser or Hermes fallback. If this page stalls, use Copy setup URL."
+            " in your browser. If this page stalls, copy the setup URL and paste it into another browser."
         }
         val qwenLegacyHint = if (providerId == "qwen-oauth") {
             " Qwen OAuth is legacy; choose Qwen Cloud for new API-key setup."
@@ -299,7 +411,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun copyProviderKeyPage(url: String) {
-        copyProviderKeyPage(url, updateSuccessStatus = true)
+        copyProviderKeyPage(providerId = "", url = url)
+    }
+
+    fun copyProviderKeyPage(providerId: String, url: String) {
+        copyProviderKeyPage(providerId, url, updateSuccessStatus = true)
     }
 
     fun importSavedProviderCredential() {
@@ -349,15 +465,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val resolvedModel = snapshot.model.ifBlank { preset?.modelHint.orEmpty() }
             val runtimeConfigBaseUrl = ProviderPresets.runtimeConfigBaseUrl(snapshot.provider, resolvedBaseUrl)
             val existingSettings = settingsStore.load()
-            val updatedSettings = AppSettings(
+            val updatedSettings = existingSettings.copy(
                 provider = snapshot.provider,
                 baseUrl = resolvedBaseUrl,
                 model = resolvedModel,
-                corr3xtBaseUrl = existingSettings.corr3xtBaseUrl,
-                dataSaverMode = existingSettings.dataSaverMode,
-                onDeviceBackend = existingSettings.onDeviceBackend,
-                liteRtLmSpeculativeDecodingMode = existingSettings.liteRtLmSpeculativeDecodingMode,
-                languageTag = existingSettings.languageTag,
             )
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -401,16 +512,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    private fun copyProviderKeyPage(url: String, updateSuccessStatus: Boolean) {
+    private fun copyProviderKeyPage(providerId: String, url: String, updateSuccessStatus: Boolean) {
         val target = url.trim()
         if (target.isBlank()) {
             return
         }
-        val providerId = ProviderPresets.providerIdForSetupUrl(target)
-        val setupText = providerId?.let { ProviderPresets.setupClipboardText(it) }
+        val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(target, providerId)
+        val setupText = resolvedProviderId?.let { ProviderPresets.setupClipboardText(it) }
             .orEmpty()
             .ifBlank { target }
-        val fallbackCount = providerId?.let { ProviderPresets.setupUrls(it).size - 1 } ?: 0
+        val fallbackCount = resolvedProviderId?.let { ProviderPresets.setupUrls(it).size - 1 } ?: 0
         val clipboard = getApplication<Application>().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
         clipboard?.setPrimaryClip(ClipData.newPlainText("Hermes provider setup URLs", setupText))
         if (updateSuccessStatus) {
@@ -458,15 +569,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             runCatching {
                 withContext(Dispatchers.IO) {
                     val existingSettings = settingsStore.load()
-                    val updatedSettings = AppSettings(
+                    val updatedSettings = existingSettings.copy(
                         provider = snapshot.provider,
                         baseUrl = snapshot.baseUrl,
                         model = snapshot.model,
-                        corr3xtBaseUrl = existingSettings.corr3xtBaseUrl,
                         dataSaverMode = snapshot.dataSaverMode,
+                        offlineAirplaneMode = snapshot.offlineAirplaneMode,
                         onDeviceBackend = snapshot.onDeviceBackend,
                         liteRtLmSpeculativeDecodingMode = snapshot.liteRtLmSpeculativeDecodingMode,
                         languageTag = snapshot.languageTag,
+                        chatDisplayMode = normalizeChatDisplayMode(snapshot.chatDisplayMode),
+                        keywordHighlightingEnabled = snapshot.keywordHighlightingEnabled,
+                        themePrimaryHex = normalizeThemeHex(snapshot.themePrimaryHex, "#8C7BFF"),
+                        themeSecondaryHex = normalizeThemeHex(snapshot.themeSecondaryHex, "#C6A15B"),
+                        themeBackgroundHex = normalizeThemeHex(snapshot.themeBackgroundHex, "#090B10"),
+                        themeSurfaceHex = normalizeThemeHex(snapshot.themeSurfaceHex, "#11141C"),
+                        themeSurfaceVariantHex = normalizeThemeHex(snapshot.themeSurfaceVariantHex, "#1B202B"),
+                        themeCardShape = normalizeThemeCardShape(snapshot.themeCardShape),
                     )
                     settingsStore.save(updatedSettings)
 
@@ -509,6 +628,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     }
                     val statusMessage = when {
                         useLocalBackend -> "On-device backend ready and Hermes runtime restarted"
+                        snapshot.offlineAirplaneMode -> "${localBackendStatus.statusMessage}. Offline airplane mode kept remote fallback disabled."
                         backendKind != BackendKind.NONE -> "${localBackendStatus.statusMessage}. Hermes stayed on your saved remote provider."
                         parsedCredential.importedFromEnvLine -> "Settings saved, imported ${parsedCredential.sourceLabel} into secure storage, and backend restarted"
                         snapshot.dataSaverMode -> "Settings saved. Data saver mode now keeps heavy downloads on Wi-Fi / unmetered networks."
@@ -544,4 +664,68 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             else -> "auto"
         }
     }
+
+    private fun normalizeChatDisplayMode(value: String): String {
+        return when (value.trim().lowercase()) {
+            "expanded", "classic", "full" -> "expanded"
+            else -> "compact"
+        }
+    }
+
+    private fun normalizeThemeCardShape(value: String): String {
+        return when (value.trim().lowercase()) {
+            "square", "squared" -> "square"
+            "soft" -> "soft"
+            else -> "rounded"
+        }
+    }
 }
+
+data class AppearanceThemePreset(
+    val id: String,
+    val label: String,
+    val primaryHex: String,
+    val secondaryHex: String,
+    val backgroundHex: String,
+    val surfaceHex: String,
+    val surfaceVariantHex: String,
+)
+
+val appearanceThemePresets = listOf(
+    AppearanceThemePreset(
+        id = "hermes",
+        label = "Hermes purple",
+        primaryHex = "#8C7BFF",
+        secondaryHex = "#C6A15B",
+        backgroundHex = "#090B10",
+        surfaceHex = "#11141C",
+        surfaceVariantHex = "#1B202B",
+    ),
+    AppearanceThemePreset(
+        id = "gold",
+        label = "Gold noir",
+        primaryHex = "#D2B35E",
+        secondaryHex = "#8C7BFF",
+        backgroundHex = "#080808",
+        surfaceHex = "#14130F",
+        surfaceVariantHex = "#211D14",
+    ),
+    AppearanceThemePreset(
+        id = "graphite",
+        label = "Graphite",
+        primaryHex = "#9AA4B2",
+        secondaryHex = "#72D6C9",
+        backgroundHex = "#090A0C",
+        surfaceHex = "#13161B",
+        surfaceVariantHex = "#20252D",
+    ),
+    AppearanceThemePreset(
+        id = "contrast",
+        label = "High contrast",
+        primaryHex = "#B6A7FF",
+        secondaryHex = "#FFD166",
+        backgroundHex = "#000000",
+        surfaceHex = "#0E0E12",
+        surfaceVariantHex = "#24242C",
+    ),
+)

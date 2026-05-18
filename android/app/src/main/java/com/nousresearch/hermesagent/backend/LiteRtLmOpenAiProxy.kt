@@ -2,8 +2,6 @@ package com.nousresearch.hermesagent.backend
 
 import android.app.ActivityManager
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Base64
 import com.google.ai.edge.litertlm.Backend
@@ -23,7 +21,6 @@ import com.google.ai.edge.litertlm.tool
 import fi.iki.elonen.NanoHTTPD
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Locale
 import java.util.UUID
@@ -71,11 +68,16 @@ object LiteRtLmOpenAiProxy {
         val policy: String,
     )
 
+    internal data class GpuBackendPolicy(
+        val enabled: Boolean,
+        val openClAvailable: Boolean,
+        val deviceIdentity: String,
+        val description: String,
+    )
+
     private const val DEFAULT_GENERATION_TIMEOUT_MS = 300_000L
     private const val MIN_GENERATION_TIMEOUT_MS = 5_000L
     private const val MAX_GENERATION_TIMEOUT_MS = 300_000L
-    private const val MAX_DATA_URI_IMAGE_BYTES = 12 * 1024 * 1024
-    private const val MAX_NORMALIZED_IMAGE_EDGE = 1024
 
     @Synchronized
     fun ensureRunning(
@@ -229,7 +231,7 @@ object LiteRtLmOpenAiProxy {
             val speculativeDecoding: Boolean,
             val speculativeDecodingSupported: Boolean,
             val speculativeDecodingPolicy: String,
-            val gpuPolicy: String,
+            val gpuPolicy: GpuBackendPolicy,
             val maxNumTokens: Int?,
             val contextWindowPolicy: String,
         )
@@ -284,7 +286,11 @@ object LiteRtLmOpenAiProxy {
                             put("speculative_decoding", engineInitResult.speculativeDecoding)
                             put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)
                             put("mtp_policy", engineInitResult.speculativeDecodingPolicy)
-                            put("gpu_policy", engineInitResult.gpuPolicy)
+                            put("gpu_policy", engineInitResult.gpuPolicy.description)
+                            put("gpu_attempted", engineInitResult.gpuPolicy.enabled)
+                            put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")
+                            put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)
+                            put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)
                             put("max_num_tokens", engineInitResult.maxNumTokens ?: JSONObject.NULL)
                             put("context_window_policy", engineInitResult.contextWindowPolicy)
                             put("model", modelName)
@@ -398,7 +404,7 @@ object LiteRtLmOpenAiProxy {
                                 speculativeDecoding = enableMtp,
                                 speculativeDecodingSupported = speculativeDecoding.supported,
                                 speculativeDecodingPolicy = mtpPolicy,
-                                gpuPolicy = gpuPolicy.description,
+                                gpuPolicy = gpuPolicy,
                                 maxNumTokens = maxNumTokens,
                                 contextWindowPolicy = contextWindowPolicy,
                             )
@@ -446,11 +452,6 @@ object LiteRtLmOpenAiProxy {
                 ?: "unknown error"
         }
 
-        private data class GpuBackendPolicy(
-            val enabled: Boolean,
-            val description: String,
-        )
-
         private fun resolveEngineMaxNumTokens(
             context: Context,
             modelPath: String,
@@ -475,39 +476,11 @@ object LiteRtLmOpenAiProxy {
         }
 
         private fun gpuBackendPolicy(context: Context, openClAvailable: Boolean): GpuBackendPolicy {
-            if (isTranslatedArm64OnX86(context)) {
-                return GpuBackendPolicy(
-                    enabled = false,
-                    description = "disabled: translated arm64 package on x86 emulator/device",
-                )
-            }
-            if (Build.SUPPORTED_ABIS.any { it.startsWith("x86") }) {
-                return GpuBackendPolicy(
-                    enabled = false,
-                    description = "disabled: x86 emulator/device build",
-                )
-            }
-            if (openClAvailable) {
-                return GpuBackendPolicy(
-                    enabled = true,
-                    description = "enabled: OpenCL library was loadable",
-                )
-            }
-            if (Build.SUPPORTED_ABIS.any { it.startsWith("arm") }) {
-                val identity = androidHardwareIdentity()
-                val deviceLabel = if (listOf("qualcomm", "qcom", "snapdragon", "adreno").any { it in identity }) {
-                    "ARM Qualcomm/Adreno"
-                } else {
-                    "ARM Android"
-                }
-                return GpuBackendPolicy(
-                    enabled = true,
-                    description = "enabled: $deviceLabel device; attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable",
-                )
-            }
-            return GpuBackendPolicy(
-                enabled = false,
-                description = "disabled: no ARM ABI or loadable OpenCL GPU path detected",
+            return decideGpuBackendPolicy(
+                isTranslatedArm64OnX86 = isTranslatedArm64OnX86(context),
+                supportedAbis = Build.SUPPORTED_ABIS.toList(),
+                openClAvailable = openClAvailable,
+                hardwareIdentity = androidHardwareIdentity(),
             )
         }
 
@@ -597,14 +570,7 @@ object LiteRtLmOpenAiProxy {
             }
 
             val systemInstruction = buildSystemInstruction(requestMessages)
-            val mappedMessages = try {
-                mapMessages(requestMessages)
-            } catch (badRequest: IllegalArgumentException) {
-                return jsonResponse(
-                    JSONObject().put("error", badRequest.message ?: "invalid chat completion request"),
-                    status = Response.Status.BAD_REQUEST,
-                )
-            }
+            val mappedMessages = mapMessages(requestMessages)
             val promptMessage = mappedMessages.lastOrNull()
                 ?: return jsonResponse(
                     JSONObject().put("error", "no prompt message could be constructed"),
@@ -941,14 +907,7 @@ object LiteRtLmOpenAiProxy {
             if (url.startsWith("data:", ignoreCase = true)) {
                 val base64Payload = url.substringAfter("base64,", missingDelimiterValue = "")
                 require(base64Payload.isNotBlank()) { "image_url data URI must include base64 data" }
-                require(base64Payload.length <= maxBase64ImagePayloadChars()) {
-                    "image_url data URI is too large for local mobile inference"
-                }
-                val decoded = Base64.decode(base64Payload, Base64.DEFAULT)
-                require(decoded.size <= MAX_DATA_URI_IMAGE_BYTES) {
-                    "image_url data URI is too large for local mobile inference"
-                }
-                return Content.ImageBytes(normalizeImageBytesForLiteRtLm(decoded))
+                return Content.ImageBytes(Base64.decode(base64Payload, Base64.DEFAULT))
             }
             if (url.startsWith("file://", ignoreCase = true)) {
                 return Content.ImageFile(url.removePrefix("file://"))
@@ -957,44 +916,6 @@ object LiteRtLmOpenAiProxy {
                 return Content.ImageFile(url)
             }
             throw IllegalArgumentException("LiteRT-LM local vision only supports data: image URLs or app-local file paths")
-        }
-
-        private fun normalizeImageBytesForLiteRtLm(bytes: ByteArray): ByteArray {
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            require(bounds.outWidth > 0 && bounds.outHeight > 0) {
-                "image_url data URI could not be decoded into a bitmap"
-            }
-            val decodeOptions = BitmapFactory.Options().apply {
-                inSampleSize = imageSampleSize(bounds.outWidth, bounds.outHeight)
-            }
-            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOptions)
-                ?: throw IllegalArgumentException("image_url data URI could not be decoded into a bitmap")
-            return try {
-                ByteArrayOutputStream().use { output ->
-                    require(bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)) {
-                        "image_url data URI could not be normalized for LiteRT-LM"
-                    }
-                    output.toByteArray()
-                }
-            } finally {
-                bitmap.recycle()
-            }
-        }
-
-        private fun imageSampleSize(width: Int, height: Int): Int {
-            var sampleSize = 1
-            while (
-                width / sampleSize > MAX_NORMALIZED_IMAGE_EDGE ||
-                height / sampleSize > MAX_NORMALIZED_IMAGE_EDGE
-            ) {
-                sampleSize *= 2
-            }
-            return sampleSize
-        }
-
-        private fun maxBase64ImagePayloadChars(): Int {
-            return ((MAX_DATA_URI_IMAGE_BYTES + 2) / 3) * 4 + 128
         }
 
         private fun requestContainsImage(messages: JSONArray): Boolean {
@@ -1139,6 +1060,54 @@ object LiteRtLmOpenAiProxy {
             supportAudio = requestedAudio,
             policy = requestedLabel,
         )
+    }
+
+    internal fun decideGpuBackendPolicy(
+        isTranslatedArm64OnX86: Boolean,
+        supportedAbis: List<String>,
+        openClAvailable: Boolean,
+        hardwareIdentity: String,
+    ): GpuBackendPolicy {
+        val normalizedIdentity = hardwareIdentity.lowercase(Locale.US)
+        return when {
+            isTranslatedArm64OnX86 -> GpuBackendPolicy(
+                enabled = false,
+                openClAvailable = openClAvailable,
+                deviceIdentity = normalizedIdentity,
+                description = "disabled: translated arm64 package on x86 emulator/device",
+            )
+            supportedAbis.any { it.startsWith("x86") } -> GpuBackendPolicy(
+                enabled = false,
+                openClAvailable = openClAvailable,
+                deviceIdentity = normalizedIdentity,
+                description = "disabled: x86 emulator/device build",
+            )
+            openClAvailable -> GpuBackendPolicy(
+                enabled = true,
+                openClAvailable = true,
+                deviceIdentity = normalizedIdentity,
+                description = "enabled: OpenCL library was loadable",
+            )
+            supportedAbis.any { it.startsWith("arm") } -> {
+                val deviceLabel = if (listOf("qualcomm", "qcom", "snapdragon", "adreno").any { it in normalizedIdentity }) {
+                    "ARM Qualcomm/Adreno"
+                } else {
+                    "ARM Android"
+                }
+                GpuBackendPolicy(
+                    enabled = true,
+                    openClAvailable = false,
+                    deviceIdentity = normalizedIdentity,
+                    description = "enabled: $deviceLabel device; attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable",
+                )
+            }
+            else -> GpuBackendPolicy(
+                enabled = false,
+                openClAvailable = openClAvailable,
+                deviceIdentity = normalizedIdentity,
+                description = "disabled: no ARM ABI or loadable OpenCL GPU path detected",
+            )
+        }
     }
 
     internal fun decideSpeculativeDecoding(

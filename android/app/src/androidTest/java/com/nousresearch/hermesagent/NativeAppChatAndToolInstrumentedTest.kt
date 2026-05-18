@@ -5,6 +5,7 @@ import android.os.Environment
 import android.os.SystemClock
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.nousresearch.hermesagent.backend.BackendKind
 import com.nousresearch.hermesagent.backend.HermesRuntimeManager
 import com.nousresearch.hermesagent.backend.OnDeviceBackendManager
@@ -25,6 +26,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.FileInputStream
 import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
@@ -119,19 +121,11 @@ class NativeAppChatAndToolInstrumentedTest {
 
         assertTrue("Expected Gemma 4 native chat to execute file and browser tools: ${result.content}", result.executedToolCalls >= 2)
         assertFalse("Expected a nonblank Gemma 4 browser automation reply", result.content.isBlank())
-        val openResult = JSONObject(result.lastToolResult)
-        assertTrue("Expected successful browser handoff result: $openResult", openResult.optBoolean("success"))
-        assertTrue(
-            "Expected browser handoff marker from android_automation_tool: $openResult",
-            openResult.optBoolean("external_activity_handoff"),
-        )
-        assertEquals("http", openResult.getString("resolved_uri_scheme"))
-        assertTrue(openResult.toString(), openResult.getBoolean("served_local_file"))
-        Thread.sleep(2_000)
         assertTrue("Expected Gemma 4 native chat tool call to create ${htmlFile.absolutePath}", htmlFile.isFile)
         val html = htmlFile.readText()
         assertTrue(html, html.contains("<canvas id=\"game\"") || html.contains("<canvas id='game'"))
         assertTrue(html, html.contains("HERMES_GEMMA_FLAPPY"))
+        assertBrowserFocused()
     }
 
     @Test
@@ -272,6 +266,42 @@ class NativeAppChatAndToolInstrumentedTest {
         return latestReply
     }
 
+    private fun assertBrowserFocused() {
+        val focusedPackage = waitForFocusedPackage(BROWSER_PACKAGES)
+        assertTrue(
+            "Expected Gemma browser automation to focus a browser, got '$focusedPackage'",
+            focusedPackage in BROWSER_PACKAGES,
+        )
+    }
+
+    private fun waitForFocusedPackage(packages: Set<String>, timeoutMs: Long = 10_000L): String {
+        val deadline = SystemClock.elapsedRealtime() + timeoutMs
+        var latest = ""
+        while (SystemClock.elapsedRealtime() < deadline) {
+            latest = focusedPackage()
+            if (latest in packages) {
+                return latest
+            }
+            Thread.sleep(250L)
+        }
+        return latest.ifBlank { focusedPackage() }
+    }
+
+    private fun focusedPackage(): String {
+        val output = shellOutput("dumpsys window")
+        return FOCUS_PACKAGE_REGEX.find(output)?.groupValues?.getOrNull(1).orEmpty()
+            .ifBlank {
+                FOCUSED_APP_PACKAGE_REGEX.find(output)?.groupValues?.getOrNull(1).orEmpty()
+            }
+    }
+
+    private fun shellOutput(command: String): String {
+        val descriptor = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(command)
+        return descriptor.use { fd ->
+            FileInputStream(fd.fileDescriptor).bufferedReader().use { it.readText() }
+        }
+    }
+
     private fun assumeQwenBackendReady(runtime: HermesRuntimeManager.RuntimeState) =
         OnDeviceBackendManager.currentStatus().also { backendStatus ->
             assumeTrue(
@@ -358,10 +388,24 @@ class NativeAppChatAndToolInstrumentedTest {
         private const val MODEL_REVISION = "7fa1d78473894f7e736a21d920c3aa80f950c0db"
         private const val MODEL_BYTES = 2_583_085_056L
         private const val QWEN_MODEL_ID = "Qwen3.5 0.8B Q4_K_M GGUF"
-        private const val QWEN_REPO = "unsloth/Qwen3.5-0.8B-GGUF"
-        private const val QWEN_GGUF_FILE_NAME = "Qwen3.5-0.8B-Q4_K_M.gguf"
+        private const val QWEN_REPO = "bartowski/Qwen_Qwen3.5-0.8B-GGUF"
+        private const val QWEN_GGUF_FILE_NAME = "Qwen_Qwen3.5-0.8B-Q4_K_M.gguf"
         private const val QWEN_SOURCE_URL =
-            "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/main/$QWEN_GGUF_FILE_NAME"
-        private const val QWEN_GGUF_BYTES = 532_517_120L
+            "https://huggingface.co/bartowski/Qwen_Qwen3.5-0.8B-GGUF/resolve/main/$QWEN_GGUF_FILE_NAME"
+        private const val QWEN_GGUF_BYTES = 556_982_432L
+        private val BROWSER_PACKAGES = setOf(
+            "com.android.chrome",
+            "com.chrome.beta",
+            "com.chrome.canary",
+            "com.chrome.dev",
+            "org.mozilla.firefox",
+            "org.mozilla.firefox_beta",
+            "com.brave.browser",
+            "com.brave.browser_beta",
+            "com.brave.browser_nightly",
+            "com.microsoft.emmx",
+        )
+        private val FOCUS_PACKAGE_REGEX = Regex("""mCurrentFocus=Window\{[^ ]+ u\d+ ([^/\s]+)/""")
+        private val FOCUSED_APP_PACKAGE_REGEX = Regex("""mFocusedApp=ActivityRecord\{[^ ]+ u\d+ ([^/\s]+)/""")
     }
 }

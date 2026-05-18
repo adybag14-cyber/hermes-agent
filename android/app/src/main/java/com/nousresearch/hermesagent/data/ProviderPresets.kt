@@ -120,9 +120,11 @@ object ProviderPresets {
             label = "Qwen Cloud / DashScope API key",
             baseUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
             modelHint = "qwen3.6-plus",
-            apiKeyUrl = "https://docs.qwencloud.com/api-reference/preparation/api-key",
+            apiKeyUrl = "https://docs.qwencloud.com/developer-guides/administration/api-keys",
             fallbackSetupUrls = listOf(
-                "https://docs.qwencloud.com/developer-guides/administration/api-keys",
+                "https://modelstudio.console.alibabacloud.com/?tab=playground",
+                "https://www.alibabacloud.com/help/en/model-studio/get-api-key",
+                "https://docs.qwencloud.com/api-reference/preparation/api-key",
                 "https://home.qwencloud.com/api-keys",
                 "https://account.alibabacloud.com/login/login.htm",
             ),
@@ -132,12 +134,14 @@ object ProviderPresets {
             label = "Qwen Coding Plan",
             baseUrl = "https://coding-intl.dashscope.aliyuncs.com/v1",
             modelHint = "qwen3.6-plus",
-            apiKeyUrl = "https://docs.qwencloud.com/coding-plan/tools/cline",
+            apiKeyUrl = "https://docs.qwencloud.com/coding-plan/overview",
             fallbackSetupUrls = listOf(
-                "https://docs.qwencloud.com/coding-plan/overview",
+                "https://modelstudio.console.alibabacloud.com/?tab=playground",
+                "https://www.alibabacloud.com/help/en/model-studio/coding-plan",
+                "https://docs.qwencloud.com/coding-plan/tools/cline",
+                "https://home.qwencloud.com/api-keys",
                 "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/model-providers/",
                 "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/",
-                "https://home.qwencloud.com/api-keys",
             ),
         ),
         ProviderPreset(
@@ -147,9 +151,9 @@ object ProviderPresets {
             modelHint = "qwen3-coder-plus",
             apiKeyUrl = "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/auth/",
             fallbackSetupUrls = listOf(
-                "https://home.qwencloud.com/api-keys",
                 "https://docs.qwencloud.com/api-reference/preparation/api-key",
                 "https://docs.qwencloud.com/developer-guides/getting-started/first-api-call",
+                "https://home.qwencloud.com/api-keys",
                 "https://qwen.ai/apiplatform",
                 "https://chat.qwen.ai/",
             ),
@@ -217,8 +221,12 @@ object ProviderPresets {
         return setupUrls(providerId).joinToString(separator = "\n")
     }
 
-    fun providerIdForSetupUrl(url: String): String? {
+    fun providerIdForSetupUrl(url: String, preferredProviderId: String = ""): String? {
         val normalized = url.trim()
+        val preferred = preferredProviderId.trim()
+        if (preferred.isNotBlank() && setupUrls(preferred).any { it == normalized }) {
+            return preferred
+        }
         return defaults.firstOrNull { preset ->
             setupUrls(preset.id).any { it == normalized }
         }?.id

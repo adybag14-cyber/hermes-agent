@@ -14,7 +14,6 @@ from difflib import unified_diff
 from pathlib import Path
 
 from hermes_cli.shared_utils import safe_json_loads
-from agent.tool_result_classification import file_mutation_result_landed
 
 # ANSI escape codes for coloring tool failure indicators
 _RED = "\033[31m"
@@ -811,8 +810,6 @@ def _detect_tool_failure(tool_name: str, result: str | None) -> tuple[bool, str]
     """
     if result is None:
         return False, ""
-    if file_mutation_result_landed(tool_name, result):
-        return False, ""
 
     if tool_name == "terminal":
         data = safe_json_loads(result)
@@ -1007,4 +1004,5 @@ def get_cute_tool_message(
 # =========================================================================
 # Honcho session line (one-liner with clickable OSC 8 hyperlink)
 # =========================================================================
+
 

@@ -38,8 +38,7 @@ def test_settings_model_selection_uses_one_tap_cards_without_dropdowns():
     assert 'startRecommendedModelDownload(' in downloads
     assert 'Gemma 4 E2B (LiteRT-LM)' in downloads
     assert 'Qwen3.5 0.8B Q4_K_M (GGUF)' in downloads
-    assert 'unsloth/Qwen3.5-0.8B-GGUF' in downloads
-    assert 'Qwen3.5-0.8B-Q4_K_M.gguf' in downloads
+    assert 'bartowski/Qwen_Qwen3.5-0.8B-GGUF' in downloads
     assert 'Gemma 4 E2B (LiteRT-LM)' in presets
     assert 'Gemma 4 E4B (LiteRT-LM)' in presets
     assert 'Gemma 3 1B IT INT4 (LiteRT-LM)' in presets
@@ -73,11 +72,7 @@ def test_litert_lm_proxy_accepts_image_content_for_vision_models_and_rejects_tex
     proxy = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
     backend = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/OnDeviceBackendManager.kt").read_text(encoding="utf-8")
 
-    assert 'Content.ImageBytes(normalizeImageBytesForLiteRtLm(decoded))' in proxy
-    assert 'BitmapFactory.decodeByteArray' in proxy
-    assert 'Bitmap.CompressFormat.JPEG' in proxy
-    assert 'MAX_DATA_URI_IMAGE_BYTES' in proxy
-    assert 'status = Response.Status.BAD_REQUEST' in proxy
+    assert 'Content.ImageBytes(Base64.decode' in proxy
     assert 'Content.ImageFile' in proxy
     assert 'requestContainsImage(requestMessages) && !supportsImageInput' in proxy
     assert 'maxNumImages = if (requestedSupportImage) 1 else null' in proxy
@@ -92,6 +87,4 @@ def test_litert_lm_proxy_accepts_image_content_for_vision_models_and_rejects_tex
     matrix_test = (REPO_ROOT / "android/app/src/androidTest/java/com/nousresearch/hermesagent/LiteRtLmModelMatrixInstrumentedTest.kt").read_text(encoding="utf-8")
     assert 'provisionedVisionLiteRtLmModelDescribesImageLocally' in matrix_test
     assert 'provisionedTextOnlyLiteRtLmModelRejectsImageRequestsClearly' in matrix_test
-    assert 'bluePixelDataUrl()' in matrix_test
-    assert 'Bitmap.CompressFormat.JPEG' in matrix_test
     assert 'image input requires a LiteRT-LM model started with image support' in matrix_test

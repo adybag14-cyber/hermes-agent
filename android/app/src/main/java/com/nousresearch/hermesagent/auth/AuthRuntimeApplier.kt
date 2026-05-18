@@ -3,12 +3,10 @@ package com.nousresearch.hermesagent.auth
 import android.content.Context
 import com.chaquo.python.Python
 import com.nousresearch.hermesagent.backend.HermesRuntimeManager
-import com.nousresearch.hermesagent.data.AppSettings
 import com.nousresearch.hermesagent.data.AppSettingsStore
 import com.nousresearch.hermesagent.data.AuthScope
 import com.nousresearch.hermesagent.data.AuthSession
 import com.nousresearch.hermesagent.data.ProviderPresets
-import com.nousresearch.hermesagent.data.SecureSecretsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,13 +27,6 @@ object AuthRuntimeApplier {
         val resolvedBaseUrl = session.baseUrl.ifBlank { preset?.baseUrl.orEmpty() }
         val runtimeConfigBaseUrl = ProviderPresets.runtimeConfigBaseUrl(session.runtimeProvider, resolvedBaseUrl)
         val resolvedModel = session.model.ifBlank { preset?.modelHint.orEmpty() }
-        val providerCredential = session.apiKey
-            .ifBlank { session.accessToken }
-            .ifBlank { session.sessionToken }
-
-        if (providerCredential.isNotBlank()) {
-            SecureSecretsStore(appContext).saveApiKey(session.runtimeProvider, providerCredential)
-        }
 
         HermesRuntimeManager.ensurePythonStarted(appContext)
         val python = Python.getInstance()
@@ -56,15 +47,10 @@ object AuthRuntimeApplier {
         )
 
         settingsStore.save(
-            AppSettings(
+            existingSettings.copy(
                 provider = session.runtimeProvider,
                 baseUrl = resolvedBaseUrl,
                 model = resolvedModel,
-                corr3xtBaseUrl = existingSettings.corr3xtBaseUrl,
-                dataSaverMode = existingSettings.dataSaverMode,
-                onDeviceBackend = existingSettings.onDeviceBackend,
-                liteRtLmSpeculativeDecodingMode = existingSettings.liteRtLmSpeculativeDecodingMode,
-                languageTag = existingSettings.languageTag,
             )
         )
         restartRuntimeAsync(appContext)

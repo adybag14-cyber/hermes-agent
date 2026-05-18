@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from hermes_cli.shared_utils import safe_json_loads
-from agent.tool_result_classification import file_mutation_result_landed
 
 
 IDEMPOTENT_TOOL_NAMES = frozenset(
@@ -196,8 +195,6 @@ def classify_tool_failure(tool_name: str, result: str | None) -> tuple[bool, str
     (tests, tooling) still get consistent behavior.
     """
     if result is None:
-        return False, ""
-    if file_mutation_result_landed(tool_name, result):
         return False, ""
 
     if tool_name == "terminal":
