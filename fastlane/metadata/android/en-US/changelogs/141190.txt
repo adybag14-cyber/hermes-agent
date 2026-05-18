@@ -1,0 +1,1 @@
+Adds F-Droid listing assets, keeps the Termux Android release fixes, restores the Unsloth Qwen3.5 tiny GGUF preset, and improves Termux update/browser fallback handling.

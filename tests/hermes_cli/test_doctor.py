@@ -401,7 +401,10 @@ def test_run_doctor_prefers_dot_venv_entrypoint_for_expected_symlink(monkeypatch
 
     termux_bin = tmp_path / "termux-prefix" / "bin"
     termux_bin.mkdir(parents=True)
-    (termux_bin / "hermes").symlink_to(dot_venv_hermes)
+    try:
+        (termux_bin / "hermes").symlink_to(dot_venv_hermes)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable in this Windows session: {exc}")
 
     monkeypatch.setenv("TERMUX_VERSION", "0.118.3")
     monkeypatch.setenv("PREFIX", str(tmp_path / "termux-prefix"))

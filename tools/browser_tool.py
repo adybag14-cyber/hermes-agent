@@ -54,6 +54,7 @@ import functools
 import json
 import logging
 import os
+import posixpath
 import re
 import signal
 import subprocess
@@ -132,7 +133,7 @@ def _discover_homebrew_node_dirs() -> tuple[str, ...]:
     try:
         for entry in os.listdir(homebrew_opt):
             if entry.startswith("node") and entry != "node":
-                bin_dir = os.path.join(homebrew_opt, entry, "bin")
+                bin_dir = posixpath.join(homebrew_opt, entry, "bin")
                 if os.path.isdir(bin_dir):
                     dirs.append(bin_dir)
     except OSError:
@@ -142,9 +143,14 @@ def _discover_homebrew_node_dirs() -> tuple[str, ...]:
 
 def _browser_candidate_path_dirs() -> list[str]:
     """Return ordered browser CLI PATH candidates shared by discovery and execution."""
-    hermes_home = get_hermes_home()
-    hermes_node_bin = str(hermes_home / "node" / "bin")
-    return [hermes_node_bin, *list(_discover_homebrew_node_dirs()), *_SANE_PATH_DIRS]
+    candidate_dirs: list[str] = []
+    try:
+        candidate_dirs.append(str(get_hermes_home() / "node" / "bin"))
+    except Exception:
+        pass
+    candidate_dirs.extend(_discover_homebrew_node_dirs())
+    candidate_dirs.extend(_SANE_PATH_DIRS)
+    return candidate_dirs
 
 
 def _merge_browser_path(existing_path: str = "") -> str:

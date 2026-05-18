@@ -309,7 +309,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             return
         }
         val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(requestedUrl, providerId)
-        val setupTarget = resolvedProviderId?.let { nextProviderSetupTarget(it) }
+        val setupTarget = if (providerId.isNotBlank()) {
+            resolvedProviderId?.let { nextProviderSetupTarget(it) }
+        } else {
+            null
+        }
         val targetUrl = setupTarget?.url ?: requestedUrl
         if (HermesNetworkPolicy.isExternalNetworkBlocked(getApplication(), targetUrl)) {
             _uiState.update {
