@@ -10,6 +10,12 @@ from hermes_cli import main as hermes_main
 from hermes_cli import update_cmd
 
 
+def _normalize_git_cmd(cmd):
+    if cmd[:3] == ["git", "-c", "windows.appendAtomically=false"]:
+        return ["git"] + cmd[3:]
+    return cmd
+
+
 # ---------------------------------------------------------------------------
 # Managed-uv compatibility for tests that patch shutil.which
 # ---------------------------------------------------------------------------
@@ -105,6 +111,7 @@ def test_refresh_active_memory_provider_dependencies_reinstalls_active_provider(
     """#53272/#70636: update must re-run the active provider's dep install."""
     recorded = []
 
+
     monkeypatch.setattr(
         "hermes_cli.config.load_config",
         lambda: {"memory": {"provider": "mem0"}},
@@ -177,6 +184,7 @@ def _make_update_side_effect(
     head_sha_calls = []
 
     def side_effect(cmd, **kwargs):
+        cmd = _normalize_git_cmd(cmd)
         recorded.append(cmd)
         joined = " ".join(str(c) for c in cmd)
         if "fetch" in joined and "origin" in joined:

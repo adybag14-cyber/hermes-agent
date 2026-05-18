@@ -5,6 +5,7 @@ Split out of ``tools/browser_tool.py``. Facade-owned state is read through ``_bt
 import contextlib
 import functools
 import os
+import posixpath
 import shutil
 import subprocess
 import sys
@@ -32,16 +33,20 @@ def _discover_homebrew_node_dirs() -> tuple[str, ...]:
         bin_dir
         for entry in entries
         if entry.startswith("node") and entry != "node"
-        if os.path.isdir(bin_dir := os.path.join(homebrew_opt, entry, "bin"))
+        if os.path.isdir(bin_dir := posixpath.join(homebrew_opt, entry, "bin"))
     )
 
 
 def _browser_candidate_path_dirs() -> list[str]:
     """Return ordered browser CLI PATH candidates shared by discovery and execution."""
     _bt = _origin()
-    home = get_hermes_home()
-    managed = (home / "node" / "bin", home / "node", home / "node_modules" / ".bin")
-    return [*map(str, managed), *_discover_homebrew_node_dirs(), *_bt._SANE_PATH_DIRS]
+    managed: list[str] = []
+    try:
+        home = get_hermes_home()
+        managed = [str(home / "node" / "bin"), str(home / "node"), str(home / "node_modules" / ".bin")]
+    except (OSError, RuntimeError) as exc:
+        _bt.logger.debug("Managed browser paths unavailable: %s", exc)
+    return [*managed, *_discover_homebrew_node_dirs(), *_bt._SANE_PATH_DIRS]
 
 
 def _merge_browser_path(existing_path: str = "") -> str:
