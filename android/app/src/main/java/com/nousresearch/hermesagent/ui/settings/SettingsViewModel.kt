@@ -388,7 +388,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
         viewModelScope.launch {
             val results = withContext(Dispatchers.IO) {
-                urls.map { url -> ProviderSetupUrlProbe.probe(url, context = getApplication()) }
+                urls.map(ProviderSetupUrlProbe::probe)
             }
             val status = providerSetupProbeStatus(providerLabel, results)
             _uiState.update { it.copy(status = status) }

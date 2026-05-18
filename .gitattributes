@@ -32,3 +32,4 @@ docker/entrypoint.sh text eol=lf
 *.html  text eol=lf
 *.svg   text eol=lf
 *.ps1   text eol=crlf
+android/pip-stubs/**/*.egg-info/PKG-INFO text eol=lf
