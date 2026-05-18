@@ -9,6 +9,7 @@ import android.text.format.Formatter
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.nousresearch.hermesagent.data.AppSettingsStore
+import com.nousresearch.hermesagent.data.HermesNetworkPolicy
 import com.nousresearch.hermesagent.data.LocalModelDownloadRecord
 import com.nousresearch.hermesagent.data.LocalModelDownloadStore
 import com.nousresearch.hermesagent.data.SecureSecretsStore
@@ -243,7 +244,12 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    HuggingFaceModelIndexClient.fetchDetectedModels(context = getApplication())
+                    HermesNetworkPolicy.requireExternalNetworkAllowed(
+                        getApplication(),
+                        HuggingFaceModelIndexClient.DEFAULT_INDEX_URL,
+                        actionLabel = "model catalog refresh",
+                    )
+                    HuggingFaceModelIndexClient.fetchDetectedModels()
                 }
             }.onSuccess { models ->
                 _uiState.update { state ->

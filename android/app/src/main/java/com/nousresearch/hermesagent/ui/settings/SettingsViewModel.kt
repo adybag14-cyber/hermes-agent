@@ -369,7 +369,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(status = "Checking $providerLabel setup pages from this device...") }
         viewModelScope.launch {
             val results = withContext(Dispatchers.IO) {
-                urls.map { url -> ProviderSetupUrlProbe.probe(url, context = getApplication()) }
+                urls.map(ProviderSetupUrlProbe::probe)
             }
             val reachable = results.filter { it.reachable }
             val firstReachable = reachable.firstOrNull()

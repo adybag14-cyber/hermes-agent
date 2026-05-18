@@ -1095,7 +1095,7 @@ private fun ChatComposer(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
-        shape = MaterialTheme.shapes.large,
+        shape = RoundedCornerShape(28.dp),
         tonalElevation = 2.dp,
     ) {
         Column(
@@ -1206,20 +1206,43 @@ private fun ChatComposer(
                         modifier = Modifier.size(22.dp),
                     )
                 }
-                Button(
-                    onClick = onSend,
-                    enabled = !isSending && (input.isNotBlank() || attachments.isNotEmpty()),
-                    modifier = Modifier.testTag("HermesChatSendButton"),
-                ) {
-                    Text(
-                        text = if (isSending) "…" else strings.send.ifBlank { "Send" },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
+                ChatSendButton(
+                    input = input,
+                    attachments = attachments,
+                    isSending = isSending,
+                    onSend = onSend,
+                )
             }
             if (!actionMenuOpen) {
                 QuietMetaText(text = strings.chatCommandsTip(isListening), color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatSendButton(
+    input: String,
+    attachments: List<ChatAttachment>,
+    isSending: Boolean,
+    onSend: () -> Unit,
+) {
+    val strings = LocalHermesStrings.current
+    Box(modifier = Modifier.widthIn(min = 72.dp, max = 112.dp)) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onSend,
+                enabled = !isSending && (input.isNotBlank() || attachments.isNotEmpty()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("HermesChatSendButton"),
+                shape = RoundedCornerShape(28.dp),
+            ) {
+                Text(
+                    text = if (isSending) "…" else strings.send.ifBlank { "Send" },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
