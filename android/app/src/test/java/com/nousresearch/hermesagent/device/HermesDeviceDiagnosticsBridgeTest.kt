@@ -140,6 +140,20 @@ class HermesDeviceDiagnosticsBridgeTest {
     }
 
     @Test
+    fun deviceStateWriterToleratesDiagnosticsSnapshotServices() {
+        val stateFile = java.io.File(context.filesDir, "hermes-home/android-device-state.json")
+        stateFile.delete()
+
+        DeviceStateWriter.write(context)
+
+        assertTrue(stateFile.isFile)
+        val payload = JSONObject(stateFile.readText())
+        assertTrue(payload.getBoolean("device_diagnostics_tool_available"))
+        assertTrue(payload.has("usage_access_granted"))
+        assertTrue(payload.has("wifi_scan_permission_status"))
+    }
+
+    @Test
     fun summarizesBluetoothMetadataForAgentAndCards() {
         assertEquals("near", HermesDeviceDiagnosticsBridge.bluetoothProximityLabel(-48))
         assertEquals("room", HermesDeviceDiagnosticsBridge.bluetoothProximityLabel(-67))
