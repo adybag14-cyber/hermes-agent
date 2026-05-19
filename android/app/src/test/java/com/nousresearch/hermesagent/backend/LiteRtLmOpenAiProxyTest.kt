@@ -123,9 +123,49 @@ class LiteRtLmOpenAiProxyTest {
 
         assertTrue(policy.enabled)
         assertFalse(policy.openClAvailable)
+        assertEquals("qualcomm_snapdragon", policy.socFamily)
+        assertEquals("adreno", policy.gpuFamily)
+        assertEquals(listOf("gpu", "cpu"), policy.backendOrder)
         assertTrue(policy.deviceIdentity.contains("adreno"))
-        assertTrue(policy.description, policy.description.contains("ARM Qualcomm/Adreno"))
+        assertTrue(policy.description, policy.description.contains("ARM Qualcomm Snapdragon/Adreno"))
         assertTrue(policy.description, policy.description.contains("CPU fallback"))
+    }
+
+    @Test
+    fun gpuBackendPolicy_attemptsGpuOnMediatekMaliArmDevices() {
+        val policy = LiteRtLmOpenAiProxy.decideGpuBackendPolicy(
+            isTranslatedArm64OnX86 = false,
+            supportedAbis = listOf("arm64-v8a", "armeabi-v7a"),
+            openClAvailable = false,
+            hardwareIdentity = "MediaTek Dimensity 1200 mt6893 Mali-G77",
+        )
+
+        assertTrue(policy.enabled)
+        assertFalse(policy.openClAvailable)
+        assertEquals("mediatek", policy.socFamily)
+        assertEquals("mali", policy.gpuFamily)
+        assertEquals(listOf("gpu", "cpu"), policy.backendOrder)
+        assertTrue(policy.description, policy.description.contains("ARM MediaTek/Mali"))
+        assertTrue(policy.description, policy.description.contains("CPU fallback"))
+        assertTrue(policy.nativeAbiStrategy, policy.nativeAbiStrategy.contains("PowerVR/IMG"))
+    }
+
+    @Test
+    fun gpuBackendPolicy_attemptsGpuOnMediatekPowerVrArmDevices() {
+        val policy = LiteRtLmOpenAiProxy.decideGpuBackendPolicy(
+            isTranslatedArm64OnX86 = false,
+            supportedAbis = listOf("arm64-v8a", "armeabi-v7a"),
+            openClAvailable = true,
+            hardwareIdentity = "MediaTek Helio P35 mt6765 PowerVR Rogue GE8320",
+        )
+
+        assertTrue(policy.enabled)
+        assertTrue(policy.openClAvailable)
+        assertEquals("mediatek", policy.socFamily)
+        assertEquals("powervr_img", policy.gpuFamily)
+        assertEquals(listOf("gpu", "cpu"), policy.backendOrder)
+        assertTrue(policy.description, policy.description.contains("OpenCL library was loadable"))
+        assertTrue(policy.description, policy.description.contains("ARM MediaTek/PowerVR/IMG"))
     }
 
     @Test

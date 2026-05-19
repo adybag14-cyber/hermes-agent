@@ -526,7 +526,7 @@ object HermesDeviceDiagnosticsBridge {
                 "cards",
                 JSONArray()
                     .put(card("Signal Limits", "Built-in phone APIs cover Wi-Fi, Bluetooth, audio, camera, and sensors; microwave and broad RF need external hardware."))
-                    .put(card("SOC Compatibility", "Diagnostics use Android SDK services, not Adreno-only GPU paths, so MediaTek and Snapdragon phones follow the same capability checks.")),
+                    .put(card("SOC Compatibility", "Diagnostics and LiteRT policy use ABI, SOC, and GPU capability probes across MediaTek/Mali/PowerVR, Snapdragon/Adreno, Tensor, Exynos, and generic ARM devices with CPU fallback.")),
             )
     }
 
@@ -1781,35 +1781,48 @@ object HermesDeviceDiagnosticsBridge {
             Build.MANUFACTURER.orEmpty(),
             Build.BRAND.orEmpty(),
         )
+        val hardwareProfile = HermesAndroidHardwareProfile.classify(values)
         return JSONObject()
             .put("soc_manufacturer", socManufacturer)
             .put("soc_model", socModel)
+            .put("soc_family", hardwareProfile.socFamily)
+            .put("soc_family_label", hardwareProfile.socLabel)
+            .put("gpu_family_hint", hardwareProfile.gpuFamily)
+            .put("gpu_family_label", hardwareProfile.gpuLabel)
             .put("hardware", Build.HARDWARE.orEmpty())
             .put("board", Build.BOARD.orEmpty())
             .put("android_sdk_int", Build.VERSION.SDK_INT)
             .put("android_release", Build.VERSION.RELEASE.orEmpty())
             .put("primary_abi", supportedAbis.firstOrNull().orEmpty())
+            .put("native_abi_candidates", JSONArray(HermesAndroidHardwareProfile.nativeAbiCandidates(supportedAbis)))
             .put("supported_abis", JSONArray(supportedAbis))
             .put("supported_64_bit_abis", JSONArray(supported64BitAbis))
             .put("supports_64_bit_abi", supported64BitAbis.isNotEmpty())
             .put("supports_arm64", supportedAbis.any { it.contains("arm64", ignoreCase = true) })
+            .put("supports_arm", supportedAbis.any { HermesAndroidHardwareProfile.isArmAbi(it) })
             .put("supports_x86_64", supportedAbis.any { it.contains("x86_64", ignoreCase = true) })
+            .put("supports_x86", supportedAbis.any { HermesAndroidHardwareProfile.isX86Abi(it) })
             .put("likely_mediatek", isLikelyMediatekSoc(values))
             .put("likely_snapdragon", isLikelySnapdragonSoc(values))
+            .put("likely_google_tensor", HermesAndroidHardwareProfile.isLikelyGoogleTensorSoc(values))
+            .put("likely_exynos", HermesAndroidHardwareProfile.isLikelyExynosSoc(values))
+            .put("likely_unisoc", HermesAndroidHardwareProfile.isLikelyUnisocSoc(values))
+            .put("likely_adreno_gpu", hardwareProfile.gpuFamily == "adreno")
+            .put("likely_mali_gpu", hardwareProfile.gpuFamily == "mali" || hardwareProfile.gpuFamily == "mali_immortalis")
+            .put("likely_powervr_img_gpu", hardwareProfile.gpuFamily == "powervr_img")
+            .put("likely_xclipse_gpu", hardwareProfile.gpuFamily == "xclipse")
+            .put("litert_lm_acceleration_label", HermesAndroidHardwareProfile.accelerationLabel(hardwareProfile))
+            .put("litert_lm_backend_strategy", "GPU-first on ARM devices when LiteRT-LM accepts the accelerator, then CPU fallback; CPU-only on x86 emulator/device builds.")
             .put("compatibility_strategy", "Use Android SDK feature, permission, sensor, Wi-Fi, Bluetooth, camera, and storage APIs; avoid Adreno-only or Snapdragon-only assumptions.")
-            .put("native_abi_strategy", "Select packaged native artifacts from Build.SUPPORTED_ABIS and capability probes instead of assuming a Qualcomm/Adreno target.")
+            .put("native_abi_strategy", HermesAndroidHardwareProfile.nativeAbiStrategy(supportedAbis))
     }
 
     internal fun isLikelyMediatekSoc(values: List<String>): Boolean {
-        val normalized = values.joinToString(" ").lowercase(Locale.US)
-        return listOf("mediatek", "mtk", "dimensity", "helio").any { it in normalized } ||
-            Regex("""\bmt[0-9]{4,}[a-z0-9_+-]*\b""").containsMatchIn(normalized)
+        return HermesAndroidHardwareProfile.isLikelyMediatekSoc(values)
     }
 
     internal fun isLikelySnapdragonSoc(values: List<String>): Boolean {
-        val normalized = values.joinToString(" ").lowercase(Locale.US)
-        return listOf("qualcomm", "snapdragon", "qcom", "msm", "sdm").any { it in normalized } ||
-            Regex("""\bsm[0-9]{4,}[a-z0-9_+-]*\b""").containsMatchIn(normalized)
+        return HermesAndroidHardwareProfile.isLikelySnapdragonSoc(values)
     }
 
     private fun wifiBandLabel(frequencyMhz: Int): String = when (frequencyMhz) {

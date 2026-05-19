@@ -20,6 +20,7 @@ import com.google.ai.edge.litertlm.OpenApiTool
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ToolCall
 import com.google.ai.edge.litertlm.tool
+import com.nousresearch.hermesagent.device.HermesAndroidHardwareProfile
 import fi.iki.elonen.NanoHTTPD
 import org.json.JSONArray
 import org.json.JSONObject
@@ -75,6 +76,10 @@ object LiteRtLmOpenAiProxy {
         val enabled: Boolean,
         val openClAvailable: Boolean,
         val deviceIdentity: String,
+        val socFamily: String,
+        val gpuFamily: String,
+        val backendOrder: List<String>,
+        val nativeAbiStrategy: String,
         val description: String,
     )
 
@@ -296,6 +301,10 @@ object LiteRtLmOpenAiProxy {
                             put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")
                             put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)
                             put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)
+                            put("soc_family", engineInitResult.gpuPolicy.socFamily)
+                            put("gpu_family", engineInitResult.gpuPolicy.gpuFamily)
+                            put("litert_backend_order", JSONArray(engineInitResult.gpuPolicy.backendOrder))
+                            put("native_abi_strategy", engineInitResult.gpuPolicy.nativeAbiStrategy)
                             put("max_num_tokens", engineInitResult.maxNumTokens ?: JSONObject.NULL)
                             put("context_window_policy", engineInitResult.contextWindowPolicy)
                             put("model", modelName)
@@ -1126,42 +1135,46 @@ object LiteRtLmOpenAiProxy {
         hardwareIdentity: String,
     ): GpuBackendPolicy {
         val normalizedIdentity = hardwareIdentity.lowercase(Locale.US)
-        return when {
-            isTranslatedArm64OnX86 -> GpuBackendPolicy(
-                enabled = false,
+        val hardwareProfile = HermesAndroidHardwareProfile.classify(listOf(normalizedIdentity))
+        val nativeAbiStrategy = HermesAndroidHardwareProfile.nativeAbiStrategy(supportedAbis)
+        val armDeviceLabel = HermesAndroidHardwareProfile.accelerationLabel(hardwareProfile)
+
+        fun policy(
+            enabled: Boolean,
+            description: String,
+            backendOrder: List<String> = if (enabled) listOf("gpu", "cpu") else listOf("cpu"),
+        ): GpuBackendPolicy {
+            return GpuBackendPolicy(
+                enabled = enabled,
                 openClAvailable = openClAvailable,
                 deviceIdentity = normalizedIdentity,
+                socFamily = hardwareProfile.socFamily,
+                gpuFamily = hardwareProfile.gpuFamily,
+                backendOrder = backendOrder,
+                nativeAbiStrategy = nativeAbiStrategy,
+                description = description,
+            )
+        }
+
+        return when {
+            isTranslatedArm64OnX86 -> policy(
+                enabled = false,
                 description = "disabled: translated arm64 package on x86 emulator/device",
             )
-            supportedAbis.any { it.startsWith("x86") } -> GpuBackendPolicy(
+            supportedAbis.any { HermesAndroidHardwareProfile.isX86Abi(it) } -> policy(
                 enabled = false,
-                openClAvailable = openClAvailable,
-                deviceIdentity = normalizedIdentity,
                 description = "disabled: x86 emulator/device build",
             )
-            openClAvailable -> GpuBackendPolicy(
+            openClAvailable -> policy(
                 enabled = true,
-                openClAvailable = true,
-                deviceIdentity = normalizedIdentity,
-                description = "enabled: OpenCL library was loadable",
+                description = "enabled: OpenCL library was loadable for $armDeviceLabel; attempting LiteRT-LM GPU with CPU fallback",
             )
-            supportedAbis.any { it.startsWith("arm") } -> {
-                val deviceLabel = if (listOf("qualcomm", "qcom", "snapdragon", "adreno").any { it in normalizedIdentity }) {
-                    "ARM Qualcomm/Adreno"
-                } else {
-                    "ARM Android"
-                }
-                GpuBackendPolicy(
-                    enabled = true,
-                    openClAvailable = false,
-                    deviceIdentity = normalizedIdentity,
-                    description = "enabled: $deviceLabel device; attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable",
-                )
-            }
-            else -> GpuBackendPolicy(
+            supportedAbis.any { HermesAndroidHardwareProfile.isArmAbi(it) } -> policy(
+                enabled = true,
+                description = "enabled: $armDeviceLabel device; attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable",
+            )
+            else -> policy(
                 enabled = false,
-                openClAvailable = openClAvailable,
-                deviceIdentity = normalizedIdentity,
                 description = "disabled: no ARM ABI or loadable OpenCL GPU path detected",
             )
         }

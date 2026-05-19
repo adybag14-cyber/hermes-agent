@@ -240,6 +240,9 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.has("bluetooth_scan_permission_status"))
         assertTrue(result.has("soc_profile"))
         assertTrue(result.getJSONObject("soc_profile").has("supported_abis"))
+        assertTrue(result.getJSONObject("soc_profile").has("soc_family"))
+        assertTrue(result.getJSONObject("soc_profile").has("gpu_family_hint"))
+        assertTrue(result.getJSONObject("soc_profile").has("litert_lm_backend_strategy"))
         assertTrue(result.getJSONObject("soc_profile").has("native_abi_strategy"))
         assertTrue(result.getJSONArray("limits").length() >= 2)
     }
@@ -283,6 +286,28 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertFalse(HermesDeviceDiagnosticsBridge.isLikelyMediatekSoc(listOf("Qualcomm", "sm8550", "Snapdragon 8 Gen 2")))
         assertTrue(HermesDeviceDiagnosticsBridge.isLikelySnapdragonSoc(listOf("Qualcomm", "sm8550", "Snapdragon 8 Gen 2")))
         assertFalse(HermesDeviceDiagnosticsBridge.isLikelySnapdragonSoc(listOf("MediaTek", "mt6768", "Helio")))
+
+        val dimensityProfile = HermesAndroidHardwareProfile.classify(listOf("MediaTek Dimensity 9300 mt6989 Immortalis-G720"))
+        val powerVrProfile = HermesAndroidHardwareProfile.classify(listOf("MediaTek Helio P35 mt6765 PowerVR Rogue GE8320"))
+        val tensorProfile = HermesAndroidHardwareProfile.classify(listOf("Google Tensor gs201 Mali-G710"))
+        val exynosProfile = HermesAndroidHardwareProfile.classify(listOf("Samsung Exynos 2400 Xclipse 940"))
+        val unisocProfile = HermesAndroidHardwareProfile.classify(listOf("Unisoc T820 ums9230 Mali-G57"))
+
+        assertEquals("mediatek", dimensityProfile.socFamily)
+        assertEquals("mali_immortalis", dimensityProfile.gpuFamily)
+        assertEquals("ARM MediaTek/Mali Immortalis", HermesAndroidHardwareProfile.accelerationLabel(dimensityProfile))
+        assertEquals("mediatek", powerVrProfile.socFamily)
+        assertEquals("powervr_img", powerVrProfile.gpuFamily)
+        assertEquals("google_tensor", tensorProfile.socFamily)
+        assertEquals("mali", tensorProfile.gpuFamily)
+        assertEquals("samsung_exynos", exynosProfile.socFamily)
+        assertEquals("xclipse", exynosProfile.gpuFamily)
+        assertEquals("unisoc", unisocProfile.socFamily)
+        assertEquals("mali", unisocProfile.gpuFamily)
+        assertTrue(
+            HermesAndroidHardwareProfile.nativeAbiStrategy(listOf("arm64-v8a", "armeabi-v7a"))
+                .contains("Adreno, Mali, Immortalis, Xclipse, and PowerVR/IMG"),
+        )
     }
 
     @Test

@@ -151,13 +151,22 @@ def test_litert_proxy_bounds_generation_with_executor_timeout_and_cancel():
 
 def test_litert_proxy_attempts_gpu_on_real_arm_devices_with_cpu_fallback():
     proxy = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
+    hardware_profile = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/device/HermesAndroidHardwareProfile.kt").read_text(encoding="utf-8")
 
     assert 'val openClAvailable = hasLoadableOpenClLibrary()' in proxy
     assert 'val gpuPolicy = gpuBackendPolicy(context, openClAvailable)' in proxy
     assert 'if (gpuPolicy.enabled)' in proxy
     assert 'disabled: translated arm64 package on x86 emulator/device' in proxy
     assert 'disabled: x86 emulator/device build' in proxy
-    assert 'ARM Qualcomm/Adreno' in proxy
+    assert 'HermesAndroidHardwareProfile.classify' in proxy
+    assert 'socFamily = hardwareProfile.socFamily' in proxy
+    assert 'gpuFamily = hardwareProfile.gpuFamily' in proxy
+    assert 'nativeAbiStrategy = nativeAbiStrategy' in proxy
+    assert 'ARM $socPart$gpuPart' in hardware_profile
+    assert '"mediatek" -> "MediaTek"' in hardware_profile
+    assert '"qualcomm_snapdragon" -> "Qualcomm Snapdragon"' in hardware_profile
+    assert '"powervr_img" -> "PowerVR/IMG"' in hardware_profile
+    assert 'Adreno, Mali, Immortalis, Xclipse, and PowerVR/IMG' in hardware_profile
     assert 'attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable' in proxy
     assert 'System.loadLibrary("OpenCL")' in proxy
     assert '"/vendor/lib64/libOpenCL.so"' in proxy
@@ -168,6 +177,10 @@ def test_litert_proxy_attempts_gpu_on_real_arm_devices_with_cpu_fallback():
     assert 'put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")' in proxy
     assert 'put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)' in proxy
     assert 'put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)' in proxy
+    assert 'put("soc_family", engineInitResult.gpuPolicy.socFamily)' in proxy
+    assert 'put("gpu_family", engineInitResult.gpuPolicy.gpuFamily)' in proxy
+    assert 'put("litert_backend_order", JSONArray(engineInitResult.gpuPolicy.backendOrder))' in proxy
+    assert 'put("native_abi_strategy", engineInitResult.gpuPolicy.nativeAbiStrategy)' in proxy
     assert 'visionBackend = visionBackend' in proxy
     assert 'else -> "cpu"' in proxy
     assert 'maxNumTokens = maxNumTokens' in proxy

@@ -113,6 +113,7 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     strings = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
     download_manager = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/models/HermesModelDownloadManager.kt").read_text(encoding="utf-8")
     litert_proxy = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
+    hardware_profile = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/device/HermesAndroidHardwareProfile.kt").read_text(encoding="utf-8")
     manifest = (REPO_ROOT / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
     gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
 
@@ -179,7 +180,14 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")' in litert_proxy
     assert 'put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)' in litert_proxy
     assert 'put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)' in litert_proxy
-    assert 'ARM Qualcomm/Adreno' in litert_proxy
+    assert 'put("soc_family", engineInitResult.gpuPolicy.socFamily)' in litert_proxy
+    assert 'put("gpu_family", engineInitResult.gpuPolicy.gpuFamily)' in litert_proxy
+    assert 'put("litert_backend_order", JSONArray(engineInitResult.gpuPolicy.backendOrder))' in litert_proxy
+    assert 'HermesAndroidHardwareProfile.classify' in litert_proxy
+    assert '"mediatek" -> "MediaTek"' in hardware_profile
+    assert '"qualcomm_snapdragon" -> "Qualcomm Snapdragon"' in hardware_profile
+    assert '"powervr_img" -> "PowerVR/IMG"' in hardware_profile
+    assert 'Adreno, Mali, Immortalis, Xclipse, and PowerVR/IMG' in hardware_profile
     assert 'attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable' in litert_proxy
     assert 'libOpenCL.so' in manifest
     assert 'libvndksupport.so' in manifest
