@@ -85,22 +85,46 @@ class NativeToolCallingChatClientTest {
                     .put("capabilities", "[WPA2-PSK-CCMP][ESS]".repeat(8)),
             )
         }
+        val channelRatings = JSONArray()
+        repeat(20) { index ->
+            channelRatings.put(
+                JSONObject()
+                    .put("band", "2.4GHz")
+                    .put("channel", index + 1)
+                    .put("score", 100 - index)
+                    .put("rating_label", "good")
+                    .put("network_count", index)
+                    .put("overlap_count", index + 1)
+                    .put("strongest_rssi_dbm", -40 - index)
+                    .put("recommendation", "Use if this is the highest-scored row."),
+            )
+        }
         val result = JSONObject()
             .put("success", true)
             .put("action", "wifi_scan")
             .put("wifi_networks", networks)
+            .put("wifi_channel_ratings", channelRatings)
+            .put(
+                "recommended_wifi_channels",
+                JSONArray().put(JSONObject().put("band", "2.4GHz").put("channel", 11).put("score", 96)),
+            )
             .put("cards", JSONArray().put(JSONObject().put("title", "Wi-Fi Analyzer").put("body", "60 signals")))
             .toString()
 
         val compacted = NativeToolContextCompressor.compactToolResult(result)
         val parsed = JSONObject(compacted)
         val wifiNetworks = parsed.getJSONObject("wifi_networks")
+        val wifiRatings = parsed.getJSONObject("wifi_channel_ratings")
 
         assertTrue(parsed.getBoolean("_hermes_context_compressed"))
         assertEquals("array", wifiNetworks.getString("type"))
         assertEquals(60, wifiNetworks.getInt("original_count"))
         assertEquals(8, wifiNetworks.getJSONArray("items").length())
         assertEquals("Lab-0", wifiNetworks.getJSONArray("items").getJSONObject(0).getString("ssid"))
+        assertEquals("array", wifiRatings.getString("type"))
+        assertEquals(20, wifiRatings.getInt("original_count"))
+        assertEquals(1, wifiRatings.getJSONArray("items").getJSONObject(0).getInt("channel"))
+        assertEquals(11, parsed.getJSONArray("recommended_wifi_channels").getJSONObject(0).getInt("channel"))
         assertEquals("Wi-Fi Analyzer", parsed.getJSONArray("cards").getJSONObject(0).getString("title"))
     }
 

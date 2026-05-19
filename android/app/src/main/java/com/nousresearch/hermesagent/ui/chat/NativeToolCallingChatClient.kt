@@ -1183,10 +1183,10 @@ class NativeToolCallingChatClient(
     private fun systemMessage(toolsEnabled: Boolean): JSONObject {
         val content = if (toolsEnabled) {
             "You are Hermes running inside the native Android app. " +
-                "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensors, camera capability checks, Wi-Fi analysis, Bluetooth nearby scans, radio capability checks, resource summaries, or Tasker-style automation. " +
+                "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensors, camera capability checks, Wi-Fi analysis/channel ratings, Bluetooth nearby scans, radio capability checks, resource summaries, or Tasker-style automation. " +
                 "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                 "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
-                "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals, Bluetooth nearby devices, camera/sensor status, active overlays, tool catalog, RF capability limits, MediaTek/Snapdragon/SOC context, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel ratings, Bluetooth nearby devices, camera/sensor status, active overlays, tool catalog, RF capability limits, MediaTek/Snapdragon/SOC context, or phone preflight checks before TikTok/Instagram/Gmail work. " +
                 "Use hindsight_memory_tool to retain, recall, and reflect durable local memories before or after complex work. " +
                 "Report missing Android permissions honestly. Keep replies brief."
         } else {
@@ -1244,9 +1244,9 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_device_diagnostics_tool",
-                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, nearby Bluetooth devices, camera capability, sensors, overlay status, SOC/GPU compatibility context, tool catalog, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
+                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals and channel ratings, nearby Bluetooth devices, camera capability, sensors, overlay status, SOC/GPU compatibility context, tool catalog, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, top_apps, wifi_scan, bluetooth_scan, sensor_snapshot, camera_status, radio_signal_status, signal_capability_status, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
+                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_channel_rating, bluetooth_scan, sensor_snapshot, camera_status, radio_signal_status, signal_capability_status, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
                         .put("limit", intProp("Maximum rows for top apps, Wi-Fi networks, or Bluetooth devices. Defaults to 5."))
                         .put("refresh", boolProp("For wifi_scan or bluetooth_scan, request Android to refresh scan results before reading available results."))
                         .put("sensor_types", stringProp("Comma-separated sensor types such as accelerometer, gyroscope, magnetic_field, light, proximity."))
@@ -1439,6 +1439,14 @@ class NativeToolCallingChatClient(
                     "wi-fi analyzer",
                     "wifi signals",
                     "nearby wifi",
+                    "wifi channel",
+                    "wi-fi channel",
+                    "channel rating",
+                    "best wifi channel",
+                    "best wi-fi channel",
+                    "wifi congestion",
+                    "wi-fi congestion",
+                    "interference",
                     "bluetooth scanner",
                     "nearby bluetooth",
                     "ble scan",
@@ -3198,6 +3206,7 @@ internal object NativeToolContextCompressor {
                 "error",
                 "cwd",
                 "result_count",
+                "total_scan_result_count",
                 "camera_count",
                 "sensor_count",
                 "bluetooth_device_count",
@@ -3251,6 +3260,9 @@ internal object NativeToolContextCompressor {
         "top_memory_apps",
         "top_storage_apps",
         "wifi_networks",
+        "wifi_channel_ratings",
+        "recommended_wifi_channels",
+        "wifi_band_summary",
         "bluetooth_devices",
         "radio_bands",
         "radio_scan_rows",
@@ -3295,6 +3307,13 @@ internal object NativeToolContextCompressor {
         "rssi_dbm",
         "frequency_mhz",
         "channel",
+        "frequency_hint_mhz",
+        "score",
+        "rating_label",
+        "network_count",
+        "overlap_count",
+        "strongest_rssi_dbm",
+        "recommendation",
         "device_name",
         "address",
         "device_type",

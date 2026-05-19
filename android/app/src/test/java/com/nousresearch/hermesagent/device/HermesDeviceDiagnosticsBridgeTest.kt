@@ -29,6 +29,28 @@ class HermesDeviceDiagnosticsBridgeTest {
     }
 
     @Test
+    fun ratesWifiChannelsByCrowdingAndRecommendsQuietNonOverlappingChannel() {
+        val rows = HermesDeviceDiagnosticsBridge.wifiChannelRatingRowsForMeasurements(
+            listOf(
+                HermesDeviceDiagnosticsBridge.WifiChannelMeasurement(channel = 1, band = "2.4GHz", rssiDbm = -35),
+                HermesDeviceDiagnosticsBridge.WifiChannelMeasurement(channel = 1, band = "2.4GHz", rssiDbm = -62),
+                HermesDeviceDiagnosticsBridge.WifiChannelMeasurement(channel = 6, band = "2.4GHz", rssiDbm = -48),
+            ),
+        )
+
+        val best = rows.getJSONObject(0)
+        val channelOne = (0 until rows.length())
+            .map { rows.getJSONObject(it) }
+            .first { it.getInt("channel") == 1 }
+
+        assertEquals("2.4GHz", best.getString("band"))
+        assertEquals(11, best.getInt("channel"))
+        assertEquals(0, best.getInt("overlap_count"))
+        assertTrue(best.getInt("score") > channelOne.getInt("score"))
+        assertTrue(best.getString("recommendation").contains("Best current option"))
+    }
+
+    @Test
     fun emulatorDetectionSeparatesVirtualTargetsFromPhysicalPhoneEvidence() {
         assertTrue(
             HermesDeviceDiagnosticsBridge.isLikelyEmulatorDevice(
@@ -115,6 +137,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(names.contains("android_device_diagnostics_tool"))
         assertTrue(names.contains("hindsight_memory_tool"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("top_apps"))
+        assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("wifi_channel_rating"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("bluetooth_scan"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("radio_signal_status"))
         assertTrue(result.getJSONObject("hindsight_memory_translation").has("retain"))

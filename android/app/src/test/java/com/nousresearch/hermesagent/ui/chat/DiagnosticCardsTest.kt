@@ -79,6 +79,42 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesWifiChannelRatingRowsForExpandableSignalCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Wi-Fi Channel Rating")
+                        .put("body", "Channel scores.")
+                        .put("graph_type", "wifi_channel_rating")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("band", "2.4GHz")
+                                    .put("channel", 11)
+                                    .put("score", 96)
+                                    .put("rating_label", "excellent")
+                                    .put("network_count", 0)
+                                    .put("overlap_count", 0)
+                                    .put("recommendation", "Best current option: no overlapping APs."),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("2.4GHz ch 11", row.label)
+        assertEquals("96/100 excellent", row.valueLabel)
+        assertTrue(row.detail.contains("0 overlapping"))
+        assertTrue(row.detail.contains("Best current option"))
+        assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
     fun parsesSensorVectorRowsFromMotionSamples() {
         val content = JSONObject()
             .put(

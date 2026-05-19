@@ -60,6 +60,7 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
             val row = rows.optJSONObject(index) ?: continue
             val parsed = when (graphType) {
                 "wifi_channel_strength" -> wifiRow(row)
+                "wifi_channel_rating" -> wifiChannelRatingRow(row)
                 "bluetooth_rssi" -> bluetoothRow(row)
                 "radio_frequency_capability" -> radioRow(row)
                 "sensor_vector" -> sensorRow(row)
@@ -87,6 +88,29 @@ private fun wifiRow(row: JSONObject): DiagnosticGraphRow? {
         valueLabel = "$rssi dBm",
         detail = detail.ifBlank { "Wi-Fi signal" },
         fraction = dbmFraction(rssi),
+    )
+}
+
+private fun wifiChannelRatingRow(row: JSONObject): DiagnosticGraphRow? {
+    val channel = row.optNumber("channel")?.toInt() ?: return null
+    val score = row.optNumber("score")?.toInt()?.coerceIn(0, 100) ?: return null
+    val band = row.optString("band").ifBlank { "Wi-Fi" }
+    val sameChannelCount = row.optNumber("network_count")?.toInt() ?: 0
+    val overlapCount = row.optNumber("overlap_count")?.toInt() ?: 0
+    val strongestRssi = row.optNumber("strongest_rssi_dbm")?.toInt()
+    val rating = row.optString("rating_label").takeIf { it.isNotBlank() }
+    val recommendation = row.optString("recommendation").takeIf { it.isNotBlank() }
+    val detail = listOfNotNull(
+        "$sameChannelCount same-channel",
+        "$overlapCount overlapping",
+        strongestRssi?.let { "strongest $it dBm" },
+        recommendation,
+    ).joinToString(" | ")
+    return DiagnosticGraphRow(
+        label = "$band ch $channel",
+        valueLabel = listOfNotNull("$score/100", rating).joinToString(" "),
+        detail = detail.ifBlank { "Wi-Fi channel rating" },
+        fraction = (score / 100f).coerceIn(0.05f, 1f),
     )
 }
 

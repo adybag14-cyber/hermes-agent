@@ -44,6 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 import kotlin.math.log10
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 object HermesDeviceDiagnosticsBridge {
     fun performActionJson(context: Context, action: String, arguments: JSONObject = JSONObject()): String {
@@ -54,6 +55,8 @@ object HermesDeviceDiagnosticsBridge {
                 topAppsJson(appContext, arguments).toString()
             "wifi_scan", "wifi_analyzer", "scan_wifi", "nearby_wifi", "wifi_signals" ->
                 wifiScanJson(appContext, arguments).toString()
+            "wifi_channel_rating", "wifi_channels", "channel_rating", "best_wifi_channel", "wifi_congestion" ->
+                wifiScanJson(appContext, arguments, "wifi_channel_rating").toString()
             "bluetooth_scan", "bluetooth_scanner", "nearby_bluetooth", "ble_scan", "bluetooth_signals" ->
                 bluetoothScanJson(appContext, arguments).toString()
             "sensor_snapshot", "sensors", "sensor_status", "sample_sensors", "motion_sensors" ->
@@ -143,7 +146,7 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
-    fun wifiScanJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+    fun wifiScanJson(context: Context, arguments: JSONObject = JSONObject(), actionName: String = "wifi_scan"): JSONObject {
         val appContext = context.applicationContext
         val limit = arguments.optInt("limit", DEFAULT_LIMIT).coerceIn(1, MAX_WIFI_RESULTS)
         val refresh = arguments.optBoolean("refresh", false)
@@ -153,14 +156,14 @@ object HermesDeviceDiagnosticsBridge {
         if (wifiManager == null) {
             return JSONObject()
                 .put("success", false)
-                .put("action", "wifi_scan")
+                .put("action", actionName)
                 .put("error", "Wi-Fi service is unavailable on this device")
                 .put("wifi_scan_permission_status", permissionStatus)
         }
         if (!canReadScan) {
             return JSONObject()
                 .put("success", false)
-                .put("action", "wifi_scan")
+                .put("action", actionName)
                 .put("error", "Wi-Fi scan results require nearby Wi-Fi/location permissions and location services on supported Android versions")
                 .put("wifi_scan_permission_status", permissionStatus)
                 .put("settings_actions", JSONArray().put("open_location_settings").put("open_app_settings"))
@@ -172,34 +175,53 @@ object HermesDeviceDiagnosticsBridge {
         val scanResults = runCatching { wifiManager.scanResults.orEmpty() }.getOrElse { error ->
             return JSONObject()
                 .put("success", false)
-                .put("action", "wifi_scan")
+                .put("action", actionName)
                 .put("error", error.message ?: "Android denied Wi-Fi scan results")
                 .put("wifi_scan_permission_status", permissionStatus)
         }
-        val networks = JSONArray()
-        scanResults
+        val allNetworks = JSONArray()
+        val sortedScanResults = scanResults
             .sortedWith(compareByDescending<ScanResult> { it.level }.thenBy { it.SSID.orEmpty() })
-            .take(limit)
-            .forEach { result -> networks.put(scanResultJson(result)) }
+        sortedScanResults.forEach { result -> allNetworks.put(scanResultJson(result)) }
+        val networks = JSONArray()
+        for (index in 0 until minOf(limit, allNetworks.length())) {
+            networks.put(allNetworks.getJSONObject(index))
+        }
+        val channelRatings = wifiChannelRatingRowsForNetworks(allNetworks)
+        val recommendedChannels = recommendedWifiChannels(channelRatings)
+        val bandSummary = wifiBandSummaryJson(allNetworks, channelRatings)
         return JSONObject()
             .put("success", true)
-            .put("action", "wifi_scan")
+            .put("action", actionName)
             .put("refresh_requested", refresh)
             .put("refresh_accepted", refreshAccepted)
             .put("result_count", networks.length())
+            .put("total_scan_result_count", allNetworks.length())
             .put("wifi_enabled", wifiManager.isWifiEnabled)
             .put("wifi_scan_permission_status", permissionStatus)
             .put("wifi_networks", networks)
+            .put("wifi_channel_ratings", channelRatings)
+            .put("recommended_wifi_channels", recommendedChannels)
+            .put("wifi_band_summary", bandSummary)
             .put(
                 "cards",
-                JSONArray().put(
-                    graphCard(
-                        title = "Wi-Fi Analyzer",
-                        body = "${networks.length()} nearby Wi-Fi signals ranked by RSSI dBm with channel/frequency/width metadata.",
-                        graphType = "wifi_channel_strength",
-                        rows = networks,
+                JSONArray()
+                    .put(
+                        graphCard(
+                            title = "Wi-Fi Analyzer",
+                            body = "${networks.length()} nearby Wi-Fi signals ranked by RSSI dBm with channel/frequency/width metadata.",
+                            graphType = "wifi_channel_strength",
+                            rows = networks,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Wi-Fi Channel Rating",
+                            body = "${channelRatings.length()} channel ratings scored from nearby AP crowding, overlap, RSSI, and width metadata.",
+                            graphType = "wifi_channel_rating",
+                            rows = channelRatings,
+                        ),
                     ),
-                ),
             )
     }
 
@@ -577,7 +599,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(toolJson("android_system_tool", "Read phone state and open settings or user-granted Shizuku/Sui actions.", "action, package_name, permission"))
                     .put(toolJson("android_ui_tool", "Inspect and control visible Android UI through accessibility and screenshots.", "action, selectors, coordinates"))
                     .put(toolJson("android_automation_tool", "Run/open/create saved automations, watcher tasks, overlays, notifications, widgets, and Tasker-style triggers.", "action, trigger, data_uri"))
-                    .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals, Bluetooth nearby devices, camera, sensors, SOC compatibility, overlay, radio/RF capability limits, and the social/Gmail end-to-end phone preflight.", "action, limit, refresh, sensor_types, timeout_ms"))
+                    .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals/channel ratings, Bluetooth nearby devices, camera, sensors, SOC compatibility, overlay, radio/RF capability limits, and the social/Gmail end-to-end phone preflight.", "action, limit, refresh, sensor_types, timeout_ms"))
                     .put(toolJson("hindsight_memory_tool", "Retain, recall, and reflect local Hindsight-style memories with tags, entities, keywords, recency, and reinforcement.", "action, content, query, tags, category")),
             )
             .put("diagnostics_actions", JSONArray(ACTIONS))
@@ -938,6 +960,70 @@ object HermesDeviceDiagnosticsBridge {
         }
     }
 
+    internal fun wifiChannelRatingRowsForNetworks(networks: JSONArray): JSONArray {
+        val measurements = buildList {
+            for (index in 0 until networks.length()) {
+                val row = networks.optJSONObject(index) ?: continue
+                val frequencyMhz = row.optInt("frequency_mhz", 0)
+                val channel = row.opt("channel")
+                    ?.takeUnless { it == JSONObject.NULL }
+                    ?.let { value ->
+                        when (value) {
+                            is Number -> value.toInt()
+                            else -> value.toString().toIntOrNull()
+                        }
+                    }
+                    ?: channelForFrequencyMhz(frequencyMhz)
+                    ?: continue
+                val rssiDbm = row.opt("rssi_dbm")
+                    ?.let { value ->
+                        when (value) {
+                            is Number -> value.toInt()
+                            else -> value.toString().toIntOrNull()
+                        }
+                    }
+                    ?: continue
+                add(
+                    WifiChannelMeasurement(
+                        channel = channel,
+                        band = canonicalWifiBandLabel(row.optString("band"), frequencyMhz),
+                        rssiDbm = rssiDbm,
+                        widthLabel = row.optString("channel_width").ifBlank { "20MHz" },
+                        frequencyMhz = frequencyMhz,
+                    ),
+                )
+            }
+        }
+        return wifiChannelRatingRowsForMeasurements(measurements)
+    }
+
+    internal fun wifiChannelRatingRowsForMeasurements(measurements: List<WifiChannelMeasurement>): JSONArray {
+        val usable = measurements
+            .filter { it.channel > 0 && it.rssiDbm < 0 }
+            .map { measurement ->
+                measurement.copy(
+                    band = canonicalWifiBandLabel(measurement.band, measurement.frequencyMhz),
+                    widthLabel = measurement.widthLabel.ifBlank { "20MHz" },
+                )
+            }
+        val bands = usable.map { it.band }.filter { it != "unknown" }.distinct()
+        val rows = bands.flatMap { band ->
+            val bandMeasurements = usable.filter { it.band == band }
+            val candidates = candidateWifiChannelsForBand(band, bandMeasurements.map { it.channel })
+            candidates.map { channel ->
+                wifiChannelRatingRow(band, channel, bandMeasurements)
+            }
+        }
+        val sorted = rows
+            .sortedWith(
+                compareBy<JSONObject> { wifiBandSortKey(it.optString("band")) }
+                    .thenByDescending { it.optInt("score") }
+                    .thenBy { it.optInt("channel") },
+            )
+            .take(MAX_WIFI_CHANNEL_RATINGS)
+        return JSONArray().also { array -> sorted.forEach(array::put) }
+    }
+
     internal fun isLikelyEmulatorDevice(
         fingerprint: String = Build.FINGERPRINT.orEmpty(),
         model: String = Build.MODEL.orEmpty(),
@@ -1180,6 +1266,182 @@ object HermesDeviceDiagnosticsBridge {
         else -> "unknown"
     }
 
+    private fun canonicalWifiBandLabel(label: String, frequencyMhz: Int = 0): String {
+        if (frequencyMhz > 0) return wifiBandLabel(frequencyMhz)
+        val normalized = label.trim().lowercase(Locale.US).replace(" ", "")
+        return when {
+            normalized.contains("2.4") || normalized == "24ghz" -> "2.4GHz"
+            normalized.startsWith("5") -> "5GHz"
+            normalized.startsWith("6") -> "6GHz"
+            normalized.startsWith("60") -> "60GHz"
+            else -> "unknown"
+        }
+    }
+
+    private fun candidateWifiChannelsForBand(band: String, observedChannels: List<Int>): List<Int> {
+        val observed = observedChannels.filter { it > 0 }
+        val base = when (band) {
+            "2.4GHz" -> listOf(1, 6, 11)
+            "5GHz" -> listOf(36, 40, 44, 48, 149, 153, 157, 161)
+            else -> emptyList()
+        }
+        return (base + observed)
+            .distinct()
+            .sorted()
+            .take(MAX_WIFI_CANDIDATE_CHANNELS_PER_BAND)
+    }
+
+    private fun wifiChannelRatingRow(
+        band: String,
+        candidateChannel: Int,
+        measurements: List<WifiChannelMeasurement>,
+    ): JSONObject {
+        var sameChannelCount = 0
+        var overlapCount = 0
+        var strongestRssi: Int? = null
+        var interference = 0.0
+        measurements.forEach { measurement ->
+            val overlap = wifiChannelOverlapWeight(band, candidateChannel, measurement.channel)
+            if (overlap <= 0.0) return@forEach
+            overlapCount += 1
+            if (measurement.channel == candidateChannel) sameChannelCount += 1
+            strongestRssi = maxOf(strongestRssi ?: measurement.rssiDbm, measurement.rssiDbm)
+            val signalWeight = ((measurement.rssiDbm + 100).coerceIn(0, 70)) / 70.0
+            interference += signalWeight * overlap * wifiWidthWeight(measurement.widthLabel) * 34.0
+        }
+        val score = (100.0 - interference - (sameChannelCount * 8.0)).roundToInt().coerceIn(0, 100)
+        return JSONObject()
+            .put("band", band)
+            .put("channel", candidateChannel)
+            .put("frequency_hint_mhz", frequencyHintMhzForWifiChannel(band, candidateChannel) ?: JSONObject.NULL)
+            .put("score", score)
+            .put("rating_label", wifiRatingLabel(score))
+            .put("network_count", sameChannelCount)
+            .put("overlap_count", overlapCount)
+            .put("strongest_rssi_dbm", strongestRssi ?: JSONObject.NULL)
+            .put("recommendation", wifiChannelRecommendation(score, sameChannelCount, overlapCount, strongestRssi))
+    }
+
+    private fun wifiChannelOverlapWeight(band: String, candidateChannel: Int, observedChannel: Int): Double {
+        val distance = abs(candidateChannel - observedChannel)
+        return when (band) {
+            "2.4GHz" -> if (distance >= 5) 0.0 else (5 - distance) / 5.0
+            "5GHz", "6GHz" -> if (distance == 0) 1.0 else 0.0
+            else -> if (distance == 0) 1.0 else 0.0
+        }
+    }
+
+    private fun wifiWidthWeight(widthLabel: String): Double {
+        val normalized = widthLabel.lowercase(Locale.US)
+        return when {
+            "320" in normalized -> 2.4
+            "160" in normalized -> 2.0
+            "80+80" in normalized -> 2.0
+            "80" in normalized -> 1.6
+            "40" in normalized -> 1.25
+            else -> 1.0
+        }
+    }
+
+    private fun frequencyHintMhzForWifiChannel(band: String, channel: Int): Int? {
+        return when (band) {
+            "2.4GHz" -> if (channel == 14) 2484 else 2407 + (channel * 5)
+            "5GHz" -> 5000 + (channel * 5)
+            "6GHz" -> 5950 + (channel * 5)
+            else -> null
+        }
+    }
+
+    private fun wifiRatingLabel(score: Int): String = when {
+        score >= 85 -> "excellent"
+        score >= 70 -> "good"
+        score >= 50 -> "fair"
+        else -> "congested"
+    }
+
+    private fun wifiChannelRecommendation(
+        score: Int,
+        sameChannelCount: Int,
+        overlapCount: Int,
+        strongestRssi: Int?,
+    ): String {
+        return when {
+            overlapCount == 0 -> "Best current option: no overlapping APs in the latest scan."
+            score >= 85 -> "Best current option: low overlap and weak competing signals."
+            score >= 70 -> "Usable channel: some nearby overlap, but congestion is moderate."
+            sameChannelCount > 2 || (strongestRssi ?: -100) > -55 -> "Congested channel: strong or repeated AP overlap detected."
+            else -> "Crowded channel: prefer a higher-scored recommendation when available."
+        }
+    }
+
+    private fun recommendedWifiChannels(ratings: JSONArray): JSONArray {
+        val byBand = linkedMapOf<String, JSONObject>()
+        for (index in 0 until ratings.length()) {
+            val row = ratings.optJSONObject(index) ?: continue
+            val band = row.optString("band")
+            val current = byBand[band]
+            if (current == null || row.optInt("score") > current.optInt("score")) {
+                byBand[band] = row
+            }
+        }
+        return JSONArray().also { array ->
+            byBand.values
+                .sortedBy { wifiBandSortKey(it.optString("band")) }
+                .forEach { row ->
+                    array.put(
+                        JSONObject()
+                            .put("band", row.optString("band"))
+                            .put("channel", row.optInt("channel"))
+                            .put("score", row.optInt("score"))
+                            .put("rating_label", row.optString("rating_label"))
+                            .put("recommendation", row.optString("recommendation")),
+                    )
+                }
+        }
+    }
+
+    private fun wifiBandSummaryJson(networks: JSONArray, ratings: JSONArray): JSONArray {
+        val networkCounts = linkedMapOf<String, Int>()
+        for (index in 0 until networks.length()) {
+            val band = canonicalWifiBandLabel(networks.optJSONObject(index)?.optString("band").orEmpty())
+            if (band != "unknown") networkCounts[band] = (networkCounts[band] ?: 0) + 1
+        }
+        val ratingCounts = linkedMapOf<String, Int>()
+        val bestRows = linkedMapOf<String, JSONObject>()
+        for (index in 0 until ratings.length()) {
+            val row = ratings.optJSONObject(index) ?: continue
+            val band = row.optString("band")
+            ratingCounts[band] = (ratingCounts[band] ?: 0) + 1
+            val best = bestRows[band]
+            if (best == null || row.optInt("score") > best.optInt("score")) bestRows[band] = row
+        }
+        val bands = (networkCounts.keys + ratingCounts.keys)
+            .distinct()
+            .sortedBy(::wifiBandSortKey)
+        return JSONArray().also { array ->
+            bands.forEach { band ->
+                val best = bestRows[band]
+                array.put(
+                    JSONObject()
+                        .put("band", band)
+                        .put("network_count", networkCounts[band] ?: 0)
+                        .put("rated_channel_count", ratingCounts[band] ?: 0)
+                        .put("recommended_channel", best?.optInt("channel") ?: JSONObject.NULL)
+                        .put("recommended_score", best?.optInt("score") ?: JSONObject.NULL)
+                        .put("recommendation", best?.optString("recommendation").orEmpty()),
+                )
+            }
+        }
+    }
+
+    private fun wifiBandSortKey(band: String): Int = when (band) {
+        "2.4GHz" -> 0
+        "5GHz" -> 1
+        "6GHz" -> 2
+        "60GHz" -> 3
+        else -> 4
+    }
+
     private fun estimateWifiDistanceMeters(rssiDbm: Int, frequencyMhz: Int): Double {
         if (frequencyMhz <= 0 || rssiDbm >= 0) return 0.0
         val exponent = (27.55 - (20.0 * log10(frequencyMhz.toDouble())) + abs(rssiDbm).toDouble()) / 20.0
@@ -1239,10 +1501,19 @@ object HermesDeviceDiagnosticsBridge {
         val extra: JSONObject = JSONObject(),
     )
 
+    internal data class WifiChannelMeasurement(
+        val channel: Int,
+        val band: String,
+        val rssiDbm: Int,
+        val widthLabel: String = "20MHz",
+        val frequencyMhz: Int = 0,
+    )
+
     private val ACTIONS = listOf(
         "status",
         "top_apps",
         "wifi_scan",
+        "wifi_channel_rating",
         "bluetooth_scan",
         "sensor_snapshot",
         "camera_status",
@@ -1272,6 +1543,8 @@ object HermesDeviceDiagnosticsBridge {
     private const val DEFAULT_LIMIT = 5
     private const val MAX_LIMIT = 20
     private const val MAX_WIFI_RESULTS = 40
+    private const val MAX_WIFI_CHANNEL_RATINGS = 24
+    private const val MAX_WIFI_CANDIDATE_CHANNELS_PER_BAND = 12
     private const val MAX_BLUETOOTH_RESULTS = 40
     private const val MAX_SENSOR_TYPES_PER_SAMPLE = 8
     private const val DEFAULT_SENSOR_TIMEOUT_MS = 800L
