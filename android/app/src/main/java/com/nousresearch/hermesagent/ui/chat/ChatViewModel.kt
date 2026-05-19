@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 import java.util.UUID
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
@@ -421,7 +422,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val app = getApplication<Application>()
         var displayName = uri.lastPathSegment ?: "image"
         var sizeBytes = 0L
-        app.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+        if (uri.scheme == "file") {
+            uri.path?.let(::File)?.let { file ->
+                displayName = file.name.ifBlank { displayName }
+                sizeBytes = file.length().coerceAtLeast(0L)
+            }
+        }
+        runCatching { app.contentResolver.query(uri, null, null, null, null) }.getOrNull()?.use { cursor ->
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
             if (cursor.moveToFirst()) {
@@ -433,7 +440,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-        val mimeType = app.contentResolver.getType(uri).orEmpty().ifBlank { "image/*" }
+        val mimeType = runCatching { app.contentResolver.getType(uri) }.getOrNull().orEmpty().ifBlank {
+            when (displayName.substringAfterLast('.', "").lowercase()) {
+                "jpg", "jpeg" -> "image/jpeg"
+                "png" -> "image/png"
+                "webp" -> "image/webp"
+                else -> "image/*"
+            }
+        }
         return AttachmentDetails(displayName = displayName, mimeType = mimeType, sizeBytes = sizeBytes)
     }
 

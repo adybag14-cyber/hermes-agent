@@ -73,6 +73,68 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun compactsDiagnosticArraysButKeepsTopRowsReadable() {
+        val networks = JSONArray()
+        repeat(60) { index ->
+            networks.put(
+                JSONObject()
+                    .put("ssid", "Lab-$index")
+                    .put("rssi_dbm", -30 - index)
+                    .put("frequency_mhz", 2412 + index)
+                    .put("channel", index + 1)
+                    .put("capabilities", "[WPA2-PSK-CCMP][ESS]".repeat(8)),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "wifi_scan")
+            .put("wifi_networks", networks)
+            .put("cards", JSONArray().put(JSONObject().put("title", "Wi-Fi Analyzer").put("body", "60 signals")))
+            .toString()
+
+        val compacted = NativeToolContextCompressor.compactToolResult(result)
+        val parsed = JSONObject(compacted)
+        val wifiNetworks = parsed.getJSONObject("wifi_networks")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals("array", wifiNetworks.getString("type"))
+        assertEquals(60, wifiNetworks.getInt("original_count"))
+        assertEquals(8, wifiNetworks.getJSONArray("items").length())
+        assertEquals("Lab-0", wifiNetworks.getJSONArray("items").getJSONObject(0).getString("ssid"))
+        assertEquals("Wi-Fi Analyzer", parsed.getJSONArray("cards").getJSONObject(0).getString("title"))
+    }
+
+    @Test
+    fun compactsBluetoothAndRadioDiagnosticRowsWithoutDroppingSignalMetadata() {
+        val devices = JSONArray()
+        repeat(30) { index ->
+            devices.put(
+                JSONObject()
+                    .put("device_name", "Beacon-$index")
+                    .put("address", "AA:BB:CC:00:00:$index")
+                    .put("rssi_dbm", -40 - index)
+                    .put("device_type", "le")
+                    .put("scan_record", "ff".repeat(200)),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "bluetooth_scan")
+            .put("bluetooth_devices", devices)
+            .put("cards", JSONArray().put(JSONObject().put("title", "Bluetooth Nearby").put("body", "30 devices")))
+            .toString()
+
+        val compacted = NativeToolContextCompressor.compactToolResult(result)
+        val parsed = JSONObject(compacted)
+        val compactedDevices = parsed.getJSONObject("bluetooth_devices")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(30, compactedDevices.getInt("original_count"))
+        assertEquals("Beacon-0", compactedDevices.getJSONArray("items").getJSONObject(0).getString("device_name"))
+        assertEquals(-40, compactedDevices.getJSONArray("items").getJSONObject(0).getInt("rssi_dbm"))
+    }
+
+    @Test
     fun compactsCompletedNativeToolRoundsButKeepsLatestAssistantBlock() {
         val messages = JSONArray()
             .put(JSONObject().put("role", "system").put("content", "tools enabled"))

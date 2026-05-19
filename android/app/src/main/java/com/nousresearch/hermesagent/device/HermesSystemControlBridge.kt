@@ -58,6 +58,7 @@ private val DEFAULT_SYSTEM_ACTIONS = listOf(
     "open_notification_settings",
     "open_notification_listener_settings",
     "open_overlay_settings",
+    "open_usage_access_settings",
     "open_accessibility_settings",
     "open_developer_options",
     "open_wireless_debugging_settings",
@@ -224,6 +225,12 @@ object HermesSystemControlBridge {
                 action,
                 Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${appContext.packageName}")),
                 "Opened overlay permission settings",
+            )
+            "open_usage_access_settings" -> launchIntent(
+                appContext,
+                action,
+                Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS),
+                "Opened usage access settings",
             )
             "open_accessibility_settings" -> launchIntent(appContext, action, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "Opened accessibility settings")
             "open_developer_options",

@@ -9,6 +9,8 @@ import com.nousresearch.hermesagent.device.HermesAccessibilityController
 import com.nousresearch.hermesagent.device.HermesAccessibilityUiBridge
 import com.nousresearch.hermesagent.device.HermesAppControlBridge
 import com.nousresearch.hermesagent.device.HermesAutomationBridge
+import com.nousresearch.hermesagent.device.HermesDeviceDiagnosticsBridge
+import com.nousresearch.hermesagent.device.HermesHindsightMemoryBridge
 import com.nousresearch.hermesagent.device.HermesPrivilegedAccessBridge
 import com.nousresearch.hermesagent.device.HermesSystemControlBridge
 import com.nousresearch.hermesagent.device.HermesWorkspaceFileBridge
@@ -506,6 +508,9 @@ class NativeToolCallingChatClient(
             "file_write_tool", "write_file", "file_tool" -> executeFileWriteTool(toolCall)
             "android_system_tool", "android_system_action", "system_tool", "settings_tool", "phone_tool" ->
                 executeAndroidSystemTool(toolCall)
+            "android_device_diagnostics_tool", "device_diagnostics_tool", "diagnostics_tool", "resource_tool", "wifi_analyzer_tool", "bluetooth_scanner_tool", "sensor_tool", "camera_tool", "radio_signal_tool" ->
+                executeAndroidDeviceDiagnosticsTool(toolCall)
+            "hindsight_memory_tool", "memory_tool", "recall_tool", "retain_tool" -> executeHindsightMemoryTool(toolCall)
             "android_automation_tool", "automation_tool", "tasker_tool" -> executeAndroidAutomationTool(toolCall)
             "android_ui_tool", "ui_tool", "screen_tool", "accessibility_tool" -> executeAndroidUiTool(toolCall)
             else -> JSONObject()
@@ -587,6 +592,22 @@ class NativeToolCallingChatClient(
         } else {
             HermesSystemControlBridge.performActionJson(action)
         }
+    }
+
+    private fun executeAndroidDeviceDiagnosticsTool(toolCall: ToolCall): String {
+        val action = listOf("action", "operation", "name")
+            .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+            ?.trim()
+            .orEmpty()
+        return HermesDeviceDiagnosticsBridge.performActionJson(appContext, action, toolCall.arguments)
+    }
+
+    private fun executeHindsightMemoryTool(toolCall: ToolCall): String {
+        val action = listOf("action", "operation", "name")
+            .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+            ?.trim()
+            .orEmpty()
+        return HermesHindsightMemoryBridge.performActionJson(appContext, action, toolCall.arguments)
     }
 
     private fun executeAndroidAutomationTool(toolCall: ToolCall): String {
@@ -1162,9 +1183,11 @@ class NativeToolCallingChatClient(
     private fun systemMessage(toolsEnabled: Boolean): JSONObject {
         val content = if (toolsEnabled) {
             "You are Hermes running inside the native Android app. " +
-                "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, or Tasker-style automation. " +
+                "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensors, camera capability checks, Wi-Fi analysis, Bluetooth nearby scans, radio capability checks, resource summaries, or Tasker-style automation. " +
                 "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                 "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
+                "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals, Bluetooth nearby devices, camera/sensor status, active overlays, tool catalog, RF capability limits, MediaTek/Snapdragon/SOC context, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                "Use hindsight_memory_tool to retain, recall, and reflect durable local memories before or after complex work. " +
                 "Report missing Android permissions honestly. Keep replies brief."
         } else {
             "You are Hermes running inside the native Android app. Keep replies brief and direct."
@@ -1215,6 +1238,39 @@ class NativeToolCallingChatClient(
                         .put("network_types_bitmask", stringProp("Mobile network bitmask."))
                         .put("slot_id", stringProp("SIM slot id."))
                         .put("timeout_seconds", intProp("Optional timeout.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_device_diagnostics_tool",
+                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, nearby Bluetooth devices, camera capability, sensors, overlay status, SOC/GPU compatibility context, tool catalog, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, top_apps, wifi_scan, bluetooth_scan, sensor_snapshot, camera_status, radio_signal_status, signal_capability_status, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
+                        .put("limit", intProp("Maximum rows for top apps, Wi-Fi networks, or Bluetooth devices. Defaults to 5."))
+                        .put("refresh", boolProp("For wifi_scan or bluetooth_scan, request Android to refresh scan results before reading available results."))
+                        .put("sensor_types", stringProp("Comma-separated sensor types such as accelerometer, gyroscope, magnetic_field, light, proximity."))
+                        .put("timeout_ms", intProp("Sensor or Bluetooth sampling timeout in milliseconds."))
+                        .put("message", stringProp("Overlay message for show_active_overlay."))
+                        .put("position", stringProp("Overlay position for show_active_overlay: top, center, or bottom."))
+                        .put("hide_after_ms", intProp("Optional overlay auto-hide duration in milliseconds.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "hindsight_memory_tool",
+                    description = "Retain, recall, reflect, or clear lightweight local memories using Hindsight-style keyword, entity, recency, salience, and reinforcement signals.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, retain, recall, reflect, or clear."))
+                        .put("content", stringProp("Fact or memory content for retain."))
+                        .put("facts", stringProp("Optional list of fact strings for retain."))
+                        .put("query", stringProp("Recall query."))
+                        .put("tags", stringProp("Comma-separated tags for retain."))
+                        .put("category", stringProp("Memory category for retain."))
+                        .put("source", stringProp("Memory source such as chat, tool_result, user_preference, or device_state."))
+                        .put("limit", intProp("Maximum recall rows. Defaults to 5."))
+                        .put("max_entries", intProp("Maximum rows to keep after reflect.")),
                     required = JSONArray().put("action"),
                 ),
             )
@@ -1372,6 +1428,71 @@ class NativeToolCallingChatClient(
             }
             if (
                 listOf(
+                    "top apps",
+                    "top 5 apps",
+                    "memory apps",
+                    "storage apps",
+                    "eating memory",
+                    "eating storage",
+                    "resource usage",
+                    "wifi analyzer",
+                    "wi-fi analyzer",
+                    "wifi signals",
+                    "nearby wifi",
+                    "bluetooth scanner",
+                    "nearby bluetooth",
+                    "ble scan",
+                    "sensor",
+                    "sensors",
+                    "gyroscope",
+                    "gyrometer",
+                    "accelerometer",
+                    "camera",
+                    "radio frequency",
+                    "am radio",
+                    "fm radio",
+                    "microwave",
+                    "rf signal",
+                    "signal strength",
+                    "mediatek",
+                    "snapdragon",
+                    "soc",
+                    "available tools",
+                    "tool catalog",
+                    "list tools",
+                    "phone preflight",
+                    "goal preflight",
+                    "social gmail preflight",
+                    "social/gmail preflight",
+                    "tiktok instagram gmail",
+                    "tiktok video comment",
+                    "instagram dm",
+                    "gmail self email",
+                    "float over",
+                    "floating overlay",
+                    "active overlay",
+                ).any { it in lower }
+            ) {
+                add("android_device_diagnostics_tool")
+            }
+            if (
+                listOf(
+                    "hindsight",
+                    "remember this",
+                    "retain memory",
+                    "recall memory",
+                    "memory recall",
+                    "memory retained",
+                    "reflect memory",
+                    "fine grained memory",
+                    "durable memory",
+                    "what do you remember",
+                ).any { it in lower }
+            ) {
+                add("hindsight_memory_tool")
+            }
+            if (
+                listOf(
                     "tap ",
                     "click ",
                     "type ",
@@ -1424,6 +1545,26 @@ class NativeToolCallingChatClient(
             }
             if ("android_system_tool" in lower || "settings_tool" in lower || "phone_tool" in lower) {
                 add("android_system_tool")
+            }
+            if (
+                "android_device_diagnostics_tool" in lower ||
+                "device_diagnostics_tool" in lower ||
+                "diagnostics_tool" in lower ||
+                "wifi_analyzer_tool" in lower ||
+                "bluetooth_scanner_tool" in lower ||
+                "sensor_tool" in lower ||
+                "camera_tool" in lower ||
+                "radio_signal_tool" in lower
+            ) {
+                add("android_device_diagnostics_tool")
+            }
+            if (
+                "hindsight_memory_tool" in lower ||
+                "memory_tool" in lower ||
+                "recall_tool" in lower ||
+                "retain_tool" in lower
+            ) {
+                add("hindsight_memory_tool")
             }
             if ("android_ui_tool" in lower || "screen_tool" in lower || "accessibility_tool" in lower) {
                 add("android_ui_tool")
@@ -2922,18 +3063,65 @@ internal object NativeToolContextCompressor {
             null, JSONObject.NULL -> JSONObject.NULL
             is String -> compactStringValue(value, if (key == "output" || key == "error") OUTPUT_FIELD_LIMIT else STRING_FIELD_LIMIT)
             is Number, is Boolean -> value
-            is JSONObject, is JSONArray -> {
+            is JSONArray -> compactJsonArray(key, value)
+            is JSONObject -> {
                 val text = value.toString()
                 if (text.length <= STRING_FIELD_LIMIT) {
                     value
                 } else {
                     JSONObject()
-                        .put("type", if (value is JSONArray) "array" else "object")
+                        .put("type", "object")
                         .put("original_chars", text.length)
                         .put("summary", compactStringValue(text, STRING_FIELD_LIMIT))
                 }
             }
             else -> compactStringValue(value.toString(), STRING_FIELD_LIMIT)
+        }
+    }
+
+    private fun compactJsonArray(key: String, value: JSONArray): Any {
+        val text = value.toString()
+        if (text.length <= STRING_FIELD_LIMIT) {
+            return value
+        }
+        if (key in PRESERVED_ARRAY_KEYS) {
+            val items = JSONArray()
+            val keepCount = minOf(value.length(), PRESERVED_ARRAY_ITEM_LIMIT)
+            for (index in 0 until keepCount) {
+                items.put(compactArrayItem(value.opt(index)))
+            }
+            return JSONObject()
+                .put("type", "array")
+                .put("original_count", value.length())
+                .put("kept_count", keepCount)
+                .put("items", items)
+                .put("truncated", value.length() > keepCount)
+        }
+        return JSONObject()
+            .put("type", "array")
+            .put("original_chars", text.length)
+            .put("summary", compactStringValue(text, STRING_FIELD_LIMIT))
+    }
+
+    private fun compactArrayItem(value: Any?): Any {
+        return when (value) {
+            null, JSONObject.NULL -> JSONObject.NULL
+            is String -> compactStringValue(value, 260)
+            is Number, is Boolean -> value
+            is JSONObject -> {
+                val compacted = JSONObject()
+                PRESERVED_OBJECT_KEYS.forEach { key ->
+                    if (value.has(key) && !value.isNull(key)) {
+                        compacted.put(key, compactJsonValue(key, value.opt(key)))
+                    }
+                }
+                if (compacted.length() > 0) {
+                    compacted
+                } else {
+                    compactStringValue(value.toString(), 360)
+                }
+            }
+            else -> compactStringValue(value.toString(), 260)
         }
     }
 
@@ -3001,9 +3189,35 @@ internal object NativeToolContextCompressor {
         val parsed = runCatching { JSONObject(content) }.getOrNull()
         if (parsed != null) {
             val parts = mutableListOf<String>()
-            listOf("exit_code", "success", "action", "path", "message", "error", "cwd").forEach { key ->
+            listOf(
+                "exit_code",
+                "success",
+                "action",
+                "path",
+                "message",
+                "error",
+                "cwd",
+                "result_count",
+                "camera_count",
+                "sensor_count",
+                "bluetooth_device_count",
+                "usage_access_granted",
+                "requires_usage_access_for_full_storage_rankings",
+                "likely_mediatek",
+                "likely_snapdragon",
+            ).forEach { key ->
                 if (parsed.has(key) && !parsed.isNull(key)) {
                     parts += "$key=${singleLine(parsed.optString(key), 180)}"
+                }
+            }
+            parsed.optJSONArray("cards")?.let { cards ->
+                val titles = buildList {
+                    for (index in 0 until minOf(cards.length(), 4)) {
+                        cards.optJSONObject(index)?.optString("title")?.takeIf { it.isNotBlank() }?.let(::add)
+                    }
+                }
+                if (titles.isNotEmpty()) {
+                    parts += "cards=${titles.joinToString(", ")}"
                 }
             }
             if (parsed.optBoolean("_hermes_context_compressed", false)) {
@@ -3031,4 +3245,76 @@ internal object NativeToolContextCompressor {
     private fun singleLine(value: String, limit: Int): String {
         return compactStringValue(value.replace(Regex("""\s+"""), " ").trim(), limit)
     }
+
+    private val PRESERVED_ARRAY_KEYS = setOf(
+        "cards",
+        "top_memory_apps",
+        "top_storage_apps",
+        "wifi_networks",
+        "bluetooth_devices",
+        "radio_bands",
+        "radio_scan_rows",
+        "sensor_samples",
+        "native_tools",
+        "diagnostics_actions",
+        "available_actions",
+        "blocking_items",
+        "external_send_safety_checks",
+        "suggested_phone_sequence",
+        "candidate_package_names",
+        "installed_candidates",
+        "memories",
+        "retained_memories",
+        "tags",
+        "entities",
+        "semantic_keywords",
+    )
+    private val PRESERVED_OBJECT_KEYS = listOf(
+        "rank",
+        "title",
+        "body",
+        "name",
+        "description",
+        "package_name",
+        "label",
+        "app_name",
+        "installed",
+        "enabled",
+        "ready",
+        "runtime_flavor",
+        "destination_file_name",
+        "destination_path",
+        "file_exists",
+        "file_bytes",
+        "record_status",
+        "record_status_message",
+        "process_name",
+        "memory_label",
+        "storage_label",
+        "ssid",
+        "rssi_dbm",
+        "frequency_mhz",
+        "channel",
+        "device_name",
+        "address",
+        "device_type",
+        "bond_state",
+        "connectable",
+        "tx_power_dbm",
+        "band",
+        "supported",
+        "sampled",
+        "sensor_type",
+        "sensor_name",
+        "values",
+        "unit",
+        "available",
+        "content",
+        "source",
+        "category",
+        "hit_count",
+        "salience",
+        "recall_score",
+    )
+    private const val PRESERVED_ARRAY_ITEM_LIMIT = 8
 }

@@ -3,7 +3,9 @@ package com.nousresearch.hermesagent.ui.chat
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.text.format.DateFormat
@@ -73,6 +75,8 @@ import com.nousresearch.hermesagent.ui.settings.SettingsViewModel
 import com.nousresearch.hermesagent.ui.shell.AppSection
 import com.nousresearch.hermesagent.ui.shell.ShellActionItem
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import java.io.File
 
 @Composable
 fun ChatScreen(
@@ -141,6 +145,19 @@ fun ChatScreen(
                 )
             }
             viewModel.attachImage(uri.toString())
+        }
+    }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        if (bitmap == null) {
+            viewModel.setStatus("Camera capture canceled")
+        } else {
+            runCatching {
+                persistCameraPreview(context, bitmap)
+            }.onSuccess { uri ->
+                viewModel.attachImage(uri.toString())
+            }.onFailure { error ->
+                viewModel.setStatus("Unable to attach camera image: ${error.message ?: "unknown error"}")
+            }
         }
     }
 
@@ -400,6 +417,7 @@ fun ChatScreen(
                     isListening = uiState.isListening,
                     onInputChange = viewModel::updateInput,
                     onAttachImage = { imageLauncher.launch(arrayOf("image/*")) },
+                    onCaptureImage = { cameraLauncher.launch(null) },
                     onRemoveAttachment = viewModel::removeAttachment,
                     onMic = ::startVoiceInput,
                     onSend = ::handleSend,
@@ -966,12 +984,24 @@ private fun rememberAttachmentBitmap(attachment: ChatAttachment): ImageBitmap? {
     }
 }
 
+private fun persistCameraPreview(context: Context, bitmap: Bitmap): Uri {
+    val directory = File(context.cacheDir, "hermes-camera").apply { mkdirs() }
+    val file = File(directory, "camera-${System.currentTimeMillis()}.jpg")
+    file.outputStream().use { output ->
+        require(bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)) {
+            "Unable to encode camera image"
+        }
+    }
+    return Uri.fromFile(file)
+}
+
 @Composable
 private fun CompactActivityRow(
     content: String,
     contentColor: androidx.compose.ui.graphics.Color,
 ) {
     var expanded by rememberSaveable(content.take(64)) { mutableStateOf(false) }
+    val diagnosticCards = remember(content) { extractDiagnosticCards(content) }
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -995,6 +1025,20 @@ private fun CompactActivityRow(
                 )
                 Text(if (expanded) "Hide" else "Details", style = MaterialTheme.typography.labelSmall, color = contentColor.copy(alpha = 0.72f))
             }
+            diagnosticCards.take(3).forEach { card ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = card.title,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = card.body,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.78f),
+                    )
+                }
+            }
             if (expanded) {
                 Text(
                     text = content.take(360),
@@ -1008,7 +1052,44 @@ private fun CompactActivityRow(
 
 private fun hasToolActivity(content: String): Boolean {
     val lower = content.lowercase()
-    return "tool" in lower || "terminal_tool" in lower || "android_system_tool" in lower || "file_write_tool" in lower
+    return "tool" in lower ||
+        "terminal_tool" in lower ||
+        "android_system_tool" in lower ||
+        "file_write_tool" in lower ||
+        "\"cards\"" in lower ||
+        "wifi_scan" in lower ||
+        "bluetooth_scan" in lower ||
+        "radio_signal_status" in lower ||
+        "sensor_snapshot" in lower
+}
+
+private data class DiagnosticCardSummary(
+    val title: String,
+    val body: String,
+)
+
+private fun extractDiagnosticCards(content: String): List<DiagnosticCardSummary> {
+    val parsed = runCatching { JSONObject(content.trim()) }.getOrNull() ?: return emptyList()
+    val cards = parsed.optJSONArray("cards") ?: return emptyList()
+    return buildList {
+        for (index in 0 until cards.length()) {
+            val card = cards.optJSONObject(index) ?: continue
+            val title = card.optString("title").takeIf { it.isNotBlank() } ?: continue
+            val graphType = card.optString("graph_type").takeIf { it.isNotBlank() }
+            val rowCount = card.optInt("row_count", -1)
+            val body = buildString {
+                append(card.optString("body").ifBlank { "Diagnostic card available." })
+                if (graphType != null || rowCount >= 0) {
+                    append(" ")
+                    append("[")
+                    append(graphType ?: "graph")
+                    if (rowCount >= 0) append(", $rowCount rows")
+                    append("]")
+                }
+            }
+            add(DiagnosticCardSummary(title = title, body = body))
+        }
+    }
 }
 
 @Composable
@@ -1086,6 +1167,7 @@ private fun ChatComposer(
     isListening: Boolean,
     onInputChange: (String) -> Unit,
     onAttachImage: () -> Unit,
+    onCaptureImage: () -> Unit,
     onRemoveAttachment: (String) -> Unit,
     onMic: () -> Unit,
     onSend: () -> Unit,
@@ -1112,24 +1194,47 @@ private fun ChatComposer(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier.padding(8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Button(
-                            onClick = {
-                                actionMenuOpen = false
-                                onAttachImage()
-                            },
-                            modifier = Modifier.testTag("HermesChatAttachImageButton"),
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_action_image),
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Text(" Image")
+                            Button(
+                                onClick = {
+                                    actionMenuOpen = false
+                                    onAttachImage()
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("HermesChatAttachImageButton"),
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_action_image),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(" Image")
+                            }
+                            Button(
+                                onClick = {
+                                    actionMenuOpen = false
+                                    onCaptureImage()
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .testTag("HermesChatCameraButton"),
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_action_image),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(" Camera")
+                            }
                         }
                         QuietMetaText(text = strings.chatCommandsTip(isListening), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }

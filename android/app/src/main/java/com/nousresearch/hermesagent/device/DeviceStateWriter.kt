@@ -25,6 +25,8 @@ object DeviceStateWriter {
         val capabilities = DeviceCapabilityStore(context).load()
         val linuxState = HermesLinuxSubsystemBridge.readState(context)
         val systemStatus = HermesSystemControlBridge.readStatus(context)
+        val diagnosticsStatus = HermesDeviceDiagnosticsBridge.statusJson(context)
+        val hindsightStatus = HermesHindsightMemoryBridge.statusJson(context)
         val payload = JSONObject().apply {
             put("workspace_path", workspaceDir(context).absolutePath)
             put("shared_tree_uri", capabilities.sharedFolderUri)
@@ -70,6 +72,18 @@ object DeviceStateWriter {
             put("resizable_window_support", systemStatus.resizableWindowSupport)
             put("freeform_window_supported", systemStatus.freeformWindowSupported)
             put("available_system_actions", JSONArray(systemStatus.availableSystemActions))
+            put("device_diagnostics_tool_available", true)
+            put("hindsight_memory_tool_available", true)
+            put("hindsight_memory_count", hindsightStatus.optInt("memory_count", 0))
+            put("hindsight_reinforced_memory_count", hindsightStatus.optInt("reinforced_memory_count", 0))
+            put("usage_access_granted", diagnosticsStatus.optBoolean("usage_access_granted", false))
+            put("camera_supported", diagnosticsStatus.optBoolean("camera_supported", false))
+            put("camera_permission_granted", diagnosticsStatus.optBoolean("camera_permission_granted", false))
+            put("wifi_scan_permission_status", diagnosticsStatus.optJSONObject("wifi_scan_permission_status") ?: JSONObject())
+            put("bluetooth_scan_permission_status", diagnosticsStatus.optJSONObject("bluetooth_scan_permission_status") ?: JSONObject())
+            put("android_soc_profile", diagnosticsStatus.optJSONObject("soc_profile") ?: JSONObject())
+            put("available_diagnostic_sensor_types", diagnosticsStatus.optJSONArray("available_sensor_types") ?: JSONArray())
+            put("available_diagnostics_actions", diagnosticsStatus.optJSONArray("available_actions") ?: JSONArray())
         }
         stateFile(context).writeText(payload.toString(), Charsets.UTF_8)
     }
