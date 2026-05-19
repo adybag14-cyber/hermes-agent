@@ -65,6 +65,8 @@ agent-browser/
 *.pem
 privvy*
 images/
+!fastlane/metadata/android/en-US/images/
+!fastlane/metadata/android/en-US/images/**
 __pycache__/
 hermes_agent.egg-info/
 wandb/

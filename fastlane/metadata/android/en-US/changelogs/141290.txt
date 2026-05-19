@@ -1,0 +1,1 @@
+Places the Hermes Agent icon, feature graphic, and phone screenshots in the Fastlane metadata path that F-Droid scans from release tags, while keeping the 0.13.111 Android runtime fixes.
