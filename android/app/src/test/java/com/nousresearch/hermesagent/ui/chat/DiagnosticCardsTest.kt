@@ -67,8 +67,12 @@ class DiagnosticCardsTest {
                                 JSONObject()
                                     .put("device_name", "Headphones")
                                     .put("device_type", "dual")
+                                    .put("device_category", "audio")
                                     .put("bond_state", "bonded")
-                                    .put("paired", true),
+                                    .put("paired", true)
+                                    .put("proximity_label", "near")
+                                    .put("service_uuid_count", 2)
+                                    .put("manufacturer_data_count", 1),
                             ),
                         ),
                 ),
@@ -80,7 +84,44 @@ class DiagnosticCardsTest {
         assertEquals("Headphones", row.label)
         assertEquals("paired", row.valueLabel)
         assertTrue(row.detail.contains("bonded"))
+        assertTrue(row.detail.contains("audio"))
+        assertTrue(row.detail.contains("2 services"))
         assertTrue(row.fraction >= 0.4f)
+    }
+
+    @Test
+    fun parsesBluetoothMetadataSummaryRows() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Bluetooth Metadata")
+                        .put("body", "Summary rows.")
+                        .put("graph_type", "bluetooth_metadata_summary")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("summary_type", "manufacturer_id")
+                                    .put("label", "0x004C")
+                                    .put("count", 2)
+                                    .put("connectable_count", 1)
+                                    .put("strongest_rssi_dbm", -50)
+                                    .put("recommendation", "Manufacturer data advertised nearby."),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("0x004C", row.label)
+        assertEquals("2 devices", row.valueLabel)
+        assertTrue(row.detail.contains("manufacturer id"))
+        assertTrue(row.detail.contains("1 connectable"))
+        assertTrue(row.fraction > 0.7f)
     }
 
     @Test

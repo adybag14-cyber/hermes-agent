@@ -5,9 +5,11 @@ import android.app.ActivityManager
 import android.app.AppOpsManager
 import android.app.usage.StorageStatsManager
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothClass
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanRecord
 import android.bluetooth.le.ScanResult as BleScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
@@ -106,7 +108,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "cards",
                 JSONArray()
-                    .put(card("Diagnostics", "Phone resource, Wi-Fi vendor/OUI/channel, Bluetooth, camera, sensor, SOC, and overlay diagnostics are available to the agent."))
+                    .put(card("Diagnostics", "Phone resource, Wi-Fi vendor/OUI/channel, Bluetooth service/manufacturer/proximity, camera, sensor, SOC, and overlay diagnostics are available to the agent."))
                     .put(card("Radio Limits", "AM/FM and broad RF scanning require vendor radio APIs or external SDR hardware; Android phones expose Wi-Fi, Bluetooth, audio, camera, and built-in sensors.")),
             )
     }
@@ -311,6 +313,9 @@ object HermesDeviceDiagnosticsBridge {
             .sortedWith(compareByDescending<JSONObject> { it.optInt("rssi_dbm", Int.MIN_VALUE) }.thenBy { it.optString("device_name") })
             .take(limit)
             .forEachIndexed { index, row -> devices.put(row.put("rank", index + 1)) }
+        val metadataSummary = bluetoothMetadataSummaryRows(devices)
+        val serviceUuidCount = bluetoothDistinctStringCount(devices, "service_uuids")
+        val manufacturerIdCount = bluetoothDistinctStringCount(devices, "manufacturer_ids")
         return JSONObject()
             .put("success", true)
             .put("action", "bluetooth_scan")
@@ -319,18 +324,31 @@ object HermesDeviceDiagnosticsBridge {
             .put("scan_error", scanError ?: JSONObject.NULL)
             .put("bluetooth_enabled", runCatching { adapter.isEnabled }.getOrDefault(false))
             .put("bluetooth_device_count", devices.length())
+            .put("bluetooth_metadata_count", metadataSummary.length())
+            .put("bluetooth_service_uuid_count", serviceUuidCount)
+            .put("bluetooth_manufacturer_id_count", manufacturerIdCount)
             .put("bluetooth_scan_permission_status", permissionStatus)
             .put("bluetooth_devices", devices)
+            .put("bluetooth_metadata_summary", metadataSummary)
             .put(
                 "cards",
-                JSONArray().put(
-                    graphCard(
-                        title = "Bluetooth Nearby",
-                        body = "${devices.length()} paired or scanned Bluetooth device row(s), with BLE RSSI when Android exposes it.",
-                        graphType = "bluetooth_rssi",
-                        rows = devices,
+                JSONArray()
+                    .put(
+                        graphCard(
+                            title = "Bluetooth Nearby",
+                            body = "${devices.length()} paired or scanned Bluetooth device row(s), with BLE RSSI, class, service UUID, manufacturer, and proximity metadata when Android exposes it.",
+                            graphType = "bluetooth_rssi",
+                            rows = devices,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Bluetooth Metadata",
+                            body = "${metadataSummary.length()} Bluetooth class/service/manufacturer summary row(s) inferred from nearby and paired device metadata.",
+                            graphType = "bluetooth_metadata_summary",
+                            rows = metadataSummary,
+                        ),
                     ),
-                ),
             )
     }
 
@@ -614,7 +632,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(toolJson("android_system_tool", "Read phone state and open settings or user-granted Shizuku/Sui actions.", "action, package_name, permission"))
                     .put(toolJson("android_ui_tool", "Inspect and control visible Android UI through accessibility and screenshots.", "action, selectors, coordinates"))
                     .put(toolJson("android_automation_tool", "Run/open/create saved automations, watcher tasks, overlays, notifications, widgets, and Tasker-style triggers.", "action, trigger, data_uri"))
-                    .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals/channel ratings/vendor OUI/filter facets, Bluetooth nearby devices, camera, sensors, SOC compatibility, overlay, radio/RF capability limits, and the social/Gmail end-to-end phone preflight.", "action, limit, refresh, sensor_types, timeout_ms"))
+                    .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals/channel ratings/vendor OUI/filter facets, Bluetooth nearby devices/service UUIDs/manufacturer/proximity, camera, sensors, SOC compatibility, overlay, radio/RF capability limits, and the social/Gmail end-to-end phone preflight.", "action, limit, refresh, sensor_types, timeout_ms"))
                     .put(toolJson("hindsight_memory_tool", "Retain, recall, and reflect local Hindsight-style memories with tags, entities, keywords, recency, and reinforcement.", "action, content, query, tags, category")),
             )
             .put("diagnostics_actions", JSONArray(ACTIONS))
@@ -814,6 +832,14 @@ object HermesDeviceDiagnosticsBridge {
     }
 
     private fun bluetoothDeviceJson(device: BluetoothDevice): JSONObject {
+        val bluetoothClass = runCatching { device.bluetoothClass }.getOrNull()
+        val serviceUuids = runCatching {
+            device.uuids
+                ?.mapNotNull { it?.uuid?.toString() }
+                ?.distinct()
+                .orEmpty()
+        }.getOrDefault(emptyList())
+        val classJson = bluetoothClassJson(bluetoothClass)
         return JSONObject()
             .put("device_name", bluetoothDeviceName(device))
             .put("address", runCatching { device.address.orEmpty() }.getOrDefault(""))
@@ -821,14 +847,37 @@ object HermesDeviceDiagnosticsBridge {
             .put("bond_state", bluetoothBondStateLabel(runCatching { device.bondState }.getOrDefault(BluetoothDevice.BOND_NONE)))
             .put("paired", runCatching { device.bondState == BluetoothDevice.BOND_BONDED }.getOrDefault(false))
             .put("connectable", true)
+            .put("device_class", classJson.optString("device_class"))
+            .put("major_device_class", classJson.optString("major_device_class"))
+            .put("device_category", classJson.optString("device_category"))
+            .put("service_uuids", JSONArray(serviceUuids.take(MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE)))
+            .put("service_uuid_count", serviceUuids.size)
     }
 
     private fun bleScanResultJson(result: BleScanResult, callbackType: Int): JSONObject {
+        val scanRecord = result.scanRecord
+        val txPowerDbm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) result.txPower else null
+        val distanceMeters = estimateBluetoothDistanceMeters(result.rssi, txPowerDbm)
         return bluetoothDeviceJson(result.device)
+            .put("advertised_name", scanRecord?.deviceName.orEmpty())
             .put("rssi_dbm", result.rssi)
+            .put("proximity_label", bluetoothProximityLabel(result.rssi, distanceMeters))
+            .put("estimated_distance_meters", distanceMeters ?: JSONObject.NULL)
             .put("callback_type", callbackType)
             .put("connectable", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) result.isConnectable else JSONObject.NULL)
-            .put("tx_power_dbm", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) result.txPower else JSONObject.NULL)
+            .put("tx_power_dbm", txPowerDbm ?: JSONObject.NULL)
+            .put("legacy_advertisement", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) result.isLegacy else JSONObject.NULL)
+            .put("primary_phy", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) bluetoothPhyLabel(result.primaryPhy) else JSONObject.NULL)
+            .put("secondary_phy", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) bluetoothPhyLabel(result.secondaryPhy) else JSONObject.NULL)
+            .put("advertising_sid", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) result.advertisingSid else JSONObject.NULL)
+            .put("periodic_advertising_interval", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) result.periodicAdvertisingInterval else JSONObject.NULL)
+            .put("advertising_flags", scanRecord?.advertiseFlags ?: JSONObject.NULL)
+            .put("service_uuids", bluetoothServiceUuidsJson(scanRecord))
+            .put("service_uuid_count", scanRecord?.serviceUuids?.size ?: 0)
+            .put("service_data_uuids", bluetoothServiceDataUuidsJson(scanRecord))
+            .put("manufacturer_ids", bluetoothManufacturerIdsJson(scanRecord))
+            .put("manufacturer_data_count", scanRecord?.manufacturerSpecificData?.size() ?: 0)
+            .put("manufacturer_data_bytes", bluetoothManufacturerDataBytes(scanRecord))
             .put("timestamp_nanos", result.timestampNanos)
             .put("scan_record_bytes", result.scanRecord?.bytes?.size ?: 0)
     }
@@ -849,6 +898,193 @@ object HermesDeviceDiagnosticsBridge {
         BluetoothDevice.BOND_BONDING -> "bonding"
         BluetoothDevice.BOND_NONE -> "none"
         else -> "unknown"
+    }
+
+    private fun bluetoothPhyLabel(value: Int): String = when (value) {
+        1 -> "le_1m"
+        2 -> "le_2m"
+        3 -> "le_coded"
+        0 -> "unused"
+        else -> "phy_$value"
+    }
+
+    private fun bluetoothClassJson(bluetoothClass: BluetoothClass?): JSONObject {
+        if (bluetoothClass == null) {
+            return JSONObject()
+                .put("device_class", "unknown")
+                .put("major_device_class", "unknown")
+                .put("device_category", "unknown")
+        }
+        val majorClass = bluetoothClass.majorDeviceClass
+        return JSONObject()
+            .put("device_class", "0x${bluetoothClass.deviceClass.toString(16).uppercase(Locale.US)}")
+            .put("major_device_class", bluetoothMajorDeviceClassLabel(majorClass))
+            .put("device_category", bluetoothDeviceCategoryLabel(majorClass))
+    }
+
+    private fun bluetoothMajorDeviceClassLabel(value: Int): String = when (value) {
+        BluetoothClass.Device.Major.COMPUTER -> "computer"
+        BluetoothClass.Device.Major.PHONE -> "phone"
+        BluetoothClass.Device.Major.NETWORKING -> "networking"
+        BluetoothClass.Device.Major.AUDIO_VIDEO -> "audio_video"
+        BluetoothClass.Device.Major.PERIPHERAL -> "peripheral"
+        BluetoothClass.Device.Major.IMAGING -> "imaging"
+        BluetoothClass.Device.Major.WEARABLE -> "wearable"
+        BluetoothClass.Device.Major.TOY -> "toy"
+        BluetoothClass.Device.Major.HEALTH -> "health"
+        BluetoothClass.Device.Major.UNCATEGORIZED -> "uncategorized"
+        else -> "unknown"
+    }
+
+    private fun bluetoothDeviceCategoryLabel(majorClass: Int): String = when (majorClass) {
+        BluetoothClass.Device.Major.AUDIO_VIDEO -> "audio"
+        BluetoothClass.Device.Major.PHONE,
+        BluetoothClass.Device.Major.COMPUTER,
+        BluetoothClass.Device.Major.NETWORKING -> "peer_device"
+        BluetoothClass.Device.Major.PERIPHERAL -> "input_peripheral"
+        BluetoothClass.Device.Major.IMAGING -> "imaging"
+        BluetoothClass.Device.Major.WEARABLE,
+        BluetoothClass.Device.Major.HEALTH -> "wearable_health"
+        else -> bluetoothMajorDeviceClassLabel(majorClass)
+    }
+
+    private fun bluetoothServiceUuidsJson(scanRecord: ScanRecord?): JSONArray {
+        val values = scanRecord?.serviceUuids
+            ?.mapNotNull { it?.uuid?.toString() }
+            ?.distinct()
+            .orEmpty()
+            .take(MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE)
+        return JSONArray(values)
+    }
+
+    private fun bluetoothServiceDataUuidsJson(scanRecord: ScanRecord?): JSONArray {
+        val values = scanRecord?.serviceData
+            ?.keys
+            ?.mapNotNull { it?.uuid?.toString() }
+            ?.distinct()
+            .orEmpty()
+            .take(MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE)
+        return JSONArray(values)
+    }
+
+    private fun bluetoothManufacturerIdsJson(scanRecord: ScanRecord?): JSONArray {
+        val data = scanRecord?.manufacturerSpecificData ?: return JSONArray()
+        val values = buildList {
+            for (index in 0 until data.size()) {
+                add("0x${data.keyAt(index).toString(16).uppercase(Locale.US).padStart(4, '0')}")
+            }
+        }
+        return JSONArray(values.take(MAX_BLUETOOTH_MANUFACTURER_IDS_PER_DEVICE))
+    }
+
+    private fun bluetoothManufacturerDataBytes(scanRecord: ScanRecord?): Int {
+        val data = scanRecord?.manufacturerSpecificData ?: return 0
+        var bytes = 0
+        for (index in 0 until data.size()) {
+            bytes += data.valueAt(index)?.size ?: 0
+        }
+        return bytes
+    }
+
+    internal fun estimateBluetoothDistanceMeters(rssiDbm: Int, txPowerDbm: Int?): Double? {
+        val tx = txPowerDbm?.takeIf { it in -127..20 } ?: return null
+        if (rssiDbm >= 0) return null
+        val distance = 10.0.pow((tx - rssiDbm).toDouble() / 20.0)
+        return (distance * 100.0).roundToInt() / 100.0
+    }
+
+    internal fun bluetoothProximityLabel(rssiDbm: Int, distanceMeters: Double? = null): String = when {
+        distanceMeters != null && distanceMeters <= 1.0 -> "immediate"
+        rssiDbm >= -55 -> "near"
+        distanceMeters != null && distanceMeters <= 5.0 -> "room"
+        rssiDbm >= -75 -> "room"
+        else -> "far"
+    }
+
+    internal fun bluetoothMetadataSummaryRows(devices: JSONArray): JSONArray {
+        data class MetadataAccumulator(
+            var count: Int = 0,
+            var pairedCount: Int = 0,
+            var connectableCount: Int = 0,
+            var strongestRssiDbm: Int? = null,
+            val sampleDevices: LinkedHashSet<String> = linkedSetOf(),
+        )
+
+        val summaries = linkedMapOf<String, MetadataAccumulator>()
+        fun add(summaryType: String, label: String, row: JSONObject) {
+            val key = "$summaryType|$label"
+            val accumulator = summaries.getOrPut(key) { MetadataAccumulator() }
+            accumulator.count += 1
+            if (row.optBoolean("paired", false)) accumulator.pairedCount += 1
+            if (row.optBoolean("connectable", false)) accumulator.connectableCount += 1
+            jsonIntOrNull(row, "rssi_dbm")?.let { rssi ->
+                accumulator.strongestRssiDbm = maxOf(accumulator.strongestRssiDbm ?: rssi, rssi)
+            }
+            row.optString("device_name")
+                .takeIf { it.isNotBlank() && it != "<unnamed>" }
+                ?.let { accumulator.sampleDevices.add(it) }
+        }
+
+        for (index in 0 until devices.length()) {
+            val row = devices.optJSONObject(index) ?: continue
+            val category = row.optString("device_category")
+                .ifBlank { row.optString("major_device_class") }
+                .ifBlank { row.optString("device_type") }
+                .ifBlank { "unknown" }
+            add("device_category", category, row)
+            jsonStringList(row, "service_uuids").forEach { uuid ->
+                add("service_uuid", uuid, row)
+            }
+            jsonStringList(row, "manufacturer_ids").forEach { manufacturerId ->
+                add("manufacturer_id", manufacturerId, row)
+            }
+        }
+
+        val rows = summaries.map { (key, accumulator) ->
+            val parts = key.split('|', limit = 2)
+            val summaryType = parts.firstOrNull().orEmpty()
+            val label = parts.getOrNull(1).orEmpty()
+            JSONObject()
+                .put("summary_type", summaryType)
+                .put("label", label)
+                .put("count", accumulator.count)
+                .put("paired_count", accumulator.pairedCount)
+                .put("connectable_count", accumulator.connectableCount)
+                .put("strongest_rssi_dbm", accumulator.strongestRssiDbm ?: JSONObject.NULL)
+                .put("sample_devices", JSONArray(accumulator.sampleDevices.take(MAX_BLUETOOTH_SUMMARY_SAMPLES)))
+                .put(
+                    "recommendation",
+                    when (summaryType) {
+                        "service_uuid" -> "BLE service UUID advertised nearby; use it to infer device capability before connecting."
+                        "manufacturer_id" -> "Manufacturer data advertised nearby; useful for beacon or vendor-specific device identification."
+                        else -> "Bluetooth device class group from paired or nearby scan metadata."
+                    },
+                )
+        }
+            .sortedWith(
+                compareBy<JSONObject> { bluetoothSummarySortKey(it.optString("summary_type")) }
+                    .thenByDescending { it.optInt("count") }
+                    .thenByDescending { it.optInt("strongest_rssi_dbm", -100) }
+                    .thenBy { it.optString("label") },
+            )
+            .take(MAX_BLUETOOTH_METADATA_SUMMARY_ROWS)
+        return JSONArray().also { array -> rows.forEach(array::put) }
+    }
+
+    private fun bluetoothDistinctStringCount(devices: JSONArray, key: String): Int {
+        val values = linkedSetOf<String>()
+        for (index in 0 until devices.length()) {
+            val row = devices.optJSONObject(index) ?: continue
+            values.addAll(jsonStringList(row, key))
+        }
+        return values.size
+    }
+
+    private fun bluetoothSummarySortKey(summaryType: String): Int = when (summaryType) {
+        "device_category" -> 0
+        "service_uuid" -> 1
+        "manufacturer_id" -> 2
+        else -> 3
     }
 
     private fun cameraJson(id: String, chars: CameraCharacteristics): JSONObject {
@@ -1615,6 +1851,15 @@ object HermesDeviceDiagnosticsBridge {
         }
     }
 
+    private fun jsonStringList(row: JSONObject, key: String): List<String> {
+        val array = row.optJSONArray(key) ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                array.optString(index).takeIf { it.isNotBlank() }?.let(::add)
+            }
+        }
+    }
+
     private fun wifiSignalSortKey(value: String): Int = when (value) {
         "excellent" -> 0
         "good" -> 1
@@ -1741,6 +1986,10 @@ object HermesDeviceDiagnosticsBridge {
     private const val MAX_WIFI_VENDOR_DETAILS = 4
     private const val MAX_WIFI_FILTER_OPTIONS = 12
     private const val MAX_BLUETOOTH_RESULTS = 40
+    private const val MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE = 8
+    private const val MAX_BLUETOOTH_MANUFACTURER_IDS_PER_DEVICE = 8
+    private const val MAX_BLUETOOTH_METADATA_SUMMARY_ROWS = 24
+    private const val MAX_BLUETOOTH_SUMMARY_SAMPLES = 4
     private const val MAX_SENSOR_TYPES_PER_SAMPLE = 8
     private const val DEFAULT_SENSOR_TIMEOUT_MS = 800L
     private const val MAX_SENSOR_TIMEOUT_MS = 3_000L

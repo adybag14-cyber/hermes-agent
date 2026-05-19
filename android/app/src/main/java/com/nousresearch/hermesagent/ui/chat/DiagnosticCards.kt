@@ -63,6 +63,7 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
                 "wifi_channel_rating" -> wifiChannelRatingRow(row)
                 "wifi_vendor_summary" -> wifiVendorSummaryRow(row)
                 "bluetooth_rssi" -> bluetoothRow(row)
+                "bluetooth_metadata_summary" -> bluetoothMetadataSummaryRow(row)
                 "radio_frequency_capability" -> radioRow(row)
                 "sensor_vector" -> sensorRow(row)
                 else -> genericRow(row, index)
@@ -150,8 +151,13 @@ private fun bluetoothRow(row: JSONObject): DiagnosticGraphRow? {
         ?: row.optString("address").ifBlank { "Bluetooth" }
     val detail = listOfNotNull(
         row.optString("device_type").takeIf { it.isNotBlank() },
+        row.optString("device_category").takeIf { it.isNotBlank() && it != "unknown" },
         row.optString("bond_state").takeIf { it.isNotBlank() },
         if (row.optBoolean("paired", false)) "paired" else null,
+        row.optString("proximity_label").takeIf { it.isNotBlank() },
+        row.optNumber("estimated_distance_meters")?.toDouble()?.let { "~${formatDecimal(it, 1)} m" },
+        row.optNumber("service_uuid_count")?.toInt()?.takeIf { it > 0 }?.let { "$it services" },
+        row.optNumber("manufacturer_data_count")?.toInt()?.takeIf { it > 0 }?.let { "$it manufacturer records" },
         row.optNumber("scan_record_bytes")?.toInt()?.let { "$it scan bytes" },
     ).joinToString(" | ")
     return DiagnosticGraphRow(
@@ -159,6 +165,26 @@ private fun bluetoothRow(row: JSONObject): DiagnosticGraphRow? {
         valueLabel = rssi?.let { "$it dBm" } ?: "paired",
         detail = detail.ifBlank { "Bluetooth device metadata" },
         fraction = rssi?.let(::dbmFraction) ?: 0.45f,
+    )
+}
+
+private fun bluetoothMetadataSummaryRow(row: JSONObject): DiagnosticGraphRow? {
+    val label = row.optString("label").takeIf { it.isNotBlank() } ?: return null
+    val count = row.optNumber("count")?.toInt() ?: return null
+    val summaryType = row.optString("summary_type").ifBlank { "metadata" }
+    val strongestRssi = row.optNumber("strongest_rssi_dbm")?.toInt()
+    val detail = listOfNotNull(
+        summaryType.replace('_', ' '),
+        row.optNumber("paired_count")?.toInt()?.takeIf { it > 0 }?.let { "$it paired" },
+        row.optNumber("connectable_count")?.toInt()?.takeIf { it > 0 }?.let { "$it connectable" },
+        strongestRssi?.let { "strongest $it dBm" },
+        row.optString("recommendation").takeIf { it.isNotBlank() },
+    ).joinToString(" | ")
+    return DiagnosticGraphRow(
+        label = label,
+        valueLabel = "$count device${if (count == 1) "" else "s"}",
+        detail = detail.ifBlank { "Bluetooth metadata group" },
+        fraction = strongestRssi?.let(::dbmFraction) ?: (count / 8f).coerceIn(0.1f, 1f),
     )
 }
 

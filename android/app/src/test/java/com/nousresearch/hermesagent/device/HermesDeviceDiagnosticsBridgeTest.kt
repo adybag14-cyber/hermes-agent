@@ -96,6 +96,54 @@ class HermesDeviceDiagnosticsBridgeTest {
     }
 
     @Test
+    fun summarizesBluetoothMetadataForAgentAndCards() {
+        assertEquals("near", HermesDeviceDiagnosticsBridge.bluetoothProximityLabel(-48))
+        assertEquals("room", HermesDeviceDiagnosticsBridge.bluetoothProximityLabel(-67))
+        assertEquals(2.0, HermesDeviceDiagnosticsBridge.estimateBluetoothDistanceMeters(-65, -59)!!, 0.01)
+
+        val devices = JSONArray()
+            .put(
+                JSONObject()
+                    .put("device_name", "Heart Strap")
+                    .put("device_type", "le")
+                    .put("device_category", "wearable_health")
+                    .put("paired", true)
+                    .put("connectable", true)
+                    .put("rssi_dbm", -49)
+                    .put("service_uuids", JSONArray().put("0000180d-0000-1000-8000-00805f9b34fb"))
+                    .put("manufacturer_ids", JSONArray().put("0x004C")),
+            )
+            .put(
+                JSONObject()
+                    .put("device_name", "Beacon")
+                    .put("device_type", "le")
+                    .put("device_category", "wearable_health")
+                    .put("connectable", false)
+                    .put("rssi_dbm", -73)
+                    .put("manufacturer_ids", JSONArray().put("0x004C")),
+            )
+
+        val rows = HermesDeviceDiagnosticsBridge.bluetoothMetadataSummaryRows(devices)
+        val category = (0 until rows.length())
+            .map { rows.getJSONObject(it) }
+            .first { it.getString("summary_type") == "device_category" }
+        val manufacturer = (0 until rows.length())
+            .map { rows.getJSONObject(it) }
+            .first { it.getString("summary_type") == "manufacturer_id" }
+        val service = (0 until rows.length())
+            .map { rows.getJSONObject(it) }
+            .first { it.getString("summary_type") == "service_uuid" }
+
+        assertEquals("wearable_health", category.getString("label"))
+        assertEquals(2, category.getInt("count"))
+        assertEquals(1, category.getInt("paired_count"))
+        assertEquals("0x004C", manufacturer.getString("label"))
+        assertEquals(2, manufacturer.getInt("count"))
+        assertTrue(service.getString("label").contains("180d"))
+        assertTrue(service.getString("recommendation").contains("BLE service UUID"))
+    }
+
+    @Test
     fun emulatorDetectionSeparatesVirtualTargetsFromPhysicalPhoneEvidence() {
         assertTrue(
             HermesDeviceDiagnosticsBridge.isLikelyEmulatorDevice(

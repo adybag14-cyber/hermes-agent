@@ -1183,10 +1183,10 @@ class NativeToolCallingChatClient(
     private fun systemMessage(toolsEnabled: Boolean): JSONObject {
         val content = if (toolsEnabled) {
             "You are Hermes running inside the native Android app. " +
-                "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensors, camera capability checks, Wi-Fi analysis/channel ratings, Bluetooth nearby scans, radio capability checks, resource summaries, or Tasker-style automation. " +
+                "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensors, camera capability checks, Wi-Fi analysis/channel ratings, Bluetooth nearby scans/service metadata, radio capability checks, resource summaries, or Tasker-style automation. " +
                 "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                 "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
-                "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel ratings, Bluetooth nearby devices, camera/sensor status, active overlays, tool catalog, RF capability limits, MediaTek/Snapdragon/SOC context, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel ratings, Bluetooth nearby devices/service metadata, camera/sensor status, active overlays, tool catalog, RF capability limits, MediaTek/Snapdragon/SOC context, or phone preflight checks before TikTok/Instagram/Gmail work. " +
                 "Use hindsight_memory_tool to retain, recall, and reflect durable local memories before or after complex work. " +
                 "Report missing Android permissions honestly. Keep replies brief."
         } else {
@@ -1244,7 +1244,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_device_diagnostics_tool",
-                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, channel ratings, vendor/OUI metadata and filter facets, nearby Bluetooth devices, camera capability, sensors, overlay status, SOC/GPU compatibility context, tool catalog, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
+                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, channel ratings, vendor/OUI metadata and filter facets, nearby Bluetooth devices plus service/manufacturer/proximity metadata, camera capability, sensors, overlay status, SOC/GPU compatibility context, tool catalog, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
                     properties = JSONObject()
                         .put("action", stringProp("status, top_apps, wifi_scan, wifi_channel_rating, bluetooth_scan, sensor_snapshot, camera_status, radio_signal_status, signal_capability_status, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
                         .put("limit", intProp("Maximum rows for top apps, Wi-Fi networks, or Bluetooth devices. Defaults to 5."))
@@ -1457,6 +1457,11 @@ class NativeToolCallingChatClient(
                     "bluetooth scanner",
                     "nearby bluetooth",
                     "ble scan",
+                    "bluetooth service",
+                    "bluetooth uuid",
+                    "bluetooth manufacturer",
+                    "bluetooth proximity",
+                    "beacon",
                     "sensor",
                     "sensors",
                     "gyroscope",
@@ -3219,6 +3224,9 @@ internal object NativeToolContextCompressor {
                 "camera_count",
                 "sensor_count",
                 "bluetooth_device_count",
+                "bluetooth_metadata_count",
+                "bluetooth_service_uuid_count",
+                "bluetooth_manufacturer_id_count",
                 "usage_access_granted",
                 "requires_usage_access_for_full_storage_rankings",
                 "likely_mediatek",
@@ -3275,6 +3283,7 @@ internal object NativeToolContextCompressor {
         "wifi_vendor_summary",
         "wifi_analyzer_filters",
         "bluetooth_devices",
+        "bluetooth_metadata_summary",
         "radio_bands",
         "radio_scan_rows",
         "sensor_samples",
@@ -3335,11 +3344,26 @@ internal object NativeToolContextCompressor {
         "count",
         "options",
         "device_name",
+        "advertised_name",
         "address",
         "device_type",
+        "device_category",
+        "major_device_class",
+        "service_uuids",
+        "service_uuid_count",
+        "service_data_uuids",
+        "manufacturer_ids",
+        "manufacturer_data_count",
+        "manufacturer_data_bytes",
+        "proximity_label",
+        "estimated_distance_meters",
         "bond_state",
         "connectable",
         "tx_power_dbm",
+        "summary_type",
+        "paired_count",
+        "connectable_count",
+        "sample_devices",
         "band",
         "supported",
         "sampled",

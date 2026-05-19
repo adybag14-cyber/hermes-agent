@@ -173,24 +173,49 @@ class NativeToolCallingChatClientTest {
                     .put("address", "AA:BB:CC:00:00:$index")
                     .put("rssi_dbm", -40 - index)
                     .put("device_type", "le")
+                    .put("device_category", "wearable_health")
+                    .put("service_uuids", JSONArray().put("0000180d-0000-1000-8000-00805f9b34fb"))
+                    .put("manufacturer_ids", JSONArray().put("0x004C"))
+                    .put("proximity_label", "near")
                     .put("scan_record", "ff".repeat(200)),
             )
         }
         val result = JSONObject()
             .put("success", true)
             .put("action", "bluetooth_scan")
+            .put("bluetooth_metadata_count", 3)
+            .put("bluetooth_service_uuid_count", 1)
+            .put("bluetooth_manufacturer_id_count", 1)
             .put("bluetooth_devices", devices)
+            .put(
+                "bluetooth_metadata_summary",
+                JSONArray().put(
+                    JSONObject()
+                        .put("summary_type", "manufacturer_id")
+                        .put("label", "0x004C")
+                        .put("count", 30)
+                        .put("strongest_rssi_dbm", -40)
+                        .put("recommendation", "Manufacturer data advertised nearby."),
+                ),
+            )
             .put("cards", JSONArray().put(JSONObject().put("title", "Bluetooth Nearby").put("body", "30 devices")))
             .toString()
 
         val compacted = NativeToolContextCompressor.compactToolResult(result)
         val parsed = JSONObject(compacted)
         val compactedDevices = parsed.getJSONObject("bluetooth_devices")
+        val metadataSummary = parsed.getJSONArray("bluetooth_metadata_summary")
 
         assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(3, parsed.getInt("bluetooth_metadata_count"))
+        assertEquals(1, parsed.getInt("bluetooth_service_uuid_count"))
+        assertEquals(1, parsed.getInt("bluetooth_manufacturer_id_count"))
         assertEquals(30, compactedDevices.getInt("original_count"))
         assertEquals("Beacon-0", compactedDevices.getJSONArray("items").getJSONObject(0).getString("device_name"))
         assertEquals(-40, compactedDevices.getJSONArray("items").getJSONObject(0).getInt("rssi_dbm"))
+        assertEquals("wearable_health", compactedDevices.getJSONArray("items").getJSONObject(0).getString("device_category"))
+        assertEquals("near", compactedDevices.getJSONArray("items").getJSONObject(0).getString("proximity_label"))
+        assertEquals("0x004C", metadataSummary.getJSONObject(0).getString("label"))
     }
 
     @Test
