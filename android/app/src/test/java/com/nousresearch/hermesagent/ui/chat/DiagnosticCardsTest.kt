@@ -28,6 +28,9 @@ class DiagnosticCardsTest {
                                     .put("frequency_mhz", 5180)
                                     .put("channel", 36)
                                     .put("band", "5 GHz")
+                                    .put("channel_width", "80MHz")
+                                    .put("security_mode", "WPA2")
+                                    .put("bssid_vendor", "Apple")
                                     .put("estimated_distance_meters", 1.6),
                             ),
                         ),
@@ -43,6 +46,8 @@ class DiagnosticCardsTest {
         assertEquals("HermesNet", cards.single().rows.single().label)
         assertEquals("-42 dBm", cards.single().rows.single().valueLabel)
         assertTrue(cards.single().rows.single().detail.contains("ch 36"))
+        assertTrue(cards.single().rows.single().detail.contains("WPA2"))
+        assertTrue(cards.single().rows.single().detail.contains("Apple"))
         assertTrue(cards.single().rows.single().fraction > 0.8f)
     }
 
@@ -112,6 +117,40 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("0 overlapping"))
         assertTrue(row.detail.contains("Best current option"))
         assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
+    fun parsesWifiVendorSummaryRowsForExpandableSignalCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Wi-Fi Vendors")
+                        .put("body", "Vendor rows.")
+                        .put("graph_type", "wifi_vendor_summary")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("vendor", "Apple")
+                                    .put("network_count", 2)
+                                    .put("strongest_rssi_dbm", -44)
+                                    .put("bssid_ouis", JSONArray().put("AC:BC:32"))
+                                    .put("recommendation", "Strong nearby vendor group."),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("Apple", row.label)
+        assertEquals("2 APs", row.valueLabel)
+        assertTrue(row.detail.contains("AC:BC:32"))
+        assertTrue(row.detail.contains("Strong nearby vendor group"))
+        assertTrue(row.fraction > 0.75f)
     }
 
     @Test

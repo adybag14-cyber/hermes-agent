@@ -79,9 +79,14 @@ class NativeToolCallingChatClientTest {
             networks.put(
                 JSONObject()
                     .put("ssid", "Lab-$index")
+                    .put("bssid_oui", "AC:BC:32")
+                    .put("bssid_vendor", "Apple")
                     .put("rssi_dbm", -30 - index)
+                    .put("signal_quality", "excellent")
                     .put("frequency_mhz", 2412 + index)
                     .put("channel", index + 1)
+                    .put("channel_width", "20MHz")
+                    .put("security_mode", "WPA2")
                     .put("capabilities", "[WPA2-PSK-CCMP][ESS]".repeat(8)),
             )
         }
@@ -102,8 +107,30 @@ class NativeToolCallingChatClientTest {
         val result = JSONObject()
             .put("success", true)
             .put("action", "wifi_scan")
+            .put("wifi_vendor_count", 1)
+            .put("wifi_filter_count", 4)
             .put("wifi_networks", networks)
             .put("wifi_channel_ratings", channelRatings)
+            .put(
+                "wifi_vendor_summary",
+                JSONArray().put(
+                    JSONObject()
+                        .put("vendor", "Apple")
+                        .put("network_count", 60)
+                        .put("strongest_rssi_dbm", -30)
+                        .put("bssid_ouis", JSONArray().put("AC:BC:32"))
+                        .put("recommendation", "Strong nearby vendor group."),
+                ),
+            )
+            .put(
+                "wifi_analyzer_filters",
+                JSONArray().put(
+                    JSONObject()
+                        .put("key", "security")
+                        .put("label", "Security")
+                        .put("options", JSONArray().put(JSONObject().put("value", "WPA2").put("count", 60))),
+                ),
+            )
             .put(
                 "recommended_wifi_channels",
                 JSONArray().put(JSONObject().put("band", "2.4GHz").put("channel", 11).put("score", 96)),
@@ -115,15 +142,23 @@ class NativeToolCallingChatClientTest {
         val parsed = JSONObject(compacted)
         val wifiNetworks = parsed.getJSONObject("wifi_networks")
         val wifiRatings = parsed.getJSONObject("wifi_channel_ratings")
+        val vendorSummary = parsed.getJSONArray("wifi_vendor_summary")
+        val analyzerFilters = parsed.getJSONArray("wifi_analyzer_filters")
 
         assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(1, parsed.getInt("wifi_vendor_count"))
+        assertEquals(4, parsed.getInt("wifi_filter_count"))
         assertEquals("array", wifiNetworks.getString("type"))
         assertEquals(60, wifiNetworks.getInt("original_count"))
         assertEquals(8, wifiNetworks.getJSONArray("items").length())
         assertEquals("Lab-0", wifiNetworks.getJSONArray("items").getJSONObject(0).getString("ssid"))
+        assertEquals("Apple", wifiNetworks.getJSONArray("items").getJSONObject(0).getString("bssid_vendor"))
+        assertEquals("WPA2", wifiNetworks.getJSONArray("items").getJSONObject(0).getString("security_mode"))
         assertEquals("array", wifiRatings.getString("type"))
         assertEquals(20, wifiRatings.getInt("original_count"))
         assertEquals(1, wifiRatings.getJSONArray("items").getJSONObject(0).getInt("channel"))
+        assertEquals("Apple", vendorSummary.getJSONObject(0).getString("vendor"))
+        assertEquals("security", analyzerFilters.getJSONObject(0).getString("key"))
         assertEquals(11, parsed.getJSONArray("recommended_wifi_channels").getJSONObject(0).getInt("channel"))
         assertEquals("Wi-Fi Analyzer", parsed.getJSONArray("cards").getJSONObject(0).getString("title"))
     }

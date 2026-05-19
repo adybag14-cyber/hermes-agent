@@ -61,6 +61,7 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
             val parsed = when (graphType) {
                 "wifi_channel_strength" -> wifiRow(row)
                 "wifi_channel_rating" -> wifiChannelRatingRow(row)
+                "wifi_vendor_summary" -> wifiVendorSummaryRow(row)
                 "bluetooth_rssi" -> bluetoothRow(row)
                 "radio_frequency_capability" -> radioRow(row)
                 "sensor_vector" -> sensorRow(row)
@@ -81,6 +82,9 @@ private fun wifiRow(row: JSONObject): DiagnosticGraphRow? {
         channel?.let { "ch $it" },
         frequency?.let { "$it MHz" },
         row.optString("band").takeIf { it.isNotBlank() },
+        row.optString("channel_width").takeIf { it.isNotBlank() && it != "unknown" },
+        row.optString("security_mode").takeIf { it.isNotBlank() },
+        row.optString("bssid_vendor").takeIf { it.isNotBlank() && it != "Unknown vendor" },
         distance?.let { "~${formatDecimal(it, 1)} m" },
     ).joinToString(" | ")
     return DiagnosticGraphRow(
@@ -111,6 +115,32 @@ private fun wifiChannelRatingRow(row: JSONObject): DiagnosticGraphRow? {
         valueLabel = listOfNotNull("$score/100", rating).joinToString(" "),
         detail = detail.ifBlank { "Wi-Fi channel rating" },
         fraction = (score / 100f).coerceIn(0.05f, 1f),
+    )
+}
+
+private fun wifiVendorSummaryRow(row: JSONObject): DiagnosticGraphRow? {
+    val vendor = row.optString("vendor").takeIf { it.isNotBlank() } ?: return null
+    val count = row.optNumber("network_count")?.toInt() ?: return null
+    val strongestRssi = row.optNumber("strongest_rssi_dbm")?.toInt()
+    val ouiLabel = row.optJSONArray("bssid_ouis")
+        ?.let { values ->
+            buildList {
+                for (index in 0 until minOf(values.length(), 3)) {
+                    values.optString(index).takeIf { it.isNotBlank() }?.let(::add)
+                }
+            }.joinToString(", ")
+        }
+        .orEmpty()
+    val detail = listOfNotNull(
+        ouiLabel.takeIf { it.isNotBlank() }?.let { "OUI $it" },
+        strongestRssi?.let { "strongest $it dBm" },
+        row.optString("recommendation").takeIf { it.isNotBlank() },
+    ).joinToString(" | ")
+    return DiagnosticGraphRow(
+        label = vendor,
+        valueLabel = "$count AP${if (count == 1) "" else "s"}",
+        detail = detail.ifBlank { "Wi-Fi vendor/OUI group" },
+        fraction = strongestRssi?.let(::dbmFraction) ?: (count / 8f).coerceIn(0.1f, 1f),
     )
 }
 

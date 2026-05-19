@@ -3,6 +3,7 @@ package com.nousresearch.hermesagent.device
 import android.content.Context
 import com.nousresearch.hermesagent.data.LocalModelDownloadRecord
 import com.nousresearch.hermesagent.data.LocalModelDownloadStore
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -48,6 +49,50 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertEquals(0, best.getInt("overlap_count"))
         assertTrue(best.getInt("score") > channelOne.getInt("score"))
         assertTrue(best.getString("recommendation").contains("Best current option"))
+    }
+
+    @Test
+    fun enrichesWifiRowsWithVendorSecurityAndFilterFacets() {
+        assertEquals("AC:BC:32", HermesDeviceDiagnosticsBridge.wifiBssidOui("ac:bc:32:12:34:56"))
+        assertEquals("Apple", HermesDeviceDiagnosticsBridge.wifiOuiVendorLabel("AC:BC:32"))
+        assertEquals("Locally administered / randomized", HermesDeviceDiagnosticsBridge.wifiOuiVendorLabel("DA:A1:19"))
+        assertEquals("WPA3", HermesDeviceDiagnosticsBridge.wifiSecurityLabel("[WPA3-SAE-CCMP][ESS]"))
+        assertEquals("fair", HermesDeviceDiagnosticsBridge.wifiSignalQualityLabel(-67))
+
+        val networks = JSONArray()
+            .put(
+                JSONObject()
+                    .put("ssid", "HermesNet")
+                    .put("bssid", "AC:BC:32:12:34:56")
+                    .put("rssi_dbm", -42)
+                    .put("frequency_mhz", 5180)
+                    .put("band", "5GHz")
+                    .put("capabilities", "[WPA2-PSK-CCMP][ESS]"),
+            )
+            .put(
+                JSONObject()
+                    .put("ssid", "HermesGuest")
+                    .put("bssid", "AC:BC:32:65:43:21")
+                    .put("bssid_oui", "AC:BC:32")
+                    .put("bssid_vendor", "Apple")
+                    .put("rssi_dbm", -68)
+                    .put("frequency_mhz", 2412)
+                    .put("band", "2.4GHz")
+                    .put("security_mode", "Open"),
+            )
+
+        val vendors = HermesDeviceDiagnosticsBridge.wifiVendorSummaryJson(networks)
+        val filters = HermesDeviceDiagnosticsBridge.wifiAnalyzerFilterSummaryJson(networks)
+        val securityFilter = (0 until filters.length())
+            .map { filters.getJSONObject(it) }
+            .first { it.getString("key") == "security" }
+
+        assertEquals("Apple", vendors.getJSONObject(0).getString("vendor"))
+        assertEquals(2, vendors.getJSONObject(0).getInt("network_count"))
+        assertTrue(vendors.getJSONObject(0).getJSONArray("bssid_ouis").toString().contains("AC:BC:32"))
+        assertEquals(4, filters.length())
+        assertTrue(securityFilter.getJSONArray("options").toString().contains("WPA2"))
+        assertTrue(securityFilter.getJSONArray("options").toString().contains("Open"))
     }
 
     @Test

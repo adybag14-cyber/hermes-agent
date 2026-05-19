@@ -106,7 +106,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "cards",
                 JSONArray()
-                    .put(card("Diagnostics", "Phone resource, Wi-Fi, Bluetooth, camera, sensor, SOC, and overlay diagnostics are available to the agent."))
+                    .put(card("Diagnostics", "Phone resource, Wi-Fi vendor/OUI/channel, Bluetooth, camera, sensor, SOC, and overlay diagnostics are available to the agent."))
                     .put(card("Radio Limits", "AM/FM and broad RF scanning require vendor radio APIs or external SDR hardware; Android phones expose Wi-Fi, Bluetooth, audio, camera, and built-in sensors.")),
             )
     }
@@ -190,6 +190,8 @@ object HermesDeviceDiagnosticsBridge {
         val channelRatings = wifiChannelRatingRowsForNetworks(allNetworks)
         val recommendedChannels = recommendedWifiChannels(channelRatings)
         val bandSummary = wifiBandSummaryJson(allNetworks, channelRatings)
+        val vendorSummary = wifiVendorSummaryJson(allNetworks)
+        val analyzerFilters = wifiAnalyzerFilterSummaryJson(allNetworks)
         return JSONObject()
             .put("success", true)
             .put("action", actionName)
@@ -197,19 +199,24 @@ object HermesDeviceDiagnosticsBridge {
             .put("refresh_accepted", refreshAccepted)
             .put("result_count", networks.length())
             .put("total_scan_result_count", allNetworks.length())
+            .put("wifi_vendor_count", vendorSummary.length())
+            .put("wifi_filter_count", analyzerFilters.length())
             .put("wifi_enabled", wifiManager.isWifiEnabled)
             .put("wifi_scan_permission_status", permissionStatus)
             .put("wifi_networks", networks)
             .put("wifi_channel_ratings", channelRatings)
             .put("recommended_wifi_channels", recommendedChannels)
             .put("wifi_band_summary", bandSummary)
+            .put("wifi_vendor_summary", vendorSummary)
+            .put("wifi_analyzer_filters", analyzerFilters)
+            .put("privacy_note", "Vendor/OUI lookup uses local prefix hints from Android scan metadata; no internet lookup is performed.")
             .put(
                 "cards",
                 JSONArray()
                     .put(
                         graphCard(
                             title = "Wi-Fi Analyzer",
-                            body = "${networks.length()} nearby Wi-Fi signals ranked by RSSI dBm with channel/frequency/width metadata.",
+                            body = "${networks.length()} nearby Wi-Fi signals ranked by RSSI dBm with channel/frequency/width/vendor/security metadata.",
                             graphType = "wifi_channel_strength",
                             rows = networks,
                         ),
@@ -220,6 +227,14 @@ object HermesDeviceDiagnosticsBridge {
                             body = "${channelRatings.length()} channel ratings scored from nearby AP crowding, overlap, RSSI, and width metadata.",
                             graphType = "wifi_channel_rating",
                             rows = channelRatings,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Wi-Fi Vendors",
+                            body = "${vendorSummary.length()} vendor/OUI groups inferred locally from ${allNetworks.length()} scan rows.",
+                            graphType = "wifi_vendor_summary",
+                            rows = vendorSummary,
                         ),
                     ),
             )
@@ -599,7 +614,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(toolJson("android_system_tool", "Read phone state and open settings or user-granted Shizuku/Sui actions.", "action, package_name, permission"))
                     .put(toolJson("android_ui_tool", "Inspect and control visible Android UI through accessibility and screenshots.", "action, selectors, coordinates"))
                     .put(toolJson("android_automation_tool", "Run/open/create saved automations, watcher tasks, overlays, notifications, widgets, and Tasker-style triggers.", "action, trigger, data_uri"))
-                    .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals/channel ratings, Bluetooth nearby devices, camera, sensors, SOC compatibility, overlay, radio/RF capability limits, and the social/Gmail end-to-end phone preflight.", "action, limit, refresh, sensor_types, timeout_ms"))
+                    .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals/channel ratings/vendor OUI/filter facets, Bluetooth nearby devices, camera, sensors, SOC compatibility, overlay, radio/RF capability limits, and the social/Gmail end-to-end phone preflight.", "action, limit, refresh, sensor_types, timeout_ms"))
                     .put(toolJson("hindsight_memory_tool", "Retain, recall, and reflect local Hindsight-style memories with tags, entities, keywords, recency, and reinforcement.", "action, content, query, tags, category")),
             )
             .put("diagnostics_actions", JSONArray(ACTIONS))
@@ -769,15 +784,21 @@ object HermesDeviceDiagnosticsBridge {
     }
 
     private fun scanResultJson(result: ScanResult): JSONObject {
+        val capabilities = result.capabilities.orEmpty()
+        val oui = wifiBssidOui(result.BSSID.orEmpty())
         val json = JSONObject()
             .put("ssid", result.SSID.orEmpty().ifBlank { "<hidden>" })
             .put("bssid", result.BSSID.orEmpty())
+            .put("bssid_oui", oui.ifBlank { JSONObject.NULL })
+            .put("bssid_vendor", wifiOuiVendorLabel(oui))
             .put("rssi_dbm", result.level)
+            .put("signal_quality", wifiSignalQualityLabel(result.level))
             .put("frequency_mhz", result.frequency)
             .put("channel", channelForFrequencyMhz(result.frequency) ?: JSONObject.NULL)
             .put("band", wifiBandLabel(result.frequency))
             .put("estimated_distance_meters", estimateWifiDistanceMeters(result.level, result.frequency))
-            .put("capabilities", result.capabilities.orEmpty())
+            .put("security_mode", wifiSecurityLabel(capabilities))
+            .put("capabilities", capabilities)
             .put("timestamp_micros", result.timestamp)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             json.put("channel_width", channelWidthLabel(result.channelWidth))
@@ -995,6 +1016,80 @@ object HermesDeviceDiagnosticsBridge {
             }
         }
         return wifiChannelRatingRowsForMeasurements(measurements)
+    }
+
+    internal fun wifiVendorSummaryJson(networks: JSONArray): JSONArray {
+        data class VendorAccumulator(
+            var networkCount: Int = 0,
+            var strongestRssiDbm: Int? = null,
+            val ssids: LinkedHashSet<String> = linkedSetOf(),
+            val ouis: LinkedHashSet<String> = linkedSetOf(),
+        )
+
+        val vendors = linkedMapOf<String, VendorAccumulator>()
+        for (index in 0 until networks.length()) {
+            val row = networks.optJSONObject(index) ?: continue
+            val bssid = row.optString("bssid")
+            val oui = row.optString("bssid_oui").ifBlank { wifiBssidOui(bssid) }
+            val vendor = row.optString("bssid_vendor").ifBlank { wifiOuiVendorLabel(oui) }
+            val key = vendor.ifBlank { "Unknown vendor" }
+            val accumulator = vendors.getOrPut(key) { VendorAccumulator() }
+            accumulator.networkCount += 1
+            jsonIntOrNull(row, "rssi_dbm")?.let { rssi ->
+                accumulator.strongestRssiDbm = maxOf(accumulator.strongestRssiDbm ?: rssi, rssi)
+            }
+            row.optString("ssid").takeIf { it.isNotBlank() }?.let { accumulator.ssids.add(it) }
+            oui.takeIf { it.isNotBlank() }?.let { accumulator.ouis.add(it) }
+        }
+
+        val rows = vendors.map { (vendor, accumulator) ->
+            JSONObject()
+                .put("vendor", vendor)
+                .put("network_count", accumulator.networkCount)
+                .put("strongest_rssi_dbm", accumulator.strongestRssiDbm ?: JSONObject.NULL)
+                .put("bssid_ouis", JSONArray(accumulator.ouis.take(MAX_WIFI_VENDOR_DETAILS)))
+                .put("sample_ssids", JSONArray(accumulator.ssids.take(MAX_WIFI_VENDOR_DETAILS)))
+                .put(
+                    "recommendation",
+                    when {
+                        vendor.startsWith("Unknown", ignoreCase = true) -> "Unknown vendor: keep exact SSID/security and channel metadata visible for manual review."
+                        vendor.startsWith("Locally administered", ignoreCase = true) -> "Likely randomized or locally administered BSSID: treat vendor attribution as unavailable."
+                        (accumulator.strongestRssiDbm ?: -100) > -55 -> "Strong nearby vendor group: inspect channel overlap and security before choosing router placement."
+                        else -> "Vendor group detected from OUI prefix; review channel and signal cards for impact."
+                    },
+                )
+        }
+            .sortedWith(
+                compareByDescending<JSONObject> { it.optInt("network_count") }
+                    .thenByDescending { it.optInt("strongest_rssi_dbm", -100) }
+                    .thenBy { it.optString("vendor") },
+            )
+            .take(MAX_WIFI_VENDOR_ROWS)
+        return JSONArray().also { array -> rows.forEach(array::put) }
+    }
+
+    internal fun wifiAnalyzerFilterSummaryJson(networks: JSONArray): JSONArray {
+        val bandCounts = linkedMapOf<String, Int>()
+        val signalCounts = linkedMapOf<String, Int>()
+        val securityCounts = linkedMapOf<String, Int>()
+        val ssidCounts = linkedMapOf<String, Int>()
+        for (index in 0 until networks.length()) {
+            val row = networks.optJSONObject(index) ?: continue
+            val band = canonicalWifiBandLabel(row.optString("band"), row.optInt("frequency_mhz", 0))
+            incrementCount(bandCounts, band.takeIf { it != "unknown" } ?: "unknown")
+            val rssi = jsonIntOrNull(row, "rssi_dbm")
+            incrementCount(signalCounts, rssi?.let(::wifiSignalQualityLabel) ?: row.optString("signal_quality").ifBlank { "unknown" })
+            incrementCount(
+                securityCounts,
+                row.optString("security_mode").ifBlank { wifiSecurityLabel(row.optString("capabilities")) },
+            )
+            incrementCount(ssidCounts, row.optString("ssid").ifBlank { "<hidden>" })
+        }
+        return JSONArray()
+            .put(filterFacetJson("band", "Wi-Fi band", bandCounts, ::wifiBandSortKey))
+            .put(filterFacetJson("signal_strength", "Signal strength", signalCounts, ::wifiSignalSortKey))
+            .put(filterFacetJson("security", "Security", securityCounts, ::wifiSecuritySortKey))
+            .put(filterFacetJson("ssid", "SSID", ssidCounts) { 0 })
     }
 
     internal fun wifiChannelRatingRowsForMeasurements(measurements: List<WifiChannelMeasurement>): JSONArray {
@@ -1442,6 +1537,102 @@ object HermesDeviceDiagnosticsBridge {
         else -> 4
     }
 
+    internal fun wifiBssidOui(bssid: String): String {
+        val hex = bssid.filter { it.isDigit() || it.lowercaseChar() in 'a'..'f' }.uppercase(Locale.US)
+        if (hex.length < 6) return ""
+        return hex.take(6).chunked(2).joinToString(":")
+    }
+
+    internal fun wifiOuiVendorLabel(oui: String): String {
+        val normalized = wifiBssidOui(oui)
+        if (normalized.isBlank()) return "Unknown vendor"
+        if (isLocallyAdministeredOui(normalized)) return "Locally administered / randomized"
+        return WIFI_OUI_VENDOR_HINTS[normalized] ?: "Unknown vendor"
+    }
+
+    internal fun wifiSecurityLabel(capabilities: String): String {
+        val normalized = capabilities.uppercase(Locale.US)
+        return when {
+            normalized.isBlank() -> "Open"
+            "SAE" in normalized || "WPA3" in normalized -> "WPA3"
+            "OWE" in normalized -> "Enhanced Open"
+            "WPA2" in normalized || "RSN" in normalized -> "WPA2"
+            "WPA" in normalized -> "WPA"
+            "WEP" in normalized -> "WEP"
+            else -> "Open"
+        }
+    }
+
+    internal fun wifiSignalQualityLabel(rssiDbm: Int): String = when {
+        rssiDbm >= -50 -> "excellent"
+        rssiDbm >= -60 -> "good"
+        rssiDbm >= -70 -> "fair"
+        else -> "weak"
+    }
+
+    private fun isLocallyAdministeredOui(oui: String): Boolean {
+        val firstOctet = oui.substringBefore(':').toIntOrNull(16) ?: return false
+        return firstOctet and 0x02 != 0
+    }
+
+    private fun filterFacetJson(
+        key: String,
+        label: String,
+        counts: Map<String, Int>,
+        sortKey: (String) -> Int,
+    ): JSONObject {
+        val options = JSONArray()
+        counts.entries
+            .sortedWith(
+                compareBy<Map.Entry<String, Int>> { sortKey(it.key) }
+                    .thenByDescending { it.value }
+                    .thenBy { it.key.lowercase(Locale.US) },
+            )
+            .take(MAX_WIFI_FILTER_OPTIONS)
+            .forEach { entry ->
+                options.put(
+                    JSONObject()
+                        .put("value", entry.key)
+                        .put("count", entry.value),
+                )
+            }
+        return JSONObject()
+            .put("key", key)
+            .put("label", label)
+            .put("option_count", counts.size)
+            .put("options", options)
+    }
+
+    private fun incrementCount(counts: MutableMap<String, Int>, key: String) {
+        counts[key] = (counts[key] ?: 0) + 1
+    }
+
+    private fun jsonIntOrNull(row: JSONObject, key: String): Int? {
+        return when (val value = row.opt(key)) {
+            is Number -> value.toInt()
+            is String -> value.toIntOrNull()
+            else -> null
+        }
+    }
+
+    private fun wifiSignalSortKey(value: String): Int = when (value) {
+        "excellent" -> 0
+        "good" -> 1
+        "fair" -> 2
+        "weak" -> 3
+        else -> 4
+    }
+
+    private fun wifiSecuritySortKey(value: String): Int = when (value) {
+        "WPA3" -> 0
+        "WPA2" -> 1
+        "WPA" -> 2
+        "Enhanced Open" -> 3
+        "WEP" -> 4
+        "Open" -> 5
+        else -> 6
+    }
+
     private fun estimateWifiDistanceMeters(rssiDbm: Int, frequencyMhz: Int): Double {
         if (frequencyMhz <= 0 || rssiDbm >= 0) return 0.0
         val exponent = (27.55 - (20.0 * log10(frequencyMhz.toDouble())) + abs(rssiDbm).toDouble()) / 20.0
@@ -1454,6 +1645,7 @@ object HermesDeviceDiagnosticsBridge {
         ScanResult.CHANNEL_WIDTH_80MHZ -> "80MHz"
         ScanResult.CHANNEL_WIDTH_160MHZ -> "160MHz"
         ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ -> "80+80MHz"
+        ScanResult.CHANNEL_WIDTH_320MHZ -> "320MHz"
         else -> "unknown"
     }
 
@@ -1545,6 +1737,9 @@ object HermesDeviceDiagnosticsBridge {
     private const val MAX_WIFI_RESULTS = 40
     private const val MAX_WIFI_CHANNEL_RATINGS = 24
     private const val MAX_WIFI_CANDIDATE_CHANNELS_PER_BAND = 12
+    private const val MAX_WIFI_VENDOR_ROWS = 16
+    private const val MAX_WIFI_VENDOR_DETAILS = 4
+    private const val MAX_WIFI_FILTER_OPTIONS = 12
     private const val MAX_BLUETOOTH_RESULTS = 40
     private const val MAX_SENSOR_TYPES_PER_SAMPLE = 8
     private const val DEFAULT_SENSOR_TIMEOUT_MS = 800L
@@ -1560,4 +1755,38 @@ object HermesDeviceDiagnosticsBridge {
     private val TIKTOK_PACKAGES = listOf("com.zhiliaoapp.musically", "com.ss.android.ugc.trill")
     private const val INSTAGRAM_PACKAGE = "com.instagram.android"
     private const val GMAIL_PACKAGE = "com.google.android.gm"
+    private val WIFI_OUI_VENDOR_HINTS = mapOf(
+        "00:1A:A1" to "Cisco",
+        "00:1B:54" to "Cisco",
+        "00:25:9C" to "Cisco",
+        "00:E0:FC" to "Huawei",
+        "14:EB:B6" to "TP-Link",
+        "20:4E:7F" to "Netgear",
+        "24:A4:3C" to "Ubiquiti",
+        "28:6C:07" to "Xiaomi",
+        "3C:22:FB" to "Apple",
+        "50:C7:BF" to "TP-Link",
+        "60:F8:1D" to "Apple",
+        "64:09:80" to "Xiaomi",
+        "78:8A:20" to "Ubiquiti",
+        "A0:04:60" to "Netgear",
+        "A0:CC:2B" to "Samsung",
+        "A0:F3:C1" to "TP-Link",
+        "A4:5E:60" to "Apple",
+        "AC:BC:32" to "Apple",
+        "B8:27:EB" to "Raspberry Pi",
+        "BC:52:B7" to "Apple",
+        "C4:04:15" to "Netgear",
+        "D4:25:8B" to "Xiaomi",
+        "D8:BB:2C" to "Apple",
+        "DC:A6:32" to "Raspberry Pi",
+        "E0:63:DA" to "Ubiquiti",
+        "E8:50:8B" to "Samsung",
+        "E8:CD:2D" to "Huawei",
+        "F0:18:98" to "Apple",
+        "F4:7B:5E" to "Samsung",
+        "F4:F2:6D" to "TP-Link",
+        "F8:7B:20" to "Cisco",
+        "F8:E8:11" to "Huawei",
+    )
 }
