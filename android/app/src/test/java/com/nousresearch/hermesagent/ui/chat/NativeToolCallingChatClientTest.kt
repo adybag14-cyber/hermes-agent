@@ -4,6 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.InterruptedIOException
@@ -50,6 +51,27 @@ class NativeToolCallingChatClientTest {
                 IllegalStateException("image input is unavailable"),
             )
         )
+    }
+
+    @Test
+    fun extractsExplicitAndroidDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=wifi_analyzer_report refresh=false max_results=12",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("wifi_analyzer_report", parsed.getString("action"))
+        assertFalse(parsed.getBoolean("refresh"))
+        assertEquals(12, parsed.getInt("max_results"))
+    }
+
+    @Test
+    fun ignoresUnknownExplicitAndroidDiagnosticActions() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=network_intrusion",
+        )
+
+        assertNull(parsed)
     }
 
     @Test

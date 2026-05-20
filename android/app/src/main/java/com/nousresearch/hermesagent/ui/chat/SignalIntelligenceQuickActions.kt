@@ -1,0 +1,63 @@
+package com.nousresearch.hermesagent.ui.chat
+
+import com.nousresearch.hermesagent.R
+
+data class SignalIntelligenceQuickAction(
+    val id: String,
+    val label: String,
+    val diagnosticAction: String,
+    val prompt: String,
+    val iconRes: Int,
+)
+
+val SIGNAL_INTELLIGENCE_QUICK_ACTIONS = listOf(
+    SignalIntelligenceQuickAction(
+        id = "signal_overview",
+        label = "Signal Overview",
+        diagnosticAction = "signal_awareness_report",
+        prompt = "Run android_device_diagnostics_tool action=signal_awareness_report",
+        iconRes = R.drawable.ic_nav_device,
+    ),
+    SignalIntelligenceQuickAction(
+        id = "agent_environment",
+        label = "Agent Environment",
+        diagnosticAction = "agent_environment_report",
+        prompt = "Run android_device_diagnostics_tool action=agent_environment_report",
+        iconRes = R.drawable.ic_nav_hermes,
+    ),
+    SignalIntelligenceQuickAction(
+        id = "wifi_analyzer",
+        label = "Wi-Fi Analyzer",
+        diagnosticAction = "wifi_analyzer_report",
+        prompt = "Run android_device_diagnostics_tool action=wifi_analyzer_report refresh=false",
+        iconRes = R.drawable.ic_action_refresh,
+    ),
+    SignalIntelligenceQuickAction(
+        id = "wifi_nearby",
+        label = "Nearby Wi-Fi",
+        diagnosticAction = "wifi_scan",
+        prompt = "Run android_device_diagnostics_tool action=wifi_scan refresh=false",
+        iconRes = R.drawable.ic_nav_device,
+    ),
+    SignalIntelligenceQuickAction(
+        id = "bluetooth_analyzer",
+        label = "Bluetooth Analyzer",
+        diagnosticAction = "bluetooth_analyzer_report",
+        prompt = "Run android_device_diagnostics_tool action=bluetooth_analyzer_report refresh=false",
+        iconRes = R.drawable.ic_action_cog,
+    ),
+    SignalIntelligenceQuickAction(
+        id = "sensor_analyzer",
+        label = "Sensor Analyzer",
+        diagnosticAction = "sensor_analyzer_report",
+        prompt = "Run android_device_diagnostics_tool action=sensor_analyzer_report include_snapshot=false",
+        iconRes = R.drawable.ic_nav_device,
+    ),
+    SignalIntelligenceQuickAction(
+        id = "radio_limits",
+        label = "Radio Limits",
+        diagnosticAction = "radio_signal_status",
+        prompt = "Run android_device_diagnostics_tool action=radio_signal_status",
+        iconRes = R.drawable.ic_action_cog,
+    ),
+)

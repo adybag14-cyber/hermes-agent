@@ -154,8 +154,26 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun sendMessage() {
         val snapshot = _uiState.value
-        val text = snapshot.input.trim()
-        val attachments = snapshot.attachments
+        sendPreparedMessage(text = snapshot.input.trim(), attachments = snapshot.attachments)
+    }
+
+    fun sendQuickPrompt(prompt: String) {
+        val normalized = prompt.trim()
+        val snapshot = _uiState.value
+        if (normalized.isEmpty() || snapshot.isSending) {
+            return
+        }
+        if (snapshot.input.isNotBlank() || snapshot.attachments.isNotEmpty()) {
+            _uiState.update {
+                it.copy(status = "Send or clear the current draft before running a signal quick action.")
+            }
+            return
+        }
+        sendPreparedMessage(text = normalized, attachments = emptyList())
+    }
+
+    private fun sendPreparedMessage(text: String, attachments: List<ChatAttachment>) {
+        val snapshot = _uiState.value
         if ((text.isEmpty() && attachments.isEmpty()) || snapshot.isSending) {
             return
         }

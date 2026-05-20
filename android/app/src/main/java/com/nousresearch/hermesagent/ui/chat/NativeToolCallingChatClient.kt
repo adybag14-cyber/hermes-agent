@@ -185,6 +185,20 @@ class NativeToolCallingChatClient(
             )
         }
 
+        extractExplicitAndroidDiagnosticsArguments(userText)?.let { arguments ->
+            val toolResult = executeAndroidDeviceDiagnosticsTool(
+                ToolCall(
+                    id = "direct_${UUID.randomUUID()}",
+                    name = "android_device_diagnostics_tool",
+                    arguments = arguments,
+                )
+            )
+            return Result(
+                content = toolCompletionReply(toolResult),
+                executedToolCalls = 1,
+            )
+        }
+
         val command = extractExactTerminalCommand(userText) ?: return null
         val toolResult = executeTerminalTool(
             ToolCall(
@@ -2952,6 +2966,51 @@ class NativeToolCallingChatClient(
                 "before producing a response" in message
         }
 
+        fun extractExplicitAndroidDiagnosticsArguments(userText: String): JSONObject? {
+            val lower = userText.lowercase()
+            if (
+                "android_device_diagnostics_tool" !in lower &&
+                "device_diagnostics_tool" !in lower &&
+                "diagnostics_tool" !in lower
+            ) {
+                return null
+            }
+            val rawAction = DIAGNOSTIC_ACTION_REGEX.find(userText)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.lowercase()
+                ?.replace('-', '_')
+                ?: return null
+            if (rawAction !in DIRECT_ANDROID_DEVICE_DIAGNOSTIC_ACTIONS) {
+                return null
+            }
+            return JSONObject().put("action", rawAction).apply {
+                DIAGNOSTIC_BOOLEAN_ARGUMENTS.forEach { key ->
+                    DIAGNOSTIC_BOOLEAN_REGEXES.getValue(key).find(userText)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.lowercase()
+                        ?.let { put(key, it == "true") }
+                }
+                DIAGNOSTIC_INTEGER_ARGUMENTS.forEach { key ->
+                    DIAGNOSTIC_INTEGER_REGEXES.getValue(key).find(userText)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.toIntOrNull()
+                        ?.let { put(key, it) }
+                }
+                DIAGNOSTIC_STRING_ARGUMENTS.forEach { key ->
+                    DIAGNOSTIC_STRING_REGEXES.getValue(key).find(userText)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { put(key, it) }
+                }
+            }
+        }
+
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
         private const val TOOL_TIMEOUT_SECONDS = 60
         private const val NATIVE_TOOL_GENERATION_TIMEOUT_MS = 300_000L
@@ -2964,6 +3023,55 @@ class NativeToolCallingChatClient(
         private const val MAX_NATIVE_ERROR_CHARS = 360
         private const val DEFAULT_UI_SNAPSHOT_LIMIT = 80
         private const val MAX_OPEN_GUI_WORKING_MEMORY_CHARS = 16_000
+        private val DIRECT_ANDROID_DEVICE_DIAGNOSTIC_ACTIONS = setOf(
+            "status",
+            "top_apps",
+            "wifi_scan",
+            "wifi_analyzer_report",
+            "wifi_channel_rating",
+            "wifi_ap_details",
+            "wifi_export",
+            "bluetooth_scan",
+            "bluetooth_analyzer_report",
+            "sensor_analyzer_report",
+            "sensor_snapshot",
+            "camera_status",
+            "radio_signal_status",
+            "signal_capability_status",
+            "signal_awareness_report",
+            "agent_environment_report",
+            "social_gmail_goal_preflight",
+            "show_active_overlay",
+            "tool_catalog",
+        )
+        private val DIAGNOSTIC_ACTION_REGEX = Regex(
+            """(?i)\b(?:action|operation|name)\s*[:=]\s*["']?([a-zA-Z0-9_/-]+)["']?""",
+        )
+        private val DIAGNOSTIC_BOOLEAN_ARGUMENTS = listOf(
+            "refresh",
+            "include_snapshot",
+            "sample",
+            "include_scan",
+            "save_file",
+        )
+        private val DIAGNOSTIC_INTEGER_ARGUMENTS = listOf(
+            "limit",
+            "max_results",
+            "timeout_ms",
+        )
+        private val DIAGNOSTIC_STRING_ARGUMENTS = listOf(
+            "export_format",
+            "format",
+        )
+        private val DIAGNOSTIC_BOOLEAN_REGEXES = DIAGNOSTIC_BOOLEAN_ARGUMENTS.associateWith { key ->
+            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*(true|false)\b""")
+        }
+        private val DIAGNOSTIC_INTEGER_REGEXES = DIAGNOSTIC_INTEGER_ARGUMENTS.associateWith { key ->
+            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*(\d+)\b""")
+        }
+        private val DIAGNOSTIC_STRING_REGEXES = DIAGNOSTIC_STRING_ARGUMENTS.associateWith { key ->
+            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*["']?([a-zA-Z0-9_,.-]+)["']?""")
+        }
         private val ANDROID_UI_ACTIONS = listOf(
             "status",
             "sense",

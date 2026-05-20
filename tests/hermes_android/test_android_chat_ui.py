@@ -19,6 +19,8 @@ def test_chat_screen_has_bubbles_history_and_action_icons():
     assert 'onOpenContextActions' in chat_screen
     assert 'remember(strings.language' in chat_screen
     assert 'onContextActionsChanged(shellActions)' in chat_screen
+    assert 'SignalIntelligenceQuickActionGrid(' in chat_screen
+    assert 'HermesSignalQuickActions' in chat_screen
     assert 'Message Hermes' in chat_screen
     assert 'Speak last reply' in chat_screen
     assert 'Available app commands:' in (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/ChatCommandRouter.kt").read_text(encoding="utf-8")
@@ -54,3 +56,30 @@ def test_empty_chat_layout_scrolls_welcome_state_on_small_or_large_font_screens(
     assert 'LazyColumn(' in chat_screen
     assert 'EmptyChatHint(' in chat_screen
     assert 'contentPadding = PaddingValues(vertical = 8.dp)' in chat_screen
+
+
+def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
+    actions = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+    chat_screen = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/ChatScreen.kt").read_text(encoding="utf-8")
+    chat_view_model = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/ChatViewModel.kt").read_text(encoding="utf-8")
+    chat_client = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
+
+    for action in [
+        "signal_awareness_report",
+        "agent_environment_report",
+        "wifi_analyzer_report",
+        "wifi_scan",
+        "bluetooth_analyzer_report",
+        "sensor_analyzer_report",
+        "radio_signal_status",
+    ]:
+        assert f"action={action}" in actions
+        assert f'"{action}"' in chat_client
+
+    assert "sendQuickPrompt" in chat_screen
+    assert "fun sendQuickPrompt" in chat_view_model
+    assert "extractExplicitAndroidDiagnosticsArguments(userText)" in chat_client
+    assert 'testTag("HermesSignalQuickAction_${action.id}")' in chat_screen
+    assert 'id = "wifi_analyzer"' in actions
+    assert 'id = "bluetooth_analyzer"' in actions
+    assert 'id = "sensor_analyzer"' in actions

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -353,6 +354,7 @@ fun ChatScreen(
                                 onNewChat = viewModel::startNewConversation,
                                 onOpenAccounts = { onNavigateToSection(AppSection.Accounts) },
                                 onOpenSettings = { onNavigateToSection(AppSection.Settings) },
+                                onSignalQuickAction = { action -> viewModel.sendQuickPrompt(action.prompt) },
                             )
                         }
                     }
@@ -423,6 +425,7 @@ fun ChatScreen(
                     onRemoveAttachment = viewModel::removeAttachment,
                     onMic = ::startVoiceInput,
                     onSend = ::handleSend,
+                    onSignalQuickAction = { action -> viewModel.sendQuickPrompt(action.prompt) },
                 )
             }
         }
@@ -536,6 +539,7 @@ private fun EmptyChatHint(
     onNewChat: () -> Unit,
     onOpenAccounts: () -> Unit,
     onOpenSettings: () -> Unit,
+    onSignalQuickAction: (SignalIntelligenceQuickAction) -> Unit,
 ) {
     val strings = LocalHermesStrings.current
     Surface(
@@ -564,6 +568,10 @@ private fun EmptyChatHint(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            SignalIntelligenceQuickActionGrid(
+                enabled = true,
+                onSignalQuickAction = onSignalQuickAction,
+            )
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -1238,6 +1246,7 @@ private fun ChatComposer(
     onRemoveAttachment: (String) -> Unit,
     onMic: () -> Unit,
     onSend: () -> Unit,
+    onSignalQuickAction: (SignalIntelligenceQuickAction) -> Unit,
 ) {
     val strings = LocalHermesStrings.current
     var actionMenuOpen by rememberSaveable { mutableStateOf(false) }
@@ -1265,6 +1274,13 @@ private fun ChatComposer(
                         modifier = Modifier.padding(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        SignalIntelligenceQuickActionGrid(
+                            enabled = !isSending && input.isBlank() && attachments.isEmpty(),
+                            onSignalQuickAction = { action ->
+                                actionMenuOpen = false
+                                onSignalQuickAction(action)
+                            },
+                        )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1387,6 +1403,61 @@ private fun ChatComposer(
             }
             if (!actionMenuOpen) {
                 QuietMetaText(text = strings.chatCommandsTip(isListening), color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SignalIntelligenceQuickActionGrid(
+    enabled: Boolean,
+    onSignalQuickAction: (SignalIntelligenceQuickAction) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("HermesSignalQuickActions"),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = "Signal intelligence",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        SIGNAL_INTELLIGENCE_QUICK_ACTIONS.chunked(2).forEach { rowActions ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                rowActions.forEach { action ->
+                    Button(
+                        onClick = { onSignalQuickAction(action) },
+                        enabled = enabled,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("HermesSignalQuickAction_${action.id}"),
+                        shape = MaterialTheme.shapes.small,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(id = action.iconRes),
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(
+                            text = " ${action.label}",
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (rowActions.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
