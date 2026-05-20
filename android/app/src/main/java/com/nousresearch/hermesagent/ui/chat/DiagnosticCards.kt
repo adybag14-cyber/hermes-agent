@@ -73,6 +73,7 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
                 "sensor_vector" -> sensorRow(row)
                 "sensor_capability" -> sensorCapabilityRow(row)
                 "agent_capability_matrix", "kai_parity_matrix", "agent_workflow_readiness",
+                "wifi_analyzer_feature_matrix", "wifi_analyzer_workflow_routes", "wifi_scan_policy_matrix",
                 "signal_awareness_matrix", "signal_workflow_routes", "signal_constraint_matrix" -> capabilityMatrixRow(row)
                 else -> genericRow(row, index)
             }

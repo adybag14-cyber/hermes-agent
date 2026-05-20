@@ -56,6 +56,12 @@ def test_android_push_workflow_uses_node24_ready_action_versions():
     assert 'actions/upload-artifact@v7' in workflow
 
 
+def test_android_push_workflow_compiles_android_test_sources():
+    workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+
+    assert './gradlew :app:compileDebugAndroidTestKotlin -PskipHermesAndroidLinuxAssets=true' in workflow
+
+
 def test_android_release_manifest_prefers_universal_apk_over_newer_split(tmp_path):
     manifest = _load_android_release_manifest_module()
     apk_dir = tmp_path / "release"

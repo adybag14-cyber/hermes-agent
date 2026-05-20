@@ -519,4 +519,40 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("Attach an SDR"))
         assertTrue(row.fraction in 0.4f..0.5f)
     }
+
+    @Test
+    fun parsesWifiAnalyzerReadinessRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Wi-Fi Analyzer Readiness")
+                        .put("body", "Readiness rows.")
+                        .put("graph_type", "wifi_analyzer_feature_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "wifi_analyzer_parity")
+                                    .put("label", "Channel signal graph")
+                                    .put("ready", true)
+                                    .put("value_label", "24 channel row(s)")
+                                    .put("detail", "Scores nearby channels.")
+                                    .put("recommendation", "Use wifi_channel_rating.")
+                                    .put("fraction", 0.92),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("Channel signal graph", row.label)
+        assertEquals("24 channel row(s)", row.valueLabel)
+        assertTrue(row.detail.contains("wifi analyzer parity"))
+        assertTrue(row.detail.contains("Use wifi_channel_rating"))
+        assertTrue(row.fraction > 0.9f)
+    }
 }

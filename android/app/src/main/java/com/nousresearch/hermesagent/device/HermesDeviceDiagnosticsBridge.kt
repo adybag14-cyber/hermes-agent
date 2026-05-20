@@ -59,6 +59,8 @@ object HermesDeviceDiagnosticsBridge {
                 topAppsJson(appContext, arguments).toString()
             "wifi_scan", "wifi_analyzer", "scan_wifi", "nearby_wifi", "wifi_signals" ->
                 wifiScanJson(appContext, arguments).toString()
+            "wifi_analyzer_report", "wifi_readiness_report", "wifi_feature_report", "wifi_scan_policy" ->
+                wifiAnalyzerReportJson(appContext, arguments).toString()
             "wifi_channel_rating", "wifi_channels", "channel_rating", "best_wifi_channel", "wifi_congestion" ->
                 wifiScanJson(appContext, arguments, "wifi_channel_rating").toString()
             "wifi_ap_details", "wifi_access_points", "wifi_access_point_details", "wifi_report" ->
@@ -334,6 +336,122 @@ object HermesDeviceDiagnosticsBridge {
                         ),
                     ),
             )
+    }
+
+    fun wifiAnalyzerReportJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+        val appContext = context.applicationContext
+        val wifiManager = appContext.getSystemService(WifiManager::class.java)
+        val permissionStatus = wifiPermissionStatusJson(appContext)
+        val canReadScan = wifiManager != null && permissionStatus.optBoolean("can_read_scan_results", false)
+        val passiveArguments = JSONObject(arguments.toString()).put("refresh", false)
+        val scanResult = if (canReadScan) {
+            wifiScanJson(appContext, passiveArguments, "wifi_analyzer_report")
+        } else {
+            null
+        }
+        val scanSucceeded = scanResult?.optBoolean("success", false) == true
+        val networks = scanResult?.optJSONArray("wifi_networks") ?: JSONArray()
+        val accessPointDetails = scanResult?.optJSONArray("wifi_access_point_details") ?: JSONArray()
+        val channelRatings = scanResult?.optJSONArray("wifi_channel_ratings") ?: JSONArray()
+        val recommendedChannels = scanResult?.optJSONArray("recommended_wifi_channels") ?: JSONArray()
+        val vendorSummary = scanResult?.optJSONArray("wifi_vendor_summary") ?: JSONArray()
+        val filters = scanResult?.optJSONArray("wifi_analyzer_filters") ?: JSONArray()
+        val securitySummary = scanResult?.optJSONArray("wifi_security_summary") ?: JSONArray()
+        val widthSummary = scanResult?.optJSONArray("wifi_channel_width_summary") ?: JSONArray()
+        val standardSummary = scanResult?.optJSONArray("wifi_standard_summary") ?: JSONArray()
+        val cachedHistory = scanResult?.optJSONArray("wifi_signal_history")
+            ?: wifiSignalHistoryRowsFromStore(readWifiSignalHistory(appContext))
+        val scanStatus = scanResult?.optJSONObject("wifi_scan_status") ?: wifiScanStatusJson(
+            refreshRequested = false,
+            refreshAccepted = false,
+            wifiEnabled = wifiManager?.isWifiEnabled == true,
+            permissionStatus = permissionStatus,
+            totalScanResultCount = 0,
+            returnedNetworkCount = 0,
+            latestScanAgeMs = null,
+        )
+        val featureRows = wifiAnalyzerFeatureRows(
+            wifiAvailable = wifiManager != null,
+            permissionStatus = permissionStatus,
+            networkCount = scanResult?.optInt("total_scan_result_count", networks.length()) ?: 0,
+            returnedNetworkCount = networks.length(),
+            accessPointDetailCount = accessPointDetails.length(),
+            channelRatingCount = channelRatings.length(),
+            vendorCount = vendorSummary.length(),
+            filterCount = filters.length(),
+            historyCount = cachedHistory.length(),
+            widthCount = widthSummary.length(),
+            standardCount = standardSummary.length(),
+            exportReady = accessPointDetails.length() > 0,
+        )
+        val routeRows = wifiAnalyzerWorkflowRows(
+            permissionStatus = permissionStatus,
+            scanStatus = scanStatus,
+            historyCount = cachedHistory.length(),
+            channelRatingCount = channelRatings.length(),
+            accessPointDetailCount = accessPointDetails.length(),
+        )
+        val policyRows = wifiScanPolicyRows(
+            wifiAvailable = wifiManager != null,
+            permissionStatus = permissionStatus,
+            scanStatus = scanStatus,
+            scanSucceeded = scanSucceeded,
+        )
+        val result = if (scanSucceeded) JSONObject(scanResult.toString()) else JSONObject()
+        val cards = JSONArray()
+            .put(
+                graphCard(
+                    title = "Wi-Fi Analyzer Readiness",
+                    body = "${featureRows.length()} feature row(s) covering AP discovery, graphs, filters, OUI lookup, export, and scan-history parity.",
+                    graphType = "wifi_analyzer_feature_matrix",
+                    rows = featureRows,
+                ),
+            )
+            .put(
+                graphCard(
+                    title = "Wi-Fi Analyzer Routes",
+                    body = "${routeRows.length()} route row(s) for choosing live scan, channel rating, AP detail, export, or cached-history flows.",
+                    graphType = "wifi_analyzer_workflow_routes",
+                    rows = routeRows,
+                ),
+            )
+            .put(
+                graphCard(
+                    title = "Wi-Fi Scan Policy",
+                    body = "${policyRows.length()} permission, throttling, passive-report, and privacy policy row(s) for honest Wi-Fi analysis.",
+                    graphType = "wifi_scan_policy_matrix",
+                    rows = policyRows,
+                ),
+            )
+        scanResult?.optJSONArray("cards")?.let { scanCards ->
+            for (index in 0 until scanCards.length()) {
+                cards.put(scanCards.getJSONObject(index))
+            }
+        }
+        return result
+            .put("success", true)
+            .put("action", "wifi_analyzer_report")
+            .put("report_scope", "WiFiAnalyzer-style readiness and routing report for AP discovery, signal/channel graphs, AP history, channel rating, filter facets, OUI/vendor lookup, export, scan throttling, and privacy boundaries.")
+            .put("wifi_scan_permission_status", permissionStatus)
+            .put("wifi_scan_status", scanStatus)
+            .put("wifi_networks", networks)
+            .put("wifi_access_point_details", accessPointDetails)
+            .put("wifi_channel_ratings", channelRatings)
+            .put("recommended_wifi_channels", recommendedChannels)
+            .put("wifi_vendor_summary", vendorSummary)
+            .put("wifi_analyzer_filters", filters)
+            .put("wifi_security_summary", securitySummary)
+            .put("wifi_channel_width_summary", widthSummary)
+            .put("wifi_standard_summary", standardSummary)
+            .put("wifi_signal_history", cachedHistory)
+            .put("wifi_analyzer_feature_matrix", featureRows)
+            .put("wifi_analyzer_workflow_routes", routeRows)
+            .put("wifi_scan_policy_matrix", policyRows)
+            .put("wifi_analyzer_feature_count", featureRows.length())
+            .put("ready_wifi_analyzer_feature_count", countReadyRows(featureRows))
+            .put("wifi_analyzer_workflow_route_count", routeRows.length())
+            .put("wifi_scan_policy_count", policyRows.length())
+            .put("cards", cards)
     }
 
     fun bluetoothScanJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
@@ -1305,6 +1423,288 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Import and prefer a local Gemma LiteRT-LM or Qwen GGUF model before treating signal-aware workflows as offline-ready.",
                     fraction = if (preferredModel.optBoolean("ready")) 1f else 0.35f,
                     extra = JSONObject().put("source_surface", "preferred_local_model"),
+                ),
+            )
+    }
+
+    private fun wifiAnalyzerFeatureRows(
+        wifiAvailable: Boolean,
+        permissionStatus: JSONObject,
+        networkCount: Int,
+        returnedNetworkCount: Int,
+        accessPointDetailCount: Int,
+        channelRatingCount: Int,
+        vendorCount: Int,
+        filterCount: Int,
+        historyCount: Int,
+        widthCount: Int,
+        standardCount: Int,
+        exportReady: Boolean,
+    ): JSONArray {
+        val scanReady = wifiAvailable && permissionStatus.optBoolean("can_read_scan_results", false)
+        return JSONArray()
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "Identify nearby access points",
+                    ready = scanReady && networkCount > 0,
+                    valueLabel = if (scanReady) "$networkCount AP(s)" else "permission gated",
+                    detail = "$returnedNetworkCount AP row(s) are ready for top cards; complete AP details include SSID/BSSID, RSSI, channel, band, security, width, standard, OUI/vendor, and distance metadata.",
+                    recommendation = "Use wifi_scan for a compact graph or wifi_ap_details for the complete AP table before network-placement decisions.",
+                    fraction = if (scanReady && networkCount > 0) 1f else if (scanReady) 0.7f else 0.4f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_scan")
+                        .put("feature_source", "WiFiAnalyzer nearby access points"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "Channel signal graph",
+                    ready = channelRatingCount > 0,
+                    valueLabel = "$channelRatingCount channel row(s)",
+                    detail = "Hermes scores nearby 2.4GHz, 5GHz, and 6GHz channel rows from crowding, overlap, signal strength, and width metadata.",
+                    recommendation = "Use wifi_channel_rating to pick a candidate channel instead of judging only by strongest RSSI.",
+                    fraction = if (channelRatingCount > 0) 1f else if (scanReady) 0.55f else 0.35f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_channel_rating")
+                        .put("feature_source", "WiFiAnalyzer channel graph and channel rating"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "Access-point signal history",
+                    ready = historyCount > 0,
+                    valueLabel = "$historyCount tracked AP(s)",
+                    detail = "Cached AP history keeps current, average, min/max, trend, sample count, and last-seen metadata for Gemma-readable signal-over-time cards.",
+                    recommendation = "Run wifi_scan periodically when diagnosing roaming, room-to-room signal changes, or unstable RSSI.",
+                    fraction = if (historyCount > 0) 0.95f else 0.35f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_scan")
+                        .put("feature_source", "WiFiAnalyzer signal strength over time"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "Band, security, signal, and SSID filters",
+                    ready = filterCount > 0,
+                    valueLabel = "$filterCount filter group(s)",
+                    detail = "Filter facets cover Wi-Fi band, signal quality, security mode, and visible SSID groups for compact Gemma context.",
+                    recommendation = "Use wifi_ap_details when a user asks to narrow APs by band, security, signal quality, or SSID.",
+                    fraction = if (filterCount > 0) 1f else if (scanReady) 0.6f else 0.35f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_ap_details")
+                        .put("feature_source", "WiFiAnalyzer filters"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "Vendor/OUI lookup",
+                    ready = vendorCount > 0,
+                    valueLabel = "$vendorCount vendor group(s)",
+                    detail = "Hermes uses local OUI prefix hints from scan metadata and does not perform network lookups for vendor labels.",
+                    recommendation = "Use vendor rows as hints, and preserve BSSID/OUI fields for Gemma when explaining nearby infrastructure.",
+                    fraction = if (vendorCount > 0) 0.9f else 0.45f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_ap_details")
+                        .put("feature_source", "WiFiAnalyzer vendor/OUI database lookup"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "HT/VHT/HE/EHT width and standard metadata",
+                    ready = widthCount > 0 || standardCount > 0,
+                    valueLabel = "$widthCount width group(s), $standardCount standard group(s)",
+                    detail = "Android scan metadata can expose 40/80/160/320 MHz width and 802.11n/ac/ax/be standard hints when hardware and OS support them.",
+                    recommendation = "Use width and standard rows to avoid assuming throughput from band or RSSI alone.",
+                    fraction = if (widthCount > 0 || standardCount > 0) 0.9f else 0.45f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_ap_details")
+                        .put("feature_source", "WiFiAnalyzer HT/VHT detection"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "Export access point details",
+                    ready = exportReady,
+                    valueLabel = if (exportReady) "$accessPointDetailCount export row(s)" else "scan needed",
+                    detail = "Wi-Fi AP details can be exported as JSON, CSV, or both for follow-up analysis or bug reports.",
+                    recommendation = "Use wifi_export when the user needs a portable AP table instead of only an in-chat graph.",
+                    fraction = if (exportReady) 1f else if (scanReady) 0.6f else 0.35f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_export")
+                        .put("feature_source", "WiFiAnalyzer export access points details"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "Wi-Fi safety boundary",
+                    ready = true,
+                    valueLabel = "analysis only",
+                    detail = "Hermes reports signal, channel, metadata, and export rows; it is not a password cracking, phishing, or network intrusion tool.",
+                    recommendation = "Keep analysis limited to observable Android scan metadata and user-authorized workflows.",
+                    fraction = 1f,
+                    extra = JSONObject().put("feature_source", "WiFiAnalyzer privacy boundary"),
+                ),
+            )
+    }
+
+    private fun wifiAnalyzerWorkflowRows(
+        permissionStatus: JSONObject,
+        scanStatus: JSONObject,
+        historyCount: Int,
+        channelRatingCount: Int,
+        accessPointDetailCount: Int,
+    ): JSONArray {
+        val scanReady = permissionStatus.optBoolean("can_read_scan_results", false)
+        return JSONArray()
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_route",
+                    label = "Route compact signal graph",
+                    ready = scanReady,
+                    valueLabel = "wifi_scan",
+                    detail = "Use when the user asks what nearby Wi-Fi looks like or wants a compact RSSI/channel graph.",
+                    recommendation = "Request location/nearby Wi-Fi permission first when scan rows are gated.",
+                    fraction = if (scanReady) 0.95f else 0.45f,
+                    extra = JSONObject().put("tool_action", "wifi_scan"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_route",
+                    label = "Route best-channel analysis",
+                    ready = channelRatingCount > 0 || scanReady,
+                    valueLabel = "wifi_channel_rating",
+                    detail = "Use for channel crowding, overlap, width-aware score, and recommended channel rows.",
+                    recommendation = "Prefer this route for router-placement or channel-selection questions.",
+                    fraction = if (channelRatingCount > 0) 1f else if (scanReady) 0.75f else 0.45f,
+                    extra = JSONObject().put("tool_action", "wifi_channel_rating"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_route",
+                    label = "Route full AP metadata",
+                    ready = accessPointDetailCount > 0 || scanReady,
+                    valueLabel = "wifi_ap_details",
+                    detail = "Use for SSID/BSSID, security, vendor/OUI, standard, width, estimated distance, filter facets, and AP table cards.",
+                    recommendation = "Choose this when Gemma needs inspectable metadata instead of only a graph.",
+                    fraction = if (accessPointDetailCount > 0) 1f else if (scanReady) 0.75f else 0.45f,
+                    extra = JSONObject().put("tool_action", "wifi_ap_details"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_route",
+                    label = "Route AP export",
+                    ready = accessPointDetailCount > 0 || scanReady,
+                    valueLabel = "wifi_export",
+                    detail = "Use for JSON/CSV access-point details when the user needs a portable table.",
+                    recommendation = "Include export_format=json, csv, or both depending on the requested artifact.",
+                    fraction = if (accessPointDetailCount > 0) 1f else if (scanReady) 0.7f else 0.4f,
+                    extra = JSONObject().put("tool_action", "wifi_export"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_route",
+                    label = "Route history-first explanation",
+                    ready = historyCount > 0,
+                    valueLabel = "wifi_signal_history",
+                    detail = "Use cached RSSI trend rows when Android scan throttling or permissions make live refresh unreliable.",
+                    recommendation = "Explain scan age and trend metadata when using cached rows.",
+                    fraction = if (historyCount > 0) 0.9f else 0.35f,
+                    extra = JSONObject().put("tool_action", "wifi_analyzer_report"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_route",
+                    label = "Route scan policy explanation",
+                    ready = true,
+                    valueLabel = "wifi_analyzer_report",
+                    detail = scanStatus.optString("android_scan_throttle_note").ifBlank { "Android scan policy metadata is available in the report." },
+                    recommendation = "Use this report before repeatedly refreshing scans so the agent can avoid noisy or throttled polling.",
+                    fraction = 0.8f,
+                    extra = JSONObject().put("tool_action", "wifi_analyzer_report"),
+                ),
+            )
+    }
+
+    private fun wifiScanPolicyRows(
+        wifiAvailable: Boolean,
+        permissionStatus: JSONObject,
+        scanStatus: JSONObject,
+        scanSucceeded: Boolean,
+    ): JSONArray {
+        return JSONArray()
+            .put(
+                capabilityRow(
+                    category = "wifi_scan_policy",
+                    label = "Wi-Fi service availability",
+                    ready = wifiAvailable,
+                    valueLabel = if (wifiAvailable) "service present" else "no Wi-Fi service",
+                    detail = "Android must expose WifiManager before Hermes can read scan result metadata.",
+                    recommendation = "Report lack of Wi-Fi hardware or service honestly instead of fabricating nearby AP rows.",
+                    fraction = if (wifiAvailable) 1f else 0.1f,
+                    extra = JSONObject().put("constraint_type", "hardware_service"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_scan_policy",
+                    label = "Location and nearby Wi-Fi permissions",
+                    ready = permissionStatus.optBoolean("can_read_scan_results", false),
+                    valueLabel = if (permissionStatus.optBoolean("can_read_scan_results", false)) "scan readable" else "permission gated",
+                    detail = "Fine location, nearby Wi-Fi on Android 13+, and enabled location services can gate scan reads.",
+                    recommendation = "Use open_location_settings or app settings when the user wants live Wi-Fi analysis and permissions are missing.",
+                    fraction = if (permissionStatus.optBoolean("can_read_scan_results", false)) 0.95f else 0.45f,
+                    extra = JSONObject()
+                        .put("constraint_type", "permission")
+                        .put("permission_gate", "fine location, nearby Wi-Fi, location services"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_scan_policy",
+                    label = "Android scan throttling",
+                    ready = true,
+                    valueLabel = if (scanStatus.optBoolean("refresh_accepted", false)) "refresh accepted" else "passive or cached",
+                    detail = scanStatus.optString("android_scan_throttle_note").ifBlank { "Android may throttle active Wi-Fi scans." },
+                    recommendation = "Prefer passive scan reads, scan age, and cached history over tight refresh loops.",
+                    fraction = 0.8f,
+                    extra = JSONObject().put("constraint_type", "android_policy"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_scan_policy",
+                    label = "Passive report default",
+                    ready = true,
+                    valueLabel = if (scanSucceeded) "scan context reused" else "no active refresh",
+                    detail = "wifi_analyzer_report does not force a scan refresh; it reuses currently available scan data or returns readiness/policy rows.",
+                    recommendation = "Use refresh=true only on the narrower wifi_scan, wifi_ap_details, wifi_export, or wifi_channel_rating actions when the user needs a fresh scan.",
+                    fraction = 0.85f,
+                    extra = JSONObject().put("constraint_type", "scan_cadence"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_scan_policy",
+                    label = "Analysis and privacy boundary",
+                    ready = true,
+                    valueLabel = "metadata only",
+                    detail = "Hermes Wi-Fi analysis uses Android scan metadata and local OUI hints; it does not crack passwords, phish, or probe networks.",
+                    recommendation = "Keep user-facing answers scoped to signal, channel, metadata, and user-authorized troubleshooting.",
+                    fraction = 1f,
+                    extra = JSONObject().put("constraint_type", "privacy_safety"),
                 ),
             )
     }
@@ -3512,6 +3912,7 @@ object HermesDeviceDiagnosticsBridge {
         "status",
         "top_apps",
         "wifi_scan",
+        "wifi_analyzer_report",
         "wifi_channel_rating",
         "wifi_ap_details",
         "wifi_export",

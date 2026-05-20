@@ -382,6 +382,75 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun compactsWifiAnalyzerReportWithoutDroppingPolicyRoutes() {
+        val features = JSONArray()
+        repeat(18) { index ->
+            features.put(
+                JSONObject()
+                    .put("category", "wifi_analyzer_parity")
+                    .put("label", "Wi-Fi analyzer feature $index")
+                    .put("ready", index % 2 == 0)
+                    .put("value_label", "value $index")
+                    .put("detail", "Detailed Wi-Fi analyzer feature row $index")
+                    .put("recommendation", "Route through the matching Wi-Fi diagnostic action.")
+                    .put("feature_source", "WiFiAnalyzer parity")
+                    .put("tool_action", "wifi_channel_rating")
+                    .put("fraction", 0.82),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "wifi_analyzer_report")
+            .put("wifi_analyzer_feature_count", 18)
+            .put("ready_wifi_analyzer_feature_count", 9)
+            .put("wifi_analyzer_workflow_route_count", 1)
+            .put("wifi_scan_policy_count", 1)
+            .put("wifi_analyzer_feature_matrix", features)
+            .put(
+                "wifi_analyzer_workflow_routes",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "wifi_analyzer_route")
+                        .put("label", "Route best-channel analysis")
+                        .put("ready", true)
+                        .put("value_label", "wifi_channel_rating")
+                        .put("tool_action", "wifi_channel_rating"),
+                ),
+            )
+            .put(
+                "wifi_scan_policy_matrix",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "wifi_scan_policy")
+                        .put("label", "Android scan throttling")
+                        .put("ready", true)
+                        .put("value_label", "passive by default")
+                        .put("constraint_type", "platform_policy")
+                        .put("permission_gate", "android_wifi_scan"),
+                ),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "Wi-Fi Analyzer Readiness").put("body", "18 rows")))
+            .toString()
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result))
+        val featureMatrix = parsed.getJSONObject("wifi_analyzer_feature_matrix")
+        val routes = parsed.getJSONArray("wifi_analyzer_workflow_routes")
+        val policies = parsed.getJSONArray("wifi_scan_policy_matrix")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(18, parsed.getInt("wifi_analyzer_feature_count"))
+        assertEquals(9, parsed.getInt("ready_wifi_analyzer_feature_count"))
+        assertEquals("array", featureMatrix.getString("type"))
+        assertEquals("Wi-Fi analyzer feature 0", featureMatrix.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("WiFiAnalyzer parity", featureMatrix.getJSONArray("items").getJSONObject(0).getString("feature_source"))
+        assertEquals("wifi_channel_rating", featureMatrix.getJSONArray("items").getJSONObject(0).getString("tool_action"))
+        assertEquals("Route best-channel analysis", routes.getJSONObject(0).getString("label"))
+        assertEquals("Android scan throttling", policies.getJSONObject(0).getString("label"))
+        assertEquals("platform_policy", policies.getJSONObject(0).getString("constraint_type"))
+        assertEquals("android_wifi_scan", policies.getJSONObject(0).getString("permission_gate"))
+    }
+
+    @Test
     fun compactsBluetoothAndRadioDiagnosticRowsWithoutDroppingSignalMetadata() {
         val devices = JSONArray()
         repeat(30) { index ->
