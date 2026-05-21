@@ -2849,7 +2849,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Channel signal graph",
                     ready = channelRatingCount > 0,
                     valueLabel = "$channelRatingCount channel row(s)",
-                    detail = "Hermes scores nearby 2.4GHz, 5GHz, and 6GHz channel rows from crowding, overlap, signal strength, and width metadata.",
+                    detail = "Hermes scores nearby 2.4GHz, 5GHz, and 6GHz channel rows from crowding, overlap, signal strength, width metadata, and 6GHz preferred candidate channels.",
                     recommendation = "Use wifi_channel_rating to pick a candidate channel instead of judging only by strongest RSSI.",
                     fraction = if (channelRatingCount > 0) 1f else if (scanReady) 0.55f else 0.35f,
                     extra = JSONObject()
@@ -7586,16 +7586,17 @@ object HermesDeviceDiagnosticsBridge {
     }
 
     private fun candidateWifiChannelsForBand(band: String, observedChannels: List<Int>): List<Int> {
-        val observed = observedChannels.filter { it > 0 }
+        val observed = observedChannels.filter { it > 0 }.distinct().sorted()
         val base = when (band) {
             "2.4GHz" -> listOf(1, 6, 11)
             "5GHz" -> listOf(36, 40, 44, 48, 149, 153, 157, 161)
+            "6GHz" -> listOf(5, 21, 37, 53, 69, 85, 101, 117, 133, 149, 165, 181, 197, 213, 229)
             else -> emptyList()
         }
-        return (base + observed)
+        return (observed + base)
             .distinct()
-            .sorted()
             .take(MAX_WIFI_CANDIDATE_CHANNELS_PER_BAND)
+            .sorted()
     }
 
     private fun wifiChannelRatingRow(

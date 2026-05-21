@@ -52,6 +52,38 @@ class HermesDeviceDiagnosticsBridgeTest {
     }
 
     @Test
+    fun ratesWifi6GhzWithPreferredCandidateChannelsBeyondObservedAccessPoints() {
+        val rows = HermesDeviceDiagnosticsBridge.wifiChannelRatingRowsForMeasurements(
+            listOf(
+                HermesDeviceDiagnosticsBridge.WifiChannelMeasurement(
+                    channel = 5,
+                    band = "6GHz",
+                    rssiDbm = -38,
+                    widthLabel = "320MHz",
+                ),
+            ),
+        )
+        val channels = buildSet {
+            for (index in 0 until rows.length()) {
+                val row = rows.getJSONObject(index)
+                if (row.getString("band") == "6GHz") add(row.getInt("channel"))
+            }
+        }
+        val observed = (0 until rows.length())
+            .map { rows.getJSONObject(it) }
+            .first { it.getString("band") == "6GHz" && it.getInt("channel") == 5 }
+        val quiet = rows.getJSONObject(0)
+
+        assertTrue(channels.contains(5))
+        assertTrue(channels.contains(21))
+        assertTrue(channels.contains(37))
+        assertEquals(5975, observed.getInt("frequency_hint_mhz"))
+        assertEquals("6GHz", quiet.getString("band"))
+        assertTrue(quiet.getInt("score") > observed.getInt("score"))
+        assertTrue(quiet.getString("recommendation").contains("Best current option"))
+    }
+
+    @Test
     fun buildsWifiChannelUtilizationRowsFromVisibleApPressure() {
         val networks = JSONArray()
             .put(
