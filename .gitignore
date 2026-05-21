@@ -52,11 +52,9 @@ run_datagen_sonnet.sh
 source-data/*
 run_datagen_megascience_glm4-6.sh
 data/*
-!android/app/src/main/java/com/nousresearch/hermesagent/data/
-!android/app/src/main/java/com/nousresearch/hermesagent/data/*.kt
-# No trailing slash: also matches node_modules SYMLINKS (worktrees often
-# symlink node_modules to the main checkout; the dir-only pattern let one
-# slip into a commit and break `npm ci` on CI with ENOTDIR).
+!android/app/src/main/java/com/mobilefork/hermesagent/data/
+!android/app/src/main/java/com/mobilefork/hermesagent/data/*.kt
+# Match node_modules directories and symlinks.
 node_modules
 browser-use/
 agent-browser/

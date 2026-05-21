@@ -2,7 +2,7 @@
 
 [project]
 name = "hermes-agent"
-version = "0.13.112"
+version = "0.13.113"
 description = "The self-improving AI agent — creates skills from experience, improves them during use, and runs anywhere"
 readme = "README.md"
 # Upper bound is load-bearing, not cosmetic. uv resolves the project's
@@ -13,7 +13,7 @@ readme = "README.md"
 # <3.14 makes uv refuse 3.14 with a clear error instead of attempting that
 # build. Raise the ceiling once our Rust transitives ship cp314 wheels.
 requires-python = ">=3.11,<3.14"
-authors = [{ name = "Nous Research" }]
+authors = [{ name = "MobileFork maintainers" }]
 license = "MIT"
 license-files = ["LICENSE"]
 dependencies = [
