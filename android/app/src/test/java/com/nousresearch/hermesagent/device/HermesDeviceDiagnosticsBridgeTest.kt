@@ -203,6 +203,70 @@ class HermesDeviceDiagnosticsBridgeTest {
     }
 
     @Test
+    fun buildsWifiAccessPointSemanticRowsAndBandCoverageForAgentContext() {
+        val networks = JSONArray()
+            .put(
+                JSONObject()
+                    .put("ssid", "HermesNet")
+                    .put("display_ssid", "HermesNet")
+                    .put("bssid", "AC:BC:32:12:34:56")
+                    .put("bssid_vendor", "Apple")
+                    .put("rssi_dbm", -42)
+                    .put("frequency_mhz", 5180)
+                    .put("channel", 36)
+                    .put("band", "5GHz")
+                    .put("channel_width", "80MHz")
+                    .put("channel_width_mhz", 80)
+                    .put("wifi_standard", "802.11ax")
+                    .put("security_mode", "WPA3")
+                    .put("capabilities", "[WPA3-SAE-CCMP][ESS]"),
+            )
+            .put(
+                JSONObject()
+                    .put("ssid", "Cafe Guest")
+                    .put("display_ssid", "Cafe Guest")
+                    .put("bssid", "DA:A1:19:65:43:21")
+                    .put("rssi_dbm", -59)
+                    .put("frequency_mhz", 2412)
+                    .put("channel", 1)
+                    .put("band", "2.4GHz")
+                    .put("channel_width", "20MHz")
+                    .put("wifi_standard", "802.11n")
+                    .put("security_mode", "Open")
+                    .put("capabilities", "[WPS][ESS]")
+                    .put("hidden_ssid", false),
+            )
+
+        val details = HermesDeviceDiagnosticsBridge.wifiAccessPointDetailRows(networks, limit = 10)
+        val semanticRows = HermesDeviceDiagnosticsBridge.wifiAccessPointSemanticRows(details, limit = 10)
+        val ratings = HermesDeviceDiagnosticsBridge.wifiChannelRatingRowsForNetworks(networks)
+        val coverageRows = HermesDeviceDiagnosticsBridge.wifiBandCoverageRows(networks, ratings = ratings)
+        val guest = (0 until semanticRows.length())
+            .map { semanticRows.getJSONObject(it) }
+            .first { it.getString("display_ssid") == "Cafe Guest" }
+        val home = (0 until semanticRows.length())
+            .map { semanticRows.getJSONObject(it) }
+            .first { it.getString("display_ssid") == "HermesNet" }
+        val band24 = (0 until coverageRows.length())
+            .map { coverageRows.getJSONObject(it) }
+            .first { it.getString("band") == "2.4GHz" }
+        val band6 = (0 until coverageRows.length())
+            .map { coverageRows.getJSONObject(it) }
+            .first { it.getString("band") == "6GHz" }
+
+        assertEquals("guest/public hotspot", guest.getString("semantic_label"))
+        assertEquals("wps_attention", guest.getString("security_risk_label"))
+        assertTrue(guest.getJSONArray("semantic_tags").toString().contains("guest_public_hotspot"))
+        assertTrue(guest.getString("recommendation").contains("WPS"))
+        assertEquals("private router/AP", home.getString("semantic_label"))
+        assertEquals("strong_security", home.getString("security_risk_label"))
+        assertEquals(1, band24.getInt("network_count"))
+        assertEquals(1, band24.getInt("security_attention_count"))
+        assertTrue(band24.getJSONArray("visible_channels").toString().contains("1"))
+        assertEquals("not observed in latest scan", band6.getString("coverage_label"))
+    }
+
+    @Test
     fun buildsWifiSignalHistoryRowsForTrendCards() {
         val firstScan = JSONArray().put(
             JSONObject()
@@ -829,10 +893,14 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertEquals("wifi_analyzer_report", result.getString("action"))
         assertTrue(result.has("wifi_scan_permission_status"))
         assertTrue(result.has("wifi_scan_status"))
+        assertTrue(result.has("wifi_access_point_semantics"))
+        assertTrue(result.has("wifi_band_coverage"))
         assertTrue(featureLabels.contains("Identify nearby access points"))
         assertTrue(featureLabels.contains("Channel signal graph"))
         assertTrue(featureLabels.contains("Channel utilization occupancy"))
+        assertTrue(featureLabels.contains("Band coverage and 2.4/5/6GHz visibility"))
         assertTrue(featureLabels.contains("Band, security, signal, and SSID filters"))
+        assertTrue(featureLabels.contains("Agent AP semantic and risk labels"))
         assertTrue(featureLabels.contains("Vendor/OUI lookup"))
         assertTrue(featureLabels.contains("HT/VHT/HE/EHT width and standard metadata"))
         assertTrue(featureLabels.contains("Wi-Fi safety boundary"))

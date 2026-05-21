@@ -321,6 +321,71 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesWifiSemanticAndBandCoverageRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Wi-Fi AP Semantics")
+                            .put("body", "AP semantics.")
+                            .put("graph_type", "wifi_access_point_semantics")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("display_ssid", "Cafe Guest")
+                                        .put("semantic_label", "guest/public hotspot")
+                                        .put("security_risk_label", "open_network")
+                                        .put("security_mode", "Open")
+                                        .put("band", "2.4GHz")
+                                        .put("channel", 1)
+                                        .put("rssi_dbm", -59)
+                                        .put("semantic_tags", JSONArray().put("guest_public_hotspot").put("open_network"))
+                                        .put("recommendation", "Treat as public."),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Wi-Fi Band Coverage")
+                            .put("body", "Band rows.")
+                            .put("graph_type", "wifi_band_coverage")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("band", "5GHz")
+                                        .put("network_count", 2)
+                                        .put("visible_channels", JSONArray().put("36").put("40"))
+                                        .put("observed_widths", JSONArray().put("80MHz"))
+                                        .put("observed_standards", JSONArray().put("802.11ax"))
+                                        .put("strongest_rssi_dbm", -42)
+                                        .put("recommended_channel", 36)
+                                        .put("recommended_score", 88)
+                                        .put("recommendation", "Compare wide-channel contention."),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+        val semanticRow = cards[0].rows.single()
+        val bandRow = cards[1].rows.single()
+
+        assertEquals("Cafe Guest", semanticRow.label)
+        assertTrue(semanticRow.valueLabel.contains("guest/public hotspot"))
+        assertTrue(semanticRow.valueLabel.contains("open network"))
+        assertTrue(semanticRow.detail.contains("Treat as public"))
+        assertEquals("5GHz", bandRow.label)
+        assertEquals("2 APs observed", bandRow.valueLabel)
+        assertTrue(bandRow.detail.contains("best ch 36 88/100"))
+        assertTrue(bandRow.fraction > 0.8f)
+    }
+
+    @Test
     fun parsesAgentEnvironmentRowsForExpandableCards() {
         val content = JSONObject()
             .put(

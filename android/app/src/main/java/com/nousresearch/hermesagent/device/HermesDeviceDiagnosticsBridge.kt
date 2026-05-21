@@ -246,9 +246,11 @@ object HermesDeviceDiagnosticsBridge {
             arguments.optInt("export_limit", detailLimitDefault),
         ).coerceIn(1, MAX_WIFI_RESULTS)
         val accessPointDetails = wifiAccessPointDetailRows(allNetworks, detailLimit)
+        val accessPointSemantics = wifiAccessPointSemanticRows(accessPointDetails, detailLimit)
         val securitySummary = wifiSecuritySummaryJson(allNetworks)
         val channelWidthSummary = wifiChannelWidthSummaryJson(allNetworks)
         val standardSummary = wifiStandardSummaryJson(allNetworks)
+        val bandCoverage = wifiBandCoverageRows(allNetworks, bandSummary, channelRatings)
         val exportFormat = normalizedWifiExportFormat(arguments.optString("export_format").ifBlank {
             if (actionName == "wifi_export") "both" else "json"
         })
@@ -277,6 +279,8 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_filter_count", analyzerFilters.length())
             .put("wifi_history_network_count", signalHistory.length())
             .put("wifi_access_point_detail_count", accessPointDetails.length())
+            .put("wifi_access_point_semantic_count", accessPointSemantics.length())
+            .put("wifi_band_coverage_count", bandCoverage.length())
             .put("wifi_channel_utilization_count", channelUtilization.length())
             .put("wifi_security_summary_count", securitySummary.length())
             .put("wifi_width_summary_count", channelWidthSummary.length())
@@ -286,6 +290,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_scan_status", scanStatus)
             .put("wifi_networks", networks)
             .put("wifi_access_point_details", accessPointDetails)
+            .put("wifi_access_point_semantics", accessPointSemantics)
             .put("wifi_access_point_export", accessPointExport)
             .put(
                 "wifi_access_point_export_csv",
@@ -295,6 +300,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_channel_utilization", channelUtilization)
             .put("recommended_wifi_channels", recommendedChannels)
             .put("wifi_band_summary", bandSummary)
+            .put("wifi_band_coverage", bandCoverage)
             .put("wifi_vendor_summary", vendorSummary)
             .put("wifi_analyzer_filters", analyzerFilters)
             .put("wifi_security_summary", securitySummary)
@@ -323,6 +329,14 @@ object HermesDeviceDiagnosticsBridge {
                     )
                     .put(
                         graphCard(
+                            title = "Wi-Fi AP Semantics",
+                            body = "${accessPointSemantics.length()} access point semantic row(s) with router, guest, hotspot, hidden, passpoint, security-risk, and agent-routing labels.",
+                            graphType = "wifi_access_point_semantics",
+                            rows = accessPointSemantics,
+                        ),
+                    )
+                    .put(
+                        graphCard(
                             title = "Wi-Fi Channel Rating",
                             body = "${channelRatings.length()} channel ratings scored from nearby AP crowding, overlap, RSSI, and width metadata.",
                             graphType = "wifi_channel_rating",
@@ -335,6 +349,14 @@ object HermesDeviceDiagnosticsBridge {
                             body = "${channelUtilization.length()} observed channel utilization row(s), inferred from visible AP crowding, overlap, RSSI pressure, width, security, and SSID samples.",
                             graphType = "wifi_channel_utilization",
                             rows = channelUtilization,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Wi-Fi Band Coverage",
+                            body = "${bandCoverage.length()} 2.4/5/6GHz coverage row(s) showing observed AP counts, channels, widths, standards, and security attention per band.",
+                            graphType = "wifi_band_coverage",
+                            rows = bandCoverage,
                         ),
                     )
                     .put(
@@ -397,11 +419,15 @@ object HermesDeviceDiagnosticsBridge {
         val channelRatings = scanResult?.optJSONArray("wifi_channel_ratings") ?: JSONArray()
         val channelUtilization = scanResult?.optJSONArray("wifi_channel_utilization") ?: JSONArray()
         val recommendedChannels = scanResult?.optJSONArray("recommended_wifi_channels") ?: JSONArray()
+        val bandSummary = scanResult?.optJSONArray("wifi_band_summary") ?: JSONArray()
+        val bandCoverage = scanResult?.optJSONArray("wifi_band_coverage") ?: wifiBandCoverageRows(networks, bandSummary, channelRatings)
         val vendorSummary = scanResult?.optJSONArray("wifi_vendor_summary") ?: JSONArray()
         val filters = scanResult?.optJSONArray("wifi_analyzer_filters") ?: JSONArray()
         val securitySummary = scanResult?.optJSONArray("wifi_security_summary") ?: JSONArray()
         val widthSummary = scanResult?.optJSONArray("wifi_channel_width_summary") ?: JSONArray()
         val standardSummary = scanResult?.optJSONArray("wifi_standard_summary") ?: JSONArray()
+        val accessPointSemantics = scanResult?.optJSONArray("wifi_access_point_semantics")
+            ?: wifiAccessPointSemanticRows(accessPointDetails, accessPointDetails.length().coerceIn(1, MAX_WIFI_RESULTS))
         val cachedHistory = scanResult?.optJSONArray("wifi_signal_history")
             ?: wifiSignalHistoryRowsFromStore(readWifiSignalHistory(appContext))
         val scanStatus = scanResult?.optJSONObject("wifi_scan_status") ?: wifiScanStatusJson(
@@ -424,6 +450,9 @@ object HermesDeviceDiagnosticsBridge {
             vendorCount = vendorSummary.length(),
             filterCount = filters.length(),
             historyCount = cachedHistory.length(),
+            semanticCount = accessPointSemantics.length(),
+            bandCoverageCount = bandCoverage.length(),
+            observedBandCount = countWifiObservedBands(bandCoverage),
             widthCount = widthSummary.length(),
             standardCount = standardSummary.length(),
             exportReady = accessPointDetails.length() > 0,
@@ -483,11 +512,14 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_channel_ratings", channelRatings)
             .put("wifi_channel_utilization", channelUtilization)
             .put("recommended_wifi_channels", recommendedChannels)
+            .put("wifi_band_summary", bandSummary)
+            .put("wifi_band_coverage", bandCoverage)
             .put("wifi_vendor_summary", vendorSummary)
             .put("wifi_analyzer_filters", filters)
             .put("wifi_security_summary", securitySummary)
             .put("wifi_channel_width_summary", widthSummary)
             .put("wifi_standard_summary", standardSummary)
+            .put("wifi_access_point_semantics", accessPointSemantics)
             .put("wifi_signal_history", cachedHistory)
             .put("wifi_analyzer_feature_matrix", featureRows)
             .put("wifi_analyzer_workflow_routes", routeRows)
@@ -496,6 +528,8 @@ object HermesDeviceDiagnosticsBridge {
             .put("ready_wifi_analyzer_feature_count", countReadyRows(featureRows))
             .put("wifi_analyzer_workflow_route_count", routeRows.length())
             .put("wifi_channel_utilization_count", channelUtilization.length())
+            .put("wifi_access_point_semantic_count", accessPointSemantics.length())
+            .put("wifi_band_coverage_count", bandCoverage.length())
             .put("wifi_scan_policy_count", policyRows.length())
             .put("cards", cards)
     }
@@ -2133,6 +2167,9 @@ object HermesDeviceDiagnosticsBridge {
         vendorCount: Int,
         filterCount: Int,
         historyCount: Int,
+        semanticCount: Int,
+        bandCoverageCount: Int,
+        observedBandCount: Int,
         channelUtilizationCount: Int,
         widthCount: Int,
         standardCount: Int,
@@ -2199,6 +2236,20 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 capabilityRow(
                     category = "wifi_analyzer_parity",
+                    label = "Band coverage and 2.4/5/6GHz visibility",
+                    ready = observedBandCount > 0 || scanReady,
+                    valueLabel = "$observedBandCount observed band(s)",
+                    detail = "Hermes summarizes observed 2.4GHz, 5GHz, and 6GHz AP counts with channels, widths, standards, security attention, hidden SSIDs, and best rated channel hints.",
+                    recommendation = "Use wifi_scan or wifi_analyzer_report before advising channel plans so Gemma can see which bands are actually visible on this device.",
+                    fraction = if (observedBandCount > 0) 0.95f else if (scanReady) 0.6f else 0.35f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_analyzer_report")
+                        .put("feature_source", "WiFiAnalyzer 2.4/5/6GHz band switching"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
                     label = "Band, security, signal, and SSID filters",
                     ready = filterCount > 0,
                     valueLabel = "$filterCount filter group(s)",
@@ -2208,6 +2259,20 @@ object HermesDeviceDiagnosticsBridge {
                     extra = JSONObject()
                         .put("tool_action", "wifi_ap_details")
                         .put("feature_source", "WiFiAnalyzer filters"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
+                    label = "Agent AP semantic and risk labels",
+                    ready = semanticCount > 0,
+                    valueLabel = "$semanticCount AP semantic row(s)",
+                    detail = "Hermes labels likely private routers, public/guest hotspots, hidden SSIDs, passpoint/venue APs, mesh/repeater candidates, IoT/device APs, and open/WEP/WPS attention rows for Gemma-readable reasoning.",
+                    recommendation = "Use wifi_ap_details or wifi_analyzer_report when the user asks what nearby networks are or which ones deserve security attention.",
+                    fraction = if (semanticCount > 0) 0.95f else if (scanReady) 0.6f else 0.35f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_ap_details")
+                        .put("feature_source", "WiFiAnalyzer AP details, hidden SSID, and security interpretation"),
                 ),
             )
             .put(
@@ -4504,7 +4569,7 @@ object HermesDeviceDiagnosticsBridge {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             json.put("wifi_standard", wifiStandardLabel(result.wifiStandard))
         }
-        return json
+        return appendWifiSemanticFields(json)
     }
 
     private fun bluetoothDeviceJson(device: BluetoothDevice): JSONObject {
@@ -5592,6 +5657,114 @@ object HermesDeviceDiagnosticsBridge {
             .put(filterFacetJson("ssid", "SSID", ssidCounts) { 0 })
     }
 
+    internal fun wifiAccessPointSemanticRows(details: JSONArray, limit: Int = MAX_WIFI_RESULTS): JSONArray {
+        val rows = buildList {
+            for (index in 0 until details.length()) {
+                val row = details.optJSONObject(index) ?: continue
+                val semanticRow = appendWifiSemanticFields(JSONObject(row.toString()))
+                add(
+                    JSONObject()
+                        .put("rank", semanticRow.optInt("rank", index + 1))
+                        .put("display_ssid", semanticRow.optString("display_ssid").ifBlank { semanticRow.optString("ssid").ifBlank { "<hidden>" } })
+                        .put("ssid", semanticRow.optString("ssid").ifBlank { semanticRow.optString("display_ssid").ifBlank { "<hidden>" } })
+                        .put("hidden_ssid", semanticRow.optBoolean("hidden_ssid", false))
+                        .put("bssid", semanticRow.optString("bssid"))
+                        .put("bssid_vendor", semanticRow.optString("bssid_vendor").ifBlank { "Unknown vendor" })
+                        .put("rssi_dbm", jsonValueOrNull(semanticRow, "rssi_dbm"))
+                        .put("signal_quality", semanticRow.optString("signal_quality").ifBlank { "unknown" })
+                        .put("frequency_mhz", jsonValueOrNull(semanticRow, "frequency_mhz"))
+                        .put("channel", jsonValueOrNull(semanticRow, "channel"))
+                        .put("band", semanticRow.optString("band").ifBlank { "unknown" })
+                        .put("channel_width", semanticRow.optString("channel_width").ifBlank { "unknown" })
+                        .put("wifi_standard", semanticRow.optString("wifi_standard").ifBlank { "unknown" })
+                        .put("security_mode", semanticRow.optString("security_mode").ifBlank { "unknown" })
+                        .put("security_risk_label", semanticRow.optString("security_risk_label").ifBlank { "unknown_security" })
+                        .put("semantic_label", semanticRow.optString("semantic_label").ifBlank { "nearby AP" })
+                        .put("semantic_tags", semanticRow.optJSONArray("semantic_tags") ?: JSONArray())
+                        .put("estimated_distance_m", jsonValueOrNull(semanticRow, "estimated_distance_m"))
+                        .put("passpoint_network", jsonValueOrNull(semanticRow, "passpoint_network"))
+                        .put("80211mc_responder", jsonValueOrNull(semanticRow, "80211mc_responder"))
+                        .put("recommendation", semanticRow.optString("semantic_recommendation").ifBlank { wifiAccessPointSemanticRecommendation(semanticRow) })
+                        .put("agent_usage", "Use this row when Gemma needs to explain what a nearby AP likely is, whether it deserves security attention, and which Wi-Fi diagnostic action should follow."),
+                )
+            }
+        }
+            .sortedWith(
+                compareByDescending<JSONObject> { wifiSemanticAttentionScore(it) }
+                    .thenByDescending { jsonIntOrNull(it, "rssi_dbm") ?: Int.MIN_VALUE }
+                    .thenBy { it.optString("display_ssid") },
+            )
+            .take(limit.coerceIn(1, MAX_WIFI_RESULTS))
+        return JSONArray().also { array -> rows.forEach(array::put) }
+    }
+
+    internal fun wifiBandCoverageRows(networks: JSONArray, bandSummary: JSONArray = JSONArray(), ratings: JSONArray = JSONArray()): JSONArray {
+        val accumulators = linkedMapOf<String, WifiBandCoverageAccumulator>()
+        WIFI_BAND_COVERAGE_BASE_BANDS.forEach { band -> accumulators[band] = WifiBandCoverageAccumulator() }
+        for (index in 0 until networks.length()) {
+            val row = networks.optJSONObject(index) ?: continue
+            val frequencyMhz = jsonIntOrNull(row, "frequency_mhz") ?: 0
+            val band = canonicalWifiBandLabel(row.optString("band"), frequencyMhz)
+            val accumulator = accumulators.getOrPut(band.takeIf { it != "unknown" } ?: "unknown") { WifiBandCoverageAccumulator() }
+            accumulator.networkCount += 1
+            jsonIntOrNull(row, "rssi_dbm")?.let { rssi ->
+                accumulator.strongestRssiDbm = maxOf(accumulator.strongestRssiDbm ?: rssi, rssi)
+            }
+            (jsonIntOrNull(row, "channel") ?: channelForFrequencyMhz(frequencyMhz))?.let { accumulator.channels.add(it.toString()) }
+            row.optString("channel_width").takeIf { it.isNotBlank() && it != "unknown" }?.let(accumulator.widths::add)
+            row.optString("wifi_standard").takeIf { it.isNotBlank() && it != "unknown" }?.let(accumulator.standards::add)
+            if (row.optBoolean("hidden_ssid", false)) accumulator.hiddenSsidCount += 1
+            val security = row.optString("security_mode").ifBlank { wifiSecurityLabel(row.optString("capabilities")) }
+            if (security in WIFI_ATTENTION_SECURITY_MODES || "WPS" in row.optString("capabilities").uppercase(Locale.US)) {
+                accumulator.securityAttentionCount += 1
+            }
+        }
+        val summaryByBand = mutableMapOf<String, JSONObject>()
+        for (index in 0 until bandSummary.length()) {
+            val row = bandSummary.optJSONObject(index) ?: continue
+            summaryByBand[row.optString("band")] = row
+        }
+        val bestRatingByBand = mutableMapOf<String, JSONObject>()
+        for (index in 0 until ratings.length()) {
+            val row = ratings.optJSONObject(index) ?: continue
+            val band = row.optString("band")
+            val previous = bestRatingByBand[band]
+            if (previous == null || row.optInt("score") > previous.optInt("score")) bestRatingByBand[band] = row
+        }
+        val bands = (accumulators.keys + summaryByBand.keys + bestRatingByBand.keys)
+            .distinct()
+            .sortedBy(::wifiBandSortKey)
+        return JSONArray().also { array ->
+            bands.forEach { band ->
+                val accumulator = accumulators[band] ?: WifiBandCoverageAccumulator()
+                val summary = summaryByBand[band]
+                val best = bestRatingByBand[band]
+                val recommendedChannel = jsonIntOrNull(summary ?: JSONObject(), "recommended_channel")
+                    ?: best?.optInt("channel")
+                val recommendedScore = jsonIntOrNull(summary ?: JSONObject(), "recommended_score")
+                    ?: best?.optInt("score")
+                array.put(
+                    JSONObject()
+                        .put("band", band)
+                        .put("network_count", accumulator.networkCount)
+                        .put("observed", accumulator.networkCount > 0)
+                        .put("coverage_label", if (accumulator.networkCount > 0) "observed" else "not observed in latest scan")
+                        .put("rated_channel_count", summary?.optInt("rated_channel_count") ?: ratingsForBandCount(ratings, band))
+                        .put("recommended_channel", recommendedChannel ?: JSONObject.NULL)
+                        .put("recommended_score", recommendedScore ?: JSONObject.NULL)
+                        .put("strongest_rssi_dbm", accumulator.strongestRssiDbm ?: JSONObject.NULL)
+                        .put("channel_count", accumulator.channels.size)
+                        .put("visible_channels", JSONArray(accumulator.channels.take(MAX_WIFI_SUMMARY_SAMPLES)))
+                        .put("observed_widths", JSONArray(accumulator.widths.take(MAX_WIFI_SUMMARY_SAMPLES)))
+                        .put("observed_standards", JSONArray(accumulator.standards.take(MAX_WIFI_SUMMARY_SAMPLES)))
+                        .put("hidden_ssid_count", accumulator.hiddenSsidCount)
+                        .put("security_attention_count", accumulator.securityAttentionCount)
+                        .put("recommendation", wifiBandCoverageRecommendation(band, accumulator, recommendedChannel, recommendedScore)),
+                )
+            }
+        }
+    }
+
     internal fun wifiAccessPointDetailRows(networks: JSONArray, limit: Int = MAX_WIFI_RESULTS): JSONArray {
         val rows = buildList {
             for (index in 0 until networks.length()) {
@@ -5609,8 +5782,7 @@ object HermesDeviceDiagnosticsBridge {
                 val estimatedDistance = jsonDoubleOrNull(row, "estimated_distance_m")
                     ?: jsonDoubleOrNull(row, "estimated_distance_meters")
                 val timestampMicros = jsonLongOrNull(row, "timestamp_micros")
-                add(
-                    JSONObject()
+                val detail = JSONObject()
                         .put("ssid", ssid)
                         .put("display_ssid", ssid)
                         .put("hidden_ssid", hiddenSsid)
@@ -5634,8 +5806,8 @@ object HermesDeviceDiagnosticsBridge {
                         .put("passpoint_network", jsonValueOrNull(row, "passpoint_network"))
                         .put("80211mc_responder", jsonValueOrNull(row, "80211mc_responder"))
                         .put("timestamp_micros", timestampMicros ?: JSONObject.NULL)
-                        .put("scan_age_ms", timestampMicros?.let(::wifiScanAgeMs) ?: JSONObject.NULL),
-                )
+                        .put("scan_age_ms", timestampMicros?.let(::wifiScanAgeMs) ?: JSONObject.NULL)
+                add(appendWifiSemanticFields(detail))
             }
         }
         val sorted = rows
@@ -7113,6 +7285,155 @@ object HermesDeviceDiagnosticsBridge {
         }
     }
 
+    private fun appendWifiSemanticFields(row: JSONObject): JSONObject {
+        val semanticLabel = wifiAccessPointSemanticLabel(row)
+        val riskLabel = wifiAccessPointSecurityRiskLabel(row)
+        val tags = wifiAccessPointSemanticTags(row, semanticLabel, riskLabel)
+        return row
+            .put("semantic_label", semanticLabel)
+            .put("security_risk_label", riskLabel)
+            .put("semantic_tags", JSONArray(tags))
+            .put("semantic_recommendation", wifiAccessPointSemanticRecommendation(row, semanticLabel, riskLabel))
+    }
+
+    private fun wifiAccessPointSemanticLabel(row: JSONObject): String {
+        val ssid = row.optString("display_ssid").ifBlank { row.optString("ssid") }.lowercase(Locale.US)
+        val security = row.optString("security_mode").ifBlank { wifiSecurityLabel(row.optString("capabilities")) }
+        val capabilities = row.optString("capabilities").uppercase(Locale.US)
+        return when {
+            row.optBoolean("passpoint_network", false) -> "enterprise/passpoint AP"
+            row.optBoolean("hidden_ssid", false) -> "hidden SSID AP"
+            ssid.contains("mesh") || ssid.contains("node") || ssid.contains("repeater") || ssid.contains("extender") -> "mesh/repeater candidate"
+            ssid.contains("guest") || ssid.contains("hotspot") || ssid.contains("public") || ssid.contains("free wifi") -> "guest/public hotspot"
+            ssid.contains("iot") || ssid.contains("camera") || ssid.contains("printer") || ssid.contains("thermostat") || ssid.contains("smart") -> "IoT/device AP"
+            security == "Open" || security == "WEP" || "WPS" in capabilities -> "open/legacy attention AP"
+            security == "WPA3" || security == "WPA2" -> "private router/AP"
+            else -> "nearby AP"
+        }
+    }
+
+    private fun wifiAccessPointSecurityRiskLabel(row: JSONObject): String {
+        val security = row.optString("security_mode").ifBlank { wifiSecurityLabel(row.optString("capabilities")) }
+        val capabilities = row.optString("capabilities").uppercase(Locale.US)
+        return when {
+            "WPS" in capabilities -> "wps_attention"
+            security == "WEP" -> "legacy_weak_security"
+            security == "Open" -> "open_network"
+            security == "Enhanced Open" -> "encrypted_open"
+            security == "WPA3" -> "strong_security"
+            security == "WPA2" || security == "WPA" -> "standard_security"
+            else -> "unknown_security"
+        }
+    }
+
+    private fun wifiAccessPointSemanticTags(row: JSONObject, semanticLabel: String, riskLabel: String): List<String> {
+        val tags = linkedSetOf<String>()
+        tags += semanticLabel.replace("/", "_").replace(" ", "_").lowercase(Locale.US)
+        tags += riskLabel
+        if (row.optBoolean("hidden_ssid", false)) tags += "hidden_ssid"
+        if (row.optBoolean("passpoint_network", false)) tags += "passpoint"
+        if (row.optBoolean("80211mc_responder", false)) tags += "80211mc_rtt"
+        if (row.optString("bssid_vendor") == "Locally administered / randomized") tags += "randomized_bssid"
+        jsonIntOrNull(row, "rssi_dbm")?.let { rssi ->
+            tags += when {
+                rssi >= -50 -> "excellent_signal"
+                rssi >= -60 -> "good_signal"
+                rssi >= -70 -> "fair_signal"
+                else -> "weak_signal"
+            }
+        }
+        val widthMhz = jsonIntOrNull(row, "channel_width_mhz") ?: channelWidthMhz(row.optString("channel_width"))
+        if ((widthMhz ?: 0) >= 80) tags += "wide_channel"
+        when (row.optString("wifi_standard")) {
+            "802.11be" -> tags += "wifi7"
+            "802.11ax" -> tags += "wifi6_or_6e"
+            "802.11ac" -> tags += "wifi5"
+        }
+        return tags.toList()
+    }
+
+    private fun wifiAccessPointSemanticRecommendation(row: JSONObject): String {
+        return wifiAccessPointSemanticRecommendation(
+            row = row,
+            semanticLabel = row.optString("semantic_label").ifBlank { wifiAccessPointSemanticLabel(row) },
+            riskLabel = row.optString("security_risk_label").ifBlank { wifiAccessPointSecurityRiskLabel(row) },
+        )
+    }
+
+    private fun wifiAccessPointSemanticRecommendation(row: JSONObject, semanticLabel: String, riskLabel: String): String {
+        val channel = row.opt("channel").takeUnless { it == null || it == JSONObject.NULL }?.toString()
+        val band = row.optString("band").ifBlank { "unknown band" }
+        return when (riskLabel) {
+            "open_network" -> "Open network: treat as public or captive-portal only until the user confirms trust; compare $band channel ${channel ?: "unknown"} congestion before use."
+            "legacy_weak_security" -> "Legacy WEP network: flag as weak security even if RSSI is strong."
+            "wps_attention" -> "WPS is advertised: preserve BSSID/vendor/channel details and avoid treating this AP as fully hardened."
+            "strong_security" -> "WPA3 network: prefer only when channel pressure, RSSI, and user trust are also acceptable."
+            "standard_security" -> "WPA/WPA2 network: inspect channel pressure, vendor/OUI, and SSID context before recommending it."
+            else -> when (semanticLabel) {
+                "enterprise/passpoint AP" -> "Passpoint or venue network: explain it as infrastructure-managed and still check channel pressure/security metadata."
+                "hidden SSID AP" -> "Hidden SSID: preserve BSSID, OUI/vendor, channel, and RSSI because the display name is intentionally absent."
+                "mesh/repeater candidate" -> "Mesh/repeater candidate: use signal history and channel rows to reason about roaming or extender placement."
+                "guest/public hotspot" -> "Guest/public hotspot: keep answers scoped to connectivity quality and trust boundaries."
+                "IoT/device AP" -> "IoT/device AP: avoid assuming normal router throughput; inspect security, band, and proximity."
+                else -> "Nearby AP: use band, channel, security, RSSI, vendor/OUI, and history rows for the next recommendation."
+            }
+        }
+    }
+
+    private fun wifiSemanticAttentionScore(row: JSONObject): Int {
+        return when (row.optString("security_risk_label")) {
+            "legacy_weak_security", "open_network", "wps_attention" -> 4
+            "unknown_security" -> 3
+            "encrypted_open" -> 2
+            else -> if (row.optBoolean("hidden_ssid", false)) 2 else 1
+        }
+    }
+
+    private fun ratingsForBandCount(ratings: JSONArray, band: String): Int {
+        var count = 0
+        for (index in 0 until ratings.length()) {
+            if (ratings.optJSONObject(index)?.optString("band") == band) count += 1
+        }
+        return count
+    }
+
+    private fun countWifiObservedBands(rows: JSONArray): Int {
+        var count = 0
+        for (index in 0 until rows.length()) {
+            val row = rows.optJSONObject(index) ?: continue
+            if (row.optInt("network_count", 0) > 0) count += 1
+        }
+        return count
+    }
+
+    private fun wifiBandCoverageRecommendation(
+        band: String,
+        accumulator: WifiBandCoverageAccumulator,
+        recommendedChannel: Int?,
+        recommendedScore: Int?,
+    ): String {
+        if (accumulator.networkCount == 0) {
+            return "$band was not visible in the latest scan; avoid claiming hardware support or absence without a fresh scan and permission context."
+        }
+        val bestChannel = recommendedChannel?.let { " Best rated visible channel hint: ch $it${recommendedScore?.let { score -> " ($score/100)" } ?: ""}." }.orEmpty()
+        val securityNote = if (accumulator.securityAttentionCount > 0) {
+            " ${accumulator.securityAttentionCount} AP(s) on this band advertise open, WEP, or WPS attention metadata."
+        } else {
+            ""
+        }
+        val hiddenNote = if (accumulator.hiddenSsidCount > 0) {
+            " ${accumulator.hiddenSsidCount} hidden SSID AP(s) need BSSID/channel-based reasoning."
+        } else {
+            ""
+        }
+        return when (band) {
+            "2.4GHz" -> "2.4GHz is range-friendly but overlap-prone; compare channels 1/6/11 and pressure rows before router guidance.$bestChannel$securityNote$hiddenNote"
+            "5GHz" -> "5GHz usually has more channel room and shorter range; compare wide-channel contention and DFS-like gaps before placement advice.$bestChannel$securityNote$hiddenNote"
+            "6GHz" -> "6GHz visibility indicates Wi-Fi 6E/7-class surroundings; inspect width, RSSI, and client support before assuming best throughput.$bestChannel$securityNote$hiddenNote"
+            else -> "$band is visible; preserve observed channels, widths, standards, security attention, and RSSI before making network recommendations.$bestChannel$securityNote$hiddenNote"
+        }
+    }
+
     private fun estimateWifiDistanceMeters(rssiDbm: Int, frequencyMhz: Int): Double {
         if (frequencyMhz <= 0 || rssiDbm >= 0) return 0.0
         val exponent = (27.55 - (20.0 * log10(frequencyMhz.toDouble())) + abs(rssiDbm).toDouble()) / 20.0
@@ -7190,6 +7511,16 @@ object HermesDeviceDiagnosticsBridge {
         val sampleSsids: LinkedHashSet<String> = linkedSetOf(),
     )
 
+    private data class WifiBandCoverageAccumulator(
+        var networkCount: Int = 0,
+        var strongestRssiDbm: Int? = null,
+        var hiddenSsidCount: Int = 0,
+        var securityAttentionCount: Int = 0,
+        val channels: LinkedHashSet<String> = linkedSetOf(),
+        val widths: LinkedHashSet<String> = linkedSetOf(),
+        val standards: LinkedHashSet<String> = linkedSetOf(),
+    )
+
     private val ACTIONS = listOf(
         "status",
         "top_apps",
@@ -7257,6 +7588,8 @@ object HermesDeviceDiagnosticsBridge {
     private const val MAX_WIFI_HISTORY_SERIES_POINTS = 8
     private const val WIFI_SIGNAL_HISTORY_PREFS = "hermes_wifi_signal_history"
     private const val WIFI_SIGNAL_HISTORY_KEY = "signal_history"
+    private val WIFI_BAND_COVERAGE_BASE_BANDS = listOf("2.4GHz", "5GHz", "6GHz")
+    private val WIFI_ATTENTION_SECURITY_MODES = setOf("Open", "WEP")
     private const val MAX_BLUETOOTH_RESULTS = 40
     private const val MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE = 8
     private const val MAX_BLUETOOTH_MANUFACTURER_IDS_PER_DEVICE = 8
@@ -7304,6 +7637,8 @@ object HermesDeviceDiagnosticsBridge {
         "channel_width_mhz",
         "wifi_standard",
         "security_mode",
+        "semantic_label",
+        "security_risk_label",
         "estimated_distance_m",
         "passpoint_network",
         "80211mc_responder",

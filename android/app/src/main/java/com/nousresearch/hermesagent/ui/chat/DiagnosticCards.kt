@@ -61,8 +61,10 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
             val parsed = when (graphType) {
                 "wifi_channel_strength" -> wifiRow(row)
                 "wifi_access_point_detail" -> wifiAccessPointDetailRow(row)
+                "wifi_access_point_semantics" -> wifiAccessPointSemanticRow(row)
                 "wifi_channel_rating" -> wifiChannelRatingRow(row)
                 "wifi_channel_utilization" -> wifiChannelUtilizationRow(row)
+                "wifi_band_coverage" -> wifiBandCoverageRow(row)
                 "wifi_vendor_summary" -> wifiVendorSummaryRow(row)
                 "wifi_security_summary" -> wifiSecuritySummaryRow(row)
                 "wifi_channel_width_summary" -> wifiChannelWidthSummaryRow(row)
@@ -141,6 +143,36 @@ private fun wifiAccessPointDetailRow(row: JSONObject): DiagnosticGraphRow? {
     )
 }
 
+private fun wifiAccessPointSemanticRow(row: JSONObject): DiagnosticGraphRow? {
+    val ssid = row.optString("display_ssid").takeIf { it.isNotBlank() }
+        ?: row.optString("ssid").takeIf { it.isNotBlank() }
+        ?: row.optString("bssid").ifBlank { "Wi-Fi AP" }
+    val semanticLabel = row.optString("semantic_label").takeIf { it.isNotBlank() } ?: "nearby AP"
+    val riskLabel = row.optString("security_risk_label").takeIf { it.isNotBlank() } ?: "unknown_security"
+    val rssi = row.optNumber("rssi_dbm")?.toInt()
+    val channel = row.opt("channel").takeUnless { it == null || it == JSONObject.NULL }?.toString()
+    val detail = listOfNotNull(
+        channel?.let { "ch $it" },
+        row.optString("band").takeIf { it.isNotBlank() && it != "unknown" },
+        row.optString("security_mode").takeIf { it.isNotBlank() && it != "unknown" },
+        row.optString("wifi_standard").takeIf { it.isNotBlank() && it != "unknown" },
+        row.optString("channel_width").takeIf { it.isNotBlank() && it != "unknown" },
+        row.optString("bssid_vendor").takeIf { it.isNotBlank() && it != "Unknown vendor" },
+        joinJsonStrings(row.optJSONArray("semantic_tags"), 4).takeIf { it.isNotBlank() },
+        row.optString("recommendation").takeIf { it.isNotBlank() },
+    ).joinToString(" | ")
+    return DiagnosticGraphRow(
+        label = ssid,
+        valueLabel = "$semanticLabel | ${riskLabel.replace('_', ' ')}",
+        detail = detail.ifBlank { "Wi-Fi AP semantic label" },
+        fraction = when (riskLabel) {
+            "open_network", "legacy_weak_security", "wps_attention" -> 0.95f
+            "unknown_security" -> 0.7f
+            else -> rssi?.let(::dbmFraction) ?: 0.45f
+        },
+    )
+}
+
 private fun wifiChannelRatingRow(row: JSONObject): DiagnosticGraphRow? {
     val channel = row.optNumber("channel")?.toInt() ?: return null
     val score = row.optNumber("score")?.toInt()?.coerceIn(0, 100) ?: return null
@@ -161,6 +193,35 @@ private fun wifiChannelRatingRow(row: JSONObject): DiagnosticGraphRow? {
         valueLabel = listOfNotNull("$score/100", rating).joinToString(" "),
         detail = detail.ifBlank { "Wi-Fi channel rating" },
         fraction = (score / 100f).coerceIn(0.05f, 1f),
+    )
+}
+
+private fun wifiBandCoverageRow(row: JSONObject): DiagnosticGraphRow? {
+    val band = row.optString("band").takeIf { it.isNotBlank() } ?: return null
+    val count = row.optNumber("network_count")?.toInt() ?: 0
+    val recommendedChannel = row.opt("recommended_channel").takeUnless { it == null || it == JSONObject.NULL }?.toString()
+    val score = row.optNumber("recommended_score")?.toInt()
+    val strongestRssi = row.optNumber("strongest_rssi_dbm")?.toInt()
+    val detail = listOfNotNull(
+        joinJsonStrings(row.optJSONArray("visible_channels"), 6).takeIf { it.isNotBlank() }?.let { "ch $it" },
+        joinJsonStrings(row.optJSONArray("observed_widths"), 4).takeIf { it.isNotBlank() },
+        joinJsonStrings(row.optJSONArray("observed_standards"), 4).takeIf { it.isNotBlank() },
+        strongestRssi?.let { "strongest $it dBm" },
+        row.optNumber("security_attention_count")?.toInt()?.takeIf { it > 0 }?.let { "$it security attention" },
+        row.optNumber("hidden_ssid_count")?.toInt()?.takeIf { it > 0 }?.let { "$it hidden" },
+        recommendedChannel?.let { "best ch $it${score?.let { value -> " $value/100" } ?: ""}" },
+        row.optString("recommendation").takeIf { it.isNotBlank() },
+    ).joinToString(" | ")
+    return DiagnosticGraphRow(
+        label = band,
+        valueLabel = if (count > 0) "$count AP${if (count == 1) "" else "s"} observed" else "not observed",
+        detail = detail.ifBlank { "Wi-Fi band coverage" },
+        fraction = when {
+            count <= 0 -> 0.15f
+            score != null -> (score / 100f).coerceIn(0.2f, 1f)
+            strongestRssi != null -> dbmFraction(strongestRssi)
+            else -> (count / 8f).coerceIn(0.2f, 1f)
+        },
     )
 }
 

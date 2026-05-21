@@ -302,21 +302,31 @@ def test_android_diagnostics_exposes_wifi_analyzer_report_for_readiness_and_scan
     assert 'wifiAnalyzerReportJson(appContext' in diagnostics_bridge
     assert 'wifiAnalyzerFeatureRows(' in diagnostics_bridge
     assert 'wifiChannelUtilizationRowsForNetworks(' in diagnostics_bridge
+    assert 'wifiAccessPointSemanticRows(' in diagnostics_bridge
+    assert 'wifiBandCoverageRows(' in diagnostics_bridge
     assert 'wifiAnalyzerWorkflowRows(' in diagnostics_bridge
     assert 'wifiScanPolicyRows(' in diagnostics_bridge
     assert '"wifi_analyzer_feature_matrix"' in diagnostics_bridge
     assert '"wifi_analyzer_workflow_routes"' in diagnostics_bridge
     assert '"wifi_scan_policy_matrix"' in diagnostics_bridge
     assert '"wifi_channel_utilization"' in diagnostics_bridge
+    assert '"wifi_access_point_semantics"' in diagnostics_bridge
+    assert '"wifi_band_coverage"' in diagnostics_bridge
     assert 'WiFiAnalyzer-style readiness' in diagnostics_bridge
     assert 'Channel utilization occupancy' in diagnostics_bridge
+    assert 'Agent AP semantic and risk labels' in diagnostics_bridge
+    assert 'Band coverage and 2.4/5/6GHz visibility' in diagnostics_bridge
     assert 'wifi_analyzer_report' in chat_client
     assert 'wifi_channel_utilization' in chat_client
     assert '"wifi_analyzer_feature_matrix"' in chat_client
     assert '"wifi_channel_utilization"' in chat_client
+    assert '"wifi_access_point_semantics"' in chat_client
+    assert '"wifi_band_coverage"' in chat_client
     assert '"wifi_analyzer_workflow_routes"' in chat_client
     assert '"wifi_scan_policy_matrix"' in chat_client
     assert '"wifi_channel_utilization" -> wifiChannelUtilizationRow(row)' in diagnostic_cards
+    assert '"wifi_access_point_semantics" -> wifiAccessPointSemanticRow(row)' in diagnostic_cards
+    assert '"wifi_band_coverage" -> wifiBandCoverageRow(row)' in diagnostic_cards
     assert '"wifi_analyzer_feature_matrix", "wifi_analyzer_workflow_routes", "wifi_scan_policy_matrix"' in diagnostic_cards
     assert 'capabilityMatrixRow(row)' in diagnostic_cards
     assert ':app:compileDebugAndroidTestKotlin' in workflow
