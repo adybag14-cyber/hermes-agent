@@ -726,10 +726,36 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("bluetooth_scan"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("bluetooth_analyzer_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("sensor_analyzer_report"))
+        assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("local_backend_runtime_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("radio_signal_status"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("radio_analyzer_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("motion_pose"))
         assertTrue(result.getJSONObject("hindsight_memory_translation").has("retain"))
+    }
+
+    @Test
+    fun localBackendRuntimeReportExposesPassiveRuntimeHealthRows() {
+        val result = HermesDeviceDiagnosticsBridge.localBackendRuntimeReportJson(context)
+        val rows = result.getJSONArray("runtime_backend_matrix")
+        val labels = buildSet {
+            for (index in 0 until rows.length()) add(rows.getJSONObject(index).getString("label"))
+        }
+
+        assertTrue(result.getBoolean("success"))
+        assertEquals("local_backend_runtime_report", result.getString("action"))
+        assertTrue(result.has("selected_on_device_backend"))
+        assertTrue(result.has("offline_airplane_mode"))
+        assertTrue(result.getJSONObject("current_local_backend").has("backend_kind"))
+        assertTrue(result.getJSONObject("litert_runtime_health").has("gpu_policy"))
+        assertTrue(result.has("preferred_local_model"))
+        assertTrue(labels.contains("Selected on-device backend"))
+        assertTrue(labels.contains("Current local backend state"))
+        assertTrue(labels.contains("LiteRT-LM /health accelerator"))
+        assertTrue(labels.contains("Model artifact compatibility"))
+        assertTrue(labels.contains("Multimodal runtime policy"))
+        assertTrue(labels.contains("MediaTek/non-Snapdragon fallback policy"))
+        assertTrue(result.getJSONArray("cards").toString().contains("Runtime Backend Health"))
+        assertTrue(result.getInt("runtime_backend_feature_count") >= 6)
     }
 
     @Test
@@ -738,6 +764,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         val backend = result.getJSONArray("soc_backend_matrix")
         val routes = result.getJSONArray("soc_backend_policy_routes")
         val constraints = result.getJSONArray("soc_backend_constraint_matrix")
+        val runtimeRows = result.getJSONArray("runtime_backend_matrix")
         val backendLabels = buildSet {
             for (index in 0 until backend.length()) add(backend.getJSONObject(index).getString("label"))
         }
@@ -747,12 +774,17 @@ class HermesDeviceDiagnosticsBridgeTest {
         val constraintLabels = buildSet {
             for (index in 0 until constraints.length()) add(constraints.getJSONObject(index).getString("label"))
         }
+        val runtimeLabels = buildSet {
+            for (index in 0 until runtimeRows.length()) add(runtimeRows.getJSONObject(index).getString("label"))
+        }
 
         assertTrue(result.getBoolean("success"))
         assertEquals("soc_compatibility_report", result.getString("action"))
         assertTrue(result.has("android_device_identity"))
         assertTrue(result.getJSONObject("soc_profile").has("litert_lm_backend_strategy"))
         assertTrue(result.has("preferred_local_model"))
+        assertTrue(result.has("current_local_backend"))
+        assertTrue(result.has("litert_runtime_health"))
         assertTrue(result.has("likely_mediatek"))
         assertTrue(result.has("likely_snapdragon"))
         assertTrue(result.has("likely_mali_gpu"))
@@ -767,10 +799,14 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(constraintLabels.contains("GPU probe then CPU fallback"))
         assertTrue(constraintLabels.contains("x86 emulator is not phone GPU proof"))
         assertTrue(result.getJSONArray("cards").toString().contains("SOC Compatibility"))
+        assertTrue(result.getJSONArray("cards").toString().contains("Runtime Backend Health"))
+        assertTrue(runtimeLabels.contains("LiteRT-LM /health accelerator"))
+        assertTrue(runtimeLabels.contains("MediaTek/non-Snapdragon fallback policy"))
         assertTrue(result.getInt("soc_backend_feature_count") >= 7)
         assertTrue(result.getInt("ready_soc_backend_feature_count") >= 4)
         assertTrue(result.getInt("soc_backend_route_count") >= 5)
         assertTrue(result.getInt("soc_backend_constraint_count") >= 5)
+        assertTrue(result.getInt("runtime_backend_feature_count") >= 6)
     }
 
     @Test

@@ -36,6 +36,11 @@ import android.os.storage.StorageManager
 import android.provider.Settings
 import android.text.format.Formatter
 import androidx.core.content.ContextCompat
+import com.nousresearch.hermesagent.backend.BackendKind
+import com.nousresearch.hermesagent.backend.LiteRtLmOpenAiProxy
+import com.nousresearch.hermesagent.backend.LocalBackendStatus
+import com.nousresearch.hermesagent.backend.OnDeviceBackendManager
+import com.nousresearch.hermesagent.data.AppSettingsStore
 import com.nousresearch.hermesagent.data.LocalModelDownloadStore
 import org.json.JSONArray
 import org.json.JSONObject
@@ -95,6 +100,8 @@ object HermesDeviceDiagnosticsBridge {
                 radioSignalStatusJson(appContext).toString()
             "signal_capability_status", "rf_capabilities", "radio_status", "microwave_status" ->
                 signalCapabilityStatusJson(appContext).toString()
+            "local_backend_runtime_report", "runtime_backend_report", "backend_runtime_report", "litert_runtime_report", "model_backend_report" ->
+                localBackendRuntimeReportJson(appContext).toString()
             "soc_compatibility_report", "soc_backend_report", "mediatek_compatibility_report", "litert_backend_report", "gpu_backend_report" ->
                 socCompatibilityReportJson(appContext).toString()
             "signal_awareness_report", "nearby_signal_report", "rf_sensor_fusion_report", "ambient_context_report" ->
@@ -132,6 +139,9 @@ object HermesDeviceDiagnosticsBridge {
             .put("bluetooth_supported", appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH))
             .put("bluetooth_le_supported", appContext.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE))
             .put("bluetooth_scan_permission_status", bluetoothPermissionStatusJson(appContext))
+            .put("selected_on_device_backend", BackendKind.fromPersistedValue(AppSettingsStore(appContext).load().onDeviceBackend).persistedValue)
+            .put("current_local_backend", localBackendStatusJson(OnDeviceBackendManager.currentStatus()))
+            .put("litert_runtime_health", liteRtRuntimeHealthJson())
             .put("soc_profile", socProfileJson())
             .put("location_enabled", isLocationEnabled(appContext))
             .put("sensor_count", sensorManager?.getSensorList(Sensor.TYPE_ALL)?.size ?: 0)
@@ -1200,13 +1210,68 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
+    fun localBackendRuntimeReportJson(context: Context): JSONObject {
+        val appContext = context.applicationContext
+        val settings = AppSettingsStore(appContext).load()
+        val selectedBackend = BackendKind.fromPersistedValue(settings.onDeviceBackend)
+        val currentBackend = OnDeviceBackendManager.currentStatus()
+        val runtimeHealth = liteRtRuntimeHealthJson()
+        val socProfile = socProfileJson()
+        val preferredModel = preferredLocalModelJson(appContext)
+        val rows = runtimeBackendMatrixRows(
+            selectedBackend = selectedBackend,
+            currentBackend = currentBackend,
+            runtimeHealth = runtimeHealth,
+            socProfile = socProfile,
+            preferredModel = preferredModel,
+            offlineAirplaneMode = settings.offlineAirplaneMode,
+        )
+        return JSONObject()
+            .put("success", true)
+            .put("action", "local_backend_runtime_report")
+            .put("report_scope", "Passive local backend runtime health report for LiteRT-LM/AICore/llama.cpp readiness, accelerator visibility, and non-Snapdragon fallback policy.")
+            .put("selected_on_device_backend", selectedBackend.persistedValue)
+            .put("offline_airplane_mode", settings.offlineAirplaneMode)
+            .put("current_local_backend", localBackendStatusJson(currentBackend))
+            .put("litert_runtime_health", runtimeHealth)
+            .put("soc_profile", socProfile)
+            .put("preferred_local_model", preferredModel)
+            .put("runtime_backend_matrix", rows)
+            .put("runtime_backend_feature_count", rows.length())
+            .put("ready_runtime_backend_feature_count", countReadyRows(rows))
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        graphCard(
+                            title = "Runtime Backend Health",
+                            body = "${rows.length()} selected-backend, current-runtime, accelerator, artifact, multimodal, and MediaTek fallback row(s) visible without starting a model.",
+                            graphType = "runtime_backend_matrix",
+                            rows = rows,
+                        ),
+                    ),
+            )
+    }
+
     fun socCompatibilityReportJson(context: Context): JSONObject {
         val appContext = context.applicationContext
         val socProfile = socProfileJson()
         val preferredModel = preferredLocalModelJson(appContext)
+        val settings = AppSettingsStore(appContext).load()
+        val selectedBackend = BackendKind.fromPersistedValue(settings.onDeviceBackend)
+        val currentBackend = OnDeviceBackendManager.currentStatus()
+        val runtimeHealth = liteRtRuntimeHealthJson()
         val backendRows = socBackendMatrixRows(socProfile, preferredModel)
         val routeRows = socBackendRouteRows(socProfile, preferredModel)
         val constraintRows = socBackendConstraintRows(socProfile)
+        val runtimeRows = runtimeBackendMatrixRows(
+            selectedBackend = selectedBackend,
+            currentBackend = currentBackend,
+            runtimeHealth = runtimeHealth,
+            socProfile = socProfile,
+            preferredModel = preferredModel,
+            offlineAirplaneMode = settings.offlineAirplaneMode,
+        )
         return JSONObject()
             .put("success", true)
             .put("action", "soc_compatibility_report")
@@ -1214,6 +1279,10 @@ object HermesDeviceDiagnosticsBridge {
             .put("android_device_identity", deviceIdentityJson())
             .put("soc_profile", socProfile)
             .put("preferred_local_model", preferredModel)
+            .put("selected_on_device_backend", selectedBackend.persistedValue)
+            .put("offline_airplane_mode", settings.offlineAirplaneMode)
+            .put("current_local_backend", localBackendStatusJson(currentBackend))
+            .put("litert_runtime_health", runtimeHealth)
             .put("likely_mediatek", socProfile.optBoolean("likely_mediatek", false))
             .put("likely_snapdragon", socProfile.optBoolean("likely_snapdragon", false))
             .put("likely_mali_gpu", socProfile.optBoolean("likely_mali_gpu", false))
@@ -1224,10 +1293,13 @@ object HermesDeviceDiagnosticsBridge {
             .put("soc_backend_matrix", backendRows)
             .put("soc_backend_policy_routes", routeRows)
             .put("soc_backend_constraint_matrix", constraintRows)
+            .put("runtime_backend_matrix", runtimeRows)
             .put("soc_backend_feature_count", backendRows.length())
             .put("ready_soc_backend_feature_count", countReadyRows(backendRows))
             .put("soc_backend_route_count", routeRows.length())
             .put("soc_backend_constraint_count", constraintRows.length())
+            .put("runtime_backend_feature_count", runtimeRows.length())
+            .put("ready_runtime_backend_feature_count", countReadyRows(runtimeRows))
             .put(
                 "cards",
                 JSONArray()
@@ -1253,6 +1325,14 @@ object HermesDeviceDiagnosticsBridge {
                             body = "${constraintRows.length()} constraint row(s) for ABI coverage, GPU probing, CPU fallback, and emulator/device separation.",
                             graphType = "soc_backend_constraint_matrix",
                             rows = constraintRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Runtime Backend Health",
+                            body = "${runtimeRows.length()} passive runtime row(s) covering selected backend, current local state, /health accelerator fields, artifact compatibility, and MediaTek fallback guidance.",
+                            graphType = "runtime_backend_matrix",
+                            rows = runtimeRows,
                         ),
                     ),
             )
@@ -3630,6 +3710,161 @@ object HermesDeviceDiagnosticsBridge {
                 extra = JSONObject().put("constraint_type", "permission"),
             ),
         )
+
+    private fun localBackendStatusJson(status: LocalBackendStatus): JSONObject {
+        return JSONObject()
+            .put("backend_kind", status.backendKind.persistedValue)
+            .put("started", status.started)
+            .put("base_url", status.baseUrl.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("model_name", status.modelName.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("source_model_path", status.sourceModelPath.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("status_message", status.statusMessage.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("health_url", status.baseUrl.takeIf { it.isNotBlank() }?.removeSuffix("/v1")?.plus("/health") ?: JSONObject.NULL)
+    }
+
+    private fun liteRtRuntimeHealthJson(): JSONObject {
+        return LiteRtLmOpenAiProxy.currentHealthJson()
+            ?: JSONObject()
+                .put("available", false)
+                .put("status", "not_running")
+                .put("backend", "litert-lm")
+                .put("accelerator", JSONObject.NULL)
+                .put("gpu_policy", "LiteRT-LM proxy is not currently running; start a local LiteRT-LM/AICore backend to expose live /health accelerator fields.")
+    }
+
+    private fun runtimeBackendMatrixRows(
+        selectedBackend: BackendKind,
+        currentBackend: LocalBackendStatus,
+        runtimeHealth: JSONObject,
+        socProfile: JSONObject,
+        preferredModel: JSONObject,
+        offlineAirplaneMode: Boolean,
+    ): JSONArray {
+        val healthAvailable = runtimeHealth.optString("status") == "ok"
+        val healthBackendOrder = jsonStringList(runtimeHealth.optJSONArray("litert_backend_order"))
+        val selectedLabel = when (selectedBackend) {
+            BackendKind.NONE -> "remote provider"
+            BackendKind.LLAMA_CPP -> "llama.cpp"
+            BackendKind.LITERT_LM -> "LiteRT-LM"
+            BackendKind.AICORE -> "AICore"
+        }
+        val currentLabel = when {
+            currentBackend.started -> "${currentBackend.backendKind.persistedValue} running"
+            currentBackend.backendKind == BackendKind.NONE -> "no local runtime"
+            else -> "${currentBackend.backendKind.persistedValue} stopped"
+        }
+        return JSONArray()
+            .put(
+                capabilityRow(
+                    category = "runtime_backend",
+                    label = "Selected on-device backend",
+                    ready = selectedBackend != BackendKind.NONE,
+                    valueLabel = selectedLabel,
+                    detail = "offline_airplane_mode=$offlineAirplaneMode | selected=${selectedBackend.persistedValue}",
+                    recommendation = "Use LiteRT-LM or AICore for Gemma Android local inference; use llama.cpp for GGUF models when selected.",
+                    fraction = if (selectedBackend != BackendKind.NONE) 0.9f else 0.35f,
+                    extra = JSONObject().put("source_surface", "AppSettingsStore.onDeviceBackend"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_backend",
+                    label = "Current local backend state",
+                    ready = currentBackend.started,
+                    valueLabel = currentLabel,
+                    detail = listOf(
+                        currentBackend.statusMessage.ifBlank { "no status message" },
+                        currentBackend.modelName.ifBlank { "no active model" },
+                        currentBackend.baseUrl.ifBlank { "no local base URL" },
+                    ).joinToString(" | "),
+                    recommendation = "Do not infer runtime health from SOC labels alone; inspect the current backend state and /health accelerator row.",
+                    fraction = if (currentBackend.started) 1f else 0.35f,
+                    extra = JSONObject()
+                        .put("source_surface", "OnDeviceBackendManager.currentStatus")
+                        .put("health_url", currentBackend.baseUrl.takeIf { it.isNotBlank() }?.removeSuffix("/v1")?.plus("/health") ?: JSONObject.NULL),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_backend",
+                    label = "LiteRT-LM /health accelerator",
+                    ready = healthAvailable,
+                    valueLabel = runtimeHealth.optString("accelerator").ifBlank { "not running" },
+                    detail = listOf(
+                        "gpu_policy=${runtimeHealth.optString("gpu_policy").ifBlank { "unavailable" }}",
+                        "opencl=${runtimeHealth.opt("opencl_available") ?: JSONObject.NULL}",
+                        "fallback_to_cpu=${runtimeHealth.opt("gpu_fallback_to_cpu") ?: JSONObject.NULL}",
+                        "soc=${runtimeHealth.optString("soc_family").ifBlank { socProfile.optString("soc_family").ifBlank { "unknown" } }}",
+                        "gpu=${runtimeHealth.optString("gpu_family").ifBlank { socProfile.optString("gpu_family_hint").ifBlank { "unknown" } }}",
+                        "order=${healthBackendOrder.joinToString(">").ifBlank { "not reported" }}",
+                    ).joinToString(" | "),
+                    recommendation = "Use this row to distinguish working GPU acceleration, GPU-to-CPU fallback, and stopped runtime states on MediaTek/Mali/PowerVR phones.",
+                    fraction = if (healthAvailable && runtimeHealth.optString("accelerator") == "gpu") 1f else if (healthAvailable) 0.8f else 0.25f,
+                    extra = JSONObject().put("source_surface", "/health"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_backend",
+                    label = "Model artifact compatibility",
+                    ready = preferredModel.optBoolean("ready", false),
+                    valueLabel = preferredModel.optString("runtime_flavor").ifBlank { "model import needed" },
+                    detail = listOf(
+                        preferredModel.optString("title").ifBlank { "no preferred model" },
+                        preferredModel.optString("destination_file_name").ifBlank { "no file" },
+                        preferredModel.optString("record_status").ifBlank { "no record" },
+                        if (preferredModel.optBoolean("file_exists", false)) "${preferredModel.optLong("file_bytes", 0L)} bytes" else "file missing",
+                    ).joinToString(" | "),
+                    recommendation = "Keep web .task, .litertlm, and GGUF artifact compatibility visible before blaming SOC or GPU compatibility.",
+                    fraction = if (preferredModel.optBoolean("ready", false)) 1f else 0.35f,
+                    extra = JSONObject().put("source_surface", "preferred_local_model"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_backend",
+                    label = "Multimodal runtime policy",
+                    ready = healthAvailable,
+                    valueLabel = if (healthAvailable) {
+                        "image=${runtimeHealth.optBoolean("image_input_supported", false)} audio=${runtimeHealth.optBoolean("audio_input_supported", false)}"
+                    } else {
+                        "runtime not started"
+                    },
+                    detail = listOf(
+                        runtimeHealth.optString("modality_policy").ifBlank { "Start LiteRT-LM/AICore to expose modality policy." },
+                        "vision=${runtimeHealth.optString("vision_accelerator").ifBlank { "unknown" }}",
+                        "audio=${runtimeHealth.optString("audio_accelerator").ifBlank { "unknown" }}",
+                    ).joinToString(" | "),
+                    recommendation = "Use the live modality policy before promising Gemma image/audio input on a specific phone.",
+                    fraction = if (healthAvailable && !runtimeHealth.optBoolean("multimodal_fallback", false)) 0.95f else if (healthAvailable) 0.65f else 0.3f,
+                    extra = JSONObject().put("source_surface", "LiteRT-LM modality policy"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_backend",
+                    label = "MediaTek/non-Snapdragon fallback policy",
+                    ready = true,
+                    valueLabel = socProfile.optString("litert_lm_acceleration_label").ifBlank { "GPU probe + CPU fallback" },
+                    detail = socProfile.optString("litert_lm_backend_strategy").ifBlank { "GPU-first on ARM devices when LiteRT-LM accepts the accelerator, then CPU fallback; CPU-only on x86 emulator/device builds." },
+                    recommendation = "Treat GPU initialization failure as a fallback path; do not mark MediaTek, Mali, Immortalis, PowerVR/IMG, Xclipse, Tensor, Exynos, or Unisoc unsupported solely because they are not Adreno.",
+                    fraction = 0.95f,
+                    extra = JSONObject().put("source_surface", "soc_profile"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_backend",
+                    label = "Runtime health check route",
+                    ready = currentBackend.started && currentBackend.baseUrl.isNotBlank(),
+                    valueLabel = currentBackend.baseUrl.takeIf { it.isNotBlank() }?.removeSuffix("/v1")?.plus("/health") ?: "no endpoint",
+                    detail = "The runtime report stays passive; it reads current in-process state and exposes the health endpoint path when a local backend is already running.",
+                    recommendation = "Start the selected backend through normal app settings or chat startup before expecting live accelerator fields.",
+                    fraction = if (currentBackend.started && currentBackend.baseUrl.isNotBlank()) 0.9f else 0.3f,
+                    extra = JSONObject().put("tool_action", "local_backend_runtime_report"),
+                ),
+            )
+    }
 
     private fun socBackendMatrixRows(socProfile: JSONObject, preferredModel: JSONObject): JSONArray {
         val nativeAbiCandidates = jsonStringList(socProfile.optJSONArray("native_abi_candidates"))
@@ -6975,6 +7210,7 @@ object HermesDeviceDiagnosticsBridge {
         "radio_signal_status",
         "radio_analyzer_report",
         "signal_capability_status",
+        "local_backend_runtime_report",
         "soc_compatibility_report",
         "signal_awareness_report",
         "agent_environment_report",

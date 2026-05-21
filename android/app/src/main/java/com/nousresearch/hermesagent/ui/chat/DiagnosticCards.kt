@@ -82,7 +82,8 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
                 "sensor_analyzer_feature_matrix", "sensor_analyzer_workflow_routes", "sensor_sampling_policy_matrix",
                 "signal_awareness_matrix", "signal_workflow_routes", "signal_constraint_matrix",
                 "radio_signal_feature_matrix", "radio_signal_workflow_routes", "radio_signal_constraint_matrix",
-                "soc_backend_matrix", "soc_backend_policy_routes", "soc_backend_constraint_matrix" -> capabilityMatrixRow(row)
+                "soc_backend_matrix", "soc_backend_policy_routes", "soc_backend_constraint_matrix",
+                "runtime_backend_matrix" -> capabilityMatrixRow(row)
                 else -> genericRow(row, index)
             }
             if (parsed != null) add(parsed)

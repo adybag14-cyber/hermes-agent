@@ -931,4 +931,42 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("Use soc_compatibility_report"))
         assertTrue(row.fraction > 0.9f)
     }
+
+    @Test
+    fun parsesRuntimeBackendRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Runtime Backend Health")
+                        .put("body", "Runtime rows.")
+                        .put("graph_type", "runtime_backend_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "runtime_backend")
+                                    .put("label", "LiteRT-LM /health accelerator")
+                                    .put("ready", true)
+                                    .put("value_label", "gpu")
+                                    .put("detail", "GPU was accepted on ARM MediaTek/Mali.")
+                                    .put("recommendation", "Use local_backend_runtime_report.")
+                                    .put("source_surface", "/health")
+                                    .put("health_url", "http://127.0.0.1:15436/health")
+                                    .put("fraction", 0.95),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("LiteRT-LM /health accelerator", row.label)
+        assertEquals("gpu", row.valueLabel)
+        assertTrue(row.detail.contains("runtime backend"))
+        assertTrue(row.detail.contains("Use local_backend_runtime_report"))
+        assertTrue(row.fraction > 0.9f)
+    }
 }

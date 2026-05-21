@@ -164,6 +164,12 @@ object LiteRtLmOpenAiProxy {
         activeRuntimeConfigKey = ""
     }
 
+    @Synchronized
+    internal fun currentHealthJson(): JSONObject? {
+        val current = server ?: return null
+        return if (current.isAlive()) current.healthJson() else null
+    }
+
     private fun InferenceConfig.runtimeConfigKey(): String {
         return listOf(
             topK,
@@ -278,38 +284,7 @@ object LiteRtLmOpenAiProxy {
         override fun serve(session: IHTTPSession): Response {
             return try {
                 when {
-                    session.method == Method.GET && session.uri == "/health" -> jsonResponse(
-                        JSONObject().apply {
-                            put("status", "ok")
-                            put("backend", "litert-lm")
-                            put("accelerator", runtimeBackendLabel)
-                            put("vision_accelerator", visionBackendLabel)
-                            put("audio_accelerator", audioBackendLabel)
-                            put("image_input_supported", engineInitResult.supportsImageInput)
-                            put("audio_input_supported", engineInitResult.supportsAudioInput)
-                            put("modality_policy", engineInitResult.modalityPolicy)
-                            put(
-                                "multimodal_fallback",
-                                engineInitResult.modalityPolicy.startsWith("text-only fallback") ||
-                                    engineInitResult.modalityPolicy.startsWith("text-only memory guard"),
-                            )
-                            put("speculative_decoding", engineInitResult.speculativeDecoding)
-                            put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)
-                            put("mtp_policy", engineInitResult.speculativeDecodingPolicy)
-                            put("gpu_policy", engineInitResult.gpuPolicy.description)
-                            put("gpu_attempted", engineInitResult.gpuPolicy.enabled)
-                            put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")
-                            put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)
-                            put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)
-                            put("soc_family", engineInitResult.gpuPolicy.socFamily)
-                            put("gpu_family", engineInitResult.gpuPolicy.gpuFamily)
-                            put("litert_backend_order", JSONArray(engineInitResult.gpuPolicy.backendOrder))
-                            put("native_abi_strategy", engineInitResult.gpuPolicy.nativeAbiStrategy)
-                            put("max_num_tokens", engineInitResult.maxNumTokens ?: JSONObject.NULL)
-                            put("context_window_policy", engineInitResult.contextWindowPolicy)
-                            put("model", modelName)
-                        }
-                    )
+                    session.method == Method.GET && session.uri == "/health" -> jsonResponse(healthJson())
                     session.method == Method.GET && session.uri == "/v1/models" -> jsonResponse(modelsPayload())
                     session.method == Method.POST && session.uri == "/v1/chat/completions" -> handleChatCompletions(session)
                     else -> jsonResponse(
@@ -324,6 +299,39 @@ object LiteRtLmOpenAiProxy {
                     },
                     status = Response.Status.INTERNAL_ERROR,
                 )
+            }
+        }
+
+        fun healthJson(): JSONObject {
+            return JSONObject().apply {
+                put("status", "ok")
+                put("backend", "litert-lm")
+                put("accelerator", runtimeBackendLabel)
+                put("vision_accelerator", visionBackendLabel)
+                put("audio_accelerator", audioBackendLabel)
+                put("image_input_supported", engineInitResult.supportsImageInput)
+                put("audio_input_supported", engineInitResult.supportsAudioInput)
+                put("modality_policy", engineInitResult.modalityPolicy)
+                put(
+                    "multimodal_fallback",
+                    engineInitResult.modalityPolicy.startsWith("text-only fallback") ||
+                        engineInitResult.modalityPolicy.startsWith("text-only memory guard"),
+                )
+                put("speculative_decoding", engineInitResult.speculativeDecoding)
+                put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)
+                put("mtp_policy", engineInitResult.speculativeDecodingPolicy)
+                put("gpu_policy", engineInitResult.gpuPolicy.description)
+                put("gpu_attempted", engineInitResult.gpuPolicy.enabled)
+                put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")
+                put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)
+                put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)
+                put("soc_family", engineInitResult.gpuPolicy.socFamily)
+                put("gpu_family", engineInitResult.gpuPolicy.gpuFamily)
+                put("litert_backend_order", JSONArray(engineInitResult.gpuPolicy.backendOrder))
+                put("native_abi_strategy", engineInitResult.gpuPolicy.nativeAbiStrategy)
+                put("max_num_tokens", engineInitResult.maxNumTokens ?: JSONObject.NULL)
+                put("context_window_policy", engineInitResult.contextWindowPolicy)
+                put("model", modelName)
             }
         }
 

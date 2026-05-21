@@ -255,20 +255,40 @@ def test_android_diagnostics_exposes_soc_compatibility_report_for_backend_policy
 
     assert '"soc_compatibility_report"' in diagnostics_bridge
     assert 'socCompatibilityReportJson(appContext)' in diagnostics_bridge
+    assert '"local_backend_runtime_report"' in diagnostics_bridge
+    assert 'localBackendRuntimeReportJson(appContext)' in diagnostics_bridge
+    assert 'runtimeBackendMatrixRows(' in diagnostics_bridge
+    assert 'LiteRtLmOpenAiProxy.currentHealthJson()' in diagnostics_bridge
     assert 'socBackendMatrixRows(' in diagnostics_bridge
     assert 'socBackendRouteRows(' in diagnostics_bridge
     assert 'socBackendConstraintRows(' in diagnostics_bridge
     assert '"soc_backend_matrix"' in diagnostics_bridge
     assert '"soc_backend_policy_routes"' in diagnostics_bridge
     assert '"soc_backend_constraint_matrix"' in diagnostics_bridge
+    assert '"runtime_backend_matrix"' in diagnostics_bridge
+    assert 'LiteRT-LM /health accelerator' in diagnostics_bridge
     assert 'MediaTek/Mali/PowerVR coverage' in diagnostics_bridge
     assert 'Avoid Adreno-only assumptions' in diagnostics_bridge
+    assert 'local_backend_runtime_report' in chat_client
     assert 'soc_compatibility_report' in chat_client
+    assert '"runtime_backend_matrix"' in chat_client
     assert '"soc_backend_matrix"' in chat_client
     assert '"soc_backend_policy_routes"' in chat_client
     assert '"soc_backend_constraint_matrix"' in chat_client
-    assert '"soc_backend_matrix", "soc_backend_policy_routes", "soc_backend_constraint_matrix" -> capabilityMatrixRow(row)' in diagnostic_cards
+    assert '"runtime_backend_matrix" -> capabilityMatrixRow(row)' in diagnostic_cards
+    assert 'id = "runtime_backend"' in quick_actions
     assert 'id = "soc_compatibility"' in quick_actions
+
+
+def test_litert_proxy_exposes_in_process_current_health_for_runtime_cards():
+    litert_proxy = (REPO_ROOT / "android/app/src/main/java/com/nousresearch/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
+
+    assert 'internal fun currentHealthJson()' in litert_proxy
+    assert 'fun healthJson(): JSONObject' in litert_proxy
+    assert 'session.method == Method.GET && session.uri == "/health" -> jsonResponse(healthJson())' in litert_proxy
+    assert 'put("accelerator", runtimeBackendLabel)' in litert_proxy
+    assert 'put("gpu_policy", engineInitResult.gpuPolicy.description)' in litert_proxy
+    assert 'put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")' in litert_proxy
 
 
 def test_android_diagnostics_exposes_wifi_analyzer_report_for_readiness_and_scan_policy_cards():

@@ -76,6 +76,16 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun extractsExplicitLocalBackendRuntimeDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=local_backend_runtime_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("local_backend_runtime_report", parsed.getString("action"))
+    }
+
+    @Test
     fun extractsExplicitWifiChannelUtilizationDiagnosticQuickActionArguments() {
         val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
             "Run android_device_diagnostics_tool action=wifi_channel_utilization refresh=false",
@@ -560,6 +570,63 @@ class NativeToolCallingChatClientTest {
         assertEquals("soc_compatibility_report", backendMatrix.getJSONArray("items").getJSONObject(0).getString("tool_action"))
         assertEquals("Route SOC compatibility report", routes.getJSONObject(0).getString("label"))
         assertEquals("Avoid Adreno-only assumptions", constraints.getJSONObject(0).getString("label"))
+    }
+
+    @Test
+    fun compactsRuntimeBackendReportWithoutDroppingHealthRows() {
+        val rows = JSONArray()
+        repeat(18) { index ->
+            rows.put(
+                JSONObject()
+                    .put("category", "runtime_backend")
+                    .put("label", if (index == 0) "LiteRT-LM /health accelerator" else "Runtime row $index")
+                    .put("ready", index == 0)
+                    .put("value_label", if (index == 0) "gpu" else "runtime")
+                    .put("detail", "Detailed runtime row $index with MediaTek Mali fallback and /health accelerator context.")
+                    .put("recommendation", "Use local_backend_runtime_report before local inference decisions.")
+                    .put("source_surface", "/health")
+                    .put("health_url", "http://127.0.0.1:15436/health"),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "local_backend_runtime_report")
+            .put("runtime_backend_feature_count", 18)
+            .put("ready_runtime_backend_feature_count", 1)
+            .put(
+                "current_local_backend",
+                JSONObject()
+                    .put("backend_kind", "litert-lm")
+                    .put("started", true)
+                    .put("base_url", "http://127.0.0.1:15436/v1")
+                    .put("health_url", "http://127.0.0.1:15436/health"),
+            )
+            .put(
+                "litert_runtime_health",
+                JSONObject()
+                    .put("status", "ok")
+                    .put("accelerator", "gpu")
+                    .put("gpu_policy", "enabled: OpenCL library was loadable for ARM MediaTek/Mali")
+                    .put("gpu_fallback_to_cpu", false),
+            )
+            .put("runtime_backend_matrix", rows)
+            .put("cards", JSONArray().put(JSONObject().put("title", "Runtime Backend Health").put("body", "18 rows")))
+            .toString()
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result))
+        val matrix = parsed.getJSONObject("runtime_backend_matrix")
+        val first = matrix.getJSONArray("items").getJSONObject(0)
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(18, parsed.getInt("runtime_backend_feature_count"))
+        assertEquals(1, parsed.getInt("ready_runtime_backend_feature_count"))
+        assertEquals("litert-lm", parsed.getJSONObject("current_local_backend").getString("backend_kind"))
+        assertEquals("gpu", parsed.getJSONObject("litert_runtime_health").getString("accelerator"))
+        assertEquals("array", matrix.getString("type"))
+        assertEquals(18, matrix.getInt("original_count"))
+        assertEquals("LiteRT-LM /health accelerator", first.getString("label"))
+        assertEquals("/health", first.getString("source_surface"))
+        assertEquals("http://127.0.0.1:15436/health", first.getString("health_url"))
     }
 
     @Test
