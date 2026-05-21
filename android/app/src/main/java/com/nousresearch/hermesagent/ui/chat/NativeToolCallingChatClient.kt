@@ -1207,7 +1207,7 @@ class NativeToolCallingChatClient(
                 "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names, radio analyzer checks for AM/FM band-plan boundaries, vendor broadcast-radio hints, Wi-Fi/Bluetooth radio routes, and external SDR constraints, resource summaries, or Tasker-style automation. " +
                 "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                 "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
-                "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel ratings/channel utilization/signal history, Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible agent observation dashboards, Kai-style agent environment reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM and broader radio signal route reports, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible agent observation dashboards, Kai-style agent environment reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM and broader radio signal route reports, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
                 "Use hindsight_memory_tool to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
                 "Report missing Android permissions honestly. Keep replies brief."
         } else {
@@ -1268,14 +1268,24 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_device_diagnostics_tool",
-                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, Wi-Fi Analyzer readiness/scan-policy reports, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, camera capability, overlay status, passive local backend runtime health, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible agent observation dashboards, Kai-style agent environment parity/readiness, cross-signal awareness routes, tool catalog, radio analyzer AM/FM band-plan rows, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
+                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, camera capability, overlay status, passive local backend runtime health, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible agent observation dashboards, Kai-style agent environment parity/readiness, cross-signal awareness routes, tool catalog, radio analyzer AM/FM band-plan rows, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_analyzer_report, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, sensor_analyzer_report, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, soc_compatibility_report, device_performance_report, signal_awareness_report, agent_observation_report, agent_environment_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
+                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, sensor_analyzer_report, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, soc_compatibility_report, device_performance_report, signal_awareness_report, agent_observation_report, agent_environment_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
                         .put("limit", intProp("Maximum rows for top apps, Wi-Fi networks, or Bluetooth devices. Defaults to 5."))
                         .put("detail_limit", intProp("Maximum Wi-Fi access-point detail/export rows. Defaults to limit, or the Wi-Fi max for wifi_ap_details/wifi_export."))
                         .put("export_format", stringProp("Wi-Fi export format for wifi_export: json, csv, or both."))
                         .put("scan_mode", stringProp("Wi-Fi or Bluetooth scan mode for direct signal actions: auto, paused, or resumed. Paused reuses cached rows/history; resumed requests a fresh Android scan or BLE sample."))
                         .put("refresh", boolProp("For wifi_scan, wifi_export, wifi_ap_details, bluetooth_scan, bluetooth_signal_history, motion_sensor_history, or motion_pose, request Android to refresh scan/sensor results before reading available results; analyzer reports stay passive."))
+                        .put("filter_band", stringProp("Optional Wi-Fi filter for wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_ap_details, wifi_channel_rating, wifi_channel_utilization, or wifi_export. Accepts 2.4GHz, 5GHz, 6GHz, or comma-separated values."))
+                        .put("filter_security", stringProp("Optional Wi-Fi security filter such as WPA3, WPA2, Enhanced Open, Open, WEP, or comma-separated values."))
+                        .put("filter_signal", stringProp("Optional Wi-Fi signal quality filter: excellent, good, fair, or weak."))
+                        .put("filter_ssid", stringProp("Optional case-insensitive substring filter for Wi-Fi SSID/display SSID."))
+                        .put("filter_bssid", stringProp("Optional case-insensitive substring filter for Wi-Fi BSSID."))
+                        .put("filter_vendor", stringProp("Optional case-insensitive substring filter for local Wi-Fi OUI/vendor label."))
+                        .put("min_rssi_dbm", intProp("Optional Wi-Fi RSSI lower bound in dBm, for example -65 keeps APs at or above -65 dBm."))
+                        .put("max_rssi_dbm", intProp("Optional Wi-Fi RSSI upper bound in dBm."))
+                        .put("include_hidden", boolProp("For Wi-Fi filters, false excludes hidden SSID rows from returned cards."))
+                        .put("hidden_only", boolProp("For Wi-Fi filters, true returns only hidden SSID rows."))
                         .put("include_snapshot", boolProp("For sensor_analyzer_report, include a bounded one-shot sensor snapshot; default is passive readiness and policy rows only."))
                         .put("sensor_types", stringProp("Comma-separated sensor types such as accelerometer, gyroscope, magnetic_field, light, proximity; returned rows include sensor range, resolution, power, FIFO, wake-up, and sampling-rate metadata when Android exposes it."))
                         .put("timeout_ms", intProp("Sensor or Bluetooth sampling timeout in milliseconds."))
@@ -3070,6 +3080,7 @@ class NativeToolCallingChatClient(
             "status",
             "top_apps",
             "wifi_scan",
+            "wifi_filtered_scan",
             "wifi_analyzer_report",
             "wifi_channel_rating",
             "wifi_channel_utilization",
@@ -3105,26 +3116,36 @@ class NativeToolCallingChatClient(
             "sample",
             "include_scan",
             "save_file",
+            "include_hidden",
+            "hidden_only",
         )
         private val DIAGNOSTIC_INTEGER_ARGUMENTS = listOf(
             "limit",
             "max_results",
             "timeout_ms",
+            "min_rssi_dbm",
+            "max_rssi_dbm",
         )
         private val DIAGNOSTIC_STRING_ARGUMENTS = listOf(
             "export_format",
             "format",
             "scan_mode",
+            "filter_band",
+            "filter_security",
+            "filter_signal",
+            "filter_ssid",
+            "filter_bssid",
+            "filter_vendor",
             "sensor_types",
         )
         private val DIAGNOSTIC_BOOLEAN_REGEXES = DIAGNOSTIC_BOOLEAN_ARGUMENTS.associateWith { key ->
             Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*(true|false)\b""")
         }
         private val DIAGNOSTIC_INTEGER_REGEXES = DIAGNOSTIC_INTEGER_ARGUMENTS.associateWith { key ->
-            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*(\d+)\b""")
+            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*(-?\d+)\b""")
         }
         private val DIAGNOSTIC_STRING_REGEXES = DIAGNOSTIC_STRING_ARGUMENTS.associateWith { key ->
-            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*["']?([a-zA-Z0-9_,.-]+)["']?""")
+            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*["']?([a-zA-Z0-9_,.:\-\s]+)["']?""")
         }
         private val ANDROID_UI_ACTIONS = listOf(
             "status",
@@ -3589,6 +3610,9 @@ internal object NativeToolContextCompressor {
         "wifi_band_coverage",
         "wifi_vendor_summary",
         "wifi_analyzer_filters",
+        "available_wifi_analyzer_filters",
+        "filtered_wifi_analyzer_filters",
+        "applied_wifi_filters",
         "wifi_security_summary",
         "wifi_channel_width_summary",
         "wifi_standard_summary",
@@ -3596,6 +3620,7 @@ internal object NativeToolContextCompressor {
         "wifi_analyzer_feature_matrix",
         "wifi_analyzer_workflow_routes",
         "wifi_scan_policy_matrix",
+        "wifi_filter_application",
         "agent_capability_matrix",
         "kai_parity_matrix",
         "kai_operations_matrix",
@@ -3666,6 +3691,15 @@ internal object NativeToolContextCompressor {
         "installed",
         "enabled",
         "ready",
+        "active",
+        "filter_key",
+        "active_filter_count",
+        "total_network_count",
+        "matched_network_count",
+        "match_fraction",
+        "requested_filters",
+        "min_rssi_dbm",
+        "max_rssi_dbm",
         "runtime_flavor",
         "destination_file_name",
         "destination_path",

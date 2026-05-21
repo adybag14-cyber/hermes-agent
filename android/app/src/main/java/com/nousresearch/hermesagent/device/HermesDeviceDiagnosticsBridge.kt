@@ -71,7 +71,8 @@ object HermesDeviceDiagnosticsBridge {
             "status", "diagnostics_status", "device_diagnostics_status" -> statusJson(appContext).toString()
             "top_apps", "top_resource_apps", "top_memory_apps", "top_storage_apps", "resource_apps" ->
                 topAppsJson(appContext, arguments).toString()
-            "wifi_scan", "wifi_analyzer", "scan_wifi", "nearby_wifi", "wifi_signals" ->
+            "wifi_scan", "wifi_analyzer", "scan_wifi", "nearby_wifi", "wifi_signals",
+            "wifi_filtered_scan", "wifi_filter", "wifi_filtered_ap_details" ->
                 wifiScanJson(appContext, arguments).toString()
             "wifi_analyzer_report", "wifi_readiness_report", "wifi_feature_report", "wifi_scan_policy" ->
                 wifiAnalyzerReportJson(appContext, arguments).toString()
@@ -275,27 +276,33 @@ object HermesDeviceDiagnosticsBridge {
         val sortedScanResults = scanResults
             .sortedWith(compareByDescending<ScanResult> { it.level }.thenBy { it.SSID.orEmpty() })
         sortedScanResults.forEach { result -> allNetworks.put(scanResultJson(result)) }
+        val filterSpec = wifiScanFilterSpec(arguments)
+        val filteredNetworks = wifiFilteredNetworkRows(allNetworks, filterSpec)
+        val analysisNetworks = if (filterSpec.active) filteredNetworks else allNetworks
+        val filterRows = wifiFilterApplicationRows(filterSpec, allNetworks.length(), analysisNetworks.length())
+        val filterSummary = wifiFilterSummaryJson(filterSpec, allNetworks.length(), analysisNetworks.length())
         val networks = JSONArray()
-        for (index in 0 until minOf(limit, allNetworks.length())) {
-            networks.put(allNetworks.getJSONObject(index))
+        for (index in 0 until minOf(limit, analysisNetworks.length())) {
+            networks.put(analysisNetworks.getJSONObject(index))
         }
-        val channelRatings = wifiChannelRatingRowsForNetworks(allNetworks)
-        val channelUtilization = wifiChannelUtilizationRowsForNetworks(allNetworks)
+        val channelRatings = wifiChannelRatingRowsForNetworks(analysisNetworks)
+        val channelUtilization = wifiChannelUtilizationRowsForNetworks(analysisNetworks)
         val recommendedChannels = recommendedWifiChannels(channelRatings)
-        val bandSummary = wifiBandSummaryJson(allNetworks, channelRatings)
-        val vendorSummary = wifiVendorSummaryJson(allNetworks)
-        val analyzerFilters = wifiAnalyzerFilterSummaryJson(allNetworks)
+        val bandSummary = wifiBandSummaryJson(analysisNetworks, channelRatings)
+        val vendorSummary = wifiVendorSummaryJson(analysisNetworks)
+        val availableAnalyzerFilters = wifiAnalyzerFilterSummaryJson(allNetworks)
+        val filteredAnalyzerFilters = wifiAnalyzerFilterSummaryJson(analysisNetworks)
         val detailLimitDefault = if (actionName == "wifi_export" || actionName == "wifi_ap_details") MAX_WIFI_RESULTS else limit
         val detailLimit = arguments.optInt(
             "detail_limit",
             arguments.optInt("export_limit", detailLimitDefault),
         ).coerceIn(1, MAX_WIFI_RESULTS)
-        val accessPointDetails = wifiAccessPointDetailRows(allNetworks, detailLimit)
+        val accessPointDetails = wifiAccessPointDetailRows(analysisNetworks, detailLimit)
         val accessPointSemantics = wifiAccessPointSemanticRows(accessPointDetails, detailLimit)
-        val securitySummary = wifiSecuritySummaryJson(allNetworks)
-        val channelWidthSummary = wifiChannelWidthSummaryJson(allNetworks)
-        val standardSummary = wifiStandardSummaryJson(allNetworks)
-        val bandCoverage = wifiBandCoverageRows(allNetworks, bandSummary, channelRatings)
+        val securitySummary = wifiSecuritySummaryJson(analysisNetworks)
+        val channelWidthSummary = wifiChannelWidthSummaryJson(analysisNetworks)
+        val standardSummary = wifiStandardSummaryJson(analysisNetworks)
+        val bandCoverage = wifiBandCoverageRows(analysisNetworks, bandSummary, channelRatings)
         val exportFormat = normalizedWifiExportFormat(arguments.optString("export_format").ifBlank {
             if (actionName == "wifi_export") "both" else "json"
         })
@@ -324,9 +331,14 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_scan_control", wifiScanControlJson(scanMode, requestedRefresh, refresh, refreshAccepted))
             .put("result_count", networks.length())
             .put("total_scan_result_count", allNetworks.length())
+            .put("filtered_scan_result_count", analysisNetworks.length())
+            .put("wifi_filter_active", filterSpec.active)
+            .put("wifi_active_filter_count", filterSpec.activeFilterCount)
+            .put("wifi_filter_summary", filterSummary)
             .put("wifi_scan_age_ms", latestScanAgeMs ?: JSONObject.NULL)
             .put("wifi_vendor_count", vendorSummary.length())
-            .put("wifi_filter_count", analyzerFilters.length())
+            .put("wifi_filter_count", availableAnalyzerFilters.length())
+            .put("applied_wifi_filter_count", filterRows.length())
             .put("wifi_history_network_count", signalHistory.length())
             .put("wifi_access_point_detail_count", accessPointDetails.length())
             .put("wifi_access_point_semantic_count", accessPointSemantics.length())
@@ -352,7 +364,10 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_band_summary", bandSummary)
             .put("wifi_band_coverage", bandCoverage)
             .put("wifi_vendor_summary", vendorSummary)
-            .put("wifi_analyzer_filters", analyzerFilters)
+            .put("wifi_analyzer_filters", availableAnalyzerFilters)
+            .put("available_wifi_analyzer_filters", availableAnalyzerFilters)
+            .put("filtered_wifi_analyzer_filters", filteredAnalyzerFilters)
+            .put("applied_wifi_filters", filterRows)
             .put("wifi_security_summary", securitySummary)
             .put("wifi_channel_width_summary", channelWidthSummary)
             .put("wifi_standard_summary", standardSummary)
@@ -360,7 +375,18 @@ object HermesDeviceDiagnosticsBridge {
             .put("privacy_note", "Vendor/OUI lookup uses local prefix hints from Android scan metadata; no internet lookup is performed.")
             .put(
                 "cards",
-                JSONArray()
+                JSONArray().also { cards ->
+                    if (filterRows.length() > 0) {
+                        cards.put(
+                            graphCard(
+                                title = "Wi-Fi Applied Filters",
+                                body = "${analysisNetworks.length()} of ${allNetworks.length()} AP row(s) matched the requested Wi-Fi Analyzer filter(s).",
+                                graphType = "wifi_filter_application",
+                                rows = filterRows,
+                            ),
+                        )
+                    }
+                }
                     .put(
                         graphCard(
                             title = "Wi-Fi Analyzer",
@@ -473,6 +499,11 @@ object HermesDeviceDiagnosticsBridge {
         val bandCoverage = scanResult?.optJSONArray("wifi_band_coverage") ?: wifiBandCoverageRows(networks, bandSummary, channelRatings)
         val vendorSummary = scanResult?.optJSONArray("wifi_vendor_summary") ?: JSONArray()
         val filters = scanResult?.optJSONArray("wifi_analyzer_filters") ?: JSONArray()
+        val availableFilters = scanResult?.optJSONArray("available_wifi_analyzer_filters") ?: filters
+        val filteredFilters = scanResult?.optJSONArray("filtered_wifi_analyzer_filters") ?: filters
+        val appliedFilters = scanResult?.optJSONArray("applied_wifi_filters") ?: JSONArray()
+        val filterSummary = scanResult?.optJSONObject("wifi_filter_summary")
+            ?: wifiFilterSummaryJson(wifiScanFilterSpec(arguments), networks.length(), networks.length())
         val securitySummary = scanResult?.optJSONArray("wifi_security_summary") ?: JSONArray()
         val widthSummary = scanResult?.optJSONArray("wifi_channel_width_summary") ?: JSONArray()
         val standardSummary = scanResult?.optJSONArray("wifi_standard_summary") ?: JSONArray()
@@ -570,6 +601,12 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_band_coverage", bandCoverage)
             .put("wifi_vendor_summary", vendorSummary)
             .put("wifi_analyzer_filters", filters)
+            .put("available_wifi_analyzer_filters", availableFilters)
+            .put("filtered_wifi_analyzer_filters", filteredFilters)
+            .put("applied_wifi_filters", appliedFilters)
+            .put("wifi_filter_summary", filterSummary)
+            .put("wifi_filter_active", filterSummary.optBoolean("active", false))
+            .put("filtered_scan_result_count", filterSummary.optInt("matched_network_count", networks.length()))
             .put("wifi_security_summary", securitySummary)
             .put("wifi_channel_width_summary", widthSummary)
             .put("wifi_standard_summary", standardSummary)
@@ -585,6 +622,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_access_point_semantic_count", accessPointSemantics.length())
             .put("wifi_band_coverage_count", bandCoverage.length())
             .put("wifi_scan_policy_count", policyRows.length())
+            .put("applied_wifi_filter_count", appliedFilters.length())
             .put("cards", cards)
     }
 
@@ -5210,7 +5248,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(toolJson("android_system_tool", "Read phone state and open settings or user-granted Shizuku/Sui actions.", "action, package_name, permission"))
                     .put(toolJson("android_ui_tool", "Inspect and control visible Android UI through accessibility and screenshots.", "action, selectors, coordinates"))
                     .put(toolJson("android_automation_tool", "Run/open/create saved automations, watcher tasks, overlays, notifications, widgets, and Tasker-style triggers.", "action, trigger, data_uri"))
-                    .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals/channel ratings/AP detail and export rows/vendor OUI/filter facets, Bluetooth nearby devices/service UUID labels/manufacturer names/proximity/history, camera, sensors, SOC compatibility, overlay, Gemma-visible agent observation dashboards, radio/RF capability limits, Kai-style agent environment parity, and the social/Gmail end-to-end phone preflight.", "action, limit, detail_limit, export_format, scan_mode, refresh, sensor_types, timeout_ms"))
+                    .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals/channel ratings/AP detail and export rows/vendor OUI/filter facets plus active Wi-Fi band/security/signal/SSID/RSSI filters, Bluetooth nearby devices/service UUID labels/manufacturer names/proximity/history, camera, sensors, SOC compatibility, overlay, Gemma-visible agent observation dashboards, radio/RF capability limits, Kai-style agent environment parity, and the social/Gmail end-to-end phone preflight.", "action, limit, detail_limit, export_format, scan_mode, refresh, filter_band, filter_security, filter_signal, filter_ssid, min_rssi_dbm, max_rssi_dbm, sensor_types, timeout_ms"))
                     .put(toolJson("hindsight_memory_tool", "Retain, recall, reflect, and promote local Hindsight-style memories with tags, entities, keywords, recency, reinforcement, and reusable prompt context.", "action, content, query, tags, category")),
             )
             .put("diagnostics_actions", JSONArray(ACTIONS))
@@ -6642,6 +6680,212 @@ object HermesDeviceDiagnosticsBridge {
             .put(filterFacetJson("signal_strength", "Signal strength", signalCounts, ::wifiSignalSortKey))
             .put(filterFacetJson("security", "Security", securityCounts, ::wifiSecuritySortKey))
             .put(filterFacetJson("ssid", "SSID", ssidCounts) { 0 })
+    }
+
+    internal fun wifiFilteredNetworkRows(networks: JSONArray, arguments: JSONObject): JSONArray {
+        return wifiFilteredNetworkRows(networks, wifiScanFilterSpec(arguments))
+    }
+
+    private fun wifiScanFilterSpec(arguments: JSONObject): WifiScanFilterSpec {
+        val includeHidden = booleanArgument(arguments, "include_hidden", "include_hidden_ssid", "show_hidden_ssid")
+        return WifiScanFilterSpec(
+            bands = jsonStringListArgument(
+                arguments,
+                "filter_band",
+                "band_filter",
+                "wifi_band_filter",
+                "wifi_band",
+                "band",
+                "bands",
+            ).mapNotNull(::normalizedWifiBandFilter).toCollection(linkedSetOf()),
+            securityModes = jsonStringListArgument(
+                arguments,
+                "filter_security",
+                "security_filter",
+                "wifi_security_filter",
+                "security_mode",
+                "security",
+            ).mapNotNull(::normalizedWifiSecurityFilter).toCollection(linkedSetOf()),
+            signalQualities = jsonStringListArgument(
+                arguments,
+                "filter_signal",
+                "filter_signal_strength",
+                "signal_filter",
+                "signal_strength",
+                "signal_quality",
+            ).mapNotNull(::normalizedWifiSignalFilter).toCollection(linkedSetOf()),
+            ssidQuery = jsonStringArgument(arguments, "filter_ssid", "ssid_filter", "ssid_query", "ssid_contains", "ssid").orEmpty(),
+            bssidQuery = jsonStringArgument(arguments, "filter_bssid", "bssid_filter", "bssid_query", "bssid_contains", "bssid").orEmpty(),
+            vendorQuery = jsonStringArgument(arguments, "filter_vendor", "vendor_filter", "vendor_query", "vendor_contains", "bssid_vendor").orEmpty(),
+            minRssiDbm = intArgument(arguments, "min_rssi_dbm", "rssi_min_dbm", "minimum_rssi_dbm", "min_signal_dbm"),
+            maxRssiDbm = intArgument(arguments, "max_rssi_dbm", "rssi_max_dbm", "maximum_rssi_dbm", "max_signal_dbm"),
+            excludeHidden = includeHidden == false || booleanArgument(arguments, "exclude_hidden", "exclude_hidden_ssid") == true,
+            hiddenOnly = booleanArgument(arguments, "hidden_only", "only_hidden", "filter_hidden_only") == true,
+        )
+    }
+
+    private fun wifiFilteredNetworkRows(networks: JSONArray, filterSpec: WifiScanFilterSpec): JSONArray {
+        if (!filterSpec.active) return networks
+        return JSONArray().also { filtered ->
+            for (index in 0 until networks.length()) {
+                val row = networks.optJSONObject(index) ?: continue
+                if (wifiNetworkMatchesFilterSpec(row, filterSpec)) filtered.put(row)
+            }
+        }
+    }
+
+    private fun wifiNetworkMatchesFilterSpec(row: JSONObject, filterSpec: WifiScanFilterSpec): Boolean {
+        val frequencyMhz = jsonIntOrNull(row, "frequency_mhz") ?: 0
+        val band = canonicalWifiBandLabel(row.optString("band"), frequencyMhz)
+        if (filterSpec.bands.isNotEmpty() && band !in filterSpec.bands) return false
+
+        val securityMode = row.optString("security_mode").ifBlank { wifiSecurityLabel(row.optString("capabilities")) }
+        if (filterSpec.securityModes.isNotEmpty() && filterSpec.securityModes.none { it.equals(securityMode, ignoreCase = true) }) {
+            return false
+        }
+
+        val rssiDbm = jsonIntOrNull(row, "rssi_dbm")
+        val signalQuality = rssiDbm?.let(::wifiSignalQualityLabel) ?: row.optString("signal_quality").ifBlank { "unknown" }
+        if (filterSpec.signalQualities.isNotEmpty() && filterSpec.signalQualities.none { it.equals(signalQuality, ignoreCase = true) }) {
+            return false
+        }
+        filterSpec.minRssiDbm?.let { minRssi -> if (rssiDbm == null || rssiDbm < minRssi) return false }
+        filterSpec.maxRssiDbm?.let { maxRssi -> if (rssiDbm == null || rssiDbm > maxRssi) return false }
+
+        val displaySsid = row.optString("display_ssid").ifBlank { row.optString("ssid") }
+        val hidden = row.optBoolean("hidden_ssid", displaySsid.isBlank() || displaySsid == "<hidden>")
+        if (filterSpec.hiddenOnly && !hidden) return false
+        if (filterSpec.excludeHidden && hidden) return false
+
+        if (!wifiFilterTextMatches(displaySsid, filterSpec.ssidQuery)) return false
+        if (!wifiFilterTextMatches(row.optString("bssid"), filterSpec.bssidQuery)) return false
+        val vendor = row.optString("bssid_vendor").ifBlank {
+            wifiOuiVendorLabel(row.optString("bssid_oui").ifBlank { wifiBssidOui(row.optString("bssid")) })
+        }
+        if (!wifiFilterTextMatches(vendor, filterSpec.vendorQuery)) return false
+
+        return true
+    }
+
+    private fun wifiFilterSummaryJson(filterSpec: WifiScanFilterSpec, totalNetworkCount: Int, matchedNetworkCount: Int): JSONObject {
+        return JSONObject()
+            .put("active", filterSpec.active)
+            .put("active_filter_count", filterSpec.activeFilterCount)
+            .put("total_network_count", totalNetworkCount)
+            .put("matched_network_count", matchedNetworkCount)
+            .put("match_fraction", if (totalNetworkCount > 0) matchedNetworkCount.toDouble() / totalNetworkCount else 0.0)
+            .put("requested_filters", wifiRequestedFilterJson(filterSpec))
+            .put(
+                "agent_usage",
+                "Use these filters before answering Wi-Fi questions that name a band, SSID, security mode, vendor, hidden-SSID handling, or RSSI threshold.",
+            )
+    }
+
+    private fun wifiFilterApplicationRows(filterSpec: WifiScanFilterSpec, totalNetworkCount: Int, matchedNetworkCount: Int): JSONArray {
+        if (!filterSpec.active) return JSONArray()
+        val rows = JSONArray()
+        fun addRow(key: String, label: String, valueLabel: String, detail: String) {
+            rows.put(
+                JSONObject()
+                    .put("category", "wifi_filter")
+                    .put("filter_key", key)
+                    .put("label", label)
+                    .put("ready", matchedNetworkCount > 0)
+                    .put("value_label", valueLabel)
+                    .put("detail", "$detail Matched $matchedNetworkCount of $totalNetworkCount visible AP row(s).")
+                    .put(
+                        "recommendation",
+                        if (matchedNetworkCount > 0) {
+                            "Use the filtered Wi-Fi cards for the user's narrowed question, but keep total_scan_result_count visible for context."
+                        } else {
+                            "No AP rows matched this filter; relax the filter or request a fresh scan before concluding the network is absent."
+                        },
+                    )
+                    .put("fraction", if (totalNetworkCount > 0) (matchedNetworkCount.toFloat() / totalNetworkCount).coerceIn(0.05f, 1f) else 0.05f),
+            )
+        }
+        if (filterSpec.bands.isNotEmpty()) {
+            addRow("band", "Band filter", filterSpec.bands.joinToString(", "), "Included Wi-Fi bands: ${filterSpec.bands.joinToString(", ")}.")
+        }
+        if (filterSpec.securityModes.isNotEmpty()) {
+            addRow("security", "Security filter", filterSpec.securityModes.joinToString(", "), "Included security modes: ${filterSpec.securityModes.joinToString(", ")}.")
+        }
+        if (filterSpec.signalQualities.isNotEmpty()) {
+            addRow("signal_strength", "Signal filter", filterSpec.signalQualities.joinToString(", "), "Included signal quality buckets: ${filterSpec.signalQualities.joinToString(", ")}.")
+        }
+        filterSpec.minRssiDbm?.let { addRow("min_rssi_dbm", "Minimum RSSI", "$it dBm", "Included APs at or above $it dBm.") }
+        filterSpec.maxRssiDbm?.let { addRow("max_rssi_dbm", "Maximum RSSI", "$it dBm", "Included APs at or below $it dBm.") }
+        if (filterSpec.ssidQuery.isNotBlank()) {
+            addRow("ssid", "SSID contains", filterSpec.ssidQuery, "Included APs whose SSID/display SSID contains this text.")
+        }
+        if (filterSpec.bssidQuery.isNotBlank()) {
+            addRow("bssid", "BSSID contains", filterSpec.bssidQuery, "Included APs whose BSSID contains this text.")
+        }
+        if (filterSpec.vendorQuery.isNotBlank()) {
+            addRow("vendor", "Vendor contains", filterSpec.vendorQuery, "Included APs whose local OUI/vendor label contains this text.")
+        }
+        if (filterSpec.hiddenOnly) {
+            addRow("hidden_only", "Hidden SSIDs only", "hidden only", "Included only rows marked hidden by Android scan metadata.")
+        } else if (filterSpec.excludeHidden) {
+            addRow("include_hidden", "Hidden SSIDs excluded", "exclude hidden", "Excluded rows marked hidden by Android scan metadata.")
+        }
+        return rows
+    }
+
+    private fun wifiRequestedFilterJson(filterSpec: WifiScanFilterSpec): JSONObject {
+        return JSONObject()
+            .put("bands", JSONArray(filterSpec.bands.toList()))
+            .put("security_modes", JSONArray(filterSpec.securityModes.toList()))
+            .put("signal_qualities", JSONArray(filterSpec.signalQualities.toList()))
+            .put("ssid_query", if (filterSpec.ssidQuery.isBlank()) JSONObject.NULL else filterSpec.ssidQuery)
+            .put("bssid_query", if (filterSpec.bssidQuery.isBlank()) JSONObject.NULL else filterSpec.bssidQuery)
+            .put("vendor_query", if (filterSpec.vendorQuery.isBlank()) JSONObject.NULL else filterSpec.vendorQuery)
+            .put("min_rssi_dbm", filterSpec.minRssiDbm ?: JSONObject.NULL)
+            .put("max_rssi_dbm", filterSpec.maxRssiDbm ?: JSONObject.NULL)
+            .put("exclude_hidden", filterSpec.excludeHidden)
+            .put("hidden_only", filterSpec.hiddenOnly)
+    }
+
+    private fun normalizedWifiBandFilter(value: String): String? {
+        val normalized = value.trim().lowercase(Locale.US).replace(" ", "")
+        if (normalized.isBlank() || normalized in setOf("all", "any", "*")) return null
+        return when {
+            normalized.contains("2.4") || normalized == "24ghz" || normalized == "2g" || normalized == "2ghz" -> "2.4GHz"
+            normalized.startsWith("5") -> "5GHz"
+            normalized.startsWith("6") || normalized == "6e" -> "6GHz"
+            normalized.startsWith("60") -> "60GHz"
+            else -> canonicalWifiBandLabel(value).takeIf { it != "unknown" }
+        }
+    }
+
+    private fun normalizedWifiSecurityFilter(value: String): String? {
+        val normalized = value.trim().lowercase(Locale.US).replace("_", " ")
+        if (normalized.isBlank() || normalized in setOf("all", "any", "*")) return null
+        return when {
+            "wpa3" in normalized || "sae" in normalized -> "WPA3"
+            "wpa2" in normalized || "rsn" in normalized -> "WPA2"
+            normalized == "wpa" || normalized.startsWith("wpa ") -> "WPA"
+            "enhanced" in normalized || "owe" in normalized -> "Enhanced Open"
+            "wep" in normalized -> "WEP"
+            "open" in normalized -> "Open"
+            else -> value.trim()
+        }
+    }
+
+    private fun normalizedWifiSignalFilter(value: String): String? {
+        val normalized = value.trim().lowercase(Locale.US).replace("_", " ")
+        if (normalized.isBlank() || normalized in setOf("all", "any", "*")) return null
+        return when {
+            normalized in setOf("excellent", "strong", "very strong") -> "excellent"
+            normalized == "good" -> "good"
+            normalized in setOf("fair", "medium", "moderate") -> "fair"
+            normalized in setOf("weak", "poor", "low") -> "weak"
+            else -> normalized
+        }
+    }
+
+    private fun wifiFilterTextMatches(value: String, query: String): Boolean {
+        return query.isBlank() || value.contains(query, ignoreCase = true)
     }
 
     internal fun wifiAccessPointSemanticRows(details: JSONArray, limit: Int = MAX_WIFI_RESULTS): JSONArray {
@@ -8078,6 +8322,60 @@ object HermesDeviceDiagnosticsBridge {
         }
     }
 
+    private fun intArgument(arguments: JSONObject, vararg keys: String): Int? {
+        val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return null
+        return when (val value = arguments.opt(key)) {
+            is Number -> value.toInt()
+            is String -> value.trim().toIntOrNull()
+            else -> null
+        }
+    }
+
+    private fun booleanArgument(arguments: JSONObject, vararg keys: String): Boolean? {
+        val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return null
+        return when (val value = arguments.opt(key)) {
+            is Boolean -> value
+            is Number -> value.toInt() != 0
+            is String -> when (value.trim().lowercase(Locale.US)) {
+                "1", "true", "yes", "on", "enabled" -> true
+                "0", "false", "no", "off", "disabled" -> false
+                else -> null
+            }
+            else -> null
+        }
+    }
+
+    private fun jsonStringArgument(arguments: JSONObject, vararg keys: String): String? {
+        val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return null
+        return when (val value = arguments.opt(key)) {
+            is JSONArray -> buildList {
+                for (index in 0 until value.length()) value.optString(index).trim().takeIf { it.isNotBlank() }?.let(::add)
+            }.joinToString(" ").takeIf { it.isNotBlank() }
+            else -> value?.toString()?.trim()?.takeIf { it.isNotBlank() }
+        }
+    }
+
+    private fun jsonStringListArgument(arguments: JSONObject, vararg keys: String): List<String> {
+        val key = keys.firstOrNull { candidate -> arguments.has(candidate) && !arguments.isNull(candidate) } ?: return emptyList()
+        return jsonStringListValue(arguments.opt(key))
+    }
+
+    private fun jsonStringListValue(value: Any?): List<String> {
+        return when (value) {
+            is JSONArray -> buildList {
+                for (index in 0 until value.length()) {
+                    addAll(jsonStringListValue(value.opt(index)))
+                }
+            }
+            is String -> value
+                .split(',', ';', '|')
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+            null, JSONObject.NULL -> emptyList()
+            else -> listOf(value.toString().trim()).filter { it.isNotBlank() }
+        }
+    }
+
     private fun jsonLongOrNull(row: JSONObject, key: String): Long? {
         return when (val value = row.opt(key)) {
             is Number -> value.toLong()
@@ -8546,6 +8844,35 @@ object HermesDeviceDiagnosticsBridge {
         val extra: JSONObject = JSONObject(),
     )
 
+    private data class WifiScanFilterSpec(
+        val bands: Set<String> = emptySet(),
+        val securityModes: Set<String> = emptySet(),
+        val signalQualities: Set<String> = emptySet(),
+        val ssidQuery: String = "",
+        val bssidQuery: String = "",
+        val vendorQuery: String = "",
+        val minRssiDbm: Int? = null,
+        val maxRssiDbm: Int? = null,
+        val excludeHidden: Boolean = false,
+        val hiddenOnly: Boolean = false,
+    ) {
+        val activeFilterCount: Int
+            get() = listOf(
+                bands.isNotEmpty(),
+                securityModes.isNotEmpty(),
+                signalQualities.isNotEmpty(),
+                ssidQuery.isNotBlank(),
+                bssidQuery.isNotBlank(),
+                vendorQuery.isNotBlank(),
+                minRssiDbm != null,
+                maxRssiDbm != null,
+                excludeHidden,
+                hiddenOnly,
+            ).count { it }
+        val active: Boolean
+            get() = activeFilterCount > 0
+    }
+
     internal data class WifiChannelMeasurement(
         val channel: Int,
         val band: String,
@@ -8577,6 +8904,7 @@ object HermesDeviceDiagnosticsBridge {
         "status",
         "top_apps",
         "wifi_scan",
+        "wifi_filtered_scan",
         "wifi_analyzer_report",
         "wifi_channel_rating",
         "wifi_channel_utilization",

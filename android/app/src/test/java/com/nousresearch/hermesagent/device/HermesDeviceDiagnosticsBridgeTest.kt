@@ -144,6 +144,75 @@ class HermesDeviceDiagnosticsBridgeTest {
     }
 
     @Test
+    fun filtersWifiAnalyzerRowsByBandSecuritySignalSsidRssiAndHiddenState() {
+        val networks = JSONArray()
+            .put(
+                JSONObject()
+                    .put("ssid", "HermesFast")
+                    .put("display_ssid", "HermesFast")
+                    .put("bssid", "AC:BC:32:12:34:56")
+                    .put("bssid_vendor", "Apple")
+                    .put("rssi_dbm", -49)
+                    .put("frequency_mhz", 5180)
+                    .put("band", "5GHz")
+                    .put("security_mode", "WPA3")
+                    .put("hidden_ssid", false),
+            )
+            .put(
+                JSONObject()
+                    .put("ssid", "HermesGuest")
+                    .put("display_ssid", "HermesGuest")
+                    .put("rssi_dbm", -52)
+                    .put("frequency_mhz", 5180)
+                    .put("band", "5GHz")
+                    .put("security_mode", "Open")
+                    .put("hidden_ssid", false),
+            )
+            .put(
+                JSONObject()
+                    .put("ssid", "Lab2G")
+                    .put("display_ssid", "Lab2G")
+                    .put("rssi_dbm", -45)
+                    .put("frequency_mhz", 2412)
+                    .put("band", "2.4GHz")
+                    .put("security_mode", "WPA3")
+                    .put("hidden_ssid", false),
+            )
+            .put(
+                JSONObject()
+                    .put("ssid", "")
+                    .put("display_ssid", "")
+                    .put("rssi_dbm", -48)
+                    .put("frequency_mhz", 5180)
+                    .put("band", "5GHz")
+                    .put("security_mode", "WPA3")
+                    .put("hidden_ssid", true),
+            )
+
+        val filtered = HermesDeviceDiagnosticsBridge.wifiFilteredNetworkRows(
+            networks,
+            JSONObject()
+                .put("filter_band", "5GHz")
+                .put("filter_security", "WPA3")
+                .put("filter_signal", "excellent,good")
+                .put("filter_ssid", "Hermes")
+                .put("min_rssi_dbm", -60)
+                .put("include_hidden", false),
+        )
+        val hiddenOnly = HermesDeviceDiagnosticsBridge.wifiFilteredNetworkRows(
+            networks,
+            JSONObject()
+                .put("filter_band", "5GHz")
+                .put("hidden_only", true),
+        )
+
+        assertEquals(1, filtered.length())
+        assertEquals("HermesFast", filtered.getJSONObject(0).getString("ssid"))
+        assertEquals(1, hiddenOnly.length())
+        assertTrue(hiddenOnly.getJSONObject(0).getBoolean("hidden_ssid"))
+    }
+
+    @Test
     fun buildsWifiAccessPointExportRowsAndAnalyzerSummaries() {
         val networks = JSONArray()
             .put(
