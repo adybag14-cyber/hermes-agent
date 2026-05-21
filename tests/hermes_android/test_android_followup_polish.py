@@ -292,6 +292,10 @@ def test_android_diagnostics_exposes_soc_compatibility_report_for_backend_policy
 
     assert '"soc_compatibility_report"' in diagnostics_bridge
     assert 'socCompatibilityReportJson(appContext)' in diagnostics_bridge
+    assert '"device_performance_report"' in diagnostics_bridge
+    assert 'devicePerformanceReportJson(appContext)' in diagnostics_bridge
+    assert 'devicePerformanceProfileJson(appContext)' in diagnostics_bridge
+    assert 'devicePerformanceMatrixRows(performanceProfile, socProfile)' in diagnostics_bridge
     assert '"local_backend_runtime_report"' in diagnostics_bridge
     assert 'localBackendRuntimeReportJson(appContext)' in diagnostics_bridge
     assert 'runtimeBackendMatrixRows(' in diagnostics_bridge
@@ -303,17 +307,25 @@ def test_android_diagnostics_exposes_soc_compatibility_report_for_backend_policy
     assert '"soc_backend_policy_routes"' in diagnostics_bridge
     assert '"soc_backend_constraint_matrix"' in diagnostics_bridge
     assert '"runtime_backend_matrix"' in diagnostics_bridge
+    assert '"runtime_stability_matrix"' in diagnostics_bridge
+    assert 'Thermal & Memory Guardrails' in diagnostics_bridge
+    assert 'MediaTek/non-Adreno stability guardrail' in diagnostics_bridge
+    assert 'PowerManager.currentThermalStatus' in diagnostics_bridge
+    assert 'Build.VERSION.MEDIA_PERFORMANCE_CLASS' in diagnostics_bridge
     assert 'LiteRT-LM /health accelerator' in diagnostics_bridge
     assert 'MediaTek/Mali/PowerVR coverage' in diagnostics_bridge
     assert 'Avoid Adreno-only assumptions' in diagnostics_bridge
     assert 'local_backend_runtime_report' in chat_client
     assert 'soc_compatibility_report' in chat_client
+    assert 'device_performance_report' in chat_client
     assert '"runtime_backend_matrix"' in chat_client
+    assert '"runtime_stability_matrix"' in chat_client
     assert '"soc_backend_matrix"' in chat_client
     assert '"soc_backend_policy_routes"' in chat_client
     assert '"soc_backend_constraint_matrix"' in chat_client
-    assert '"runtime_backend_matrix" -> capabilityMatrixRow(row)' in diagnostic_cards
+    assert '"runtime_backend_matrix", "runtime_stability_matrix" -> capabilityMatrixRow(row)' in diagnostic_cards
     assert 'id = "runtime_backend"' in quick_actions
+    assert 'id = "runtime_stability"' in quick_actions
     assert 'id = "soc_compatibility"' in quick_actions
 
 
@@ -628,6 +640,7 @@ def test_device_backend_exposes_deeper_radio_control_actions_and_status():
     assert 'isActiveNetworkMetered' in bridge
     assert 'Cellular + radio controls' in device
     assert 'airplane_mode_enabled' in state_writer
+    assert 'android_device_performance_profile' in state_writer
 
 
 def test_android_automation_exposes_operator_standby_history_for_remote_dispatch():

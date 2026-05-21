@@ -47,6 +47,13 @@ val SIGNAL_INTELLIGENCE_QUICK_ACTIONS = listOf(
         iconRes = R.drawable.ic_action_cog,
     ),
     SignalIntelligenceQuickAction(
+        id = "runtime_stability",
+        label = "Runtime Stability",
+        diagnosticAction = "device_performance_report",
+        prompt = "Run android_device_diagnostics_tool action=device_performance_report",
+        iconRes = R.drawable.ic_action_cog,
+    ),
+    SignalIntelligenceQuickAction(
         id = "wifi_analyzer",
         label = "Wi-Fi Analyzer",
         diagnosticAction = "wifi_analyzer_report",

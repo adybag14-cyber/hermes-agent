@@ -83,6 +83,7 @@ object DeviceStateWriter {
             put("wifi_scan_permission_status", diagnosticsStatus.optJSONObject("wifi_scan_permission_status") ?: JSONObject())
             put("bluetooth_scan_permission_status", diagnosticsStatus.optJSONObject("bluetooth_scan_permission_status") ?: JSONObject())
             put("android_soc_profile", diagnosticsStatus.optJSONObject("soc_profile") ?: JSONObject())
+            put("android_device_performance_profile", diagnosticsStatus.optJSONObject("device_performance_profile") ?: JSONObject())
             put("available_diagnostic_sensor_types", diagnosticsStatus.optJSONArray("available_sensor_types") ?: JSONArray())
             put("available_diagnostics_actions", diagnosticsStatus.optJSONArray("available_actions") ?: JSONArray())
         }

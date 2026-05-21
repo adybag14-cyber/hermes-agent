@@ -791,6 +791,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("bluetooth_analyzer_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("sensor_analyzer_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("local_backend_runtime_report"))
+        assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("device_performance_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("radio_signal_status"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("radio_analyzer_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("motion_pose"))
@@ -811,6 +812,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.has("offline_airplane_mode"))
         assertTrue(result.getJSONObject("current_local_backend").has("backend_kind"))
         assertTrue(result.getJSONObject("litert_runtime_health").has("gpu_policy"))
+        assertTrue(result.has("device_performance_profile"))
         assertTrue(result.has("preferred_local_model"))
         assertTrue(labels.contains("Selected on-device backend"))
         assertTrue(labels.contains("Current local backend state"))
@@ -819,7 +821,9 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(labels.contains("Multimodal runtime policy"))
         assertTrue(labels.contains("MediaTek/non-Snapdragon fallback policy"))
         assertTrue(result.getJSONArray("cards").toString().contains("Runtime Backend Health"))
+        assertTrue(result.getJSONArray("cards").toString().contains("Thermal & Memory Guardrails"))
         assertTrue(result.getInt("runtime_backend_feature_count") >= 6)
+        assertTrue(result.getInt("runtime_stability_feature_count") >= 6)
     }
 
     @Test
@@ -829,6 +833,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         val routes = result.getJSONArray("soc_backend_policy_routes")
         val constraints = result.getJSONArray("soc_backend_constraint_matrix")
         val runtimeRows = result.getJSONArray("runtime_backend_matrix")
+        val stabilityRows = result.getJSONArray("runtime_stability_matrix")
         val backendLabels = buildSet {
             for (index in 0 until backend.length()) add(backend.getJSONObject(index).getString("label"))
         }
@@ -841,11 +846,15 @@ class HermesDeviceDiagnosticsBridgeTest {
         val runtimeLabels = buildSet {
             for (index in 0 until runtimeRows.length()) add(runtimeRows.getJSONObject(index).getString("label"))
         }
+        val stabilityLabels = buildSet {
+            for (index in 0 until stabilityRows.length()) add(stabilityRows.getJSONObject(index).getString("label"))
+        }
 
         assertTrue(result.getBoolean("success"))
         assertEquals("soc_compatibility_report", result.getString("action"))
         assertTrue(result.has("android_device_identity"))
         assertTrue(result.getJSONObject("soc_profile").has("litert_lm_backend_strategy"))
+        assertTrue(result.has("device_performance_profile"))
         assertTrue(result.has("preferred_local_model"))
         assertTrue(result.has("current_local_backend"))
         assertTrue(result.has("litert_runtime_health"))
@@ -864,13 +873,46 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(constraintLabels.contains("x86 emulator is not phone GPU proof"))
         assertTrue(result.getJSONArray("cards").toString().contains("SOC Compatibility"))
         assertTrue(result.getJSONArray("cards").toString().contains("Runtime Backend Health"))
+        assertTrue(result.getJSONArray("cards").toString().contains("Thermal & Memory Guardrails"))
         assertTrue(runtimeLabels.contains("LiteRT-LM /health accelerator"))
         assertTrue(runtimeLabels.contains("MediaTek/non-Snapdragon fallback policy"))
+        assertTrue(stabilityLabels.contains("Thermal throttling status"))
+        assertTrue(stabilityLabels.contains("MediaTek/non-Adreno stability guardrail"))
         assertTrue(result.getInt("soc_backend_feature_count") >= 7)
         assertTrue(result.getInt("ready_soc_backend_feature_count") >= 4)
         assertTrue(result.getInt("soc_backend_route_count") >= 5)
         assertTrue(result.getInt("soc_backend_constraint_count") >= 5)
         assertTrue(result.getInt("runtime_backend_feature_count") >= 6)
+        assertTrue(result.getInt("runtime_stability_feature_count") >= 6)
+    }
+
+    @Test
+    fun devicePerformanceReportExposesThermalMemoryPowerGuardrailsForRuntimeStability() {
+        val result = HermesDeviceDiagnosticsBridge.devicePerformanceReportJson(context)
+        val rows = result.getJSONArray("runtime_stability_matrix")
+        val labels = buildSet {
+            for (index in 0 until rows.length()) add(rows.getJSONObject(index).getString("label"))
+        }
+
+        assertTrue(result.getBoolean("success"))
+        assertEquals("device_performance_report", result.getString("action"))
+        assertTrue(result.has("soc_profile"))
+        assertTrue(result.has("device_performance_profile"))
+        assertTrue(result.has("thermal_status_label"))
+        assertTrue(result.has("power_save_mode"))
+        assertTrue(result.has("low_ram_device"))
+        assertTrue(result.has("memory_class_mb"))
+        assertTrue(result.has("large_memory_class_mb"))
+        assertTrue(result.has("media_performance_class"))
+        assertTrue(result.has("battery_status_label"))
+        assertTrue(labels.contains("Thermal throttling status"))
+        assertTrue(labels.contains("Low-RAM and memory class"))
+        assertTrue(labels.contains("Battery and power saver state"))
+        assertTrue(labels.contains("Android media performance class"))
+        assertTrue(labels.contains("MediaTek/non-Adreno stability guardrail"))
+        assertTrue(labels.contains("Local inference cadence policy"))
+        assertTrue(result.getJSONArray("cards").toString().contains("Thermal & Memory Guardrails"))
+        assertTrue(result.getInt("runtime_stability_feature_count") >= 6)
     }
 
     @Test

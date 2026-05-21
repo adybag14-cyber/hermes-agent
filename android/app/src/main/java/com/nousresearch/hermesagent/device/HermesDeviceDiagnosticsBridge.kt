@@ -14,6 +14,7 @@ import android.bluetooth.le.ScanResult as BleScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.hardware.Sensor
@@ -27,9 +28,11 @@ import android.location.LocationManager
 import android.net.Uri
 import android.net.wifi.ScanResult
 import android.net.wifi.WifiManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.PowerManager
 import android.os.Process
 import android.os.SystemClock
 import android.os.storage.StorageManager
@@ -104,6 +107,8 @@ object HermesDeviceDiagnosticsBridge {
                 localBackendRuntimeReportJson(appContext).toString()
             "soc_compatibility_report", "soc_backend_report", "mediatek_compatibility_report", "litert_backend_report", "gpu_backend_report" ->
                 socCompatibilityReportJson(appContext).toString()
+            "device_performance_report", "thermal_status_report", "runtime_stability_report", "mediatek_stability_report", "power_stability_report" ->
+                devicePerformanceReportJson(appContext).toString()
             "signal_awareness_report", "nearby_signal_report", "rf_sensor_fusion_report", "ambient_context_report" ->
                 signalAwarenessReportJson(appContext).toString()
             "agent_observation_report", "agent_signal_dashboard", "gemma_observation_report", "multimodal_signal_dashboard" ->
@@ -130,6 +135,7 @@ object HermesDeviceDiagnosticsBridge {
     fun statusJson(context: Context): JSONObject {
         val appContext = context.applicationContext
         val sensorManager = appContext.getSystemService(SensorManager::class.java)
+        val performanceProfile = devicePerformanceProfileJson(appContext)
         return JSONObject()
             .put("success", true)
             .put("action", "status")
@@ -145,6 +151,11 @@ object HermesDeviceDiagnosticsBridge {
             .put("current_local_backend", localBackendStatusJson(OnDeviceBackendManager.currentStatus()))
             .put("litert_runtime_health", liteRtRuntimeHealthJson())
             .put("soc_profile", socProfileJson())
+            .put("device_performance_profile", performanceProfile)
+            .put("thermal_status_label", performanceProfile.optString("thermal_status_label"))
+            .put("power_save_mode", performanceProfile.optBoolean("power_save_mode", false))
+            .put("low_ram_device", performanceProfile.optBoolean("low_ram_device", false))
+            .put("media_performance_class", performanceProfile.optInt("media_performance_class", 0))
             .put("location_enabled", isLocationEnabled(appContext))
             .put("sensor_count", sensorManager?.getSensorList(Sensor.TYPE_ALL)?.size ?: 0)
             .put("available_sensor_types", JSONArray(sensorTypeCatalog(appContext)))
@@ -1304,6 +1315,7 @@ object HermesDeviceDiagnosticsBridge {
         val currentBackend = OnDeviceBackendManager.currentStatus()
         val runtimeHealth = liteRtRuntimeHealthJson()
         val socProfile = socProfileJson()
+        val performanceProfile = devicePerformanceProfileJson(appContext)
         val preferredModel = preferredLocalModelJson(appContext)
         val rows = runtimeBackendMatrixRows(
             selectedBackend = selectedBackend,
@@ -1313,6 +1325,7 @@ object HermesDeviceDiagnosticsBridge {
             preferredModel = preferredModel,
             offlineAirplaneMode = settings.offlineAirplaneMode,
         )
+        val stabilityRows = devicePerformanceMatrixRows(performanceProfile, socProfile)
         return JSONObject()
             .put("success", true)
             .put("action", "local_backend_runtime_report")
@@ -1322,10 +1335,14 @@ object HermesDeviceDiagnosticsBridge {
             .put("current_local_backend", localBackendStatusJson(currentBackend))
             .put("litert_runtime_health", runtimeHealth)
             .put("soc_profile", socProfile)
+            .put("device_performance_profile", performanceProfile)
             .put("preferred_local_model", preferredModel)
             .put("runtime_backend_matrix", rows)
+            .put("runtime_stability_matrix", stabilityRows)
             .put("runtime_backend_feature_count", rows.length())
             .put("ready_runtime_backend_feature_count", countReadyRows(rows))
+            .put("runtime_stability_feature_count", stabilityRows.length())
+            .put("ready_runtime_stability_feature_count", countReadyRows(stabilityRows))
             .put(
                 "cards",
                 JSONArray()
@@ -1336,6 +1353,14 @@ object HermesDeviceDiagnosticsBridge {
                             graphType = "runtime_backend_matrix",
                             rows = rows,
                         ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Thermal & Memory Guardrails",
+                            body = "${stabilityRows.length()} thermal, low-RAM, battery, power-saver, performance-class, and non-Adreno stability row(s) for local inference.",
+                            graphType = "runtime_stability_matrix",
+                            rows = stabilityRows,
+                        ),
                     ),
             )
     }
@@ -1343,6 +1368,7 @@ object HermesDeviceDiagnosticsBridge {
     fun socCompatibilityReportJson(context: Context): JSONObject {
         val appContext = context.applicationContext
         val socProfile = socProfileJson()
+        val performanceProfile = devicePerformanceProfileJson(appContext)
         val preferredModel = preferredLocalModelJson(appContext)
         val settings = AppSettingsStore(appContext).load()
         val selectedBackend = BackendKind.fromPersistedValue(settings.onDeviceBackend)
@@ -1359,12 +1385,14 @@ object HermesDeviceDiagnosticsBridge {
             preferredModel = preferredModel,
             offlineAirplaneMode = settings.offlineAirplaneMode,
         )
+        val stabilityRows = devicePerformanceMatrixRows(performanceProfile, socProfile)
         return JSONObject()
             .put("success", true)
             .put("action", "soc_compatibility_report")
             .put("report_scope", "Dedicated SOC, GPU, ABI, and LiteRT-LM backend compatibility report for non-Snapdragon Android devices.")
             .put("android_device_identity", deviceIdentityJson())
             .put("soc_profile", socProfile)
+            .put("device_performance_profile", performanceProfile)
             .put("preferred_local_model", preferredModel)
             .put("selected_on_device_backend", selectedBackend.persistedValue)
             .put("offline_airplane_mode", settings.offlineAirplaneMode)
@@ -1381,12 +1409,15 @@ object HermesDeviceDiagnosticsBridge {
             .put("soc_backend_policy_routes", routeRows)
             .put("soc_backend_constraint_matrix", constraintRows)
             .put("runtime_backend_matrix", runtimeRows)
+            .put("runtime_stability_matrix", stabilityRows)
             .put("soc_backend_feature_count", backendRows.length())
             .put("ready_soc_backend_feature_count", countReadyRows(backendRows))
             .put("soc_backend_route_count", routeRows.length())
             .put("soc_backend_constraint_count", constraintRows.length())
             .put("runtime_backend_feature_count", runtimeRows.length())
             .put("ready_runtime_backend_feature_count", countReadyRows(runtimeRows))
+            .put("runtime_stability_feature_count", stabilityRows.length())
+            .put("ready_runtime_stability_feature_count", countReadyRows(stabilityRows))
             .put(
                 "cards",
                 JSONArray()
@@ -1420,6 +1451,57 @@ object HermesDeviceDiagnosticsBridge {
                             body = "${runtimeRows.length()} passive runtime row(s) covering selected backend, current local state, /health accelerator fields, artifact compatibility, and MediaTek fallback guidance.",
                             graphType = "runtime_backend_matrix",
                             rows = runtimeRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Thermal & Memory Guardrails",
+                            body = "${stabilityRows.length()} stability row(s) for throttling, low-RAM, battery, power saver, and Android media performance class on MediaTek/non-Adreno devices.",
+                            graphType = "runtime_stability_matrix",
+                            rows = stabilityRows,
+                        ),
+                    ),
+            )
+    }
+
+    fun devicePerformanceReportJson(context: Context): JSONObject {
+        val appContext = context.applicationContext
+        val socProfile = socProfileJson()
+        val performanceProfile = devicePerformanceProfileJson(appContext)
+        val rows = devicePerformanceMatrixRows(performanceProfile, socProfile)
+        return JSONObject()
+            .put("success", true)
+            .put("action", "device_performance_report")
+            .put("report_scope", "Passive thermal, memory, battery, power-saver, and Android performance-class guardrails for stable local inference on MediaTek, Mali, PowerVR/IMG, and other non-Adreno phones.")
+            .put("soc_profile", socProfile)
+            .put("device_performance_profile", performanceProfile)
+            .put("thermal_status", performanceProfile.optInt("thermal_status", -1))
+            .put("thermal_status_label", performanceProfile.optString("thermal_status_label"))
+            .put("thermal_api_supported", performanceProfile.optBoolean("thermal_api_supported", false))
+            .put("power_save_mode", performanceProfile.optBoolean("power_save_mode", false))
+            .put("low_ram_device", performanceProfile.optBoolean("low_ram_device", false))
+            .put("memory_class_mb", performanceProfile.optInt("memory_class_mb", 0))
+            .put("large_memory_class_mb", performanceProfile.optInt("large_memory_class_mb", 0))
+            .put("media_performance_class", performanceProfile.optInt("media_performance_class", 0))
+            .put("battery_status_label", performanceProfile.optString("battery_status_label"))
+            .put("runtime_stability_matrix", rows)
+            .put("runtime_stability_feature_count", rows.length())
+            .put("ready_runtime_stability_feature_count", countReadyRows(rows))
+            .put(
+                "notes",
+                JSONArray()
+                    .put("This report is passive: it reads Android thermal, memory, power, and battery state and does not start a model or scan hardware.")
+                    .put("Use it with SOC compatibility and local backend reports before judging MediaTek/Mali/PowerVR runtime stability."),
+            )
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        graphCard(
+                            title = "Thermal & Memory Guardrails",
+                            body = "${rows.length()} passive stability row(s) covering thermal throttling, memory class, low-RAM, battery/power state, Android media performance class, and non-Adreno local inference guardrails.",
+                            graphType = "runtime_stability_matrix",
+                            rows = rows,
                         ),
                     ),
             )
@@ -4407,6 +4489,229 @@ object HermesDeviceDiagnosticsBridge {
                 .put("backend", "litert-lm")
                 .put("accelerator", JSONObject.NULL)
                 .put("gpu_policy", "LiteRT-LM proxy is not currently running; start a local LiteRT-LM/AICore backend to expose live /health accelerator fields.")
+    }
+
+    private fun devicePerformanceProfileJson(context: Context): JSONObject {
+        val activityManager = context.getSystemService(ActivityManager::class.java)
+        val powerManager = context.getSystemService(PowerManager::class.java)
+        val memorySummary = memorySummaryJson(context)
+        val battery = batteryStateJson(context)
+        val thermalStatus = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && powerManager != null) {
+            powerManager.currentThermalStatus
+        } else {
+            THERMAL_STATUS_UNSUPPORTED
+        }
+        val mediaPerformanceClass = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Build.VERSION.MEDIA_PERFORMANCE_CLASS
+        } else {
+            0
+        }
+        return JSONObject()
+            .put("thermal_api_supported", Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && powerManager != null)
+            .put("thermal_status", thermalStatus)
+            .put("thermal_status_label", thermalStatusLabel(thermalStatus))
+            .put("thermal_status_severity", thermalStatusSeverity(thermalStatus))
+            .put("thermal_throttling_risk", thermalThrottlingRiskLabel(thermalStatus))
+            .put("power_save_mode", powerManager?.isPowerSaveMode ?: false)
+            .put("interactive", powerManager?.isInteractive ?: true)
+            .put("low_ram_device", activityManager?.isLowRamDevice ?: false)
+            .put("memory_class_mb", activityManager?.memoryClass ?: 0)
+            .put("large_memory_class_mb", activityManager?.largeMemoryClass ?: 0)
+            .put("available_memory_bytes", memorySummary.optLong("available_bytes", 0L))
+            .put("available_memory_label", memorySummary.optString("available_label").ifBlank { "unknown" })
+            .put("total_memory_bytes", memorySummary.optLong("total_bytes", 0L))
+            .put("total_memory_label", memorySummary.optString("total_label").ifBlank { "unknown" })
+            .put("memory_pressure_low", memorySummary.optBoolean("low_memory", false))
+            .put("memory_threshold_bytes", memorySummary.optLong("threshold_bytes", 0L))
+            .put("memory_threshold_label", memorySummary.optString("threshold_label").ifBlank { "unknown" })
+            .put("app_data_free_bytes", memorySummary.optLong("app_data_free_bytes", 0L))
+            .put("app_data_free_label", memorySummary.optString("app_data_free_label").ifBlank { "unknown" })
+            .put("media_performance_class", mediaPerformanceClass)
+            .put("media_performance_class_label", mediaPerformanceClassLabel(mediaPerformanceClass))
+            .put("battery_status", battery.optInt("battery_status", BatteryManager.BATTERY_STATUS_UNKNOWN))
+            .put("battery_status_label", battery.optString("battery_status_label"))
+            .put("battery_plugged", battery.optInt("battery_plugged", 0))
+            .put("battery_plugged_label", battery.optString("battery_plugged_label"))
+            .put("battery_level_percent", battery.opt("battery_level_percent") ?: JSONObject.NULL)
+            .put("battery_temperature_celsius", battery.opt("battery_temperature_celsius") ?: JSONObject.NULL)
+    }
+
+    private fun batteryStateJson(context: Context): JSONObject {
+        val batteryIntent = runCatching {
+            context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }.getOrNull()
+        val status = batteryIntent?.getIntExtra(
+            BatteryManager.EXTRA_STATUS,
+            BatteryManager.BATTERY_STATUS_UNKNOWN,
+        ) ?: BatteryManager.BATTERY_STATUS_UNKNOWN
+        val plugged = batteryIntent?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0
+        val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+        val temperatureTenths = batteryIntent?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+            ?: Int.MIN_VALUE
+        val percent = if (level >= 0 && scale > 0) (level.toDouble() * 100.0 / scale.toDouble()) else null
+        val temperatureCelsius = if (temperatureTenths != Int.MIN_VALUE) temperatureTenths / 10.0 else null
+        return JSONObject()
+            .put("battery_status", status)
+            .put("battery_status_label", batteryStatusLabel(status))
+            .put("battery_plugged", plugged)
+            .put("battery_plugged_label", batteryPluggedLabel(plugged))
+            .put("battery_level_percent", percent ?: JSONObject.NULL)
+            .put("battery_temperature_celsius", temperatureCelsius ?: JSONObject.NULL)
+    }
+
+    private fun devicePerformanceMatrixRows(profile: JSONObject, socProfile: JSONObject): JSONArray {
+        val thermalStatus = profile.optInt("thermal_status", THERMAL_STATUS_UNSUPPORTED)
+        val powerSaveMode = profile.optBoolean("power_save_mode", false)
+        val lowRam = profile.optBoolean("low_ram_device", false)
+        val memoryClass = profile.optInt("memory_class_mb", 0)
+        val largeMemoryClass = profile.optInt("large_memory_class_mb", 0)
+        val mediaPerformanceClass = profile.optInt("media_performance_class", 0)
+        val socLabel = socProfile.optString("soc_family_label").ifBlank { "Android SOC" }
+        val gpuLabel = socProfile.optString("gpu_family_label").ifBlank { "GPU unknown" }
+        return JSONArray()
+            .put(
+                capabilityRow(
+                    category = "runtime_stability",
+                    label = "Thermal throttling status",
+                    ready = thermalStatus < PowerManager.THERMAL_STATUS_SEVERE,
+                    valueLabel = profile.optString("thermal_status_label").ifBlank { "unknown" },
+                    detail = "thermal_api_supported=${profile.optBoolean("thermal_api_supported", false)} | risk=${profile.optString("thermal_throttling_risk").ifBlank { "unknown" }}",
+                    recommendation = "If thermal status reaches severe or higher, prefer CPU fallback, smaller local models, shorter responses, or wait before GPU-heavy LiteRT-LM runs.",
+                    fraction = thermalStatusFraction(thermalStatus),
+                    extra = JSONObject().put("source_surface", "PowerManager.currentThermalStatus"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_stability",
+                    label = "Low-RAM and memory class",
+                    ready = !lowRam && memoryClass >= 128,
+                    valueLabel = "${memoryClass}MB app / ${largeMemoryClass}MB large",
+                    detail = "low_ram_device=$lowRam | available=${profile.optString("available_memory_label").ifBlank { "unknown" }} | total=${profile.optString("total_memory_label").ifBlank { "unknown" }} | threshold=${profile.optString("memory_threshold_label").ifBlank { "unknown" }}",
+                    recommendation = "Use memory class and low-RAM status before enabling multimodal local inference, speculative decoding, or large model artifacts on lower-end MediaTek phones.",
+                    fraction = when {
+                        lowRam -> 0.35f
+                        memoryClass >= 384 -> 0.95f
+                        memoryClass >= 192 -> 0.8f
+                        memoryClass >= 128 -> 0.65f
+                        else -> 0.4f
+                    },
+                    extra = JSONObject().put("source_surface", "ActivityManager memory class"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_stability",
+                    label = "Battery and power saver state",
+                    ready = !powerSaveMode,
+                    valueLabel = if (powerSaveMode) "power saver enabled" else "normal power policy",
+                    detail = "battery=${profile.optString("battery_status_label").ifBlank { "unknown" }} | plugged=${profile.optString("battery_plugged_label").ifBlank { "unknown" }} | level=${profile.opt("battery_level_percent") ?: JSONObject.NULL} | temp_c=${profile.opt("battery_temperature_celsius") ?: JSONObject.NULL}",
+                    recommendation = "When power saver is enabled or battery temperature is high, reduce scan refreshes and prefer short local inference bursts.",
+                    fraction = if (powerSaveMode) 0.55f else 0.85f,
+                    extra = JSONObject().put("source_surface", "PowerManager and ACTION_BATTERY_CHANGED"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_stability",
+                    label = "Android media performance class",
+                    ready = true,
+                    valueLabel = profile.optString("media_performance_class_label").ifBlank { "not declared" },
+                    detail = "media_performance_class=$mediaPerformanceClass; not all phones declare this even when local inference can still run.",
+                    recommendation = "Use this as a guardrail for video/image/audio expectations, not as the only gate for Gemma local inference.",
+                    fraction = if (mediaPerformanceClass > 0) 0.85f else 0.55f,
+                    extra = JSONObject().put("source_surface", "Build.VERSION.MEDIA_PERFORMANCE_CLASS"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_stability",
+                    label = "MediaTek/non-Adreno stability guardrail",
+                    ready = true,
+                    valueLabel = "$socLabel / $gpuLabel",
+                    detail = "SOC family=${socProfile.optString("soc_family").ifBlank { "unknown" }} | GPU family=${socProfile.optString("gpu_family_hint").ifBlank { "unknown" }} | ABI=${socProfile.optString("primary_abi").ifBlank { "unknown" }}",
+                    recommendation = "Combine SOC/GPU detection with thermal, low-RAM, power, and live /health accelerator fields before treating non-Adreno phones as unsupported.",
+                    fraction = 0.95f,
+                    extra = JSONObject().put("feature_source", "MediaTek and non-Adreno runtime stability policy"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "runtime_stability",
+                    label = "Local inference cadence policy",
+                    ready = true,
+                    valueLabel = "bounded bursts",
+                    detail = "Use cached Wi-Fi/Bluetooth rows, one-shot sensor samples, and passive stability state before repeated refreshes or long model/tool loops.",
+                    recommendation = "Route long local Gemma work through runtime_backend_report plus this stability matrix so scans and inference adapt to current phone pressure.",
+                    fraction = 0.9f,
+                    extra = JSONObject().put("tool_action", "device_performance_report"),
+                ),
+            )
+    }
+
+    private fun thermalStatusLabel(status: Int): String = when (status) {
+        THERMAL_STATUS_UNSUPPORTED -> "unsupported"
+        PowerManager.THERMAL_STATUS_NONE -> "none"
+        PowerManager.THERMAL_STATUS_LIGHT -> "light"
+        PowerManager.THERMAL_STATUS_MODERATE -> "moderate"
+        PowerManager.THERMAL_STATUS_SEVERE -> "severe"
+        PowerManager.THERMAL_STATUS_CRITICAL -> "critical"
+        PowerManager.THERMAL_STATUS_EMERGENCY -> "emergency"
+        PowerManager.THERMAL_STATUS_SHUTDOWN -> "shutdown"
+        else -> "unknown($status)"
+    }
+
+    private fun thermalStatusSeverity(status: Int): String = when {
+        status == THERMAL_STATUS_UNSUPPORTED -> "unsupported"
+        status <= PowerManager.THERMAL_STATUS_LIGHT -> "low"
+        status == PowerManager.THERMAL_STATUS_MODERATE -> "moderate"
+        status == PowerManager.THERMAL_STATUS_SEVERE -> "high"
+        else -> "critical"
+    }
+
+    private fun thermalThrottlingRiskLabel(status: Int): String = when {
+        status == THERMAL_STATUS_UNSUPPORTED -> "api unavailable"
+        status <= PowerManager.THERMAL_STATUS_LIGHT -> "low"
+        status == PowerManager.THERMAL_STATUS_MODERATE -> "medium"
+        status == PowerManager.THERMAL_STATUS_SEVERE -> "high"
+        else -> "critical"
+    }
+
+    private fun thermalStatusFraction(status: Int): Float = when {
+        status == THERMAL_STATUS_UNSUPPORTED -> 0.55f
+        status <= PowerManager.THERMAL_STATUS_LIGHT -> 0.95f
+        status == PowerManager.THERMAL_STATUS_MODERATE -> 0.75f
+        status == PowerManager.THERMAL_STATUS_SEVERE -> 0.45f
+        else -> 0.2f
+    }
+
+    private fun mediaPerformanceClassLabel(mediaPerformanceClass: Int): String {
+        return if (mediaPerformanceClass > 0) {
+            "Android $mediaPerformanceClass media performance class"
+        } else {
+            "not declared"
+        }
+    }
+
+    private fun batteryStatusLabel(status: Int): String = when (status) {
+        BatteryManager.BATTERY_STATUS_CHARGING -> "charging"
+        BatteryManager.BATTERY_STATUS_DISCHARGING -> "discharging"
+        BatteryManager.BATTERY_STATUS_FULL -> "full"
+        BatteryManager.BATTERY_STATUS_NOT_CHARGING -> "not charging"
+        else -> "unknown"
+    }
+
+    private fun batteryPluggedLabel(plugged: Int): String {
+        val labels = buildList {
+            if (plugged and BatteryManager.BATTERY_PLUGGED_AC != 0) add("ac")
+            if (plugged and BatteryManager.BATTERY_PLUGGED_USB != 0) add("usb")
+            if (plugged and BatteryManager.BATTERY_PLUGGED_WIRELESS != 0) add("wireless")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && plugged and BatteryManager.BATTERY_PLUGGED_DOCK != 0) {
+                add("dock")
+            }
+        }
+        return labels.joinToString("+").ifBlank { "unplugged" }
     }
 
     private fun runtimeBackendMatrixRows(
@@ -8290,6 +8595,7 @@ object HermesDeviceDiagnosticsBridge {
         "signal_capability_status",
         "local_backend_runtime_report",
         "soc_compatibility_report",
+        "device_performance_report",
         "signal_awareness_report",
         "agent_observation_report",
         "agent_environment_report",
@@ -8321,6 +8627,7 @@ object HermesDeviceDiagnosticsBridge {
     private val DEFAULT_MOTION_POSE_SENSOR_TYPES = listOf("accelerometer", "gravity", "magnetic_field", "rotation_vector", "gyroscope", "linear_acceleration")
     private const val DEFAULT_LIMIT = 5
     private const val MAX_LIMIT = 20
+    private const val THERMAL_STATUS_UNSUPPORTED = -1
     private const val MAX_WIFI_RESULTS = 40
     private const val MAX_WIFI_CHANNEL_RATINGS = 24
     private const val MAX_WIFI_CHANNEL_UTILIZATION_ROWS = 32
