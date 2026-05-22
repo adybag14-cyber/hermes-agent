@@ -85,6 +85,16 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun extractsExplicitWifiConnectionLinkDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=wifi_connection_link",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("wifi_connection_link", parsed.getString("action"))
+    }
+
+    @Test
     fun extractsExplicitSocCompatibilityDiagnosticQuickActionArguments() {
         val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
             "Run android_device_diagnostics_tool action=soc_compatibility_report",
@@ -156,6 +166,10 @@ class NativeToolCallingChatClientTest {
         assertEquals(
             "wifi_channel_rating",
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Rate the best Wi-Fi channel for the nearby APs.")?.getString("action"),
+        )
+        assertEquals(
+            "wifi_connection_link",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show my current Wi-Fi connection link quality.")?.getString("action"),
         )
         assertEquals(
             "bluetooth_scan",

@@ -96,6 +96,13 @@ val SIGNAL_INTELLIGENCE_QUICK_ACTIONS = listOf(
         iconRes = R.drawable.ic_action_refresh,
     ),
     SignalIntelligenceQuickAction(
+        id = "wifi_link",
+        label = "Wi-Fi Link",
+        diagnosticAction = "wifi_connection_link",
+        prompt = "Run android_device_diagnostics_tool action=wifi_connection_link",
+        iconRes = R.drawable.ic_nav_device,
+    ),
+    SignalIntelligenceQuickAction(
         id = "wifi_nearby",
         label = "Nearby Wi-Fi",
         diagnosticAction = "wifi_scan",

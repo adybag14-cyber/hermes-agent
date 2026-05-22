@@ -1299,9 +1299,9 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_device_diagnostics_tool",
-                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, camera capability, overlay status, passive local backend runtime health, dedicated MediaTek/Dimensity/Helio/Mali/PowerVR/non-Adreno readiness profiles, GPU/backend risk matrices, local inference compatibility scorecards, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible signal evidence bundles, agent observation dashboards with fused signal-context matrices, direct diagnostic card manifests, Kai-style agent environment parity/readiness, cross-signal awareness routes, tool catalog, radio analyzer AM/FM band-plan rows, AM/FM signal graph rows, receiver profile schemas for vendor AM/FM and external SDR bridges, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
+                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, current Wi-Fi association/link-quality telemetry, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, camera capability, overlay status, passive local backend runtime health, dedicated MediaTek/Dimensity/Helio/Mali/PowerVR/non-Adreno readiness profiles, GPU/backend risk matrices, local inference compatibility scorecards, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible signal evidence bundles, agent observation dashboards with fused signal-context matrices, direct diagnostic card manifests, Kai-style agent environment parity/readiness, cross-signal awareness routes, tool catalog, radio analyzer AM/FM band-plan rows, AM/FM signal graph rows, receiver profile schemas for vendor AM/FM and external SDR bridges, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, sensor_analyzer_report, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_signal_graph, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, mediatek_readiness_report, soc_compatibility_report, gpu_backend_risk_report, local_inference_compatibility_report, device_performance_report, signal_awareness_report, agent_signal_evidence_report, signal_evidence_bundle, agent_observation_report, agent_card_manifest_report, agent_environment_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
+                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_connection_link, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, sensor_analyzer_report, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_signal_graph, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, mediatek_readiness_report, soc_compatibility_report, gpu_backend_risk_report, local_inference_compatibility_report, device_performance_report, signal_awareness_report, agent_signal_evidence_report, signal_evidence_bundle, agent_observation_report, agent_card_manifest_report, agent_environment_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
                         .put("limit", intProp("Maximum rows for top apps, Wi-Fi networks, or Bluetooth devices. Defaults to 5."))
                         .put("detail_limit", intProp("Maximum Wi-Fi access-point detail/export rows. Defaults to limit, or the Wi-Fi max for wifi_ap_details/wifi_export."))
                         .put("export_format", stringProp("Wi-Fi export format for wifi_export: json, csv, or both."))
@@ -3290,6 +3290,8 @@ class NativeToolCallingChatClient(
                     wifiDiagnosticArguments("wifi_channel_rating", userText)
                 lower.containsAny("wifi utilization", "wi-fi utilization", "wifi occupancy", "wi-fi occupancy", "wifi interference", "wi-fi interference", "wifi spectrum", "wi-fi spectrum") ->
                     wifiDiagnosticArguments("wifi_channel_utilization", userText)
+                lower.containsAny("wifi link", "wi-fi link", "wifi connection", "wi-fi connection", "current wifi", "current wi-fi", "connected wifi", "connected wi-fi", "current access point", "current ap") ->
+                    diagnosticArguments("wifi_connection_link")
                 lower.containsAny("wifi graph", "wi-fi graph", "wifi channel graph", "wi-fi channel graph", "wifi channel strength", "wi-fi channel strength") ->
                     wifiDiagnosticArguments("wifi_channel_graph", userText)
                 lower.containsAny("wifi analyzer", "wi-fi analyzer", "analyze wifi", "analyze wi-fi", "wifi readiness", "wi-fi readiness", "wifi scan policy", "wi-fi scan policy") ->
@@ -3482,6 +3484,11 @@ class NativeToolCallingChatClient(
             "wifi_scan",
             "wifi_filtered_scan",
             "wifi_analyzer_report",
+            "wifi_connection_link",
+            "wifi_link_status",
+            "wifi_current_connection",
+            "wifi_current_ap",
+            "wifi_current_network",
             "wifi_channel_graph",
             "wifi_channel_rating",
             "wifi_channel_utilization",
@@ -3916,6 +3923,8 @@ internal object NativeToolContextCompressor {
                 "wifi_security_summary_count",
                 "wifi_width_summary_count",
                 "wifi_standard_summary_count",
+                "wifi_connection_link_count",
+                "ready_wifi_connection_link_count",
                 "cached_wifi_history_network_count",
                 "wifi_analyzer_feature_count",
                 "ready_wifi_analyzer_feature_count",
@@ -4072,9 +4081,11 @@ internal object NativeToolContextCompressor {
         "available_wifi_analyzer_filters",
         "filtered_wifi_analyzer_filters",
         "applied_wifi_filters",
+        "wifi_connection_status",
         "wifi_security_summary",
         "wifi_channel_width_summary",
         "wifi_standard_summary",
+        "wifi_connection_link",
         "wifi_signal_history",
         "wifi_analyzer_feature_matrix",
         "wifi_analyzer_workflow_routes",

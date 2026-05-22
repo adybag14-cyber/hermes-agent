@@ -1326,9 +1326,12 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertEquals("wifi_analyzer_report", result.getString("action"))
         assertTrue(result.has("wifi_scan_permission_status"))
         assertTrue(result.has("wifi_scan_status"))
+        assertTrue(result.has("wifi_connection_status"))
+        assertTrue(result.has("wifi_connection_link"))
         assertTrue(result.has("wifi_access_point_semantics"))
         assertTrue(result.has("wifi_band_coverage"))
         assertTrue(featureLabels.contains("Identify nearby access points"))
+        assertTrue(featureLabels.contains("Current connection link telemetry"))
         assertTrue(featureLabels.contains("Channel signal graph"))
         assertTrue(featureLabels.contains("Channel utilization occupancy"))
         assertTrue(featureLabels.contains("Pause/resume scan control"))
@@ -1339,6 +1342,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(featureLabels.contains("HT/VHT/HE/EHT width and standard metadata"))
         assertTrue(featureLabels.contains("Wi-Fi safety boundary"))
         assertTrue(routeLabels.contains("Route best-channel analysis"))
+        assertTrue(routeLabels.contains("Route current connection link"))
         assertTrue(routeLabels.contains("Route full AP metadata"))
         assertTrue(routeLabels.contains("Route AP export"))
         assertTrue(routeLabels.contains("Route pause or resume scan mode"))
@@ -1349,9 +1353,35 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.has("wifi_scan_control"))
         assertTrue(result.getJSONObject("wifi_scan_control").getBoolean("pause_resume_supported"))
         assertTrue(result.getJSONArray("cards").toString().contains("Wi-Fi Analyzer Readiness"))
+        assertTrue(result.getJSONArray("cards").toString().contains("Wi-Fi Link"))
         assertTrue(result.getInt("wifi_analyzer_feature_count") >= 8)
         assertTrue(result.getInt("wifi_analyzer_workflow_route_count") >= 6)
         assertTrue(result.getInt("wifi_scan_policy_count") >= 5)
+    }
+
+    @Test
+    fun wifiConnectionLinkReportExposesCurrentAssociationRows() {
+        val result = HermesDeviceDiagnosticsBridge.wifiConnectionLinkReportJson(context)
+        val rows = result.getJSONArray("wifi_connection_link")
+        val labels = buildSet {
+            for (index in 0 until rows.length()) add(rows.getJSONObject(index).getString("label"))
+        }
+
+        assertTrue(result.getBoolean("success"))
+        assertEquals("wifi_connection_link", result.getString("action"))
+        assertTrue(result.has("wifi_scan_permission_status"))
+        assertTrue(result.has("wifi_connection_status"))
+        assertTrue(result.has("wifi_connected"))
+        assertTrue(result.has("wifi_current_band"))
+        assertTrue(result.has("matched_scan_row_available"))
+        assertTrue(labels.contains("Current Wi-Fi association"))
+        assertTrue(labels.contains("Link RSSI quality"))
+        assertTrue(labels.contains("Link speed telemetry"))
+        assertTrue(labels.contains("Connected channel and band"))
+        assertTrue(labels.contains("Standard and security context"))
+        assertTrue(labels.contains("Current AP scan match"))
+        assertTrue(result.getJSONArray("cards").toString().contains("wifi_connection_link"))
+        assertTrue(result.getInt("wifi_connection_link_count") >= 6)
     }
 
     @Test

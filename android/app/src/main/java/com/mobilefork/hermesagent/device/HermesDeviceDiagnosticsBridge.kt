@@ -27,6 +27,7 @@ import android.hardware.camera2.CameraManager
 import android.location.LocationManager
 import android.net.Uri
 import android.net.wifi.ScanResult
+import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Build
@@ -77,6 +78,8 @@ object HermesDeviceDiagnosticsBridge {
                 wifiScanJson(appContext, arguments).toString()
             "wifi_analyzer_report", "wifi_readiness_report", "wifi_feature_report", "wifi_scan_policy" ->
                 wifiAnalyzerReportJson(appContext, arguments).toString()
+            "wifi_connection_link", "wifi_link_status", "wifi_current_connection", "wifi_current_ap", "wifi_current_network" ->
+                wifiConnectionLinkReportJson(appContext).toString()
             "wifi_channel_graph", "wifi_graph", "channel_graph", "wifi_signal_channel_graph" ->
                 wifiScanJson(appContext, arguments, "wifi_channel_graph").toString()
             "wifi_channel_rating", "wifi_channels", "channel_rating", "best_wifi_channel", "wifi_congestion" ->
@@ -316,6 +319,8 @@ object HermesDeviceDiagnosticsBridge {
         val channelGraph = wifiChannelGraphRows(analysisNetworks, detailLimit)
         val accessPointDetails = wifiAccessPointDetailRows(analysisNetworks, detailLimit)
         val accessPointSemantics = wifiAccessPointSemanticRows(accessPointDetails, detailLimit)
+        val connectionStatus = wifiConnectionStatusJson(appContext, wifiManager, permissionStatus, allNetworks)
+        val connectionRows = wifiConnectionLinkRows(connectionStatus, accessPointDetails)
         val securitySummary = wifiSecuritySummaryJson(analysisNetworks)
         val channelWidthSummary = wifiChannelWidthSummaryJson(analysisNetworks)
         val standardSummary = wifiStandardSummaryJson(analysisNetworks)
@@ -359,6 +364,8 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_history_network_count", signalHistory.length())
             .put("wifi_access_point_detail_count", accessPointDetails.length())
             .put("wifi_access_point_semantic_count", accessPointSemantics.length())
+            .put("wifi_connection_link_count", connectionRows.length())
+            .put("ready_wifi_connection_link_count", countReadyRows(connectionRows))
             .put("wifi_band_coverage_count", bandCoverage.length())
             .put("wifi_channel_graph_count", channelGraph.length())
             .put("wifi_channel_utilization_count", channelUtilization.length())
@@ -368,6 +375,15 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_enabled", wifiEnabled)
             .put("wifi_scan_permission_status", permissionStatus)
             .put("wifi_scan_status", scanStatus)
+            .put("wifi_connection_status", connectionStatus)
+            .put("wifi_connection_link", connectionRows)
+            .put("wifi_connected", connectionStatus.optBoolean("connected", false))
+            .put("wifi_current_ssid", connectionStatus.optString("ssid").takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("wifi_current_bssid", connectionStatus.optString("bssid").takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("wifi_current_frequency_mhz", jsonIntOrNull(connectionStatus, "frequency_mhz") ?: JSONObject.NULL)
+            .put("wifi_current_channel", jsonIntOrNull(connectionStatus, "channel") ?: JSONObject.NULL)
+            .put("wifi_current_band", connectionStatus.optString("band").ifBlank { "unknown" })
+            .put("wifi_current_rssi_dbm", jsonIntOrNull(connectionStatus, "rssi_dbm") ?: JSONObject.NULL)
             .put("wifi_networks", networks)
             .put("wifi_access_point_details", accessPointDetails)
             .put("wifi_access_point_semantics", accessPointSemantics)
@@ -406,6 +422,14 @@ object HermesDeviceDiagnosticsBridge {
                         )
                     }
                 }
+                    .put(
+                        graphCard(
+                            title = "Wi-Fi Link",
+                            body = "${connectionRows.length()} current connection row(s) with SSID/BSSID, RSSI, link speed, frequency/channel, Wi-Fi standard, and scan-match metadata.",
+                            graphType = "wifi_connection_link",
+                            rows = connectionRows,
+                        ),
+                    )
                     .put(
                         graphCard(
                             title = "Wi-Fi Analyzer",
@@ -537,6 +561,10 @@ object HermesDeviceDiagnosticsBridge {
         val standardSummary = scanResult?.optJSONArray("wifi_standard_summary") ?: JSONArray()
         val accessPointSemantics = scanResult?.optJSONArray("wifi_access_point_semantics")
             ?: wifiAccessPointSemanticRows(accessPointDetails, accessPointDetails.length().coerceIn(1, MAX_WIFI_RESULTS))
+        val connectionStatus = scanResult?.optJSONObject("wifi_connection_status")
+            ?: wifiConnectionStatusJson(appContext, wifiManager, permissionStatus, networks)
+        val connectionRows = scanResult?.optJSONArray("wifi_connection_link")
+            ?: wifiConnectionLinkRows(connectionStatus, accessPointDetails)
         val cachedHistory = scanResult?.optJSONArray("wifi_signal_history")
             ?: wifiSignalHistoryRowsFromStore(readWifiSignalHistory(appContext))
         val scanStatus = scanResult?.optJSONObject("wifi_scan_status") ?: wifiScanStatusJson(
@@ -568,6 +596,8 @@ object HermesDeviceDiagnosticsBridge {
             observedBandCount = countWifiObservedBands(bandCoverage),
             widthCount = widthSummary.length(),
             standardCount = standardSummary.length(),
+            connectionLinkCount = connectionRows.length(),
+            connectionReadyCount = countReadyRows(connectionRows),
             exportReady = accessPointDetails.length() > 0,
         )
         val routeRows = wifiAnalyzerWorkflowRows(
@@ -577,6 +607,7 @@ object HermesDeviceDiagnosticsBridge {
             channelGraphCount = channelGraph.length(),
             channelRatingCount = channelRatings.length(),
             accessPointDetailCount = accessPointDetails.length(),
+            connectionReady = countReadyRows(connectionRows) > 0,
         )
         val policyRows = wifiScanPolicyRows(
             wifiAvailable = wifiManager != null,
@@ -585,6 +616,7 @@ object HermesDeviceDiagnosticsBridge {
             scanSucceeded = scanSucceeded,
         )
         val result = if (scanSucceeded) JSONObject(scanResult.toString()) else JSONObject()
+        val scanCards = scanResult?.optJSONArray("cards")
         val cards = JSONArray()
             .put(
                 graphCard(
@@ -610,9 +642,19 @@ object HermesDeviceDiagnosticsBridge {
                     rows = policyRows,
                 ),
             )
-        scanResult?.optJSONArray("cards")?.let { scanCards ->
-            for (index in 0 until scanCards.length()) {
-                cards.put(scanCards.getJSONObject(index))
+        if (!manifestContainsGraphType(scanCards ?: JSONArray(), "wifi_connection_link")) {
+            cards.put(
+                graphCard(
+                    title = "Wi-Fi Link",
+                    body = "${connectionRows.length()} current connection row(s) for SSID/BSSID, RSSI, link speed, channel, standard, and scan-match metadata.",
+                    graphType = "wifi_connection_link",
+                    rows = connectionRows,
+                ),
+            )
+        }
+        scanCards?.let { cardsFromScan ->
+            for (index in 0 until cardsFromScan.length()) {
+                cards.put(cardsFromScan.getJSONObject(index))
             }
         }
         return result
@@ -622,6 +664,8 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_scan_permission_status", permissionStatus)
             .put("wifi_scan_status", scanStatus)
             .put("wifi_scan_control", scanControl)
+            .put("wifi_connection_status", connectionStatus)
+            .put("wifi_connection_link", connectionRows)
             .put("wifi_networks", networks)
             .put("wifi_access_point_details", accessPointDetails)
             .put("wifi_channel_ratings", channelRatings)
@@ -649,6 +693,8 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_analyzer_feature_count", featureRows.length())
             .put("ready_wifi_analyzer_feature_count", countReadyRows(featureRows))
             .put("wifi_analyzer_workflow_route_count", routeRows.length())
+            .put("wifi_connection_link_count", connectionRows.length())
+            .put("ready_wifi_connection_link_count", countReadyRows(connectionRows))
             .put("wifi_channel_graph_count", channelGraph.length())
             .put("wifi_channel_utilization_count", channelUtilization.length())
             .put("wifi_access_point_semantic_count", accessPointSemantics.length())
@@ -656,6 +702,55 @@ object HermesDeviceDiagnosticsBridge {
             .put("wifi_scan_policy_count", policyRows.length())
             .put("applied_wifi_filter_count", appliedFilters.length())
             .put("cards", cards)
+    }
+
+    fun wifiConnectionLinkReportJson(context: Context): JSONObject {
+        val appContext = context.applicationContext
+        val wifiManager = appContext.getSystemService(WifiManager::class.java)
+        val permissionStatus = wifiPermissionStatusJson(appContext)
+        val canReadScan = wifiManager != null && permissionStatus.optBoolean("can_read_scan_results", false)
+        val scanRows = if (canReadScan) {
+            val rows = JSONArray()
+            runCatching { wifiManager?.scanResults.orEmpty() }
+                .getOrDefault(emptyList())
+                .sortedWith(compareByDescending<ScanResult> { it.level }.thenBy { it.SSID.orEmpty() })
+                .forEach { rows.put(scanResultJson(it)) }
+            rows
+        } else {
+            JSONArray()
+        }
+        val accessPointDetails = wifiAccessPointDetailRows(scanRows, minOf(MAX_WIFI_RESULTS, scanRows.length().coerceAtLeast(1)))
+        val connectionStatus = wifiConnectionStatusJson(appContext, wifiManager, permissionStatus, scanRows)
+        val connectionRows = wifiConnectionLinkRows(connectionStatus, accessPointDetails)
+        return JSONObject()
+            .put("success", true)
+            .put("action", "wifi_connection_link")
+            .put("report_scope", "Passive current Wi-Fi association and link-quality report for Gemma-visible SSID/BSSID, RSSI, link speed, frequency/channel, Wi-Fi standard, and scan-match metadata.")
+            .put("wifi_scan_permission_status", permissionStatus)
+            .put("wifi_connection_status", connectionStatus)
+            .put("wifi_connection_link", connectionRows)
+            .put("wifi_connection_link_count", connectionRows.length())
+            .put("ready_wifi_connection_link_count", countReadyRows(connectionRows))
+            .put("wifi_connected", connectionStatus.optBoolean("connected", false))
+            .put("wifi_current_ssid", connectionStatus.optString("ssid").takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("wifi_current_bssid", connectionStatus.optString("bssid").takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("wifi_current_frequency_mhz", jsonIntOrNull(connectionStatus, "frequency_mhz") ?: JSONObject.NULL)
+            .put("wifi_current_channel", jsonIntOrNull(connectionStatus, "channel") ?: JSONObject.NULL)
+            .put("wifi_current_band", connectionStatus.optString("band").ifBlank { "unknown" })
+            .put("wifi_current_rssi_dbm", jsonIntOrNull(connectionStatus, "rssi_dbm") ?: JSONObject.NULL)
+            .put("matched_scan_row_available", connectionStatus.optBoolean("matched_scan_row_available", false))
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        graphCard(
+                            title = "Wi-Fi Link",
+                            body = "${connectionRows.length()} current connection row(s) for SSID/BSSID, RSSI, link speed, channel, standard, and scan-match metadata.",
+                            graphType = "wifi_connection_link",
+                            rows = connectionRows,
+                        ),
+                    ),
+            )
     }
 
     fun bluetoothScanJson(context: Context, arguments: JSONObject = JSONObject(), actionName: String = "bluetooth_scan"): JSONObject {
@@ -3313,8 +3408,8 @@ object HermesDeviceDiagnosticsBridge {
                     },
                     extra = JSONObject()
                         .put("fusion_key", "wifi_channel_band_context")
-                        .put("source_actions", JSONArray().put("wifi_analyzer_report").put("wifi_channel_graph").put("wifi_channel_rating").put("wifi_channel_utilization"))
-                        .put("card_graph_types", JSONArray().put("wifi_band_coverage").put("wifi_channel_graph").put("wifi_channel_rating").put("wifi_channel_utilization").put("wifi_signal_history"))
+                        .put("source_actions", JSONArray().put("wifi_analyzer_report").put("wifi_connection_link").put("wifi_channel_graph").put("wifi_channel_rating").put("wifi_channel_utilization"))
+                        .put("card_graph_types", JSONArray().put("wifi_connection_link").put("wifi_band_coverage").put("wifi_channel_graph").put("wifi_channel_rating").put("wifi_channel_utilization").put("wifi_signal_history"))
                         .put("wifi_network_count", wifiNetworkCount)
                         .put("wifi_band_coverage_count", wifiBandCoverageCount)
                         .put("wifi_channel_graph_count", wifiChannelGraphCount)
@@ -3503,8 +3598,8 @@ object HermesDeviceDiagnosticsBridge {
                         .put("evidence_key", "wifi_ap_channel")
                         .put("tool_action", "wifi_analyzer_report")
                         .put("graph_type", "wifi_channel_graph")
-                        .put("source_actions", JSONArray().put("wifi_analyzer_report").put("wifi_channel_graph").put("wifi_channel_rating").put("wifi_channel_utilization"))
-                        .put("card_graph_types", JSONArray().put("wifi_channel_graph").put("wifi_channel_rating").put("wifi_channel_utilization").put("wifi_band_coverage").put("wifi_signal_history"))
+                        .put("source_actions", JSONArray().put("wifi_analyzer_report").put("wifi_connection_link").put("wifi_channel_graph").put("wifi_channel_rating").put("wifi_channel_utilization"))
+                        .put("card_graph_types", JSONArray().put("wifi_connection_link").put("wifi_channel_graph").put("wifi_channel_rating").put("wifi_channel_utilization").put("wifi_band_coverage").put("wifi_signal_history"))
                         .put("wifi_network_count", wifiNetworkCount)
                         .put("wifi_channel_graph_count", wifiChannelGraphCount)
                         .put("wifi_channel_rating_count", wifiChannelRatingCount),
@@ -3728,6 +3823,7 @@ object HermesDeviceDiagnosticsBridge {
 
     private fun signalEvidenceSourceActions(): JSONArray = JSONArray()
         .put("wifi_analyzer_report")
+        .put("wifi_connection_link")
         .put("wifi_channel_graph")
         .put("bluetooth_analyzer_report")
         .put("bluetooth_signal_history")
@@ -3745,6 +3841,7 @@ object HermesDeviceDiagnosticsBridge {
         .put("signal_evidence_matrix")
         .put("signal_evidence_routes")
         .put("wifi_channel_graph")
+        .put("wifi_connection_link")
         .put("wifi_channel_rating")
         .put("wifi_channel_utilization")
         .put("bluetooth_signal_history")
@@ -4360,6 +4457,8 @@ object HermesDeviceDiagnosticsBridge {
         channelUtilizationCount: Int,
         widthCount: Int,
         standardCount: Int,
+        connectionLinkCount: Int,
+        connectionReadyCount: Int,
         exportReady: Boolean,
     ): JSONArray {
         val scanReady = wifiAvailable && permissionStatus.optBoolean("can_read_scan_results", false)
@@ -4521,6 +4620,20 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 capabilityRow(
                     category = "wifi_analyzer_parity",
+                    label = "Current connection link telemetry",
+                    ready = connectionReadyCount > 0,
+                    valueLabel = "$connectionReadyCount/$connectionLinkCount ready row(s)",
+                    detail = "Hermes exposes the active Wi-Fi association as a Gemma-visible card with SSID/BSSID redaction status, RSSI, link speed, frequency/channel, band, Wi-Fi standard, security, and scan-match metadata.",
+                    recommendation = "Use wifi_connection_link when the user asks about the current Wi-Fi connection, not just nearby access points.",
+                    fraction = if (connectionReadyCount > 0) 0.92f else if (wifiAvailable) 0.45f else 0.2f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_connection_link")
+                        .put("feature_source", "Android WifiInfo current connection telemetry"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_parity",
                     label = "Export access point details",
                     ready = exportReady,
                     valueLabel = if (exportReady) "$accessPointDetailCount export row(s)" else "scan needed",
@@ -4553,6 +4666,7 @@ object HermesDeviceDiagnosticsBridge {
         channelGraphCount: Int,
         channelRatingCount: Int,
         accessPointDetailCount: Int,
+        connectionReady: Boolean,
     ): JSONArray {
         val scanReady = permissionStatus.optBoolean("can_read_scan_results", false)
         return JSONArray()
@@ -4602,6 +4716,18 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Choose this when Gemma needs inspectable metadata instead of only a graph.",
                     fraction = if (accessPointDetailCount > 0) 1f else if (scanReady) 0.75f else 0.45f,
                     extra = JSONObject().put("tool_action", "wifi_ap_details"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_analyzer_route",
+                    label = "Route current connection link",
+                    ready = connectionReady || scanReady,
+                    valueLabel = "wifi_connection_link",
+                    detail = "Use for the active Wi-Fi SSID/BSSID redaction state, RSSI, link speed, frequency/channel, standard, security, and AP scan-match context.",
+                    recommendation = "Choose this route when the user asks what Wi-Fi they are connected to, whether the active link is weak, or how the current AP compares with nearby APs.",
+                    fraction = if (connectionReady) 0.95f else if (scanReady) 0.62f else 0.4f,
+                    extra = JSONObject().put("tool_action", "wifi_connection_link"),
                 ),
             )
             .put(
@@ -8201,6 +8327,254 @@ object HermesDeviceDiagnosticsBridge {
             }
         }
         return count
+    }
+
+    private fun wifiConnectionStatusJson(
+        context: Context,
+        wifiManager: WifiManager?,
+        permissionStatus: JSONObject,
+        scanNetworks: JSONArray,
+    ): JSONObject {
+        val info = runCatching { wifiManager?.connectionInfo }.getOrNull()
+        val wifiEnabled = wifiManager?.isWifiEnabled == true
+        val ssid = normalizeConnectedWifiSsid(info?.ssid.orEmpty())
+        val rawBssid = info?.bssid.orEmpty()
+        val bssid = rawBssid.takeUnless { wifiBssidIsRedactedOrUnknown(it) }.orEmpty()
+        val rssiDbm = (info?.rssi ?: Int.MIN_VALUE).takeIf { it in -127..0 }
+        val frequencyMhz = (info?.frequency ?: 0).takeIf { it > 0 }
+        val linkSpeedMbps = (info?.linkSpeed ?: -1).takeIf { it > 0 }
+        val txLinkSpeedMbps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching { info?.txLinkSpeedMbps?.takeIf { it > 0 } }.getOrNull()
+        } else {
+            null
+        }
+        val rxLinkSpeedMbps = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching { info?.rxLinkSpeedMbps?.takeIf { it > 0 } }.getOrNull()
+        } else {
+            null
+        }
+        val wifiStandard = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching { info?.wifiStandard?.let(::wifiStandardLabel) }.getOrNull().orEmpty()
+        } else {
+            ""
+        }
+        val securityType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching { info?.currentSecurityType?.let(::wifiSecurityTypeLabel) }.getOrNull().orEmpty()
+        } else {
+            ""
+        }
+        val networkId = info?.networkId ?: -1
+        val channel = frequencyMhz?.let(::channelForFrequencyMhz)
+        val band = frequencyMhz?.let(::wifiBandLabel).orEmpty()
+        val matchedScanRow = findWifiConnectionScanRow(scanNetworks, ssid, bssid)
+        val connected = wifiEnabled && (networkId != -1 || ssid.isNotBlank() || bssid.isNotBlank() || frequencyMhz != null)
+        val locationEnabled = context.getSystemService(LocationManager::class.java)
+            ?.let { manager ->
+                runCatching {
+                    manager.isProviderEnabled(LocationManager.GPS_PROVIDER) || manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+                }.getOrDefault(false)
+            }
+            ?: false
+        return JSONObject()
+            .put("wifi_enabled", wifiEnabled)
+            .put("connected", connected)
+            .put("ssid", ssid.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("raw_ssid_redacted_or_unknown", ssid.isBlank() && info?.ssid.orEmpty().isNotBlank())
+            .put("bssid", bssid.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("bssid_redacted_or_unknown", rawBssid.isNotBlank() && bssid.isBlank())
+            .put("network_id", if (networkId >= 0) networkId else JSONObject.NULL)
+            .put("rssi_dbm", rssiDbm ?: JSONObject.NULL)
+            .put("signal_quality", rssiDbm?.let(::wifiSignalQualityLabel) ?: "unknown")
+            .put("link_speed_mbps", linkSpeedMbps ?: JSONObject.NULL)
+            .put("tx_link_speed_mbps", txLinkSpeedMbps ?: JSONObject.NULL)
+            .put("rx_link_speed_mbps", rxLinkSpeedMbps ?: JSONObject.NULL)
+            .put("frequency_mhz", frequencyMhz ?: JSONObject.NULL)
+            .put("channel", channel ?: JSONObject.NULL)
+            .put("band", band.ifBlank { "unknown" })
+            .put("wifi_standard", wifiStandard.ifBlank { matchedScanRow?.optString("wifi_standard").orEmpty().ifBlank { "unknown" } })
+            .put("security_type", securityType.ifBlank { matchedScanRow?.optString("security_mode").orEmpty().ifBlank { "unknown" } })
+            .put("matched_scan_row_available", matchedScanRow != null)
+            .put("matched_bssid_vendor", matchedScanRow?.optString("bssid_vendor").orEmpty().takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("matched_channel_width", matchedScanRow?.optString("channel_width").orEmpty().takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("matched_channel_width_mhz", matchedScanRow?.let { jsonIntOrNull(it, "channel_width_mhz") } ?: JSONObject.NULL)
+            .put("matched_security_mode", matchedScanRow?.optString("security_mode").orEmpty().takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("matched_scan_row", matchedScanRow?.let { JSONObject(it.toString()) } ?: JSONObject.NULL)
+            .put("can_read_scan_results", permissionStatus.optBoolean("can_read_scan_results", false))
+            .put("location_enabled", locationEnabled)
+            .put("privacy_note", "SSID/BSSID and link metadata may be redacted by Android unless nearby Wi-Fi/location permission and location services are available.")
+    }
+
+    private fun wifiConnectionLinkRows(connectionStatus: JSONObject, accessPointDetails: JSONArray): JSONArray {
+        val connected = connectionStatus.optBoolean("connected", false)
+        val wifiEnabled = connectionStatus.optBoolean("wifi_enabled", false)
+        val ssid = connectionStatus.optString("ssid")
+        val bssid = connectionStatus.optString("bssid")
+        val rssiDbm = jsonIntOrNull(connectionStatus, "rssi_dbm")
+        val linkSpeedMbps = jsonIntOrNull(connectionStatus, "link_speed_mbps")
+        val txLinkSpeedMbps = jsonIntOrNull(connectionStatus, "tx_link_speed_mbps")
+        val rxLinkSpeedMbps = jsonIntOrNull(connectionStatus, "rx_link_speed_mbps")
+        val frequencyMhz = jsonIntOrNull(connectionStatus, "frequency_mhz")
+        val channel = jsonIntOrNull(connectionStatus, "channel")
+        val band = connectionStatus.optString("band").ifBlank { "unknown" }
+        val standard = connectionStatus.optString("wifi_standard").ifBlank { "unknown" }
+        val security = connectionStatus.optString("security_type").ifBlank { "unknown" }
+        val matched = connectionStatus.optBoolean("matched_scan_row_available", false)
+        val matchedDetail = findWifiConnectionScanRow(accessPointDetails, ssid, bssid)
+        return JSONArray()
+            .put(
+                capabilityRow(
+                    category = "wifi_connection_link",
+                    label = "Current Wi-Fi association",
+                    ready = connected,
+                    valueLabel = if (connected) ssid.ifBlank { "connected, SSID redacted" } else if (wifiEnabled) "not associated" else "Wi-Fi disabled",
+                    detail = "ssid=${ssid.ifBlank { "redacted_or_unknown" }} | bssid=${bssid.ifBlank { "redacted_or_unknown" }} | network_id=${connectionStatus.opt("network_id")}",
+                    recommendation = "Use this row before explaining the user's active Wi-Fi path; ask for Wi-Fi/location permission only when Android redacts association details.",
+                    fraction = if (connected) 0.95f else if (wifiEnabled) 0.45f else 0.15f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_connection_link")
+                        .put("graph_type", "wifi_connection_link"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_connection_link",
+                    label = "Link RSSI quality",
+                    ready = connected && rssiDbm != null,
+                    valueLabel = rssiDbm?.let { "$it dBm ${wifiSignalQualityLabel(it)}" } ?: "RSSI unavailable",
+                    detail = "Android connection RSSI=${rssiDbm ?: "unknown"} dBm; scan_match=$matched; signal_quality=${connectionStatus.optString("signal_quality").ifBlank { "unknown" }}.",
+                    recommendation = "Combine current RSSI with Wi-Fi signal history before diagnosing roaming, weak rooms, or unstable connectivity.",
+                    fraction = rssiDbm?.let(::wifiSignalFraction) ?: if (connected) 0.5f else 0.2f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_signal_history")
+                        .put("source_surface", "WifiInfo.rssi"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_connection_link",
+                    label = "Link speed telemetry",
+                    ready = connected && (linkSpeedMbps != null || txLinkSpeedMbps != null || rxLinkSpeedMbps != null),
+                    valueLabel = linkSpeedMbps?.let { "$it Mbps" } ?: "speed unavailable",
+                    detail = "link=${linkSpeedMbps ?: "unknown"} Mbps | tx=${txLinkSpeedMbps ?: "unknown"} Mbps | rx=${rxLinkSpeedMbps ?: "unknown"} Mbps",
+                    recommendation = "Use link speed as a connection hint, not a throughput guarantee; combine it with channel width, RSSI, and band rows.",
+                    fraction = wifiLinkSpeedFraction(linkSpeedMbps, txLinkSpeedMbps, rxLinkSpeedMbps),
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_connection_link")
+                        .put("source_surface", "WifiInfo.linkSpeed"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_connection_link",
+                    label = "Connected channel and band",
+                    ready = connected && frequencyMhz != null,
+                    valueLabel = listOfNotNull(band.takeIf { it != "unknown" }, channel?.let { "ch $it" }).joinToString(" ").ifBlank { "frequency unavailable" },
+                    detail = "frequency=${frequencyMhz ?: "unknown"} MHz | channel=${channel ?: "unknown"} | matched_width=${connectionStatus.opt("matched_channel_width")}",
+                    recommendation = "Use this with Wi-Fi channel graph and utilization cards when explaining whether the current AP sits on a crowded or wide channel.",
+                    fraction = if (frequencyMhz != null && channel != null) 0.95f else if (connected) 0.55f else 0.2f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_channel_graph")
+                        .put("graph_type", "wifi_channel_graph"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_connection_link",
+                    label = "Standard and security context",
+                    ready = connected && (standard != "unknown" || security != "unknown"),
+                    valueLabel = listOf(standard, security).filter { it != "unknown" }.joinToString(" / ").ifBlank { "metadata unavailable" },
+                    detail = "wifi_standard=$standard | security=$security | matched_security=${connectionStatus.opt("matched_security_mode")}",
+                    recommendation = "Use this row to avoid inferring modern throughput or security posture from band/RSSI alone.",
+                    fraction = if (standard != "unknown" && security != "unknown") 0.9f else if (standard != "unknown" || security != "unknown") 0.72f else 0.35f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_connection_link")
+                        .put("source_surface", "WifiInfo and scan metadata"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "wifi_connection_link",
+                    label = "Current AP scan match",
+                    ready = matched || matchedDetail != null,
+                    valueLabel = if (matched || matchedDetail != null) "scan row matched" else "connection-only metadata",
+                    detail = listOf(
+                        "vendor=${connectionStatus.optString("matched_bssid_vendor").ifBlank { matchedDetail?.optString("bssid_vendor").orEmpty().ifBlank { "unknown" } }}",
+                        "width=${connectionStatus.optString("matched_channel_width").ifBlank { matchedDetail?.optString("channel_width").orEmpty().ifBlank { "unknown" } }}",
+                        "security_attention=${matchedDetail?.optString("security_attention").orEmpty().ifBlank { "unknown" }}",
+                    ).joinToString(" | "),
+                    recommendation = "When matched, combine active-link metadata with AP semantic rows; when not matched, explain Android permission redaction or scan age.",
+                    fraction = if (matched || matchedDetail != null) 0.92f else if (connected) 0.48f else 0.2f,
+                    extra = JSONObject()
+                        .put("tool_action", "wifi_ap_details")
+                        .put("graph_type", "wifi_access_point_detail"),
+                ),
+            )
+    }
+
+    private fun normalizeConnectedWifiSsid(rawSsid: String): String {
+        val trimmed = rawSsid.trim().removeSurrounding("\"")
+        return when {
+            trimmed.isBlank() -> ""
+            trimmed.equals("<unknown ssid>", ignoreCase = true) -> ""
+            trimmed.equals("0x", ignoreCase = true) -> ""
+            else -> trimmed
+        }
+    }
+
+    private fun wifiBssidIsRedactedOrUnknown(value: String): Boolean {
+        val normalized = value.trim().lowercase(Locale.US)
+        return normalized.isBlank() ||
+            normalized == "02:00:00:00:00:00" ||
+            normalized == "00:00:00:00:00:00" ||
+            normalized == "ff:ff:ff:ff:ff:ff"
+    }
+
+    private fun findWifiConnectionScanRow(rows: JSONArray, ssid: String, bssid: String): JSONObject? {
+        for (index in 0 until rows.length()) {
+            val row = rows.optJSONObject(index) ?: continue
+            if (bssid.isNotBlank() && row.optString("bssid").equals(bssid, ignoreCase = true)) return row
+            if (ssid.isNotBlank() && row.optString("ssid").equals(ssid, ignoreCase = true)) return row
+            if (ssid.isNotBlank() && row.optString("display_ssid").equals(ssid, ignoreCase = true)) return row
+        }
+        return null
+    }
+
+    private fun wifiSecurityTypeLabel(type: Int): String = when (type) {
+        WifiInfo.SECURITY_TYPE_OPEN -> "Open"
+        WifiInfo.SECURITY_TYPE_WEP -> "WEP"
+        WifiInfo.SECURITY_TYPE_PSK -> "WPA/WPA2-PSK"
+        WifiInfo.SECURITY_TYPE_EAP -> "WPA/WPA2-EAP"
+        WifiInfo.SECURITY_TYPE_SAE -> "WPA3-SAE"
+        WifiInfo.SECURITY_TYPE_OWE -> "Enhanced Open"
+        WifiInfo.SECURITY_TYPE_WAPI_PSK -> "WAPI-PSK"
+        WifiInfo.SECURITY_TYPE_WAPI_CERT -> "WAPI-CERT"
+        WifiInfo.SECURITY_TYPE_EAP_WPA3_ENTERPRISE -> "WPA3-Enterprise"
+        WifiInfo.SECURITY_TYPE_EAP_WPA3_ENTERPRISE_192_BIT -> "WPA3-Enterprise-192"
+        WifiInfo.SECURITY_TYPE_PASSPOINT_R1_R2 -> "Passpoint"
+        WifiInfo.SECURITY_TYPE_PASSPOINT_R3 -> "Passpoint R3"
+        WifiInfo.SECURITY_TYPE_DPP -> "DPP"
+        else -> "unknown"
+    }
+
+    private fun wifiSignalFraction(rssiDbm: Int): Float = when {
+        rssiDbm >= -50 -> 1f
+        rssiDbm >= -60 -> 0.9f
+        rssiDbm >= -67 -> 0.78f
+        rssiDbm >= -75 -> 0.58f
+        rssiDbm >= -85 -> 0.38f
+        else -> 0.18f
+    }
+
+    private fun wifiLinkSpeedFraction(vararg speedsMbps: Int?): Float {
+        val best = speedsMbps.filterNotNull().maxOrNull() ?: return 0.35f
+        return when {
+            best >= 1200 -> 1f
+            best >= 600 -> 0.9f
+            best >= 300 -> 0.78f
+            best >= 144 -> 0.65f
+            best >= 54 -> 0.5f
+            else -> 0.32f
+        }
     }
 
     private fun scanResultJson(result: ScanResult): JSONObject {
@@ -12065,6 +12439,7 @@ object HermesDeviceDiagnosticsBridge {
         "wifi_scan",
         "wifi_filtered_scan",
         "wifi_analyzer_report",
+        "wifi_connection_link",
         "wifi_channel_graph",
         "wifi_channel_rating",
         "wifi_channel_utilization",

@@ -94,6 +94,7 @@ internal fun diagnosticCardPreviewPriority(card: DiagnosticCardSummary): Int {
         "wifi_security_summary",
         "wifi_channel_width_summary",
         "wifi_standard_summary",
+        "wifi_connection_link",
         "wifi_signal_history" -> 1
         "bluetooth_rssi",
         "bluetooth_metadata_summary",
@@ -155,7 +156,7 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
                 "agent_observation_matrix", "agent_observation_routes", "agent_signal_context_matrix",
                 "signal_evidence_matrix", "signal_evidence_routes",
                 "agent_card_manifest",
-                "wifi_analyzer_feature_matrix", "wifi_analyzer_workflow_routes", "wifi_scan_policy_matrix",
+                "wifi_analyzer_feature_matrix", "wifi_analyzer_workflow_routes", "wifi_scan_policy_matrix", "wifi_connection_link",
                 "wifi_filter_application",
                 "bluetooth_analyzer_feature_matrix", "bluetooth_analyzer_workflow_routes", "bluetooth_scan_policy_matrix",
                 "bluetooth_filter_application",

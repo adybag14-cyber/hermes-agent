@@ -21,6 +21,7 @@ class SignalIntelligenceQuickActionsTest {
         assertEquals("local_inference_compatibility_report", actionsById.getValue("inference_compatibility").diagnosticAction)
         assertEquals("local_backend_runtime_report", actionsById.getValue("runtime_backend").diagnosticAction)
         assertEquals("wifi_analyzer_report", actionsById.getValue("wifi_analyzer").diagnosticAction)
+        assertEquals("wifi_connection_link", actionsById.getValue("wifi_link").diagnosticAction)
         assertEquals("wifi_scan", actionsById.getValue("wifi_nearby").diagnosticAction)
         assertEquals("wifi_channel_utilization", actionsById.getValue("wifi_occupancy").diagnosticAction)
         assertEquals("bluetooth_analyzer_report", actionsById.getValue("bluetooth_analyzer").diagnosticAction)
@@ -35,6 +36,7 @@ class SignalIntelligenceQuickActionsTest {
         assertEquals("Evidence Bundle", actionsById.getValue("signal_evidence").label)
         assertEquals("Agent Observation", actionsById.getValue("agent_observation").label)
         assertEquals("Card Manifest", actionsById.getValue("card_manifest").label)
+        assertEquals("Wi-Fi Link", actionsById.getValue("wifi_link").label)
         assertEquals("Radio Signals", actionsById.getValue("radio_limits").label)
         SIGNAL_INTELLIGENCE_QUICK_ACTIONS.forEach { action ->
             assertTrue(action.prompt.contains("android_device_diagnostics_tool action=${action.diagnosticAction}"))
