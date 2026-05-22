@@ -266,8 +266,11 @@ def test_android_diagnostics_exposes_agent_observation_dashboard_for_gemma_signa
     assert 'fun agentObservationReportJson(context: Context): JSONObject' in diagnostics_bridge
     assert 'agentObservationMatrixRows(' in diagnostics_bridge
     assert 'agentObservationRouteRows()' in diagnostics_bridge
+    assert 'agentCardManifestRows(' in diagnostics_bridge
     assert '"agent_observation_matrix"' in diagnostics_bridge
     assert '"agent_observation_routes"' in diagnostics_bridge
+    assert '"agent_card_manifest"' in diagnostics_bridge
+    assert 'Agent Card Manifest' in diagnostics_bridge
     assert '"gemma_observation_directives"' in diagnostics_bridge
     assert 'Wi-Fi AP metadata and channel graphs' in diagnostics_bridge
     assert 'Bluetooth nearby metadata' in diagnostics_bridge
@@ -277,8 +280,11 @@ def test_android_diagnostics_exposes_agent_observation_dashboard_for_gemma_signa
     assert 'agent_observation_report' in chat_client
     assert '"agent_observation_matrix"' in chat_client
     assert '"agent_observation_routes"' in chat_client
+    assert '"agent_card_manifest"' in chat_client
+    assert '"agent_card_graph_types"' in chat_client
     assert '"gemma_observation_directives"' in chat_client
     assert '"agent_observation_matrix", "agent_observation_routes"' in diagnostic_cards
+    assert '"agent_card_manifest",' in diagnostic_cards
     assert 'id = "agent_observation"' in quick_actions
     assert 'action=agent_observation_report' in quick_actions
 

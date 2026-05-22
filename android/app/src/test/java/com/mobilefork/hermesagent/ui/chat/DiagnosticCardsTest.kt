@@ -600,6 +600,45 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesAgentCardManifestRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Agent Card Manifest")
+                        .put("body", "Card routes.")
+                        .put("graph_type", "agent_card_manifest")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "agent_card_manifest")
+                                    .put("label", "Wi-Fi Channel Graph")
+                                    .put("ready", true)
+                                    .put("value_label", "wifi_channel_graph via wifi_analyzer_report")
+                                    .put("detail", "Card exposes channel rows.")
+                                    .put("recommendation", "Open this expandable card for evidence.")
+                                    .put("fraction", 0.95),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("Agent Card Manifest", card.title)
+        assertEquals("agent_card_manifest", card.graphType)
+        assertEquals("Wi-Fi Channel Graph", row.label)
+        assertEquals("wifi_channel_graph via wifi_analyzer_report", row.valueLabel)
+        assertTrue(row.detail.contains("agent card manifest"))
+        assertTrue(row.detail.contains("Open this expandable card"))
+        assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
     fun parsesSignalAwarenessRowsForExpandableCards() {
         val content = JSONObject()
             .put(

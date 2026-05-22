@@ -2260,6 +2260,17 @@ object HermesDeviceDiagnosticsBridge {
             signalReport = signalReport,
             backendRiskReport = backendRiskReport,
         )
+        val cardManifestRows = agentCardManifestRows(
+            listOf(
+                CardManifestSource("wifi_analyzer_report", wifiReport, "passive_by_default_refresh_when_needed", "nearby_wifi_or_location_permission"),
+                CardManifestSource("bluetooth_analyzer_report", bluetoothReport, "passive_by_default_refresh_when_needed", "bluetooth_scan_or_connect_permission"),
+                CardManifestSource("sensor_analyzer_report", sensorReport, "passive_metadata_live_snapshot_optional", "sensor_hardware_availability"),
+                CardManifestSource("radio_signal_status", radioReport, "passive_capability_boundary", "vendor_radio_bridge_or_external_sdr_for_am_fm"),
+                CardManifestSource("gpu_backend_risk_report", backendRiskReport, "passive_backend_triage", "phone_validation_required_for_acceleration_claims"),
+                CardManifestSource("signal_awareness_report", signalReport, "passive_fused_context", "source_report_permissions"),
+                CardManifestSource("agent_environment_report", environmentReport, "passive_agent_readiness", "settings_and_local_state"),
+            ),
+        )
         val observationRows = agentObservationMatrixRows(
             wifiReport = wifiReport,
             bluetoothReport = bluetoothReport,
@@ -2269,6 +2280,7 @@ object HermesDeviceDiagnosticsBridge {
             backendRiskReport = backendRiskReport,
             environmentReport = environmentReport,
             signalContextRows = signalContextRows,
+            cardManifestRows = cardManifestRows,
         )
         val routeRows = agentObservationRouteRows()
         return JSONObject()
@@ -2286,6 +2298,10 @@ object HermesDeviceDiagnosticsBridge {
             .put("agent_signal_context_matrix", signalContextRows)
             .put("agent_signal_context_count", signalContextRows.length())
             .put("ready_agent_signal_context_count", countReadyRows(signalContextRows))
+            .put("agent_card_manifest", cardManifestRows)
+            .put("agent_card_manifest_count", cardManifestRows.length())
+            .put("ready_agent_card_manifest_count", countReadyRows(cardManifestRows))
+            .put("agent_card_graph_types", cardGraphTypeList(cardManifestRows))
             .put("agent_observation_matrix", observationRows)
             .put("agent_observation_routes", routeRows)
             .put("agent_observation_count", observationRows.length())
@@ -2296,6 +2312,7 @@ object HermesDeviceDiagnosticsBridge {
                 JSONArray()
                     .put("Read agent_observation_matrix first to decide which signal, sensor, radio, SOC, or Kai surface is actually available on this device.")
                     .put("Read agent_signal_context_matrix before summarizing nearby RF context so Wi-Fi channel/band rows, Bluetooth RSSI/history rows, motion pose rows, and radio hardware limits stay fused.")
+                    .put("Read agent_card_manifest to choose the exact expandable graph card and refresh policy before asking for live Wi-Fi, Bluetooth, radio, sensor, or backend data.")
                     .put("Read gpu_backend_risk_report context before promising MediaTek, Mali, PowerVR, Xclipse, or non-Adreno local model acceleration.")
                     .put("Use agent_observation_routes for the next precise android_device_diagnostics_tool action instead of guessing from text.")
                     .put("Open the expandable cards before explaining Wi-Fi channels, Bluetooth proximity, radio limits, motion context, backend risk, or local model readiness.")
@@ -2318,6 +2335,14 @@ object HermesDeviceDiagnosticsBridge {
                             body = "${signalContextRows.length()} fused context row(s) combining Wi-Fi channel/band coverage, Bluetooth RSSI/history metadata, motion pose context, radio hardware limits, and backend risk for Gemma.",
                             graphType = "agent_signal_context_matrix",
                             rows = signalContextRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Agent Card Manifest",
+                            body = "${cardManifestRows.length()} source card row(s) mapping graph types to tool actions, refresh policy, and permission gates for Gemma.",
+                            graphType = "agent_card_manifest",
+                            rows = cardManifestRows,
                         ),
                     )
                     .put(
@@ -2631,6 +2656,7 @@ object HermesDeviceDiagnosticsBridge {
         backendRiskReport: JSONObject,
         environmentReport: JSONObject,
         signalContextRows: JSONArray,
+        cardManifestRows: JSONArray,
     ): JSONArray {
         val wifiNetworkCount = wifiReport.optInt("total_scan_result_count", wifiReport.optJSONArray("wifi_networks")?.length() ?: 0)
         val wifiDetailCount = wifiReport.optJSONArray("wifi_access_point_details")?.length() ?: 0
@@ -2649,6 +2675,7 @@ object HermesDeviceDiagnosticsBridge {
         val capabilityCount = environmentReport.optInt("agent_capability_count", environmentReport.optJSONArray("agent_capability_matrix")?.length() ?: 0)
         val signalContextCount = signalContextRows.length()
         val readySignalContextCount = countReadyRows(signalContextRows)
+        val cardManifestCount = cardManifestRows.length()
         return JSONArray()
             .put(
                 capabilityRow(
@@ -2674,6 +2701,21 @@ object HermesDeviceDiagnosticsBridge {
                     extra = JSONObject()
                         .put("tool_action", "agent_observation_report")
                         .put("graph_type", "agent_signal_context_matrix"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_card_manifest",
+                    label = "Agent-readable card manifest",
+                    ready = cardManifestCount > 0,
+                    valueLabel = "$cardManifestCount card route row(s)",
+                    detail = "Each source report card is indexed with graph_type, source_action, row_count, refresh_policy, and permission_gate so Gemma can choose the exact expandable card before asking for live data.",
+                    recommendation = "Read agent_card_manifest before explaining source evidence or requesting active Wi-Fi, Bluetooth, sensor, radio, or backend refreshes.",
+                    fraction = if (cardManifestCount > 0) 0.95f else 0.25f,
+                    extra = JSONObject()
+                        .put("tool_action", "agent_observation_report")
+                        .put("graph_type", "agent_card_manifest")
+                        .put("agent_card_manifest_count", cardManifestCount),
                 ),
             )
             .put(
@@ -3085,6 +3127,169 @@ object HermesDeviceDiagnosticsBridge {
                     extra = JSONObject().put("tool_action", "agent_environment_report"),
                 ),
             )
+    }
+
+    private data class CardManifestSource(
+        val action: String,
+        val report: JSONObject,
+        val refreshPolicy: String,
+        val permissionGate: String,
+    )
+
+    private fun agentCardManifestRows(sources: List<CardManifestSource>): JSONArray {
+        val rows = JSONArray()
+        sources.forEach { source ->
+            val cards = source.report.optJSONArray("cards") ?: JSONArray()
+            for (index in 0 until cards.length()) {
+                val card = cards.optJSONObject(index) ?: continue
+                val title = card.optString("title").ifBlank { "Diagnostic card ${index + 1}" }
+                val graphType = card.optString("graph_type").ifBlank { "diagnostic_card" }
+                val rowCount = card.optInt("row_count", card.optJSONArray("rows")?.length() ?: 0)
+                rows.put(
+                    capabilityRow(
+                        category = "agent_card_manifest",
+                        label = title,
+                        ready = source.report.optBoolean("success", false) && rowCount > 0,
+                        valueLabel = "$graphType via ${source.action}",
+                        detail = "Card exposes $rowCount row(s) from ${source.action}; refresh_policy=${source.refreshPolicy}; permission_gate=${source.permissionGate}.",
+                        recommendation = "Open this expandable card for evidence, or call ${source.action} only when its refresh policy says current data is needed.",
+                        fraction = when {
+                            source.report.optBoolean("success", false) && rowCount > 0 -> 0.95f
+                            source.report.optBoolean("success", false) -> 0.7f
+                            else -> 0.35f
+                        },
+                        extra = JSONObject()
+                            .put("source_action", source.action)
+                            .put("tool_action", source.action)
+                            .put("graph_type", graphType)
+                            .put("card_title", title)
+                            .put("card_index", index)
+                            .put("row_count", rowCount)
+                            .put("refresh_policy", source.refreshPolicy)
+                            .put("permission_gate", source.permissionGate)
+                            .put("source_report_success", source.report.optBoolean("success", false))
+                            .put("source_report_scope", source.report.optString("report_scope")),
+                    ),
+                )
+            }
+        }
+        putCanonicalCardManifestRoute(
+            rows = rows,
+            label = "Wi-Fi channel graph route",
+            sourceAction = "wifi_channel_graph",
+            graphType = "wifi_channel_graph",
+            refreshPolicy = "active_refresh_on_request",
+            permissionGate = "nearby_wifi_or_location_permission",
+            detail = "WiFiAnalyzer-style AP channel envelopes can be requested even when the passive report has no current AP rows.",
+        )
+        putCanonicalCardManifestRoute(
+            rows = rows,
+            label = "Wi-Fi channel rating route",
+            sourceAction = "wifi_channel_rating",
+            graphType = "wifi_channel_rating",
+            refreshPolicy = "active_refresh_on_request",
+            permissionGate = "nearby_wifi_or_location_permission",
+            detail = "Wi-Fi channel scoring is available as a target card for choosing quiet 2.4 GHz, 5 GHz, and 6 GHz candidates.",
+        )
+        putCanonicalCardManifestRoute(
+            rows = rows,
+            label = "Bluetooth nearby RSSI route",
+            sourceAction = "bluetooth_scan",
+            graphType = "bluetooth_rssi",
+            refreshPolicy = "active_scan_on_request",
+            permissionGate = "bluetooth_scan_or_connect_permission",
+            detail = "Nearby Bluetooth and BLE RSSI cards can be requested when the user needs fresh proximity rows.",
+        )
+        putCanonicalCardManifestRoute(
+            rows = rows,
+            label = "Bluetooth signal history route",
+            sourceAction = "bluetooth_signal_history",
+            graphType = "bluetooth_signal_history",
+            refreshPolicy = "passive_after_scan",
+            permissionGate = "bluetooth_scan_or_connect_permission",
+            detail = "Bluetooth trend cards expose cached RSSI movement after paired or nearby scans.",
+        )
+        putCanonicalCardManifestRoute(
+            rows = rows,
+            label = "Motion pose route",
+            sourceAction = "motion_pose",
+            graphType = "motion_pose_estimate",
+            refreshPolicy = "bounded_live_sample_on_request",
+            permissionGate = "motion_sensor_hardware",
+            detail = "Motion pose cards fuse accelerometer, gyroscope, rotation, magnetic, gravity, and linear acceleration rows.",
+        )
+        putCanonicalCardManifestRoute(
+            rows = rows,
+            label = "AM/FM signal graph route",
+            sourceAction = "radio_signal_graph",
+            graphType = "radio_signal_graph",
+            refreshPolicy = "bridge_samples_required",
+            permissionGate = "vendor_radio_bridge_or_external_sdr",
+            detail = "AM/FM signal graph rows require vendor tuner or SDR sample input before Hermes can show station-like data.",
+        )
+        putCanonicalCardManifestRoute(
+            rows = rows,
+            label = "GPU backend risk route",
+            sourceAction = "gpu_backend_risk_report",
+            graphType = "gpu_backend_risk_matrix",
+            refreshPolicy = "passive_backend_triage",
+            permissionGate = "phone_validation_required_for_acceleration_claims",
+            detail = "Backend risk cards keep MediaTek, Mali, PowerVR, Xclipse, non-Adreno, thermal, memory, and fallback evidence discoverable.",
+        )
+        return rows
+    }
+
+    private fun putCanonicalCardManifestRoute(
+        rows: JSONArray,
+        label: String,
+        sourceAction: String,
+        graphType: String,
+        refreshPolicy: String,
+        permissionGate: String,
+        detail: String,
+    ) {
+        if (manifestContainsGraphType(rows, graphType)) return
+        rows.put(
+            capabilityRow(
+                category = "agent_card_manifest",
+                label = label,
+                ready = true,
+                valueLabel = "$graphType via $sourceAction",
+                detail = "$detail refresh_policy=$refreshPolicy; permission_gate=$permissionGate.",
+                recommendation = "Use $sourceAction when this graph type is the best evidence surface for the user's question.",
+                fraction = 0.82f,
+                extra = JSONObject()
+                    .put("source_action", sourceAction)
+                    .put("tool_action", sourceAction)
+                    .put("graph_type", graphType)
+                    .put("card_title", label)
+                    .put("row_count", 0)
+                    .put("refresh_policy", refreshPolicy)
+                    .put("permission_gate", permissionGate)
+                    .put("source_report_success", true)
+                    .put("source_report_scope", "canonical_card_route"),
+            ),
+        )
+    }
+
+    private fun manifestContainsGraphType(rows: JSONArray, graphType: String): Boolean {
+        for (index in 0 until rows.length()) {
+            if (rows.optJSONObject(index)?.optString("graph_type") == graphType) return true
+        }
+        return false
+    }
+
+    private fun cardGraphTypeList(rows: JSONArray): JSONArray {
+        val graphTypes = linkedSetOf<String>()
+        for (index in 0 until rows.length()) {
+            rows.optJSONObject(index)
+                ?.optString("graph_type")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { graphTypes.add(it) }
+        }
+        return JSONArray().also { array ->
+            graphTypes.forEach { array.put(it) }
+        }
     }
 
     private fun observationSummaryJson(report: JSONObject, action: String): JSONObject {

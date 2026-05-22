@@ -600,13 +600,35 @@ class NativeToolCallingChatClientTest {
                     .put("tool_action", "agent_observation_report"),
             )
         }
+        val cardManifest = JSONArray()
+        repeat(16) { index ->
+            cardManifest.put(
+                JSONObject()
+                    .put("category", "agent_card_manifest")
+                    .put("label", if (index == 0) "Wi-Fi Channel Graph" else "Card manifest row $index")
+                    .put("ready", true)
+                    .put("value_label", if (index == 0) "wifi_channel_graph via wifi_analyzer_report" else "graph_$index")
+                    .put("detail", "Detailed card manifest row $index")
+                    .put("recommendation", "Open this expandable card for evidence.")
+                    .put("tool_action", "wifi_analyzer_report")
+                    .put("source_action", "wifi_analyzer_report")
+                    .put("graph_type", if (index == 0) "wifi_channel_graph" else "graph_$index")
+                    .put("card_title", if (index == 0) "Wi-Fi Channel Graph" else "Card $index")
+                    .put("refresh_policy", "passive_by_default_refresh_when_needed")
+                    .put("permission_gate", "nearby_wifi_or_location_permission"),
+            )
+        }
         val result = JSONObject()
             .put("success", true)
             .put("action", "agent_observation_report")
             .put("agent_observation_count", 20)
             .put("ready_agent_observation_count", 20)
             .put("agent_observation_route_count", 1)
+            .put("agent_card_manifest_count", 16)
+            .put("ready_agent_card_manifest_count", 16)
             .put("agent_observation_matrix", observations)
+            .put("agent_card_manifest", cardManifest)
+            .put("agent_card_graph_types", JSONArray().put("wifi_channel_graph").put("bluetooth_signal_history"))
             .put(
                 "agent_observation_routes",
                 JSONArray().put(
@@ -625,14 +647,23 @@ class NativeToolCallingChatClientTest {
         val compacted = NativeToolContextCompressor.compactToolResult(result)
         val parsed = JSONObject(compacted)
         val compactedObservations = parsed.getJSONObject("agent_observation_matrix")
+        val compactedCardManifest = parsed.getJSONObject("agent_card_manifest")
         val routes = parsed.getJSONArray("agent_observation_routes")
 
         assertTrue(parsed.getBoolean("_hermes_context_compressed"))
         assertEquals(20, parsed.getInt("agent_observation_count"))
+        assertEquals(16, parsed.getInt("agent_card_manifest_count"))
         assertEquals("array", compactedObservations.getString("type"))
         assertEquals(20, compactedObservations.getInt("original_count"))
         assertEquals("Observation 0", compactedObservations.getJSONArray("items").getJSONObject(0).getString("label"))
         assertEquals("agent_observation_report", compactedObservations.getJSONArray("items").getJSONObject(0).getString("tool_action"))
+        assertEquals("array", compactedCardManifest.getString("type"))
+        assertEquals(16, compactedCardManifest.getInt("original_count"))
+        assertEquals("Wi-Fi Channel Graph", compactedCardManifest.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("wifi_channel_graph", compactedCardManifest.getJSONArray("items").getJSONObject(0).getString("graph_type"))
+        assertEquals("passive_by_default_refresh_when_needed", compactedCardManifest.getJSONArray("items").getJSONObject(0).getString("refresh_policy"))
+        assertEquals("nearby_wifi_or_location_permission", compactedCardManifest.getJSONArray("items").getJSONObject(0).getString("permission_gate"))
+        assertEquals("wifi_channel_graph", parsed.getJSONArray("agent_card_graph_types").getString(0))
         assertEquals("Open Wi-Fi analyzer cards", routes.getJSONObject(0).getString("label"))
         assertEquals("Read agent_observation_matrix first", parsed.getJSONArray("gemma_observation_directives").getString(0))
     }
