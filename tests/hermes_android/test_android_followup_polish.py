@@ -205,6 +205,7 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
     chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
     diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    automation_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesAutomationBridge.kt").read_text(encoding="utf-8")
 
     assert '"agent_environment_report"' in diagnostics_bridge
     assert 'agentEnvironmentReportJson(appContext)' in diagnostics_bridge
@@ -224,12 +225,21 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert 'agent_persona_status' in diagnostics_bridge
     assert 'custom_system_prompt' in diagnostics_bridge
     assert 'TTS and image conversation route' in diagnostics_bridge
+    assert 'Scheduled task compatibility route' in diagnostics_bridge
+    assert 'schedule_task/list_tasks/cancel_task' in diagnostics_bridge
+    assert 'kai_task_compat' in diagnostics_bridge
+    assert 'background_ai_prompt_execution' in diagnostics_bridge
     assert 'Route Kai-style tool orchestration' in diagnostics_bridge
     assert 'Use SOC and LiteRT backend policy fields to avoid Snapdragon-only assumptions' in diagnostics_bridge
     assert 'Use hindsight_memory_tool and operator heartbeat/status rows' in diagnostics_bridge
     assert 'agent_environment_report' in chat_client
     assert 'export_app_settings/import_app_settings' in chat_client
     assert 'Kai-style custom agent persona/system prompt' in chat_client
+    assert 'schedule_task/list_tasks/cancel_task' in chat_client
+    assert 'not unrestricted background AI prompt execution' in chat_client
+    assert 'name = "schedule_task"' in chat_client
+    assert 'name = "list_tasks"' in chat_client
+    assert 'name = "cancel_task"' in chat_client
     assert 'User-configured agent persona' in chat_client
     assert '"agent_capability_matrix"' in chat_client
     assert '"kai_parity_matrix"' in chat_client
@@ -238,6 +248,11 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert '"kai_operations_matrix"' in diagnostic_cards
     assert '"agent_capability_matrix", "kai_parity_matrix", "agent_workflow_readiness"' in diagnostic_cards
     assert 'capabilityMatrixRow(row)' in diagnostic_cards
+    assert '"schedule_task", "kai_schedule_task" -> scheduleTaskJson(context, arguments)' in automation_bridge
+    assert '"list_tasks", "kai_list_tasks", "tasks" -> listTasksJson(context)' in automation_bridge
+    assert '"cancel_task", "kai_cancel_task" -> cancelTaskJson(context, arguments)' in automation_bridge
+    assert '"android_automation_task_not_background_ai_prompt"' in automation_bridge
+    assert '"android_automation_notification_task"' in automation_bridge
 
 
 def test_android_diagnostics_exposes_agent_observation_dashboard_for_gemma_signal_cards():

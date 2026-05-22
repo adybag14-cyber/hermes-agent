@@ -31,6 +31,7 @@ object HermesAutomationBridge {
     fun performActionJson(context: Context, action: String, arguments: JSONObject = JSONObject()): String {
         return when (action.lowercase().ifBlank { "list" }) {
             "list", "list_automations", "status" -> listJson(context)
+            "list_tasks", "kai_list_tasks", "tasks" -> listTasksJson(context)
             "run_history", "automation_run_history", "recent_runs", "operator_run_history" -> runHistoryJson(context, arguments)
             "operator_devices", "devices", "standby_devices", "remote_devices", "opengui_devices" -> operatorDevicesJson(context)
             "operator_standby_status", "standby_status", "remote_dispatch_status", "dispatch_status" -> operatorStandbyStatusJson(context)
@@ -58,6 +59,7 @@ object HermesAutomationBridge {
             "send_broadcast", "broadcast_intent" -> performIntentNowJson(context, arguments, "send_broadcast")
             "create_shizuku_action_task", "create_shizuku_action", "create_privileged_action_task", "privileged_action_task" -> createShizukuActionTaskJson(context, arguments)
             "create_sunrise_sunset_task", "create_sun_task", "create_solar_task" -> createSunriseSunsetTaskJson(context, arguments)
+            "schedule_task", "kai_schedule_task" -> scheduleTaskJson(context, arguments)
             "create_notification_task", "create_notify_task", "create_notify", "notify_task" -> createNotificationTaskJson(context, arguments)
             "create_variable_action_task", "create_variable_task", "create_variable_set_task", "create_variable_clear_task" -> createVariableActionTaskJson(context, arguments)
             "create_wait_task", "create_wait", "wait_task", "delay_task" -> createWaitTaskJson(context, arguments)
@@ -138,6 +140,7 @@ object HermesAutomationBridge {
             )
             "run_time_trigger", "trigger_time", "time" -> runTriggerJson(context, TRIGGER_TIME)
             "delete", "remove" -> deleteJson(context, arguments.optString("id"))
+            "cancel_task", "kai_cancel_task" -> cancelTaskJson(context, arguments)
             "enable" -> setEnabledJson(context, arguments.optString("id"), true)
             "disable", "pause" -> setEnabledJson(context, arguments.optString("id"), false)
             "list_variables", "variables" -> listVariablesJson(context)
@@ -165,6 +168,20 @@ object HermesAutomationBridge {
             .put("available_actions", JSONArray(AUTOMATION_ACTIONS))
             .put("available_triggers", JSONArray(AUTOMATION_TRIGGERS))
             .put("min_interval_minutes", HermesAutomationScheduler.MIN_INTERVAL_MINUTES)
+            .toString()
+    }
+
+    fun listTasksJson(context: Context): String {
+        val result = JSONObject(listJson(context))
+        val automations = result.optJSONArray("automations") ?: JSONArray()
+        return result
+            .put("action", "list_tasks")
+            .put("kai_task_compat", true)
+            .put("kai_semantics", KAI_TASK_COMPAT_SEMANTICS)
+            .put("kai_schedule_task_semantics", KAI_SCHEDULE_TASK_SEMANTICS)
+            .put("background_ai_prompt_execution", false)
+            .put("tasks", automations)
+            .put("task_count", automations.length())
             .toString()
     }
 
@@ -1448,6 +1465,72 @@ object HermesAutomationBridge {
             payload = payload.toString(),
             defaultLabel = "Hermes notification automation",
         )
+    }
+
+    fun scheduleTaskJson(context: Context, arguments: JSONObject): String {
+        val title = stringArgument(
+            arguments,
+            "title",
+            "notification_title",
+            "task_title",
+            "taskTitle",
+            "name",
+            "label",
+        )?.trim().orEmpty()
+        val taskText = stringArgument(
+            arguments,
+            "task",
+            "prompt",
+            "description",
+            "content",
+            "message",
+            "notification_text",
+            "text",
+        )?.trim().orEmpty()
+        val label = stringArgument(arguments, "label", "name", "task_name", "taskName")?.trim().orEmpty()
+        if (title.isBlank() && taskText.isBlank() && label.isBlank()) {
+            return errorJson("schedule_task requires task/prompt/description, title, or label")
+        }
+        if (listOf(title, taskText, label).any { value -> value.indexOf('\u0000') >= 0 }) {
+            return errorJson("schedule_task title, task, and label fields must not contain NUL bytes")
+        }
+
+        val recordArguments = JSONObject(arguments.toString())
+        stringArgument(arguments, "task_id", "taskId", "automation_id", "automationId", "id")?.let { taskId ->
+            recordArguments.put("id", taskId)
+        }
+        if (recordArguments.optString("label").isBlank()) {
+            recordArguments.put(
+                "label",
+                label.ifBlank { title.ifBlank { taskText } }.ifBlank { "Kai scheduled task" }.take(80),
+            )
+        }
+        if (recordArguments.optString("notification_title").isBlank()) {
+            recordArguments.put(
+                "notification_title",
+                title.ifBlank { recordArguments.optString("label").ifBlank { "Hermes scheduled task" } },
+            )
+        }
+        if (recordArguments.optString("notification_text").isBlank()) {
+            recordArguments.put("notification_text", taskText.ifBlank { title.ifBlank { recordArguments.optString("label") } })
+        }
+        if (!hasTimeArgument(recordArguments)) {
+            stringArgument(
+                arguments,
+                "scheduled_time",
+                "schedule_time",
+                "scheduled_at",
+                "run_at",
+                "runAt",
+                "scheduledAt",
+            )?.let { timeAlias -> recordArguments.put("at", timeAlias) }
+        }
+        if (!hasKaiScheduledTrigger(recordArguments)) {
+            return errorJson("schedule_task requires time/at/scheduled_time, interval_minutes/every_minutes, or a non-manual trigger")
+        }
+
+        val created = JSONObject(createNotificationTaskJson(context, recordArguments))
+        return addKaiTaskCompatMetadata(created, "schedule_task").toString()
     }
 
     fun createVariableActionTaskJson(context: Context, arguments: JSONObject): String {
@@ -2851,6 +2934,12 @@ object HermesAutomationBridge {
             .toString()
     }
 
+    fun cancelTaskJson(context: Context, arguments: JSONObject): String {
+        val taskId = stringArgument(arguments, "task_id", "taskId", "automation_id", "automationId", "id").orEmpty()
+        val deleted = JSONObject(deleteJson(context, taskId))
+        return addKaiTaskCompatMetadata(deleted, "cancel_task", taskId).toString()
+    }
+
     fun listVariablesJson(context: Context): String {
         return JSONObject()
             .put("success", true)
@@ -2963,6 +3052,36 @@ object HermesAutomationBridge {
         stringArgument(arguments, *keys, allowEmpty = allowEmpty)?.let { value ->
             payload.put(targetKey, value)
         }
+    }
+
+    private fun addKaiTaskCompatMetadata(result: JSONObject, action: String, requestedTaskId: String = ""): JSONObject {
+        val automation = result.optJSONObject("automation")
+        val taskId = requestedTaskId.ifBlank { automation?.optString("id").orEmpty() }
+        return result
+            .put("action", action)
+            .put("kai_task_compat", true)
+            .put("kai_semantics", KAI_TASK_COMPAT_SEMANTICS)
+            .put("kai_schedule_task_semantics", KAI_SCHEDULE_TASK_SEMANTICS)
+            .put("background_ai_prompt_execution", false)
+            .put("task_id", taskId)
+            .put("task_label", automation?.optString("label").orEmpty())
+            .put("scheduled_trigger", automation?.optString("trigger_type").orEmpty())
+    }
+
+    private fun hasKaiScheduledTrigger(arguments: JSONObject): Boolean {
+        if (optionalPositiveInt(arguments, "interval_minutes") != null || optionalPositiveInt(arguments, "every_minutes") != null) {
+            return true
+        }
+        if (hasTimeArgument(arguments)) {
+            return true
+        }
+        val trigger = stringArgument(arguments, "trigger_type", "trigger")
+            ?.let { rawTrigger -> normalizeTrigger(rawTrigger) }
+        return trigger != null && trigger != TRIGGER_MANUAL
+    }
+
+    private fun hasTimeArgument(arguments: JSONObject): Boolean {
+        return TIME_ARGUMENT_KEYS.any { key -> arguments.has(key) && !arguments.isNull(key) }
     }
 
     private fun notificationButtonsFromArguments(arguments: JSONObject): NotificationButtonsResult {
@@ -5639,6 +5758,9 @@ object HermesAutomationBridge {
 
     private val AUTOMATION_ACTIONS = listOf(
         "list",
+        "list_tasks",
+        "schedule_task",
+        "cancel_task",
         "operator_devices",
         "operator_standby_status",
         "operator_heartbeat",
@@ -5742,6 +5864,9 @@ object HermesAutomationBridge {
         "get_variable",
         "delete_variable",
     )
+
+    private const val KAI_TASK_COMPAT_SEMANTICS = "android_automation_task_not_background_ai_prompt"
+    private const val KAI_SCHEDULE_TASK_SEMANTICS = "android_automation_notification_task"
     private val AUTOMATION_ACTION_TYPES = setOf(
         ACTION_TYPE_SHELL,
         ACTION_TYPE_FILE_WRITE,

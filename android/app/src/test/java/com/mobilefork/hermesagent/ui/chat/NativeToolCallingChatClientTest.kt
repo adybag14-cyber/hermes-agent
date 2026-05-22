@@ -19,6 +19,8 @@ class NativeToolCallingChatClientTest {
         )
 
         assertTrue(content.contains("Kai-style custom agent persona/system prompt"))
+        assertTrue(content.contains("schedule_task/list_tasks/cancel_task"))
+        assertTrue(content.contains("not unrestricted background AI prompt execution"))
         assertTrue(content.contains("User-configured agent persona"))
         assertTrue(content.contains("Stay concise and use Wi-Fi analyzer cards"))
         assertTrue(content.contains("Promoted local memory context"))

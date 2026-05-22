@@ -2400,6 +2400,24 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 capabilityRow(
                     category = "kai_operations",
+                    label = "Scheduled task compatibility route",
+                    ready = true,
+                    valueLabel = "schedule_task/list_tasks/cancel_task",
+                    detail = "Hermes maps Kai-style scheduled task tool names to native Android automation notification records with time/day, interval, or explicit phone triggers.",
+                    recommendation = "Use schedule_task for reminder-like Android automations, list_tasks to inspect them, and cancel_task with task_id to remove them; background AI prompt execution remains explicit and is not implied.",
+                    fraction = 0.85f,
+                    extra = JSONObject()
+                        .put("tool_action", "schedule_task")
+                        .put("list_action", "list_tasks")
+                        .put("cancel_action", "cancel_task")
+                        .put("source_surface", "kai_task_compat")
+                        .put("kai_task_compat", true)
+                        .put("background_ai_prompt_execution", false),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "kai_operations",
                     label = "TTS and image conversation route",
                     ready = true,
                     valueLabel = if (modelRouting.optBoolean("vision_capable", false)) "speech + vision" else "speech + image route",
@@ -5789,7 +5807,10 @@ object HermesDeviceDiagnosticsBridge {
                     .put(toolJson("file_write_tool", "Write UTF-8 text files inside the Hermes workspace.", "path, content, append"))
                     .put(toolJson("android_system_tool", "Read phone state and open settings or user-granted Shizuku/Sui actions.", "action, package_name, permission"))
                     .put(toolJson("android_ui_tool", "Inspect and control visible Android UI through accessibility and screenshots.", "action, selectors, coordinates"))
-                    .put(toolJson("android_automation_tool", "Run/open/create saved automations, watcher tasks, overlays, notifications, widgets, Tasker-style triggers, and secret-free app settings export/import.", "action, trigger, data_uri, bundle_json, settings_json"))
+                    .put(toolJson("schedule_task", "Kai-compatible scheduled reminder alias backed by Hermes native Android automation notification records, not background AI prompt execution.", "task, title, task_id, time, at, interval_minutes, days_of_week, enabled"))
+                    .put(toolJson("list_tasks", "Kai-compatible alias for listing saved Hermes Android automation task records.", "limit"))
+                    .put(toolJson("cancel_task", "Kai-compatible alias for deleting a saved Hermes Android automation by task_id.", "task_id"))
+                    .put(toolJson("android_automation_tool", "Run/open/create saved automations, watcher tasks, overlays, notifications, widgets, Tasker-style triggers, Kai-compatible scheduled task aliases, and secret-free app settings export/import.", "action, trigger, task_id, data_uri, bundle_json, settings_json"))
                     .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, Wi-Fi signals/channel graph envelopes/channel ratings/AP detail and export rows/vendor OUI/filter facets plus active Wi-Fi band/security/signal/SSID/RSSI filters, Bluetooth nearby devices/service UUID labels/manufacturer names/proximity/history, camera, sensors, SOC compatibility, overlay, Gemma-visible agent observation dashboards, radio/RF capability limits, Kai-style agent environment parity, and the social/Gmail end-to-end phone preflight.", "action, limit, detail_limit, export_format, scan_mode, refresh, filter_band, filter_security, filter_signal, filter_ssid, min_rssi_dbm, max_rssi_dbm, sensor_types, timeout_ms"))
                     .put(toolJson("hindsight_memory_tool", "Retain, recall, reflect, and promote local Hindsight-style memories with tags, entities, keywords, recency, reinforcement, and reusable prompt context.", "action, content, query, tags, category")),
             )

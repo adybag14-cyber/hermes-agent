@@ -822,6 +822,64 @@ class HermesAutomationStoreTest {
     }
 
     @Test
+    fun bridgeSchedulesListsAndCancelsKaiCompatibleNotificationTasks() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = HermesAutomationStore(context)
+        store.clear()
+
+        val created = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "schedule_task",
+                org.json.JSONObject()
+                    .put("task_id", "kai-task-1")
+                    .put("title", "Wi-Fi graph check")
+                    .put("task", "Review Wi-Fi channel graph")
+                    .put("time", "08:30")
+                    .put("days_of_week", "mon,wed")
+                    .put("enabled", false),
+            ),
+        )
+
+        assertTrue(created.toString(), created.getBoolean("success"))
+        assertEquals("schedule_task", created.getString("action"))
+        assertTrue(created.getBoolean("kai_task_compat"))
+        assertEquals("android_automation_task_not_background_ai_prompt", created.getString("kai_semantics"))
+        assertEquals("android_automation_notification_task", created.getString("kai_schedule_task_semantics"))
+        assertFalse(created.getBoolean("background_ai_prompt_execution"))
+        assertEquals("kai-task-1", created.getString("task_id"))
+        val automation = created.getJSONObject("automation")
+        assertEquals(ACTION_TYPE_NOTIFICATION_ACTION, automation.getString("action_type"))
+        assertEquals(TRIGGER_TIME, automation.getString("trigger_type"))
+        assertEquals(510, automation.getInt("trigger_time_minutes"))
+        assertEquals("MON,WED", automation.getString("trigger_days_of_week"))
+        val payload = org.json.JSONObject(automation.getString("command"))
+        assertEquals("Wi-Fi graph check", payload.getString("title"))
+        assertEquals("Review Wi-Fi channel graph", payload.getString("text"))
+
+        val listed = org.json.JSONObject(HermesAutomationBridge.performActionJson(context, "list_tasks"))
+        assertTrue(listed.toString(), listed.getBoolean("success"))
+        assertEquals("list_tasks", listed.getString("action"))
+        assertTrue(listed.getBoolean("kai_task_compat"))
+        assertFalse(listed.getBoolean("background_ai_prompt_execution"))
+        assertEquals(1, listed.getInt("task_count"))
+        assertEquals("kai-task-1", listed.getJSONArray("tasks").getJSONObject(0).getString("id"))
+
+        val cancelled = org.json.JSONObject(
+            HermesAutomationBridge.performActionJson(
+                context,
+                "cancel_task",
+                org.json.JSONObject().put("task_id", "kai-task-1"),
+            ),
+        )
+        assertTrue(cancelled.toString(), cancelled.getBoolean("success"))
+        assertEquals("cancel_task", cancelled.getString("action"))
+        assertTrue(cancelled.getBoolean("kai_task_compat"))
+        assertEquals("kai-task-1", cancelled.getString("task_id"))
+        assertNull(store.get("kai-task-1"))
+    }
+
+    @Test
     fun schedulerComputesNextTimeTriggerWithDayRestriction() {
         val now = Calendar.getInstance().apply {
             set(2026, Calendar.MAY, 4, 9, 0, 0)

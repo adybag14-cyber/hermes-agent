@@ -527,7 +527,10 @@ class NativeToolCallingChatClient(
             "android_device_diagnostics_tool", "device_diagnostics_tool", "diagnostics_tool", "resource_tool", "wifi_analyzer_tool", "bluetooth_scanner_tool", "bluetooth_analyzer_tool", "sensor_tool", "sensor_analyzer_tool", "camera_tool", "radio_signal_tool", "soc_backend_tool", "runtime_stability_tool", "device_performance_tool" ->
                 executeAndroidDeviceDiagnosticsTool(toolCall)
             "hindsight_memory_tool", "memory_tool", "recall_tool", "retain_tool" -> executeHindsightMemoryTool(toolCall)
-            "android_automation_tool", "automation_tool", "tasker_tool" -> executeAndroidAutomationTool(toolCall)
+            "android_automation_tool", "automation_tool", "tasker_tool", "kai_task_tool" -> executeAndroidAutomationTool(toolCall)
+            "schedule_task" -> executeAndroidAutomationAliasTool(toolCall, "schedule_task")
+            "list_tasks" -> executeAndroidAutomationAliasTool(toolCall, "list_tasks")
+            "cancel_task" -> executeAndroidAutomationAliasTool(toolCall, "cancel_task")
             "android_ui_tool", "ui_tool", "screen_tool", "accessibility_tool" -> executeAndroidUiTool(toolCall)
             else -> JSONObject()
                 .put("exit_code", 127)
@@ -633,6 +636,12 @@ class NativeToolCallingChatClient(
             ?.lowercase()
             .orEmpty()
         return HermesAutomationBridge.performActionJson(appContext, action, toolCall.arguments)
+    }
+
+    private fun executeAndroidAutomationAliasTool(toolCall: ToolCall, action: String): String {
+        val arguments = JSONObject(toolCall.arguments.toString())
+            .put("action", action)
+        return HermesAutomationBridge.performActionJson(appContext, action, arguments)
     }
 
     private fun executeAndroidUiTool(toolCall: ToolCall): String {
@@ -1344,11 +1353,47 @@ class NativeToolCallingChatClient(
             )
             .put(
                 functionSpec(
-                    name = "android_automation_tool",
-                    description = "Open URLs/files immediately or create, run, manage, import, export, or trigger saved Hermes/Tasker-style Android automations and secret-free app settings bundles.",
+                    name = "schedule_task",
+                    description = "Kai-compatible scheduled reminder alias backed by Hermes native Android automation notifications. Creates Android automation records; it does not run unrestricted background AI prompts.",
                     properties = JSONObject()
-                        .put("action", stringProp("open_uri/open_url/open_browser for immediate browser/file launch; list, run, delete, enable, disable, export_automations/import_automations, export_app_settings/import_app_settings, import_tasker_xml, create_*_task, set/get/delete_variable, watcher status/start/stop/scan, run_*_trigger, widget/tile actions."))
+                        .put("task", stringProp("Reminder or task text to show in the Android notification."))
+                        .put("title", stringProp("Optional notification title."))
+                        .put("task_id", stringProp("Optional stable task/automation id."))
+                        .put("time", stringProp("Time trigger such as 08:30."))
+                        .put("at", stringProp("Alias for a time-of-day trigger such as 08:30."))
+                        .put("interval_minutes", intProp("Repeat interval in minutes."))
+                        .put("every_minutes", intProp("Alias for interval_minutes."))
+                        .put("days_of_week", stringProp("Optional day filter such as MON,WED."))
+                        .put("enabled", boolProp("Whether the saved Android automation starts enabled.")),
+                    required = JSONArray().put("task"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "list_tasks",
+                    description = "Kai-compatible alias for listing saved Hermes Android automations as scheduled task records.",
+                    properties = JSONObject()
+                        .put("limit", intProp("Optional display limit.")),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "cancel_task",
+                    description = "Kai-compatible alias for deleting a saved Hermes Android automation by task_id.",
+                    properties = JSONObject()
+                        .put("task_id", stringProp("Task or automation id to cancel.")),
+                    required = JSONArray().put("task_id"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_automation_tool",
+                    description = "Open URLs/files immediately or create, run, manage, import, export, or trigger saved Hermes/Tasker-style Android automations and secret-free app settings bundles. Also accepts Kai-compatible schedule_task/list_tasks/cancel_task semantics as native Android automation records.",
+                    properties = JSONObject()
+                        .put("action", stringProp("open_uri/open_url/open_browser for immediate browser/file launch; list, list_tasks, schedule_task, cancel_task, run, delete, enable, disable, export_automations/import_automations, export_app_settings/import_app_settings, import_tasker_xml, create_*_task, set/get/delete_variable, watcher status/start/stop/scan, run_*_trigger, widget/tile actions."))
                         .put("id", stringProp("Automation id."))
+                        .put("task_id", stringProp("Kai-compatible task id alias for automation id."))
+                        .put("task", stringProp("Kai-compatible task/reminder text for schedule_task."))
                         .put("label", stringProp("Automation label."))
                         .put("command", stringProp("Shell/system/intent command."))
                         .put("path", stringProp("Workspace path."))
@@ -1633,6 +1678,36 @@ class NativeToolCallingChatClient(
             }
             if (
                 listOf(
+                    "schedule task",
+                    "scheduled task",
+                    "schedule a task",
+                    "schedule reminder",
+                    "remind me",
+                    "reminder",
+                ).any { it in lower }
+            ) {
+                add("schedule_task")
+            }
+            if (
+                listOf(
+                    "list tasks",
+                    "show tasks",
+                    "scheduled tasks",
+                ).any { it in lower }
+            ) {
+                add("list_tasks")
+            }
+            if (
+                listOf(
+                    "cancel task",
+                    "delete task",
+                    "remove task",
+                ).any { it in lower }
+            ) {
+                add("cancel_task")
+            }
+            if (
+                listOf(
                     "automation",
                     "tasker",
                     "cron",
@@ -1699,8 +1774,17 @@ class NativeToolCallingChatClient(
             if ("android_ui_tool" in lower || "screen_tool" in lower || "accessibility_tool" in lower) {
                 add("android_ui_tool")
             }
-            if ("android_automation_tool" in lower || "tasker_tool" in lower) {
+            if ("android_automation_tool" in lower || "tasker_tool" in lower || "kai_task_tool" in lower) {
                 add("android_automation_tool")
+            }
+            if ("schedule_task" in lower) {
+                add("schedule_task")
+            }
+            if ("list_tasks" in lower) {
+                add("list_tasks")
+            }
+            if ("cancel_task" in lower) {
+                add("cancel_task")
             }
         }
     }
@@ -3012,10 +3096,11 @@ class NativeToolCallingChatClient(
         ): String {
             val baseContent = if (toolsEnabled) {
                 "You are Hermes running inside the native Android app. " +
-                    "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel graph envelopes/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names, radio analyzer checks for AM/FM band-plan boundaries, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, Kai-style custom agent persona/system prompt, or Tasker-style automation. " +
+                    "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel graph envelopes/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names, radio analyzer checks for AM/FM band-plan boundaries, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, Kai-style custom agent persona/system prompt, Kai-compatible schedule_task/list_tasks/cancel_task native Android task aliases, or Tasker-style automation. " +
                     "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                     "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
                     "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible agent observation dashboards, Kai-style agent environment reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM and broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                    "Use schedule_task/list_tasks/cancel_task for Kai-style scheduled reminders; these create, list, and cancel native Android automation notification records, not unrestricted background AI prompt execution. " +
                     "Use hindsight_memory_tool to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
                     "Report missing Android permissions honestly. Keep replies brief."
             } else {
