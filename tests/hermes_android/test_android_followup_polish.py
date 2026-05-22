@@ -326,7 +326,9 @@ def test_android_diagnostics_exposes_signal_evidence_bundle_for_gemma_visible_cu
     assert 'extractImplicitSignalEvidenceArguments(userText)' in chat_client
     assert 'extractImplicitAndroidDiagnosticsArguments(userText)' in chat_client
     assert 'fun extractImplicitAndroidDiagnosticsArguments(userText: String): JSONObject?' in chat_client
-    assert 'diagnosticArguments("wifi_channel_rating", "refresh" to false)' in chat_client
+    assert 'wifiDiagnosticArguments("wifi_channel_rating", userText)' in chat_client
+    assert 'wifiDiagnosticArguments("wifi_export", userText)' in chat_client
+    assert 'wifiDiagnosticArguments("wifi_ap_details", userText)' in chat_client
     assert 'diagnosticArguments("bluetooth_scan", "refresh" to false)' in chat_client
     assert '"motion_sensor_history"' in chat_client
     assert '"sensor_types" to "accelerometer,gyroscope,linear_acceleration,rotation_vector"' in chat_client
@@ -513,6 +515,12 @@ def test_android_diagnostics_exposes_wifi_analyzer_report_for_readiness_and_scan
     assert '"filter_security"' in chat_client
     assert '"filter_signal"' in chat_client
     assert '"filter_ssid"' in chat_client
+    assert '"filter_vendor"' in chat_client
+    assert '"export_format"' in chat_client
+    assert 'fun wifiDiagnosticArguments(action: String, userText: String): JSONObject' in chat_client
+    assert 'wifiTextFilter(userText, "ssid")' in chat_client
+    assert 'wifiTextFilter(userText, "vendor")' in chat_client
+    assert 'filter_band" to bandFilters.joinToString(",")' in chat_client
     assert '"min_rssi_dbm"' in chat_client
     assert '"applied_wifi_filters"' in chat_client
     assert '"wifi_filter_application"' in chat_client

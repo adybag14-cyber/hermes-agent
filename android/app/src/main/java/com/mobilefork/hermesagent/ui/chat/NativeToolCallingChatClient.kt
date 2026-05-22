@@ -3275,16 +3275,21 @@ class NativeToolCallingChatClient(
                 return null
             }
             return when {
+                (lower.contains("export") && lower.containsAny("wifi", "wi-fi", "access point", "access points")) ||
+                    lower.containsAny("export ap", "export aps", "ap export") ->
+                    wifiDiagnosticArguments("wifi_export", userText)
+                lower.containsAny("wifi ap details", "wi-fi ap details", "wifi access point details", "wi-fi access point details", "access point details", "complete access point", "compact access point", "ap details") ->
+                    wifiDiagnosticArguments("wifi_ap_details", userText)
                 lower.containsAny("best wifi channel", "best wi-fi channel", "channel rating", "rate wifi", "rate wi-fi", "wifi congestion", "wi-fi congestion") ->
-                    diagnosticArguments("wifi_channel_rating", "refresh" to false)
+                    wifiDiagnosticArguments("wifi_channel_rating", userText)
                 lower.containsAny("wifi utilization", "wi-fi utilization", "wifi occupancy", "wi-fi occupancy", "wifi interference", "wi-fi interference", "wifi spectrum", "wi-fi spectrum") ->
-                    diagnosticArguments("wifi_channel_utilization", "refresh" to false)
+                    wifiDiagnosticArguments("wifi_channel_utilization", userText)
                 lower.containsAny("wifi graph", "wi-fi graph", "wifi channel graph", "wi-fi channel graph", "wifi channel strength", "wi-fi channel strength") ->
-                    diagnosticArguments("wifi_channel_graph", "refresh" to false)
+                    wifiDiagnosticArguments("wifi_channel_graph", userText)
                 lower.containsAny("wifi analyzer", "wi-fi analyzer", "analyze wifi", "analyze wi-fi", "wifi readiness", "wi-fi readiness", "wifi scan policy", "wi-fi scan policy") ->
-                    diagnosticArguments("wifi_analyzer_report", "refresh" to false)
+                    wifiDiagnosticArguments("wifi_analyzer_report", userText)
                 lower.containsAny("nearby wifi", "nearby wi-fi", "scan wifi", "scan wi-fi", "wifi networks", "wi-fi networks", "access points nearby", "nearby access points") ->
-                    diagnosticArguments("wifi_scan", "refresh" to false)
+                    wifiDiagnosticArguments("wifi_scan", userText)
                 lower.containsAny("bluetooth history", "bluetooth trend", "bluetooth trends", "bluetooth rssi history", "ble history", "ble trend", "rssi trend") ->
                     diagnosticArguments("bluetooth_signal_history", "refresh" to false)
                 lower.containsAny("bluetooth analyzer", "bluetooth readiness", "bluetooth scan policy", "analyze bluetooth", "analyze ble") ->
@@ -3320,6 +3325,82 @@ class NativeToolCallingChatClient(
         }
 
         private fun String.containsAny(vararg needles: String): Boolean = needles.any { it in this }
+
+        private fun wifiDiagnosticArguments(action: String, userText: String): JSONObject {
+            val lower = userText.lowercase()
+            val pairs = mutableListOf<Pair<String, Any>>()
+            val scanMode = when {
+                lower.containsAny("paused", "pause scanning", "pause scan", "cached", "reuse cached", "without refresh", "no refresh") -> "paused"
+                lower.containsAny("resumed", "resume scanning", "resume scan", "fresh scan", "new scan", "refresh scan", "live scan") -> "resumed"
+                else -> null
+            }
+            pairs += "refresh" to (scanMode == "resumed" && action != "wifi_analyzer_report")
+            scanMode?.let { pairs += "scan_mode" to it }
+
+            val bandFilters = buildList {
+                if (lower.containsAny("2.4ghz", "2.4 ghz", "2g wifi", "2g wi-fi", "2 ghz")) add("2.4GHz")
+                if (lower.containsAny("5ghz", "5 ghz", "5g wifi", "5g wi-fi")) add("5GHz")
+                if (lower.containsAny("6ghz", "6 ghz", "6e", "wi-fi 6e", "wifi 6e")) add("6GHz")
+                if (lower.containsAny("60ghz", "60 ghz")) add("60GHz")
+            }.distinct()
+            if (bandFilters.isNotEmpty()) pairs += "filter_band" to bandFilters.joinToString(",")
+
+            val securityFilters = buildList {
+                if (lower.contains("wpa3")) add("WPA3")
+                if (lower.contains("wpa2")) add("WPA2")
+                if (lower.contains("wpa ") || lower.endsWith("wpa")) add("WPA")
+                if (lower.contains("wep")) add("WEP")
+                if (lower.containsAny("enhanced open", "owe")) add("Enhanced Open")
+                if (lower.containsAny("open wifi", "open wi-fi", "open network", "open networks", "unsecured wifi", "unsecured wi-fi")) add("Open")
+            }.distinct()
+            if (securityFilters.isNotEmpty()) pairs += "filter_security" to securityFilters.joinToString(",")
+
+            val signalFilters = buildList {
+                if (lower.containsAny("excellent signal", "strong signal", "strong wifi", "strong wi-fi")) add("excellent")
+                if (lower.containsAny("good signal", "good wifi", "good wi-fi")) add("good")
+                if (lower.containsAny("fair signal", "moderate signal", "medium signal")) add("fair")
+                if (lower.containsAny("weak signal", "weak wifi", "weak wi-fi", "poor signal")) add("weak")
+            }.distinct()
+            if (signalFilters.isNotEmpty()) pairs += "filter_signal" to signalFilters.joinToString(",")
+
+            when {
+                lower.containsAny("hidden only", "only hidden", "hidden ssids only", "hidden networks only") -> pairs += "hidden_only" to true
+                lower.containsAny("exclude hidden", "hide hidden", "without hidden") -> pairs += "include_hidden" to false
+                lower.containsAny("include hidden", "show hidden", "with hidden") -> pairs += "include_hidden" to true
+            }
+
+            wifiTextFilter(userText, "ssid")?.let { pairs += "filter_ssid" to it }
+            wifiTextFilter(userText, "vendor")?.let { pairs += "filter_vendor" to it }
+
+            if (action == "wifi_export") {
+                val exportFormat = when {
+                    lower.contains("csv") -> "csv"
+                    lower.contains("json") -> "json"
+                    else -> "both"
+                }
+                pairs += "export_format" to exportFormat
+            }
+            return diagnosticArguments(action, *pairs.toTypedArray())
+        }
+
+        private fun wifiTextFilter(userText: String, key: String): String? {
+            val pattern = Regex("""(?i)\b$key\s*(?:contains|named|name|vendor|=|:)?\s*["']?([A-Za-z0-9_.-]+(?: [A-Za-z0-9_.-]+){0,3})["']?(?=\s+(?:with|while|as|and|on|from|using|paused|resumed|fresh|cached|scan|details|export|networks|wifi|wi-fi)|[.!?]|$)""")
+            val rawValue = pattern.find(userText)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.trim('"', '\'')
+                ?: return null
+            val value = Regex("""(?i)\s+\b(with|while|as|and|on|from|using|paused|resumed|fresh|cached|scan|details|export|networks|wifi|wi-fi)\b.*$""")
+                .replace(rawValue, "")
+                .trim()
+                .trimEnd('.', ',', ';')
+                .takeIf { it.isNotBlank() }
+                ?: return null
+            return value.takeIf {
+                it.lowercase() !in setOf("filter", "filters", "details", "export", "network", "networks", "wifi", "wi-fi")
+            }
+        }
 
         private fun diagnosticArguments(action: String, vararg pairs: Pair<String, Any>): JSONObject {
             return JSONObject().put("action", action).apply {

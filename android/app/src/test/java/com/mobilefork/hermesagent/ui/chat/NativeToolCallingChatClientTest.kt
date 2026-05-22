@@ -169,6 +169,41 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun extractsImplicitWifiAnalyzerFiltersExportAndPauseResumeArguments() {
+        val export = NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments(
+            "Export WPA3 5GHz Wi-Fi access point details as CSV while paused.",
+        )
+
+        requireNotNull(export)
+        assertEquals("wifi_export", export.getString("action"))
+        assertFalse(export.getBoolean("refresh"))
+        assertEquals("paused", export.getString("scan_mode"))
+        assertEquals("5GHz", export.getString("filter_band"))
+        assertEquals("WPA3", export.getString("filter_security"))
+        assertEquals("csv", export.getString("export_format"))
+
+        val hidden = NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments(
+            "Show only hidden weak Wi-Fi networks from cached scan results.",
+        )
+
+        requireNotNull(hidden)
+        assertEquals("wifi_scan", hidden.getString("action"))
+        assertEquals("weak", hidden.getString("filter_signal"))
+        assertTrue(hidden.getBoolean("hidden_only"))
+        assertEquals("paused", hidden.getString("scan_mode"))
+
+        val fresh = NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments(
+            "Show complete Wi-Fi AP details for SSID HermesLab with a fresh scan.",
+        )
+
+        requireNotNull(fresh)
+        assertEquals("wifi_ap_details", fresh.getString("action"))
+        assertTrue(fresh.getBoolean("refresh"))
+        assertEquals("resumed", fresh.getString("scan_mode"))
+        assertEquals("HermesLab", fresh.getString("filter_ssid"))
+    }
+
+    @Test
     fun extractsExplicitAgentCardManifestDiagnosticQuickActionArguments() {
         val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
             "Run android_device_diagnostics_tool action=agent_card_manifest_report",
