@@ -24,6 +24,56 @@ class HermesModelDownloadManagerTest {
     }
 
     @Test
+    fun liteRtLmArtifactSelection_prefersMatchingMediatekVariantWhenGenericBundleIsAbsent() {
+        val generic = compatibleFileRank(
+            "gemma-4-E2B-it.litertlm",
+            "LiteRT-LM",
+            socFamily = "mediatek",
+            gpuFamily = "mali_immortalis",
+        )
+        val mediatek = compatibleFileRank(
+            "gemma-4-E2B-it_mediatek_mt6989.litertlm",
+            "LiteRT-LM",
+            socFamily = "mediatek",
+            gpuFamily = "mali_immortalis",
+        )
+        val mali = compatibleFileRank(
+            "gemma-4-E2B-it_mali_immortalis.litertlm",
+            "LiteRT-LM",
+            socFamily = "mediatek",
+            gpuFamily = "mali_immortalis",
+        )
+        val qualcomm = compatibleFileRank(
+            "gemma-4-E2B-it_qualcomm_sm8750_adreno.litertlm",
+            "LiteRT-LM",
+            socFamily = "mediatek",
+            gpuFamily = "mali_immortalis",
+        )
+
+        assertTrue(generic < mediatek)
+        assertTrue(mediatek < qualcomm)
+        assertTrue(mali < qualcomm)
+    }
+
+    @Test
+    fun liteRtLmArtifactSelection_prefersMatchingQualcommVariantOnSnapdragonDevices() {
+        val qualcomm = compatibleFileRank(
+            "gemma-4-E2B-it_qualcomm_sm8750_adreno.litertlm",
+            "LiteRT-LM",
+            socFamily = "qualcomm_snapdragon",
+            gpuFamily = "adreno",
+        )
+        val mediatek = compatibleFileRank(
+            "gemma-4-E2B-it_mediatek_mt6989_mali.litertlm",
+            "LiteRT-LM",
+            socFamily = "qualcomm_snapdragon",
+            gpuFamily = "adreno",
+        )
+
+        assertTrue(qualcomm < mediatek)
+    }
+
+    @Test
     fun liteRtLmAliasesPinEdgeGalleryMtpRevisionsForGemma4() {
         assertEquals(
             "litert-community/gemma-4-E2B-it-litert-lm",
@@ -49,6 +99,15 @@ class HermesModelDownloadManagerTest {
 
     private fun compatibleFileRank(path: String, runtimeFlavor: String): Int {
         return callPrivate("compatibleFileRank", path, runtimeFlavor) as Int
+    }
+
+    private fun compatibleFileRank(
+        path: String,
+        runtimeFlavor: String,
+        socFamily: String,
+        gpuFamily: String,
+    ): Int {
+        return callPrivate("compatibleFileRank", path, runtimeFlavor, socFamily, gpuFamily) as Int
     }
 
     private fun liteRtAlias(repoId: String): String? {

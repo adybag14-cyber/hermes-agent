@@ -6,12 +6,14 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.OpenableColumns
 import android.text.format.Formatter
 import com.mobilefork.hermesagent.data.HermesNetworkPolicy
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
+import com.mobilefork.hermesagent.device.HermesAndroidHardwareProfile
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -68,6 +70,20 @@ object HermesModelDownloadManager {
         "nvidia/nemotron-cascade-8b" to "bartowski/nvidia_Nemotron-Cascade-8B-GGUF",
         "nvidia/nemotron-cascade-8b-thinking" to "bartowski/nvidia_Nemotron-Cascade-8B-Thinking-GGUF",
     )
+    private val LITERT_SOC_ARTIFACT_TAGS = setOf(
+        "mediatek",
+        "qualcomm_snapdragon",
+        "google_tensor",
+        "samsung_exynos",
+        "unisoc",
+    )
+    private val LITERT_GPU_ARTIFACT_TAGS = setOf(
+        "adreno",
+        "mali",
+        "mali_immortalis",
+        "powervr_img",
+        "xclipse",
+    )
 
     private data class NetworkPolicySnapshot(
         val label: String,
@@ -86,6 +102,11 @@ object HermesModelDownloadManager {
         val revision: String,
         val filePath: String,
         val compatibilityHint: String = "",
+    )
+
+    private data class LiteRtArtifactPreference(
+        val socFamily: String,
+        val gpuFamily: String,
     )
 
     fun modelsDirectory(context: Context): File {
@@ -174,7 +195,7 @@ object HermesModelDownloadManager {
             deviceRamLabel = Formatter.formatShortFileSize(context, memoryInfo.totalMem),
             ramWarning = ramWarning,
             supportsResume = head.acceptRanges,
-            abiSummary = android.os.Build.SUPPORTED_ABIS.joinToString(),
+            abiSummary = Build.SUPPORTED_ABIS.joinToString(),
             compatibilityHint = resolvedSource.compatibilityHint,
         )
     }
@@ -476,6 +497,7 @@ object HermesModelDownloadManager {
         val trimmed = draft.repoOrUrl.trim()
         val explicitFilePath = draft.filePath.trim().trim('/')
         val requestedRevision = draft.revision.trim().ifBlank { "main" }
+        val liteRtArtifactPreference = liteRtArtifactPreferenceForCurrentDevice()
         parseHuggingFaceReference(trimmed)?.let { reference ->
             val resolvedRevision = reference.revision ?: requestedRevision
             val explicitOrReferencedPath = explicitFilePath.ifBlank { reference.filePath.orEmpty() }
@@ -485,6 +507,7 @@ object HermesModelDownloadManager {
                 runtimeFlavor = draft.runtimeFlavor,
                 hfToken = hfToken,
                 explicitFilePath = explicitOrReferencedPath,
+                liteRtArtifactPreference = liteRtArtifactPreference,
             )
             return ResolvedDownloadSource(
                 sourceUrl = "$HUGGING_FACE_BASE/${selection.repoId}/resolve/${selection.revision}/${selection.filePath}?download=true",
@@ -508,6 +531,7 @@ object HermesModelDownloadManager {
             runtimeFlavor = draft.runtimeFlavor,
             hfToken = hfToken,
             explicitFilePath = explicitFilePath,
+            liteRtArtifactPreference = liteRtArtifactPreference,
         )
         return ResolvedDownloadSource(
             sourceUrl = "$HUGGING_FACE_BASE/${selection.repoId}/resolve/${selection.revision}/${selection.filePath}?download=true",
@@ -552,6 +576,7 @@ object HermesModelDownloadManager {
         runtimeFlavor: String,
         hfToken: String,
         explicitFilePath: String,
+        liteRtArtifactPreference: LiteRtArtifactPreference = liteRtArtifactPreferenceForCurrentDevice(),
     ): RepoFileSelection {
         if (explicitFilePath.isNotBlank()) {
             return RepoFileSelection(
@@ -562,7 +587,7 @@ object HermesModelDownloadManager {
             )
         }
         val siblings = loadRepoFiles(repoId = repoId, revision = revision, hfToken = hfToken)
-        val runtimeNative = findCompatibleRepoFile(siblings, runtimeFlavor)
+        val runtimeNative = findCompatibleRepoFile(siblings, runtimeFlavor, liteRtArtifactPreference)
         if (runtimeNative != null) {
             return RepoFileSelection(
                 repoId = repoId,
@@ -577,6 +602,7 @@ object HermesModelDownloadManager {
                 val aliasRuntimeNative = findCompatibleRepoFile(
                     loadRepoFiles(repoId = aliasRepoId, revision = aliasRevision, hfToken = hfToken),
                     runtimeFlavor,
+                    liteRtArtifactPreference,
                 )
                 if (aliasRuntimeNative != null) {
                     return RepoFileSelection(
@@ -599,10 +625,17 @@ object HermesModelDownloadManager {
         )
     }
 
-    private fun findCompatibleRepoFile(paths: List<String>, runtimeFlavor: String): String? {
+    private fun findCompatibleRepoFile(
+        paths: List<String>,
+        runtimeFlavor: String,
+        liteRtArtifactPreference: LiteRtArtifactPreference = liteRtArtifactPreferenceForCurrentDevice(),
+    ): String? {
         return paths
             .filter { isCompatibleRepoFile(it, runtimeFlavor) }
-            .sortedWith(compareBy<String> { compatibleFileRank(it, runtimeFlavor) }.thenBy { it.lowercase(Locale.US) })
+            .sortedWith(
+                compareBy<String> { compatibleFileRank(it, runtimeFlavor, liteRtArtifactPreference) }
+                    .thenBy { it.lowercase(Locale.US) },
+            )
             .firstOrNull()
     }
 
@@ -778,11 +811,35 @@ object HermesModelDownloadManager {
     }
 
     private fun compatibleFileRank(path: String, runtimeFlavor: String): Int {
+        return compatibleFileRank(path, runtimeFlavor, null)
+    }
+
+    private fun compatibleFileRank(path: String, runtimeFlavor: String, socFamily: String, gpuFamily: String): Int {
+        return compatibleFileRank(
+            path = path,
+            runtimeFlavor = runtimeFlavor,
+            liteRtArtifactPreference = LiteRtArtifactPreference(
+                socFamily = socFamily.trim().lowercase(Locale.US),
+                gpuFamily = gpuFamily.trim().lowercase(Locale.US),
+            ),
+        )
+    }
+
+    private fun compatibleFileRank(
+        path: String,
+        runtimeFlavor: String,
+        liteRtArtifactPreference: LiteRtArtifactPreference?,
+    ): Int {
         val lower = path.lowercase(Locale.US)
+        val liteRtSpecificityRank = if (runtimeFlavor.equals("LiteRT-LM", ignoreCase = true)) {
+            liteRtArtifactSpecificityRank(lower, liteRtArtifactPreference)
+        } else {
+            null
+        }
         return when (runtimeFlavor.uppercase(Locale.US)) {
             "LITERT-LM" -> when {
                 isLiteRtWebTaskArtifact(lower) -> Int.MAX_VALUE
-                "_qualcomm_" in lower || ".mediatek." in lower || "_mt" in lower || "_sm" in lower -> 30
+                liteRtSpecificityRank != null -> liteRtSpecificityRank
                 lower.endsWith(".litertlm") -> 0
                 "q4" in lower || "int4" in lower -> 0
                 "q8" in lower || "int8" in lower -> 1
@@ -801,6 +858,82 @@ object HermesModelDownloadManager {
                 else -> 7
             }
         }
+    }
+
+    private fun liteRtArtifactPreferenceForCurrentDevice(): LiteRtArtifactPreference {
+        val values = listOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Build.SOC_MANUFACTURER.orEmpty() else "",
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Build.SOC_MODEL.orEmpty() else "",
+            Build.MANUFACTURER.orEmpty(),
+            Build.BRAND.orEmpty(),
+            Build.DEVICE.orEmpty(),
+            Build.HARDWARE.orEmpty(),
+            Build.BOARD.orEmpty(),
+            Build.PRODUCT.orEmpty(),
+        )
+        val profile = HermesAndroidHardwareProfile.classify(values)
+        return LiteRtArtifactPreference(profile.socFamily, profile.gpuFamily)
+    }
+
+    private fun liteRtArtifactSpecificityRank(
+        lowerPath: String,
+        liteRtArtifactPreference: LiteRtArtifactPreference?,
+    ): Int? {
+        val tags = liteRtArtifactTags(lowerPath)
+        if (tags.isEmpty()) return null
+        val preference = liteRtArtifactPreference
+        if (preference == null || (preference.socFamily == "unknown" && preference.gpuFamily == "unknown")) {
+            return 30
+        }
+        val socTags = tags.intersect(LITERT_SOC_ARTIFACT_TAGS)
+        val gpuTags = tags.intersect(LITERT_GPU_ARTIFACT_TAGS)
+        return when {
+            preference.socFamily != "unknown" && preference.socFamily in socTags -> 10
+            socTags.isNotEmpty() -> 80
+            preference.gpuFamily != "unknown" && preference.gpuFamily in gpuTags -> 12
+            gpuTags.isNotEmpty() -> 70
+            else -> 30
+        }
+    }
+
+    private fun liteRtArtifactTags(lowerPath: String): Set<String> {
+        val tags = linkedSetOf<String>()
+        if (
+            "mediatek" in lowerPath ||
+            "dimensity" in lowerPath ||
+            "helio" in lowerPath ||
+            tokenRegex("mtk").containsMatchIn(lowerPath) ||
+            Regex("""(^|[/_.-])mt[0-9]{3,}[a-z0-9_+-]*([/_.-]|$)""").containsMatchIn(lowerPath)
+        ) {
+            tags.add("mediatek")
+        }
+        if (
+            "qualcomm" in lowerPath ||
+            "snapdragon" in lowerPath ||
+            "qcom" in lowerPath ||
+            Regex("""(^|[/_.-])(sm|sdm|msm)[0-9]{3,}[a-z0-9_+-]*([/_.-]|$)""").containsMatchIn(lowerPath)
+        ) {
+            tags.add("qualcomm_snapdragon")
+        }
+        if ("tensor" in lowerPath || Regex("""(^|[/_.-])gs[0-9]{3,}[a-z0-9_+-]*([/_.-]|$)""").containsMatchIn(lowerPath)) {
+            tags.add("google_tensor")
+        }
+        if ("exynos" in lowerPath || Regex("""(^|[/_.-])s5e[0-9]{3,}[a-z0-9_+-]*([/_.-]|$)""").containsMatchIn(lowerPath)) {
+            tags.add("samsung_exynos")
+        }
+        if ("unisoc" in lowerPath || "spreadtrum" in lowerPath || Regex("""(^|[/_.-])ums[0-9]{3,}[a-z0-9_+-]*([/_.-]|$)""").containsMatchIn(lowerPath)) {
+            tags.add("unisoc")
+        }
+        if ("immortalis" in lowerPath) tags.add("mali_immortalis")
+        if ("mali" in lowerPath || "valhall" in lowerPath || "bifrost" in lowerPath) tags.add("mali")
+        if ("adreno" in lowerPath) tags.add("adreno")
+        if ("powervr" in lowerPath || "power-vr" in lowerPath || "imgtec" in lowerPath || "rogue" in lowerPath) tags.add("powervr_img")
+        if ("xclipse" in lowerPath || "amd-rdna" in lowerPath || "amd_rdna" in lowerPath) tags.add("xclipse")
+        return tags
+    }
+
+    private fun tokenRegex(token: String): Regex {
+        return Regex("""(^|[/_.-])${Regex.escape(token)}([/_.-]|$)""")
     }
 
     private fun isLiteRtWebTaskArtifact(lowerPath: String): Boolean {

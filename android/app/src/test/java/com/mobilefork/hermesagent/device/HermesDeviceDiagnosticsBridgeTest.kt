@@ -955,6 +955,8 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertEquals("soc_compatibility_report", result.getString("action"))
         assertTrue(result.has("android_device_identity"))
         assertTrue(result.getJSONObject("soc_profile").has("litert_lm_backend_strategy"))
+        assertTrue(result.getJSONObject("soc_profile").has("litert_lm_backend_order"))
+        assertTrue(result.getJSONObject("soc_profile").has("litert_lm_artifact_selection_policy"))
         assertTrue(result.has("device_performance_profile"))
         assertTrue(result.has("preferred_local_model"))
         assertTrue(result.has("current_local_backend"))
@@ -966,7 +968,19 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(backendLabels.contains("Detected SOC family"))
         assertTrue(backendLabels.contains("Native ABI selection"))
         assertTrue(backendLabels.contains("LiteRT-LM accelerator policy"))
+        assertTrue(backendLabels.contains("SOC-specific LiteRT artifact selection"))
         assertTrue(backendLabels.contains("MediaTek/Mali/PowerVR coverage"))
+        assertTrue(
+            result.getJSONObject("soc_profile")
+                .getJSONObject("litert_lm_artifact_selection_policy")
+                .getBoolean("generic_litertlm_preferred"),
+        )
+        assertTrue(
+            result.getJSONObject("soc_profile")
+                .getJSONObject("litert_lm_artifact_selection_policy")
+                .getString("recommendation")
+                .contains("MediaTek"),
+        )
         assertTrue(routeLabels.contains("Route SOC compatibility report"))
         assertTrue(routeLabels.contains("Route full agent environment"))
         assertTrue(constraintLabels.contains("Avoid Adreno-only assumptions"))
@@ -979,7 +993,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(runtimeLabels.contains("MediaTek/non-Snapdragon fallback policy"))
         assertTrue(stabilityLabels.contains("Thermal throttling status"))
         assertTrue(stabilityLabels.contains("MediaTek/non-Adreno stability guardrail"))
-        assertTrue(result.getInt("soc_backend_feature_count") >= 7)
+        assertTrue(result.getInt("soc_backend_feature_count") >= 8)
         assertTrue(result.getInt("ready_soc_backend_feature_count") >= 4)
         assertTrue(result.getInt("soc_backend_route_count") >= 5)
         assertTrue(result.getInt("soc_backend_constraint_count") >= 5)

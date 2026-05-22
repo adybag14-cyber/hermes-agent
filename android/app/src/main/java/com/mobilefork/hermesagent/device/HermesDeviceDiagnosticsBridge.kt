@@ -5100,6 +5100,7 @@ object HermesDeviceDiagnosticsBridge {
         val gpuFamily = socProfile.optString("gpu_family_hint")
         val supportsArm = socProfile.optBoolean("supports_arm64", false) || socProfile.optBoolean("supports_arm", false)
         val supportsX86 = socProfile.optBoolean("supports_x86_64", false) || socProfile.optBoolean("supports_x86", false)
+        val artifactPolicy = socProfile.optJSONObject("litert_lm_artifact_selection_policy") ?: JSONObject()
         val detectedBackend = when {
             socProfile.optBoolean("likely_mediatek", false) -> "MediaTek covered"
             socProfile.optBoolean("likely_mali_gpu", false) -> "Mali covered"
@@ -5169,6 +5170,22 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Use this row before promising GPU acceleration or rejecting non-Snapdragon phones.",
                     fraction = 0.95f,
                     extra = JSONObject().put("source_surface", "litert_backend_strategy"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "soc_backend_parity",
+                    label = "SOC-specific LiteRT artifact selection",
+                    ready = artifactPolicy.optBoolean("soc_aware_selection_enabled", false),
+                    valueLabel = artifactPolicy.optString("preferred_device_family_label").ifBlank { "generic first" },
+                    detail = artifactPolicy.optString("selection_order").ifBlank {
+                        "Generic .litertlm artifacts are preferred; matching SOC/GPU-specific bundles are selected before mismatched SOC-specific bundles when generic artifacts are absent."
+                    },
+                    recommendation = artifactPolicy.optString("recommendation").ifBlank {
+                        "Avoid selecting Qualcomm-specific LiteRT-LM artifacts on MediaTek phones unless the user explicitly pins that file."
+                    },
+                    fraction = if (artifactPolicy.optBoolean("soc_aware_selection_enabled", false)) 0.9f else 0.65f,
+                    extra = JSONObject(artifactPolicy.toString()).put("source_surface", "model_download_artifact_selection"),
                 ),
             )
             .put(
@@ -7728,6 +7745,11 @@ object HermesDeviceDiagnosticsBridge {
             Build.BRAND.orEmpty(),
         )
         val hardwareProfile = HermesAndroidHardwareProfile.classify(values)
+        val backendOrder = when {
+            supportedAbis.any { HermesAndroidHardwareProfile.isX86Abi(it) } -> listOf("cpu")
+            supportedAbis.any { HermesAndroidHardwareProfile.isArmAbi(it) } -> listOf("gpu", "cpu")
+            else -> listOf("cpu")
+        }
         return JSONObject()
             .put("soc_manufacturer", socManufacturer)
             .put("soc_model", socModel)
@@ -7758,9 +7780,45 @@ object HermesDeviceDiagnosticsBridge {
             .put("likely_powervr_img_gpu", hardwareProfile.gpuFamily == "powervr_img")
             .put("likely_xclipse_gpu", hardwareProfile.gpuFamily == "xclipse")
             .put("litert_lm_acceleration_label", HermesAndroidHardwareProfile.accelerationLabel(hardwareProfile))
+            .put("litert_lm_backend_order", JSONArray(backendOrder))
             .put("litert_lm_backend_strategy", "GPU-first on ARM devices when LiteRT-LM accepts the accelerator, then CPU fallback; CPU-only on x86 emulator/device builds.")
+            .put("litert_lm_artifact_selection_policy", liteRtLmArtifactSelectionPolicyJson(hardwareProfile))
             .put("compatibility_strategy", "Use Android SDK feature, permission, sensor, Wi-Fi, Bluetooth, camera, and storage APIs; avoid Adreno-only or Snapdragon-only assumptions.")
             .put("native_abi_strategy", HermesAndroidHardwareProfile.nativeAbiStrategy(supportedAbis))
+    }
+
+    private fun liteRtLmArtifactSelectionPolicyJson(hardwareProfile: HermesAndroidHardwareProfile.Profile): JSONObject {
+        return JSONObject()
+            .put("soc_aware_selection_enabled", true)
+            .put("generic_litertlm_preferred", true)
+            .put("matching_soc_specific_rank", 10)
+            .put("matching_gpu_specific_rank", 12)
+            .put("unmatched_soc_specific_rank", 80)
+            .put("preferred_soc_family", hardwareProfile.socFamily)
+            .put("preferred_gpu_family", hardwareProfile.gpuFamily)
+            .put("preferred_device_family_label", listOf(hardwareProfile.socLabel, hardwareProfile.gpuLabel).filter { it != "unknown" }.joinToString("/").ifBlank { "generic Android" })
+            .put("matching_soc_patterns", JSONArray(liteRtLmArtifactSocPatterns(hardwareProfile.socFamily)))
+            .put("matching_gpu_patterns", JSONArray(liteRtLmArtifactGpuPatterns(hardwareProfile.gpuFamily)))
+            .put("selection_order", "Prefer generic .litertlm first; if only SOC/GPU-specific LiteRT-LM bundles are available, prefer matching ${hardwareProfile.socLabel}/${hardwareProfile.gpuLabel} tags before mismatched vendor bundles.")
+            .put("recommendation", "On MediaTek/MT/Dimensity/Helio devices, prefer generic or MediaTek-tagged LiteRT-LM artifacts before Qualcomm/SM/Adreno-specific artifacts.")
+    }
+
+    private fun liteRtLmArtifactSocPatterns(socFamily: String): List<String> = when (socFamily) {
+        "mediatek" -> listOf("mediatek", "mtk", "mt[0-9]+", "dimensity", "helio")
+        "qualcomm_snapdragon" -> listOf("qualcomm", "snapdragon", "qcom", "sm[0-9]+", "sdm[0-9]+", "msm[0-9]+")
+        "google_tensor" -> listOf("tensor", "gs[0-9]+")
+        "samsung_exynos" -> listOf("exynos", "s5e[0-9]+")
+        "unisoc" -> listOf("unisoc", "spreadtrum", "ums[0-9]+")
+        else -> emptyList()
+    }
+
+    private fun liteRtLmArtifactGpuPatterns(gpuFamily: String): List<String> = when (gpuFamily) {
+        "mali_immortalis" -> listOf("immortalis", "mali")
+        "mali" -> listOf("mali", "valhall", "bifrost")
+        "powervr_img" -> listOf("powervr", "imgtec", "rogue")
+        "adreno" -> listOf("adreno")
+        "xclipse" -> listOf("xclipse", "amd-rdna", "amd_rdna")
+        else -> emptyList()
     }
 
     internal fun isLikelyMediatekSoc(values: List<String>): Boolean {
