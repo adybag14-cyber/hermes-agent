@@ -706,7 +706,7 @@ class DiagnosticCardsTest {
                                         .put("vendor_bridge_possible", true)
                                         .put("requires_vendor_bridge", true)
                                         .put("scan_state", "vendor_bridge_required")
-                                        .put("route_action", "radio_signal_status")
+                                        .put("route_action", "radio_signal_graph")
                                         .put("access_path", "OEM Broadcast Radio HAL bridge")
                                         .put("graph_row_schema", JSONArray().put("frequency_mhz").put("rds_program_service").put("signal_dbuv_or_rssi_dbm"))
                                         .put("station_metadata_fields", JSONArray().put("frequency_mhz").put("rds_program_service"))
@@ -724,11 +724,67 @@ class DiagnosticCardsTest {
         assertEquals("FM station receiver profile", row.label)
         assertEquals("vendor bridge", row.valueLabel)
         assertTrue(row.detail.contains("87.5-108.0 MHz"))
-        assertTrue(row.detail.contains("route radio_signal_status"))
+        assertTrue(row.detail.contains("route radio_signal_graph"))
         assertTrue(row.detail.contains("vendor_bridge_required"))
         assertTrue(row.detail.contains("schema frequency_mhz"))
         assertTrue(row.detail.contains("Use this profile"))
         assertTrue(row.fraction > 0.6f)
+    }
+
+    @Test
+    fun parsesRadioSignalGraphRowsForBridgeSamplesAndBandBoundaries() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "AM/FM Signal Graph")
+                        .put("body", "Bridge samples.")
+                        .put("graph_type", "radio_signal_graph")
+                        .put(
+                            "rows",
+                            JSONArray()
+                                .put(
+                                    JSONObject()
+                                        .put("label", "Hermes FM")
+                                        .put("band", "FM broadcast")
+                                        .put("frequency_mhz", 99.5)
+                                        .put("receiver_id", "fm_vendor_or_sdr")
+                                        .put("modulation", "fm")
+                                        .put("rssi_dbm", -58)
+                                        .put("snr_db", 31)
+                                        .put("sampled", true)
+                                        .put("scan_state", "bridge_sample_reported")
+                                        .put("recommendation", "Use as a receiver-provided sample."),
+                                )
+                                .put(
+                                    JSONObject()
+                                        .put("label", "AM broadcast band")
+                                        .put("band", "AM broadcast")
+                                        .put("frequency_min_khz", 530)
+                                        .put("frequency_max_khz", 1700)
+                                        .put("receiver_id", "am_vendor_or_sdr")
+                                        .put("sampled", false)
+                                        .put("value_label", "external receiver required")
+                                        .put("scan_state", "external_or_vendor_receiver_required"),
+                                ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val rows = extractDiagnosticCards(content).single().rows
+
+        assertEquals("Hermes FM", rows[0].label)
+        assertEquals("-58 dBm", rows[0].valueLabel)
+        assertTrue(rows[0].detail.contains("99.5 MHz"))
+        assertTrue(rows[0].detail.contains("receiver fm_vendor_or_sdr"))
+        assertTrue(rows[0].detail.contains("SNR 31 dB"))
+        assertTrue(rows[0].fraction >= 0.6f)
+        assertEquals("AM broadcast band", rows[1].label)
+        assertEquals("external receiver required", rows[1].valueLabel)
+        assertTrue(rows[1].detail.contains("530-1700 kHz"))
+        assertTrue(rows[1].detail.contains("external_or_vendor_receiver_required"))
     }
 
     @Test

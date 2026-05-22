@@ -79,7 +79,7 @@ def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
         "bluetooth_signal_history",
         "sensor_analyzer_report",
         "motion_sensor_history",
-        "radio_signal_status",
+        "radio_signal_graph",
     ]:
         assert f"action={action}" in actions
         assert f'"{action}"' in chat_client

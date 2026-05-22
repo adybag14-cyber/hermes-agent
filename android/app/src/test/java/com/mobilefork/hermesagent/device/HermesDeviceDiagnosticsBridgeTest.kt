@@ -713,6 +713,9 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.getJSONArray("radio_signal_feature_matrix").length() >= 6)
         assertTrue(result.getJSONArray("radio_signal_workflow_routes").length() >= 4)
         assertTrue(result.getJSONArray("radio_signal_constraint_matrix").length() >= 4)
+        assertTrue(result.getJSONArray("radio_signal_graph_rows").length() >= 2)
+        assertEquals(result.getJSONArray("radio_signal_graph_rows").length(), result.getInt("radio_signal_graph_row_count"))
+        assertEquals(0, result.getInt("radio_signal_graph_sample_count"))
         assertTrue(result.getInt("radio_signal_feature_count") >= 6)
         assertTrue(result.getInt("ready_radio_signal_feature_count") >= 1)
         assertTrue(result.getInt("radio_signal_workflow_route_count") >= 4)
@@ -739,6 +742,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         val fmReceiver = receiverRows.first { it.getString("receiver_id") == "fm_vendor_or_sdr" }
         val wifiReceiver = receiverRows.first { it.getString("receiver_id") == "wifi_public_metadata" }
         val sdrReceiver = receiverRows.first { it.getString("receiver_id") == "external_sdr_bridge" }
+        val graphRows = result.getJSONArray("radio_signal_graph_rows")
         val cards = result.getJSONArray("cards")
 
         assertTrue(bands.length() >= 6)
@@ -752,23 +756,78 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(external.getBoolean("requires_external_hardware"))
         assertTrue(receiverProfiles.length() >= 5)
         assertTrue(fmReceiver.getBoolean("requires_vendor_bridge"))
+        assertEquals("radio_signal_graph", fmReceiver.getString("route_action"))
         assertTrue(fmReceiver.getJSONArray("station_metadata_fields").toString().contains("rds_program_service"))
         assertEquals("wifi_analyzer_report", wifiReceiver.getString("route_action"))
         assertTrue(wifiReceiver.getJSONArray("graph_row_schema").toString().contains("rssi_dbm"))
         assertTrue(sdrReceiver.getBoolean("requires_external_hardware"))
+        assertEquals("radio_signal_graph", sdrReceiver.getString("route_action"))
         assertTrue(sdrReceiver.getJSONArray("sample_fields").toString().contains("center_frequency_hz"))
+        assertTrue(graphRows.toString().contains("AM broadcast band"))
+        assertTrue(graphRows.toString().contains("FM broadcast band"))
+        assertEquals(graphRows.length(), result.getInt("radio_signal_graph_row_count"))
         assertTrue(result.getJSONArray("radio_signal_feature_matrix").length() >= 6)
         assertTrue(result.getJSONArray("radio_signal_workflow_routes").length() >= 4)
         assertTrue(result.getJSONArray("radio_signal_constraint_matrix").length() >= 4)
         assertEquals("signal_graph_card", cards.getJSONObject(0).getString("type"))
         assertEquals("Radio Band Plan", cards.getJSONObject(0).getString("title"))
         assertEquals("radio_frequency_capability", cards.getJSONObject(0).getString("graph_type"))
-        assertEquals("Receiver Profiles", cards.getJSONObject(1).getString("title"))
-        assertEquals("radio_receiver_profile", cards.getJSONObject(1).getString("graph_type"))
-        assertEquals("Radio Signal Routes", cards.getJSONObject(2).getString("title"))
-        assertEquals("radio_signal_workflow_routes", cards.getJSONObject(2).getString("graph_type"))
-        assertEquals("Radio Scan Boundaries", cards.getJSONObject(3).getString("title"))
-        assertEquals("radio_signal_constraint_matrix", cards.getJSONObject(3).getString("graph_type"))
+        assertEquals("AM/FM Signal Graph", cards.getJSONObject(1).getString("title"))
+        assertEquals("radio_signal_graph", cards.getJSONObject(1).getString("graph_type"))
+        assertEquals("Receiver Profiles", cards.getJSONObject(2).getString("title"))
+        assertEquals("radio_receiver_profile", cards.getJSONObject(2).getString("graph_type"))
+        assertEquals("Radio Signal Routes", cards.getJSONObject(3).getString("title"))
+        assertEquals("radio_signal_workflow_routes", cards.getJSONObject(3).getString("graph_type"))
+        assertEquals("Radio Scan Boundaries", cards.getJSONObject(4).getString("title"))
+        assertEquals("radio_signal_constraint_matrix", cards.getJSONObject(4).getString("graph_type"))
+    }
+
+    @Test
+    fun radioSignalGraphNormalizesBridgeSamplesForAmFmCards() {
+        val result = HermesDeviceDiagnosticsBridge.radioSignalGraphJson(
+            context,
+            JSONObject()
+                .put("sample_source", "unit_test_vendor_bridge")
+                .put(
+                    "radio_samples",
+                    JSONArray()
+                        .put(
+                            JSONObject()
+                                .put("station_label", "Hermes FM")
+                                .put("frequency_mhz", 99.5)
+                                .put("rssi_dbm", -58)
+                                .put("snr_db", 31)
+                                .put("modulation", "fm")
+                                .put("receiver_id", "fm_vendor_or_sdr"),
+                        )
+                        .put(
+                            JSONObject()
+                                .put("station_label", "Hermes AM")
+                                .put("frequency_khz", 1010)
+                                .put("power_db", -72)
+                                .put("modulation", "am")
+                                .put("receiver_id", "am_vendor_or_sdr"),
+                        ),
+                ),
+        )
+
+        assertTrue(result.getBoolean("success"))
+        assertEquals("radio_signal_graph", result.getString("action"))
+        assertFalse(result.getBoolean("native_android_public_tuner_scan_supported"))
+        assertTrue(result.getBoolean("requires_vendor_or_external_receiver_for_am_fm_samples"))
+        assertTrue(result.getBoolean("radio_signal_graph_bridge_ready"))
+        assertEquals(2, result.getInt("radio_signal_graph_sample_count"))
+        assertTrue(result.getInt("radio_signal_graph_row_count") >= 4)
+        val rows = result.getJSONArray("radio_signal_graph_rows").toString()
+        assertTrue(rows.contains("Hermes FM"))
+        assertTrue(rows.contains("99.5 MHz"))
+        assertTrue(rows.contains("Hermes AM"))
+        assertTrue(rows.contains("1010 kHz"))
+        val cards = result.getJSONArray("cards")
+        assertEquals("AM/FM Signal Graph", cards.getJSONObject(0).getString("title"))
+        assertEquals("radio_signal_graph", cards.getJSONObject(0).getString("graph_type"))
+        assertEquals("Radio Receiver Source Readiness", cards.getJSONObject(1).getString("title"))
+        assertTrue(cards.toString().contains("radio_receiver_profile"))
     }
 
     @Test
@@ -978,6 +1037,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("local_backend_runtime_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("device_performance_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("radio_signal_status"))
+        assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("radio_signal_graph"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("radio_analyzer_report"))
         assertTrue(result.getJSONArray("diagnostics_actions").toString().contains("motion_pose"))
         assertTrue(result.getJSONObject("hindsight_memory_translation").has("retain"))

@@ -22,7 +22,7 @@ class SignalIntelligenceQuickActionsTest {
         assertEquals("bluetooth_signal_history", actionsById.getValue("bluetooth_history").diagnosticAction)
         assertEquals("sensor_analyzer_report", actionsById.getValue("sensor_analyzer").diagnosticAction)
         assertEquals("motion_sensor_history", actionsById.getValue("motion_history").diagnosticAction)
-        assertEquals("radio_signal_status", actionsById.getValue("radio_limits").diagnosticAction)
+        assertEquals("radio_signal_graph", actionsById.getValue("radio_limits").diagnosticAction)
         assertEquals("Runtime Backend", actionsById.getValue("runtime_backend").label)
         assertEquals("Agent Observation", actionsById.getValue("agent_observation").label)
         assertEquals("Radio Signals", actionsById.getValue("radio_limits").label)

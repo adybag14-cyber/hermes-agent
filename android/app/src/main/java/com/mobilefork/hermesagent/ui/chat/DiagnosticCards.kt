@@ -91,6 +91,7 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
                 "bluetooth_metadata_summary" -> bluetoothMetadataSummaryRow(row)
                 "bluetooth_signal_history" -> bluetoothSignalHistoryRow(row)
                 "radio_frequency_capability" -> radioRow(row)
+                "radio_signal_graph" -> radioSignalGraphRow(row)
                 "radio_receiver_profile" -> radioReceiverProfileRow(row)
                 "sensor_vector" -> sensorRow(row)
                 "motion_sensor_history" -> motionSensorHistoryRow(row)
@@ -524,6 +525,53 @@ private fun radioRow(row: JSONObject): DiagnosticGraphRow {
     )
 }
 
+private fun radioSignalGraphRow(row: JSONObject): DiagnosticGraphRow {
+    val sampled = row.optBoolean("sampled", false)
+    val label = row.optString("label").ifBlank {
+        row.optString("station_label").ifBlank {
+            row.optString("band").ifBlank { "Radio signal row" }
+        }
+    }
+    val valueLabel = row.optString("value_label").ifBlank {
+        when {
+            sampled -> {
+                val rssiDbm = row.optNumber("rssi_dbm")
+                    ?: row.optNumber("signal_dbuv_or_rssi_dbm")
+                val powerDb = row.optNumber("power_db")
+                when {
+                    rssiDbm != null -> rssiDbm.toDouble().let { "${formatDecimal(it, if (it % 1.0 == 0.0) 0 else 1)} dBm" }
+                    powerDb != null -> powerDb.toDouble().let { "${formatDecimal(it, if (it % 1.0 == 0.0) 0 else 1)} dB" }
+                    else -> "sample available"
+                }
+            }
+            else -> row.optString("scan_state").ifBlank { "boundary" }
+        }
+    }
+    val frequency = row.optString("frequency_label").takeIf { it.isNotBlank() }
+        ?: radioPointFrequencyLabel(row)
+        ?: radioRangeLabel(row)
+    val detail = listOfNotNull(
+        frequency,
+        row.optString("band").takeIf { it.isNotBlank() },
+        row.optString("source_type").takeIf { it.isNotBlank() },
+        row.optString("receiver_id").takeIf { it.isNotBlank() }?.let { "receiver $it" },
+        row.optString("modulation").takeIf { it.isNotBlank() && it != "unknown" }?.let { "modulation $it" },
+        row.optNumber("snr_db")?.toDouble()?.let { "SNR ${formatDecimal(it, if (it % 1.0 == 0.0) 0 else 1)} dB" },
+        row.optString("scan_state").takeIf { it.isNotBlank() },
+        row.optString("recommendation").takeIf { it.isNotBlank() },
+    ).joinToString(" | ")
+    val explicitFraction = row.optNumber("fraction")?.toFloat()
+    val signalFraction = row.optNumber("rssi_dbm")?.toInt()?.let(::dbmFraction)
+        ?: row.optNumber("signal_dbuv_or_rssi_dbm")?.toInt()?.let(::dbmFraction)
+        ?: row.optNumber("power_db")?.toDouble()?.let { ((it + 110.0) / 80.0).toFloat().coerceIn(0.05f, 1f) }
+    return DiagnosticGraphRow(
+        label = label,
+        valueLabel = valueLabel,
+        detail = detail.ifBlank { if (sampled) "Radio bridge sample" else "Radio graph boundary" },
+        fraction = explicitFraction?.coerceIn(0.05f, 1f) ?: signalFraction ?: if (sampled) 0.75f else 0.35f,
+    )
+}
+
 private fun radioReceiverProfileRow(row: JSONObject): DiagnosticGraphRow {
     val label = row.optString("label").takeIf { it.isNotBlank() }
         ?: row.optString("receiver_id").ifBlank { "Radio receiver profile" }
@@ -762,6 +810,17 @@ private fun radioRangeLabel(row: JSONObject): String? {
     val maxMhz = row.optNumber("frequency_max_mhz")?.toDouble()
     if (minMhz != null && maxMhz != null) return "${formatDecimal(minMhz, 1)}-${formatDecimal(maxMhz, 1)} MHz"
     return null
+}
+
+private fun radioPointFrequencyLabel(row: JSONObject): String? {
+    val khz = row.optNumber("frequency_khz")?.toDouble()
+    if (khz != null) return "${formatDecimal(khz, if (khz % 1.0 == 0.0) 0 else 1)} kHz"
+    val mhz = row.optNumber("frequency_mhz")?.toDouble()
+    if (mhz != null && mhz < 2.0) return "${formatDecimal(mhz * 1000.0, if ((mhz * 1000.0) % 1.0 == 0.0) 0 else 1)} kHz"
+    if (mhz != null) return "${formatDecimal(mhz, if (mhz % 1.0 == 0.0) 0 else 1)} MHz"
+    val hz = row.optNumber("frequency_hz")?.toDouble()
+        ?: row.optNumber("center_frequency_hz")?.toDouble()
+    return hz?.let { "${formatDecimal(it / 1_000_000.0, 3)} MHz" }
 }
 
 private fun JSONArray.vectorMagnitude(): Double {

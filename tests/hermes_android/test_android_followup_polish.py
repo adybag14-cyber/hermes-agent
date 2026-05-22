@@ -287,6 +287,7 @@ def test_android_diagnostics_exposes_signal_awareness_report_for_cross_signal_ca
     diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
     chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
     diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
 
     assert '"signal_awareness_report"' in diagnostics_bridge
     assert 'signalAwarenessReportJson(appContext)' in diagnostics_bridge
@@ -299,19 +300,31 @@ def test_android_diagnostics_exposes_signal_awareness_report_for_cross_signal_ca
     assert '"radio_signal_feature_matrix"' in diagnostics_bridge
     assert '"radio_signal_workflow_routes"' in diagnostics_bridge
     assert '"radio_signal_constraint_matrix"' in diagnostics_bridge
+    assert '"radio_signal_graph"' in diagnostics_bridge
+    assert 'radioSignalGraphJson(appContext' in diagnostics_bridge
+    assert 'radioSignalGraphRows(' in diagnostics_bridge
+    assert '"radio_signal_graph_rows"' in diagnostics_bridge
+    assert '"radio_signal_graph_sample_count"' in diagnostics_bridge
+    assert '"AM/FM Signal Graph"' in diagnostics_bridge
     assert 'radioBandPlanRows(' in diagnostics_bridge
     assert 'cached_wifi_signal_history' in diagnostics_bridge
     assert 'Route broad RF explanation' in diagnostics_bridge
     assert 'signal_awareness_report' in chat_client
     assert 'radio_analyzer_report' in chat_client
+    assert 'radio_signal_graph' in chat_client
     assert '"signal_awareness_matrix"' in chat_client
     assert '"signal_workflow_routes"' in chat_client
     assert '"signal_constraint_matrix"' in chat_client
     assert '"radio_signal_feature_matrix"' in chat_client
     assert '"radio_signal_workflow_routes"' in chat_client
     assert '"radio_signal_constraint_matrix"' in chat_client
+    assert '"radio_signal_graph_rows"' in chat_client
+    assert '"radio_signal_graph_sample_rows"' in chat_client
     assert '"signal_awareness_matrix", "signal_workflow_routes", "signal_constraint_matrix",' in diagnostic_cards
     assert '"radio_signal_feature_matrix", "radio_signal_workflow_routes", "radio_signal_constraint_matrix",' in diagnostic_cards
+    assert '"radio_signal_graph" -> radioSignalGraphRow(row)' in diagnostic_cards
+    assert 'radioSignalGraphRow(' in diagnostic_cards
+    assert 'diagnosticAction = "radio_signal_graph"' in quick_actions
 
 
 def test_android_diagnostics_exposes_soc_compatibility_report_for_backend_policy_cards():

@@ -102,6 +102,8 @@ object HermesDeviceDiagnosticsBridge {
             "sensor_snapshot", "sensors", "sensor_status", "sample_sensors", "motion_sensors" ->
                 sensorSnapshotJson(appContext, arguments).toString()
             "camera_status", "camera", "camera_capabilities" -> cameraStatusJson(appContext).toString()
+            "radio_signal_graph", "radio_graph", "am_fm_signal_graph", "am_fm_radio_graph", "broadcast_radio_graph",
+            "radio_band_graph" -> radioSignalGraphJson(appContext, arguments).toString()
             "radio_signal_status", "radio_scan", "am_fm_radio_status", "am_radio", "fm_radio",
             "radio_analyzer_report", "broadcast_radio_report", "radio_feature_report", "radio_band_plan" ->
                 radioSignalStatusJson(appContext).toString()
@@ -1274,6 +1276,8 @@ object HermesDeviceDiagnosticsBridge {
             wifiSupported = wifiSupported,
             bluetoothSupported = bluetoothSupported,
         )
+        val graphRows = radioSignalGraphRows(JSONObject(), vendorBroadcastRadioDeclared)
+        val graphSampleRows = sampledRadioSignalGraphRows(graphRows)
         return JSONObject()
             .put("success", true)
             .put("action", "radio_signal_status")
@@ -1287,6 +1291,11 @@ object HermesDeviceDiagnosticsBridge {
             .put("requires_external_sdr_for_broad_rf", true)
             .put("radio_bands", bands)
             .put("radio_band_plan_count", bands.length())
+            .put("radio_signal_graph_rows", graphRows)
+            .put("radio_signal_graph_row_count", graphRows.length())
+            .put("radio_signal_graph_sample_rows", graphSampleRows)
+            .put("radio_signal_graph_sample_count", graphSampleRows.length())
+            .put("radio_signal_graph_bridge_ready", graphSampleRows.length() > 0)
             .put("radio_receiver_profiles", receiverProfiles)
             .put("radio_receiver_profile_count", receiverProfiles.length())
             .put("ready_radio_receiver_profile_count", countReadyRows(receiverProfiles))
@@ -1311,6 +1320,14 @@ object HermesDeviceDiagnosticsBridge {
                     )
                     .put(
                         graphCard(
+                            title = "AM/FM Signal Graph",
+                            body = "${graphRows.length()} AM/FM graph row(s) covering bridge-provided samples plus public Android tuner limitations.",
+                            graphType = "radio_signal_graph",
+                            rows = graphRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
                             title = "Receiver Profiles",
                             body = "${receiverProfiles.length()} receiver profile row(s) covering AM/FM vendor bridge expectations, Wi-Fi/Bluetooth public metadata routes, and external SDR scan schemas.",
                             graphType = "radio_receiver_profile",
@@ -1329,6 +1346,71 @@ object HermesDeviceDiagnosticsBridge {
                         graphCard(
                             title = "Radio Scan Boundaries",
                             body = "${constraintRows.length()} Android API, vendor HAL, permission, and external receiver constraint row(s) for honest RF claims.",
+                            graphType = "radio_signal_constraint_matrix",
+                            rows = constraintRows,
+                        ),
+                    ),
+            )
+    }
+
+    fun radioSignalGraphJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+        val appContext = context.applicationContext
+        val packageManager = appContext.packageManager
+        val vendorBroadcastRadioDeclared = BROADCAST_RADIO_FEATURE_NAMES.any { feature ->
+            runCatching { packageManager.hasSystemFeature(feature) }.getOrDefault(false)
+        }
+        val wifiSupported = packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI)
+        val bluetoothSupported = packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH) ||
+            packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+        val graphRows = radioSignalGraphRows(arguments, vendorBroadcastRadioDeclared)
+        val graphSampleRows = sampledRadioSignalGraphRows(graphRows)
+        val receiverProfiles = radioReceiverProfileRows(
+            vendorBroadcastRadioDeclared = vendorBroadcastRadioDeclared,
+            wifiSupported = wifiSupported,
+            bluetoothSupported = bluetoothSupported,
+        )
+        val constraintRows = radioSignalConstraintRows(vendorBroadcastRadioDeclared)
+        return JSONObject()
+            .put("success", true)
+            .put("action", "radio_signal_graph")
+            .put("am_fm_public_android_scan_supported", false)
+            .put("native_android_public_tuner_scan_supported", false)
+            .put("vendor_broadcast_radio_feature_declared", vendorBroadcastRadioDeclared)
+            .put("vendor_broadcast_radio_feature_names", JSONArray(BROADCAST_RADIO_FEATURE_NAMES))
+            .put("requires_vendor_or_external_receiver_for_am_fm_samples", true)
+            .put("radio_signal_graph_bridge_ready", graphSampleRows.length() > 0)
+            .put("radio_signal_graph_rows", graphRows)
+            .put("radio_signal_graph_row_count", graphRows.length())
+            .put("radio_signal_graph_sample_rows", graphSampleRows)
+            .put("radio_signal_graph_sample_count", graphSampleRows.length())
+            .put("radio_receiver_profiles", receiverProfiles)
+            .put("radio_receiver_profile_count", receiverProfiles.length())
+            .put("ready_radio_receiver_profile_count", countReadyRows(receiverProfiles))
+            .put("radio_signal_constraint_matrix", constraintRows)
+            .put("radio_signal_constraint_count", constraintRows.length())
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        graphCard(
+                            title = "AM/FM Signal Graph",
+                            body = "${graphSampleRows.length()} bridge sample row(s) and ${graphRows.length() - graphSampleRows.length()} AM/FM boundary row(s) available for graphable radio cards.",
+                            graphType = "radio_signal_graph",
+                            rows = graphRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Radio Receiver Source Readiness",
+                            body = "${receiverProfiles.length()} receiver profile row(s) explain where AM/FM, Wi-Fi, Bluetooth, and SDR graph samples can come from.",
+                            graphType = "radio_receiver_profile",
+                            rows = receiverProfiles,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Radio Graph Constraints",
+                            body = "${constraintRows.length()} Android API, vendor bridge, permission, and external receiver constraint row(s).",
                             graphType = "radio_signal_constraint_matrix",
                             rows = constraintRows,
                         ),
@@ -1359,6 +1441,11 @@ object HermesDeviceDiagnosticsBridge {
             .put("requires_external_sdr_for_broad_rf", radioStatus.optBoolean("requires_external_sdr_for_broad_rf"))
             .put("radio_bands", radioStatus.optJSONArray("radio_bands") ?: JSONArray())
             .put("radio_band_plan_count", radioStatus.optInt("radio_band_plan_count", 0))
+            .put("radio_signal_graph_rows", radioStatus.optJSONArray("radio_signal_graph_rows") ?: JSONArray())
+            .put("radio_signal_graph_row_count", radioStatus.optInt("radio_signal_graph_row_count", 0))
+            .put("radio_signal_graph_sample_rows", radioStatus.optJSONArray("radio_signal_graph_sample_rows") ?: JSONArray())
+            .put("radio_signal_graph_sample_count", radioStatus.optInt("radio_signal_graph_sample_count", 0))
+            .put("radio_signal_graph_bridge_ready", radioStatus.optBoolean("radio_signal_graph_bridge_ready", false))
             .put("radio_receiver_profiles", radioStatus.optJSONArray("radio_receiver_profiles") ?: JSONArray())
             .put("radio_receiver_profile_count", radioStatus.optInt("radio_receiver_profile_count", 0))
             .put("ready_radio_receiver_profile_count", radioStatus.optInt("ready_radio_receiver_profile_count", 0))
@@ -4680,7 +4767,7 @@ object HermesDeviceDiagnosticsBridge {
                 publicAndroidScanSupported = false,
                 vendorBridgePossible = vendorBroadcastRadioDeclared,
                 requiresVendorBridge = true,
-                routeAction = "radio_signal_status",
+                routeAction = "radio_signal_graph",
                 accessPath = "OEM Broadcast Radio HAL bridge, vendor app bridge, or external SDR",
                 scanState = if (vendorBroadcastRadioDeclared) "vendor_bridge_required" else "external_or_vendor_receiver_required",
                 reason = if (vendorBroadcastRadioDeclared) {
@@ -4704,7 +4791,7 @@ object HermesDeviceDiagnosticsBridge {
                 publicAndroidScanSupported = false,
                 vendorBridgePossible = vendorBroadcastRadioDeclared,
                 requiresVendorBridge = true,
-                routeAction = "radio_signal_status",
+                routeAction = "radio_signal_graph",
                 accessPath = "OEM Broadcast Radio HAL bridge, vendor FM app bridge, or external SDR",
                 scanState = if (vendorBroadcastRadioDeclared) "vendor_bridge_required" else "external_or_vendor_receiver_required",
                 reason = if (vendorBroadcastRadioDeclared) {
@@ -4773,15 +4860,255 @@ object HermesDeviceDiagnosticsBridge {
                 channelStepLabel = "receiver-dependent center/span/sample-rate",
                 publicAndroidScanSupported = false,
                 requiresExternalHardware = true,
-                routeAction = "tool_catalog",
+                routeAction = "radio_signal_graph",
                 accessPath = "USB/Bluetooth/Wi-Fi SDR bridge or vendor radio bridge",
                 scanState = "external_receiver_required",
                 reason = "Broad RF, airband, weather, arbitrary AM/FM scans, and microwave-like spectrum work need receiver hardware and a bridge that reports sample metadata.",
                 recommendation = "Require receiver_id, center_frequency, span, sample_rate, and power rows before showing spectrum or waterfall data.",
                 stationFields = listOf("frequency_hz", "label", "modulation", "power_db", "snr_db", "receiver_id", "scan_timestamp_ms"),
-                sampleFields = listOf("center_frequency_hz", "span_hz", "sample_rate_hz", "bin_width_hz", "power_db", "waterfall_row", "receiver_id"),
+            sampleFields = listOf("center_frequency_hz", "span_hz", "sample_rate_hz", "bin_width_hz", "power_db", "waterfall_row", "receiver_id"),
             ),
         )
+
+    private fun radioSignalGraphRows(arguments: JSONObject, vendorBroadcastRadioDeclared: Boolean): JSONArray {
+        val limit = arguments.optInt("sample_limit", arguments.optInt("limit", 32)).coerceIn(1, 64)
+        val sampleSource = arguments.optString("sample_source").ifBlank {
+            arguments.optString("receiver_source").ifBlank { "vendor_or_sdr_bridge" }
+        }
+        val rows = JSONArray()
+        val samples = radioSampleRowsFromArguments(arguments, limit)
+        for (index in 0 until samples.length()) {
+            val sample = samples.optJSONObject(index) ?: continue
+            rows.put(radioSampleGraphRow(sample, index, sampleSource))
+        }
+        rows
+            .put(
+                radioGraphBoundaryRow(
+                    label = "AM broadcast band",
+                    band = "AM broadcast",
+                    sourceType = "am_broadcast",
+                    receiverId = "am_vendor_or_sdr",
+                    frequencyMinKhz = 530,
+                    frequencyMaxKhz = 1700,
+                    valueLabel = if (vendorBroadcastRadioDeclared) "vendor bridge required" else "external receiver required",
+                    scanState = if (vendorBroadcastRadioDeclared) "vendor_bridge_required" else "external_or_vendor_receiver_required",
+                    recommendation = "Route station samples to radio_signal_graph only after a vendor radio bridge or SDR reports AM rows.",
+                    fraction = if (vendorBroadcastRadioDeclared) 0.55 else 0.35,
+                ),
+            )
+            .put(
+                radioGraphBoundaryRow(
+                    label = "FM broadcast band",
+                    band = "FM broadcast",
+                    sourceType = "fm_broadcast",
+                    receiverId = "fm_vendor_or_sdr",
+                    frequencyMinMhz = 87.5,
+                    frequencyMaxMhz = 108.0,
+                    valueLabel = if (vendorBroadcastRadioDeclared) "vendor bridge required" else "external receiver required",
+                    scanState = if (vendorBroadcastRadioDeclared) "vendor_bridge_required" else "external_or_vendor_receiver_required",
+                    recommendation = "Use radio_signal_graph for FM station/RDS samples only when a vendor bridge or SDR provides them.",
+                    fraction = if (vendorBroadcastRadioDeclared) 0.55 else 0.35,
+                ),
+            )
+        return rows
+    }
+
+    private fun radioSampleRowsFromArguments(arguments: JSONObject, limit: Int): JSONArray {
+        val rows = JSONArray()
+        val arrayKeys = listOf(
+            "radio_signal_graph_sample_rows",
+            "radio_signal_graph_rows",
+            "radio_scan_rows",
+            "radio_samples",
+            "samples",
+            "stations",
+        )
+        for (key in arrayKeys) {
+            val samples = arguments.optJSONArray(key) ?: continue
+            for (index in 0 until samples.length()) {
+                if (rows.length() >= limit) return rows
+                val sample = samples.optJSONObject(index) ?: continue
+                if (radioSampleLooksGraphable(sample)) rows.put(sample)
+            }
+        }
+        val objectKeys = listOf("radio_sample", "sample", "station")
+        for (key in objectKeys) {
+            if (rows.length() >= limit) return rows
+            val sample = arguments.optJSONObject(key) ?: continue
+            if (radioSampleLooksGraphable(sample)) rows.put(sample)
+        }
+        return rows
+    }
+
+    private fun radioSampleLooksGraphable(sample: JSONObject): Boolean {
+        if (sample.optBoolean("sampled", false)) return true
+        if (sample.optString("station_label").isNotBlank() || sample.optString("label").isNotBlank()) return true
+        return listOf(
+            "frequency_khz",
+            "frequency_mhz",
+            "frequency_hz",
+            "center_frequency_hz",
+            "rssi_dbm",
+            "level_dbm",
+            "signal_dbuv_or_rssi_dbm",
+            "power_db",
+        ).any { key -> radioOptionalDouble(sample, key) != null }
+    }
+
+    private fun radioSampleGraphRow(sample: JSONObject, index: Int, sampleSource: String): JSONObject {
+        val frequencyKhz = radioOptionalDouble(sample, "frequency_khz")
+        val frequencyMhz = radioOptionalDouble(sample, "frequency_mhz")
+            ?: frequencyKhz?.div(1000.0)
+            ?: radioOptionalDouble(sample, "frequency_hz")?.div(1_000_000.0)
+            ?: radioOptionalDouble(sample, "center_frequency_hz")?.div(1_000_000.0)
+        val band = sample.optString("band").ifBlank {
+            inferRadioSampleBand(frequencyMhz, frequencyKhz, sample.optString("modulation"))
+        }
+        val receiverId = sample.optString("receiver_id").ifBlank { receiverIdForRadioBand(band) }
+        val label = sample.optString("station_label").ifBlank {
+            sample.optString("label").ifBlank {
+                radioFrequencyLabel(frequencyMhz, frequencyKhz)?.let { "$band $it" } ?: "Radio sample ${index + 1}"
+            }
+        }
+        val rssiDbm = listOf("rssi_dbm", "level_dbm", "signal_dbuv_or_rssi_dbm")
+            .firstNotNullOfOrNull { key -> radioOptionalDouble(sample, key) }
+        val powerDb = listOf("power_db", "power_dbm")
+            .firstNotNullOfOrNull { key -> radioOptionalDouble(sample, key) }
+        val signalValue = rssiDbm ?: powerDb
+        val valueLabel = sample.optString("value_label").ifBlank {
+            when {
+                rssiDbm != null -> "${formatDecimal(rssiDbm, if (rssiDbm % 1.0 == 0.0) 0 else 1)} dBm"
+                powerDb != null -> "${formatDecimal(powerDb, if (powerDb % 1.0 == 0.0) 0 else 1)} dB"
+                else -> "sample available"
+            }
+        }
+        val row = JSONObject()
+            .put("category", "radio_signal_graph")
+            .put("graph_row_role", "sample")
+            .put("label", label)
+            .put("band", band)
+            .put("source_type", sample.optString("source_type").ifBlank { "vendor_or_sdr_sample" })
+            .put("receiver_id", receiverId)
+            .put("sampled", true)
+            .put("data_available", true)
+            .put("sample_source", sampleSource)
+            .put("public_android_scan_supported", false)
+            .put("requires_vendor_or_external_receiver", true)
+            .put("scan_state", sample.optString("scan_state").ifBlank { "bridge_sample_reported" })
+            .put("value_label", valueLabel)
+            .put("modulation", sample.optString("modulation").ifBlank { modulationForRadioBand(band) })
+            .put("recommendation", sample.optString("recommendation").ifBlank { "Treat as receiver-provided radio metadata; do not infer broader spectrum coverage from one sample." })
+            .put("fraction", signalValue?.let { radioSignalFraction(it) } ?: 0.75)
+        frequencyKhz?.let { row.put("frequency_khz", it) }
+        frequencyMhz?.let { row.put("frequency_mhz", it) }
+        radioFrequencyLabel(frequencyMhz, frequencyKhz)?.let { row.put("frequency_label", it) }
+        rssiDbm?.let {
+            row.put("rssi_dbm", it)
+            row.put("signal_dbuv_or_rssi_dbm", it)
+        }
+        powerDb?.let { row.put("power_db", it) }
+        radioOptionalDouble(sample, "snr_db")?.let { row.put("snr_db", it) }
+        radioOptionalLong(sample, "scan_timestamp_ms")?.let { row.put("scan_timestamp_ms", it) }
+        sample.optString("rds_program_service").takeIf { it.isNotBlank() }?.let { row.put("rds_program_service", it) }
+        sample.optString("rds_radio_text").takeIf { it.isNotBlank() }?.let { row.put("rds_radio_text", it) }
+        return row
+    }
+
+    private fun radioGraphBoundaryRow(
+        label: String,
+        band: String,
+        sourceType: String,
+        receiverId: String,
+        frequencyMinKhz: Int? = null,
+        frequencyMaxKhz: Int? = null,
+        frequencyMinMhz: Double? = null,
+        frequencyMaxMhz: Double? = null,
+        valueLabel: String,
+        scanState: String,
+        recommendation: String,
+        fraction: Double,
+    ): JSONObject {
+        val row = JSONObject()
+            .put("category", "radio_signal_graph")
+            .put("graph_row_role", "band_boundary")
+            .put("label", label)
+            .put("band", band)
+            .put("source_type", sourceType)
+            .put("receiver_id", receiverId)
+            .put("sampled", false)
+            .put("data_available", false)
+            .put("public_android_scan_supported", false)
+            .put("requires_vendor_or_external_receiver", true)
+            .put("scan_state", scanState)
+            .put("value_label", valueLabel)
+            .put("recommendation", recommendation)
+            .put("fraction", fraction)
+        frequencyMinKhz?.let { row.put("frequency_min_khz", it) }
+        frequencyMaxKhz?.let { row.put("frequency_max_khz", it) }
+        frequencyMinMhz?.let { row.put("frequency_min_mhz", it) }
+        frequencyMaxMhz?.let { row.put("frequency_max_mhz", it) }
+        return row
+    }
+
+    private fun sampledRadioSignalGraphRows(rows: JSONArray): JSONArray {
+        val sampledRows = JSONArray()
+        for (index in 0 until rows.length()) {
+            val row = rows.optJSONObject(index) ?: continue
+            if (row.optBoolean("sampled", false)) sampledRows.put(row)
+        }
+        return sampledRows
+    }
+
+    private fun radioOptionalDouble(row: JSONObject, key: String): Double? {
+        return when (val value = row.opt(key)) {
+            is Number -> value.toDouble()
+            is String -> value.trim().toDoubleOrNull()
+            else -> null
+        }
+    }
+
+    private fun radioOptionalLong(row: JSONObject, key: String): Long? {
+        return when (val value = row.opt(key)) {
+            is Number -> value.toLong()
+            is String -> value.trim().toLongOrNull()
+            else -> null
+        }
+    }
+
+    private fun inferRadioSampleBand(frequencyMhz: Double?, frequencyKhz: Double?, modulation: String): String {
+        val normalizedModulation = modulation.lowercase(Locale.US)
+        return when {
+            normalizedModulation == "am" -> "AM broadcast"
+            normalizedModulation == "fm" -> "FM broadcast"
+            frequencyKhz != null && frequencyKhz in 530.0..1700.0 -> "AM broadcast"
+            frequencyMhz != null && frequencyMhz in 0.53..1.7 -> "AM broadcast"
+            frequencyMhz != null && frequencyMhz in 87.5..108.0 -> "FM broadcast"
+            else -> "External SDR / broad RF"
+        }
+    }
+
+    private fun receiverIdForRadioBand(band: String): String = when (band) {
+        "AM broadcast" -> "am_vendor_or_sdr"
+        "FM broadcast" -> "fm_vendor_or_sdr"
+        else -> "external_sdr_bridge"
+    }
+
+    private fun modulationForRadioBand(band: String): String = when (band) {
+        "AM broadcast" -> "am"
+        "FM broadcast" -> "fm"
+        else -> "unknown"
+    }
+
+    private fun radioFrequencyLabel(frequencyMhz: Double?, frequencyKhz: Double?): String? {
+        return when {
+            frequencyKhz != null -> "${formatDecimal(frequencyKhz, if (frequencyKhz % 1.0 == 0.0) 0 else 1)} kHz"
+            frequencyMhz != null && frequencyMhz < 2.0 -> "${formatDecimal(frequencyMhz * 1000.0, if ((frequencyMhz * 1000.0) % 1.0 == 0.0) 0 else 1)} kHz"
+            frequencyMhz != null -> "${formatDecimal(frequencyMhz, if (frequencyMhz % 1.0 == 0.0) 0 else 1)} MHz"
+            else -> null
+        }
+    }
+
+    private fun radioSignalFraction(valueDb: Double): Double = ((valueDb + 110.0) / 80.0).coerceIn(0.08, 1.0)
 
     private fun radioReceiverProfileRow(
         receiverId: String,
@@ -9652,6 +9979,7 @@ object HermesDeviceDiagnosticsBridge {
         "sensor_snapshot",
         "camera_status",
         "radio_signal_status",
+        "radio_signal_graph",
         "radio_analyzer_report",
         "signal_capability_status",
         "local_backend_runtime_report",
