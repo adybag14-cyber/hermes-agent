@@ -1743,6 +1743,7 @@ object HermesDeviceDiagnosticsBridge {
         val signalStatus = signalCapabilityStatusJson(appContext)
         val radioStatus = radioSignalStatusJson(appContext)
         val preferredModel = preferredLocalModelJson(appContext)
+        val backendRiskReport = gpuBackendRiskReportJson(appContext)
         val socProfile = diagnostics.optJSONObject("soc_profile") ?: socProfileJson()
         val availableSensors = diagnostics.optJSONArray("available_sensor_types") ?: JSONArray()
         val cachedWifiHistory = wifiSignalHistoryRowsFromStore(readWifiSignalHistory(appContext))
@@ -1760,6 +1761,7 @@ object HermesDeviceDiagnosticsBridge {
             cachedBluetoothHistory = cachedBluetoothHistory,
             cachedMotionHistory = cachedMotionHistory,
             cachedMotionPoseEstimates = cachedMotionPoseEstimates,
+            backendRiskReport = backendRiskReport,
         )
         val workflowRows = signalWorkflowRouteRows(
             diagnostics = diagnostics,
@@ -1770,16 +1772,25 @@ object HermesDeviceDiagnosticsBridge {
             cachedBluetoothHistory = cachedBluetoothHistory,
             cachedMotionHistory = cachedMotionHistory,
             cachedMotionPoseEstimates = cachedMotionPoseEstimates,
+            backendRiskReport = backendRiskReport,
         )
         val constraintRows = signalConstraintRows(diagnostics, signalStatus, radioStatus)
         val radioBandCount = radioStatus.optJSONArray("radio_bands")?.length() ?: 0
         return JSONObject()
             .put("success", true)
             .put("action", "signal_awareness_report")
-            .put("report_scope", "Cross-signal situational awareness across Wi-Fi, Bluetooth, AM/FM/RF limits, sensors, SOC backend policy, and local multimodal readiness.")
+            .put("report_scope", "Cross-signal situational awareness across Wi-Fi, Bluetooth, AM/FM/RF limits, sensors, SOC/backend risk, and local multimodal readiness.")
             .put("android_device_identity", deviceIdentityJson())
             .put("soc_profile", socProfile)
             .put("preferred_local_model", preferredModel)
+            .put("gpu_backend_risk_level", backendRiskReport.optString("gpu_backend_risk_level"))
+            .put("gpu_backend_risk_score", backendRiskReport.optInt("gpu_backend_risk_score", 0))
+            .put("gpu_backend_risk_matrix", backendRiskReport.optJSONArray("gpu_backend_risk_matrix") ?: JSONArray())
+            .put("gpu_backend_risk_routes", backendRiskReport.optJSONArray("gpu_backend_risk_routes") ?: JSONArray())
+            .put("gpu_backend_risk_count", backendRiskReport.optInt("gpu_backend_risk_count", 0))
+            .put("high_gpu_backend_risk_count", backendRiskReport.optInt("high_gpu_backend_risk_count", 0))
+            .put("ready_gpu_backend_risk_count", backendRiskReport.optInt("ready_gpu_backend_risk_count", 0))
+            .put("gpu_backend_risk_route_count", backendRiskReport.optInt("gpu_backend_risk_route_count", 0))
             .put("signal_capability_status", compactSignalCapabilityJson(signalStatus))
             .put("wifi_scan_permission_status", diagnostics.optJSONObject("wifi_scan_permission_status") ?: JSONObject())
             .put("bluetooth_scan_permission_status", diagnostics.optJSONObject("bluetooth_scan_permission_status") ?: JSONObject())
@@ -1835,6 +1846,14 @@ object HermesDeviceDiagnosticsBridge {
                             body = "${constraintRows.length()} Android permission, hardware, and public-API constraints for honest radio/sensor reasoning.",
                             graphType = "signal_constraint_matrix",
                             rows = constraintRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "GPU Backend Risk",
+                            body = "${backendRiskReport.optInt("gpu_backend_risk_count", 0)} backend/SOC risk row(s) at ${backendRiskReport.optString("gpu_backend_risk_level").ifBlank { "unknown" }} level for MediaTek, Mali, PowerVR, and fallback decisions.",
+                            graphType = "gpu_backend_risk_matrix",
+                            rows = backendRiskReport.optJSONArray("gpu_backend_risk_matrix") ?: JSONArray(),
                         ),
                     )
                     .put(
@@ -2231,6 +2250,7 @@ object HermesDeviceDiagnosticsBridge {
         val sensorReport = sensorAnalyzerReportJson(appContext, JSONObject().put("include_snapshot", false))
         val radioReport = radioSignalStatusJson(appContext)
         val signalReport = signalAwarenessReportJson(appContext)
+        val backendRiskReport = gpuBackendRiskReportJson(appContext)
         val environmentReport = agentEnvironmentReportJson(appContext)
         val signalContextRows = agentSignalContextFusionRows(
             wifiReport = wifiReport,
@@ -2238,6 +2258,7 @@ object HermesDeviceDiagnosticsBridge {
             sensorReport = sensorReport,
             radioReport = radioReport,
             signalReport = signalReport,
+            backendRiskReport = backendRiskReport,
         )
         val observationRows = agentObservationMatrixRows(
             wifiReport = wifiReport,
@@ -2245,6 +2266,7 @@ object HermesDeviceDiagnosticsBridge {
             sensorReport = sensorReport,
             radioReport = radioReport,
             signalReport = signalReport,
+            backendRiskReport = backendRiskReport,
             environmentReport = environmentReport,
             signalContextRows = signalContextRows,
         )
@@ -2252,12 +2274,13 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "agent_observation_report")
-            .put("report_scope", "Gemma-visible dashboard for Wi-Fi, Bluetooth, sensor, radio, SOC, local model, Kai operations, and expandable top-card routes.")
-            .put("source_report_actions", JSONArray().put("wifi_analyzer_report").put("bluetooth_analyzer_report").put("sensor_analyzer_report").put("radio_signal_status").put("signal_awareness_report").put("agent_environment_report"))
+            .put("report_scope", "Gemma-visible dashboard for Wi-Fi, Bluetooth, sensor, radio, SOC/backend risk, local model, Kai operations, and expandable top-card routes.")
+            .put("source_report_actions", JSONArray().put("wifi_analyzer_report").put("bluetooth_analyzer_report").put("sensor_analyzer_report").put("radio_signal_status").put("gpu_backend_risk_report").put("signal_awareness_report").put("agent_environment_report"))
             .put("wifi_observation_summary", observationSummaryJson(wifiReport, "wifi_analyzer_report"))
             .put("bluetooth_observation_summary", observationSummaryJson(bluetoothReport, "bluetooth_analyzer_report"))
             .put("sensor_observation_summary", observationSummaryJson(sensorReport, "sensor_analyzer_report"))
             .put("radio_observation_summary", observationSummaryJson(radioReport, "radio_signal_status"))
+            .put("backend_risk_observation_summary", observationSummaryJson(backendRiskReport, "gpu_backend_risk_report"))
             .put("signal_observation_summary", observationSummaryJson(signalReport, "signal_awareness_report"))
             .put("agent_environment_observation_summary", observationSummaryJson(environmentReport, "agent_environment_report"))
             .put("agent_signal_context_matrix", signalContextRows)
@@ -2273,8 +2296,9 @@ object HermesDeviceDiagnosticsBridge {
                 JSONArray()
                     .put("Read agent_observation_matrix first to decide which signal, sensor, radio, SOC, or Kai surface is actually available on this device.")
                     .put("Read agent_signal_context_matrix before summarizing nearby RF context so Wi-Fi channel/band rows, Bluetooth RSSI/history rows, motion pose rows, and radio hardware limits stay fused.")
+                    .put("Read gpu_backend_risk_report context before promising MediaTek, Mali, PowerVR, Xclipse, or non-Adreno local model acceleration.")
                     .put("Use agent_observation_routes for the next precise android_device_diagnostics_tool action instead of guessing from text.")
-                    .put("Open the expandable cards before explaining Wi-Fi channels, Bluetooth proximity, radio limits, motion context, or local model readiness.")
+                    .put("Open the expandable cards before explaining Wi-Fi channels, Bluetooth proximity, radio limits, motion context, backend risk, or local model readiness.")
                     .put("Prefer passive analyzer reports for planning; request refresh or active sampling only when the user needs current live data."),
             )
             .put(
@@ -2283,7 +2307,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "Agent Observation",
-                            body = "${observationRows.length()} Gemma-visible row(s) summarizing Wi-Fi, Bluetooth, sensors, radio, SOC, local model, Kai operations, and card coverage.",
+                            body = "${observationRows.length()} Gemma-visible row(s) summarizing Wi-Fi, Bluetooth, sensors, radio, SOC/backend risk, local model, Kai operations, and card coverage.",
                             graphType = "agent_observation_matrix",
                             rows = observationRows,
                         ),
@@ -2291,7 +2315,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "Signal Context Fusion",
-                            body = "${signalContextRows.length()} fused context row(s) combining Wi-Fi channel/band coverage, Bluetooth RSSI/history metadata, motion pose context, and radio hardware limits for Gemma.",
+                            body = "${signalContextRows.length()} fused context row(s) combining Wi-Fi channel/band coverage, Bluetooth RSSI/history metadata, motion pose context, radio hardware limits, and backend risk for Gemma.",
                             graphType = "agent_signal_context_matrix",
                             rows = signalContextRows,
                         ),
@@ -2604,6 +2628,7 @@ object HermesDeviceDiagnosticsBridge {
         sensorReport: JSONObject,
         radioReport: JSONObject,
         signalReport: JSONObject,
+        backendRiskReport: JSONObject,
         environmentReport: JSONObject,
         signalContextRows: JSONArray,
     ): JSONArray {
@@ -2616,6 +2641,10 @@ object HermesDeviceDiagnosticsBridge {
         val motionPoseCount = sensorReport.optInt("motion_pose_estimate_count", sensorReport.optJSONArray("motion_pose_estimates")?.length() ?: 0)
         val radioBandCount = radioReport.optInt("radio_band_plan_count", radioReport.optJSONArray("radio_bands")?.length() ?: 0)
         val signalRouteCount = signalReport.optInt("signal_workflow_route_count", signalReport.optJSONArray("signal_workflow_routes")?.length() ?: 0)
+        val backendRiskCount = backendRiskReport.optInt("gpu_backend_risk_count", backendRiskReport.optJSONArray("gpu_backend_risk_matrix")?.length() ?: 0)
+        val highBackendRiskCount = backendRiskReport.optInt("high_gpu_backend_risk_count", 0)
+        val backendRiskLevel = backendRiskReport.optString("gpu_backend_risk_level").ifBlank { "unknown" }
+        val backendRiskScore = backendRiskReport.optInt("gpu_backend_risk_score", 0)
         val kaiOperationsCount = environmentReport.optInt("kai_operations_count", environmentReport.optJSONArray("kai_operations_matrix")?.length() ?: 0)
         val capabilityCount = environmentReport.optInt("agent_capability_count", environmentReport.optJSONArray("agent_capability_matrix")?.length() ?: 0)
         val signalContextCount = signalContextRows.length()
@@ -2705,12 +2734,30 @@ object HermesDeviceDiagnosticsBridge {
             )
             .put(
                 capabilityRow(
+                    category = "backend_risk_observation",
+                    label = "GPU backend risk triage",
+                    ready = backendRiskReport.optBoolean("success", false) && backendRiskCount > 0,
+                    valueLabel = "$backendRiskLevel risk, $highBackendRiskCount high row(s)",
+                    detail = "$backendRiskCount risk row(s) cover accelerator acceptance, SOC/GPU policy, thermal pressure, memory pressure, power state, model artifact fit, phone validation scope, and fallback routes.",
+                    recommendation = "Open GPU Backend Risk before promising MediaTek, Mali, PowerVR, Xclipse, or other non-Adreno acceleration behavior.",
+                    fraction = if (backendRiskCount > 0) ((100 - backendRiskScore).coerceIn(5, 100) / 100f) else 0.25f,
+                    extra = JSONObject()
+                        .put("tool_action", "gpu_backend_risk_report")
+                        .put("graph_type", "gpu_backend_risk_matrix")
+                        .put("gpu_backend_risk_level", backendRiskLevel)
+                        .put("gpu_backend_risk_score", backendRiskScore)
+                        .put("gpu_backend_risk_count", backendRiskCount)
+                        .put("high_gpu_backend_risk_count", highBackendRiskCount),
+                ),
+            )
+            .put(
+                capabilityRow(
                     category = "soc_model_observation",
                     label = "SOC and local model readiness",
                     ready = capabilityCount > 0,
                     valueLabel = "${environmentReport.optInt("ready_capability_count", 0)}/$capabilityCount ready",
                     detail = "SOC/backend policy, preferred local model, UI control, automation, memory, and signal inputs are visible to the agent environment report.",
-                    recommendation = "Use SOC and local-model cards before assuming Snapdragon-only behavior or multimodal local inference availability.",
+                    recommendation = "Use SOC, backend-risk, and local-model cards before assuming Snapdragon-only behavior or multimodal local inference availability.",
                     fraction = if (capabilityCount > 0) 0.85f else 0.35f,
                     extra = JSONObject().put("tool_action", "agent_environment_report"),
                 ),
@@ -2732,8 +2779,8 @@ object HermesDeviceDiagnosticsBridge {
                     category = "card_observation",
                     label = "Expandable card coverage",
                     ready = true,
-                    valueLabel = "${reportCardTitles(wifiReport).length() + reportCardTitles(bluetoothReport).length() + reportCardTitles(sensorReport).length() + reportCardTitles(signalReport).length()} source cards",
-                    detail = "The dashboard points the user to expandable graph cards for Wi-Fi, Bluetooth, sensor, radio, signal-awareness, and agent-environment rows.",
+                    valueLabel = "${reportCardTitles(wifiReport).length() + reportCardTitles(bluetoothReport).length() + reportCardTitles(sensorReport).length() + reportCardTitles(signalReport).length() + reportCardTitles(backendRiskReport).length() + reportCardTitles(environmentReport).length()} source cards",
+                    detail = "The dashboard points the user to expandable graph cards for Wi-Fi, Bluetooth, sensor, radio, backend-risk, signal-awareness, and agent-environment rows.",
                     recommendation = "Prefer cards for scan-heavy or graph-heavy answers so the user can expand the underlying rows instead of reading a long text dump.",
                     fraction = 0.9f,
                     extra = JSONObject().put("source_surface", "diagnostic_cards"),
@@ -2746,7 +2793,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = signalRouteCount > 0,
                     valueLabel = "$signalRouteCount route row(s)",
                     detail = "Signal-awareness and observation-route rows map broad user questions to exact diagnostic actions.",
-                    recommendation = "Use route rows to choose between wifi_analyzer_report, bluetooth_analyzer_report, sensor_analyzer_report, radio_signal_status, soc_compatibility_report, or agent_environment_report.",
+                    recommendation = "Use route rows to choose between wifi_analyzer_report, bluetooth_analyzer_report, sensor_analyzer_report, radio_signal_status, gpu_backend_risk_report, soc_compatibility_report, or agent_environment_report.",
                     fraction = if (signalRouteCount > 0) 0.9f else 0.45f,
                     extra = JSONObject().put("tool_action", "signal_awareness_report"),
                 ),
@@ -2759,6 +2806,7 @@ object HermesDeviceDiagnosticsBridge {
         sensorReport: JSONObject,
         radioReport: JSONObject,
         signalReport: JSONObject,
+        backendRiskReport: JSONObject,
     ): JSONArray {
         val wifiNetworkCount = wifiReport.optInt("total_scan_result_count", wifiReport.optJSONArray("wifi_networks")?.length() ?: 0)
         val wifiBandCoverageCount = wifiReport.optInt("wifi_band_coverage_count", wifiReport.optJSONArray("wifi_band_coverage")?.length() ?: 0)
@@ -2777,13 +2825,19 @@ object HermesDeviceDiagnosticsBridge {
         val radioBandCount = radioReport.optInt("radio_band_plan_count", radioReport.optJSONArray("radio_bands")?.length() ?: 0)
         val radioConstraintCount = radioReport.optInt("radio_signal_constraint_count", radioReport.optJSONArray("radio_signal_constraint_matrix")?.length() ?: 0)
         val signalRouteCount = signalReport.optInt("signal_workflow_route_count", signalReport.optJSONArray("signal_workflow_routes")?.length() ?: 0)
+        val backendRiskCount = backendRiskReport.optInt("gpu_backend_risk_count", backendRiskReport.optJSONArray("gpu_backend_risk_matrix")?.length() ?: 0)
+        val backendRiskRouteCount = backendRiskReport.optInt("gpu_backend_risk_route_count", backendRiskReport.optJSONArray("gpu_backend_risk_routes")?.length() ?: 0)
+        val highBackendRiskCount = backendRiskReport.optInt("high_gpu_backend_risk_count", 0)
+        val backendRiskLevel = backendRiskReport.optString("gpu_backend_risk_level").ifBlank { "unknown" }
+        val backendRiskScore = backendRiskReport.optInt("gpu_backend_risk_score", 0)
         val wifiReady = wifiReport.optBoolean("success", false) && wifiBandCoverageCount > 0
         val bluetoothReady = bluetoothReport.optBoolean("success", false) &&
             (bluetoothDeviceCount > 0 || bluetoothMetadataCount > 0 || bluetoothHistoryCount > 0)
         val sensorReady = sensorReport.optBoolean("sensor_service_available", false) ||
             sensorCapabilityCount > 0 || motionPoseCount > 0 || motionHistoryCount > 0
         val radioReady = radioBandCount > 0
-        val readyDomainCount = listOf(wifiReady, bluetoothReady, sensorReady, radioReady).count { it }
+        val backendRiskReady = backendRiskReport.optBoolean("success", false) && backendRiskCount > 0
+        val readyDomainCount = listOf(wifiReady, bluetoothReady, sensorReady, radioReady, backendRiskReady).count { it }
 
         return JSONArray()
             .put(
@@ -2791,14 +2845,14 @@ object HermesDeviceDiagnosticsBridge {
                     category = "agent_signal_context",
                     label = "Gemma signal context contract",
                     ready = readyDomainCount > 0,
-                    valueLabel = "$readyDomainCount/4 source domain(s)",
-                    detail = "Fuses Wi-Fi channel/band rows, Bluetooth RSSI/history metadata, motion pose context, and radio-boundary rows into one card before natural-language reasoning.",
+                    valueLabel = "$readyDomainCount/5 source domain(s)",
+                    detail = "Fuses Wi-Fi channel/band rows, Bluetooth RSSI/history metadata, motion pose context, radio-boundary rows, and backend-risk rows into one card before natural-language reasoning.",
                     recommendation = "Read this matrix before summarizing nearby signals; then open the exact source card for evidence.",
-                    fraction = (readyDomainCount / 4f).coerceIn(0.25f, 0.95f),
+                    fraction = (readyDomainCount / 5f).coerceIn(0.25f, 0.95f),
                     extra = JSONObject()
                         .put("fusion_key", "signal_context_contract")
-                        .put("context_domains", JSONArray().put("wifi").put("bluetooth").put("motion_sensors").put("radio_rf_limits"))
-                        .put("source_actions", JSONArray().put("wifi_analyzer_report").put("bluetooth_analyzer_report").put("sensor_analyzer_report").put("radio_signal_status").put("signal_awareness_report")),
+                        .put("context_domains", JSONArray().put("wifi").put("bluetooth").put("motion_sensors").put("radio_rf_limits").put("backend_risk"))
+                        .put("source_actions", JSONArray().put("wifi_analyzer_report").put("bluetooth_analyzer_report").put("sensor_analyzer_report").put("radio_signal_status").put("gpu_backend_risk_report").put("signal_awareness_report")),
                 ),
             )
             .put(
@@ -2898,16 +2952,36 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 capabilityRow(
                     category = "agent_signal_context",
+                    label = "Backend risk and fallback context",
+                    ready = backendRiskReady,
+                    valueLabel = "$backendRiskLevel risk, $highBackendRiskCount high row(s)",
+                    detail = "$backendRiskCount GPU/backend risk row(s) and $backendRiskRouteCount route row(s) bind accelerator acceptance, SOC/GPU family, thermal, memory, power, model artifact fit, and phone-validation scope.",
+                    recommendation = "Use this row before claiming local acceleration stability on MediaTek, Mali, PowerVR, Xclipse, or any non-Adreno device.",
+                    fraction = if (backendRiskReady) ((100 - backendRiskScore).coerceIn(5, 100) / 100f) else 0.25f,
+                    extra = JSONObject()
+                        .put("fusion_key", "backend_risk_fallback_context")
+                        .put("source_actions", JSONArray().put("gpu_backend_risk_report").put("local_backend_runtime_report").put("soc_compatibility_report").put("device_performance_report"))
+                        .put("card_graph_types", JSONArray().put("gpu_backend_risk_matrix").put("gpu_backend_risk_routes").put("runtime_backend_matrix").put("soc_backend_matrix").put("runtime_stability_matrix"))
+                        .put("gpu_backend_risk_level", backendRiskLevel)
+                        .put("gpu_backend_risk_score", backendRiskScore)
+                        .put("gpu_backend_risk_count", backendRiskCount)
+                        .put("high_gpu_backend_risk_count", highBackendRiskCount)
+                        .put("gpu_backend_risk_route_count", backendRiskRouteCount),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_signal_context",
                     label = "Source card drill-down",
                     ready = signalRouteCount > 0,
                     valueLabel = "$signalRouteCount signal route row(s)",
-                    detail = "Routes link the fused matrix back to Wi-Fi Analyzer, Bluetooth Analyzer, Sensor Analyzer, radio band plan, and signal-awareness cards.",
+                    detail = "Routes link the fused matrix back to Wi-Fi Analyzer, Bluetooth Analyzer, Sensor Analyzer, radio band plan, backend-risk, and signal-awareness cards.",
                     recommendation = "Use the source_actions and card_graph_types fields when the answer needs evidence instead of a text-only summary.",
                     fraction = if (signalRouteCount > 0) 0.9f else 0.45f,
                     extra = JSONObject()
                         .put("fusion_key", "source_card_drill_down")
-                        .put("source_actions", JSONArray().put("agent_observation_report").put("wifi_analyzer_report").put("wifi_channel_graph").put("bluetooth_analyzer_report").put("sensor_analyzer_report").put("radio_signal_status"))
-                        .put("card_graph_types", JSONArray().put("agent_signal_context_matrix").put("wifi_channel_graph").put("wifi_channel_rating").put("bluetooth_signal_history").put("motion_pose_estimate").put("radio_frequency_capability"))
+                        .put("source_actions", JSONArray().put("agent_observation_report").put("wifi_analyzer_report").put("wifi_channel_graph").put("bluetooth_analyzer_report").put("sensor_analyzer_report").put("radio_signal_status").put("gpu_backend_risk_report"))
+                        .put("card_graph_types", JSONArray().put("agent_signal_context_matrix").put("wifi_channel_graph").put("wifi_channel_rating").put("bluetooth_signal_history").put("motion_pose_estimate").put("radio_frequency_capability").put("gpu_backend_risk_matrix"))
                         .put("signal_workflow_route_count", signalRouteCount),
                 ),
             )
@@ -2921,7 +2995,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Open the full observation dashboard",
                     ready = true,
                     valueLabel = "agent_observation_report",
-                    detail = "Use for one compact Gemma-visible view across Wi-Fi, Bluetooth, sensors, radio, SOC, local model, Kai operations, and cards.",
+                    detail = "Use for one compact Gemma-visible view across Wi-Fi, Bluetooth, sensors, radio, backend risk, SOC, local model, Kai operations, and cards.",
                     recommendation = "Run first for broad nearby-signal or phone-capability questions.",
                     fraction = 0.95f,
                     extra = JSONObject().put("tool_action", "agent_observation_report"),
@@ -2985,6 +3059,18 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Use before promising broad AM/FM or microwave scanning on normal phones.",
                     fraction = 0.85f,
                     extra = JSONObject().put("tool_action", "radio_signal_status"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_observation_route",
+                    label = "Open GPU backend risk cards",
+                    ready = true,
+                    valueLabel = "gpu_backend_risk_report",
+                    detail = "Use for accelerator acceptance, SOC/GPU policy, thermal, memory, power, model artifact fit, phone validation, and CPU fallback rows.",
+                    recommendation = "Run before local inference policy changes or non-Adreno device compatibility claims.",
+                    fraction = 0.9f,
+                    extra = JSONObject().put("tool_action", "gpu_backend_risk_report"),
                 ),
             )
             .put(
@@ -3126,6 +3212,7 @@ object HermesDeviceDiagnosticsBridge {
         cachedBluetoothHistory: JSONArray,
         cachedMotionHistory: JSONArray,
         cachedMotionPoseEstimates: JSONArray,
+        backendRiskReport: JSONObject,
     ): JSONArray {
         val wifiPermission = diagnostics.optJSONObject("wifi_scan_permission_status") ?: JSONObject()
         val bluetoothPermission = diagnostics.optJSONObject("bluetooth_scan_permission_status") ?: JSONObject()
@@ -3135,6 +3222,10 @@ object HermesDeviceDiagnosticsBridge {
         val wifiReady = diagnostics.optBoolean("wifi_supported", false) && wifiPermission.optBoolean("can_read_scan_results", false)
         val bluetoothReady = diagnostics.optBoolean("bluetooth_supported", false) &&
             (bluetoothPermission.optBoolean("can_scan_nearby_devices", false) || bluetoothPermission.optBoolean("can_read_paired_devices", false))
+        val backendRiskCount = backendRiskReport.optInt("gpu_backend_risk_count", backendRiskReport.optJSONArray("gpu_backend_risk_matrix")?.length() ?: 0)
+        val highBackendRiskCount = backendRiskReport.optInt("high_gpu_backend_risk_count", 0)
+        val backendRiskLevel = backendRiskReport.optString("gpu_backend_risk_level").ifBlank { "unknown" }
+        val backendRiskScore = backendRiskReport.optInt("gpu_backend_risk_score", 0)
         return JSONArray()
             .put(
                 capabilityRow(
@@ -3260,6 +3351,22 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Keep MediaTek/Mali/PowerVR, Tensor/Mali, Exynos/Xclipse, Snapdragon/Adreno, Unisoc, and CPU fallback paths visible before local model work.",
                     fraction = 0.95f,
                     extra = JSONObject().put("source_surface", "soc_profile"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "signal_awareness",
+                    label = "GPU backend risk triage",
+                    ready = backendRiskReport.optBoolean("success", false) && backendRiskCount > 0,
+                    valueLabel = "$backendRiskLevel risk, $highBackendRiskCount high row(s)",
+                    detail = "$backendRiskCount risk row(s) cover accelerator acceptance, SOC/GPU policy, thermal, memory, power, model artifact fit, validation scope, and fallback routing.",
+                    recommendation = "Use gpu_backend_risk_report before answering whether this phone can safely use local GPU acceleration.",
+                    fraction = if (backendRiskCount > 0) ((100 - backendRiskScore).coerceIn(5, 100) / 100f) else 0.25f,
+                    extra = JSONObject()
+                        .put("tool_action", "gpu_backend_risk_report")
+                        .put("graph_type", "gpu_backend_risk_matrix")
+                        .put("gpu_backend_risk_level", backendRiskLevel)
+                        .put("gpu_backend_risk_score", backendRiskScore),
                 ),
             )
             .put(
@@ -4478,10 +4585,13 @@ object HermesDeviceDiagnosticsBridge {
         cachedBluetoothHistory: JSONArray,
         cachedMotionHistory: JSONArray,
         cachedMotionPoseEstimates: JSONArray,
+        backendRiskReport: JSONObject,
     ): JSONArray {
         val wifiPermission = diagnostics.optJSONObject("wifi_scan_permission_status") ?: JSONObject()
         val bluetoothPermission = diagnostics.optJSONObject("bluetooth_scan_permission_status") ?: JSONObject()
         val sensorNames = jsonStringList(availableSensors)
+        val backendRiskLevel = backendRiskReport.optString("gpu_backend_risk_level").ifBlank { "unknown" }
+        val backendRiskScore = backendRiskReport.optInt("gpu_backend_risk_score", 0)
         return JSONArray()
             .put(
                 capabilityRow(
@@ -4577,6 +4687,18 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Tell the user when public Android APIs cannot scan a requested RF band and name the needed external hardware/API.",
                     fraction = 0.75f,
                     extra = JSONObject().put("tool_action", "signal_capability_status"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "signal_route",
+                    label = "Route backend risk triage",
+                    ready = backendRiskReport.optBoolean("success", false),
+                    valueLabel = "gpu_backend_risk_report",
+                    detail = "Use for MediaTek, Mali, PowerVR, Xclipse, non-Adreno, thermal, memory, power, model artifact, and CPU fallback risk context.",
+                    recommendation = "Run before local inference policy changes or before promising GPU acceleration on this device; current passive level=$backendRiskLevel score=$backendRiskScore.",
+                    fraction = if (backendRiskReport.optBoolean("success", false)) ((100 - backendRiskScore).coerceIn(5, 100) / 100f) else 0.35f,
+                    extra = JSONObject().put("tool_action", "gpu_backend_risk_report"),
                 ),
             )
             .put(
