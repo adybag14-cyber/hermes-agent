@@ -640,6 +640,9 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.getJSONArray("limits").length() >= 2)
         assertTrue(result.getJSONArray("radio_bands").length() >= 6)
         assertEquals(result.getJSONArray("radio_bands").length(), result.getInt("radio_band_plan_count"))
+        assertTrue(result.getJSONArray("radio_receiver_profiles").length() >= 5)
+        assertTrue(result.getInt("radio_receiver_profile_count") >= 5)
+        assertTrue(result.getInt("ready_radio_receiver_profile_count") >= 5)
         assertTrue(result.getJSONArray("radio_signal_feature_matrix").length() >= 6)
         assertTrue(result.getJSONArray("radio_signal_workflow_routes").length() >= 4)
         assertTrue(result.getJSONArray("radio_signal_constraint_matrix").length() >= 4)
@@ -664,6 +667,11 @@ class HermesDeviceDiagnosticsBridgeTest {
         val wifi = bandRows.first { it.getString("band") == "Wi-Fi 2.4 GHz" }
         val bluetooth = bandRows.first { it.getString("band") == "Bluetooth 2.4 GHz" }
         val external = bandRows.first { it.getString("band") == "External SDR / broad RF" }
+        val receiverProfiles = result.getJSONArray("radio_receiver_profiles")
+        val receiverRows = (0 until receiverProfiles.length()).map { receiverProfiles.getJSONObject(it) }
+        val fmReceiver = receiverRows.first { it.getString("receiver_id") == "fm_vendor_or_sdr" }
+        val wifiReceiver = receiverRows.first { it.getString("receiver_id") == "wifi_public_metadata" }
+        val sdrReceiver = receiverRows.first { it.getString("receiver_id") == "external_sdr_bridge" }
         val cards = result.getJSONArray("cards")
 
         assertTrue(bands.length() >= 6)
@@ -675,16 +683,25 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(bluetooth.getString("access_path").contains("bluetooth_signal_history"))
         assertFalse(external.getBoolean("supported"))
         assertTrue(external.getBoolean("requires_external_hardware"))
+        assertTrue(receiverProfiles.length() >= 5)
+        assertTrue(fmReceiver.getBoolean("requires_vendor_bridge"))
+        assertTrue(fmReceiver.getJSONArray("station_metadata_fields").toString().contains("rds_program_service"))
+        assertEquals("wifi_analyzer_report", wifiReceiver.getString("route_action"))
+        assertTrue(wifiReceiver.getJSONArray("graph_row_schema").toString().contains("rssi_dbm"))
+        assertTrue(sdrReceiver.getBoolean("requires_external_hardware"))
+        assertTrue(sdrReceiver.getJSONArray("sample_fields").toString().contains("center_frequency_hz"))
         assertTrue(result.getJSONArray("radio_signal_feature_matrix").length() >= 6)
         assertTrue(result.getJSONArray("radio_signal_workflow_routes").length() >= 4)
         assertTrue(result.getJSONArray("radio_signal_constraint_matrix").length() >= 4)
         assertEquals("signal_graph_card", cards.getJSONObject(0).getString("type"))
         assertEquals("Radio Band Plan", cards.getJSONObject(0).getString("title"))
         assertEquals("radio_frequency_capability", cards.getJSONObject(0).getString("graph_type"))
-        assertEquals("Radio Signal Routes", cards.getJSONObject(1).getString("title"))
-        assertEquals("radio_signal_workflow_routes", cards.getJSONObject(1).getString("graph_type"))
-        assertEquals("Radio Scan Boundaries", cards.getJSONObject(2).getString("title"))
-        assertEquals("radio_signal_constraint_matrix", cards.getJSONObject(2).getString("graph_type"))
+        assertEquals("Receiver Profiles", cards.getJSONObject(1).getString("title"))
+        assertEquals("radio_receiver_profile", cards.getJSONObject(1).getString("graph_type"))
+        assertEquals("Radio Signal Routes", cards.getJSONObject(2).getString("title"))
+        assertEquals("radio_signal_workflow_routes", cards.getJSONObject(2).getString("graph_type"))
+        assertEquals("Radio Scan Boundaries", cards.getJSONObject(3).getString("title"))
+        assertEquals("radio_signal_constraint_matrix", cards.getJSONObject(3).getString("graph_type"))
     }
 
     @Test
@@ -1201,10 +1218,12 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(result.has("cached_wifi_signal_history"))
         assertTrue(result.has("cached_bluetooth_signal_history"))
         assertTrue(result.getJSONArray("radio_bands").length() >= 6)
+        assertTrue(result.getJSONArray("radio_receiver_profiles").length() >= 5)
         assertTrue(result.getJSONArray("radio_signal_feature_matrix").length() >= 6)
         assertTrue(result.getJSONArray("radio_signal_workflow_routes").length() >= 4)
         assertTrue(result.getJSONArray("radio_signal_constraint_matrix").length() >= 4)
         assertTrue(result.getInt("radio_band_plan_count") >= 6)
+        assertTrue(result.getInt("radio_receiver_profile_count") >= 5)
         assertTrue(result.getInt("radio_signal_feature_count") >= 6)
         assertTrue(awarenessLabels.contains("Wi-Fi scan surface"))
         assertTrue(awarenessLabels.contains("Bluetooth proximity metadata"))
@@ -1218,6 +1237,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(constraintLabels.contains("Broad RF and microwave hardware"))
         assertTrue(result.getJSONArray("cards").toString().contains("Signal Awareness"))
         assertTrue(result.getJSONArray("cards").toString().contains("Radio Band Plan"))
+        assertTrue(result.getJSONArray("cards").toString().contains("Receiver Profiles"))
         assertTrue(result.getInt("signal_awareness_count") >= 9)
         assertTrue(result.getInt("signal_workflow_route_count") >= 7)
         assertTrue(result.getInt("signal_constraint_count") >= 5)

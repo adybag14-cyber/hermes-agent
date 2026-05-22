@@ -1250,6 +1250,11 @@ object HermesDeviceDiagnosticsBridge {
             bluetoothSupported = bluetoothSupported,
         )
         val constraintRows = radioSignalConstraintRows(vendorBroadcastRadioDeclared)
+        val receiverProfiles = radioReceiverProfileRows(
+            vendorBroadcastRadioDeclared = vendorBroadcastRadioDeclared,
+            wifiSupported = wifiSupported,
+            bluetoothSupported = bluetoothSupported,
+        )
         return JSONObject()
             .put("success", true)
             .put("action", "radio_signal_status")
@@ -1263,6 +1268,9 @@ object HermesDeviceDiagnosticsBridge {
             .put("requires_external_sdr_for_broad_rf", true)
             .put("radio_bands", bands)
             .put("radio_band_plan_count", bands.length())
+            .put("radio_receiver_profiles", receiverProfiles)
+            .put("radio_receiver_profile_count", receiverProfiles.length())
+            .put("ready_radio_receiver_profile_count", countReadyRows(receiverProfiles))
             .put("radio_signal_feature_matrix", featureRows)
             .put("radio_signal_workflow_routes", routeRows)
             .put("radio_signal_constraint_matrix", constraintRows)
@@ -1280,6 +1288,14 @@ object HermesDeviceDiagnosticsBridge {
                             body = "${bands.length()} radio band row(s) covering AM/FM broadcast boundaries, built-in Wi-Fi/Bluetooth radio metadata, and external SDR-only spectrum paths.",
                             graphType = "radio_frequency_capability",
                             rows = bands,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Receiver Profiles",
+                            body = "${receiverProfiles.length()} receiver profile row(s) covering AM/FM vendor bridge expectations, Wi-Fi/Bluetooth public metadata routes, and external SDR scan schemas.",
+                            graphType = "radio_receiver_profile",
+                            rows = receiverProfiles,
                         ),
                     )
                     .put(
@@ -1324,6 +1340,9 @@ object HermesDeviceDiagnosticsBridge {
             .put("requires_external_sdr_for_broad_rf", radioStatus.optBoolean("requires_external_sdr_for_broad_rf"))
             .put("radio_bands", radioStatus.optJSONArray("radio_bands") ?: JSONArray())
             .put("radio_band_plan_count", radioStatus.optInt("radio_band_plan_count", 0))
+            .put("radio_receiver_profiles", radioStatus.optJSONArray("radio_receiver_profiles") ?: JSONArray())
+            .put("radio_receiver_profile_count", radioStatus.optInt("radio_receiver_profile_count", 0))
+            .put("ready_radio_receiver_profile_count", radioStatus.optInt("ready_radio_receiver_profile_count", 0))
             .put("radio_signal_feature_matrix", radioStatus.optJSONArray("radio_signal_feature_matrix") ?: JSONArray())
             .put("radio_signal_workflow_routes", radioStatus.optJSONArray("radio_signal_workflow_routes") ?: JSONArray())
             .put("radio_signal_constraint_matrix", radioStatus.optJSONArray("radio_signal_constraint_matrix") ?: JSONArray())
@@ -1601,6 +1620,9 @@ object HermesDeviceDiagnosticsBridge {
             .put("cached_motion_pose_estimate_count", cachedMotionPoseEstimates.length())
             .put("radio_bands", radioStatus.optJSONArray("radio_bands") ?: JSONArray())
             .put("radio_band_plan_count", radioStatus.optInt("radio_band_plan_count", 0))
+            .put("radio_receiver_profiles", radioStatus.optJSONArray("radio_receiver_profiles") ?: JSONArray())
+            .put("radio_receiver_profile_count", radioStatus.optInt("radio_receiver_profile_count", 0))
+            .put("ready_radio_receiver_profile_count", radioStatus.optInt("ready_radio_receiver_profile_count", 0))
             .put("radio_signal_feature_matrix", radioStatus.optJSONArray("radio_signal_feature_matrix") ?: JSONArray())
             .put("radio_signal_workflow_routes", radioStatus.optJSONArray("radio_signal_workflow_routes") ?: JSONArray())
             .put("radio_signal_constraint_matrix", radioStatus.optJSONArray("radio_signal_constraint_matrix") ?: JSONArray())
@@ -1648,6 +1670,14 @@ object HermesDeviceDiagnosticsBridge {
                             body = "$radioBandCount AM/FM, Wi-Fi, Bluetooth, and SDR band row(s) available to the signal-awareness report.",
                             graphType = "radio_frequency_capability",
                             rows = radioStatus.optJSONArray("radio_bands") ?: JSONArray(),
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Receiver Profiles",
+                            body = "${radioStatus.optInt("radio_receiver_profile_count", 0)} receiver profile row(s) describing AM/FM vendor bridge, Wi-Fi/Bluetooth metadata, and SDR scan schemas.",
+                            graphType = "radio_receiver_profile",
+                            rows = radioStatus.optJSONArray("radio_receiver_profiles") ?: JSONArray(),
                         ),
                     )
                     .put(
@@ -4528,6 +4558,191 @@ object HermesDeviceDiagnosticsBridge {
         return row
     }
 
+    private fun radioReceiverProfileRows(
+        vendorBroadcastRadioDeclared: Boolean,
+        wifiSupported: Boolean,
+        bluetoothSupported: Boolean,
+    ): JSONArray = JSONArray()
+        .put(
+            radioReceiverProfileRow(
+                receiverId = "am_vendor_or_sdr",
+                label = "AM station receiver profile",
+                sourceType = "am_broadcast",
+                frequencyMinKhz = 530,
+                frequencyMaxKhz = 1700,
+                channelStepLabel = "9/10 kHz regional channel spacing",
+                publicAndroidScanSupported = false,
+                vendorBridgePossible = vendorBroadcastRadioDeclared,
+                requiresVendorBridge = true,
+                routeAction = "radio_signal_status",
+                accessPath = "OEM Broadcast Radio HAL bridge, vendor app bridge, or external SDR",
+                scanState = if (vendorBroadcastRadioDeclared) "vendor_bridge_required" else "external_or_vendor_receiver_required",
+                reason = if (vendorBroadcastRadioDeclared) {
+                    "Device declares a broadcast-radio feature, but Hermes still needs an OEM/vendor bridge to receive AM station rows."
+                } else {
+                    "No public Android AM tuner scan API is available; AM station rows require a vendor bridge or SDR receiver."
+                },
+                recommendation = "Use this profile as the required AM scan schema and avoid returning empty station rows until a bridge reports samples.",
+                stationFields = listOf("frequency_khz", "station_label", "signal_dbuv_or_rssi_dbm", "snr_db", "modulation", "scan_timestamp_ms"),
+                sampleFields = listOf("frequency_khz", "power_db", "bandwidth_hz", "sample_rate_hz", "receiver_id"),
+            ),
+        )
+        .put(
+            radioReceiverProfileRow(
+                receiverId = "fm_vendor_or_sdr",
+                label = "FM station receiver profile",
+                sourceType = "fm_broadcast",
+                frequencyMinMhz = 87.5,
+                frequencyMaxMhz = 108.0,
+                channelStepLabel = "50/100/200 kHz regional spacing",
+                publicAndroidScanSupported = false,
+                vendorBridgePossible = vendorBroadcastRadioDeclared,
+                requiresVendorBridge = true,
+                routeAction = "radio_signal_status",
+                accessPath = "OEM Broadcast Radio HAL bridge, vendor FM app bridge, or external SDR",
+                scanState = if (vendorBroadcastRadioDeclared) "vendor_bridge_required" else "external_or_vendor_receiver_required",
+                reason = if (vendorBroadcastRadioDeclared) {
+                    "Device declares a broadcast-radio feature, but Hermes still needs a vendor bridge to read FM tuner, station, or RDS rows."
+                } else {
+                    "No public Android FM tuner/RDS scan API is available; FM station rows require a vendor bridge or SDR receiver."
+                },
+                recommendation = "Use this profile as the required FM scan schema and include RDS fields only when the receiver bridge reports them.",
+                stationFields = listOf("frequency_mhz", "station_label", "rds_program_service", "rds_radio_text", "signal_dbuv_or_rssi_dbm", "snr_db", "stereo", "scan_timestamp_ms"),
+                sampleFields = listOf("frequency_mhz", "power_db", "bandwidth_hz", "sample_rate_hz", "receiver_id"),
+            ),
+        )
+        .put(
+            radioReceiverProfileRow(
+                receiverId = "wifi_public_metadata",
+                label = "Wi-Fi public metadata receiver",
+                sourceType = "wifi_public_scan",
+                frequencyMinMhz = 2401.0,
+                frequencyMaxMhz = 7125.0,
+                channelStepLabel = "20/40/80/160/320 MHz channel-width metadata",
+                publicAndroidScanSupported = wifiSupported,
+                builtInAndroidSource = wifiSupported,
+                routeAction = "wifi_analyzer_report",
+                accessPath = "wifi_scan, wifi_channel_rating, wifi_channel_utilization, wifi_signal_history",
+                scanState = if (wifiSupported) "public_android_metadata_route" else "no_wifi_feature",
+                reason = if (wifiSupported) {
+                    "Android exposes access-point frequency, channel, RSSI, width, security, and history metadata through Wi-Fi APIs when permissions allow it."
+                } else {
+                    "This device does not declare Wi-Fi support."
+                },
+                recommendation = "Use Wi-Fi Analyzer cards for graphable RF metadata instead of broad raw spectrum claims.",
+                stationFields = listOf("ssid", "bssid", "frequency_mhz", "channel", "rssi_dbm", "security_mode", "bssid_vendor", "scan_timestamp_ms"),
+                sampleFields = listOf("frequency_mhz", "channel", "rssi_dbm", "channel_width", "wifi_standard", "estimated_distance_meters"),
+            ),
+        )
+        .put(
+            radioReceiverProfileRow(
+                receiverId = "bluetooth_public_metadata",
+                label = "Bluetooth proximity receiver",
+                sourceType = "bluetooth_public_scan",
+                frequencyMinMhz = 2402.0,
+                frequencyMaxMhz = 2480.0,
+                channelStepLabel = "BLE advertising/service metadata",
+                publicAndroidScanSupported = bluetoothSupported,
+                builtInAndroidSource = bluetoothSupported,
+                routeAction = "bluetooth_analyzer_report",
+                accessPath = "bluetooth_scan, bluetooth_signal_history",
+                scanState = if (bluetoothSupported) "public_android_metadata_route" else "no_bluetooth_feature",
+                reason = if (bluetoothSupported) {
+                    "Android exposes nearby Bluetooth/BLE identity, service UUID, manufacturer, RSSI, and history metadata with permissions."
+                } else {
+                    "This device does not declare Bluetooth support."
+                },
+                recommendation = "Use Bluetooth Analyzer cards for 2.4 GHz proximity and identity context rather than raw channel sweeps.",
+                stationFields = listOf("device_name", "address", "rssi_dbm", "service_uuids", "manufacturer_ids", "proximity_label", "scan_timestamp_ms"),
+                sampleFields = listOf("rssi_dbm", "average_rssi_dbm", "trend_db", "service_labels", "manufacturer_names"),
+            ),
+        )
+        .put(
+            radioReceiverProfileRow(
+                receiverId = "external_sdr_bridge",
+                label = "External SDR spectrum receiver",
+                sourceType = "external_sdr",
+                frequencyMinMhz = 0.5,
+                frequencyMaxMhz = 6000.0,
+                channelStepLabel = "receiver-dependent center/span/sample-rate",
+                publicAndroidScanSupported = false,
+                requiresExternalHardware = true,
+                routeAction = "tool_catalog",
+                accessPath = "USB/Bluetooth/Wi-Fi SDR bridge or vendor radio bridge",
+                scanState = "external_receiver_required",
+                reason = "Broad RF, airband, weather, arbitrary AM/FM scans, and microwave-like spectrum work need receiver hardware and a bridge that reports sample metadata.",
+                recommendation = "Require receiver_id, center_frequency, span, sample_rate, and power rows before showing spectrum or waterfall data.",
+                stationFields = listOf("frequency_hz", "label", "modulation", "power_db", "snr_db", "receiver_id", "scan_timestamp_ms"),
+                sampleFields = listOf("center_frequency_hz", "span_hz", "sample_rate_hz", "bin_width_hz", "power_db", "waterfall_row", "receiver_id"),
+            ),
+        )
+
+    private fun radioReceiverProfileRow(
+        receiverId: String,
+        label: String,
+        sourceType: String,
+        frequencyMinKhz: Int? = null,
+        frequencyMaxKhz: Int? = null,
+        frequencyMinMhz: Double? = null,
+        frequencyMaxMhz: Double? = null,
+        channelStepLabel: String,
+        publicAndroidScanSupported: Boolean,
+        builtInAndroidSource: Boolean = false,
+        vendorBridgePossible: Boolean = false,
+        requiresVendorBridge: Boolean = false,
+        requiresExternalHardware: Boolean = false,
+        routeAction: String,
+        accessPath: String,
+        scanState: String,
+        reason: String,
+        recommendation: String,
+        stationFields: List<String>,
+        sampleFields: List<String>,
+    ): JSONObject {
+        val graphableMetadataSupported = publicAndroidScanSupported || vendorBridgePossible || requiresExternalHardware
+        val row = JSONObject()
+            .put("category", "radio_receiver_profile")
+            .put("receiver_id", receiverId)
+            .put("label", label)
+            .put("source_type", sourceType)
+            .put("ready", true)
+            .put("value_label", scanState)
+            .put("public_android_scan_supported", publicAndroidScanSupported)
+            .put("built_in_android_source", builtInAndroidSource)
+            .put("vendor_bridge_possible", vendorBridgePossible)
+            .put("requires_vendor_bridge", requiresVendorBridge)
+            .put("requires_external_hardware", requiresExternalHardware)
+            .put("sample_rows_available", false)
+            .put("graphable_metadata_supported", graphableMetadataSupported)
+            .put("scan_state", scanState)
+            .put("channel_step", channelStepLabel)
+            .put("route_action", routeAction)
+            .put("access_path", accessPath)
+            .put("reason", reason)
+            .put("recommendation", recommendation)
+            .put("station_metadata_fields", JSONArray(stationFields))
+            .put("sample_fields", JSONArray(sampleFields))
+            .put("graph_row_schema", JSONArray((stationFields + sampleFields).distinct()))
+            .put(
+                "detail",
+                "$accessPath | $channelStepLabel | ${if (publicAndroidScanSupported) "public Android metadata route" else if (vendorBridgePossible) "vendor bridge required" else if (requiresExternalHardware) "external receiver required" else "not public Android API"}",
+            )
+            .put(
+                "fraction",
+                when {
+                    publicAndroidScanSupported -> 0.9f
+                    vendorBridgePossible -> 0.65f
+                    requiresExternalHardware -> 0.45f
+                    else -> 0.3f
+                },
+            )
+        frequencyMinKhz?.let { row.put("frequency_min_khz", it) }
+        frequencyMaxKhz?.let { row.put("frequency_max_khz", it) }
+        frequencyMinMhz?.let { row.put("frequency_min_mhz", it) }
+        frequencyMaxMhz?.let { row.put("frequency_max_mhz", it) }
+        return row
+    }
+
     private fun radioSignalFeatureRows(
         vendorBroadcastRadioDeclared: Boolean,
         wifiSupported: Boolean,
@@ -5437,6 +5652,8 @@ object HermesDeviceDiagnosticsBridge {
             .put("bluetooth_radio_metadata_supported", status.optBoolean("bluetooth_radio_metadata_supported", false))
             .put("requires_external_sdr_for_broad_rf", status.optBoolean("requires_external_sdr_for_broad_rf", true))
             .put("radio_band_plan_count", status.optInt("radio_band_plan_count", 0))
+            .put("radio_receiver_profile_count", status.optInt("radio_receiver_profile_count", 0))
+            .put("ready_radio_receiver_profile_count", status.optInt("ready_radio_receiver_profile_count", 0))
             .put("radio_signal_feature_count", status.optInt("radio_signal_feature_count", 0))
             .put("ready_radio_signal_feature_count", status.optInt("ready_radio_signal_feature_count", 0))
             .put("radio_signal_workflow_route_count", status.optInt("radio_signal_workflow_route_count", 0))

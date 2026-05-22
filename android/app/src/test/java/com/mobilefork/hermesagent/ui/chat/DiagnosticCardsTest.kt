@@ -637,6 +637,54 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesRadioReceiverProfileRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Receiver Profiles")
+                        .put("body", "Receiver schemas.")
+                        .put("graph_type", "radio_receiver_profile")
+                        .put(
+                            "rows",
+                            JSONArray()
+                                .put(
+                                    JSONObject()
+                                        .put("label", "FM station receiver profile")
+                                        .put("receiver_id", "fm_vendor_or_sdr")
+                                        .put("source_type", "fm_broadcast")
+                                        .put("frequency_min_mhz", 87.5)
+                                        .put("frequency_max_mhz", 108.0)
+                                        .put("vendor_bridge_possible", true)
+                                        .put("requires_vendor_bridge", true)
+                                        .put("scan_state", "vendor_bridge_required")
+                                        .put("route_action", "radio_signal_status")
+                                        .put("access_path", "OEM Broadcast Radio HAL bridge")
+                                        .put("graph_row_schema", JSONArray().put("frequency_mhz").put("rds_program_service").put("signal_dbuv_or_rssi_dbm"))
+                                        .put("station_metadata_fields", JSONArray().put("frequency_mhz").put("rds_program_service"))
+                                        .put("sample_fields", JSONArray().put("frequency_mhz").put("power_db"))
+                                        .put("recommendation", "Use this profile as the required FM scan schema.")
+                                        .put("fraction", 0.65),
+                                ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("FM station receiver profile", row.label)
+        assertEquals("vendor bridge", row.valueLabel)
+        assertTrue(row.detail.contains("87.5-108.0 MHz"))
+        assertTrue(row.detail.contains("route radio_signal_status"))
+        assertTrue(row.detail.contains("vendor_bridge_required"))
+        assertTrue(row.detail.contains("schema frequency_mhz"))
+        assertTrue(row.detail.contains("Use this profile"))
+        assertTrue(row.fraction > 0.6f)
+    }
+
+    @Test
     fun parsesRadioWorkflowRowsForExpandableCards() {
         val content = JSONObject()
             .put(

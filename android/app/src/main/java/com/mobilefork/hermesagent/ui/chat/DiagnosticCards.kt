@@ -90,6 +90,7 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
                 "bluetooth_metadata_summary" -> bluetoothMetadataSummaryRow(row)
                 "bluetooth_signal_history" -> bluetoothSignalHistoryRow(row)
                 "radio_frequency_capability" -> radioRow(row)
+                "radio_receiver_profile" -> radioReceiverProfileRow(row)
                 "sensor_vector" -> sensorRow(row)
                 "motion_sensor_history" -> motionSensorHistoryRow(row)
                 "motion_pose_estimate" -> motionPoseEstimateRow(row)
@@ -489,6 +490,47 @@ private fun radioRow(row: JSONObject): DiagnosticGraphRow {
             requiresExternal -> 0.45f
             else -> 0.15f
         },
+    )
+}
+
+private fun radioReceiverProfileRow(row: JSONObject): DiagnosticGraphRow {
+    val label = row.optString("label").takeIf { it.isNotBlank() }
+        ?: row.optString("receiver_id").ifBlank { "Radio receiver profile" }
+    val publicAndroidScan = row.optBoolean("public_android_scan_supported", false)
+    val vendorBridge = row.optBoolean("vendor_bridge_possible", false) || row.optBoolean("requires_vendor_bridge", false)
+    val requiresExternal = row.optBoolean("requires_external_hardware", false)
+    val scanState = row.optString("scan_state").takeIf { it.isNotBlank() }
+    val valueLabel = when {
+        publicAndroidScan -> "Android metadata"
+        vendorBridge -> "vendor bridge"
+        requiresExternal -> "external receiver"
+        else -> row.optString("value_label").ifBlank { "schema only" }
+    }
+    val schemaFields = joinJsonStrings(row.optJSONArray("graph_row_schema"), 4)
+    val stationFields = joinJsonStrings(row.optJSONArray("station_metadata_fields"), 3)
+    val sampleFields = joinJsonStrings(row.optJSONArray("sample_fields"), 3)
+    val detail = listOfNotNull(
+        radioRangeLabel(row),
+        row.optString("source_type").takeIf { it.isNotBlank() },
+        row.optString("route_action").takeIf { it.isNotBlank() }?.let { "route $it" },
+        row.optString("access_path").takeIf { it.isNotBlank() },
+        scanState,
+        schemaFields.takeIf { it.isNotBlank() }?.let { "schema $it" },
+        stationFields.takeIf { it.isNotBlank() }?.let { "station $it" },
+        sampleFields.takeIf { it.isNotBlank() }?.let { "samples $it" },
+        row.optString("recommendation").takeIf { it.isNotBlank() },
+    ).joinToString(" | ")
+    val fraction = row.optNumber("fraction")?.toFloat() ?: when {
+        publicAndroidScan -> 0.9f
+        vendorBridge -> 0.65f
+        requiresExternal -> 0.45f
+        else -> 0.3f
+    }
+    return DiagnosticGraphRow(
+        label = label,
+        valueLabel = valueLabel,
+        detail = detail.ifBlank { "Radio receiver profile" },
+        fraction = fraction.coerceIn(0.05f, 1f),
     )
 }
 
