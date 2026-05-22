@@ -77,6 +77,7 @@ class AppSettingsStorePersistenceTest {
                 onDeviceBackend = "litert_lm",
                 liteRtLmSpeculativeDecodingMode = "disabled",
                 languageTag = "es",
+                customSystemPrompt = "Stay concise and ask before external sends.",
                 chatDisplayMode = "expanded",
                 keywordHighlightingEnabled = false,
                 themePrimaryHex = "#112233",
@@ -94,6 +95,10 @@ class AppSettingsStorePersistenceTest {
         assertTrue(exported.getJSONArray("redacted_secret_fields").toString().contains("api_key"))
         assertFalse(exported.toString().contains("sk-"))
         assertEquals("gemini", exported.getJSONObject("settings").getString("provider"))
+        assertEquals(
+            "Stay concise and ask before external sends.",
+            exported.getJSONObject("settings").getString("custom_system_prompt"),
+        )
 
         store.save(AppSettings())
         val imported = store.importBundleJson(exported)
@@ -107,9 +112,19 @@ class AppSettingsStorePersistenceTest {
         assertEquals("litert_lm", imported.onDeviceBackend)
         assertEquals("disabled", imported.liteRtLmSpeculativeDecodingMode)
         assertEquals("es", imported.languageTag)
+        assertEquals("Stay concise and ask before external sends.", imported.customSystemPrompt)
         assertEquals("expanded", imported.chatDisplayMode)
         assertFalse(imported.keywordHighlightingEnabled)
         assertEquals("#112233", store.load().themePrimaryHex)
         assertEquals("square", store.load().themeCardShape)
+    }
+
+    @Test
+    fun customSystemPromptIsNormalizedAndBoundedForMobileContext() {
+        val longPrompt = "x".repeat(AppSettings.MAX_CUSTOM_SYSTEM_PROMPT_CHARS + 50)
+        val normalized = AppSettings.normalizeCustomSystemPrompt("\r\n$longPrompt\u0000")
+
+        assertEquals(AppSettings.MAX_CUSTOM_SYSTEM_PROMPT_CHARS, normalized.length)
+        assertFalse(normalized.contains("\u0000"))
     }
 }

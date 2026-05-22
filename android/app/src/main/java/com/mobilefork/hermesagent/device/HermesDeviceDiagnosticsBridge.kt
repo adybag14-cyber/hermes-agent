@@ -43,6 +43,7 @@ import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.LiteRtLmOpenAiProxy
 import com.mobilefork.hermesagent.backend.LocalBackendStatus
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
+import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import org.json.JSONArray
@@ -1566,6 +1567,7 @@ object HermesDeviceDiagnosticsBridge {
 
     fun signalAwarenessReportJson(context: Context): JSONObject {
         val appContext = context.applicationContext
+        val settings = AppSettingsStore(appContext).load()
         val diagnostics = statusJson(appContext)
         val signalStatus = signalCapabilityStatusJson(appContext)
         val radioStatus = radioSignalStatusJson(appContext)
@@ -1701,6 +1703,7 @@ object HermesDeviceDiagnosticsBridge {
 
     fun agentEnvironmentReportJson(context: Context): JSONObject {
         val appContext = context.applicationContext
+        val settings = AppSettingsStore(appContext).load()
         val diagnostics = statusJson(appContext)
         val signalStatus = signalCapabilityStatusJson(appContext)
         val radioStatus = radioSignalStatusJson(appContext)
@@ -1712,6 +1715,7 @@ object HermesDeviceDiagnosticsBridge {
         val modelRouting = runCatching {
             JSONObject(HermesAutomationBridge.performActionJson(appContext, "operator_model_routing"))
         }.getOrDefault(JSONObject())
+        val personaStatus = agentPersonaStatusJson(settings)
         val socProfile = diagnostics.optJSONObject("soc_profile") ?: socProfileJson()
         val availableSensors = diagnostics.optJSONArray("available_sensor_types") ?: JSONArray()
         val capabilityRows = agentCapabilityMatrixRows(
@@ -1726,8 +1730,8 @@ object HermesDeviceDiagnosticsBridge {
             socProfile = socProfile,
             availableSensors = availableSensors,
         )
-        val kaiParityRows = kaiParityMatrixRows(preferredModel, hindsightStatus, automationStatus, modelRouting)
-        val kaiOperationsRows = kaiOperationsMatrixRows(automationStatus, modelRouting)
+        val kaiParityRows = kaiParityMatrixRows(preferredModel, hindsightStatus, automationStatus, modelRouting, personaStatus)
+        val kaiOperationsRows = kaiOperationsMatrixRows(automationStatus, modelRouting, personaStatus)
         val readinessRows = workflowReadinessRows(diagnostics, signalStatus, preferredModel, automationStatus, modelRouting, availableSensors)
         return JSONObject()
             .put("success", true)
@@ -1737,6 +1741,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("soc_profile", socProfile)
             .put("preferred_local_model", preferredModel)
             .put("model_routing", compactModelRoutingJson(modelRouting))
+            .put("agent_persona_status", personaStatus)
             .put("hindsight_memory_status", compactHindsightStatusJson(hindsightStatus))
             .put("automation_standby_status", compactAutomationStandbyStatusJson(automationStatus))
             .put("signal_capability_status", compactSignalCapabilityJson(signalStatus))
@@ -1759,7 +1764,8 @@ object HermesDeviceDiagnosticsBridge {
                     .put("Use radio_signal_status/signal_capability_status to explain AM/FM/RF limits honestly and route broad RF work to external SDR/vendor hardware.")
                     .put("Use SOC and LiteRT backend policy fields to avoid Snapdragon-only assumptions and keep MediaTek/Mali/PowerVR devices on GPU-first with CPU fallback when available.")
                     .put("Use hindsight_memory_tool and operator heartbeat/status rows to retain durable context and expose autonomous task readiness.")
-                    .put("Use kai_operations_matrix to route Kai-style provider fallback, tool bridge, encrypted storage, secret-free settings backup, automation backup, TTS, image, and shell-boundary work through native Hermes surfaces."),
+                    .put("Use Settings Agent persona plus secret-free app settings export/import for Kai-style customizable soul/system prompt behavior.")
+                    .put("Use kai_operations_matrix to route Kai-style provider fallback, tool bridge, configurable persona, encrypted storage, secret-free settings backup, automation backup, TTS, image, and shell-boundary work through native Hermes surfaces."),
             )
             .put(
                 "cards",
@@ -1775,7 +1781,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "Kai Parity",
-                            body = "${kaiParityRows.length()} Kai-inspired parity row(s) for memory, on-device inference, tools, heartbeat, app settings backup/restore, and multimodal UX.",
+                            body = "${kaiParityRows.length()} Kai-inspired parity row(s) for memory, customizable persona, on-device inference, tools, heartbeat, app settings backup/restore, and multimodal UX.",
                             graphType = "kai_parity_matrix",
                             rows = kaiParityRows,
                         ),
@@ -1783,7 +1789,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "Kai Operations",
-                            body = "${kaiOperationsRows.length()} operation row(s) mapping Kai-style provider fallback, tool bridge, secure storage, settings/automation backup, TTS, and shell capabilities onto Hermes Android routes.",
+                            body = "${kaiOperationsRows.length()} operation row(s) mapping Kai-style provider fallback, configurable persona, tool bridge, secure storage, settings/automation backup, TTS, and shell capabilities onto Hermes Android routes.",
                             graphType = "kai_operations_matrix",
                             rows = kaiOperationsRows,
                         ),
@@ -2135,6 +2141,7 @@ object HermesDeviceDiagnosticsBridge {
         hindsightStatus: JSONObject,
         automationStatus: JSONObject,
         modelRouting: JSONObject,
+        personaStatus: JSONObject,
     ): JSONArray {
         return JSONArray()
             .put(
@@ -2147,6 +2154,22 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Parallels Kai persistent memory and promotion behavior.",
                     fraction = 0.9f,
                     extra = JSONObject().put("parity_source", "Kai persistent memory"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "kai_parity",
+                    label = "Customizable soul / system prompt",
+                    ready = true,
+                    valueLabel = if (personaStatus.optBoolean("custom_system_prompt_enabled", false)) "custom persona enabled" else "default persona",
+                    detail = "Hermes stores a bounded user-editable custom_system_prompt in app settings and appends it to native chat system prompts without exporting provider secrets.",
+                    recommendation = "Use Settings > Agent persona or import_app_settings to carry a Kai-style custom system prompt between installs.",
+                    fraction = if (personaStatus.optBoolean("custom_system_prompt_enabled", false)) 0.95f else 0.8f,
+                    extra = JSONObject()
+                        .put("parity_source", "Kai customizable soul")
+                        .put("settings_key", "custom_system_prompt")
+                        .put("custom_prompt_chars", personaStatus.optInt("custom_system_prompt_chars", 0))
+                        .put("max_custom_prompt_chars", personaStatus.optInt("max_custom_system_prompt_chars", AppSettings.MAX_CUSTOM_SYSTEM_PROMPT_CHARS)),
                 ),
             )
             .put(
@@ -2262,6 +2285,7 @@ object HermesDeviceDiagnosticsBridge {
     private fun kaiOperationsMatrixRows(
         automationStatus: JSONObject,
         modelRouting: JSONObject,
+        personaStatus: JSONObject,
     ): JSONArray {
         val providerLabel = modelRouting.optString("active_provider_label").ifBlank {
             modelRouting.optString("active_provider").ifBlank { "provider route" }
@@ -2310,6 +2334,21 @@ object HermesDeviceDiagnosticsBridge {
                     extra = JSONObject()
                         .put("tool_action", "android_ui_tool:status")
                         .put("source_surface", "settings_permissions_guards"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "kai_operations",
+                    label = "Persona and system prompt route",
+                    ready = true,
+                    valueLabel = if (personaStatus.optBoolean("custom_system_prompt_enabled", false)) "custom prompt active" else "default prompt active",
+                    detail = "The native chat prompt merges Hermes tool instructions, the user's custom agent persona, and promoted local memory context in that order.",
+                    recommendation = "Use Settings Agent persona for behavior changes and export_app_settings/import_app_settings to migrate the prompt without secrets.",
+                    fraction = if (personaStatus.optBoolean("custom_system_prompt_enabled", false)) 0.95f else 0.8f,
+                    extra = JSONObject()
+                        .put("tool_action", "settings:agent_persona")
+                        .put("source_surface", "custom_system_prompt")
+                        .put("custom_prompt_chars", personaStatus.optInt("custom_system_prompt_chars", 0)),
                 ),
             )
             .put(
@@ -5617,6 +5656,20 @@ object HermesDeviceDiagnosticsBridge {
             .put("vision_capable", status.optBoolean("vision_capable", false))
             .put("model_routing_supported", status.optBoolean("model_routing_supported", false))
             .put("roles", status.optJSONArray("roles") ?: JSONArray())
+    }
+
+    private fun agentPersonaStatusJson(settings: AppSettings): JSONObject {
+        val customPrompt = AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt)
+        return JSONObject()
+            .put("ready", true)
+            .put("custom_system_prompt_enabled", customPrompt.isNotBlank())
+            .put("custom_system_prompt_chars", customPrompt.length)
+            .put("max_custom_system_prompt_chars", AppSettings.MAX_CUSTOM_SYSTEM_PROMPT_CHARS)
+            .put("settings_key", "custom_system_prompt")
+            .put("settings_bundle_kind", AppSettings.EXPORT_KIND)
+            .put("secrets_included", false)
+            .put("prompt_injection_point", "native_chat_system_prompt")
+            .put("kai_parity_source", "customizable soul")
     }
 
     private fun compactHindsightStatusJson(status: JSONObject): JSONObject {

@@ -13,6 +13,7 @@ import com.mobilefork.hermesagent.backend.HermesRuntimeManager
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
 import com.mobilefork.hermesagent.auth.ProviderSetupProbeResult
 import com.mobilefork.hermesagent.auth.ProviderSetupUrlProbe
+import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.HermesNetworkPolicy
 import com.mobilefork.hermesagent.data.ProviderPresets
@@ -41,6 +42,7 @@ data class SettingsUiState(
     val onDeviceBackend: String = BackendKind.NONE.persistedValue,
     val liteRtLmSpeculativeDecodingMode: String = "auto",
     val languageTag: String = AppLanguage.ENGLISH.tag,
+    val customSystemPrompt: String = "",
     val chatDisplayMode: String = "compact",
     val keywordHighlightingEnabled: Boolean = true,
     val themePrimaryHex: String = "#8C7BFF",
@@ -88,6 +90,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 stored.liteRtLmSpeculativeDecodingMode,
             ),
             languageTag = AppLanguage.fromTag(stored.languageTag).tag,
+            customSystemPrompt = stored.customSystemPrompt,
             chatDisplayMode = normalizeChatDisplayMode(stored.chatDisplayMode),
             keywordHighlightingEnabled = stored.keywordHighlightingEnabled,
             themePrimaryHex = normalizeThemeHex(stored.themePrimaryHex, "#8C7BFF"),
@@ -149,6 +152,46 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateLiteRtLmSpeculativeDecodingMode(value: String) = _uiState.update {
         it.copy(liteRtLmSpeculativeDecodingMode = normalizeSpeculativeDecodingMode(value))
     }
+
+    fun updateCustomSystemPrompt(value: String) {
+        val normalized = AppSettings.normalizeCustomSystemPrompt(value)
+        _uiState.update {
+            it.copy(
+                customSystemPrompt = normalized,
+                status = if (value.length > normalized.length) {
+                    "Agent persona is limited to ${AppSettings.MAX_CUSTOM_SYSTEM_PROMPT_CHARS} characters."
+                } else {
+                    it.status
+                },
+            )
+        }
+    }
+
+    fun saveAgentPersona() {
+        val normalized = AppSettings.normalizeCustomSystemPrompt(_uiState.value.customSystemPrompt)
+        settingsStore.save(settingsStore.load().copy(customSystemPrompt = normalized))
+        _uiState.update {
+            it.copy(
+                customSystemPrompt = normalized,
+                status = if (normalized.isBlank()) {
+                    "Agent persona cleared."
+                } else {
+                    "Agent persona saved. New chats will include this custom system prompt."
+                },
+            )
+        }
+    }
+
+    fun clearAgentPersona() {
+        settingsStore.save(settingsStore.load().copy(customSystemPrompt = ""))
+        _uiState.update {
+            it.copy(
+                customSystemPrompt = "",
+                status = "Agent persona cleared.",
+            )
+        }
+    }
+
     fun updateChatDisplayMode(value: String) {
         val normalized = normalizeChatDisplayMode(value)
         settingsStore.save(settingsStore.load().copy(chatDisplayMode = normalized))
@@ -608,6 +651,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         onDeviceBackend = snapshot.onDeviceBackend,
                         liteRtLmSpeculativeDecodingMode = snapshot.liteRtLmSpeculativeDecodingMode,
                         languageTag = snapshot.languageTag,
+                        customSystemPrompt = AppSettings.normalizeCustomSystemPrompt(snapshot.customSystemPrompt),
                         chatDisplayMode = normalizeChatDisplayMode(snapshot.chatDisplayMode),
                         keywordHighlightingEnabled = snapshot.keywordHighlightingEnabled,
                         themePrimaryHex = normalizeThemeHex(snapshot.themePrimaryHex, "#8C7BFF"),

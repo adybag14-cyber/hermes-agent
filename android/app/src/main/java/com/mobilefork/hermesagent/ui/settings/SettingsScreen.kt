@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.backend.BackendKind
+import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
@@ -76,6 +77,12 @@ fun SettingsScreen(
                         currentLanguageTag = uiState.languageTag,
                         onSelectLanguage = viewModel::selectLanguage,
                         strings = strings,
+                    )
+                    AgentPersonaCard(
+                        customSystemPrompt = uiState.customSystemPrompt,
+                        onPromptChange = viewModel::updateCustomSystemPrompt,
+                        onSave = viewModel::saveAgentPersona,
+                        onClear = viewModel::clearAgentPersona,
                     )
                     AppearanceCard(
                         chatDisplayMode = uiState.chatDisplayMode,
@@ -143,6 +150,64 @@ fun SettingsScreen(
                     if (uiState.status.isNotBlank()) {
                         Text(uiState.status)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AgentPersonaCard(
+    customSystemPrompt: String,
+    onPromptChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onClear: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Agent persona", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = customSystemPrompt,
+                onValueChange = onPromptChange,
+                label = { Text("Custom system prompt") },
+                placeholder = { Text("Example: stay concise, ask before external sends, prefer local tools first.") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("AgentPersonaPrompt"),
+                minLines = 3,
+                maxLines = 8,
+            )
+            Text(
+                "${customSystemPrompt.length}/${AppSettings.MAX_CUSTOM_SYSTEM_PROMPT_CHARS} characters",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    modifier = Modifier.testTag("SaveAgentPersonaButton"),
+                    onClick = onSave,
+                ) {
+                    Text("Save persona")
+                }
+                Button(
+                    modifier = Modifier.testTag("ClearAgentPersonaButton"),
+                    onClick = onClear,
+                    enabled = customSystemPrompt.isNotBlank(),
+                ) {
+                    Text("Clear")
                 }
             }
         }

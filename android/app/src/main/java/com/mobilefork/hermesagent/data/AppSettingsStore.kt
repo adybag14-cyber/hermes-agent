@@ -15,6 +15,7 @@ data class AppSettings(
     val onDeviceBackend: String = "none",
     val liteRtLmSpeculativeDecodingMode: String = "auto",
     val languageTag: String = "en",
+    val customSystemPrompt: String = "",
     val chatDisplayMode: String = "compact",
     val keywordHighlightingEnabled: Boolean = true,
     val themePrimaryHex: String = "#8C7BFF",
@@ -36,6 +37,7 @@ data class AppSettings(
             .put("on_device_backend", onDeviceBackend)
             .put("litert_lm_speculative_decoding_mode", liteRtLmSpeculativeDecodingMode)
             .put("language_tag", languageTag)
+            .put("custom_system_prompt", normalizeCustomSystemPrompt(customSystemPrompt))
             .put("chat_display_mode", chatDisplayMode)
             .put("keyword_highlighting_enabled", keywordHighlightingEnabled)
             .put("theme_primary_hex", themePrimaryHex)
@@ -49,6 +51,7 @@ data class AppSettings(
     companion object {
         const val EXPORT_KIND = "hermes_android_app_settings_bundle"
         const val EXPORT_SCHEMA_VERSION = 1
+        const val MAX_CUSTOM_SYSTEM_PROMPT_CHARS = 2_000
 
         val REDACTED_SECRET_FIELDS: JSONArray
             get() = JSONArray()
@@ -74,6 +77,9 @@ data class AppSettings(
                     fallback.liteRtLmSpeculativeDecodingMode,
                 ).ifBlank { fallback.liteRtLmSpeculativeDecodingMode },
                 languageTag = json.optString("language_tag", fallback.languageTag).ifBlank { fallback.languageTag },
+                customSystemPrompt = normalizeCustomSystemPrompt(
+                    json.optString("custom_system_prompt", fallback.customSystemPrompt),
+                ),
                 chatDisplayMode = json.optString("chat_display_mode", fallback.chatDisplayMode).ifBlank { fallback.chatDisplayMode },
                 keywordHighlightingEnabled = optBoolean(
                     json,
@@ -107,6 +113,15 @@ data class AppSettings(
         private fun optBoolean(json: JSONObject, key: String, fallback: Boolean): Boolean {
             return if (json.has(key) && !json.isNull(key)) json.optBoolean(key, fallback) else fallback
         }
+
+        fun normalizeCustomSystemPrompt(value: String): String {
+            return value
+                .replace("\r\n", "\n")
+                .replace('\r', '\n')
+                .filter { it == '\n' || it == '\t' || it >= ' ' }
+                .trim()
+                .take(MAX_CUSTOM_SYSTEM_PROMPT_CHARS)
+        }
     }
 }
 
@@ -128,6 +143,9 @@ class AppSettingsStore(context: Context) {
                 "auto",
             ).orEmpty(),
             languageTag = preferences.getString(KEY_LANGUAGE_TAG, "en").orEmpty(),
+            customSystemPrompt = AppSettings.normalizeCustomSystemPrompt(
+                preferences.getString(KEY_CUSTOM_SYSTEM_PROMPT, "").orEmpty(),
+            ),
             chatDisplayMode = preferences.getString(KEY_CHAT_DISPLAY_MODE, "compact").orEmpty(),
             keywordHighlightingEnabled = preferences.getBoolean(KEY_KEYWORD_HIGHLIGHTING_ENABLED, true),
             themePrimaryHex = preferences.getString(KEY_THEME_PRIMARY_HEX, "#8C7BFF").orEmpty(),
@@ -151,6 +169,7 @@ class AppSettingsStore(context: Context) {
             .putString(KEY_ON_DEVICE_BACKEND, settings.onDeviceBackend)
             .putString(KEY_LITERT_LM_SPECULATIVE_DECODING_MODE, settings.liteRtLmSpeculativeDecodingMode)
             .putString(KEY_LANGUAGE_TAG, settings.languageTag)
+            .putString(KEY_CUSTOM_SYSTEM_PROMPT, AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt))
             .putString(KEY_CHAT_DISPLAY_MODE, settings.chatDisplayMode)
             .putBoolean(KEY_KEYWORD_HIGHLIGHTING_ENABLED, settings.keywordHighlightingEnabled)
             .putString(KEY_THEME_PRIMARY_HEX, settings.themePrimaryHex)
@@ -183,6 +202,7 @@ class AppSettingsStore(context: Context) {
         private const val KEY_ON_DEVICE_BACKEND = "on_device_backend"
         private const val KEY_LITERT_LM_SPECULATIVE_DECODING_MODE = "litert_lm_speculative_decoding_mode"
         private const val KEY_LANGUAGE_TAG = "language_tag"
+        private const val KEY_CUSTOM_SYSTEM_PROMPT = "custom_system_prompt"
         private const val KEY_CHAT_DISPLAY_MODE = "chat_display_mode"
         private const val KEY_KEYWORD_HIGHLIGHTING_ENABLED = "keyword_highlighting_enabled"
         private const val KEY_THEME_PRIMARY_HEX = "theme_primary_hex"

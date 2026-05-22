@@ -2,6 +2,8 @@ package com.mobilefork.hermesagent.ui.settings
 
 import android.content.Intent
 import android.provider.Browser
+import com.mobilefork.hermesagent.data.AppSettings
+import com.mobilefork.hermesagent.data.AppSettingsStore
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -15,6 +17,23 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = android.app.Application::class)
 class SettingsViewModelTest {
+    @Test
+    fun saveAgentPersonaPersistsCustomSystemPromptWithoutSecrets() {
+        val application = RuntimeEnvironment.getApplication()
+        val store = AppSettingsStore(application)
+        store.save(AppSettings())
+        val viewModel = SettingsViewModel(application)
+
+        viewModel.updateCustomSystemPrompt("Stay concise and prefer local diagnostics first.")
+        viewModel.saveAgentPersona()
+
+        assertEquals(
+            "Stay concise and prefer local diagnostics first.",
+            store.load().customSystemPrompt,
+        )
+        assertTrue(viewModel.uiState.value.status.contains("Agent persona saved"))
+    }
+
     @Test
     @Suppress("DEPRECATION")
     fun openProviderKeyPageUsesExternalBrowserForProviderSetupUrls() {

@@ -5,6 +5,8 @@ import com.mobilefork.hermesagent.api.ChatContentPart
 import com.mobilefork.hermesagent.api.ChatMessage
 import com.mobilefork.hermesagent.api.HermesApiClient
 import com.mobilefork.hermesagent.api.toJsonObject
+import com.mobilefork.hermesagent.data.AppSettings
+import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.device.HermesAccessibilityController
 import com.mobilefork.hermesagent.device.HermesAccessibilityUiBridge
 import com.mobilefork.hermesagent.device.HermesAppControlBridge
@@ -1195,6 +1197,7 @@ class NativeToolCallingChatClient(
     }
 
     private fun systemMessage(toolsEnabled: Boolean): JSONObject {
+        val customSystemPrompt = AppSettingsStore(appContext).load().customSystemPrompt
         val promotedMemoryContext = if (toolsEnabled) {
             HermesHindsightMemoryBridge.promotedContextJson(appContext)
                 .optString("system_prompt_context")
@@ -1202,20 +1205,11 @@ class NativeToolCallingChatClient(
         } else {
             null
         }
-        val baseContent = if (toolsEnabled) {
-            "You are Hermes running inside the native Android app. " +
-                "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names, radio analyzer checks for AM/FM band-plan boundaries, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, or Tasker-style automation. " +
-                "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
-                "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
-                "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible agent observation dashboards, Kai-style agent environment reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM and broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
-                "Use hindsight_memory_tool to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
-                "Report missing Android permissions honestly. Keep replies brief."
-        } else {
-            "You are Hermes running inside the native Android app. Keep replies brief and direct."
-        }
-        val content = baseContent + promotedMemoryContext.orEmpty().let { context ->
-            if (context.isBlank()) "" else " Promoted local memory context:\n$context"
-        }
+        val content = buildSystemPromptContent(
+            toolsEnabled = toolsEnabled,
+            customSystemPrompt = customSystemPrompt,
+            promotedMemoryContext = promotedMemoryContext.orEmpty(),
+        )
         return JSONObject()
             .put("role", "system")
             .put("content", content)
@@ -3011,6 +3005,37 @@ class NativeToolCallingChatClient(
     }
 
     internal companion object {
+        fun buildSystemPromptContent(
+            toolsEnabled: Boolean,
+            customSystemPrompt: String = "",
+            promotedMemoryContext: String = "",
+        ): String {
+            val baseContent = if (toolsEnabled) {
+                "You are Hermes running inside the native Android app. " +
+                    "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names, radio analyzer checks for AM/FM band-plan boundaries, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, Kai-style custom agent persona/system prompt, or Tasker-style automation. " +
+                    "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
+                    "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
+                    "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible agent observation dashboards, Kai-style agent environment reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM and broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                    "Use hindsight_memory_tool to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
+                    "Report missing Android permissions honestly. Keep replies brief."
+            } else {
+                "You are Hermes running inside the native Android app. Keep replies brief and direct."
+            }
+            val normalizedPersona = AppSettings.normalizeCustomSystemPrompt(customSystemPrompt)
+            val normalizedMemory = promotedMemoryContext.trim()
+            return buildString {
+                append(baseContent)
+                if (normalizedPersona.isNotBlank()) {
+                    append(" User-configured agent persona (apply unless it conflicts with the current user request, Android permissions, tool truthfulness, or safety constraints):\n")
+                    append(normalizedPersona)
+                }
+                if (normalizedMemory.isNotBlank()) {
+                    append(" Promoted local memory context:\n")
+                    append(normalizedMemory)
+                }
+            }
+        }
+
         fun shouldSkipNativeFollowUpAfterToolResult(toolResult: String): Boolean {
             val parsed = runCatching { JSONObject(toolResult) }.getOrNull() ?: return false
             return parsed.optBoolean("external_activity_handoff", false)

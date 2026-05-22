@@ -2180,6 +2180,7 @@ class HermesAutomationStoreTest {
                 portalEnabled = false,
                 onDeviceBackend = "litert_lm",
                 languageTag = "pt",
+                customSystemPrompt = "Use local tools first and stay brief.",
                 themePrimaryHex = "#123456",
                 themeCardShape = "square",
             ),
@@ -2191,6 +2192,7 @@ class HermesAutomationStoreTest {
         assertFalse(exported.getBoolean("secrets_included"))
         assertTrue(exported.getJSONArray("redacted_secret_fields").toString().contains("access_token"))
         assertEquals("openai", exported.getJSONObject("settings").getString("provider"))
+        assertEquals("Use local tools first and stay brief.", exported.getJSONObject("settings").getString("custom_system_prompt"))
 
         store.save(AppSettings())
         val imported = org.json.JSONObject(
@@ -2212,6 +2214,7 @@ class HermesAutomationStoreTest {
         assertFalse(reloaded.portalEnabled)
         assertEquals("litert_lm", reloaded.onDeviceBackend)
         assertEquals("pt", reloaded.languageTag)
+        assertEquals("Use local tools first and stay brief.", reloaded.customSystemPrompt)
         assertEquals("#123456", reloaded.themePrimaryHex)
         assertEquals("square", reloaded.themeCardShape)
     }

@@ -1,6 +1,8 @@
 package com.mobilefork.hermesagent.device
 
 import android.content.Context
+import com.mobilefork.hermesagent.data.AppSettings
+import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import org.json.JSONArray
@@ -1245,6 +1247,9 @@ class HermesDeviceDiagnosticsBridgeTest {
 
     @Test
     fun agentEnvironmentReportSummarizesKaiParityAndSystemInputs() {
+        AppSettingsStore(context).save(
+            AppSettings(customSystemPrompt = "Prefer local signal cards before broad answers."),
+        )
         val result = HermesDeviceDiagnosticsBridge.agentEnvironmentReportJson(context)
         val capabilities = result.getJSONArray("agent_capability_matrix")
         val kaiParity = result.getJSONArray("kai_parity_matrix")
@@ -1264,6 +1269,9 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(capabilityText.contains("SOC and LiteRT backend policy"))
         assertTrue(capabilityText.contains("Persistent hindsight memory"))
         assertTrue(kaiText.contains("Persistent memory"))
+        assertTrue(kaiText.contains("Customizable soul"))
+        assertTrue(kaiText.contains("system prompt"))
+        assertTrue(kaiText.contains("custom_system_prompt"))
         assertTrue(kaiText.contains("Multi-provider priority and fallback"))
         assertTrue(kaiText.contains("MCP and external tool equivalents"))
         assertTrue(kaiText.contains("Encrypted credentials and local storage"))
@@ -1273,19 +1281,21 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertTrue(kaiText.contains("App settings and automation backup"))
         assertTrue(kaiText.contains("export_app_settings"))
         assertTrue(kaiOperationsText.contains("Provider priority and fallback route"))
+        assertTrue(kaiOperationsText.contains("Persona and system prompt route"))
         assertTrue(kaiOperationsText.contains("Tool and MCP bridge route"))
         assertTrue(kaiOperationsText.contains("Encrypted credentials and backup route"))
         assertTrue(kaiOperationsText.contains("android_automation_tool:export_app_settings"))
         assertTrue(kaiOperationsText.contains("TTS and image conversation route"))
         assertTrue(kaiOperationsText.contains("Android shell boundary route"))
+        assertTrue(result.getJSONObject("agent_persona_status").getBoolean("custom_system_prompt_enabled"))
         assertTrue(readinessText.contains("Analyze nearby Wi-Fi"))
         assertTrue(readinessText.contains("Run local multimodal agent"))
         assertTrue(readinessText.contains("Route Kai-style tool orchestration"))
         assertTrue(result.getJSONArray("cards").toString().contains("Kai Parity"))
         assertTrue(result.getJSONArray("cards").toString().contains("Kai Operations"))
         assertTrue(result.getInt("agent_capability_count") >= 8)
-        assertTrue(result.getInt("kai_parity_count") >= 10)
-        assertTrue(result.getInt("kai_operations_count") >= 7)
+        assertTrue(result.getInt("kai_parity_count") >= 11)
+        assertTrue(result.getInt("kai_operations_count") >= 8)
         assertTrue(result.getInt("ready_kai_operations_count") >= 5)
     }
 

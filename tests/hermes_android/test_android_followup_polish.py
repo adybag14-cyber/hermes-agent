@@ -155,6 +155,14 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'SpeculativeDecodingMode' in litert_proxy
     assert 'liteRtLmSpeculativeDecodingMode' in app_settings
     assert 'KEY_LITERT_LM_SPECULATIVE_DECODING_MODE' in app_settings
+    assert 'customSystemPrompt' in app_settings
+    assert 'MAX_CUSTOM_SYSTEM_PROMPT_CHARS' in app_settings
+    assert 'KEY_CUSTOM_SYSTEM_PROMPT' in app_settings
+    assert 'custom_system_prompt' in app_settings
+    assert 'AgentPersonaCard' in settings
+    assert 'AgentPersonaPrompt' in settings
+    assert 'updateCustomSystemPrompt' in settings_view_model
+    assert 'saveAgentPersona' in settings_view_model
     assert 'updateLiteRtLmSpeculativeDecodingMode' in settings_view_model
     assert 'LiteRtLmMtpMode-${choice.value}' in settings
     assert 'gemma4MtpDescription()' in settings
@@ -212,12 +220,17 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert 'Tool and MCP bridge route' in diagnostics_bridge
     assert 'Encrypted credentials and backup route' in diagnostics_bridge
     assert 'export_app_settings/import_app_settings' in diagnostics_bridge
+    assert 'Customizable soul / system prompt' in diagnostics_bridge
+    assert 'agent_persona_status' in diagnostics_bridge
+    assert 'custom_system_prompt' in diagnostics_bridge
     assert 'TTS and image conversation route' in diagnostics_bridge
     assert 'Route Kai-style tool orchestration' in diagnostics_bridge
     assert 'Use SOC and LiteRT backend policy fields to avoid Snapdragon-only assumptions' in diagnostics_bridge
     assert 'Use hindsight_memory_tool and operator heartbeat/status rows' in diagnostics_bridge
     assert 'agent_environment_report' in chat_client
     assert 'export_app_settings/import_app_settings' in chat_client
+    assert 'Kai-style custom agent persona/system prompt' in chat_client
+    assert 'User-configured agent persona' in chat_client
     assert '"agent_capability_matrix"' in chat_client
     assert '"kai_parity_matrix"' in chat_client
     assert '"kai_operations_matrix"' in chat_client

@@ -11,6 +11,21 @@ import java.io.InterruptedIOException
 
 class NativeToolCallingChatClientTest {
     @Test
+    fun systemPromptIncludesBoundedCustomPersonaBeforePromotedMemory() {
+        val content = NativeToolCallingChatClient.buildSystemPromptContent(
+            toolsEnabled = true,
+            customSystemPrompt = "Stay concise and use Wi-Fi analyzer cards when signal context matters.",
+            promotedMemoryContext = "User prefers local models.",
+        )
+
+        assertTrue(content.contains("Kai-style custom agent persona/system prompt"))
+        assertTrue(content.contains("User-configured agent persona"))
+        assertTrue(content.contains("Stay concise and use Wi-Fi analyzer cards"))
+        assertTrue(content.contains("Promoted local memory context"))
+        assertTrue(content.indexOf("User-configured agent persona") < content.indexOf("Promoted local memory context"))
+    }
+
+    @Test
     fun skipsLocalFollowUpAfterExternalActivityHandoff() {
         val result = JSONObject()
             .put("success", true)
