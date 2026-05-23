@@ -1,0 +1,6 @@
+Hermes Agent Fork 0.13.115
+
+- Adds passive self-check diagnostics for Kai-style heartbeat, sandbox, card, and workflow readiness.
+- Expands Wi-Fi, Bluetooth, radio, RF coexistence, gyroscope, accelerometer, and MediaTek readiness cards.
+- Improves Chinese and other localized UI coverage for custom endpoint and app settings screens.
+- Stabilizes the chat composer layout across compact phones, tablets, and large screens.
