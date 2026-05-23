@@ -1653,6 +1653,60 @@ class HermesDeviceDiagnosticsBridgeTest {
     }
 
     @Test
+    fun bluetoothDeviceDetailsExpandMetadataForInspectionAndExport() {
+        val devices = JSONArray()
+            .put(
+                JSONObject()
+                    .put("device_name", "Heart Strap")
+                    .put("advertised_name", "Hermes Heart")
+                    .put("address", "AA:BB:CC:00:11:22")
+                    .put("device_type", "le")
+                    .put("bond_state", "bonded")
+                    .put("device_category", "wearable_health")
+                    .put("major_device_class", "wearable")
+                    .put("rssi_dbm", -48)
+                    .put("proximity_label", "near")
+                    .put("estimated_distance_meters", 1.4)
+                    .put("tx_power_dbm", -8)
+                    .put("service_uuids", JSONArray().put("0000180d-0000-1000-8000-00805f9b34fb"))
+                    .put("service_labels", JSONArray().put("Heart Rate"))
+                    .put("service_data_uuids", JSONArray().put("0000180f-0000-1000-8000-00805f9b34fb"))
+                    .put("service_data_labels", JSONArray().put("Battery Service"))
+                    .put("manufacturer_ids", JSONArray().put("0x004C"))
+                    .put("manufacturer_names", JSONArray().put("Apple"))
+                    .put("manufacturer_data_count", 1)
+                    .put("manufacturer_data_bytes", 12)
+                    .put("scan_record_bytes", 48),
+            )
+
+        val detailRows = HermesDeviceDiagnosticsBridge.bluetoothDeviceDetailRows(devices)
+        val detail = detailRows.getJSONObject(0)
+        val result = HermesDeviceDiagnosticsBridge.bluetoothDeviceDetailsJson(
+            context,
+            JSONObject()
+                .put("action", "bluetooth_export")
+                .put("export_format", "both")
+                .put("bluetooth_devices", devices),
+        )
+
+        assertEquals(1, detailRows.length())
+        assertEquals("Hermes Heart", detail.getString("display_label"))
+        assertEquals("health or fitness device", detail.getString("semantic_label"))
+        assertEquals("Heart Rate", detail.getJSONArray("service_labels").getString(0))
+        assertEquals("Apple", detail.getJSONArray("manufacturer_names").getString(0))
+        assertTrue(detail.getString("evidence_summary").contains("Heart Rate"))
+        assertTrue(detail.getInt("metadata_completeness_score") >= 80)
+        assertEquals("bluetooth_export", result.getString("action"))
+        assertEquals(1, result.getInt("bluetooth_device_detail_count"))
+        assertEquals(1, result.getInt("bluetooth_filtered_device_count"))
+        assertEquals("both", result.getJSONObject("bluetooth_device_export").getString("format"))
+        assertTrue(result.getJSONObject("bluetooth_device_export").getJSONArray("included_fields").toString().contains("metadata_completeness_score"))
+        assertTrue(result.getString("bluetooth_device_export_csv").contains("Hermes Heart"))
+        assertTrue(result.getJSONArray("cards").toString().contains("bluetooth_device_detail"))
+        assertTrue(result.getJSONObject("bluetooth_scan_status").has("returned_device_count"))
+    }
+
+    @Test
     fun signalAwarenessReportFusesWirelessRadioSensorsAndSocContext() {
         val result = HermesDeviceDiagnosticsBridge.signalAwarenessReportJson(context)
         val awareness = result.getJSONArray("signal_awareness_matrix")

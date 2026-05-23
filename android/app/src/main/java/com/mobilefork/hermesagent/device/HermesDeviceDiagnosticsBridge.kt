@@ -94,6 +94,8 @@ object HermesDeviceDiagnosticsBridge {
                 bluetoothAnalyzerReportJson(appContext, arguments).toString()
             "bluetooth_signal_history", "bluetooth_history", "bluetooth_rssi_history", "bluetooth_trends", "bluetooth_trend" ->
                 bluetoothScanJson(appContext, arguments, "bluetooth_signal_history").toString()
+            "bluetooth_device_details", "bluetooth_details", "bluetooth_device_report", "bluetooth_export", "bluetooth_device_export" ->
+                bluetoothDeviceDetailsJson(appContext, arguments).toString()
             "bluetooth_scan", "bluetooth_scanner", "nearby_bluetooth", "ble_scan", "bluetooth_signals" ->
                 bluetoothScanJson(appContext, arguments).toString()
             "sensor_analyzer_report", "sensor_readiness_report", "sensor_feature_report", "sensor_sampling_policy", "motion_sensor_report" ->
@@ -915,6 +917,93 @@ object HermesDeviceDiagnosticsBridge {
                         ),
                     ),
             )
+    }
+
+    fun bluetoothDeviceDetailsJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+        val appContext = context.applicationContext
+        val detailLimit = arguments.optInt("detail_limit", arguments.optInt("limit", MAX_BLUETOOTH_RESULTS))
+            .coerceIn(1, MAX_BLUETOOTH_RESULTS)
+        val exportRequested = normalizedBluetoothExportFormat(
+            arguments.optString("export_format")
+                .ifBlank { arguments.optString("format") }
+                .ifBlank { "json" },
+        )
+        val scanMode = normalizedBluetoothScanMode(arguments)
+        val requestedRefresh = arguments.optBoolean("refresh", false)
+        val packageManager = appContext.packageManager
+        val permissionStatus = bluetoothPermissionStatusJson(appContext)
+        val bluetoothManager = appContext.getSystemService(BluetoothManager::class.java)
+        val adapter = bluetoothManager?.adapter ?: runCatching { BluetoothAdapter.getDefaultAdapter() }.getOrNull()
+        val bluetoothAvailable = adapter != null || packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)
+        val bluetoothLeSupported = packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+        val bluetoothEnabled = adapter?.let { runCatching { it.isEnabled }.getOrDefault(false) } ?: false
+        val canReadAnyBluetoothRows = adapter != null &&
+            (permissionStatus.optBoolean("can_read_paired_devices", false) || permissionStatus.optBoolean("can_scan_nearby_devices", false))
+        val providedDevices = bluetoothDeviceRowsFromArguments(arguments)
+        val scanResult = if (canReadAnyBluetoothRows) {
+            val scanArguments = JSONObject(arguments.toString())
+                .put("limit", MAX_BLUETOOTH_RESULTS)
+                .put("refresh", requestedRefresh)
+                .put("scan_mode", scanMode)
+            bluetoothScanJson(appContext, scanArguments)
+        } else {
+            null
+        }
+        val scanDevices = scanResult?.optJSONArray("bluetooth_devices") ?: JSONArray()
+        val cachedHistory = bluetoothSignalHistoryRowsFromStore(readBluetoothSignalHistory(appContext))
+        val mergedDevices = mergeBluetoothDeviceRows(providedDevices, scanDevices, cachedHistory)
+        val filteredDevices = bluetoothFilteredDeviceRowsForSpec(mergedDevices, bluetoothScanFilterSpec(arguments))
+        val details = bluetoothDeviceDetailRows(filteredDevices, detailLimit)
+        val metadataSummary = bluetoothMetadataSummaryRows(details)
+        val export = bluetoothDeviceExportJson(details, exportRequested)
+        val scanStatus = bluetoothScanStatusJson(
+            bluetoothAvailable = bluetoothAvailable,
+            bluetoothLeSupported = bluetoothLeSupported,
+            bluetoothEnabled = bluetoothEnabled,
+            permissionStatus = permissionStatus,
+            scanResult = scanResult,
+            returnedDeviceCount = details.length(),
+            metadataCount = metadataSummary.length(),
+            serviceUuidCount = bluetoothDistinctStringCount(details, "service_uuids"),
+            manufacturerIdCount = bluetoothDistinctStringCount(details, "manufacturer_ids"),
+            rssiDeviceCount = bluetoothRssiDeviceCount(details),
+        )
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", if (arguments.optString("action").contains("export", ignoreCase = true)) "bluetooth_export" else "bluetooth_device_details")
+            .put("report_scope", "Bluetooth device detail and export report for paired or nearby BLE metadata, RSSI/proximity, device class, bond state, service UUID labels, manufacturer names, advertisement fields, and privacy-bounded Gemma inspection.")
+            .put("bluetooth_scan_permission_status", permissionStatus)
+            .put("bluetooth_scan_control", scanStatus.optJSONObject("bluetooth_scan_control") ?: bluetoothScanControlJson(scanMode, requestedRefresh, effectiveBluetoothRefreshRequested(requestedRefresh, scanMode), false))
+            .put("bluetooth_scan_status", scanStatus)
+            .put("bluetooth_total_device_count", mergedDevices.length())
+            .put("bluetooth_filtered_device_count", filteredDevices.length())
+            .put("bluetooth_device_detail_count", details.length())
+            .put("bluetooth_metadata_count", metadataSummary.length())
+            .put("bluetooth_device_details", details)
+            .put("bluetooth_metadata_summary", metadataSummary)
+            .put("cached_bluetooth_signal_history", cachedHistory)
+            .put("bluetooth_device_export", export)
+            .put("cards", JSONArray()
+                .put(
+                    graphCard(
+                        title = "Bluetooth Device Details",
+                        body = "${details.length()} complete Bluetooth detail row(s) for names, address, class, bond state, services, manufacturer IDs, RSSI/proximity, and advertisement metadata.",
+                        graphType = "bluetooth_device_detail",
+                        rows = details,
+                    ),
+                )
+                .put(
+                    graphCard(
+                        title = "Bluetooth Metadata",
+                        body = "${metadataSummary.length()} Bluetooth class/service/manufacturer summary row(s) inferred from detailed device metadata.",
+                        graphType = "bluetooth_metadata_summary",
+                        rows = metadataSummary,
+                    ),
+                ))
+        if (exportRequested == "csv" || exportRequested == "both") {
+            result.put("bluetooth_device_export_csv", bluetoothDeviceCsv(details))
+        }
+        return result
     }
 
     fun bluetoothAnalyzerReportJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
@@ -5158,6 +5247,20 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 capabilityRow(
                     category = "bluetooth_analyzer_parity",
+                    label = "Device detail and export rows",
+                    ready = deviceCount > 0 || metadataCount > 0 || canReadPaired || canScanNearby,
+                    valueLabel = if (deviceCount > 0) "$deviceCount detail candidate(s)" else "detail route ready",
+                    detail = "Hermes can expand Bluetooth rows into per-device detail/export records with identity, class, bond state, proximity, services, manufacturer IDs, advertisement fields, and metadata completeness evidence.",
+                    recommendation = "Use bluetooth_device_details for inspection cards and bluetooth_export when the user asks for JSON or CSV Bluetooth device metadata.",
+                    fraction = if (deviceCount > 0 || metadataCount > 0) 0.95f else if (canReadPaired || canScanNearby) 0.72f else 0.35f,
+                    extra = JSONObject()
+                        .put("feature_source", "Hermes Bluetooth device detail/export rows")
+                        .put("tool_action", "bluetooth_device_details"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "bluetooth_analyzer_parity",
                     label = "Device category hints",
                     ready = categoryCount > 0 || metadataCount > 0 || canReadPaired || canScanNearby,
                     valueLabel = if (categoryCount > 0) "$categoryCount category group(s)" else "class inference ready",
@@ -5254,6 +5357,18 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Run bluetooth_scan refresh=true first when the history is empty and the user explicitly needs a fresh sample.",
                     fraction = if (historyCount > 0) 0.9f else if (canScanNearby) 0.7f else 0.35f,
                     extra = JSONObject().put("tool_action", "bluetooth_signal_history"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "bluetooth_analyzer_route",
+                    label = "Route Bluetooth device details/export",
+                    ready = deviceCount > 0 || serviceUuidCount > 0 || manufacturerIdCount > 0 || canReadPaired || canScanNearby,
+                    valueLabel = "bluetooth_device_details",
+                    detail = "Use for complete per-device Bluetooth metadata, CSV/JSON export, service/manufacturer evidence, bond state, class, RSSI/proximity, and advertisement fields.",
+                    recommendation = "Prefer bluetooth_device_details for inspection cards; use bluetooth_export when the user explicitly asks to export Bluetooth rows.",
+                    fraction = if (deviceCount > 0 || serviceUuidCount > 0 || manufacturerIdCount > 0) 0.95f else if (canReadPaired || canScanNearby) 0.7f else 0.35f,
+                    extra = JSONObject().put("tool_action", "bluetooth_device_details"),
                 ),
             )
             .put(
@@ -9265,6 +9380,144 @@ object HermesDeviceDiagnosticsBridge {
         return bluetoothFilteredDeviceRowsForSpec(devices, bluetoothScanFilterSpec(arguments))
     }
 
+    private fun bluetoothDeviceRowsFromArguments(arguments: JSONObject): JSONArray {
+        val rows = JSONArray()
+        val arrayKeys = listOf(
+            "bluetooth_devices",
+            "bluetooth_device_details",
+            "bluetooth_scan_rows",
+            "devices",
+            "rows",
+        )
+        for (key in arrayKeys) {
+            val array = arguments.optJSONArray(key) ?: continue
+            for (index in 0 until array.length()) {
+                array.optJSONObject(index)?.let(rows::put)
+            }
+        }
+        val objectKeys = listOf("bluetooth_device", "device", "row")
+        for (key in objectKeys) {
+            arguments.optJSONObject(key)?.let(rows::put)
+        }
+        return rows
+    }
+
+    private fun mergeBluetoothDeviceRows(vararg arrays: JSONArray): JSONArray {
+        val rowsByKey = linkedMapOf<String, JSONObject>()
+        arrays.forEach { array ->
+            for (index in 0 until array.length()) {
+                val row = array.optJSONObject(index) ?: continue
+                val key = bluetoothDeviceDetailKey(row).ifBlank { "row_${rowsByKey.size}" }
+                val existing = rowsByKey[key]
+                rowsByKey[key] = if (existing == null) {
+                    JSONObject(row.toString())
+                } else {
+                    mergeBluetoothDeviceRow(existing, row)
+                }
+            }
+        }
+        val sorted = rowsByKey.values.sortedWith(
+            compareByDescending<JSONObject> { bluetoothDetailRssiDbm(it) ?: Int.MIN_VALUE }
+                .thenBy { bluetoothDetailDisplayName(it) }
+                .thenBy { it.optString("address") },
+        )
+        return JSONArray().also { output -> sorted.forEach(output::put) }
+    }
+
+    private fun mergeBluetoothDeviceRow(existing: JSONObject, incoming: JSONObject): JSONObject {
+        val merged = JSONObject(existing.toString())
+        incoming.keys().forEach { key ->
+            val value = incoming.opt(key)
+            if (value == null || value == JSONObject.NULL) return@forEach
+            when (value) {
+                is String -> if (value.isNotBlank() && value != "<unnamed>") merged.put(key, value)
+                is JSONArray -> if (value.length() > 0) merged.put(key, value)
+                else -> merged.put(key, value)
+            }
+        }
+        return merged
+    }
+
+    internal fun bluetoothDeviceDetailRows(devices: JSONArray, limit: Int = MAX_BLUETOOTH_RESULTS): JSONArray {
+        val rows = buildList {
+            for (index in 0 until devices.length()) {
+                val source = devices.optJSONObject(index) ?: continue
+                val rssiDbm = bluetoothDetailRssiDbm(source)
+                val proximityLabel = source.optString("proximity_label")
+                    .ifBlank { rssiDbm?.let(::bluetoothProximityLabel).orEmpty() }
+                    .ifBlank { "unknown" }
+                val serviceLabels = jsonStringList(source, "service_labels")
+                val serviceUuids = jsonStringList(source, "service_uuids")
+                val serviceDataLabels = jsonStringList(source, "service_data_labels")
+                val serviceDataUuids = jsonStringList(source, "service_data_uuids")
+                val manufacturerNames = jsonStringList(source, "manufacturer_names")
+                val manufacturerIds = jsonStringList(source, "manufacturer_ids")
+                val semanticLabel = bluetoothDeviceSemanticLabel(source, serviceLabels, serviceDataLabels, manufacturerNames)
+                val metadataScore = bluetoothDeviceMetadataScore(
+                    source = source,
+                    serviceLabels = serviceLabels,
+                    serviceUuids = serviceUuids,
+                    serviceDataLabels = serviceDataLabels,
+                    serviceDataUuids = serviceDataUuids,
+                    manufacturerNames = manufacturerNames,
+                    manufacturerIds = manufacturerIds,
+                    rssiDbm = rssiDbm,
+                )
+                add(
+                    JSONObject()
+                        .put("rank", index + 1)
+                        .put("display_label", bluetoothDetailDisplayName(source))
+                        .put("device_name", source.optString("device_name").ifBlank { "<unnamed>" })
+                        .put("advertised_name", source.optString("advertised_name"))
+                        .put("address", source.optString("address"))
+                        .put("device_type", source.optString("device_type").ifBlank { "unknown" })
+                        .put("bond_state", source.optString("bond_state").ifBlank { "unknown" })
+                        .put("paired", source.optBoolean("paired", source.optString("bond_state") == "bonded"))
+                        .put("connectable", source.opt("connectable") ?: JSONObject.NULL)
+                        .put("device_class", source.optString("device_class").ifBlank { "unknown" })
+                        .put("major_device_class", source.optString("major_device_class").ifBlank { "unknown" })
+                        .put("device_category", source.optString("device_category").ifBlank { "unknown" })
+                        .put("semantic_label", semanticLabel)
+                        .put("semantic_context", source.optString("semantic_context").ifBlank { bluetoothSemanticContext(serviceLabels + serviceDataLabels, manufacturerNames) })
+                        .put("rssi_dbm", rssiDbm ?: JSONObject.NULL)
+                        .put("proximity_label", proximityLabel)
+                        .put("estimated_distance_meters", jsonDoubleOrNull(source, "estimated_distance_meters") ?: JSONObject.NULL)
+                        .put("tx_power_dbm", jsonIntOrNull(source, "tx_power_dbm") ?: JSONObject.NULL)
+                        .put("service_uuids", JSONArray(serviceUuids.take(MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE)))
+                        .put("service_labels", JSONArray(serviceLabels.take(MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE)))
+                        .put("service_uuid_count", source.optInt("service_uuid_count", serviceUuids.size))
+                        .put("service_data_uuids", JSONArray(serviceDataUuids.take(MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE)))
+                        .put("service_data_labels", JSONArray(serviceDataLabels.take(MAX_BLUETOOTH_SERVICE_UUIDS_PER_DEVICE)))
+                        .put("manufacturer_ids", JSONArray(manufacturerIds.take(MAX_BLUETOOTH_MANUFACTURER_IDS_PER_DEVICE)))
+                        .put("manufacturer_names", JSONArray(manufacturerNames.take(MAX_BLUETOOTH_MANUFACTURER_IDS_PER_DEVICE)))
+                        .put("manufacturer_data_count", source.optInt("manufacturer_data_count", manufacturerIds.size))
+                        .put("manufacturer_data_bytes", jsonIntOrNull(source, "manufacturer_data_bytes") ?: JSONObject.NULL)
+                        .put("callback_type", jsonIntOrNull(source, "callback_type") ?: JSONObject.NULL)
+                        .put("legacy_advertisement", source.opt("legacy_advertisement") ?: JSONObject.NULL)
+                        .put("primary_phy", source.optString("primary_phy").takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+                        .put("secondary_phy", source.optString("secondary_phy").takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+                        .put("advertising_sid", jsonIntOrNull(source, "advertising_sid") ?: JSONObject.NULL)
+                        .put("periodic_advertising_interval", jsonIntOrNull(source, "periodic_advertising_interval") ?: JSONObject.NULL)
+                        .put("advertising_flags", jsonIntOrNull(source, "advertising_flags") ?: JSONObject.NULL)
+                        .put("scan_record_bytes", jsonIntOrNull(source, "scan_record_bytes") ?: JSONObject.NULL)
+                        .put("sample_count", source.optInt("sample_count", 0))
+                        .put("last_seen_ms", jsonLongOrNull(source, "last_seen_ms") ?: JSONObject.NULL)
+                        .put("metadata_completeness_score", metadataScore)
+                        .put("evidence_summary", bluetoothDeviceEvidenceSummary(semanticLabel, proximityLabel, serviceLabels, manufacturerNames, rssiDbm)),
+                )
+            }
+        }
+            .sortedWith(
+                compareByDescending<JSONObject> { jsonIntOrNull(it, "rssi_dbm") ?: Int.MIN_VALUE }
+                    .thenByDescending { it.optInt("metadata_completeness_score", 0) }
+                    .thenBy { it.optString("display_label") },
+            )
+            .take(limit.coerceIn(1, MAX_BLUETOOTH_RESULTS))
+        return JSONArray().also { array ->
+            rows.forEachIndexed { index, row -> array.put(row.put("rank", index + 1)) }
+        }
+    }
+
     private fun bluetoothScanFilterSpec(arguments: JSONObject): BluetoothScanFilterSpec {
         return BluetoothScanFilterSpec(
             deviceNameQuery = jsonStringArgument(
@@ -9378,6 +9631,121 @@ object HermesDeviceDiagnosticsBridge {
         filterSpec.maxRssiDbm?.let { maxRssi -> if (rssiDbm == null || rssiDbm > maxRssi) return false }
 
         return true
+    }
+
+    private fun bluetoothDeviceDetailKey(row: JSONObject): String {
+        return row.optString("address").trim().lowercase(Locale.US)
+            .ifBlank {
+                listOf(
+                    bluetoothDetailDisplayName(row).lowercase(Locale.US),
+                    jsonStringList(row, "service_uuids").take(2).joinToString(","),
+                    jsonStringList(row, "manufacturer_ids").take(2).joinToString(","),
+                ).joinToString("|").takeIf { bluetoothDetailDisplayName(row).isNotBlank() }.orEmpty()
+            }
+    }
+
+    private fun bluetoothDetailDisplayName(row: JSONObject): String {
+        return row.optString("advertised_name").takeIf { it.isNotBlank() && it != "<unnamed>" }
+            ?: row.optString("device_name").takeIf { it.isNotBlank() && it != "<unnamed>" }
+            ?: row.optString("address").takeIf { it.isNotBlank() }
+            ?: "Bluetooth device"
+    }
+
+    private fun bluetoothDetailRssiDbm(row: JSONObject): Int? {
+        return jsonIntOrNull(row, "rssi_dbm")
+            ?: jsonIntOrNull(row, "current_rssi_dbm")
+            ?: jsonIntOrNull(row, "average_rssi_dbm")
+    }
+
+    private fun bluetoothDeviceSemanticLabel(
+        row: JSONObject,
+        serviceLabels: List<String>,
+        serviceDataLabels: List<String>,
+        manufacturerNames: List<String>,
+    ): String {
+        val category = row.optString("device_category")
+        val majorClass = row.optString("major_device_class")
+        val services = (serviceLabels + serviceDataLabels).map { it.lowercase(Locale.US) }
+        return when {
+            services.any { "heart rate" in it || "health" in it || "glucose" in it || "blood pressure" in it } -> "health or fitness device"
+            services.any { "human interface" in it || "keyboard" in it || "mouse" in it } || category == "input_peripheral" -> "input peripheral"
+            services.any { "audio" in it || "media" in it } || category == "audio" || majorClass == "audio_video" -> "audio device"
+            services.any { "battery" in it } -> "battery-reporting device"
+            services.any { "environmental" in it || "thermometer" in it } -> "environment sensor"
+            manufacturerNames.isNotEmpty() && row.optInt("manufacturer_data_count", 0) > 0 -> "manufacturer beacon"
+            category.isNotBlank() && category != "unknown" -> category.replace('_', ' ')
+            else -> "bluetooth device"
+        }
+    }
+
+    private fun bluetoothDeviceMetadataScore(
+        source: JSONObject,
+        serviceLabels: List<String>,
+        serviceUuids: List<String>,
+        serviceDataLabels: List<String>,
+        serviceDataUuids: List<String>,
+        manufacturerNames: List<String>,
+        manufacturerIds: List<String>,
+        rssiDbm: Int?,
+    ): Int {
+        var score = 0
+        if (bluetoothDetailDisplayName(source) != "Bluetooth device") score += 12
+        if (source.optString("address").isNotBlank()) score += 10
+        if (rssiDbm != null) score += 16
+        if (source.optString("device_category").isNotBlank() && source.optString("device_category") != "unknown") score += 10
+        if (source.optString("bond_state").isNotBlank() && source.optString("bond_state") != "unknown") score += 8
+        if (serviceLabels.isNotEmpty() || serviceUuids.isNotEmpty()) score += 16
+        if (serviceDataLabels.isNotEmpty() || serviceDataUuids.isNotEmpty()) score += 8
+        if (manufacturerNames.isNotEmpty() || manufacturerIds.isNotEmpty()) score += 14
+        if (jsonIntOrNull(source, "scan_record_bytes") != null) score += 6
+        return score.coerceIn(0, 100)
+    }
+
+    private fun bluetoothDeviceEvidenceSummary(
+        semanticLabel: String,
+        proximityLabel: String,
+        serviceLabels: List<String>,
+        manufacturerNames: List<String>,
+        rssiDbm: Int?,
+    ): String {
+        return listOfNotNull(
+            semanticLabel.takeIf { it.isNotBlank() },
+            rssiDbm?.let { "$it dBm $proximityLabel" },
+            serviceLabels.take(3).joinToString(", ").takeIf { it.isNotBlank() }?.let { "services=$it" },
+            manufacturerNames.take(3).joinToString(", ").takeIf { it.isNotBlank() }?.let { "manufacturers=$it" },
+        ).joinToString(" | ")
+    }
+
+    internal fun bluetoothDeviceExportJson(details: JSONArray, format: String, generatedAtMs: Long = System.currentTimeMillis()): JSONObject {
+        val normalizedFormat = normalizedBluetoothExportFormat(format)
+        return JSONObject()
+            .put("format", normalizedFormat)
+            .put("row_count", details.length())
+            .put("generated_at_ms", generatedAtMs)
+            .put("json_array_key", "bluetooth_device_details")
+            .put("csv_key", if (normalizedFormat == "csv" || normalizedFormat == "both") "bluetooth_device_export_csv" else JSONObject.NULL)
+            .put("included_fields", JSONArray(BLUETOOTH_DEVICE_EXPORT_FIELDS))
+            .put("privacy_note", "Export rows are produced from Android-exposed paired and BLE scan metadata; Hermes does not connect, pair, or perform internet vendor lookups.")
+    }
+
+    internal fun bluetoothDeviceCsv(details: JSONArray): String {
+        val header = BLUETOOTH_DEVICE_EXPORT_FIELDS.joinToString(",")
+        val rows = buildList {
+            add(header)
+            for (index in 0 until details.length()) {
+                val row = details.optJSONObject(index) ?: continue
+                add(BLUETOOTH_DEVICE_EXPORT_FIELDS.joinToString(",") { field -> csvEscape(row.opt(field)) })
+            }
+        }
+        return rows.joinToString("\n")
+    }
+
+    private fun normalizedBluetoothExportFormat(value: String): String {
+        return when (value.trim().lowercase(Locale.US)) {
+            "csv" -> "csv"
+            "both", "json+csv", "csv+json" -> "both"
+            else -> "json"
+        }
     }
 
     private fun bluetoothFilterSummaryJson(filterSpec: BluetoothScanFilterSpec, totalDeviceCount: Int, matchedDeviceCount: Int): JSONObject {
@@ -13121,6 +13489,33 @@ object HermesDeviceDiagnosticsBridge {
     private const val BLUETOOTH_SCAN_MODE_AUTO = "auto"
     private const val BLUETOOTH_SCAN_MODE_PAUSED = "paused"
     private const val BLUETOOTH_SCAN_MODE_RESUMED = "resumed"
+    private val BLUETOOTH_DEVICE_EXPORT_FIELDS = listOf(
+        "rank",
+        "display_label",
+        "device_name",
+        "advertised_name",
+        "address",
+        "device_type",
+        "bond_state",
+        "paired",
+        "connectable",
+        "device_category",
+        "major_device_class",
+        "semantic_label",
+        "semantic_context",
+        "rssi_dbm",
+        "proximity_label",
+        "estimated_distance_meters",
+        "tx_power_dbm",
+        "service_labels",
+        "service_uuids",
+        "service_data_labels",
+        "service_data_uuids",
+        "manufacturer_names",
+        "manufacturer_ids",
+        "metadata_completeness_score",
+        "evidence_summary",
+    )
     private const val MAX_MOTION_HISTORY_SENSORS_PER_SAMPLE = 8
     private const val MAX_MOTION_HISTORY_SENSORS = 12
     private const val MAX_MOTION_HISTORY_ROWS = 12

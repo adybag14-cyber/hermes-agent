@@ -579,9 +579,14 @@ def test_android_diagnostics_exposes_bluetooth_analyzer_report_for_readiness_and
 
     assert '"bluetooth_analyzer_report"' in diagnostics_bridge
     assert '"bluetooth_signal_history"' in diagnostics_bridge
+    assert '"bluetooth_device_details"' in diagnostics_bridge
+    assert '"bluetooth_export"' in diagnostics_bridge
     assert 'mergeBluetoothSignalHistory(' in diagnostics_bridge
     assert 'bluetoothSignalHistoryRowsFromStore(' in diagnostics_bridge
     assert 'bluetoothAnalyzerReportJson(appContext' in diagnostics_bridge
+    assert 'bluetoothDeviceDetailsJson(appContext' in diagnostics_bridge
+    assert 'bluetoothDeviceDetailRows(' in diagnostics_bridge
+    assert 'bluetoothDeviceExportJson(' in diagnostics_bridge
     assert 'bluetoothAnalyzerFeatureRows(' in diagnostics_bridge
     assert 'bluetoothAnalyzerWorkflowRows(' in diagnostics_bridge
     assert 'bluetoothScanPolicyRows(' in diagnostics_bridge
@@ -602,11 +607,17 @@ def test_android_diagnostics_exposes_bluetooth_analyzer_report_for_readiness_and
     assert '"bluetooth_scan_control"' in diagnostics_bridge
     assert 'Pause/resume BLE scan control' in diagnostics_bridge
     assert 'Route pause or resume BLE scan mode' in diagnostics_bridge
+    assert 'Device detail and export rows' in diagnostics_bridge
+    assert 'Route Bluetooth device details/export' in diagnostics_bridge
     assert 'scan_mode=paused' in diagnostics_bridge
     assert 'scan_mode=resumed' in diagnostics_bridge
     assert 'Bluetooth Analyzer readiness' in diagnostics_bridge
     assert 'bluetooth_analyzer_report' in chat_client
     assert 'bluetooth_signal_history' in chat_client
+    assert 'bluetooth_device_details' in chat_client
+    assert 'bluetooth_export' in chat_client
+    assert '"bluetooth_device_detail_count"' in chat_client
+    assert '"bluetooth_device_details"' in chat_client
     assert '"bluetooth_service_label_count"' in chat_client
     assert '"bluetooth_manufacturer_name_count"' in chat_client
     assert '"service_labels"' in chat_client
@@ -617,11 +628,15 @@ def test_android_diagnostics_exposes_bluetooth_analyzer_report_for_readiness_and
     assert '"bluetooth_scan_policy_matrix"' in chat_client
     assert '"bluetooth_scan_control"' in chat_client
     assert 'bluetoothDiagnosticArguments("bluetooth_scan", userText)' in chat_client
+    assert 'bluetoothDiagnosticArguments("bluetooth_device_details", userText)' in chat_client
+    assert 'bluetoothDiagnosticArguments("bluetooth_export", userText)' in chat_client
     assert '"filter_bluetooth_service"' in chat_client
     assert '"filter_bluetooth_manufacturer"' in chat_client
     assert '"filter_bluetooth_proximity"' in chat_client
     assert 'Wi-Fi or Bluetooth scan mode for direct signal actions' in chat_client
+    assert 'diagnosticAction = "bluetooth_device_details"' in (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
     assert '"bluetooth_signal_history" -> bluetoothSignalHistoryRow(row)' in diagnostic_cards
+    assert '"bluetooth_device_detail" -> bluetoothRow(row)' in diagnostic_cards
     assert '"bluetooth_analyzer_feature_matrix", "bluetooth_analyzer_workflow_routes", "bluetooth_scan_policy_matrix"' in diagnostic_cards
     assert '"bluetooth_filter_application"' in diagnostic_cards
     assert 'capabilityMatrixRow(row)' in diagnostic_cards

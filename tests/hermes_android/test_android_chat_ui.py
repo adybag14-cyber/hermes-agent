@@ -82,6 +82,7 @@ def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
         "wifi_channel_utilization",
         "bluetooth_analyzer_report",
         "bluetooth_signal_history",
+        "bluetooth_device_details",
         "sensor_analyzer_report",
         "motion_sensor_quality",
         "motion_sensor_history",
@@ -105,6 +106,7 @@ def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
     assert 'id = "wifi_occupancy"' in actions
     assert 'id = "bluetooth_analyzer"' in actions
     assert 'id = "bluetooth_history"' in actions
+    assert 'id = "bluetooth_details"' in actions
     assert 'id = "sensor_analyzer"' in actions
     assert 'id = "motion_quality"' in actions
     assert 'id = "motion_history"' in actions
@@ -120,6 +122,7 @@ def test_expanded_activity_rows_show_every_agent_visible_diagnostic_card():
     assert ".sortedWith(" in diagnostic_cards
     assert '"wifi_channel_graph"' in diagnostic_cards
     assert '"bluetooth_rssi"' in diagnostic_cards
+    assert '"bluetooth_device_detail"' in diagnostic_cards
     assert '"radio_signal_graph"' in diagnostic_cards
     assert '"motion_sensor_history"' in diagnostic_cards
     assert '"motion_sensor_quality"' in diagnostic_cards

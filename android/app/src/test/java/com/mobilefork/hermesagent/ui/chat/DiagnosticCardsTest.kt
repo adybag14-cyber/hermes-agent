@@ -204,6 +204,54 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesBluetoothDeviceDetailRowsForExpandableSignalCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Bluetooth Device Details")
+                        .put("body", "Per-device Bluetooth metadata.")
+                        .put("graph_type", "bluetooth_device_detail")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("display_label", "Hermes Heart")
+                                    .put("device_name", "Heart Strap")
+                                    .put("advertised_name", "Hermes Heart")
+                                    .put("device_type", "le")
+                                    .put("device_category", "wearable_health")
+                                    .put("bond_state", "bonded")
+                                    .put("paired", true)
+                                    .put("semantic_label", "health or fitness device")
+                                    .put("rssi_dbm", -48)
+                                    .put("proximity_label", "near")
+                                    .put("estimated_distance_meters", 1.4)
+                                    .put("service_labels", JSONArray().put("Heart Rate"))
+                                    .put("manufacturer_names", JSONArray().put("Apple"))
+                                    .put("metadata_completeness_score", 92)
+                                    .put("evidence_summary", "services=Heart Rate | manufacturers=Apple"),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("bluetooth_device_detail", card.graphType)
+        assertEquals("Hermes Heart", row.label)
+        assertEquals("-48 dBm", row.valueLabel)
+        assertTrue(row.detail.contains("health or fitness device"))
+        assertTrue(row.detail.contains("services Heart Rate"))
+        assertTrue(row.detail.contains("manufacturers Apple"))
+        assertTrue(row.detail.contains("92% metadata"))
+        assertEquals(2, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
     fun parsesBluetoothMetadataSummaryRows() {
         val content = JSONObject()
             .put(

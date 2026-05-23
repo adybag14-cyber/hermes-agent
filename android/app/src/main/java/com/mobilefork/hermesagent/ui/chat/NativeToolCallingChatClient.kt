@@ -1299,14 +1299,14 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_device_diagnostics_tool",
-                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, current Wi-Fi association/link-quality telemetry, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, motion sensor quality gates for IMU source coverage, freshness, calibration, stability, cadence, and workflow readiness, camera capability, overlay status, passive local backend runtime health, dedicated MediaTek/Dimensity/Helio/Mali/PowerVR/non-Adreno readiness profiles, GPU/backend risk matrices, local inference compatibility scorecards, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible signal evidence bundles, agent observation dashboards with fused signal-context matrices, direct diagnostic card manifests, Kai-style agent environment parity/readiness, cross-signal awareness routes, tool catalog, radio analyzer AM/FM band-plan rows, AM/FM signal graph rows, receiver profile schemas for vendor AM/FM and external SDR bridges, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
+                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, current Wi-Fi association/link-quality telemetry, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth device detail/export rows, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, motion sensor quality gates for IMU source coverage, freshness, calibration, stability, cadence, and workflow readiness, camera capability, overlay status, passive local backend runtime health, dedicated MediaTek/Dimensity/Helio/Mali/PowerVR/non-Adreno readiness profiles, GPU/backend risk matrices, local inference compatibility scorecards, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible signal evidence bundles, agent observation dashboards with fused signal-context matrices, direct diagnostic card manifests, Kai-style agent environment parity/readiness, cross-signal awareness routes, tool catalog, radio analyzer AM/FM band-plan rows, AM/FM signal graph rows, receiver profile schemas for vendor AM/FM and external SDR bridges, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_connection_link, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, sensor_analyzer_report, motion_sensor_quality, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_signal_graph, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, mediatek_readiness_report, soc_compatibility_report, gpu_backend_risk_report, local_inference_compatibility_report, device_performance_report, signal_awareness_report, agent_signal_evidence_report, signal_evidence_bundle, agent_observation_report, agent_card_manifest_report, agent_environment_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
+                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_connection_link, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, bluetooth_device_details, bluetooth_export, sensor_analyzer_report, motion_sensor_quality, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_signal_graph, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, mediatek_readiness_report, soc_compatibility_report, gpu_backend_risk_report, local_inference_compatibility_report, device_performance_report, signal_awareness_report, agent_signal_evidence_report, signal_evidence_bundle, agent_observation_report, agent_card_manifest_report, agent_environment_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
                         .put("limit", intProp("Maximum rows for top apps, Wi-Fi networks, or Bluetooth devices. Defaults to 5."))
-                        .put("detail_limit", intProp("Maximum Wi-Fi access-point detail/export rows. Defaults to limit, or the Wi-Fi max for wifi_ap_details/wifi_export."))
-                        .put("export_format", stringProp("Wi-Fi export format for wifi_export: json, csv, or both."))
+                        .put("detail_limit", intProp("Maximum Wi-Fi access-point or Bluetooth device detail/export rows. Defaults to limit, or the action max for detail/export actions."))
+                        .put("export_format", stringProp("Export format for wifi_export or bluetooth_export: json, csv, or both."))
                         .put("scan_mode", stringProp("Wi-Fi or Bluetooth scan mode for direct signal actions: auto, paused, or resumed. Paused reuses cached rows/history; resumed requests a fresh Android scan or BLE sample."))
-                        .put("refresh", boolProp("For wifi_scan, wifi_export, wifi_ap_details, bluetooth_scan, bluetooth_signal_history, motion_sensor_quality, motion_sensor_history, or motion_pose, request Android to refresh scan/sensor results before reading available results; analyzer reports stay passive."))
+                        .put("refresh", boolProp("For wifi_scan, wifi_export, wifi_ap_details, bluetooth_scan, bluetooth_signal_history, bluetooth_device_details, bluetooth_export, motion_sensor_quality, motion_sensor_history, or motion_pose, request Android to refresh scan/sensor results before reading available results; analyzer reports stay passive."))
                         .put("filter_band", stringProp("Optional Wi-Fi filter for wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_ap_details, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, or wifi_export. Accepts 2.4GHz, 5GHz, 6GHz, or comma-separated values."))
                         .put("filter_security", stringProp("Optional Wi-Fi security filter such as WPA3, WPA2, Enhanced Open, Open, WEP, or comma-separated values."))
                         .put("filter_signal", stringProp("Optional Wi-Fi signal quality filter: excellent, good, fair, or weak."))
@@ -3143,10 +3143,10 @@ class NativeToolCallingChatClient(
         ): String {
             val baseContent = if (toolsEnabled) {
                 "You are Hermes running inside the native Android app. " +
-                    "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel graph envelopes/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names, radio analyzer checks for AM/FM band-plan boundaries, AM/FM signal graph rows, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, Kai-style custom agent persona/system prompt, Kai-compatible schedule_task/list_tasks/cancel_task native Android task aliases, or Tasker-style automation. " +
+                    "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel graph envelopes/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names/device detail export rows, radio analyzer checks for AM/FM band-plan boundaries, AM/FM signal graph rows, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, Kai-style custom agent persona/system prompt, Kai-compatible schedule_task/list_tasks/cancel_task native Android task aliases, or Tasker-style automation. " +
                     "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                     "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
-                    "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal evidence bundles, agent observation dashboards, Kai-style agent environment reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                    "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal evidence bundles, agent observation dashboards, Kai-style agent environment reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
                     "For broad questions about what Hermes/Gemma can see from nearby signals, first call android_device_diagnostics_tool action=agent_signal_evidence_report; then drill into Wi-Fi, Bluetooth, sensor, radio, backend-risk, or card-manifest actions only when the evidence rows say a source card or live refresh is needed. " +
                     "Use schedule_task/list_tasks/cancel_task for Kai-style scheduled reminders; these create, list, and cancel native Android automation notification records, not unrestricted background AI prompt execution. " +
                     "Use hindsight_memory_tool to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
@@ -3221,7 +3221,8 @@ class NativeToolCallingChatClient(
                 DIAGNOSTIC_STRING_ARGUMENTS.forEach { key ->
                     DIAGNOSTIC_STRING_REGEXES.getValue(key).find(userText)
                         ?.groupValues
-                        ?.getOrNull(1)
+                        ?.drop(1)
+                        ?.firstOrNull { it.isNotBlank() }
                         ?.trim()
                         ?.takeIf { it.isNotBlank() }
                         ?.let { put(key, it) }
@@ -3302,6 +3303,11 @@ class NativeToolCallingChatClient(
                     bluetoothDiagnosticArguments("bluetooth_signal_history", userText)
                 lower.containsAny("bluetooth analyzer", "bluetooth readiness", "bluetooth scan policy", "analyze bluetooth", "analyze ble") ->
                     bluetoothDiagnosticArguments("bluetooth_analyzer_report", userText)
+                (lower.contains("export") && lower.containsAny("bluetooth", "ble", "bluetooth device", "bluetooth devices")) ||
+                    lower.containsAny("export bluetooth", "export ble", "bluetooth export", "ble export") ->
+                    bluetoothDiagnosticArguments("bluetooth_export", userText)
+                lower.containsAny("bluetooth details", "bluetooth detail", "ble details", "ble detail", "bluetooth device details", "bluetooth device detail", "bluetooth device report", "complete bluetooth", "complete ble", "bluetooth metadata details", "ble metadata details") ->
+                    bluetoothDiagnosticArguments("bluetooth_device_details", userText)
                 lower.containsAny("nearby bluetooth", "nearby ble", "scan bluetooth", "scan ble", "bluetooth devices", "ble devices", "bluetooth scanner", "ble scanner", "bluetooth filter", "ble filter") ->
                     bluetoothDiagnosticArguments("bluetooth_scan", userText)
                 lower.containsAny("motion quality", "sensor fusion quality", "imu quality", "gyro quality", "gyroscope quality", "accelerometer quality", "motion readiness", "orientation quality", "sensor calibration", "motion calibration") ->
@@ -3440,18 +3446,28 @@ class NativeToolCallingChatClient(
             }.distinct()
             if (proximityFilters.isNotEmpty()) pairs += "filter_bluetooth_proximity" to proximityFilters.joinToString(",")
 
+            if (action == "bluetooth_export") {
+                val exportFormat = when {
+                    lower.contains("csv") && lower.contains("json") -> "both"
+                    lower.contains("csv") -> "csv"
+                    lower.contains("json") -> "json"
+                    else -> "both"
+                }
+                pairs += "export_format" to exportFormat
+            }
+
             return diagnosticArguments(action, *pairs.toTypedArray())
         }
 
         private fun bluetoothTextFilter(userText: String, key: String, argumentName: String): String? {
-            val pattern = Regex("""(?i)\b$key\s*(?:contains|named|name|label|id|=|:)?\s*["']?([A-Za-z0-9_.:-]+(?: [A-Za-z0-9_.:-]+){0,3})["']?(?=\s+(?:with|while|as|and|on|from|using|paused|resumed|fresh|cached|scan|devices|device|bluetooth|ble|nearby|history|trend|proximity|filter)|[.!?]|$)""")
+            val pattern = Regex("""(?i)\b$key\s*(?:contains|named|name|label|id|=|:)?\s*["']?([A-Za-z0-9_.:-]+(?: [A-Za-z0-9_.:-]+){0,3})["']?(?=\s+(?:with|while|as|and|on|from|using|paused|resumed|fresh|cached|scan|devices|device|bluetooth|ble|nearby|history|trend|proximity|filter|details|detail|report|export|csv|json)|[.!?]|$)""")
             val rawValue = pattern.find(userText)
                 ?.groupValues
                 ?.getOrNull(1)
                 ?.trim()
                 ?.trim('"', '\'')
                 ?: return null
-            val value = Regex("""(?i)\s+\b(with|while|as|and|on|from|using|paused|resumed|fresh|cached|scan|devices|device|bluetooth|ble|nearby|history|trend|proximity|filter)\b.*$""")
+            val value = Regex("""(?i)\s+\b(with|while|as|and|on|from|using|paused|resumed|fresh|cached|scan|devices|device|bluetooth|ble|nearby|history|trend|proximity|filter|details|detail|report|export|csv|json)\b.*$""")
                 .replace(rawValue, "")
                 .trim()
                 .trimEnd('.', ',', ';')
@@ -3499,6 +3515,11 @@ class NativeToolCallingChatClient(
             "bluetooth_scan",
             "bluetooth_analyzer_report",
             "bluetooth_signal_history",
+            "bluetooth_device_details",
+            "bluetooth_details",
+            "bluetooth_device_report",
+            "bluetooth_export",
+            "bluetooth_device_export",
             "sensor_analyzer_report",
             "motion_sensor_quality",
             "imu_quality_report",
@@ -3558,6 +3579,7 @@ class NativeToolCallingChatClient(
             "limit",
             "max_results",
             "timeout_ms",
+            "detail_limit",
             "min_rssi_dbm",
             "max_rssi_dbm",
         )
@@ -3586,7 +3608,7 @@ class NativeToolCallingChatClient(
             Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*(-?\d+)\b""")
         }
         private val DIAGNOSTIC_STRING_REGEXES = DIAGNOSTIC_STRING_ARGUMENTS.associateWith { key ->
-            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*["']?([a-zA-Z0-9_,.:\-\s]+)["']?""")
+            Regex("""(?i)\b${Regex.escape(key)}\s*[:=]\s*(?:"([^"]+)"|'([^']+)'|([a-zA-Z0-9_,.:\-]+))""")
         }
         private val ANDROID_UI_ACTIONS = listOf(
             "status",
@@ -3753,7 +3775,7 @@ internal object NativeToolContextCompressor {
     private fun compactJsonValue(key: String, value: Any?): Any {
         return when (value) {
             null, JSONObject.NULL -> JSONObject.NULL
-            is String -> compactStringValue(value, if (key == "output" || key == "error") OUTPUT_FIELD_LIMIT else STRING_FIELD_LIMIT)
+            is String -> compactStringValue(value, if (key == "output" || key == "error" || key.endsWith("_export_csv")) OUTPUT_FIELD_LIMIT else STRING_FIELD_LIMIT)
             is Number, is Boolean -> value
             is JSONArray -> compactJsonArray(key, value)
             is JSONObject -> {
@@ -3806,7 +3828,7 @@ internal object NativeToolContextCompressor {
             when (val value = compacted.opt(key)) {
                 is String, is Number, is Boolean -> fallback.put(key, value)
                 is JSONArray -> if (key == "cards" || key in PRESERVED_ARRAY_KEYS) fallback.put(key, value)
-                is JSONObject -> if (key in PRESERVED_ARRAY_KEYS || key == "wifi_scan_status" || key == "wifi_scan_control" || key == "bluetooth_scan_status" || key == "bluetooth_scan_control" || key == "sensor_sampling_status" || key == "wifi_access_point_export") {
+                is JSONObject -> if (key in PRESERVED_ARRAY_KEYS || key == "wifi_scan_status" || key == "wifi_scan_control" || key == "bluetooth_scan_status" || key == "bluetooth_scan_control" || key == "sensor_sampling_status" || key == "wifi_access_point_export" || key == "bluetooth_device_export") {
                     fallback.put(key, value)
                 } else if (key == "current_local_backend" || key == "litert_runtime_health" || key == "soc_profile" || key == "device_performance_profile" || key == "preferred_local_model") {
                     fallback.put(key, value)
@@ -4020,6 +4042,8 @@ internal object NativeToolContextCompressor {
                 "bluetooth_manufacturer_id_count",
                 "bluetooth_manufacturer_name_count",
                 "bluetooth_signal_history_count",
+                "bluetooth_filtered_device_count",
+                "bluetooth_device_detail_count",
                 "bluetooth_analyzer_feature_count",
                 "ready_bluetooth_analyzer_feature_count",
                 "bluetooth_analyzer_workflow_route_count",
@@ -4132,6 +4156,7 @@ internal object NativeToolContextCompressor {
         "cached_motion_sensor_history",
         "ai_experience_elevation_plan",
         "bluetooth_devices",
+        "bluetooth_device_details",
         "bluetooth_metadata_summary",
         "bluetooth_analyzer_filters",
         "available_bluetooth_analyzer_filters",
@@ -4390,6 +4415,9 @@ internal object NativeToolContextCompressor {
         "manufacturer_names",
         "manufacturer_data_count",
         "manufacturer_data_bytes",
+        "metadata_completeness_score",
+        "evidence_summary",
+        "scan_record_bytes",
         "semantic_label",
         "display_label",
         "semantic_context",

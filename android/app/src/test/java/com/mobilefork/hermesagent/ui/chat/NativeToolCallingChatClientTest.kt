@@ -176,6 +176,14 @@ class NativeToolCallingChatClientTest {
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show nearby Bluetooth devices and BLE beacons.")?.getString("action"),
         )
         assertEquals(
+            "bluetooth_device_details",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show Bluetooth device details for nearby BLE devices.")?.getString("action"),
+        )
+        assertEquals(
+            "bluetooth_export",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Export Bluetooth device metadata as CSV.")?.getString("action"),
+        )
+        assertEquals(
             "motion_sensor_history",
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show accelerometer history and gyroscope trends.")?.getString("action"),
         )
@@ -213,6 +221,18 @@ class NativeToolCallingChatClientTest {
         assertEquals("Heart Rate", parsed.getString("filter_bluetooth_service"))
         assertEquals("Apple", parsed.getString("filter_bluetooth_manufacturer"))
         assertEquals("near", parsed.getString("filter_bluetooth_proximity"))
+
+        val export = NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments(
+            "Export Bluetooth device details service Heart Rate with manufacturer Apple as CSV while paused.",
+        )
+
+        requireNotNull(export)
+        assertEquals("bluetooth_export", export.getString("action"))
+        assertFalse(export.getBoolean("refresh"))
+        assertEquals("paused", export.getString("scan_mode"))
+        assertEquals("Heart Rate", export.getString("filter_bluetooth_service"))
+        assertEquals("Apple", export.getString("filter_bluetooth_manufacturer"))
+        assertEquals("csv", export.getString("export_format"))
     }
 
     @Test
@@ -304,6 +324,25 @@ class NativeToolCallingChatClientTest {
         assertEquals("bluetooth_signal_history", parsed.getString("action"))
         assertFalse(parsed.getBoolean("refresh"))
         assertEquals("paused", parsed.getString("scan_mode"))
+    }
+
+    @Test
+    fun extractsExplicitBluetoothDeviceDetailsDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=bluetooth_device_details refresh=false scan_mode=paused detail_limit=6",
+        )
+        val export = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=bluetooth_export refresh=false export_format=both",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("bluetooth_device_details", parsed.getString("action"))
+        assertFalse(parsed.getBoolean("refresh"))
+        assertEquals("paused", parsed.getString("scan_mode"))
+        assertEquals(6, parsed.getInt("detail_limit"))
+        requireNotNull(export)
+        assertEquals("bluetooth_export", export.getString("action"))
+        assertEquals("both", export.getString("export_format"))
     }
 
     @Test
@@ -1495,6 +1534,63 @@ class NativeToolCallingChatClientTest {
         assertEquals("wearable_health", compactedDevices.getJSONArray("items").getJSONObject(0).getString("device_category"))
         assertEquals("near", compactedDevices.getJSONArray("items").getJSONObject(0).getString("proximity_label"))
         assertEquals("0x004C", metadataSummary.getJSONObject(0).getString("label"))
+    }
+
+    @Test
+    fun compactsBluetoothDeviceDetailsWithoutDroppingExportEvidence() {
+        val details = JSONArray()
+        repeat(24) { index ->
+            details.put(
+                JSONObject()
+                    .put("display_label", "Hermes Heart $index")
+                    .put("device_name", "Heart Strap $index")
+                    .put("advertised_name", "Hermes Heart $index")
+                    .put("address", "AA:BB:CC:00:11:$index")
+                    .put("device_type", "le")
+                    .put("device_category", "wearable_health")
+                    .put("bond_state", "bonded")
+                    .put("semantic_label", "health or fitness device")
+                    .put("rssi_dbm", -48 - index)
+                    .put("proximity_label", "near")
+                    .put("service_labels", JSONArray().put("Heart Rate"))
+                    .put("service_uuids", JSONArray().put("0000180d-0000-1000-8000-00805f9b34fb"))
+                    .put("manufacturer_names", JSONArray().put("Apple"))
+                    .put("manufacturer_ids", JSONArray().put("0x004C"))
+                    .put("metadata_completeness_score", 92)
+                    .put("evidence_summary", "health or fitness device | services=Heart Rate | manufacturers=Apple")
+                    .put("scan_record_bytes", 48),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "bluetooth_export")
+            .put("bluetooth_device_detail_count", 24)
+            .put("bluetooth_filtered_device_count", 24)
+            .put("bluetooth_device_details", details)
+            .put(
+                "bluetooth_device_export",
+                JSONObject()
+                    .put("format", "both")
+                    .put("row_count", 24)
+                    .put("json_array_key", "bluetooth_device_details")
+                    .put("csv_key", "bluetooth_device_export_csv")
+                    .put("included_fields", JSONArray().put("display_label").put("metadata_completeness_score")),
+            )
+            .put("bluetooth_device_export_csv", "display_label,metadata_completeness_score\n" + (0 until 24).joinToString("\n") { "Hermes Heart $it,92" })
+            .put("cards", JSONArray().put(JSONObject().put("title", "Bluetooth Device Details").put("body", "24 details")))
+            .toString()
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result))
+        val compactedDetails = parsed.getJSONObject("bluetooth_device_details")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(24, parsed.getInt("bluetooth_device_detail_count"))
+        assertEquals(24, parsed.getInt("bluetooth_filtered_device_count"))
+        assertEquals("both", parsed.getJSONObject("bluetooth_device_export").getString("format"))
+        assertEquals("Hermes Heart 0", compactedDetails.getJSONArray("items").getJSONObject(0).getString("display_label"))
+        assertEquals(92, compactedDetails.getJSONArray("items").getJSONObject(0).getInt("metadata_completeness_score"))
+        assertTrue(compactedDetails.getJSONArray("items").getJSONObject(0).getString("evidence_summary").contains("Heart Rate"))
+        assertTrue(parsed.getString("bluetooth_device_export_csv").contains("Hermes Heart 0"))
     }
 
     @Test

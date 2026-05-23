@@ -97,6 +97,7 @@ internal fun diagnosticCardPreviewPriority(card: DiagnosticCardSummary): Int {
         "wifi_connection_link",
         "wifi_signal_history" -> 1
         "bluetooth_rssi",
+        "bluetooth_device_detail",
         "bluetooth_metadata_summary",
         "bluetooth_signal_history" -> 2
         "radio_frequency_capability",
@@ -144,6 +145,7 @@ private fun graphRows(graphType: String?, rows: JSONArray): List<DiagnosticGraph
                 "wifi_standard_summary" -> wifiStandardSummaryRow(row)
                 "wifi_signal_history" -> wifiSignalHistoryRow(row)
                 "bluetooth_rssi" -> bluetoothRow(row)
+                "bluetooth_device_detail" -> bluetoothRow(row)
                 "bluetooth_metadata_summary" -> bluetoothMetadataSummaryRow(row)
                 "bluetooth_signal_history" -> bluetoothSignalHistoryRow(row)
                 "radio_frequency_capability" -> radioRow(row)
@@ -477,9 +479,12 @@ private fun wifiSignalHistoryRow(row: JSONObject): DiagnosticGraphRow? {
 
 private fun bluetoothRow(row: JSONObject): DiagnosticGraphRow? {
     val rssi = row.optNumber("rssi_dbm")?.toInt()
-    val label = row.optString("device_name").takeIf { it.isNotBlank() && it != "<unnamed>" }
+    val label = row.optString("display_label").takeIf { it.isNotBlank() && it != "<unnamed>" }
+        ?: row.optString("advertised_name").takeIf { it.isNotBlank() && it != "<unnamed>" }
+        ?: row.optString("device_name").takeIf { it.isNotBlank() && it != "<unnamed>" }
         ?: row.optString("address").ifBlank { "Bluetooth" }
     val detail = listOfNotNull(
+        row.optString("semantic_label").takeIf { it.isNotBlank() && it != "bluetooth device" },
         row.optString("device_type").takeIf { it.isNotBlank() },
         row.optString("device_category").takeIf { it.isNotBlank() && it != "unknown" },
         row.optString("bond_state").takeIf { it.isNotBlank() },
@@ -491,6 +496,8 @@ private fun bluetoothRow(row: JSONObject): DiagnosticGraphRow? {
         row.optNumber("service_uuid_count")?.toInt()?.takeIf { it > 0 }?.let { "$it services" },
         row.optNumber("manufacturer_data_count")?.toInt()?.takeIf { it > 0 }?.let { "$it manufacturer records" },
         row.optNumber("scan_record_bytes")?.toInt()?.let { "$it scan bytes" },
+        row.optNumber("metadata_completeness_score")?.toInt()?.let { "$it% metadata" },
+        row.optString("evidence_summary").takeIf { it.isNotBlank() },
     ).joinToString(" | ")
     return DiagnosticGraphRow(
         label = label,
