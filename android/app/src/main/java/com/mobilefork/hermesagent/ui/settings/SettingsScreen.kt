@@ -301,7 +301,7 @@ private fun AppearanceCard(
             ) {
                 appearanceThemePresets.forEach { preset ->
                     Button(onClick = { onApplyPreset(preset) }) {
-                        Text(preset.label)
+                        Text(strings.appearancePresetLabel(preset.id, preset.label))
                     }
                 }
             }

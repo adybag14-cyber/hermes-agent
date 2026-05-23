@@ -115,12 +115,12 @@ fun ChatScreen(
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         viewModel.setListening(false)
         if (result.resultCode != Activity.RESULT_OK) {
-            viewModel.setStatus("Voice input canceled")
+            viewModel.setStatus(strings.voiceInputCanceled())
             return@rememberLauncherForActivityResult
         }
         val transcript = SpeechInputController.extractBestResult(result.data)
         if (transcript.isNullOrBlank()) {
-            viewModel.setStatus("No speech was captured")
+            viewModel.setStatus(strings.noSpeechCaptured())
         } else {
             viewModel.applyVoiceInput(transcript)
         }
@@ -132,11 +132,11 @@ fun ChatScreen(
                 speechLauncher.launch(SpeechInputController.buildIntent())
             }.getOrElse {
                 viewModel.setListening(false)
-                viewModel.setStatus("Voice recognition is not available on this device")
+                viewModel.setStatus(strings.voiceRecognitionUnavailable())
             }
         } else {
             viewModel.setListening(false)
-            viewModel.setStatus("Microphone permission is required for voice input")
+            viewModel.setStatus(strings.microphonePermissionRequired())
         }
     }
     val imageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -152,14 +152,14 @@ fun ChatScreen(
     }
     val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
         if (bitmap == null) {
-            viewModel.setStatus("Camera capture canceled")
+            viewModel.setStatus(strings.cameraCaptureCanceled())
         } else {
             runCatching {
                 persistCameraPreview(context, bitmap)
             }.onSuccess { uri ->
                 viewModel.attachImage(uri.toString())
             }.onFailure { error ->
-                viewModel.setStatus("Unable to attach camera image: ${error.message ?: "unknown error"}")
+                viewModel.setStatus(strings.cameraAttachFailed(error.message ?: "unknown error"))
             }
         }
     }
@@ -168,7 +168,7 @@ fun ChatScreen(
         val controller = ttsController ?: HermesTtsController(context).also { ttsController = it }
         val worked = controller.speak(text)
         if (!worked) {
-            viewModel.setStatus("Speech playback is not ready yet")
+            viewModel.setStatus(strings.speechPlaybackNotReady())
         }
         return worked
     }
@@ -182,7 +182,7 @@ fun ChatScreen(
                 speechLauncher.launch(SpeechInputController.buildIntent())
             } catch (_: ActivityNotFoundException) {
                 viewModel.setListening(false)
-                viewModel.setStatus("Voice recognition is not available on this device")
+                viewModel.setStatus(strings.voiceRecognitionUnavailable())
             }
         } else {
             permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -216,13 +216,13 @@ fun ChatScreen(
             listOf(
                 ShellActionItem(
                     label = strings.newChat.ifBlank { "New chat" },
-                    description = "Start a fresh Hermes conversation.",
+                    description = strings.newChatActionDescription(),
                     iconRes = R.drawable.ic_nav_hermes,
                     onClick = viewModel::startNewConversation,
                 ),
                 ShellActionItem(
                     label = strings.backToChat.ifBlank { "Back to chat" },
-                    description = "Return to the active conversation.",
+                    description = strings.backToChatActionDescription(),
                     iconRes = R.drawable.ic_nav_hermes,
                     onClick = viewModel::hideHistory,
                 ),
@@ -231,25 +231,25 @@ fun ChatScreen(
             listOf(
                 ShellActionItem(
                     label = strings.history.ifBlank { "History" },
-                    description = "Browse previous Hermes conversations.",
+                    description = strings.historyActionDescription(),
                     iconRes = R.drawable.ic_action_history,
                     onClick = viewModel::showHistory,
                 ),
                 ShellActionItem(
                     label = strings.newChat.ifBlank { "New chat" },
-                    description = "Start a fresh conversation without leaving Hermes.",
+                    description = strings.newChatInlineActionDescription(),
                     iconRes = R.drawable.ic_nav_hermes,
                     onClick = viewModel::startNewConversation,
                 ),
                 ShellActionItem(
                     label = strings.clearConversation.ifBlank { "Clear conversation" },
-                    description = "Remove the current conversation and start clean.",
+                    description = strings.clearConversationActionDescription(),
                     iconRes = R.drawable.ic_nav_settings,
                     onClick = viewModel::clearCurrentConversation,
                 ),
                 ShellActionItem(
                     label = strings.speakLastReply.ifBlank { "Speak last reply" },
-                    description = "Play the latest assistant reply out loud.",
+                    description = strings.speakLastReplyActionDescription(),
                     iconRes = R.drawable.ic_action_speaker,
                     onClick = { speak(viewModel.latestAssistantReply()) },
                 ),
@@ -501,7 +501,7 @@ private fun ChatHeaderCard(
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                 ) {
                     Text(
-                        text = if (chatDisplayMode == "compact") "Compact" else "Expanded",
+                        text = strings.chatDisplayModeLabel(chatDisplayMode),
                         style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -523,13 +523,15 @@ private fun ChatHeaderCard(
 
 @Composable
 private fun StatusBanner(text: String, isError: Boolean = false) {
+    val strings = LocalHermesStrings.current
+    val displayText = if (isError) text else strings.chatStatusText(text)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = if (isError) MaterialTheme.colorScheme.error.copy(alpha = 0.14f) else MaterialTheme.colorScheme.secondaryContainer,
         shape = MaterialTheme.shapes.medium,
     ) {
         Text(
-            text = text,
+            text = displayText,
             modifier = Modifier.padding(12.dp),
             color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSecondaryContainer,
             style = MaterialTheme.typography.bodySmall,
@@ -609,7 +611,7 @@ private fun ChatBubble(
     val containerColor = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val contentColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
     val strings = LocalHermesStrings.current
-    val roleLabel = if (isUser) "You" else "Hermes"
+    val roleLabel = if (isUser) strings.userRoleLabel() else "Hermes"
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
@@ -700,7 +702,7 @@ private fun CompactChatTurn(
                 )
             }
             if (turn.assistantMessages.isEmpty()) {
-                QuietMetaText(text = "Hermes is preparing a reply", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                QuietMetaText(text = strings.hermesPreparingReply(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 turn.assistantMessages.forEachIndexed { index, assistantMessage ->
                     if (index == 0) {
@@ -791,7 +793,7 @@ private fun CompactPromptHeader(
                 ) {
                     if (message.attachments.isNotEmpty()) {
                         QuietMetaText(
-                            text = "${message.attachments.size} attachment${if (message.attachments.size == 1) "" else "s"}",
+                            text = strings.attachmentCount(message.attachments.size),
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
@@ -800,7 +802,7 @@ private fun CompactPromptHeader(
             }
             if (expanded) {
                 HighlightedMessageText(
-                    text = message.content.ifBlank { "Attachment-only prompt" },
+                    text = message.content.ifBlank { strings.attachmentOnlyPrompt() },
                     color = MaterialTheme.colorScheme.onSurface,
                     keywordHighlightingEnabled = keywordHighlightingEnabled,
                 )
@@ -901,6 +903,7 @@ private fun AttachmentPreview(
     onOpen: () -> Unit,
 ) {
     val image = rememberAttachmentBitmap(attachment)
+    val strings = LocalHermesStrings.current
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         Surface(
             modifier = Modifier
@@ -929,7 +932,7 @@ private fun AttachmentPreview(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                     Text(attachment.displayName, color = contentColor, style = MaterialTheme.typography.bodySmall)
-                    QuietMetaText(text = attachment.mimeType.ifBlank { "attachment" }, color = contentColor)
+                    QuietMetaText(text = attachment.mimeType.ifBlank { strings.genericAttachmentLabel() }, color = contentColor)
                 }
             }
         }
@@ -942,6 +945,7 @@ private fun FullscreenAttachmentDialog(
     onDismiss: () -> Unit,
 ) {
     val image = rememberAttachmentBitmap(attachment)
+    val strings = LocalHermesStrings.current
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -966,7 +970,7 @@ private fun FullscreenAttachmentDialog(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_action_close),
-                            contentDescription = "Close image preview",
+                            contentDescription = strings.removeAttachment(),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
@@ -981,7 +985,7 @@ private fun FullscreenAttachmentDialog(
                         contentScale = ContentScale.Fit,
                     )
                 } else {
-                    Text("Preview is not available for this attachment.", style = MaterialTheme.typography.bodyMedium)
+                    Text(strings.attachmentPreviewUnavailable(), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }
@@ -1017,6 +1021,7 @@ private fun CompactActivityRow(
     contentColor: androidx.compose.ui.graphics.Color,
 ) {
     var expanded by rememberSaveable(content.take(64)) { mutableStateOf(false) }
+    val strings = LocalHermesStrings.current
     val diagnosticCards = remember(content) { extractDiagnosticCards(content) }
     val visibleDiagnosticCards = diagnosticCardsForActivityPreview(diagnosticCards, expanded)
     val hiddenDiagnosticCardCount = hiddenDiagnosticCardCountForActivityPreview(diagnosticCards, expanded)
@@ -1037,11 +1042,11 @@ private fun CompactActivityRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Activity: tool context",
+                    text = strings.activityToolContext(),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Text(if (expanded) "Hide" else "Details", style = MaterialTheme.typography.labelSmall, color = contentColor.copy(alpha = 0.72f))
+                Text(if (expanded) strings.hideLabel() else strings.detailsLabel(), style = MaterialTheme.typography.labelSmall, color = contentColor.copy(alpha = 0.72f))
             }
             visibleDiagnosticCards.forEach { card ->
                 DiagnosticSummaryCard(
@@ -1052,7 +1057,7 @@ private fun CompactActivityRow(
             }
             if (hiddenDiagnosticCardCount > 0) {
                 Text(
-                    text = "+$hiddenDiagnosticCardCount more cards",
+                    text = strings.moreCards(hiddenDiagnosticCardCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = contentColor.copy(alpha = 0.62f),
                 )
@@ -1199,7 +1204,7 @@ private fun ConversationHistoryList(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Conversation history", style = MaterialTheme.typography.headlineSmall)
+            Text(strings.conversationHistoryTitle(), style = MaterialTheme.typography.headlineSmall)
             Button(onClick = onStartNew) {
                 Text(strings.newChat.ifBlank { "New chat" })
             }
@@ -1211,7 +1216,7 @@ private fun ConversationHistoryList(
                 shape = MaterialTheme.shapes.large,
             ) {
                 Text(
-                    text = "No conversation history yet. Start a new Hermes chat to create one.",
+                    text = strings.noConversationHistory(),
                     modifier = Modifier.padding(16.dp),
                 )
             }
@@ -1238,7 +1243,7 @@ private fun ConversationHistoryList(
                                 Text(summary.preview, style = MaterialTheme.typography.bodySmall)
                             }
                             Text(
-                                text = "${summary.updatedLabel} · ${summary.messageCount} messages",
+                                text = "${summary.updatedLabel} · ${strings.messageCount(summary.messageCount)}",
                                 style = MaterialTheme.typography.labelMedium,
                             )
                         }
@@ -1316,7 +1321,12 @@ private fun ChatComposer(
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                 )
-                                Text(" ${strings.attachImage()}")
+                                Spacer(modifier = Modifier.size(6.dp))
+                                Text(
+                                    text = strings.attachImage(),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                             Button(
                                 onClick = {
@@ -1332,7 +1342,12 @@ private fun ChatComposer(
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                 )
-                                Text(" ${strings.camera()}")
+                                Spacer(modifier = Modifier.size(6.dp))
+                                Text(
+                                    text = strings.camera(),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
                             }
                         }
                         QuietMetaText(text = strings.chatCommandsTip(isListening), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -1371,56 +1386,137 @@ private fun ChatComposer(
                     }
                 }
             }
-            Row(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("HermesChatComposerRow"),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .testTag("HermesChatComposerFrame"),
             ) {
-                IconButton(onClick = { actionMenuOpen = !actionMenuOpen }) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_nav_settings),
-                        contentDescription = strings.moreInputActions(),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp),
-                    )
-                }
-                OutlinedTextField(
-                    value = input,
-                    onValueChange = onInputChange,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("HermesChatInput"),
-                    shape = MaterialTheme.shapes.large,
-                    placeholder = {
-                        Text(
-                            text = strings.messageHermes.ifBlank { "Message Hermes" },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+                val stackedComposer = maxWidth < 360.dp
+                if (stackedComposer) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("HermesChatComposerCompact"),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        ComposerInputField(
+                            input = input,
+                            onInputChange = onInputChange,
+                            modifier = Modifier.fillMaxWidth(),
                         )
-                    },
-                    maxLines = 4,
-                )
-                IconButton(onClick = onMic) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_action_mic),
-                        contentDescription = "Voice input",
-                        tint = if (isListening) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp),
-                    )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("HermesChatComposerRow"),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ComposerActionsButton(
+                                actionMenuOpen = actionMenuOpen,
+                                onToggle = { actionMenuOpen = !actionMenuOpen },
+                            )
+                            ComposerMicButton(
+                                isListening = isListening,
+                                onMic = onMic,
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            ChatSendButton(
+                                input = input,
+                                attachments = attachments,
+                                isSending = isSending,
+                                onSend = onSend,
+                            )
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("HermesChatComposerRow"),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ComposerActionsButton(
+                            actionMenuOpen = actionMenuOpen,
+                            onToggle = { actionMenuOpen = !actionMenuOpen },
+                        )
+                        ComposerInputField(
+                            input = input,
+                            onInputChange = onInputChange,
+                            modifier = Modifier.weight(1f),
+                        )
+                        ComposerMicButton(
+                            isListening = isListening,
+                            onMic = onMic,
+                        )
+                        ChatSendButton(
+                            input = input,
+                            attachments = attachments,
+                            isSending = isSending,
+                            onSend = onSend,
+                        )
+                    }
                 }
-                ChatSendButton(
-                    input = input,
-                    attachments = attachments,
-                    isSending = isSending,
-                    onSend = onSend,
-                )
             }
             if (!actionMenuOpen) {
                 QuietMetaText(text = strings.chatCommandsTip(isListening), color = MaterialTheme.colorScheme.onSurface)
             }
         }
+    }
+}
+
+@Composable
+private fun ComposerActionsButton(
+    actionMenuOpen: Boolean,
+    onToggle: () -> Unit,
+) {
+    val strings = LocalHermesStrings.current
+    IconButton(onClick = onToggle) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_nav_settings),
+            contentDescription = strings.moreInputActions(),
+            tint = if (actionMenuOpen) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
+@Composable
+private fun ComposerInputField(
+    input: String,
+    onInputChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val strings = LocalHermesStrings.current
+    OutlinedTextField(
+        value = input,
+        onValueChange = onInputChange,
+        modifier = modifier.testTag("HermesChatInput"),
+        shape = MaterialTheme.shapes.large,
+        placeholder = {
+            Text(
+                text = strings.messageHermes.ifBlank { "Message Hermes" },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        maxLines = 4,
+    )
+}
+
+@Composable
+private fun ComposerMicButton(
+    isListening: Boolean,
+    onMic: () -> Unit,
+) {
+    val strings = LocalHermesStrings.current
+    IconButton(onClick = onMic) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_action_mic),
+            contentDescription = strings.voiceInputLabel(),
+            tint = if (isListening) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
 

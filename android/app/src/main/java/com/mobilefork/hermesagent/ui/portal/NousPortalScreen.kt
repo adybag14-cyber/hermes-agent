@@ -72,7 +72,7 @@ data class NousPortalUiState(
     val inferenceUrl: String = "",
     val portalEnabled: Boolean = true,
     val offlineAirplaneMode: Boolean = false,
-    val status: String = "Loading Provider Portal…",
+    val status: String = "",
 )
 
 class NousPortalViewModel(application: Application) : AndroidViewModel(application) {
@@ -91,9 +91,9 @@ class NousPortalViewModel(application: Application) : AndroidViewModel(applicati
                     portalEnabled = settings.portalEnabled,
                     offlineAirplaneMode = settings.offlineAirplaneMode,
                     status = if (settings.offlineAirplaneMode) {
-                        "Offline airplane mode is on, so Provider Portal is blocked."
+                        strings.portalBlockedByOfflineAirplaneMode()
                     } else {
-                        "Provider Portal is disabled on this device."
+                        strings.portalDisabledOnDevice()
                     },
                 )
                 return@launch
@@ -129,11 +129,12 @@ class NousPortalViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setPortalEnabled(enabled: Boolean) {
         val updated = settingsStore.load().copy(portalEnabled = enabled)
+        val strings = currentStrings()
         settingsStore.save(updated)
         _uiState.value = _uiState.value.copy(
             portalEnabled = enabled,
             offlineAirplaneMode = updated.offlineAirplaneMode,
-            status = if (enabled) "Provider Portal is enabled." else "Provider Portal is disabled on this device.",
+            status = if (enabled) strings.portalEnabledStatus() else strings.portalDisabledOnDevice(),
         )
         if (enabled) {
             refresh()
@@ -175,7 +176,7 @@ fun NousPortalScreen(
                 // label = "Refresh portal"
                 ShellActionItem(
                     label = strings.refreshPortal.ifBlank { "Refresh portal" },
-                    description = "Reload the embedded Provider Portal page.",
+                    description = strings.portalReloadDescription(),
                     iconRes = R.drawable.ic_action_refresh,
                     onClick = {
                         if (portalAvailable) {
@@ -188,14 +189,14 @@ fun NousPortalScreen(
                 ),
                 ShellActionItem(
                     label = if (isFullscreen) strings.minimizePortal.ifBlank { "Minimize portal" } else strings.fullScreenPortal.ifBlank { "Full screen portal" },
-                    description = "Resize the embedded portal preview without leaving the app.",
+                    description = strings.portalResizeDescription(),
                     iconRes = if (isFullscreen) R.drawable.ic_action_minimize else R.drawable.ic_action_fullscreen,
                     onClick = { isFullscreen = !isFullscreen },
                 ),
                 // label = "Open externally"
                 ShellActionItem(
                     label = strings.openExternally.ifBlank { "Open externally" },
-                    description = "Open the full portal in your browser if the embed is limited.",
+                    description = strings.portalExternalDescription(),
                     iconRes = R.drawable.ic_action_external,
                     onClick = {
                         if (portalAvailable) {
@@ -291,7 +292,7 @@ fun NousPortalScreen(
                                                 ) {
                                                     if (request?.isForMainFrame != false) {
                                                         isLoading = false
-                                                        pageError = error?.description?.toString() ?: "Failed to load Provider Portal"
+                                                        pageError = error?.description?.toString() ?: strings.portalLoadFailed()
                                                     }
                                                 }
 
@@ -302,7 +303,7 @@ fun NousPortalScreen(
                                                 ) {
                                                     if (request?.isForMainFrame != false) {
                                                         isLoading = false
-                                                        pageError = "Provider Portal returned HTTP ${errorResponse?.statusCode ?: "error"}"
+                                                        pageError = strings.portalHttpError((errorResponse?.statusCode ?: "error").toString())
                                                     }
                                                 }
                                             }
@@ -322,9 +323,9 @@ fun NousPortalScreen(
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                         Text(
                                             if (uiState.offlineAirplaneMode) {
-                                                "Portal network access is blocked by offline airplane mode."
+                                                strings.portalNetworkBlockedMessage()
                                             } else {
-                                                "Portal is disabled."
+                                                strings.portalDisabledMessage()
                                             },
                                             style = MaterialTheme.typography.bodyMedium,
                                         )
@@ -386,14 +387,14 @@ private fun PortalGuidanceCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Portal enabled", style = MaterialTheme.typography.titleSmall)
+                Text(strings.portalEnabledLabel(), style = MaterialTheme.typography.titleSmall)
                 Switch(
                     checked = portalEnabled,
                     onCheckedChange = onPortalEnabledChange,
                     enabled = !offlineAirplaneMode,
                 )
             }
-            Text(status, style = MaterialTheme.typography.bodySmall)
+            Text(status.ifBlank { strings.portalInitialStatus() }, style = MaterialTheme.typography.bodySmall)
             Text(
                 strings.portalEmbeddedDescription.ifBlank {
                     "The embedded portal now auto-loads on this page. Use the top-right full screen button to maximize or minimize the preview, or fall back to the browser if verification gets stuck."
@@ -401,7 +402,7 @@ private fun PortalGuidanceCard(
                 style = MaterialTheme.typography.bodySmall,
             )
             if (inferenceUrl.isNotBlank()) {
-                Text("Inference: $inferenceUrl", style = MaterialTheme.typography.labelMedium)
+                Text(strings.inferenceLabel(inferenceUrl), style = MaterialTheme.typography.labelMedium)
             }
             if (!pageError.isNullOrBlank()) {
                 Text(pageError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)

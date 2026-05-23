@@ -12,6 +12,10 @@ def test_hermes_home_includes_getting_started_actions():
     assert 'Text(strings.gettingStartedStep(4))' in app_shell
     assert 'label = "Provider Portal"' in app_shell
     assert 'label = "Device"' in app_shell
+    assert 'strings.accountsActionDescription()' in app_shell
+    assert 'strings.settingsActionDescription()' in app_shell
+    assert 'strings.portalActionDescription()' in app_shell
+    assert 'strings.deviceActionDescription()' in app_shell
 
 
 def test_settings_screen_includes_new_user_guidance():
@@ -39,6 +43,11 @@ def test_portal_screen_auto_loads_and_uses_contextual_actions():
     assert 'onContextActionsChanged' in portal
     assert 'label = "Refresh portal"' in portal
     assert 'label = "Open externally"' in portal
+    assert 'strings.portalReloadDescription()' in portal
+    assert 'strings.portalResizeDescription()' in portal
+    assert 'strings.portalExternalDescription()' in portal
+    assert 'strings.portalEnabledLabel()' in portal
+    assert 'strings.inferenceLabel(inferenceUrl)' in portal
     assert 'loadUrl(uiState.portalUrl)' in portal
     assert 'The embedded portal now auto-loads on this page.' in portal
     assert 'extraBottomSpacing' in portal
@@ -46,6 +55,8 @@ def test_portal_screen_auto_loads_and_uses_contextual_actions():
     assert 'Minimize portal' in portal
     assert 'Try embedded preview' not in portal
     assert 'Reload preview' not in portal
+    portal_view_model = portal.split("class NousPortalViewModel", 1)[1].split("@Composable", 1)[0]
+    assert 'Provider Portal' not in portal_view_model
 
 
 def test_portal_python_refresh_is_deferred_until_portal_is_visible():

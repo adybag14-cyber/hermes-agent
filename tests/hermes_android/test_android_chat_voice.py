@@ -12,7 +12,7 @@ def test_manifest_and_chat_use_android_voice_input():
     assert 'android.permission.RECORD_AUDIO' in manifest
     assert 'ActivityResultContracts.RequestPermission()' in chat_screen
     assert 'SpeechInputController.buildIntent()' in chat_screen
-    assert 'Voice recognition is not available on this device' in chat_screen
+    assert 'strings.voiceRecognitionUnavailable()' in chat_screen
     assert 'RecognizerIntent.ACTION_RECOGNIZE_SPEECH' in speech_controller
 
 

@@ -135,4 +135,4 @@ def test_expanded_activity_rows_show_every_agent_visible_diagnostic_card():
     assert "hiddenDiagnosticCardCountForActivityPreview(" in diagnostic_cards
     assert "diagnosticCards.take(3)" not in chat_screen
     assert "visibleDiagnosticCards.forEach" in chat_screen
-    assert '"+$hiddenDiagnosticCardCount more cards"' in chat_screen
+    assert "strings.moreCards(hiddenDiagnosticCardCount)" in chat_screen

@@ -236,7 +236,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 themeBackgroundHex = preset.backgroundHex,
                 themeSurfaceHex = preset.surfaceHex,
                 themeSurfaceVariantHex = preset.surfaceVariantHex,
-                status = currentStrings().themePresetLoaded(preset.label),
+                status = currentStrings().themePresetLoaded(preset.id, preset.label),
             )
         }
     }

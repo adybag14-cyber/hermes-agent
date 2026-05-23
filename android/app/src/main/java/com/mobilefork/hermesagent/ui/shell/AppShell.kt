@@ -341,27 +341,27 @@ private fun HermesSetupScreen(
             listOf(
                 ShellActionItem(
                     label = strings.accounts.ifBlank { "Accounts" },
-                    description = "Connect Corr3xt and provider sign-ins.",
+                    description = strings.accountsActionDescription(),
                     iconRes = R.drawable.ic_nav_accounts,
                     onClick = onOpenAccounts,
                 ),
                 ShellActionItem(
                     label = strings.settings.ifBlank { "Settings" },
-                    description = "Configure provider, model, and API key.",
+                    description = strings.settingsActionDescription(),
                     iconRes = R.drawable.ic_nav_settings,
                     onClick = onOpenSettings,
                 ),
                 // label = "Provider Portal"
                 ShellActionItem(
                     label = strings.portalTitle.ifBlank { "Provider Portal" },
-                    description = "Open the portal page while Hermes boots.",
+                    description = strings.portalActionDescription(),
                     iconRes = R.drawable.ic_nav_portal,
                     onClick = onOpenPortal,
                 ),
                 // label = "Device"
                 ShellActionItem(
                     label = strings.sectionDevice.ifBlank { "Device" },
-                    description = "Grant files, Linux tools, and phone controls.",
+                    description = strings.deviceActionDescription(),
                     iconRes = R.drawable.ic_nav_device,
                     onClick = onOpenDevice,
                 ),

@@ -7,6 +7,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def test_localization_layer_covers_visible_chat_auth_portal_device_and_settings_copy():
     strings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
     chat = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatScreen.kt").read_text(encoding="utf-8")
+    app_shell = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/shell/AppShell.kt").read_text(encoding="utf-8")
     auth_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/auth/AuthViewModel.kt").read_text(encoding="utf-8")
     auth_screen = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/auth/AuthScreen.kt").read_text(encoding="utf-8")
     device = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/device/DeviceScreen.kt").read_text(encoding="utf-8")
@@ -25,6 +26,11 @@ def test_localization_layer_covers_visible_chat_auth_portal_device_and_settings_
         'toolProfileTitle',
         'deviceGuideTitle',
         'portalLoadingStatus',
+        'portalInitialStatus',
+        'portalBlockedByOfflineAirplaneMode',
+        'portalReloadDescription',
+        'portalHttpError',
+        'portalEnabledLabel',
         'authNotSignedIn',
         'cancelPendingSignIn',
         'authRefreshDescription',
@@ -45,15 +51,45 @@ def test_localization_layer_covers_visible_chat_auth_portal_device_and_settings_
         'operatorStandbyRemoteDispatch',
         'operatorStandbyLastDispatch',
         'operatorStandbyLastRun',
+        'appearancePresetLabel',
+        'chatDisplayModeLabel',
+        'userRoleLabel',
+        'hermesPreparingReply',
+        'attachmentPreviewUnavailable',
+        'activityToolContext',
+        'conversationHistoryTitle',
+        'voiceInputLabel',
+        'voiceRecognitionUnavailable',
+        'chatStatusText',
+        'newChatActionDescription',
+        'clearConversationActionDescription',
+        'speakLastReplyActionDescription',
+        'accountsActionDescription',
+        'settingsActionDescription',
+        'portalActionDescription',
+        'deviceActionDescription',
     ]:
         assert key in strings
 
     assert 'strings.chatCommandsTip' in chat
+    assert 'strings.newChatActionDescription()' in chat
+    assert 'strings.clearConversationActionDescription()' in chat
+    assert 'strings.speakLastReplyActionDescription()' in chat
+    assert 'strings.accountsActionDescription()' in app_shell
+    assert 'strings.settingsActionDescription()' in app_shell
+    assert 'strings.portalActionDescription()' in app_shell
+    assert 'strings.deviceActionDescription()' in app_shell
     assert 'currentStrings()' in auth_view_model
     assert 'LaunchedEffect(strings.language)' in auth_screen
     assert 'strings.authRefreshDescription()' in auth_screen
     assert 'strings.authWaitingCallbackFor(uiState.pendingMethodLabel)' in auth_screen
     assert 'strings.deviceGuideTitle' in device
+    assert 'strings.deviceLinuxSuiteTitle()' in device
+    assert 'strings.deviceConnectivityTitle()' in device
+    assert 'strings.deviceRuntimeTitle()' in device
+    assert 'strings.deviceWorkspaceAccessTitle()' in device
+    assert 'strings.deviceAccessibilityTitle()' in device
+    assert 'strings.deviceGlobalActionLabel(action)' in device
     assert 'OperatorStandbyCard' in device
     assert 'strings.operatorStandbyTitle()' in device
     assert 'strings.operatorStandbyStatus(' in device
@@ -64,8 +100,15 @@ def test_localization_layer_covers_visible_chat_auth_portal_device_and_settings_
     assert 'strings.providerDisplayLabel(preset.id, preset.label)' in settings
     assert 'strings.providerCredentialInputHelp(ProviderPresets.apiKeyEnvVars(providerId))' in settings
     assert 'strings.appearanceTitle()' in settings
+    assert 'strings.appearancePresetLabel(preset.id, preset.label)' in settings
     assert 'strings.offlineAirplaneModeTitle()' in settings
     assert 'strings.compactPromptLabel(expanded)' in chat
+    assert 'strings.chatDisplayModeLabel(chatDisplayMode)' in chat
+    assert 'strings.userRoleLabel()' in chat
+    assert 'strings.hermesPreparingReply()' in chat
+    assert 'strings.activityToolContext()' in chat
+    assert 'strings.conversationHistoryTitle()' in chat
+    assert 'strings.voiceInputLabel()' in chat
     assert 'strings.chatCommandHelp()' in (
         REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatCommandRouter.kt"
     ).read_text(encoding="utf-8")
@@ -76,6 +119,9 @@ def test_localization_layer_covers_visible_chat_auth_portal_device_and_settings_
     assert 'strings.localModelUiText(uiState.workerCatalogStatus)' in downloads_section
     assert 'LaunchedEffect(strings.language)' in portal
     assert 'strings.portalLoadingStatus' in portal
+    assert 'strings.portalReloadDescription()' in portal
+    assert 'strings.portalEnabledLabel()' in portal
+    assert 'strings.inferenceLabel(inferenceUrl)' in portal
 
 
 def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are_guarded():
@@ -95,13 +141,30 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
         "compactPromptLabel",
         "recommendedLocalModelDescription",
         "localModelUiText",
+        "appearancePresetLabel",
+        "chatDisplayModeLabel",
+        "userRoleLabel",
+        "attachmentPreviewUnavailable",
+        "conversationHistoryTitle",
+        "voiceInputLabel",
+        "voiceRecognitionUnavailable",
+        "chatStatusText",
+        "portalInitialStatus",
+        "portalReloadDescription",
+        "newChatActionDescription",
+        "accountsActionDescription",
     ]:
         assert key in strings
 
     assert 'providerId.trim().lowercase()) {\n            "custom"' in strings
     assert 'AppLanguage.CHINESE -> "自定义 OpenAI 兼容端点"' in strings
+    assert 'AppLanguage.CHINESE -> "分支"' in strings
+    assert 'alphaBadge = "预览版"' in strings
+    assert 'sectionPortal = "门户"' in strings
+    assert 'portalTitle = "提供商门户"' in strings
     assert 'val selectedProviderLabel = strings.providerDisplayLabel(' in settings
     assert 'uiState.provider,' in settings
+    assert 'strings.appearancePresetLabel(preset.id, preset.label)' in settings
     assert 'strings.providerCredentialInputHelp(ProviderPresets.apiKeyEnvVars(providerId))' in settings
     assert 'if (provider.isBlank())' in settings_view_model
     assert 'provider == "custom"' not in settings_view_model.split("private fun loadApiKeyForProvider", 1)[1].split("fun updateOnDeviceBackend", 1)[0]
@@ -110,6 +173,14 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert '.widthIn(max = 960.dp)\n                        .padding(horizontal = 16.dp, vertical = 12.dp),' in chat
     assert 'modifier = Modifier\n                        .fillMaxWidth()\n                        .imePadding(),' in chat
     assert 'strings = strings' in chat
+    assert '.testTag("HermesChatComposerFrame")' in chat
+    assert '.testTag("HermesChatComposerCompact")' in chat
+    assert 'val stackedComposer = maxWidth < 360.dp' in chat
+    assert 'strings.chatDisplayModeLabel(chatDisplayMode)' in chat
+    assert 'strings.chatStatusText(text)' in chat
+    assert 'strings.userRoleLabel()' in chat
+    assert 'strings.attachmentPreviewUnavailable()' in chat
+    assert 'strings.voiceRecognitionUnavailable()' in chat
 
 
 def test_settings_backend_toggles_sync_with_download_runtime_target_controls():

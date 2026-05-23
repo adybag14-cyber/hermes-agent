@@ -77,9 +77,23 @@ data class HermesStrings(
     val setPreferred: String,
     val remove: String,
 ) {
-    fun forkBadge(): String = "FORK"
+    fun forkBadge(): String = when (language) {
+        AppLanguage.CHINESE -> "分支"
+        AppLanguage.SPANISH -> "Fork"
+        AppLanguage.GERMAN -> "Fork"
+        AppLanguage.PORTUGUESE -> "Fork"
+        AppLanguage.FRENCH -> "Fork"
+        AppLanguage.ENGLISH -> "FORK"
+    }
 
-    fun forkDisclosure(): String = "Fork status: Hermes Agent Fork is an independent community fork. It is not official Nous Research or Teknium software."
+    fun forkDisclosure(): String = when (language) {
+        AppLanguage.CHINESE -> "分支状态：Hermes Agent Fork 是独立社区分支，并非 Nous Research 或 Teknium 官方软件。"
+        AppLanguage.SPANISH -> "Estado del fork: Hermes Agent Fork es un fork comunitario independiente. No es software oficial de Nous Research ni de Teknium."
+        AppLanguage.GERMAN -> "Fork-Status: Hermes Agent Fork ist ein unabhängiger Community-Fork. Es ist keine offizielle Software von Nous Research oder Teknium."
+        AppLanguage.PORTUGUESE -> "Status do fork: Hermes Agent Fork é um fork comunitário independente. Não é software oficial da Nous Research nem da Teknium."
+        AppLanguage.FRENCH -> "Statut du fork : Hermes Agent Fork est un fork communautaire indépendant. Ce n’est pas un logiciel officiel de Nous Research ni de Teknium."
+        AppLanguage.ENGLISH -> "Fork status: Hermes Agent Fork is an independent community fork. It is not official Nous Research or Teknium software."
+    }
 
     fun currentProviderProfile(providerLabel: String): String {
         return when (language) {
@@ -565,13 +579,52 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "Card shape set to ${cardShapeLabel(shape)}."
     }
 
-    fun themePresetLoaded(label: String): String = when (language) {
-        AppLanguage.CHINESE -> "已加载 $label 配色。点保存外观以持久保存。"
-        AppLanguage.SPANISH -> "Colores de $label cargados. Guarda la apariencia para conservarlos."
-        AppLanguage.GERMAN -> "$label-Farben geladen. Speichere das Erscheinungsbild, um sie zu behalten."
-        AppLanguage.PORTUGUESE -> "Cores $label carregadas. Salve a aparência para persistir."
-        AppLanguage.FRENCH -> "Couleurs $label chargées. Enregistrez l’apparence pour les conserver."
-        AppLanguage.ENGLISH -> "Loaded $label colours. Save appearance to persist them."
+    fun appearancePresetLabel(presetId: String, fallbackLabel: String): String = when (presetId) {
+        "hermes" -> when (language) {
+            AppLanguage.CHINESE -> "Hermes 紫"
+            AppLanguage.SPANISH -> "Hermes morado"
+            AppLanguage.GERMAN -> "Hermes-Violett"
+            AppLanguage.PORTUGUESE -> "Hermes roxo"
+            AppLanguage.FRENCH -> "Violet Hermes"
+            AppLanguage.ENGLISH -> fallbackLabel
+        }
+        "gold" -> when (language) {
+            AppLanguage.CHINESE -> "金色夜幕"
+            AppLanguage.SPANISH -> "Oro nocturno"
+            AppLanguage.GERMAN -> "Gold noir"
+            AppLanguage.PORTUGUESE -> "Ouro noir"
+            AppLanguage.FRENCH -> "Or noir"
+            AppLanguage.ENGLISH -> fallbackLabel
+        }
+        "graphite" -> when (language) {
+            AppLanguage.CHINESE -> "石墨"
+            AppLanguage.SPANISH -> "Grafito"
+            AppLanguage.GERMAN -> "Graphit"
+            AppLanguage.PORTUGUESE -> "Grafite"
+            AppLanguage.FRENCH -> "Graphite"
+            AppLanguage.ENGLISH -> fallbackLabel
+        }
+        "contrast" -> when (language) {
+            AppLanguage.CHINESE -> "高对比度"
+            AppLanguage.SPANISH -> "Alto contraste"
+            AppLanguage.GERMAN -> "Hoher Kontrast"
+            AppLanguage.PORTUGUESE -> "Alto contraste"
+            AppLanguage.FRENCH -> "Contraste élevé"
+            AppLanguage.ENGLISH -> fallbackLabel
+        }
+        else -> fallbackLabel
+    }
+
+    fun themePresetLoaded(presetId: String, fallbackLabel: String): String {
+        val label = appearancePresetLabel(presetId, fallbackLabel)
+        return when (language) {
+            AppLanguage.CHINESE -> "已加载 $label 配色。点保存外观以持久保存。"
+            AppLanguage.SPANISH -> "Colores de $label cargados. Guarda la apariencia para conservarlos."
+            AppLanguage.GERMAN -> "$label-Farben geladen. Speichere das Erscheinungsbild, um sie zu behalten."
+            AppLanguage.PORTUGUESE -> "Cores $label carregadas. Salve a aparência para persistir."
+            AppLanguage.FRENCH -> "Couleurs $label chargées. Enregistrez l’apparence pour les conserver."
+            AppLanguage.ENGLISH -> "Loaded $label colours. Save appearance to persist them."
+        }
     }
 
     fun appearanceSaved(): String = when (language) {
@@ -682,6 +735,344 @@ data class HermesStrings(
             AppLanguage.FRENCH -> "Votre invite"
             AppLanguage.ENGLISH -> "Your prompt"
         }
+    }
+
+    fun chatDisplayModeLabel(mode: String): String {
+        return if (mode.trim().equals("expanded", ignoreCase = true)) {
+            expandedModeLabel()
+        } else {
+            compactModeLabel()
+        }
+    }
+
+    fun userRoleLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "你"
+        AppLanguage.SPANISH -> "Tú"
+        AppLanguage.GERMAN -> "Du"
+        AppLanguage.PORTUGUESE -> "Você"
+        AppLanguage.FRENCH -> "Vous"
+        AppLanguage.ENGLISH -> "You"
+    }
+
+    fun hermesPreparingReply(): String = when (language) {
+        AppLanguage.CHINESE -> "Hermes 正在准备回复"
+        AppLanguage.SPANISH -> "Hermes está preparando una respuesta"
+        AppLanguage.GERMAN -> "Hermes bereitet eine Antwort vor"
+        AppLanguage.PORTUGUESE -> "Hermes está preparando uma resposta"
+        AppLanguage.FRENCH -> "Hermes prépare une réponse"
+        AppLanguage.ENGLISH -> "Hermes is preparing a reply"
+    }
+
+    fun attachmentCount(count: Int): String = when (language) {
+        AppLanguage.CHINESE -> "$count 个附件"
+        AppLanguage.SPANISH -> if (count == 1) "$count adjunto" else "$count adjuntos"
+        AppLanguage.GERMAN -> if (count == 1) "$count Anhang" else "$count Anhänge"
+        AppLanguage.PORTUGUESE -> if (count == 1) "$count anexo" else "$count anexos"
+        AppLanguage.FRENCH -> if (count == 1) "$count pièce jointe" else "$count pièces jointes"
+        AppLanguage.ENGLISH -> "$count attachment${if (count == 1) "" else "s"}"
+    }
+
+    fun genericAttachmentLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "附件"
+        AppLanguage.SPANISH -> "adjunto"
+        AppLanguage.GERMAN -> "Anhang"
+        AppLanguage.PORTUGUESE -> "anexo"
+        AppLanguage.FRENCH -> "pièce jointe"
+        AppLanguage.ENGLISH -> "attachment"
+    }
+
+    fun attachmentOnlyPrompt(): String = when (language) {
+        AppLanguage.CHINESE -> "仅附件提示词"
+        AppLanguage.SPANISH -> "Prompt solo con adjunto"
+        AppLanguage.GERMAN -> "Nur-Anhang-Prompt"
+        AppLanguage.PORTUGUESE -> "Prompt apenas com anexo"
+        AppLanguage.FRENCH -> "Invite avec pièce jointe seulement"
+        AppLanguage.ENGLISH -> "Attachment-only prompt"
+    }
+
+    fun attachmentPreviewUnavailable(): String = when (language) {
+        AppLanguage.CHINESE -> "此附件没有可用预览。"
+        AppLanguage.SPANISH -> "La vista previa no está disponible para este adjunto."
+        AppLanguage.GERMAN -> "Für diesen Anhang ist keine Vorschau verfügbar."
+        AppLanguage.PORTUGUESE -> "A prévia não está disponível para este anexo."
+        AppLanguage.FRENCH -> "L’aperçu n’est pas disponible pour cette pièce jointe."
+        AppLanguage.ENGLISH -> "Preview is not available for this attachment."
+    }
+
+    fun activityToolContext(): String = when (language) {
+        AppLanguage.CHINESE -> "活动：工具上下文"
+        AppLanguage.SPANISH -> "Actividad: contexto de herramienta"
+        AppLanguage.GERMAN -> "Aktivität: Tool-Kontext"
+        AppLanguage.PORTUGUESE -> "Atividade: contexto de ferramenta"
+        AppLanguage.FRENCH -> "Activité : contexte d’outil"
+        AppLanguage.ENGLISH -> "Activity: tool context"
+    }
+
+    fun hideLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "隐藏"
+        AppLanguage.SPANISH -> "Ocultar"
+        AppLanguage.GERMAN -> "Ausblenden"
+        AppLanguage.PORTUGUESE -> "Ocultar"
+        AppLanguage.FRENCH -> "Masquer"
+        AppLanguage.ENGLISH -> "Hide"
+    }
+
+    fun detailsLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "详情"
+        AppLanguage.SPANISH -> "Detalles"
+        AppLanguage.GERMAN -> "Details"
+        AppLanguage.PORTUGUESE -> "Detalhes"
+        AppLanguage.FRENCH -> "Détails"
+        AppLanguage.ENGLISH -> "Details"
+    }
+
+    fun moreCards(count: Int): String = when (language) {
+        AppLanguage.CHINESE -> "还有 $count 张卡片"
+        AppLanguage.SPANISH -> "$count tarjetas más"
+        AppLanguage.GERMAN -> "$count weitere Karten"
+        AppLanguage.PORTUGUESE -> "mais $count cartões"
+        AppLanguage.FRENCH -> "$count cartes de plus"
+        AppLanguage.ENGLISH -> "+$count more cards"
+    }
+
+    fun conversationHistoryTitle(): String = when (language) {
+        AppLanguage.CHINESE -> "会话历史"
+        AppLanguage.SPANISH -> "Historial de conversaciones"
+        AppLanguage.GERMAN -> "Gesprächsverlauf"
+        AppLanguage.PORTUGUESE -> "Histórico de conversas"
+        AppLanguage.FRENCH -> "Historique des conversations"
+        AppLanguage.ENGLISH -> "Conversation history"
+    }
+
+    fun noConversationHistory(): String = when (language) {
+        AppLanguage.CHINESE -> "还没有会话历史。开始新的 Hermes 聊天即可创建。"
+        AppLanguage.SPANISH -> "Aún no hay historial. Inicia un nuevo chat de Hermes para crearlo."
+        AppLanguage.GERMAN -> "Noch kein Gesprächsverlauf. Starte einen neuen Hermes-Chat, um einen anzulegen."
+        AppLanguage.PORTUGUESE -> "Ainda não há histórico. Inicie um novo chat do Hermes para criar um."
+        AppLanguage.FRENCH -> "Aucun historique pour l’instant. Lancez un nouveau chat Hermes pour en créer un."
+        AppLanguage.ENGLISH -> "No conversation history yet. Start a new Hermes chat to create one."
+    }
+
+    fun messageCount(count: Int): String = when (language) {
+        AppLanguage.CHINESE -> "$count 条消息"
+        AppLanguage.SPANISH -> if (count == 1) "$count mensaje" else "$count mensajes"
+        AppLanguage.GERMAN -> if (count == 1) "$count Nachricht" else "$count Nachrichten"
+        AppLanguage.PORTUGUESE -> if (count == 1) "$count mensagem" else "$count mensagens"
+        AppLanguage.FRENCH -> if (count == 1) "$count message" else "$count messages"
+        AppLanguage.ENGLISH -> "$count message${if (count == 1) "" else "s"}"
+    }
+
+    fun voiceInputLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "语音输入"
+        AppLanguage.SPANISH -> "Entrada de voz"
+        AppLanguage.GERMAN -> "Spracheingabe"
+        AppLanguage.PORTUGUESE -> "Entrada de voz"
+        AppLanguage.FRENCH -> "Saisie vocale"
+        AppLanguage.ENGLISH -> "Voice input"
+    }
+
+    fun voiceInputCanceled(): String = when (language) {
+        AppLanguage.CHINESE -> "语音输入已取消"
+        AppLanguage.SPANISH -> "Entrada de voz cancelada"
+        AppLanguage.GERMAN -> "Spracheingabe abgebrochen"
+        AppLanguage.PORTUGUESE -> "Entrada de voz cancelada"
+        AppLanguage.FRENCH -> "Saisie vocale annulée"
+        AppLanguage.ENGLISH -> "Voice input canceled"
+    }
+
+    fun noSpeechCaptured(): String = when (language) {
+        AppLanguage.CHINESE -> "未捕获到语音"
+        AppLanguage.SPANISH -> "No se capturó voz"
+        AppLanguage.GERMAN -> "Keine Sprache erkannt"
+        AppLanguage.PORTUGUESE -> "Nenhuma fala capturada"
+        AppLanguage.FRENCH -> "Aucune parole capturée"
+        AppLanguage.ENGLISH -> "No speech was captured"
+    }
+
+    fun voiceRecognitionUnavailable(): String = when (language) {
+        AppLanguage.CHINESE -> "此设备没有可用的语音识别"
+        AppLanguage.SPANISH -> "El reconocimiento de voz no está disponible en este dispositivo"
+        AppLanguage.GERMAN -> "Spracherkennung ist auf diesem Gerät nicht verfügbar"
+        AppLanguage.PORTUGUESE -> "O reconhecimento de voz não está disponível neste dispositivo"
+        AppLanguage.FRENCH -> "La reconnaissance vocale n’est pas disponible sur cet appareil"
+        AppLanguage.ENGLISH -> "Voice recognition is not available on this device"
+    }
+
+    fun microphonePermissionRequired(): String = when (language) {
+        AppLanguage.CHINESE -> "语音输入需要麦克风权限"
+        AppLanguage.SPANISH -> "Se requiere permiso de micrófono para la voz"
+        AppLanguage.GERMAN -> "Für Spracheingabe ist Mikrofonzugriff erforderlich"
+        AppLanguage.PORTUGUESE -> "A permissão do microfone é necessária para entrada de voz"
+        AppLanguage.FRENCH -> "L’autorisation du micro est requise pour la saisie vocale"
+        AppLanguage.ENGLISH -> "Microphone permission is required for voice input"
+    }
+
+    fun cameraCaptureCanceled(): String = when (language) {
+        AppLanguage.CHINESE -> "相机拍摄已取消"
+        AppLanguage.SPANISH -> "Captura de cámara cancelada"
+        AppLanguage.GERMAN -> "Kameraaufnahme abgebrochen"
+        AppLanguage.PORTUGUESE -> "Captura da câmera cancelada"
+        AppLanguage.FRENCH -> "Capture caméra annulée"
+        AppLanguage.ENGLISH -> "Camera capture canceled"
+    }
+
+    fun cameraAttachFailed(errorMessage: String): String = when (language) {
+        AppLanguage.CHINESE -> "无法附加相机图片：$errorMessage"
+        AppLanguage.SPANISH -> "No se pudo adjuntar la imagen de cámara: $errorMessage"
+        AppLanguage.GERMAN -> "Kamerabild konnte nicht angehängt werden: $errorMessage"
+        AppLanguage.PORTUGUESE -> "Não foi possível anexar a imagem da câmera: $errorMessage"
+        AppLanguage.FRENCH -> "Impossible de joindre l’image caméra : $errorMessage"
+        AppLanguage.ENGLISH -> "Unable to attach camera image: $errorMessage"
+    }
+
+    fun speechPlaybackNotReady(): String = when (language) {
+        AppLanguage.CHINESE -> "语音播放尚未就绪"
+        AppLanguage.SPANISH -> "La reproducción de voz aún no está lista"
+        AppLanguage.GERMAN -> "Sprachausgabe ist noch nicht bereit"
+        AppLanguage.PORTUGUESE -> "A reprodução de voz ainda não está pronta"
+        AppLanguage.FRENCH -> "La lecture vocale n’est pas encore prête"
+        AppLanguage.ENGLISH -> "Speech playback is not ready yet"
+    }
+
+    fun chatStatusText(text: String): String = when (text) {
+        "Image attached for multimodal Gemma requests" -> when (language) {
+            AppLanguage.CHINESE -> "已为多模态 Gemma 请求附加图片"
+            AppLanguage.SPANISH -> "Imagen adjunta para solicitudes multimodales de Gemma"
+            AppLanguage.GERMAN -> "Bild für multimodale Gemma-Anfragen angehängt"
+            AppLanguage.PORTUGUESE -> "Imagem anexada para solicitações multimodais do Gemma"
+            AppLanguage.FRENCH -> "Image jointe pour les requêtes Gemma multimodales"
+            AppLanguage.ENGLISH -> text
+        }
+        "Voice input captured" -> when (language) {
+            AppLanguage.CHINESE -> "语音输入已捕获"
+            AppLanguage.SPANISH -> "Entrada de voz capturada"
+            AppLanguage.GERMAN -> "Spracheingabe erfasst"
+            AppLanguage.PORTUGUESE -> "Entrada de voz capturada"
+            AppLanguage.FRENCH -> "Saisie vocale capturée"
+            AppLanguage.ENGLISH -> text
+        }
+        "Listening…" -> when (language) {
+            AppLanguage.CHINESE -> "正在聆听…"
+            AppLanguage.SPANISH -> "Escuchando…"
+            AppLanguage.GERMAN -> "Hört zu…"
+            AppLanguage.PORTUGUESE -> "Ouvindo…"
+            AppLanguage.FRENCH -> "Écoute…"
+            AppLanguage.ENGLISH -> text
+        }
+        "Started a new chat" -> when (language) {
+            AppLanguage.CHINESE -> "已开始新聊天"
+            AppLanguage.SPANISH -> "Nuevo chat iniciado"
+            AppLanguage.GERMAN -> "Neuer Chat gestartet"
+            AppLanguage.PORTUGUESE -> "Novo chat iniciado"
+            AppLanguage.FRENCH -> "Nouveau chat lancé"
+            AppLanguage.ENGLISH -> text
+        }
+        "Cleared the previous conversation" -> when (language) {
+            AppLanguage.CHINESE -> "已清除上一个会话"
+            AppLanguage.SPANISH -> "Conversación anterior borrada"
+            AppLanguage.GERMAN -> "Vorherige Unterhaltung gelöscht"
+            AppLanguage.PORTUGUESE -> "Conversa anterior limpa"
+            AppLanguage.FRENCH -> "Conversation précédente effacée"
+            AppLanguage.ENGLISH -> text
+        }
+        "Send or clear the current draft before running a signal quick action." -> when (language) {
+            AppLanguage.CHINESE -> "运行信号快捷操作前，请先发送或清除当前草稿。"
+            AppLanguage.SPANISH -> "Envía o borra el borrador actual antes de ejecutar una acción rápida de señal."
+            AppLanguage.GERMAN -> "Sende oder lösche den aktuellen Entwurf, bevor du eine Signal-Schnellaktion ausführst."
+            AppLanguage.PORTUGUESE -> "Envie ou limpe o rascunho atual antes de executar uma ação rápida de sinal."
+            AppLanguage.FRENCH -> "Envoyez ou effacez le brouillon avant d’exécuter une action rapide de signal."
+            AppLanguage.ENGLISH -> text
+        }
+        "Starting Hermes runtime…" -> when (language) {
+            AppLanguage.CHINESE -> "正在启动 Hermes 运行时…"
+            AppLanguage.SPANISH -> "Iniciando el runtime de Hermes…"
+            AppLanguage.GERMAN -> "Hermes-Laufzeit wird gestartet…"
+            AppLanguage.PORTUGUESE -> "Iniciando o runtime do Hermes…"
+            AppLanguage.FRENCH -> "Démarrage du runtime Hermes…"
+            AppLanguage.ENGLISH -> text
+        }
+        "Hermes is replying…" -> when (language) {
+            AppLanguage.CHINESE -> "Hermes 正在回复…"
+            AppLanguage.SPANISH -> "Hermes está respondiendo…"
+            AppLanguage.GERMAN -> "Hermes antwortet…"
+            AppLanguage.PORTUGUESE -> "Hermes está respondendo…"
+            AppLanguage.FRENCH -> "Hermes répond…"
+            AppLanguage.ENGLISH -> text
+        }
+        "Hermes is reading the image…" -> when (language) {
+            AppLanguage.CHINESE -> "Hermes 正在读取图片…"
+            AppLanguage.SPANISH -> "Hermes está leyendo la imagen…"
+            AppLanguage.GERMAN -> "Hermes liest das Bild…"
+            AppLanguage.PORTUGUESE -> "Hermes está lendo a imagem…"
+            AppLanguage.FRENCH -> "Hermes lit l’image…"
+            AppLanguage.ENGLISH -> text
+        }
+        else -> if (text.startsWith("Opened ")) {
+            when (language) {
+                AppLanguage.CHINESE -> "已打开 ${text.removePrefix("Opened ")}"
+                AppLanguage.SPANISH -> "Abierto ${text.removePrefix("Opened ")}"
+                AppLanguage.GERMAN -> "${text.removePrefix("Opened ")} geöffnet"
+                AppLanguage.PORTUGUESE -> "${text.removePrefix("Opened ")} aberto"
+                AppLanguage.FRENCH -> "${text.removePrefix("Opened ")} ouvert"
+                AppLanguage.ENGLISH -> text
+            }
+        } else {
+            text
+        }
+    }
+
+    fun newChatActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "开始新的 Hermes 会话。"
+        AppLanguage.SPANISH -> "Inicia una nueva conversación de Hermes."
+        AppLanguage.GERMAN -> "Startet eine neue Hermes-Unterhaltung."
+        AppLanguage.PORTUGUESE -> "Inicia uma nova conversa do Hermes."
+        AppLanguage.FRENCH -> "Lance une nouvelle conversation Hermes."
+        AppLanguage.ENGLISH -> "Start a fresh Hermes conversation."
+    }
+
+    fun backToChatActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "返回当前会话。"
+        AppLanguage.SPANISH -> "Vuelve a la conversación activa."
+        AppLanguage.GERMAN -> "Kehrt zur aktiven Unterhaltung zurück."
+        AppLanguage.PORTUGUESE -> "Volta para a conversa ativa."
+        AppLanguage.FRENCH -> "Revient à la conversation active."
+        AppLanguage.ENGLISH -> "Return to the active conversation."
+    }
+
+    fun historyActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "浏览之前的 Hermes 会话。"
+        AppLanguage.SPANISH -> "Explora conversaciones anteriores de Hermes."
+        AppLanguage.GERMAN -> "Durchsucht frühere Hermes-Unterhaltungen."
+        AppLanguage.PORTUGUESE -> "Navega por conversas anteriores do Hermes."
+        AppLanguage.FRENCH -> "Parcourt les conversations Hermes précédentes."
+        AppLanguage.ENGLISH -> "Browse previous Hermes conversations."
+    }
+
+    fun newChatInlineActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "不离开 Hermes 即可开始新的会话。"
+        AppLanguage.SPANISH -> "Inicia una nueva conversación sin salir de Hermes."
+        AppLanguage.GERMAN -> "Startet eine neue Unterhaltung, ohne Hermes zu verlassen."
+        AppLanguage.PORTUGUESE -> "Inicia uma nova conversa sem sair do Hermes."
+        AppLanguage.FRENCH -> "Lance une nouvelle conversation sans quitter Hermes."
+        AppLanguage.ENGLISH -> "Start a fresh conversation without leaving Hermes."
+    }
+
+    fun clearConversationActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "移除当前会话并重新开始。"
+        AppLanguage.SPANISH -> "Elimina la conversación actual y empieza de cero."
+        AppLanguage.GERMAN -> "Entfernt die aktuelle Unterhaltung und startet sauber neu."
+        AppLanguage.PORTUGUESE -> "Remove a conversa atual e começa do zero."
+        AppLanguage.FRENCH -> "Supprime la conversation actuelle et repart proprement."
+        AppLanguage.ENGLISH -> "Remove the current conversation and start clean."
+    }
+
+    fun speakLastReplyActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "朗读最新的助手回复。"
+        AppLanguage.SPANISH -> "Reproduce en voz alta la última respuesta del asistente."
+        AppLanguage.GERMAN -> "Liest die letzte Assistentenantwort laut vor."
+        AppLanguage.PORTUGUESE -> "Reproduz a última resposta do assistente em voz alta."
+        AppLanguage.FRENCH -> "Lit à voix haute la dernière réponse de l’assistant."
+        AppLanguage.ENGLISH -> "Play the latest assistant reply out loud."
     }
 
     fun speakReply(): String = when (language) {
@@ -1322,21 +1713,174 @@ data class HermesStrings(
     }
 
     fun portalLoadingStatus(loggedIn: Boolean): String = when (language) {
-        AppLanguage.CHINESE -> if (loggedIn) "已登录 Provider Portal" else "正在加载嵌入式 Portal 预览"
-        AppLanguage.SPANISH -> if (loggedIn) "Sesión iniciada en Provider Portal" else "Cargando la vista previa incrustada del portal"
-        AppLanguage.GERMAN -> if (loggedIn) "Bei Provider Portal angemeldet" else "Eingebettete Portal-Vorschau wird geladen"
-        AppLanguage.PORTUGUESE -> if (loggedIn) "Sessão iniciada no Provider Portal" else "Carregando a prévia incorporada do portal"
-        AppLanguage.FRENCH -> if (loggedIn) "Connecté à Provider Portal" else "Chargement de l’aperçu intégré du portail"
+        AppLanguage.CHINESE -> if (loggedIn) "已登录提供商门户" else "正在加载嵌入式门户预览"
+        AppLanguage.SPANISH -> if (loggedIn) "Sesión iniciada en el portal del proveedor" else "Cargando la vista previa incrustada del portal"
+        AppLanguage.GERMAN -> if (loggedIn) "Beim Anbieterportal angemeldet" else "Eingebettete Portal-Vorschau wird geladen"
+        AppLanguage.PORTUGUESE -> if (loggedIn) "Sessão iniciada no portal do provedor" else "Carregando a prévia incorporada do portal"
+        AppLanguage.FRENCH -> if (loggedIn) "Connecté au portail fournisseur" else "Chargement de l’aperçu intégré du portail"
         AppLanguage.ENGLISH -> if (loggedIn) "Signed in to Provider Portal" else "Loading the embedded portal preview"
     }
 
     fun portalFallbackStatus(error: String): String = when (language) {
-        AppLanguage.CHINESE -> "使用默认 Provider Portal URL（$error）"
-        AppLanguage.SPANISH -> "Usando la URL predeterminada de Provider Portal ($error)"
-        AppLanguage.GERMAN -> "Standard-URL von Provider Portal wird verwendet ($error)"
-        AppLanguage.PORTUGUESE -> "Usando a URL padrão do Provider Portal ($error)"
-        AppLanguage.FRENCH -> "URL Provider Portal par défaut utilisée ($error)"
+        AppLanguage.CHINESE -> "使用默认提供商门户 URL（$error）"
+        AppLanguage.SPANISH -> "Usando la URL predeterminada del portal del proveedor ($error)"
+        AppLanguage.GERMAN -> "Standard-URL des Anbieterportals wird verwendet ($error)"
+        AppLanguage.PORTUGUESE -> "Usando a URL padrão do portal do provedor ($error)"
+        AppLanguage.FRENCH -> "URL par défaut du portail fournisseur utilisée ($error)"
         AppLanguage.ENGLISH -> "Using default Provider Portal URL ($error)"
+    }
+
+    fun portalInitialStatus(): String = when (language) {
+        AppLanguage.CHINESE -> "正在加载提供商门户…"
+        AppLanguage.SPANISH -> "Cargando el portal del proveedor…"
+        AppLanguage.GERMAN -> "Anbieterportal wird geladen…"
+        AppLanguage.PORTUGUESE -> "Carregando o portal do provedor…"
+        AppLanguage.FRENCH -> "Chargement du portail fournisseur…"
+        AppLanguage.ENGLISH -> "Loading Provider Portal…"
+    }
+
+    fun portalBlockedByOfflineAirplaneMode(): String = when (language) {
+        AppLanguage.CHINESE -> "离线飞行模式已开启，提供商门户被阻止。"
+        AppLanguage.SPANISH -> "El modo avión sin conexión está activo, por lo que el portal del proveedor está bloqueado."
+        AppLanguage.GERMAN -> "Der Offline-Flugmodus ist aktiv, daher ist das Anbieterportal blockiert."
+        AppLanguage.PORTUGUESE -> "O modo avião offline está ativo, então o portal do provedor está bloqueado."
+        AppLanguage.FRENCH -> "Le mode avion hors ligne est activé, le portail fournisseur est donc bloqué."
+        AppLanguage.ENGLISH -> "Offline airplane mode is on, so Provider Portal is blocked."
+    }
+
+    fun portalDisabledOnDevice(): String = when (language) {
+        AppLanguage.CHINESE -> "此设备已禁用提供商门户。"
+        AppLanguage.SPANISH -> "El portal del proveedor está desactivado en este dispositivo."
+        AppLanguage.GERMAN -> "Das Anbieterportal ist auf diesem Gerät deaktiviert."
+        AppLanguage.PORTUGUESE -> "O portal do provedor está desativado neste dispositivo."
+        AppLanguage.FRENCH -> "Le portail fournisseur est désactivé sur cet appareil."
+        AppLanguage.ENGLISH -> "Provider Portal is disabled on this device."
+    }
+
+    fun portalEnabledStatus(): String = when (language) {
+        AppLanguage.CHINESE -> "提供商门户已启用。"
+        AppLanguage.SPANISH -> "El portal del proveedor está activado."
+        AppLanguage.GERMAN -> "Das Anbieterportal ist aktiviert."
+        AppLanguage.PORTUGUESE -> "O portal do provedor está ativado."
+        AppLanguage.FRENCH -> "Le portail fournisseur est activé."
+        AppLanguage.ENGLISH -> "Provider Portal is enabled."
+    }
+
+    fun portalReloadDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "重新加载嵌入式提供商门户页面。"
+        AppLanguage.SPANISH -> "Vuelve a cargar la página incrustada del portal del proveedor."
+        AppLanguage.GERMAN -> "Lädt die eingebettete Anbieterportal-Seite neu."
+        AppLanguage.PORTUGUESE -> "Recarrega a página incorporada do portal do provedor."
+        AppLanguage.FRENCH -> "Recharge la page intégrée du portail fournisseur."
+        AppLanguage.ENGLISH -> "Reload the embedded Provider Portal page."
+    }
+
+    fun portalResizeDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "无需离开应用即可调整嵌入式门户预览大小。"
+        AppLanguage.SPANISH -> "Cambia el tamaño de la vista previa incrustada del portal sin salir de la app."
+        AppLanguage.GERMAN -> "Passt die eingebettete Portal-Vorschau an, ohne die App zu verlassen."
+        AppLanguage.PORTUGUESE -> "Redimensiona a prévia incorporada do portal sem sair do app."
+        AppLanguage.FRENCH -> "Redimensionne l’aperçu intégré du portail sans quitter l’app."
+        AppLanguage.ENGLISH -> "Resize the embedded portal preview without leaving the app."
+    }
+
+    fun portalExternalDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "如果嵌入式视图受限，请在浏览器中打开完整门户。"
+        AppLanguage.SPANISH -> "Abre el portal completo en el navegador si la vista incrustada tiene límites."
+        AppLanguage.GERMAN -> "Öffnet das vollständige Portal im Browser, falls die Einbettung eingeschränkt ist."
+        AppLanguage.PORTUGUESE -> "Abre o portal completo no navegador se a incorporação estiver limitada."
+        AppLanguage.FRENCH -> "Ouvre le portail complet dans le navigateur si l’intégration est limitée."
+        AppLanguage.ENGLISH -> "Open the full portal in your browser if the embed is limited."
+    }
+
+    fun portalLoadFailed(): String = when (language) {
+        AppLanguage.CHINESE -> "提供商门户加载失败"
+        AppLanguage.SPANISH -> "No se pudo cargar el portal del proveedor"
+        AppLanguage.GERMAN -> "Anbieterportal konnte nicht geladen werden"
+        AppLanguage.PORTUGUESE -> "Falha ao carregar o portal do provedor"
+        AppLanguage.FRENCH -> "Échec du chargement du portail fournisseur"
+        AppLanguage.ENGLISH -> "Failed to load Provider Portal"
+    }
+
+    fun portalHttpError(status: String): String = when (language) {
+        AppLanguage.CHINESE -> "提供商门户返回 HTTP $status"
+        AppLanguage.SPANISH -> "El portal del proveedor devolvió HTTP $status"
+        AppLanguage.GERMAN -> "Das Anbieterportal hat HTTP $status zurückgegeben"
+        AppLanguage.PORTUGUESE -> "O portal do provedor retornou HTTP $status"
+        AppLanguage.FRENCH -> "Le portail fournisseur a renvoyé HTTP $status"
+        AppLanguage.ENGLISH -> "Provider Portal returned HTTP $status"
+    }
+
+    fun portalNetworkBlockedMessage(): String = when (language) {
+        AppLanguage.CHINESE -> "离线飞行模式已阻止门户网络访问。"
+        AppLanguage.SPANISH -> "El modo avión sin conexión bloquea el acceso de red del portal."
+        AppLanguage.GERMAN -> "Der Offline-Flugmodus blockiert den Netzwerkzugriff des Portals."
+        AppLanguage.PORTUGUESE -> "O modo avião offline bloqueia o acesso de rede do portal."
+        AppLanguage.FRENCH -> "Le mode avion hors ligne bloque l’accès réseau du portail."
+        AppLanguage.ENGLISH -> "Portal network access is blocked by offline airplane mode."
+    }
+
+    fun portalDisabledMessage(): String = when (language) {
+        AppLanguage.CHINESE -> "门户已禁用。"
+        AppLanguage.SPANISH -> "El portal está desactivado."
+        AppLanguage.GERMAN -> "Das Portal ist deaktiviert."
+        AppLanguage.PORTUGUESE -> "O portal está desativado."
+        AppLanguage.FRENCH -> "Le portail est désactivé."
+        AppLanguage.ENGLISH -> "Portal is disabled."
+    }
+
+    fun portalEnabledLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "启用门户"
+        AppLanguage.SPANISH -> "Portal activado"
+        AppLanguage.GERMAN -> "Portal aktiviert"
+        AppLanguage.PORTUGUESE -> "Portal ativado"
+        AppLanguage.FRENCH -> "Portail activé"
+        AppLanguage.ENGLISH -> "Portal enabled"
+    }
+
+    fun inferenceLabel(inferenceUrl: String): String = when (language) {
+        AppLanguage.CHINESE -> "推理：$inferenceUrl"
+        AppLanguage.SPANISH -> "Inferencia: $inferenceUrl"
+        AppLanguage.GERMAN -> "Inferenz: $inferenceUrl"
+        AppLanguage.PORTUGUESE -> "Inferência: $inferenceUrl"
+        AppLanguage.FRENCH -> "Inférence : $inferenceUrl"
+        AppLanguage.ENGLISH -> "Inference: $inferenceUrl"
+    }
+
+    fun accountsActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "连接 Corr3xt 和提供商登录。"
+        AppLanguage.SPANISH -> "Conecta Corr3xt y los inicios de sesión de proveedores."
+        AppLanguage.GERMAN -> "Verbindet Corr3xt- und Anbieter-Anmeldungen."
+        AppLanguage.PORTUGUESE -> "Conecta Corr3xt e logins de provedores."
+        AppLanguage.FRENCH -> "Connecte Corr3xt et les connexions fournisseur."
+        AppLanguage.ENGLISH -> "Connect Corr3xt and provider sign-ins."
+    }
+
+    fun settingsActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "配置提供商、模型和 API 密钥。"
+        AppLanguage.SPANISH -> "Configura proveedor, modelo y clave API."
+        AppLanguage.GERMAN -> "Konfiguriert Anbieter, Modell und API-Schlüssel."
+        AppLanguage.PORTUGUESE -> "Configure provedor, modelo e chave API."
+        AppLanguage.FRENCH -> "Configure le fournisseur, le modèle et la clé API."
+        AppLanguage.ENGLISH -> "Configure provider, model, and API key."
+    }
+
+    fun portalActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "在 Hermes 启动时打开门户页面。"
+        AppLanguage.SPANISH -> "Abre la página del portal mientras Hermes arranca."
+        AppLanguage.GERMAN -> "Öffnet die Portal-Seite, während Hermes startet."
+        AppLanguage.PORTUGUESE -> "Abre a página do portal enquanto o Hermes inicia."
+        AppLanguage.FRENCH -> "Ouvre la page du portail pendant le démarrage de Hermes."
+        AppLanguage.ENGLISH -> "Open the portal page while Hermes boots."
+    }
+
+    fun deviceActionDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "授予文件、Linux 工具和手机控制权限。"
+        AppLanguage.SPANISH -> "Concede archivos, herramientas Linux y controles del teléfono."
+        AppLanguage.GERMAN -> "Gewährt Zugriff auf Dateien, Linux-Tools und Telefonsteuerung."
+        AppLanguage.PORTUGUESE -> "Concede arquivos, ferramentas Linux e controles do telefone."
+        AppLanguage.FRENCH -> "Accorde les fichiers, outils Linux et contrôles du téléphone."
+        AppLanguage.ENGLISH -> "Grant files, Linux tools, and phone controls."
     }
 
     fun authNotSignedIn(): String = when (language) {
@@ -2195,10 +2739,10 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
     return when (language) {
         AppLanguage.CHINESE -> HermesStrings(
             language = language,
-            alphaBadge = "ALPHA",
+            alphaBadge = "预览版",
             sectionHermes = "Hermes Fork",
             sectionAccounts = "账户",
-            sectionPortal = "Portal",
+            sectionPortal = "门户",
             sectionDevice = "设备",
             sectionSettings = "设置",
             subtitleHermes = "聊天、命令与语音",
@@ -2243,12 +2787,12 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signOut = "退出登录",
             reconnect = "重新连接",
             hermesProviderPrefix = "Hermes 提供商",
-            portalTitle = "Provider Portal",
-            portalEmbeddedDescription = "该页面现在会自动加载嵌入式 Portal。使用右上角按钮全屏或还原，必要时回退到浏览器。",
-            fullScreenPortal = "Portal 全屏",
-            minimizePortal = "还原 Portal",
+            portalTitle = "提供商门户",
+            portalEmbeddedDescription = "该页面现在会自动加载嵌入式提供商门户。使用右上角按钮全屏或还原，必要时回退到浏览器。",
+            fullScreenPortal = "门户全屏",
+            minimizePortal = "还原门户",
             openExternally = "在外部打开",
-            refreshPortal = "刷新 Portal",
+            refreshPortal = "刷新门户",
             localDownloadsTitle = "Hugging Face 本地模型下载",
             localDownloadsDescription = "直接把完整模型文件下载到手机，使用 Android 系统下载管理器保存进度，并在断网或重启后安全恢复。",
             dataSaverModeTitle = "省流模式",
@@ -2270,7 +2814,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
         )
         AppLanguage.SPANISH -> HermesStrings(
             language = language,
-            alphaBadge = "ALPHA",
+            alphaBadge = "ALFA",
             sectionHermes = "Hermes Fork",
             sectionAccounts = "Cuentas",
             sectionPortal = "Portal",
@@ -2318,7 +2862,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signOut = "Cerrar sesión",
             reconnect = "Reconectar",
             hermesProviderPrefix = "Proveedor de Hermes",
-            portalTitle = "Provider Portal",
+            portalTitle = "Portal del proveedor",
             portalEmbeddedDescription = "El portal incrustado ahora se carga automáticamente aquí. Usa el botón superior derecho para maximizar o minimizar la vista previa, o abre el navegador si hace falta.",
             fullScreenPortal = "Portal a pantalla completa",
             minimizePortal = "Minimizar portal",
@@ -2393,7 +2937,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signOut = "Abmelden",
             reconnect = "Neu verbinden",
             hermesProviderPrefix = "Hermes-Anbieter",
-            portalTitle = "Provider Portal",
+            portalTitle = "Anbieterportal",
             portalEmbeddedDescription = "Das eingebettete Portal wird jetzt automatisch geladen. Nutze die Schaltfläche oben rechts zum Maximieren oder Minimieren oder wechsle bei Bedarf in den Browser.",
             fullScreenPortal = "Portal im Vollbild",
             minimizePortal = "Portal minimieren",
@@ -2420,7 +2964,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
         )
         AppLanguage.PORTUGUESE -> HermesStrings(
             language = language,
-            alphaBadge = "ALPHA",
+            alphaBadge = "ALFA",
             sectionHermes = "Hermes Fork",
             sectionAccounts = "Contas",
             sectionPortal = "Portal",
@@ -2468,7 +3012,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signOut = "Sair",
             reconnect = "Reconectar",
             hermesProviderPrefix = "Provedor Hermes",
-            portalTitle = "Provider Portal",
+            portalTitle = "Portal do provedor",
             portalEmbeddedDescription = "O portal incorporado agora carrega automaticamente aqui. Use o botão no canto superior direito para maximizar ou minimizar a prévia, ou abra no navegador se precisar.",
             fullScreenPortal = "Portal em tela cheia",
             minimizePortal = "Minimizar portal",
@@ -2543,12 +3087,12 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signOut = "Se déconnecter",
             reconnect = "Reconnecter",
             hermesProviderPrefix = "Fournisseur Hermes",
-            portalTitle = "Provider Portal",
+            portalTitle = "Portail fournisseur",
             portalEmbeddedDescription = "Le portail intégré se charge maintenant automatiquement ici. Utilisez le bouton en haut à droite pour agrandir ou réduire l’aperçu, ou ouvrez le navigateur si nécessaire.",
-            fullScreenPortal = "Portal plein écran",
-            minimizePortal = "Réduire le portal",
+            fullScreenPortal = "Portail plein écran",
+            minimizePortal = "Réduire le portail",
             openExternally = "Ouvrir à l’extérieur",
-            refreshPortal = "Actualiser le portal",
+            refreshPortal = "Actualiser le portail",
             localDownloadsTitle = "Téléchargements locaux de modèles depuis Hugging Face",
             localDownloadsDescription = "Téléchargez des fichiers de modèle complets directement sur le téléphone, conservez la progression dans le gestionnaire de téléchargements Android et reprenez en toute sécurité après une perte réseau ou un redémarrage.",
             dataSaverModeTitle = "Mode économie de données",
