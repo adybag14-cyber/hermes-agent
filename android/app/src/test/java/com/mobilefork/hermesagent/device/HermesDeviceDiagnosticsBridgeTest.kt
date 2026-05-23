@@ -1872,6 +1872,49 @@ class HermesDeviceDiagnosticsBridgeTest {
     }
 
     @Test
+    fun agentSignalBriefingReportBuildsTopCardSlotsAndMetadataKeys() {
+        val result = HermesDeviceDiagnosticsBridge.agentSignalBriefingReportJson(context)
+        val briefing = result.getJSONArray("agent_signal_briefing_matrix")
+        val slots = result.getJSONArray("agent_top_card_slots")
+        val metadata = result.getJSONArray("agent_signal_metadata_keys")
+        val briefingText = briefing.toString()
+        val slotText = slots.toString()
+        val metadataText = metadata.toString()
+        val cards = result.getJSONArray("cards").toString()
+
+        assertTrue(result.getBoolean("success"))
+        assertEquals("agent_signal_briefing_report", result.getString("action"))
+        assertTrue(result.getJSONArray("source_report_actions").toString().contains("wifi_channel_graph"))
+        assertTrue(result.getJSONArray("source_report_actions").toString().contains("bluetooth_device_details"))
+        assertTrue(result.getJSONArray("source_report_actions").toString().contains("motion_sensor_quality"))
+        assertTrue(result.getJSONArray("source_report_actions").toString().contains("radio_signal_graph"))
+        assertTrue(result.getJSONArray("source_report_actions").toString().contains("mediatek_readiness_report"))
+        assertTrue(briefingText.contains("Wi-Fi graph evidence"))
+        assertTrue(briefingText.contains("Bluetooth metadata evidence"))
+        assertTrue(briefingText.contains("Motion and sensor evidence"))
+        assertTrue(briefingText.contains("Radio boundary and bridge evidence"))
+        assertTrue(briefingText.contains("MediaTek and backend evidence"))
+        assertTrue(slotText.contains("open_next_action"))
+        assertTrue(slotText.contains("refresh_policy"))
+        assertTrue(slotText.contains("permission_gate"))
+        assertTrue(metadataText.contains("wifi_channel_graph"))
+        assertTrue(metadataText.contains("bluetooth_device_details"))
+        assertTrue(metadataText.contains("motion_sensor_quality"))
+        assertTrue(metadataText.contains("radio_signal_graph"))
+        assertTrue(metadataText.contains("gpu_backend_risk_report"))
+        assertTrue(result.getJSONArray("gemma_signal_briefing_directives").toString().contains("agent_top_card_slots"))
+        assertTrue(cards.contains("Agent Signal Briefing"))
+        assertTrue(cards.contains("agent_signal_briefing_matrix"))
+        assertTrue(cards.contains("Top Card Slots"))
+        assertTrue(cards.contains("agent_top_card_slots"))
+        assertTrue(cards.contains("Gemma Metadata Keys"))
+        assertTrue(cards.contains("agent_signal_metadata_keys"))
+        assertTrue(result.getInt("agent_signal_briefing_count") >= 7)
+        assertTrue(result.getInt("agent_top_card_slot_count") >= 6)
+        assertTrue(result.getInt("agent_signal_metadata_key_count") >= 6)
+    }
+
+    @Test
     fun agentEnvironmentReportSummarizesKaiParityAndSystemInputs() {
         AppSettingsStore(context).save(
             AppSettings(customSystemPrompt = "Prefer local signal cards before broad answers."),

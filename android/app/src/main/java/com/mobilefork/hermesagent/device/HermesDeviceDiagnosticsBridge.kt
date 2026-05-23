@@ -135,6 +135,9 @@ object HermesDeviceDiagnosticsBridge {
                 rfCoexistenceReportJson(appContext).toString()
             "agent_signal_evidence_report", "signal_evidence_bundle", "current_signal_evidence", "gemma_signal_evidence" ->
                 agentSignalEvidenceReportJson(appContext).toString()
+            "agent_signal_briefing_report", "signal_briefing_report", "gemma_signal_briefing",
+            "agent_top_card_slots", "signal_briefing_deck" ->
+                agentSignalBriefingReportJson(appContext).toString()
             "agent_observation_report", "agent_signal_dashboard", "gemma_observation_report", "multimodal_signal_dashboard" ->
                 agentObservationReportJson(appContext).toString()
             "agent_card_manifest_report", "card_manifest_report", "diagnostic_card_manifest", "graph_card_manifest" ->
@@ -3736,6 +3739,98 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
+    fun agentSignalBriefingReportJson(context: Context): JSONObject {
+        val appContext = context.applicationContext
+        val wifiReport = wifiAnalyzerReportJson(appContext, JSONObject().put("refresh", false))
+        val bluetoothReport = bluetoothAnalyzerReportJson(appContext, JSONObject().put("refresh", false))
+        val sensorReport = sensorAnalyzerReportJson(appContext, JSONObject().put("include_snapshot", false))
+        val radioReport = radioSignalStatusJson(appContext)
+        val signalReport = signalAwarenessReportJson(appContext)
+        val backendRiskReport = gpuBackendRiskReportJson(appContext)
+        val mediatekReport = mediatekReadinessReportJson(appContext)
+        val priorityReport = agentCardPriorityReportJson(appContext)
+        val briefingRows = agentSignalBriefingRows(
+            wifiReport = wifiReport,
+            bluetoothReport = bluetoothReport,
+            sensorReport = sensorReport,
+            radioReport = radioReport,
+            signalReport = signalReport,
+            backendRiskReport = backendRiskReport,
+            mediatekReport = mediatekReport,
+            priorityReport = priorityReport,
+        )
+        val slotRows = agentTopCardSlotRows(priorityReport)
+        val metadataRows = agentSignalMetadataKeyRows(
+            wifiReport = wifiReport,
+            bluetoothReport = bluetoothReport,
+            sensorReport = sensorReport,
+            radioReport = radioReport,
+            backendRiskReport = backendRiskReport,
+            mediatekReport = mediatekReport,
+            priorityReport = priorityReport,
+        )
+        return JSONObject()
+            .put("success", true)
+            .put("action", "agent_signal_briefing_report")
+            .put("report_scope", "Compact first-read briefing for what Gemma can currently view, which top card should expand, and which metadata keys back Wi-Fi, Bluetooth, motion, radio, and backend evidence.")
+            .put("source_report_actions", agentSignalBriefingSourceActions())
+            .put("agent_signal_briefing_matrix", briefingRows)
+            .put("agent_signal_briefing_count", briefingRows.length())
+            .put("ready_agent_signal_briefing_count", countReadyRows(briefingRows))
+            .put("agent_top_card_slots", slotRows)
+            .put("agent_top_card_slot_count", slotRows.length())
+            .put("ready_agent_top_card_slot_count", countReadyRows(slotRows))
+            .put("agent_signal_metadata_keys", metadataRows)
+            .put("agent_signal_metadata_key_count", metadataRows.length())
+            .put("ready_agent_signal_metadata_key_count", countReadyRows(metadataRows))
+            .put("top_signal_card_priorities", priorityReport.optJSONArray("top_signal_card_priorities") ?: JSONArray())
+            .put("agent_card_open_sequence", priorityReport.optJSONArray("agent_card_open_sequence") ?: JSONArray())
+            .put(
+                "gemma_signal_briefing_directives",
+                JSONArray()
+                    .put("Read agent_signal_briefing_matrix before answering what Hermes is viewing from nearby signals, sensors, radio boundaries, and backend readiness.")
+                    .put("Use agent_top_card_slots to choose the exact expandable card before explaining Wi-Fi graphs, Bluetooth metadata, motion quality, AM/FM limits, or MediaTek backend risk.")
+                    .put("Use agent_signal_metadata_keys to cite the JSON fields behind the visible card instead of summarizing unsupported hardware or hidden permissions.")
+                    .put("Prefer passive analyzer reports first; request live Wi-Fi, Bluetooth, motion, or radio bridge refresh only when the user needs current data."),
+            )
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        graphCard(
+                            title = "Agent Signal Briefing",
+                            body = "${briefingRows.length()} briefing row(s) summarizing what Gemma can view and which sources need permissions, refresh, or hardware bridges.",
+                            graphType = "agent_signal_briefing_matrix",
+                            rows = briefingRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Top Card Slots",
+                            body = "${slotRows.length()} slot row(s) mapping user-visible cards to open-next actions, graph types, refresh policy, and permission gates.",
+                            graphType = "agent_top_card_slots",
+                            rows = slotRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Gemma Metadata Keys",
+                            body = "${metadataRows.length()} metadata row(s) listing the JSON keys Gemma should inspect behind each Wi-Fi, Bluetooth, motion, radio, and backend card.",
+                            graphType = "agent_signal_metadata_keys",
+                            rows = metadataRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Card Open Sequence",
+                            body = "${priorityReport.optInt("agent_card_open_sequence_count", 0)} ordered route row(s) from the existing top-card planner.",
+                            graphType = "agent_card_open_sequence",
+                            rows = priorityReport.optJSONArray("agent_card_open_sequence") ?: JSONArray(),
+                        ),
+                    ),
+            )
+    }
+
     fun agentCardManifestReportJson(context: Context): JSONObject {
         val appContext = context.applicationContext
         val wifiReport = wifiAnalyzerReportJson(appContext, JSONObject().put("refresh", false))
@@ -5802,6 +5897,7 @@ object HermesDeviceDiagnosticsBridge {
         .put("agent_self_check_report")
         .put("agent_observation_report")
         .put("agent_card_manifest_report")
+        .put("agent_signal_briefing_report")
         .put("agent_signal_evidence_report")
         .put("signal_awareness_report")
         .put("rf_coexistence_report")
@@ -5815,6 +5911,297 @@ object HermesDeviceDiagnosticsBridge {
         .put("gpu_backend_risk_report")
         .put("mediatek_readiness_report")
         .put("agent_environment_report")
+
+    private fun agentSignalBriefingSourceActions(): JSONArray = JSONArray()
+        .put("agent_signal_briefing_report")
+        .put("agent_card_priority_report")
+        .put("agent_signal_evidence_report")
+        .put("agent_observation_report")
+        .put("agent_card_manifest_report")
+        .put("wifi_analyzer_report")
+        .put("wifi_channel_graph")
+        .put("wifi_connection_link")
+        .put("bluetooth_analyzer_report")
+        .put("bluetooth_device_details")
+        .put("bluetooth_signal_history")
+        .put("sensor_analyzer_report")
+        .put("motion_sensor_quality")
+        .put("motion_pose")
+        .put("radio_signal_status")
+        .put("radio_signal_graph")
+        .put("gpu_backend_risk_report")
+        .put("mediatek_readiness_report")
+
+    private fun agentSignalBriefingRows(
+        wifiReport: JSONObject,
+        bluetoothReport: JSONObject,
+        sensorReport: JSONObject,
+        radioReport: JSONObject,
+        signalReport: JSONObject,
+        backendRiskReport: JSONObject,
+        mediatekReport: JSONObject,
+        priorityReport: JSONObject,
+    ): JSONArray {
+        val wifiCount = wifiReport.optInt("total_scan_result_count", wifiReport.optJSONArray("wifi_networks")?.length() ?: 0)
+        val bluetoothCount = bluetoothReport.optInt("bluetooth_device_count", bluetoothReport.optJSONArray("bluetooth_devices")?.length() ?: 0)
+        val motionQualityCount = sensorReport.optInt("motion_sensor_quality_count", sensorReport.optJSONArray("motion_sensor_quality")?.length() ?: 0)
+        val radioSampleCount = radioReport.optInt("radio_signal_graph_sample_count", 0)
+        val backendRiskScore = backendRiskReport.optInt("gpu_backend_risk_score", 0).coerceIn(0, 100)
+        val mediatekScore = mediatekReport.optInt("mediatek_readiness_score", 0).coerceIn(0, 100)
+        val topCardCount = priorityReport.optInt("top_signal_card_priority_count", priorityReport.optJSONArray("top_signal_card_priorities")?.length() ?: 0)
+        val signalRouteCount = signalReport.optInt("signal_workflow_route_count", signalReport.optJSONArray("signal_workflow_routes")?.length() ?: 0)
+        return JSONArray()
+            .put(
+                capabilityRow(
+                    category = "agent_signal_briefing",
+                    label = "First-read signal briefing",
+                    ready = true,
+                    valueLabel = "$topCardCount top card row(s)",
+                    detail = "Combines top-card priority, current signal evidence, card slots, and metadata key rows so Gemma can state what it is viewing before drilling into scanners.",
+                    recommendation = "Read this row first for user-facing signal, sensor, radio, and backend summaries.",
+                    fraction = 0.98f,
+                    extra = JSONObject()
+                        .put("source_action", "agent_signal_briefing_report")
+                        .put("tool_action", "agent_signal_briefing_report")
+                        .put("graph_type", "agent_signal_briefing_matrix")
+                        .put("metadata_surface", "agent_signal_metadata_keys"),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_signal_briefing",
+                    label = "Wi-Fi graph evidence",
+                    ready = wifiReport.optBoolean("success", false),
+                    valueLabel = "$wifiCount AP row(s)",
+                    detail = "Gemma can inspect Wi-Fi Analyzer AP rows, channel envelopes, ratings, utilization, band coverage, connection link, vendor/OUI, security, standard, width, and filter metadata.",
+                    recommendation = "Open wifi_channel_graph or wifi_analyzer_report before explaining nearby Wi-Fi.",
+                    fraction = if (wifiCount > 0) 0.94f else 0.72f,
+                    extra = JSONObject()
+                        .put("source_action", "wifi_analyzer_report")
+                        .put("tool_action", "wifi_channel_graph")
+                        .put("open_next_action", "wifi_channel_graph")
+                        .put("graph_type", "wifi_channel_graph")
+                        .put("permission_gate", "nearby_wifi_or_location_permission")
+                        .put("metadata_keys", jsonStringArray(listOf("wifi_networks", "wifi_channel_graph", "wifi_channel_ratings", "wifi_channel_utilization", "wifi_connection_link"))),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_signal_briefing",
+                    label = "Bluetooth metadata evidence",
+                    ready = bluetoothReport.optBoolean("success", false),
+                    valueLabel = "$bluetoothCount device row(s)",
+                    detail = "Gemma can inspect paired or scanned Bluetooth rows, RSSI trends, service labels, manufacturer names, class/category, bond state, proximity buckets, and export-ready detail metadata.",
+                    recommendation = "Open bluetooth_device_details before explaining nearby Bluetooth devices.",
+                    fraction = if (bluetoothCount > 0) 0.92f else 0.72f,
+                    extra = JSONObject()
+                        .put("source_action", "bluetooth_analyzer_report")
+                        .put("tool_action", "bluetooth_device_details")
+                        .put("open_next_action", "bluetooth_device_details")
+                        .put("graph_type", "bluetooth_device_detail")
+                        .put("permission_gate", "bluetooth_scan_or_connect_permission")
+                        .put("metadata_keys", jsonStringArray(listOf("bluetooth_devices", "bluetooth_device_details", "bluetooth_signal_history", "bluetooth_metadata_summary"))),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_signal_briefing",
+                    label = "Motion and sensor evidence",
+                    ready = sensorReport.optBoolean("sensor_service_available", false),
+                    valueLabel = "$motionQualityCount quality row(s)",
+                    detail = "Gemma can inspect accelerometer, gyroscope, rotation, magnetic, gravity, linear acceleration, sensor metadata, cached trends, pose estimates, and sampling policy rows.",
+                    recommendation = "Open motion_sensor_quality for passive readiness or motion_pose when a bounded live sample is needed.",
+                    fraction = if (sensorReport.optBoolean("sensor_service_available", false)) 0.9f else 0.35f,
+                    extra = JSONObject()
+                        .put("source_action", "sensor_analyzer_report")
+                        .put("tool_action", "motion_sensor_quality")
+                        .put("open_next_action", "motion_sensor_quality")
+                        .put("graph_type", "motion_sensor_quality")
+                        .put("permission_gate", "motion_sensor_hardware")
+                        .put("metadata_keys", jsonStringArray(listOf("sensor_capabilities", "motion_sensor_history", "motion_pose_estimates", "motion_sensor_quality", "sensor_sampling_policy_matrix"))),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_signal_briefing",
+                    label = "Radio boundary and bridge evidence",
+                    ready = radioReport.optBoolean("success", false),
+                    valueLabel = if (radioSampleCount > 0) "$radioSampleCount bridge sample(s)" else "bridge required",
+                    detail = "Gemma can inspect AM/FM band plans, receiver profiles, public Android RF limits, Wi-Fi/Bluetooth radio routes, and optional vendor or SDR bridge sample rows.",
+                    recommendation = "Open radio_signal_status for capability limits and radio_signal_graph only when bridge samples exist or are supplied.",
+                    fraction = if (radioSampleCount > 0) 0.88f else 0.68f,
+                    extra = JSONObject()
+                        .put("source_action", "radio_signal_status")
+                        .put("tool_action", "radio_signal_graph")
+                        .put("open_next_action", "radio_signal_graph")
+                        .put("graph_type", "radio_signal_graph")
+                        .put("permission_gate", "vendor_radio_bridge_or_external_sdr")
+                        .put("metadata_keys", jsonStringArray(listOf("radio_bands", "radio_receiver_profiles", "radio_signal_graph_rows", "radio_receiver_bridge_schema"))),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_signal_briefing",
+                    label = "MediaTek and backend evidence",
+                    ready = backendRiskReport.optBoolean("success", false),
+                    valueLabel = "${backendRiskReport.optString("gpu_backend_risk_level").ifBlank { "unknown" }} risk, MediaTek $mediatekScore/100",
+                    detail = "Gemma can inspect SOC/GPU family, OpenCL availability, backend order, LiteRT runtime health, artifact selection policy, thermal, memory, power, and non-Adreno fallback rows.",
+                    recommendation = "Open gpu_backend_risk_report and mediatek_readiness_report before promising local acceleration or rejecting MediaTek/Mali/PowerVR devices.",
+                    fraction = when {
+                        backendRiskScore >= 70 -> 0.96f
+                        backendRiskScore >= 40 -> 0.88f
+                        else -> 0.74f
+                    },
+                    extra = JSONObject()
+                        .put("source_action", "gpu_backend_risk_report")
+                        .put("tool_action", "gpu_backend_risk_report")
+                        .put("open_next_action", "gpu_backend_risk_report")
+                        .put("graph_type", "gpu_backend_risk_matrix")
+                        .put("permission_gate", "phone_validation_required_for_acceleration_claims")
+                        .put("metadata_keys", jsonStringArray(listOf("soc_profile", "gpu_backend_risk_matrix", "mediatek_readiness_matrix", "local_inference_compatibility_matrix", "runtime_backend_matrix"))),
+                ),
+            )
+            .put(
+                capabilityRow(
+                    category = "agent_signal_briefing",
+                    label = "Refresh and permission gates",
+                    ready = true,
+                    valueLabel = "$signalRouteCount signal route row(s)",
+                    detail = "The briefing keeps passive reports separate from live Wi-Fi/Bluetooth refreshes, bounded motion samples, radio bridge samples, and physical phone backend validation.",
+                    recommendation = "Use refresh=false planning first, then call the open_next_action with explicit refresh or sample arguments only when freshness matters.",
+                    fraction = 0.9f,
+                    extra = JSONObject()
+                        .put("source_action", "agent_signal_briefing_report")
+                        .put("tool_action", "agent_card_manifest_report")
+                        .put("open_next_action", "agent_card_manifest_report")
+                        .put("graph_type", "agent_card_manifest")
+                        .put("permission_gate", "source_report_permissions")
+                        .put("metadata_keys", jsonStringArray(listOf("refresh_policy", "permission_gate", "requires_permission", "open_next_action", "source_action"))),
+                ),
+            )
+    }
+
+    private fun agentTopCardSlotRows(priorityReport: JSONObject): JSONArray {
+        val priorityRows = priorityReport.optJSONArray("top_signal_card_priorities") ?: JSONArray()
+        val rows = JSONArray()
+        for (index in 0 until minOf(priorityRows.length(), 8)) {
+            val source = priorityRows.optJSONObject(index) ?: continue
+            val rank = source.optInt("priority_rank", index + 1)
+            val label = source.optString("label").ifBlank { "Top card slot $rank" }
+            val openNextAction = source.optString("open_next_action").ifBlank {
+                source.optString("tool_action").ifBlank { source.optString("source_action") }
+            }
+            val graphType = source.optString("graph_type").ifBlank { "diagnostic_card" }
+            rows.put(
+                capabilityRow(
+                    category = "agent_top_card_slot",
+                    label = "Slot $rank: $label",
+                    ready = source.optBoolean("ready", false),
+                    valueLabel = source.optString("user_visible_surface").ifBlank { source.optString("value_label").ifBlank { openNextAction } },
+                    detail = "${source.optString("detail")} graph_type=$graphType; open_next_action=$openNextAction; refresh_policy=${source.optString("refresh_policy")}; permission_gate=${source.optString("permission_gate")}.",
+                    recommendation = source.optString("recommendation").ifBlank { "Open $openNextAction when this slot matches the user request." },
+                    fraction = jsonDoubleOrNull(source, "fraction")?.toFloat()
+                        ?: if (source.optBoolean("ready", false)) 0.9f else 0.35f,
+                    extra = JSONObject()
+                        .put("slot_rank", rank)
+                        .put("graph_type", graphType)
+                        .put("source_action", source.optString("source_action").ifBlank { openNextAction })
+                        .put("tool_action", openNextAction)
+                        .put("open_next_action", openNextAction)
+                        .put("refresh_policy", source.optString("refresh_policy"))
+                        .put("permission_gate", source.optString("permission_gate"))
+                        .put("requires_permission", source.optBoolean("requires_permission", false))
+                        .put("user_visible_surface", source.optString("user_visible_surface")),
+                ),
+            )
+        }
+        return rows
+    }
+
+    private fun agentSignalMetadataKeyRows(
+        wifiReport: JSONObject,
+        bluetoothReport: JSONObject,
+        sensorReport: JSONObject,
+        radioReport: JSONObject,
+        backendRiskReport: JSONObject,
+        mediatekReport: JSONObject,
+        priorityReport: JSONObject,
+    ): JSONArray {
+        return JSONArray()
+            .put(agentSignalMetadataKeyRow(
+                label = "Wi-Fi Analyzer metadata keys",
+                ready = wifiReport.optBoolean("success", false),
+                sourceAction = "wifi_analyzer_report",
+                graphType = "wifi_channel_graph",
+                keys = listOf("wifi_networks", "wifi_channel_graph", "wifi_channel_ratings", "wifi_channel_utilization", "wifi_access_point_semantics", "wifi_band_coverage", "wifi_connection_link", "applied_wifi_filters"),
+                recommendation = "Use these keys to explain AP graphs, channel pressure, filters, security, and current association evidence.",
+            ))
+            .put(agentSignalMetadataKeyRow(
+                label = "Bluetooth metadata keys",
+                ready = bluetoothReport.optBoolean("success", false),
+                sourceAction = "bluetooth_analyzer_report",
+                graphType = "bluetooth_device_detail",
+                keys = listOf("bluetooth_devices", "bluetooth_device_details", "bluetooth_signal_history", "bluetooth_metadata_summary", "bluetooth_service_label_count", "bluetooth_manufacturer_name_count", "applied_bluetooth_filters"),
+                recommendation = "Use these keys to explain device identity, proximity, BLE services, manufacturer data, and trends.",
+            ))
+            .put(agentSignalMetadataKeyRow(
+                label = "Motion and sensor metadata keys",
+                ready = sensorReport.optBoolean("sensor_service_available", false),
+                sourceAction = "sensor_analyzer_report",
+                graphType = "motion_sensor_quality",
+                keys = listOf("sensor_capabilities", "sensor_samples", "motion_sensor_history", "motion_pose_estimates", "motion_sensor_quality", "sensor_sampling_policy_matrix"),
+                recommendation = "Use these keys to explain accelerometer, gyroscope, pose, calibration, freshness, and sensor workflow evidence.",
+            ))
+            .put(agentSignalMetadataKeyRow(
+                label = "Radio and RF metadata keys",
+                ready = radioReport.optBoolean("success", false),
+                sourceAction = "radio_signal_status",
+                graphType = "radio_signal_graph",
+                keys = listOf("radio_bands", "radio_receiver_profiles", "radio_signal_graph_rows", "radio_receiver_bridge_schema", "radio_signal_feature_matrix", "radio_signal_constraint_matrix"),
+                recommendation = "Use these keys to explain AM/FM limits, vendor or SDR bridge requirements, and public Android radio boundaries.",
+            ))
+            .put(agentSignalMetadataKeyRow(
+                label = "MediaTek backend metadata keys",
+                ready = backendRiskReport.optBoolean("success", false) || mediatekReport.optBoolean("success", false),
+                sourceAction = "gpu_backend_risk_report",
+                graphType = "gpu_backend_risk_matrix",
+                keys = listOf("soc_profile", "gpu_backend_risk_matrix", "gpu_backend_risk_routes", "mediatek_readiness_matrix", "runtime_backend_matrix", "local_inference_compatibility_matrix"),
+                recommendation = "Use these keys before making Snapdragon, Adreno, MediaTek, Mali, PowerVR, Xclipse, or CPU fallback claims.",
+            ))
+            .put(agentSignalMetadataKeyRow(
+                label = "Top-card planner metadata keys",
+                ready = priorityReport.optBoolean("success", false),
+                sourceAction = "agent_card_priority_report",
+                graphType = "agent_card_priority_matrix",
+                keys = listOf("top_signal_card_priorities", "agent_card_open_sequence", "kai_interactive_screen_parity", "agent_card_manifest", "gemma_card_planner_directives"),
+                recommendation = "Use these keys to select and expand the right user-visible card.",
+            ))
+    }
+
+    private fun agentSignalMetadataKeyRow(
+        label: String,
+        ready: Boolean,
+        sourceAction: String,
+        graphType: String,
+        keys: List<String>,
+        recommendation: String,
+    ): JSONObject {
+        return capabilityRow(
+            category = "agent_signal_metadata_keys",
+            label = label,
+            ready = ready,
+            valueLabel = "${keys.size} key(s)",
+            detail = "source_action=$sourceAction; graph_type=$graphType; keys=${keys.joinToString(", ")}.",
+            recommendation = recommendation,
+            fraction = if (ready) 0.88f else 0.45f,
+            extra = JSONObject()
+                .put("source_action", sourceAction)
+                .put("tool_action", sourceAction)
+                .put("graph_type", graphType)
+                .put("metadata_keys", jsonStringArray(keys))
+                .put("metadata_key_count", keys.size),
+        )
+    }
 
     private fun putCanonicalCardManifestRoute(
         rows: JSONArray,
@@ -15005,6 +15392,8 @@ object HermesDeviceDiagnosticsBridge {
         "bluetooth_analyzer_report",
         "bluetooth_scan",
         "bluetooth_signal_history",
+        "bluetooth_device_details",
+        "bluetooth_export",
         "sensor_analyzer_report",
         "motion_sensor_history",
         "motion_pose",
@@ -15023,6 +15412,7 @@ object HermesDeviceDiagnosticsBridge {
         "signal_awareness_report",
         "rf_coexistence_report",
         "agent_signal_evidence_report",
+        "agent_signal_briefing_report",
         "agent_observation_report",
         "agent_card_manifest_report",
         "agent_card_priority_report",

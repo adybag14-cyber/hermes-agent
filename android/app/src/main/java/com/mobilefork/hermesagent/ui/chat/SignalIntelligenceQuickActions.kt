@@ -19,6 +19,13 @@ val SIGNAL_INTELLIGENCE_QUICK_ACTIONS = listOf(
         iconRes = R.drawable.ic_nav_device,
     ),
     SignalIntelligenceQuickAction(
+        id = "signal_briefing",
+        label = "Signal Briefing",
+        diagnosticAction = "agent_signal_briefing_report",
+        prompt = "Run android_device_diagnostics_tool action=agent_signal_briefing_report",
+        iconRes = R.drawable.ic_nav_hermes,
+    ),
+    SignalIntelligenceQuickAction(
         id = "signal_evidence",
         label = "Evidence Bundle",
         diagnosticAction = "agent_signal_evidence_report",

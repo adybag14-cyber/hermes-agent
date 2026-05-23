@@ -485,6 +485,43 @@ def test_android_diagnostics_exposes_agent_observation_dashboard_for_gemma_signa
     assert 'action=agent_card_priority_report' in quick_actions
 
 
+def test_android_diagnostics_exposes_agent_signal_briefing_for_first_read_top_cards():
+    diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
+    chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
+    diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+
+    assert '"agent_signal_briefing_report"' in diagnostics_bridge
+    assert '"signal_briefing_report"' in diagnostics_bridge
+    assert 'agentSignalBriefingReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentSignalBriefingReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalBriefingRows(' in diagnostics_bridge
+    assert 'agentTopCardSlotRows(' in diagnostics_bridge
+    assert 'agentSignalMetadataKeyRows(' in diagnostics_bridge
+    assert 'agentSignalBriefingSourceActions()' in diagnostics_bridge
+    assert '"agent_signal_briefing_matrix"' in diagnostics_bridge
+    assert '"agent_top_card_slots"' in diagnostics_bridge
+    assert '"agent_signal_metadata_keys"' in diagnostics_bridge
+    assert '"gemma_signal_briefing_directives"' in diagnostics_bridge
+    assert 'Agent Signal Briefing' in diagnostics_bridge
+    assert 'Top Card Slots' in diagnostics_bridge
+    assert 'Gemma Metadata Keys' in diagnostics_bridge
+    assert 'Wi-Fi graph evidence' in diagnostics_bridge
+    assert 'Bluetooth metadata evidence' in diagnostics_bridge
+    assert 'Motion and sensor evidence' in diagnostics_bridge
+    assert 'Radio boundary and bridge evidence' in diagnostics_bridge
+    assert 'MediaTek and backend evidence' in diagnostics_bridge
+    assert 'agent_signal_briefing_report' in chat_client
+    assert 'signal_briefing_report' in chat_client
+    assert '"agent_signal_briefing_matrix"' in chat_client
+    assert '"agent_top_card_slots"' in chat_client
+    assert '"agent_signal_metadata_keys"' in chat_client
+    assert '"gemma_signal_briefing_directives"' in chat_client
+    assert '"agent_signal_briefing_matrix", "agent_top_card_slots", "agent_signal_metadata_keys"' in diagnostic_cards
+    assert 'id = "signal_briefing"' in quick_actions
+    assert 'action=agent_signal_briefing_report' in quick_actions
+
+
 def test_android_diagnostics_exposes_signal_evidence_bundle_for_gemma_visible_current_context():
     diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
     chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")

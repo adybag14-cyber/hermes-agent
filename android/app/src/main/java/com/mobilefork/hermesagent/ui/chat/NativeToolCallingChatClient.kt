@@ -1299,9 +1299,9 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_device_diagnostics_tool",
-                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, current Wi-Fi association/link-quality telemetry, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth device detail/export rows, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, motion sensor quality gates for IMU source coverage, freshness, calibration, stability, cadence, and workflow readiness, camera capability, overlay status, passive local backend runtime health, dedicated MediaTek/Dimensity/Helio/Mali/PowerVR/non-Adreno readiness profiles, GPU/backend risk matrices, local inference compatibility scorecards, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible signal evidence bundles, agent observation dashboards with fused signal-context matrices, direct diagnostic card manifests, ranked top-card priority planners with open-next actions and Kai interactive screen parity rows, Kai-style agent environment parity/readiness and tool sandbox/status matrices, passive agent self-check/heartbeat readiness matrices, cross-signal awareness routes, RF coexistence matrices for Wi-Fi/Bluetooth/radio/backend interference summaries, tool catalog, radio analyzer AM/FM band-plan rows, AM/FM signal graph rows, receiver profile schemas for vendor AM/FM and external SDR bridges, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
+                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, current Wi-Fi association/link-quality telemetry, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth device detail/export rows, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, motion sensor quality gates for IMU source coverage, freshness, calibration, stability, cadence, and workflow readiness, camera capability, overlay status, passive local backend runtime health, dedicated MediaTek/Dimensity/Helio/Mali/PowerVR/non-Adreno readiness profiles, GPU/backend risk matrices, local inference compatibility scorecards, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible signal briefing decks and evidence bundles, agent observation dashboards with fused signal-context matrices, direct diagnostic card manifests, ranked top-card priority planners with open-next actions and Kai interactive screen parity rows, Kai-style agent environment parity/readiness and tool sandbox/status matrices, passive agent self-check/heartbeat readiness matrices, cross-signal awareness routes, RF coexistence matrices for Wi-Fi/Bluetooth/radio/backend interference summaries, tool catalog, radio analyzer AM/FM band-plan rows, AM/FM signal graph rows, receiver profile schemas for vendor AM/FM and external SDR bridges, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_connection_link, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, bluetooth_device_details, bluetooth_export, sensor_analyzer_report, motion_sensor_quality, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_signal_graph, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, mediatek_readiness_report, soc_compatibility_report, gpu_backend_risk_report, local_inference_compatibility_report, device_performance_report, signal_awareness_report, rf_coexistence_report, agent_signal_evidence_report, signal_evidence_bundle, agent_observation_report, agent_card_manifest_report, agent_card_priority_report, agent_environment_report, agent_self_check_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
+                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_connection_link, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, bluetooth_device_details, bluetooth_export, sensor_analyzer_report, motion_sensor_quality, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_signal_graph, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, mediatek_readiness_report, soc_compatibility_report, gpu_backend_risk_report, local_inference_compatibility_report, device_performance_report, signal_awareness_report, rf_coexistence_report, agent_signal_briefing_report, agent_signal_evidence_report, signal_evidence_bundle, agent_observation_report, agent_card_manifest_report, agent_card_priority_report, agent_environment_report, agent_self_check_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
                         .put("limit", intProp("Maximum rows for top apps, Wi-Fi networks, or Bluetooth devices. Defaults to 5."))
                         .put("detail_limit", intProp("Maximum Wi-Fi access-point or Bluetooth device detail/export rows. Defaults to limit, or the action max for detail/export actions."))
                         .put("export_format", stringProp("Export format for wifi_export or bluetooth_export: json, csv, or both."))
@@ -3160,7 +3160,7 @@ class NativeToolCallingChatClient(
                     "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel graph envelopes/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names/device detail export rows, radio analyzer checks for AM/FM band-plan boundaries, AM/FM signal graph rows, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, Kai-style custom agent persona/system prompt, Kai-compatible schedule_task/list_tasks/cancel_task native Android task aliases, or Tasker-style automation. " +
                     "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                     "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
-                    "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal evidence bundles, agent observation dashboards, Kai-style agent environment reports, passive agent self-check/heartbeat reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                    "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal briefing decks and evidence bundles, agent observation dashboards, Kai-style agent environment reports, passive agent self-check/heartbeat reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
                     "For broad readiness or stability questions, first call android_device_diagnostics_tool action=agent_self_check_report so heartbeat, wireless, sensors, radio, MediaTek/non-Adreno backend guardrails, and expandable card routes are visible together. " +
                     "For broad questions about what Hermes/Gemma can see from nearby signals, first call android_device_diagnostics_tool action=agent_signal_evidence_report; then drill into Wi-Fi, Bluetooth, sensor, radio, backend-risk, or card-manifest actions only when the evidence rows say a source card or live refresh is needed. " +
                     "Use schedule_task/list_tasks/cancel_task for Kai-style scheduled reminders; these create, list, and cancel native Android automation notification records, not unrestricted background AI prompt execution. " +
@@ -3248,6 +3248,13 @@ class NativeToolCallingChatClient(
         internal fun extractImplicitSignalEvidenceArguments(userText: String): JSONObject? {
             val lower = userText.lowercase()
             val explicitEvidencePhrase = listOf(
+                "signal briefing",
+                "briefing deck",
+                "signal briefing deck",
+                "agent signal briefing",
+                "gemma signal briefing",
+                "top card slots",
+                "what is the agent viewing",
                 "signal evidence",
                 "evidence bundle",
                 "current signal evidence",
@@ -3284,8 +3291,17 @@ class NativeToolCallingChatClient(
                 "multimodal",
                 "gemma",
             ).any { it in lower }
+            val explicitBriefingPhrase = listOf(
+                "signal briefing",
+                "briefing deck",
+                "signal briefing deck",
+                "agent signal briefing",
+                "gemma signal briefing",
+                "top card slots",
+                "what is the agent viewing",
+            ).any { it in lower }
             return if (explicitEvidencePhrase || (asksWhatCanBeSeen && hasSignalDomain)) {
-                JSONObject().put("action", "agent_signal_evidence_report")
+                JSONObject().put("action", if (explicitBriefingPhrase) "agent_signal_briefing_report" else "agent_signal_evidence_report")
             } else {
                 null
             }
@@ -3571,6 +3587,11 @@ class NativeToolCallingChatClient(
             "signal_evidence_bundle",
             "current_signal_evidence",
             "gemma_signal_evidence",
+            "agent_signal_briefing_report",
+            "signal_briefing_report",
+            "gemma_signal_briefing",
+            "agent_top_card_slots",
+            "signal_briefing_deck",
             "agent_observation_report",
             "agent_card_manifest_report",
             "agent_card_priority_report",
@@ -4008,6 +4029,12 @@ internal object NativeToolContextCompressor {
                 "agent_observation_count",
                 "ready_agent_observation_count",
                 "agent_observation_route_count",
+                "agent_signal_briefing_count",
+                "ready_agent_signal_briefing_count",
+                "agent_top_card_slot_count",
+                "ready_agent_top_card_slot_count",
+                "agent_signal_metadata_key_count",
+                "ready_agent_signal_metadata_key_count",
                 "agent_signal_context_count",
                 "ready_agent_signal_context_count",
                 "agent_card_manifest_count",
@@ -4185,6 +4212,10 @@ internal object NativeToolContextCompressor {
         "workflow_readiness_matrix",
         "agent_self_check_matrix",
         "agent_self_check_routes",
+        "agent_signal_briefing_matrix",
+        "agent_top_card_slots",
+        "agent_signal_metadata_keys",
+        "gemma_signal_briefing_directives",
         "agent_observation_matrix",
         "agent_observation_routes",
         "agent_card_manifest",
@@ -4426,6 +4457,10 @@ internal object NativeToolContextCompressor {
         "card_title",
         "card_index",
         "refresh_policy",
+        "slot_rank",
+        "open_next_action",
+        "user_visible_surface",
+        "requires_permission",
         "source_report_success",
         "source_report_scope",
         "parity_source",
@@ -4510,6 +4545,8 @@ internal object NativeToolContextCompressor {
         "access_path",
         "agent_usage",
         "metadata_fields",
+        "metadata_keys",
+        "metadata_key_count",
         "frequency_min_khz",
         "frequency_max_khz",
         "frequency_min_mhz",

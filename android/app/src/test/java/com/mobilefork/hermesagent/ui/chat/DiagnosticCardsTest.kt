@@ -75,6 +75,66 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesAgentSignalBriefingRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Agent Signal Briefing")
+                            .put("body", "What Gemma can view.")
+                            .put("graph_type", "agent_signal_briefing_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_briefing")
+                                        .put("label", "Wi-Fi graph evidence")
+                                        .put("ready", true)
+                                        .put("value_label", "3 AP row(s)")
+                                        .put("detail", "Gemma can inspect Wi-Fi Analyzer rows.")
+                                        .put("recommendation", "Open wifi_channel_graph.")
+                                        .put("fraction", 0.94),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Top Card Slots")
+                            .put("body", "Open-next card slots.")
+                            .put("graph_type", "agent_top_card_slots")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_top_card_slot")
+                                        .put("label", "Slot 1: Wi-Fi channel and AP graph cards")
+                                        .put("ready", true)
+                                        .put("value_label", "Wi-Fi Analyzer")
+                                        .put("detail", "open_next_action=wifi_channel_graph")
+                                        .put("recommendation", "Open the Wi-Fi graph.")
+                                        .put("fraction", 0.96),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("agent_signal_briefing_matrix", cards[0].graphType)
+        assertEquals("Wi-Fi graph evidence", cards[0].rows.single().label)
+        assertEquals("3 AP row(s)", cards[0].rows.single().valueLabel)
+        assertTrue(cards[0].rows.single().detail.contains("agent signal briefing"))
+        assertEquals("agent_top_card_slots", cards[1].graphType)
+        assertEquals("Slot 1: Wi-Fi channel and AP graph cards", cards[1].rows.single().label)
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
     fun parsesWifiGraphRowsForExpandableSignalCards() {
         val content = JSONObject()
             .put(

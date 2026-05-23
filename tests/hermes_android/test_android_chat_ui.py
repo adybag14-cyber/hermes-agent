@@ -71,6 +71,7 @@ def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
 
     for action in [
         "signal_awareness_report",
+        "agent_signal_briefing_report",
         "agent_signal_evidence_report",
         "agent_observation_report",
         "agent_card_priority_report",
@@ -101,6 +102,7 @@ def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
     assert "extractExplicitAndroidDiagnosticsArguments(userText)" in chat_client
     assert 'testTag("HermesSignalQuickAction_${action.id}")' in chat_screen
     assert 'id = "wifi_analyzer"' in actions
+    assert 'id = "signal_briefing"' in actions
     assert 'id = "signal_evidence"' in actions
     assert 'id = "rf_coexistence"' in actions
     assert 'id = "agent_self_check"' in actions
@@ -134,6 +136,9 @@ def test_expanded_activity_rows_show_every_agent_visible_diagnostic_card():
     assert '"radio_signal_graph"' in diagnostic_cards
     assert '"radio_receiver_bridge_schema"' in diagnostic_cards
     assert '"agent_card_priority_matrix"' in diagnostic_cards
+    assert '"agent_signal_briefing_matrix"' in diagnostic_cards
+    assert '"agent_top_card_slots"' in diagnostic_cards
+    assert '"agent_signal_metadata_keys"' in diagnostic_cards
     assert '"agent_card_open_sequence"' in diagnostic_cards
     assert '"kai_interactive_screen_parity"' in diagnostic_cards
     assert '"motion_sensor_history"' in diagnostic_cards
