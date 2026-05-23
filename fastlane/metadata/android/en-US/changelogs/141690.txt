@@ -1,0 +1,6 @@
+Hermes Agent Fork 0.13.116
+
+- Adds a ranked Top Cards planner for Gemma-visible diagnostics and open-next routes.
+- Adds Kai interactive parity rows for memory, heartbeat, fallback, tools, images, and sandbox boundaries.
+- Adds a Top Cards signal quick action and parser support for the new planner graph cards.
+- Keeps F-Droid version metadata aligned for the next signed Android release.

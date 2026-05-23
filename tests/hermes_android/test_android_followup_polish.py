@@ -432,16 +432,28 @@ def test_android_diagnostics_exposes_agent_observation_dashboard_for_gemma_signa
     assert 'agentObservationReportJson(appContext)' in diagnostics_bridge
     assert '"agent_card_manifest_report"' in diagnostics_bridge
     assert 'agentCardManifestReportJson(appContext)' in diagnostics_bridge
+    assert '"agent_card_priority_report"' in diagnostics_bridge
+    assert 'agentCardPriorityReportJson(appContext)' in diagnostics_bridge
     assert 'fun agentObservationReportJson(context: Context): JSONObject' in diagnostics_bridge
     assert 'fun agentCardManifestReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'fun agentCardPriorityReportJson(context: Context): JSONObject' in diagnostics_bridge
     assert 'agentObservationMatrixRows(' in diagnostics_bridge
     assert 'agentObservationRouteRows()' in diagnostics_bridge
     assert 'agentCardManifestRows(' in diagnostics_bridge
     assert 'agentCardManifestSources(' in diagnostics_bridge
+    assert 'agentCardPriorityRows(' in diagnostics_bridge
+    assert 'agentCardOpenSequenceRows()' in diagnostics_bridge
+    assert 'kaiInteractiveScreenParityRows(' in diagnostics_bridge
     assert '"agent_observation_matrix"' in diagnostics_bridge
     assert '"agent_observation_routes"' in diagnostics_bridge
     assert '"agent_card_manifest"' in diagnostics_bridge
+    assert '"top_signal_card_priorities"' in diagnostics_bridge
+    assert '"agent_card_open_sequence"' in diagnostics_bridge
+    assert '"kai_interactive_screen_parity"' in diagnostics_bridge
+    assert '"gemma_card_planner_directives"' in diagnostics_bridge
     assert 'Agent Card Manifest' in diagnostics_bridge
+    assert 'Top Signal Cards' in diagnostics_bridge
+    assert 'Kai Interactive Parity' in diagnostics_bridge
     assert '"gemma_observation_directives"' in diagnostics_bridge
     assert 'Wi-Fi AP metadata and channel graphs' in diagnostics_bridge
     assert 'Bluetooth nearby metadata' in diagnostics_bridge
@@ -450,17 +462,27 @@ def test_android_diagnostics_exposes_agent_observation_dashboard_for_gemma_signa
     assert 'Kai operations and interactive routes' in diagnostics_bridge
     assert 'agent_observation_report' in chat_client
     assert 'agent_card_manifest_report' in chat_client
+    assert 'agent_card_priority_report' in chat_client
     assert '"agent_observation_matrix"' in chat_client
     assert '"agent_observation_routes"' in chat_client
     assert '"agent_card_manifest"' in chat_client
+    assert '"top_signal_card_priorities"' in chat_client
+    assert '"agent_card_open_sequence"' in chat_client
+    assert '"kai_interactive_screen_parity"' in chat_client
+    assert '"gemma_card_planner_directives"' in chat_client
     assert '"agent_card_graph_types"' in chat_client
     assert '"gemma_observation_directives"' in chat_client
     assert '"agent_observation_matrix", "agent_observation_routes"' in diagnostic_cards
     assert '"agent_card_manifest",' in diagnostic_cards
+    assert '"agent_card_priority_matrix"' in diagnostic_cards
+    assert '"agent_card_open_sequence"' in diagnostic_cards
+    assert '"kai_interactive_screen_parity"' in diagnostic_cards
     assert 'id = "agent_observation"' in quick_actions
     assert 'action=agent_observation_report' in quick_actions
     assert 'id = "card_manifest"' in quick_actions
     assert 'action=agent_card_manifest_report' in quick_actions
+    assert 'id = "top_cards"' in quick_actions
+    assert 'action=agent_card_priority_report' in quick_actions
 
 
 def test_android_diagnostics_exposes_signal_evidence_bundle_for_gemma_visible_current_context():

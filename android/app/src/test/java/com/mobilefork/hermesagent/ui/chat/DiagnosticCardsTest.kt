@@ -764,6 +764,92 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesAgentCardPriorityPlannerRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Top Signal Cards")
+                            .put("body", "Ranked cards.")
+                            .put("graph_type", "agent_card_priority_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_card_priority")
+                                        .put("label", "Wi-Fi channel and AP graph cards")
+                                        .put("ready", true)
+                                        .put("value_label", "3 AP row(s)")
+                                        .put("detail", "WiFiAnalyzer-style card route with refresh_policy and permission_gate fields.")
+                                        .put("recommendation", "Open this card first.")
+                                        .put("open_next_action", "wifi_channel_graph")
+                                        .put("refresh_policy", "passive_by_default_refresh_when_needed")
+                                        .put("permission_gate", "nearby_wifi_or_location_permission")
+                                        .put("fraction", 0.95),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Card Open Sequence")
+                            .put("body", "Sequence.")
+                            .put("graph_type", "agent_card_open_sequence")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_card_open_sequence")
+                                        .put("label", "Open ranked top-card planner")
+                                        .put("ready", true)
+                                        .put("value_label", "agent_card_priority_report")
+                                        .put("detail", "Use graph_type and open_next_action before live scans.")
+                                        .put("recommendation", "Use this planner.")
+                                        .put("fraction", 0.96),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Kai Interactive Parity")
+                            .put("body", "Kai rows.")
+                            .put("graph_type", "kai_interactive_screen_parity")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "kai_interactive_screen_parity")
+                                        .put("label", "Generated screen and expandable card parity")
+                                        .put("ready", true)
+                                        .put("value_label", "agent_card_priority_report")
+                                        .put("detail", "Hermes maps Kai-style generated screens to expandable cards.")
+                                        .put("recommendation", "Compare against Hermes cards.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals("Top Signal Cards", cards[0].title)
+        assertEquals("agent_card_priority_matrix", cards[0].graphType)
+        assertEquals("Wi-Fi channel and AP graph cards", cards[0].rows.single().label)
+        assertEquals("3 AP row(s)", cards[0].rows.single().valueLabel)
+        assertTrue(cards[0].rows.single().detail.contains("refresh_policy"))
+        assertTrue(cards[0].rows.single().detail.contains("Open this card first"))
+        assertEquals("Open ranked top-card planner", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("agent card open sequence"))
+        assertEquals("Generated screen and expandable card parity", cards[2].rows.single().label)
+        assertTrue(cards[2].rows.single().detail.contains("kai interactive screen parity"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[2]))
+    }
+
+    @Test
     fun parsesSignalAwarenessRowsForExpandableCards() {
         val content = JSONObject()
             .put(

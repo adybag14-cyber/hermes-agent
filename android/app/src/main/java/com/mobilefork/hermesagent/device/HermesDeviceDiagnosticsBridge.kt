@@ -139,6 +139,8 @@ object HermesDeviceDiagnosticsBridge {
                 agentObservationReportJson(appContext).toString()
             "agent_card_manifest_report", "card_manifest_report", "diagnostic_card_manifest", "graph_card_manifest" ->
                 agentCardManifestReportJson(appContext).toString()
+            "agent_card_priority_report", "agent_top_cards_report", "agent_observation_planner", "top_signal_cards", "kai_card_priority_report" ->
+                agentCardPriorityReportJson(appContext).toString()
             "agent_environment_report", "environment_report", "capability_matrix", "system_capability_report", "kai_parity_report" ->
                 agentEnvironmentReportJson(appContext).toString()
             "agent_self_check_report", "agent_heartbeat_report", "kai_heartbeat_report", "self_check_report", "heartbeat_report" ->
@@ -3784,6 +3786,99 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
+    fun agentCardPriorityReportJson(context: Context): JSONObject {
+        val appContext = context.applicationContext
+        val wifiReport = wifiAnalyzerReportJson(appContext, JSONObject().put("refresh", false))
+        val bluetoothReport = bluetoothAnalyzerReportJson(appContext, JSONObject().put("refresh", false))
+        val sensorReport = sensorAnalyzerReportJson(appContext, JSONObject().put("include_snapshot", false))
+        val radioReport = radioSignalStatusJson(appContext)
+        val signalReport = signalAwarenessReportJson(appContext)
+        val backendRiskReport = gpuBackendRiskReportJson(appContext)
+        val mediatekReport = mediatekReadinessReportJson(appContext)
+        val environmentReport = agentEnvironmentReportJson(appContext)
+        val selfCheckReport = agentSelfCheckReportJson(appContext)
+        val cardManifestSources = agentCardManifestSources(
+            wifiReport = wifiReport,
+            bluetoothReport = bluetoothReport,
+            sensorReport = sensorReport,
+            radioReport = radioReport,
+            backendRiskReport = backendRiskReport,
+            mediatekReport = mediatekReport,
+            signalReport = signalReport,
+            environmentReport = environmentReport,
+        )
+        val cardManifestRows = agentCardManifestRows(cardManifestSources)
+        val priorityRows = agentCardPriorityRows(
+            wifiReport = wifiReport,
+            bluetoothReport = bluetoothReport,
+            sensorReport = sensorReport,
+            radioReport = radioReport,
+            signalReport = signalReport,
+            backendRiskReport = backendRiskReport,
+            mediatekReport = mediatekReport,
+            environmentReport = environmentReport,
+            selfCheckReport = selfCheckReport,
+            cardManifestRows = cardManifestRows,
+        )
+        val openSequenceRows = agentCardOpenSequenceRows()
+        val kaiParityRows = kaiInteractiveScreenParityRows(environmentReport, selfCheckReport)
+        return JSONObject()
+            .put("success", true)
+            .put("action", "agent_card_priority_report")
+            .put("report_scope", "Gemma-visible top-card planner that ranks expandable cards, open-next actions, refresh policy, permission gates, and Kai-style interactive screen parity before the agent explains device signal state.")
+            .put("source_report_actions", agentCardPrioritySourceActions())
+            .put("top_signal_card_priorities", priorityRows)
+            .put("top_signal_card_priority_count", priorityRows.length())
+            .put("ready_top_signal_card_priority_count", countReadyRows(priorityRows))
+            .put("agent_card_open_sequence", openSequenceRows)
+            .put("agent_card_open_sequence_count", openSequenceRows.length())
+            .put("ready_agent_card_open_sequence_count", countReadyRows(openSequenceRows))
+            .put("kai_interactive_screen_parity", kaiParityRows)
+            .put("kai_interactive_screen_parity_count", kaiParityRows.length())
+            .put("ready_kai_interactive_screen_parity_count", countReadyRows(kaiParityRows))
+            .put("agent_card_manifest", cardManifestRows)
+            .put("agent_card_manifest_count", cardManifestRows.length())
+            .put("agent_card_graph_types", cardGraphTypeList(cardManifestRows))
+            .put(
+                "gemma_card_planner_directives",
+                JSONArray()
+                    .put("Read top_signal_card_priorities before explaining Wi-Fi, Bluetooth, sensor, radio, SOC, backend, or Kai readiness.")
+                    .put("Use each row's open_next_action, source_action, graph_type, refresh_policy, and permission_gate fields instead of guessing which card to open.")
+                    .put("Prefer passive refresh=false analyzer reports for planning; ask for live Wi-Fi, Bluetooth, motion, or radio samples only when current data is required.")
+                    .put("Open agent_card_open_sequence when the user asks what to inspect first or which expandable card should be shown next.")
+                    .put("Use kai_interactive_screen_parity to map Kai-style memory, heartbeat, provider fallback, tool sandbox, image, and generated-screen behavior to Hermes Android surfaces.")
+                    .put("Open gpu_backend_risk_report and mediatek_readiness_report before promising MediaTek, Mali, PowerVR, Xclipse, or non-Adreno local acceleration."),
+            )
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        graphCard(
+                            title = "Top Signal Cards",
+                            body = "${priorityRows.length()} ranked card row(s) telling Gemma which expandable diagnostic card to open first.",
+                            graphType = "agent_card_priority_matrix",
+                            rows = priorityRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Card Open Sequence",
+                            body = "${openSequenceRows.length()} ordered open-next route row(s) for planning passive evidence before live scans.",
+                            graphType = "agent_card_open_sequence",
+                            rows = openSequenceRows,
+                        ),
+                    )
+                    .put(
+                        graphCard(
+                            title = "Kai Interactive Parity",
+                            body = "${kaiParityRows.length()} Kai-style context row(s) mapping memory, heartbeat, provider fallback, tools, images, and generated screens to Hermes surfaces.",
+                            graphType = "kai_interactive_screen_parity",
+                            rows = kaiParityRows,
+                        ),
+                    ),
+            )
+    }
+
     private fun rfCoexistenceMatrixRows(
         wifiReport: JSONObject,
         bluetoothReport: JSONObject,
@@ -5248,6 +5343,478 @@ object HermesDeviceDiagnosticsBridge {
         )
         return rows
     }
+
+    private fun agentCardPriorityRows(
+        wifiReport: JSONObject,
+        bluetoothReport: JSONObject,
+        sensorReport: JSONObject,
+        radioReport: JSONObject,
+        signalReport: JSONObject,
+        backendRiskReport: JSONObject,
+        mediatekReport: JSONObject,
+        environmentReport: JSONObject,
+        selfCheckReport: JSONObject,
+        cardManifestRows: JSONArray,
+    ): JSONArray {
+        val wifiNetworkCount = wifiReport.optInt("total_scan_result_count", wifiReport.optJSONArray("wifi_networks")?.length() ?: 0)
+        val bluetoothDeviceCount = bluetoothReport.optInt("bluetooth_device_count", bluetoothReport.optJSONArray("bluetooth_devices")?.length() ?: 0)
+        val bluetoothHistoryCount = bluetoothReport.optInt("bluetooth_signal_history_count", bluetoothReport.optJSONArray("bluetooth_signal_history")?.length() ?: 0)
+        val motionPoseCount = sensorReport.optInt("motion_pose_estimate_count", sensorReport.optJSONArray("motion_pose_estimates")?.length() ?: 0)
+        val signalRouteCount = signalReport.optInt("signal_workflow_route_count", signalReport.optJSONArray("signal_workflow_routes")?.length() ?: 0)
+        val radioBridgeReady = radioReport.optBoolean("radio_signal_graph_bridge_ready", false)
+        val backendRiskScore = backendRiskReport.optInt("gpu_backend_risk_score", 0).coerceIn(0, 100)
+        val backendRiskLevel = backendRiskReport.optString("gpu_backend_risk_level").ifBlank { "unknown" }
+        val mediatekRows = mediatekReport.optJSONArray("mediatek_readiness_matrix") ?: JSONArray()
+        return JSONArray()
+            .put(
+                agentCardPriorityRow(
+                    rank = 1,
+                    label = "Self-check heartbeat and permission gates",
+                    graphType = "agent_self_check_matrix",
+                    sourceAction = "agent_self_check_report",
+                    openNextAction = "agent_self_check_report",
+                    ready = selfCheckReport.optBoolean("success", false),
+                    valueLabel = "${selfCheckReport.optInt("agent_self_check_count", 0)} self-check row(s)",
+                    detail = "Start with heartbeat, analyzer coverage, card routes, backend guardrails, and permission gate status before the model explains what it can currently inspect.",
+                    recommendation = "Open this first for Kai-style status visibility and current diagnostics readiness.",
+                    fraction = if (selfCheckReport.optBoolean("success", false)) 0.98f else 0.35f,
+                    refreshPolicy = "passive_first",
+                    permissionGate = "settings_and_local_state",
+                    userVisibleSurface = "Self-Check",
+                    requiresPermission = false,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 2,
+                    label = "Top signal context fusion",
+                    graphType = "agent_signal_context_matrix",
+                    sourceAction = "agent_observation_report",
+                    openNextAction = "agent_observation_report",
+                    ready = true,
+                    valueLabel = "Wi-Fi Bluetooth sensor radio fusion",
+                    detail = "Fuses Wi-Fi channel/band rows, Bluetooth RSSI/history, motion pose, radio hardware limits, backend risk, and source card routes into one Gemma-readable signal context.",
+                    recommendation = "Open before producing any nearby-signal summary or choosing a scanner card.",
+                    fraction = 0.96f,
+                    refreshPolicy = "passive_first",
+                    permissionGate = "source_report_permissions",
+                    userVisibleSurface = "Signal Context Fusion",
+                    requiresPermission = false,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 3,
+                    label = "Wi-Fi channel and AP graph cards",
+                    graphType = "wifi_channel_graph",
+                    sourceAction = "wifi_channel_graph",
+                    openNextAction = "wifi_channel_graph",
+                    ready = wifiReport.optBoolean("success", false),
+                    valueLabel = "$wifiNetworkCount AP row(s)",
+                    detail = "WiFiAnalyzer-style channel envelopes, ratings, utilization, band coverage, vendor/OUI, security, filters, and AP detail cards are the best first Wi-Fi surface.",
+                    recommendation = "Use refresh=false for planning and refresh=true only when the user needs a current scan.",
+                    fraction = when {
+                        wifiNetworkCount > 0 -> 0.95f
+                        wifiReport.optBoolean("success", false) -> 0.72f
+                        else -> 0.35f
+                    },
+                    refreshPolicy = "passive_by_default_refresh_when_needed",
+                    permissionGate = "nearby_wifi_or_location_permission",
+                    userVisibleSurface = "Wi-Fi Analyzer",
+                    requiresPermission = true,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 4,
+                    label = "Bluetooth detail and RSSI trend cards",
+                    graphType = "bluetooth_device_detail",
+                    sourceAction = "bluetooth_device_details",
+                    openNextAction = "bluetooth_device_details",
+                    ready = bluetoothReport.optBoolean("success", false),
+                    valueLabel = "$bluetoothDeviceCount device(s), $bluetoothHistoryCount trend row(s)",
+                    detail = "Bluetooth detail cards expose identity, class, bond state, RSSI/proximity, service UUID labels, manufacturer IDs, advertisement fields, and export-ready metadata.",
+                    recommendation = "Open per-device details before explaining proximity, paired inventory, BLE service identity, or manufacturer context.",
+                    fraction = when {
+                        bluetoothDeviceCount > 0 -> 0.94f
+                        bluetoothReport.optBoolean("success", false) -> 0.72f
+                        else -> 0.35f
+                    },
+                    refreshPolicy = "passive_after_scan_active_on_request",
+                    permissionGate = "bluetooth_scan_or_connect_permission",
+                    userVisibleSurface = "Bluetooth Details",
+                    requiresPermission = true,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 5,
+                    label = "RF coexistence and signal evidence",
+                    graphType = "rf_coexistence_matrix",
+                    sourceAction = "rf_coexistence_report",
+                    openNextAction = "rf_coexistence_report",
+                    ready = true,
+                    valueLabel = "$signalRouteCount route row(s)",
+                    detail = "Ranks Wi-Fi pressure, Bluetooth activity, radio boundaries, and backend risk together so Gemma can avoid treating each radio source in isolation.",
+                    recommendation = "Open before linking Wi-Fi or Bluetooth observations to interference, motion, thermal, or backend behavior.",
+                    fraction = 0.92f,
+                    refreshPolicy = "passive_fused_context",
+                    permissionGate = "source_report_permissions",
+                    userVisibleSurface = "RF Coexistence",
+                    requiresPermission = false,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 6,
+                    label = "Motion pose and sensor quality",
+                    graphType = "motion_pose_estimate",
+                    sourceAction = "motion_pose",
+                    openNextAction = "motion_pose",
+                    ready = sensorReport.optBoolean("sensor_service_available", false),
+                    valueLabel = "$motionPoseCount pose row(s)",
+                    detail = "Motion cards provide heading, tilt, acceleration state, gyroscope stability, sampling cadence, and sensor fusion quality for movement-aware signal context.",
+                    recommendation = "Keep include_snapshot=false until live pose data is needed, then request bounded sampling.",
+                    fraction = if (sensorReport.optBoolean("sensor_service_available", false)) 0.9f else 0.35f,
+                    refreshPolicy = "bounded_live_sample_on_request",
+                    permissionGate = "motion_sensor_hardware",
+                    userVisibleSurface = "Motion Pose",
+                    requiresPermission = false,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 7,
+                    label = "Radio boundary and bridge cards",
+                    graphType = "radio_signal_graph",
+                    sourceAction = "radio_signal_graph",
+                    openNextAction = "radio_signal_graph",
+                    ready = true,
+                    valueLabel = if (radioBridgeReady) "bridge sample ready" else "bridge or SDR required",
+                    detail = "Radio cards separate public Android Wi-Fi/Bluetooth access from AM/FM or broader RF hardware limits and external SDR/vendor bridge requirements.",
+                    recommendation = "Open before promising AM/FM, microwave, or broad RF scanning from normal phone hardware.",
+                    fraction = if (radioBridgeReady) 0.88f else 0.62f,
+                    refreshPolicy = "bridge_samples_required",
+                    permissionGate = "vendor_radio_bridge_or_external_sdr",
+                    userVisibleSurface = "Radio Signals",
+                    requiresPermission = true,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 8,
+                    label = "MediaTek and backend guardrails",
+                    graphType = "gpu_backend_risk_matrix",
+                    sourceAction = "gpu_backend_risk_report",
+                    openNextAction = "gpu_backend_risk_report",
+                    ready = backendRiskReport.optBoolean("success", false),
+                    valueLabel = "$backendRiskLevel risk, $backendRiskScore/100",
+                    detail = "${mediatekRows.length()} MediaTek readiness row(s) and GPU backend risk rows keep non-Adreno, Mali, PowerVR, Xclipse, thermal, memory, and CPU fallback evidence visible.",
+                    recommendation = "Open before promising local GPU acceleration, Gemma 4 multimodal runtime behavior, or backend policy changes.",
+                    fraction = when {
+                        backendRiskScore >= 70 -> 0.98f
+                        backendRiskScore >= 40 -> 0.9f
+                        backendRiskReport.optBoolean("success", false) -> 0.78f
+                        else -> 0.35f
+                    },
+                    refreshPolicy = "passive_backend_triage",
+                    permissionGate = "phone_validation_required_for_acceleration_claims",
+                    userVisibleSurface = "Backend Risk",
+                    requiresPermission = false,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 9,
+                    label = "Expandable card manifest routes",
+                    graphType = "agent_card_manifest",
+                    sourceAction = "agent_card_manifest_report",
+                    openNextAction = "agent_card_manifest_report",
+                    ready = cardManifestRows.length() > 0,
+                    valueLabel = "${cardManifestRows.length()} card route(s)",
+                    detail = "The manifest maps graph_type, source_action, refresh_policy, permission_gate, row_count, and card_title for every expandable diagnostic card.",
+                    recommendation = "Open when Gemma needs to choose the exact visible card behind a signal-evidence explanation.",
+                    fraction = if (cardManifestRows.length() > 0) 0.93f else 0.35f,
+                    refreshPolicy = "passive_card_route_manifest",
+                    permissionGate = "source_report_permissions",
+                    userVisibleSurface = "Card Manifest",
+                    requiresPermission = false,
+                ),
+            )
+            .put(
+                agentCardPriorityRow(
+                    rank = 10,
+                    label = "Kai operations and interactive parity",
+                    graphType = "kai_interactive_screen_parity",
+                    sourceAction = "agent_card_priority_report",
+                    openNextAction = "agent_card_priority_report",
+                    ready = environmentReport.optBoolean("success", false),
+                    valueLabel = "${environmentReport.optInt("kai_operations_count", 0)} Kai operation row(s)",
+                    detail = "Maps persistent memory, heartbeat, provider fallback, image attachment, generated-screen, MCP/tool bridge, and sandbox context onto Hermes Android cards.",
+                    recommendation = "Use when the user compares Hermes with Kai or asks what the mobile agent can surface interactively.",
+                    fraction = if (environmentReport.optBoolean("success", false)) 0.9f else 0.35f,
+                    refreshPolicy = "passive_agent_readiness",
+                    permissionGate = "settings_and_local_state",
+                    userVisibleSurface = "Kai Interactive Parity",
+                    requiresPermission = false,
+                ),
+            )
+    }
+
+    private fun agentCardPriorityRow(
+        rank: Int,
+        label: String,
+        graphType: String,
+        sourceAction: String,
+        openNextAction: String,
+        ready: Boolean,
+        valueLabel: String,
+        detail: String,
+        recommendation: String,
+        fraction: Float,
+        refreshPolicy: String,
+        permissionGate: String,
+        userVisibleSurface: String,
+        requiresPermission: Boolean,
+    ): JSONObject {
+        return capabilityRow(
+            category = "agent_card_priority",
+            label = label,
+            ready = ready,
+            valueLabel = valueLabel,
+            detail = detail,
+            recommendation = recommendation,
+            fraction = fraction,
+            extra = JSONObject()
+                .put("priority_rank", rank)
+                .put("graph_type", graphType)
+                .put("source_action", sourceAction)
+                .put("tool_action", openNextAction)
+                .put("open_next_action", openNextAction)
+                .put("refresh_policy", refreshPolicy)
+                .put("permission_gate", permissionGate)
+                .put("requires_permission", requiresPermission)
+                .put("user_visible_surface", userVisibleSurface),
+        )
+    }
+
+    private fun agentCardOpenSequenceRows(): JSONArray {
+        return JSONArray()
+            .put(
+                agentCardOpenSequenceRow(
+                    rank = 1,
+                    label = "Run planner self-check first",
+                    graphType = "agent_self_check_matrix",
+                    openNextAction = "agent_self_check_report",
+                    detail = "Establish heartbeat, analyzer, permission, backend, and route readiness before making broad claims.",
+                    recommendation = "Use this when a user asks what Hermes can inspect right now.",
+                    fraction = 0.98f,
+                ),
+            )
+            .put(
+                agentCardOpenSequenceRow(
+                    rank = 2,
+                    label = "Open ranked top-card planner",
+                    graphType = "agent_card_priority_matrix",
+                    openNextAction = "agent_card_priority_report",
+                    detail = "Choose the top visible card from explicit priority_rank, graph_type, refresh_policy, and permission_gate fields.",
+                    recommendation = "Use when the model needs to decide which card to show first.",
+                    fraction = 0.96f,
+                ),
+            )
+            .put(
+                agentCardOpenSequenceRow(
+                    rank = 3,
+                    label = "Open fused observation dashboard",
+                    graphType = "agent_signal_context_matrix",
+                    openNextAction = "agent_observation_report",
+                    detail = "Fuse Wi-Fi, Bluetooth, motion, radio, backend, SOC, local model, Kai operations, and card-manifest rows.",
+                    recommendation = "Use before summarizing nearby signal or device readiness context.",
+                    fraction = 0.94f,
+                ),
+            )
+            .put(
+                agentCardOpenSequenceRow(
+                    rank = 4,
+                    label = "Expand the matching evidence card",
+                    graphType = "agent_card_manifest",
+                    openNextAction = "agent_card_manifest_report",
+                    detail = "Resolve the source action and card title for Wi-Fi, Bluetooth, sensor, radio, backend, or Kai evidence.",
+                    recommendation = "Use source_action from the manifest rather than guessing from natural-language labels.",
+                    fraction = 0.92f,
+                ),
+            )
+            .put(
+                agentCardOpenSequenceRow(
+                    rank = 5,
+                    label = "Escalate to live scans only on request",
+                    graphType = "signal_evidence_routes",
+                    openNextAction = "agent_signal_evidence_report",
+                    detail = "Keep planning passive until the user needs current Wi-Fi, Bluetooth, motion, or radio bridge samples.",
+                    recommendation = "Ask for or trigger refresh=true only when freshness matters.",
+                    fraction = 0.9f,
+                ),
+            )
+    }
+
+    private fun agentCardOpenSequenceRow(
+        rank: Int,
+        label: String,
+        graphType: String,
+        openNextAction: String,
+        detail: String,
+        recommendation: String,
+        fraction: Float,
+    ): JSONObject {
+        return capabilityRow(
+            category = "agent_card_open_sequence",
+            label = label,
+            ready = true,
+            valueLabel = openNextAction,
+            detail = detail,
+            recommendation = recommendation,
+            fraction = fraction,
+            extra = JSONObject()
+                .put("priority_rank", rank)
+                .put("graph_type", graphType)
+                .put("source_action", openNextAction)
+                .put("tool_action", openNextAction)
+                .put("open_next_action", openNextAction)
+                .put("refresh_policy", "passive_first"),
+        )
+    }
+
+    private fun kaiInteractiveScreenParityRows(
+        environmentReport: JSONObject,
+        selfCheckReport: JSONObject,
+    ): JSONArray {
+        val environmentReady = environmentReport.optBoolean("success", false)
+        val selfCheckReady = selfCheckReport.optBoolean("success", false)
+        return JSONArray()
+            .put(
+                kaiInteractiveScreenParityRow(
+                    label = "Persistent memory and persona context",
+                    ready = environmentReady,
+                    valueLabel = "agent_environment_report",
+                    detail = "Hermes surfaces local memory/persona readiness and persistent context boundaries as agent-readable rows.",
+                    openNextAction = "agent_environment_report",
+                    graphType = "kai_parity_matrix",
+                    fraction = if (environmentReady) 0.9f else 0.35f,
+                ),
+            )
+            .put(
+                kaiInteractiveScreenParityRow(
+                    label = "Heartbeat and standby visibility",
+                    ready = selfCheckReady,
+                    valueLabel = "agent_self_check_report",
+                    detail = "Kai-style heartbeat, standby, automation, and route readiness are exposed without implying unrestricted background prompt execution.",
+                    openNextAction = "agent_self_check_report",
+                    graphType = "agent_self_check_matrix",
+                    fraction = if (selfCheckReady) 0.92f else 0.35f,
+                ),
+            )
+            .put(
+                kaiInteractiveScreenParityRow(
+                    label = "Provider fallback and model routing",
+                    ready = environmentReady,
+                    valueLabel = "local_backend_runtime_report",
+                    detail = "Provider/model routing, LiteRT runtime health, GGUF compatibility, and CPU fallback rows provide the Android equivalent of Kai fallback visibility.",
+                    openNextAction = "local_backend_runtime_report",
+                    graphType = "runtime_backend_matrix",
+                    fraction = if (environmentReady) 0.86f else 0.35f,
+                ),
+            )
+            .put(
+                kaiInteractiveScreenParityRow(
+                    label = "Tool and MCP bridge surface",
+                    ready = environmentReady,
+                    valueLabel = "tool_catalog",
+                    detail = "Tool catalog, diagnostics, UI/accessibility, app-private terminal, and bridge rows make the available action surface explicit to the model.",
+                    openNextAction = "tool_catalog",
+                    graphType = "agent_tool_sandbox_matrix",
+                    fraction = if (environmentReady) 0.86f else 0.35f,
+                ),
+            )
+            .put(
+                kaiInteractiveScreenParityRow(
+                    label = "Generated screen and expandable card parity",
+                    ready = true,
+                    valueLabel = "agent_card_priority_report",
+                    detail = "Hermes does not rely on opaque generated screens; it exposes ranked expandable diagnostic cards with graph_type, open_next_action, refresh_policy, and permission gates.",
+                    openNextAction = "agent_card_priority_report",
+                    graphType = "agent_card_priority_matrix",
+                    fraction = 0.9f,
+                ),
+            )
+            .put(
+                kaiInteractiveScreenParityRow(
+                    label = "Image and multimodal inspection context",
+                    ready = environmentReady,
+                    valueLabel = "agent_observation_report",
+                    detail = "Observation and environment cards keep image, local model, screen, UI, and signal evidence discoverable before the agent explains what it can see.",
+                    openNextAction = "agent_observation_report",
+                    graphType = "agent_observation_matrix",
+                    fraction = if (environmentReady) 0.84f else 0.35f,
+                ),
+            )
+            .put(
+                kaiInteractiveScreenParityRow(
+                    label = "Sandbox and permission boundaries",
+                    ready = environmentReady,
+                    valueLabel = "agent_environment_report",
+                    detail = "Sandbox scope, host access limits, permission gates, Android public API limits, and external hardware requirements are visible as rows.",
+                    openNextAction = "agent_environment_report",
+                    graphType = "agent_tool_sandbox_matrix",
+                    fraction = if (environmentReady) 0.86f else 0.35f,
+                ),
+            )
+    }
+
+    private fun kaiInteractiveScreenParityRow(
+        label: String,
+        ready: Boolean,
+        valueLabel: String,
+        detail: String,
+        openNextAction: String,
+        graphType: String,
+        fraction: Float,
+    ): JSONObject {
+        return capabilityRow(
+            category = "kai_interactive_screen_parity",
+            label = label,
+            ready = ready,
+            valueLabel = valueLabel,
+            detail = detail,
+            recommendation = "Use this row to compare Kai-style interactive agent affordances with the concrete Hermes Android card or tool surface.",
+            fraction = fraction,
+            extra = JSONObject()
+                .put("graph_type", graphType)
+                .put("source_action", openNextAction)
+                .put("tool_action", openNextAction)
+                .put("open_next_action", openNextAction)
+                .put("refresh_policy", "passive_agent_readiness")
+                .put("permission_gate", "surface_specific"),
+        )
+    }
+
+    private fun agentCardPrioritySourceActions(): JSONArray = JSONArray()
+        .put("agent_card_priority_report")
+        .put("agent_self_check_report")
+        .put("agent_observation_report")
+        .put("agent_card_manifest_report")
+        .put("agent_signal_evidence_report")
+        .put("signal_awareness_report")
+        .put("rf_coexistence_report")
+        .put("wifi_analyzer_report")
+        .put("wifi_channel_graph")
+        .put("bluetooth_analyzer_report")
+        .put("bluetooth_device_details")
+        .put("sensor_analyzer_report")
+        .put("motion_pose")
+        .put("radio_signal_graph")
+        .put("gpu_backend_risk_report")
+        .put("mediatek_readiness_report")
+        .put("agent_environment_report")
 
     private fun putCanonicalCardManifestRoute(
         rows: JSONArray,
@@ -14458,6 +15025,7 @@ object HermesDeviceDiagnosticsBridge {
         "agent_signal_evidence_report",
         "agent_observation_report",
         "agent_card_manifest_report",
+        "agent_card_priority_report",
         "agent_environment_report",
         "agent_self_check_report",
         "social_gmail_goal_preflight",

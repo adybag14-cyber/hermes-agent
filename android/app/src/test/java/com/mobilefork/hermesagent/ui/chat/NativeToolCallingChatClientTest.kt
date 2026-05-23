@@ -281,6 +281,16 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun extractsExplicitAgentCardPriorityDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_card_priority_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_card_priority_report", parsed.getString("action"))
+    }
+
+    @Test
     fun extractsExplicitLocalBackendRuntimeDiagnosticQuickActionArguments() {
         val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
             "Run android_device_diagnostics_tool action=local_backend_runtime_report",

@@ -73,6 +73,7 @@ def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
         "signal_awareness_report",
         "agent_signal_evidence_report",
         "agent_observation_report",
+        "agent_card_priority_report",
         "agent_environment_report",
         "agent_self_check_report",
         "soc_compatibility_report",
@@ -104,6 +105,7 @@ def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
     assert 'id = "rf_coexistence"' in actions
     assert 'id = "agent_self_check"' in actions
     assert 'id = "agent_observation"' in actions
+    assert 'id = "top_cards"' in actions
     assert 'id = "soc_compatibility"' in actions
     assert 'id = "mediatek_readiness"' in actions
     assert 'id = "backend_risk"' in actions
@@ -131,6 +133,9 @@ def test_expanded_activity_rows_show_every_agent_visible_diagnostic_card():
     assert '"bluetooth_device_detail"' in diagnostic_cards
     assert '"radio_signal_graph"' in diagnostic_cards
     assert '"radio_receiver_bridge_schema"' in diagnostic_cards
+    assert '"agent_card_priority_matrix"' in diagnostic_cards
+    assert '"agent_card_open_sequence"' in diagnostic_cards
+    assert '"kai_interactive_screen_parity"' in diagnostic_cards
     assert '"motion_sensor_history"' in diagnostic_cards
     assert '"motion_sensor_quality"' in diagnostic_cards
     assert '"soc_backend_matrix"' in diagnostic_cards
