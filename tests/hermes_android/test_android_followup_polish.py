@@ -61,6 +61,8 @@ def test_localization_layer_covers_visible_chat_auth_portal_device_and_settings_
         'voiceInputLabel',
         'voiceRecognitionUnavailable',
         'chatStatusText',
+        'endpointStatusIndicatorLabel',
+        'endpointStatusTroubleshootingHint',
         'newChatActionDescription',
         'clearConversationActionDescription',
         'speakLastReplyActionDescription',
@@ -149,6 +151,8 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
         "voiceInputLabel",
         "voiceRecognitionUnavailable",
         "chatStatusText",
+        "endpointStatusIndicatorLabel",
+        "endpointStatusTroubleshootingHint",
         "portalInitialStatus",
         "portalReloadDescription",
         "newChatActionDescription",
@@ -158,6 +162,8 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
 
     assert 'providerId.trim().lowercase()) {\n            "custom"' in strings
     assert 'AppLanguage.CHINESE -> "自定义 OpenAI 兼容端点"' in strings
+    assert 'customEndpointConnectionHint' in strings
+    assert 'If the stream closes early' in strings
     assert 'AppLanguage.CHINESE -> "分支"' in strings
     assert 'alphaBadge = "预览版"' in strings
     assert 'sectionPortal = "门户"' in strings
@@ -166,18 +172,26 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'uiState.provider,' in settings
     assert 'strings.appearancePresetLabel(preset.id, preset.label)' in settings
     assert 'strings.providerCredentialInputHelp(ProviderPresets.apiKeyEnvVars(providerId))' in settings
+    assert 'if (providerId == "custom")' in settings
+    assert 'strings.customEndpointConnectionHint()' in settings
     assert 'if (provider.isBlank())' in settings_view_model
     assert 'provider == "custom"' not in settings_view_model.split("private fun loadApiKeyForProvider", 1)[1].split("fun updateOnDeviceBackend", 1)[0]
     assert 'strings.settingsSavedBackendRestarted()' in settings_view_model
     assert 'android:windowSoftInputMode="adjustResize"' in manifest
     assert '.widthIn(max = 960.dp)\n                        .padding(horizontal = 16.dp, vertical = 12.dp),' in chat
-    assert 'modifier = Modifier\n                        .fillMaxWidth()\n                        .imePadding(),' in chat
+    assert 'adding imePadding here double-lifts the composer on phones' in chat
+    assert '.heightIn(max = 128.dp)\n            .testTag("HermesChatInput")' in chat
+    assert 'maxLines = 3' in chat
+    assert '.imePadding()' not in chat
     assert 'strings = strings' in chat
     assert '.testTag("HermesChatComposerFrame")' in chat
     assert '.testTag("HermesChatComposerCompact")' in chat
     assert 'val stackedComposer = maxWidth < 360.dp' in chat
     assert 'strings.chatDisplayModeLabel(chatDisplayMode)' in chat
     assert 'strings.chatStatusText(text)' in chat
+    assert 'isEndpointStatusText(displayText)' in chat
+    assert 'strings.endpointStatusIndicatorLabel()' in chat
+    assert 'strings.endpointStatusTroubleshootingHint()' in chat
     assert 'strings.userRoleLabel()' in chat
     assert 'strings.attachmentPreviewUnavailable()' in chat
     assert 'strings.voiceRecognitionUnavailable()' in chat
@@ -326,9 +340,36 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
     chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
     diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
     automation_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesAutomationBridge.kt").read_text(encoding="utf-8")
 
     assert '"agent_environment_report"' in diagnostics_bridge
+    assert '"mcp_tool_server_registry_report"' in diagnostics_bridge
+    assert '"agent_objective_coverage_report"' in diagnostics_bridge
+    assert '"agent_upgrade_coverage_report"' in diagnostics_bridge
+    assert '"hermes_upgrade_coverage_report"' in diagnostics_bridge
+    assert '"agent_release_validation_report"' in diagnostics_bridge
+    assert '"github_release_readiness_report"' in diagnostics_bridge
+    assert '"release_validation_readiness_report"' in diagnostics_bridge
+    assert '"agent_capability_upgrade_report"' in diagnostics_bridge
+    assert 'mcpToolServerRegistryReportJson(appContext)' in diagnostics_bridge
+    assert 'agentObjectiveCoverageReportJson(appContext)' in diagnostics_bridge
+    assert 'agentReleaseValidationReportJson(appContext)' in diagnostics_bridge
+    assert 'agentCapabilityUpgradeReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentObjectiveCoverageReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'fun agentReleaseValidationReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'fun agentCapabilityUpgradeReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentObjectiveCoverageRows(' in diagnostics_bridge
+    assert 'agentObjectiveGapRows(' in diagnostics_bridge
+    assert 'agentResearchParityRows()' in diagnostics_bridge
+    assert 'agentReleaseValidationRows(' in diagnostics_bridge
+    assert 'agentReleaseArtifactGateRows(' in diagnostics_bridge
+    assert 'agentFdroidReleaseMetadataRows(' in diagnostics_bridge
+    assert 'agentCapabilityUpgradeRows(' in diagnostics_bridge
+    assert 'agentCapabilityUpgradeRouteRows()' in diagnostics_bridge
+    assert 'fun mcpToolServerRegistryReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'mcpToolServerRegistryRows(' in diagnostics_bridge
+    assert 'mcpToolServerRouteRows(' in diagnostics_bridge
     assert 'agentEnvironmentReportJson(appContext)' in diagnostics_bridge
     assert 'agentCapabilityMatrixRows(' in diagnostics_bridge
     assert 'kaiParityMatrixRows(' in diagnostics_bridge
@@ -340,6 +381,40 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert '"kai_operations_matrix"' in diagnostics_bridge
     assert '"workflow_readiness_matrix"' in diagnostics_bridge
     assert '"agent_tool_sandbox_matrix"' in diagnostics_bridge
+    assert '"mcp_tool_server_registry"' in diagnostics_bridge
+    assert '"mcp_tool_server_routes"' in diagnostics_bridge
+    assert '"agent_objective_coverage_matrix"' in diagnostics_bridge
+    assert '"agent_objective_gap_matrix"' in diagnostics_bridge
+    assert '"agent_research_parity_matrix"' in diagnostics_bridge
+    assert '"agent_release_validation_matrix"' in diagnostics_bridge
+    assert '"agent_release_artifact_gates"' in diagnostics_bridge
+    assert '"fdroid_release_metadata_matrix"' in diagnostics_bridge
+    assert '"agent_upgrade_objective_matrix"' in diagnostics_bridge
+    assert '"agent_upgrade_route_matrix"' in diagnostics_bridge
+    assert 'Objective Coverage' in diagnostics_bridge
+    assert 'Objective Gaps' in diagnostics_bridge
+    assert 'Research Parity Map' in diagnostics_bridge
+    assert 'https://github.com/SimonSchubert/Kai' in diagnostics_bridge
+    assert 'https://github.com/VREMSoftwareDevelopment/WiFiAnalyzer' in diagnostics_bridge
+    assert 'Release and CI proof' in diagnostics_bridge
+    assert 'Release Validation' in diagnostics_bridge
+    assert 'Release Artifact Gates' in diagnostics_bridge
+    assert 'F-Droid Metadata Gates' in diagnostics_bridge
+    assert 'android-release.yml' in diagnostics_bridge
+    assert 'scripts/android_release_manifest.py' in diagnostics_bridge
+    assert 'Fastlane graphics in tagged tree' in diagnostics_bridge
+    assert 'Upgrade Objective Matrix' in diagnostics_bridge
+    assert 'Upgrade Verification Routes' in diagnostics_bridge
+    assert 'Full Hermes upgrade objective audit' in diagnostics_bridge
+    assert 'MCP Tool Servers' in diagnostics_bridge
+    assert 'MCP Routing Policy' in diagnostics_bridge
+    assert 'Streamable HTTP MCP endpoint' in diagnostics_bridge
+    assert 'Context7 documentation server' in diagnostics_bridge
+    assert 'DeepWiki repository docs server' in diagnostics_bridge
+    assert 'Globalping network probe server' in diagnostics_bridge
+    assert 'CoinGecko market data server' in diagnostics_bridge
+    assert 'Find-A-Domain server' in diagnostics_bridge
+    assert 'mcp_streamable_http_supported' in diagnostics_bridge
     assert 'Tool Sandbox Status' in diagnostics_bridge
     assert 'Multi-provider priority and fallback' in diagnostics_bridge
     assert 'Tool and MCP bridge route' in diagnostics_bridge
@@ -364,6 +439,18 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert 'Use SOC and LiteRT backend policy fields to avoid Snapdragon-only assumptions' in diagnostics_bridge
     assert 'Use hindsight_memory_tool and operator heartbeat/status rows' in diagnostics_bridge
     assert 'agent_environment_report' in chat_client
+    assert 'mcp_tool_server_registry_report' in chat_client
+    assert 'agent_objective_coverage_report' in chat_client
+    assert 'agent_upgrade_coverage_report' in chat_client
+    assert 'hermes_upgrade_coverage_report' in chat_client
+    assert 'agent_release_validation_report' in chat_client
+    assert 'github_release_readiness_report' in chat_client
+    assert 'release_validation_readiness_report' in chat_client
+    assert 'agent_capability_upgrade_report' in chat_client
+    assert 'MCP tool-server registry reports' in chat_client
+    assert 'objective coverage/gap and upgrade coverage reports' in chat_client
+    assert 'release validation and GitHub release readiness reports for Android CI' in chat_client
+    assert 'full upgrade objective audit reports' in chat_client
     assert 'export_app_settings/import_app_settings' in chat_client
     assert 'Kai-style custom agent persona/system prompt' in chat_client
     assert 'schedule_task/list_tasks/cancel_task' in chat_client
@@ -377,8 +464,36 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert '"kai_operations_matrix"' in chat_client
     assert '"workflow_readiness_matrix"' in chat_client
     assert '"agent_tool_sandbox_matrix"' in chat_client
+    assert '"mcp_tool_server_registry"' in chat_client
+    assert '"mcp_tool_server_routes"' in chat_client
+    assert '"agent_objective_coverage_matrix"' in chat_client
+    assert '"agent_objective_gap_matrix"' in chat_client
+    assert '"agent_research_parity_matrix"' in chat_client
+    assert '"agent_release_validation_matrix"' in chat_client
+    assert '"agent_release_artifact_gates"' in chat_client
+    assert '"fdroid_release_metadata_matrix"' in chat_client
+    assert '"agent_upgrade_objective_matrix"' in chat_client
+    assert '"agent_upgrade_route_matrix"' in chat_client
     assert '"kai_operations_matrix"' in diagnostic_cards
     assert '"agent_tool_sandbox_matrix"' in diagnostic_cards
+    assert '"mcp_tool_server_registry"' in diagnostic_cards
+    assert '"mcp_tool_server_routes"' in diagnostic_cards
+    assert '"agent_objective_coverage_matrix"' in diagnostic_cards
+    assert '"agent_objective_gap_matrix"' in diagnostic_cards
+    assert '"agent_research_parity_matrix"' in diagnostic_cards
+    assert '"agent_release_validation_matrix"' in diagnostic_cards
+    assert '"agent_release_artifact_gates"' in diagnostic_cards
+    assert '"fdroid_release_metadata_matrix"' in diagnostic_cards
+    assert '"agent_upgrade_objective_matrix"' in diagnostic_cards
+    assert '"agent_upgrade_route_matrix"' in diagnostic_cards
+    assert 'id = "mcp_registry"' in quick_actions
+    assert 'diagnosticAction = "mcp_tool_server_registry_report"' in quick_actions
+    assert 'id = "upgrade_audit"' in quick_actions
+    assert 'diagnosticAction = "agent_capability_upgrade_report"' in quick_actions
+    assert 'id = "objective_coverage"' in quick_actions
+    assert 'diagnosticAction = "agent_objective_coverage_report"' in quick_actions
+    assert 'id = "release_validation"' in quick_actions
+    assert 'diagnosticAction = "agent_release_validation_report"' in quick_actions
     assert '"agent_capability_matrix", "kai_parity_matrix", "agent_workflow_readiness"' in diagnostic_cards
     assert 'capabilityMatrixRow(row)' in diagnostic_cards
     assert '"schedule_task", "kai_schedule_task" -> scheduleTaskJson(context, arguments)' in automation_bridge
@@ -455,10 +570,22 @@ def test_android_diagnostics_exposes_agent_observation_dashboard_for_gemma_signa
     assert 'Top Signal Cards' in diagnostics_bridge
     assert 'Kai Interactive Parity' in diagnostics_bridge
     assert '"gemma_observation_directives"' in diagnostics_bridge
+    assert '"accelerator_preflight_observation_summary"' in diagnostics_bridge
+    assert '"accelerator_preflight_report"' in diagnostics_bridge
+    assert '"accelerator_preflight_matrix"' in diagnostics_bridge
+    assert '"non_adreno_backend_advisor_observation_summary"' in diagnostics_bridge
+    assert '"non_adreno_backend_advisor_report"' in diagnostics_bridge
+    assert '"non_adreno_backend_advisor_matrix"' in diagnostics_bridge
     assert 'Wi-Fi AP metadata and channel graphs' in diagnostics_bridge
     assert 'Bluetooth nearby metadata' in diagnostics_bridge
     assert 'Motion and sensor context' in diagnostics_bridge
     assert 'Radio and RF boundaries' in diagnostics_bridge
+    assert 'Radio advisor and bridge cards' in diagnostics_bridge
+    assert '"radio_signal_advisor_matrix"' in diagnostics_bridge
+    assert '"radio_receiver_candidates"' in diagnostics_bridge
+    assert 'radio_signal_advisor_report' in diagnostics_bridge
+    assert 'Open non-Adreno backend advisor cards' in diagnostics_bridge
+    assert 'Non-Adreno backend advisor route' in diagnostics_bridge
     assert 'Kai operations and interactive routes' in diagnostics_bridge
     assert 'agent_observation_report' in chat_client
     assert 'agent_card_manifest_report' in chat_client
@@ -493,17 +620,48 @@ def test_android_diagnostics_exposes_agent_signal_briefing_for_first_read_top_ca
 
     assert '"agent_signal_briefing_report"' in diagnostics_bridge
     assert '"signal_briefing_report"' in diagnostics_bridge
+    assert '"agent_signal_card_deck_report"' in diagnostics_bridge
+    assert '"agent_signal_card_refresh_plan_report"' in diagnostics_bridge
+    assert '"agent_signal_card_refresh_status_report"' in diagnostics_bridge
+    assert '"expanded_signal_cards"' in diagnostics_bridge
+    assert '"top_card_refresh_plan"' in diagnostics_bridge
+    assert '"top_card_refresh_status"' in diagnostics_bridge
     assert 'agentSignalBriefingReportJson(appContext)' in diagnostics_bridge
+    assert 'agentSignalCardDeckReportJson(appContext)' in diagnostics_bridge
+    assert 'agentSignalCardRefreshPlanReportJson(appContext)' in diagnostics_bridge
+    assert 'agentSignalCardRefreshStatusReportJson(appContext)' in diagnostics_bridge
     assert 'fun agentSignalBriefingReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'fun agentSignalCardDeckReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'fun agentSignalCardRefreshPlanReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'fun agentSignalCardRefreshStatusReportJson(context: Context): JSONObject' in diagnostics_bridge
     assert 'agentSignalBriefingRows(' in diagnostics_bridge
+    assert 'agentSignalCardDeckRows(' in diagnostics_bridge
+    assert 'agentSignalCardRefreshPlanRows(' in diagnostics_bridge
+    assert 'agentSignalCardRefreshStatusRows(' in diagnostics_bridge
     assert 'agentTopCardSlotRows(' in diagnostics_bridge
     assert 'agentSignalMetadataKeyRows(' in diagnostics_bridge
     assert 'agentSignalBriefingSourceActions()' in diagnostics_bridge
+    assert 'fun agentSignalTimelineReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalTimelineRows(' in diagnostics_bridge
+    assert 'agentSignalTimelineRefreshRows()' in diagnostics_bridge
     assert '"agent_signal_briefing_matrix"' in diagnostics_bridge
+    assert '"agent_signal_card_deck_manifest"' in diagnostics_bridge
+    assert '"agent_signal_card_refresh_plan_matrix"' in diagnostics_bridge
+    assert '"agent_signal_card_refresh_status_matrix"' in diagnostics_bridge
+    assert '"agent_signal_timeline"' in diagnostics_bridge
+    assert '"agent_signal_refresh_routes"' in diagnostics_bridge
     assert '"agent_top_card_slots"' in diagnostics_bridge
     assert '"agent_signal_metadata_keys"' in diagnostics_bridge
     assert '"gemma_signal_briefing_directives"' in diagnostics_bridge
     assert 'Agent Signal Briefing' in diagnostics_bridge
+    assert 'Expanded Signal Card Deck' in diagnostics_bridge
+    assert 'Signal Card Refresh Plan' in diagnostics_bridge
+    assert 'Signal Card Refresh Status' in diagnostics_bridge
+    assert 'ready_for_active_refresh' in diagnostics_bridge
+    assert 'status_hint' in diagnostics_bridge
+    assert 'Bluetooth Nearby Advisor' in diagnostics_bridge
+    assert 'Bluetooth Device Candidates' in diagnostics_bridge
+    assert 'Motion Sensor Workflow' in diagnostics_bridge
     assert 'Top Card Slots' in diagnostics_bridge
     assert 'Gemma Metadata Keys' in diagnostics_bridge
     assert 'Wi-Fi graph evidence' in diagnostics_bridge
@@ -511,15 +669,39 @@ def test_android_diagnostics_exposes_agent_signal_briefing_for_first_read_top_ca
     assert 'Motion and sensor evidence' in diagnostics_bridge
     assert 'Radio boundary and bridge evidence' in diagnostics_bridge
     assert 'MediaTek and backend evidence' in diagnostics_bridge
+    assert 'accelerator_preflight_report' in diagnostics_bridge
+    assert 'accelerator_preflight_matrix' in diagnostics_bridge
+    assert 'Refresh accelerator preflight' in diagnostics_bridge
+    assert 'delegate preflight' in diagnostics_bridge
     assert 'agent_signal_briefing_report' in chat_client
+    assert 'agent_signal_card_deck_report' in chat_client
+    assert 'agent_signal_card_refresh_plan_report' in chat_client
+    assert 'agent_signal_card_refresh_status_report' in chat_client
+    assert 'agent_signal_timeline_report' in chat_client
     assert 'signal_briefing_report' in chat_client
     assert '"agent_signal_briefing_matrix"' in chat_client
+    assert '"agent_signal_card_deck_manifest"' in chat_client
+    assert '"agent_signal_card_refresh_plan_matrix"' in chat_client
+    assert '"agent_signal_card_refresh_status_matrix"' in chat_client
+    assert '"agent_signal_timeline"' in diagnostic_cards
+    assert '"agent_signal_card_deck_manifest"' in diagnostic_cards
+    assert '"agent_signal_card_refresh_plan_matrix"' in diagnostic_cards
+    assert '"agent_signal_card_refresh_status_matrix"' in diagnostic_cards
+    assert '"agent_signal_refresh_routes"' in diagnostic_cards
     assert '"agent_top_card_slots"' in chat_client
     assert '"agent_signal_metadata_keys"' in chat_client
     assert '"gemma_signal_briefing_directives"' in chat_client
-    assert '"agent_signal_briefing_matrix", "agent_top_card_slots", "agent_signal_metadata_keys"' in diagnostic_cards
+    assert '"agent_signal_briefing_matrix", "agent_signal_timeline", "agent_signal_refresh_routes",' in diagnostic_cards
     assert 'id = "signal_briefing"' in quick_actions
+    assert 'id = "signal_card_deck"' in quick_actions
+    assert 'id = "card_refresh_plan"' in quick_actions
+    assert 'id = "card_refresh_status"' in quick_actions
+    assert 'id = "signal_timeline"' in quick_actions
     assert 'action=agent_signal_briefing_report' in quick_actions
+    assert 'action=agent_signal_card_deck_report' in quick_actions
+    assert 'action=agent_signal_card_refresh_plan_report' in quick_actions
+    assert 'action=agent_signal_card_refresh_status_report' in quick_actions
+    assert 'action=agent_signal_timeline_report' in quick_actions
 
 
 def test_android_diagnostics_exposes_signal_evidence_bundle_for_gemma_visible_current_context():
@@ -545,8 +727,12 @@ def test_android_diagnostics_exposes_signal_evidence_bundle_for_gemma_visible_cu
     assert 'Motion and sensor evidence' in diagnostics_bridge
     assert 'AM/FM and RF boundary evidence' in diagnostics_bridge
     assert 'Local inference readiness evidence' in diagnostics_bridge
+    assert 'Accelerator delegate preflight evidence' in diagnostics_bridge
     assert 'Permission and refresh evidence' in diagnostics_bridge
     assert 'local_inference_compatibility_report' in diagnostics_bridge
+    assert 'accelerator_preflight_evidence_summary' in diagnostics_bridge
+    assert 'accelerator_preflight_report' in diagnostics_bridge
+    assert 'accelerator_preflight_matrix' in diagnostics_bridge
     assert 'agent_signal_evidence_report' in chat_client
     assert 'signal_evidence_bundle' in chat_client
     assert 'extractImplicitSignalEvidenceArguments(userText)' in chat_client
@@ -568,6 +754,193 @@ def test_android_diagnostics_exposes_signal_evidence_bundle_for_gemma_visible_cu
     assert '"signal_evidence_matrix", "signal_evidence_routes"' in diagnostic_cards
     assert 'id = "signal_evidence"' in quick_actions
     assert 'action=agent_signal_evidence_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_signal_replay_export_bundle_for_portable_context():
+    diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
+    chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
+    diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+
+    assert '"agent_signal_replay_export_report"' in diagnostics_bridge
+    assert '"signal_replay_export"' in diagnostics_bridge
+    assert '"signal_evidence_export"' in diagnostics_bridge
+    assert 'agentSignalReplayExportReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentSignalReplayExportReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalReplayExportManifestRows(' in diagnostics_bridge
+    assert 'agentSignalReplayFrameRows(' in diagnostics_bridge
+    assert 'agentSignalReplayMetadataKeyRows()' in diagnostics_bridge
+    assert 'agentSignalReplayExportSourceActions()' in diagnostics_bridge
+    assert 'signalReplayExportGraphTypes()' in diagnostics_bridge
+    assert 'agentSignalReplayExportBundleJson(' in diagnostics_bridge
+    assert '"agent_signal_replay_export_manifest"' in diagnostics_bridge
+    assert '"agent_signal_replay_frame_index"' in diagnostics_bridge
+    assert '"agent_signal_replay_metadata_keys"' in diagnostics_bridge
+    assert '"agent_signal_replay_export_bundle"' in diagnostics_bridge
+    assert '"gemma_signal_replay_export_directives"' in diagnostics_bridge
+    assert 'Signal Replay Export' in diagnostics_bridge
+    assert 'Replay Frame Index' in diagnostics_bridge
+    assert 'Replay Metadata Keys' in diagnostics_bridge
+    assert 'agent_signal_replay_export_report' in chat_client
+    assert 'signal replay/export bundles' in chat_client
+    assert 'signal replay export' in chat_client
+    assert 'signal_evidence_export' in chat_client
+    assert 'diagnosticArguments("agent_signal_replay_export_report")' in chat_client
+    assert '"agent_signal_replay_export_manifest"' in chat_client
+    assert '"agent_signal_replay_frame_index"' in chat_client
+    assert '"agent_signal_replay_metadata_keys"' in chat_client
+    assert '"agent_signal_replay_export_bundle"' in chat_client
+    assert '"gemma_signal_replay_export_directives"' in chat_client
+    assert '"bundle_kind"' in chat_client
+    assert '"schema_version"' in chat_client
+    assert '"export_status"' in chat_client
+    assert '"replay_frame"' in chat_client
+    assert '"frame_key"' in chat_client
+    assert '"claim_scope"' in chat_client
+    assert '"proof_status"' in chat_client
+    assert '"agent_signal_replay_export_manifest"' in diagnostic_cards
+    assert '"agent_signal_replay_frame_index"' in diagnostic_cards
+    assert '"agent_signal_replay_metadata_keys"' in diagnostic_cards
+    assert 'id = "signal_replay_export"' in quick_actions
+    assert 'label = "Replay Export"' in quick_actions
+    assert 'action=agent_signal_replay_export_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_signal_replay_freshness_audit_for_staleness_safe_exports():
+    diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
+    chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
+    diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+
+    assert '"agent_signal_replay_freshness_audit_report"' in diagnostics_bridge
+    assert '"signal_replay_freshness"' in diagnostics_bridge
+    assert 'agentSignalReplayFreshnessAuditReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentSignalReplayFreshnessAuditReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalReplayFreshnessRows(' in diagnostics_bridge
+    assert 'agentSignalReplayRefreshRouteRows(' in diagnostics_bridge
+    assert 'agentSignalReplayStalenessSummaryRows(' in diagnostics_bridge
+    assert 'agentSignalReplayFreshnessSourceActions()' in diagnostics_bridge
+    assert 'agentSignalReplayFreshnessGraphTypes()' in diagnostics_bridge
+    assert '"agent_signal_replay_freshness_matrix"' in diagnostics_bridge
+    assert '"agent_signal_replay_refresh_routes"' in diagnostics_bridge
+    assert '"agent_signal_replay_staleness_summary"' in diagnostics_bridge
+    assert '"gemma_signal_replay_freshness_directives"' in diagnostics_bridge
+    assert 'Replay Freshness Audit' in diagnostics_bridge
+    assert 'Replay Refresh Routes' in diagnostics_bridge
+    assert 'Replay Staleness Summary' in diagnostics_bridge
+    assert 'agent_signal_replay_freshness_audit_report' in chat_client
+    assert 'replay freshness/staleness audits' in chat_client
+    assert 'freshness_status' in chat_client
+    assert 'staleness_risk' in chat_client
+    assert 'diagnosticArguments("agent_signal_replay_freshness_audit_report")' in chat_client
+    assert '"agent_signal_replay_freshness_matrix"' in chat_client
+    assert '"agent_signal_replay_refresh_routes"' in chat_client
+    assert '"agent_signal_replay_staleness_summary"' in chat_client
+    assert '"gemma_signal_replay_freshness_directives"' in chat_client
+    assert '"freshness_status"' in chat_client
+    assert '"staleness_risk"' in chat_client
+    assert '"route_type"' in chat_client
+    assert '"agent_signal_replay_freshness_matrix"' in diagnostic_cards
+    assert '"agent_signal_replay_refresh_routes"' in diagnostic_cards
+    assert '"agent_signal_replay_staleness_summary"' in diagnostic_cards
+    assert 'id = "signal_replay_freshness"' in quick_actions
+    assert 'label = "Replay Freshness"' in quick_actions
+    assert 'action=agent_signal_replay_freshness_audit_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_signal_workflow_handoff_for_gemma_next_actions():
+    diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
+    chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
+    diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+
+    assert '"agent_signal_workflow_handoff_report"' in diagnostics_bridge
+    assert '"signal_workflow_handoff_report"' in diagnostics_bridge
+    assert '"agent_next_signal_action_report"' in diagnostics_bridge
+    assert 'agentSignalWorkflowHandoffReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentSignalWorkflowHandoffReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalWorkflowHandoffRows(' in diagnostics_bridge
+    assert 'agentSignalNextActionRouteRows()' in diagnostics_bridge
+    assert 'agentSignalWorkflowHandoffSourceActions()' in diagnostics_bridge
+    assert '"agent_signal_workflow_handoff_matrix"' in diagnostics_bridge
+    assert '"agent_signal_next_action_routes"' in diagnostics_bridge
+    assert '"gemma_signal_workflow_handoff_directives"' in diagnostics_bridge
+    assert 'Signal Workflow Handoff' in diagnostics_bridge
+    assert 'Next Signal Actions' in diagnostics_bridge
+    assert 'Open Wi-Fi Analyzer graph' in diagnostics_bridge
+    assert 'Open Bluetooth details and RSSI trends' in diagnostics_bridge
+    assert 'Open motion sensor quality before pose' in diagnostics_bridge
+    assert 'Open radio receiver advisor' in diagnostics_bridge
+    assert 'Open non-Adreno backend advisor' in diagnostics_bridge
+    assert 'Open non-Adreno backend launch advisor' in diagnostics_bridge
+    assert 'Open Kai/MCP registry' in diagnostics_bridge
+    assert 'bridge_required' in diagnostics_bridge
+    assert 'physical_device_validation_required' in diagnostics_bridge
+    assert 'passive_workflow_handoff' in diagnostics_bridge
+    assert 'source_report_permissions_and_hardware_boundaries' in diagnostics_bridge
+    assert 'agent_signal_workflow_handoff_report' in chat_client
+    assert 'signal workflow handoff and next-action reports' in chat_client
+    assert 'diagnosticArguments("agent_signal_workflow_handoff_report")' in chat_client
+    assert '"agent_signal_workflow_handoff_matrix"' in chat_client
+    assert '"agent_signal_next_action_routes"' in chat_client
+    assert '"gemma_signal_workflow_handoff_directives"' in chat_client
+    assert '"agent_signal_workflow_handoff_count"' in chat_client
+    assert '"agent_signal_next_action_route_count"' in chat_client
+    assert '"agent_signal_workflow_handoff_matrix"' in diagnostic_cards
+    assert '"agent_signal_next_action_routes"' in diagnostic_cards
+    assert 'id = "workflow_handoff"' in quick_actions
+    assert 'label = "Workflow Handoff"' in quick_actions
+    assert 'action=agent_signal_workflow_handoff_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_signal_permission_runbook_for_active_refresh_gates():
+    diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
+    chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
+    diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+
+    assert '"agent_signal_permission_runbook_report"' in diagnostics_bridge
+    assert '"signal_permission_runbook_report"' in diagnostics_bridge
+    assert '"signal_refresh_runbook_report"' in diagnostics_bridge
+    assert '"agent_signal_refresh_runbook_report"' in diagnostics_bridge
+    assert '"active_signal_refresh_runbook"' in diagnostics_bridge
+    assert '"signal_active_refresh_routes"' in diagnostics_bridge
+    assert 'agentSignalPermissionRunbookReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentSignalPermissionRunbookReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalPermissionRunbookRows(' in diagnostics_bridge
+    assert 'agentSignalActiveRefreshRouteRows()' in diagnostics_bridge
+    assert 'agentSignalPermissionRunbookSourceActions()' in diagnostics_bridge
+    assert '"agent_signal_permission_runbook_matrix"' in diagnostics_bridge
+    assert '"agent_signal_active_refresh_routes"' in diagnostics_bridge
+    assert '"gemma_signal_permission_runbook_directives"' in diagnostics_bridge
+    assert 'Prepare active Wi-Fi scan' in diagnostics_bridge
+    assert 'Prepare active Bluetooth scan' in diagnostics_bridge
+    assert 'Prepare motion sensor sample' in diagnostics_bridge
+    assert 'Prepare AM/FM or SDR bridge samples' in diagnostics_bridge
+    assert 'Prepare accelerator proof refresh' in diagnostics_bridge
+    assert 'active_refresh_arguments' in diagnostics_bridge
+    assert 'passive_fallback_action' in diagnostics_bridge
+    assert 'user_consent_required' in diagnostics_bridge
+    assert 'settings_actions' in diagnostics_bridge
+    assert 'open_app_settings' in diagnostics_bridge
+    assert 'open_location_settings' in diagnostics_bridge
+    assert 'open_wifi_settings' in diagnostics_bridge
+    assert 'open_bluetooth_settings' in diagnostics_bridge
+    assert '"agent_signal_permission_runbook_report"' in chat_client
+    assert 'signal permission and active-refresh runbooks' in chat_client
+    assert 'diagnosticArguments("agent_signal_permission_runbook_report")' in chat_client
+    assert '"agent_signal_permission_runbook_matrix"' in chat_client
+    assert '"agent_signal_active_refresh_routes"' in chat_client
+    assert '"gemma_signal_permission_runbook_directives"' in chat_client
+    assert '"agent_signal_permission_runbook_count"' in chat_client
+    assert '"agent_signal_active_refresh_route_count"' in chat_client
+    assert '"settings_actions"' in chat_client
+    assert '"active_refresh_arguments"' in chat_client
+    assert '"agent_signal_permission_runbook_matrix"' in diagnostic_cards
+    assert '"agent_signal_active_refresh_routes"' in diagnostic_cards
+    assert 'id = "permission_runbook"' in quick_actions
+    assert 'label = "Permission Runbook"' in quick_actions
+    assert 'action=agent_signal_permission_runbook_report' in quick_actions
 
 
 def test_android_diagnostics_exposes_signal_awareness_report_for_cross_signal_cards():
@@ -595,15 +968,43 @@ def test_android_diagnostics_exposes_signal_awareness_report_for_cross_signal_ca
     assert '"radio_signal_graph_sample_summary"' in diagnostics_bridge
     assert '"radio_receiver_bridge_schema"' in diagnostics_bridge
     assert '"radio_samples_json"' in diagnostics_bridge
+    assert '"radio_bridge_samples"' in diagnostics_bridge
+    assert '"sdr_samples_json"' in diagnostics_bridge
+    assert '"radio_signal_advisor_report"' in diagnostics_bridge
+    assert 'radioSignalAdvisorReportJson(appContext' in diagnostics_bridge
+    assert '"radio_signal_decision_packet_report"' in diagnostics_bridge
+    assert 'radioSignalDecisionPacketReportJson(appContext' in diagnostics_bridge
+    assert 'fun radioSignalDecisionPacketReportJson(context: Context' in diagnostics_bridge
+    assert 'radioSignalDecisionPacketRows(' in diagnostics_bridge
+    assert 'radioSignalDecisionRouteRows(' in diagnostics_bridge
+    assert 'radioSignalDecisionClaimBoundaryRows(' in diagnostics_bridge
+    assert 'radioSignalAdvisorRows(' in diagnostics_bridge
+    assert 'radioReceiverCandidateRows(' in diagnostics_bridge
+    assert '"radio_signal_advisor_matrix"' in diagnostics_bridge
+    assert '"radio_receiver_candidates"' in diagnostics_bridge
+    assert '"gemma_radio_advisor_directives"' in diagnostics_bridge
+    assert '"radio_signal_decision_packet"' in diagnostics_bridge
+    assert '"radio_signal_decision_routes"' in diagnostics_bridge
+    assert '"radio_signal_claim_boundaries"' in diagnostics_bridge
+    assert '"gemma_radio_signal_decision_directives"' in diagnostics_bridge
+    assert '"radio_bridge_sample_metadata"' in diagnostics_bridge
+    assert 'radioBridgeSampleMetadataRows(' in diagnostics_bridge
+    assert 'accepted_radio_bridge_sample_array_keys' in diagnostics_bridge
+    assert 'metadata_completeness_score' in diagnostics_bridge
     assert 'radioReceiverBridgeSchemaRows(' in diagnostics_bridge
     assert 'appendRadioSampleRowsFromString(' in diagnostics_bridge
     assert '"AM/FM Signal Graph"' in diagnostics_bridge
+    assert '"Radio Bridge Sample Metadata"' in diagnostics_bridge
     assert 'radioBandPlanRows(' in diagnostics_bridge
     assert 'cached_wifi_signal_history' in diagnostics_bridge
     assert 'Route broad RF explanation' in diagnostics_bridge
     assert 'signal_awareness_report' in chat_client
     assert 'radio_analyzer_report' in chat_client
     assert 'radio_signal_graph' in chat_client
+    assert 'radio_signal_advisor_report' in chat_client
+    assert 'radio_signal_decision_packet_report' in chat_client
+    assert 'diagnosticArguments("radio_signal_advisor_report")' in chat_client
+    assert 'diagnosticArguments("radio_signal_decision_packet_report")' in chat_client
     assert '"signal_awareness_matrix"' in chat_client
     assert '"signal_workflow_routes"' in chat_client
     assert '"signal_constraint_matrix"' in chat_client
@@ -612,16 +1013,35 @@ def test_android_diagnostics_exposes_signal_awareness_report_for_cross_signal_ca
     assert '"radio_signal_constraint_matrix"' in chat_client
     assert '"radio_signal_graph_rows"' in chat_client
     assert '"radio_signal_graph_sample_rows"' in chat_client
+    assert '"radio_signal_advisor_matrix"' in chat_client
+    assert '"radio_receiver_candidates"' in chat_client
+    assert '"gemma_radio_advisor_directives"' in chat_client
+    assert '"radio_signal_decision_packet"' in chat_client
+    assert '"radio_signal_decision_routes"' in chat_client
+    assert '"radio_signal_claim_boundaries"' in chat_client
+    assert '"gemma_radio_signal_decision_directives"' in chat_client
+    assert '"radio_bridge_sample_metadata"' in chat_client
     assert '"radio_receiver_bridge_schema"' in chat_client
     assert '"radio_samples_json"' in chat_client
+    assert '"radio_bridge_samples_json"' in chat_client
+    assert '"sdr_samples_json"' in chat_client
+    assert '"span_hz"' in chat_client
+    assert '"sample_rate_hz"' in chat_client
     assert '"frequency_mhz"' in chat_client
     assert '"rds_radio_text"' in chat_client
     assert '"signal_awareness_matrix", "signal_workflow_routes", "signal_constraint_matrix",' in diagnostic_cards
     assert '"radio_signal_feature_matrix", "radio_signal_workflow_routes", "radio_signal_constraint_matrix",' in diagnostic_cards
+    assert '"radio_signal_decision_packet", "radio_signal_decision_routes", "radio_signal_claim_boundaries"' in diagnostic_cards
     assert '"radio_signal_graph" -> radioSignalGraphRow(row)' in diagnostic_cards
+    assert '"radio_signal_advisor_matrix", "radio_receiver_candidates"' in diagnostic_cards
+    assert '"radio_bridge_sample_metadata" -> capabilityMatrixRow(row)' in diagnostic_cards
     assert '"radio_receiver_bridge_schema" -> radioReceiverProfileRow(row)' in diagnostic_cards
     assert 'radioSignalGraphRow(' in diagnostic_cards
     assert 'diagnosticAction = "radio_signal_graph"' in quick_actions
+    assert 'diagnosticAction = "radio_signal_advisor_report"' in quick_actions
+    assert 'diagnosticAction = "radio_signal_decision_packet_report"' in quick_actions
+    assert 'id = "radio_advisor"' in quick_actions
+    assert 'id = "radio_decision"' in quick_actions
 
 
 def test_android_diagnostics_exposes_rf_coexistence_report_for_wifi_bluetooth_radio_context():
@@ -686,6 +1106,37 @@ def test_android_diagnostics_exposes_soc_compatibility_report_for_backend_policy
     assert 'Phone validation scope' in diagnostics_bridge
     assert '"local_backend_runtime_report"' in diagnostics_bridge
     assert 'localBackendRuntimeReportJson(appContext)' in diagnostics_bridge
+    assert '"accelerator_preflight_report"' in diagnostics_bridge
+    assert 'acceleratorPreflightReportJson(appContext)' in diagnostics_bridge
+    assert 'fun acceleratorPreflightReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'acceleratorPreflightRows(' in diagnostics_bridge
+    assert '"accelerator_preflight_matrix"' in diagnostics_bridge
+    assert '"accelerator_preflight_count"' in diagnostics_bridge
+    assert '"non_adreno_backend_advisor_report"' in diagnostics_bridge
+    assert 'nonAdrenoBackendAdvisorReportJson(appContext)' in diagnostics_bridge
+    assert 'fun nonAdrenoBackendAdvisorReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'nonAdrenoBackendAdvisorRows(' in diagnostics_bridge
+    assert '"non_adreno_backend_advisor_matrix"' in diagnostics_bridge
+    assert '"non_adreno_backend_launch_sequence"' in diagnostics_bridge
+    assert '"gemma_non_adreno_backend_directives"' in diagnostics_bridge
+    assert '"mediatek_backend_launch_checklist_report"' in diagnostics_bridge
+    assert 'mediatekBackendLaunchChecklistReportJson(appContext)' in diagnostics_bridge
+    assert 'fun mediatekBackendLaunchChecklistReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'mediatekBackendLaunchChecklistRows(' in diagnostics_bridge
+    assert '"mediatek_backend_launch_checklist_matrix"' in diagnostics_bridge
+    assert '"gemma_mediatek_launch_directives"' in diagnostics_bridge
+    assert 'MediaTek Launch Checklist' in diagnostics_bridge
+    assert 'Verify GPU proof or name CPU fallback' in diagnostics_bridge
+    assert 'launch_gate_status' in diagnostics_bridge
+    assert 'live_runtime_proof' in diagnostics_bridge
+    assert 'cpu_fallback_explicit' in diagnostics_bridge
+    assert 'Classify device family before launch' in diagnostics_bridge
+    assert 'Choose artifact lane without Qualcomm bias' in diagnostics_bridge
+    assert 'Prove live accelerator state' in diagnostics_bridge
+    assert 'ABI and package lane' in diagnostics_bridge
+    assert 'OpenCL library visibility' in diagnostics_bridge
+    assert 'opencl_probe_loads_library' in diagnostics_bridge
+    assert 'Non-Adreno GPU policy' in diagnostics_bridge
     assert 'runtimeBackendMatrixRows(' in diagnostics_bridge
     assert 'LiteRtLmOpenAiProxy.currentHealthJson()' in diagnostics_bridge
     assert 'socBackendMatrixRows(' in diagnostics_bridge
@@ -704,6 +1155,13 @@ def test_android_diagnostics_exposes_soc_compatibility_report_for_backend_policy
     assert 'MediaTek/Mali/PowerVR coverage' in diagnostics_bridge
     assert 'Avoid Adreno-only assumptions' in diagnostics_bridge
     assert 'local_backend_runtime_report' in chat_client
+    assert 'accelerator_preflight_report' in chat_client
+    assert 'non_adreno_backend_advisor_report' in chat_client
+    assert 'non_adreno_backend_advisor_matrix' in chat_client
+    assert 'non_adreno_backend_launch_sequence' in chat_client
+    assert 'mediatek_backend_launch_checklist_report' in chat_client
+    assert '"mediatek_backend_launch_checklist_matrix"' in chat_client
+    assert 'gemma_mediatek_launch_directives' in chat_client
     assert 'soc_compatibility_report' in chat_client
     assert 'gpu_backend_risk_report' in chat_client
     assert 'local_inference_compatibility_report' in chat_client
@@ -718,7 +1176,11 @@ def test_android_diagnostics_exposes_soc_compatibility_report_for_backend_policy
     assert '"gpu_backend_risk_matrix"' in chat_client
     assert '"gpu_backend_risk_routes"' in chat_client
     assert '"local_inference_compatibility_matrix"' in chat_client
+    assert '"accelerator_preflight_matrix"' in chat_client
     assert '"gpu_backend_risk_matrix", "gpu_backend_risk_routes",' in diagnostic_cards
+    assert '"non_adreno_backend_advisor_matrix"' in diagnostic_cards
+    assert '"mediatek_backend_launch_checklist_matrix"' in diagnostic_cards
+    assert '"accelerator_preflight_matrix",' in diagnostic_cards
     assert '"mediatek_readiness_matrix",' in diagnostic_cards
     assert '"local_inference_compatibility_matrix",' in diagnostic_cards
     assert '"runtime_backend_matrix", "runtime_stability_matrix" -> capabilityMatrixRow(row)' in diagnostic_cards
@@ -726,6 +1188,9 @@ def test_android_diagnostics_exposes_soc_compatibility_report_for_backend_policy
     assert 'id = "runtime_stability"' in quick_actions
     assert 'id = "soc_compatibility"' in quick_actions
     assert 'id = "mediatek_readiness"' in quick_actions
+    assert 'id = "accelerator_preflight"' in quick_actions
+    assert 'id = "non_adreno_backend_advisor"' in quick_actions
+    assert 'id = "mediatek_launch_checklist"' in quick_actions
     assert 'id = "backend_risk"' in quick_actions
     assert 'id = "inference_compatibility"' in quick_actions
     assert 'action=local_inference_compatibility_report' in quick_actions
@@ -746,14 +1211,33 @@ def test_android_diagnostics_exposes_wifi_analyzer_report_for_readiness_and_scan
     diagnostics_bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
     chat_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
     diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
     workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
 
     assert '"wifi_analyzer_report"' in diagnostics_bridge
+    assert '"wifi_signal_advisor_report"' in diagnostics_bridge
+    assert '"wifi_channel_decision_packet_report"' in diagnostics_bridge
     assert '"wifi_connection_link"' in diagnostics_bridge
+    assert 'wifiSignalAdvisorReportJson(appContext' in diagnostics_bridge
+    assert 'fun wifiSignalAdvisorReportJson(context: Context' in diagnostics_bridge
+    assert 'wifiChannelDecisionPacketReportJson(appContext' in diagnostics_bridge
+    assert 'fun wifiChannelDecisionPacketReportJson(context: Context' in diagnostics_bridge
+    assert 'wifiChannelDecisionPacketRows(' in diagnostics_bridge
+    assert 'wifiChannelDecisionRouteRows(' in diagnostics_bridge
+    assert 'wifiChannelDecisionClaimBoundaryRows(' in diagnostics_bridge
+    assert 'wifiSignalAdvisorRows(' in diagnostics_bridge
+    assert 'wifiRoamingCandidateRows(' in diagnostics_bridge
     assert 'wifiConnectionLinkReportJson(appContext)' in diagnostics_bridge
     assert 'fun wifiConnectionLinkReportJson(context: Context): JSONObject' in diagnostics_bridge
     assert '"wifi_channel_graph"' in diagnostics_bridge
     assert '"wifi_channel_utilization"' in diagnostics_bridge
+    assert '"wifi_signal_advisor_matrix"' in diagnostics_bridge
+    assert '"wifi_roaming_candidates"' in diagnostics_bridge
+    assert '"wifi_channel_decision_packet"' in diagnostics_bridge
+    assert '"wifi_channel_decision_routes"' in diagnostics_bridge
+    assert '"wifi_channel_decision_claim_boundaries"' in diagnostics_bridge
+    assert '"gemma_wifi_advisor_directives"' in diagnostics_bridge
+    assert '"gemma_wifi_channel_decision_directives"' in diagnostics_bridge
     assert 'wifiAnalyzerReportJson(appContext' in diagnostics_bridge
     assert 'wifiFilteredNetworkRows(' in diagnostics_bridge
     assert '"wifi_filtered_scan"' in diagnostics_bridge
@@ -787,13 +1271,26 @@ def test_android_diagnostics_exposes_wifi_analyzer_report_for_readiness_and_scan
     assert '"wifi_access_point_semantics"' in diagnostics_bridge
     assert '"wifi_band_coverage"' in diagnostics_bridge
     assert 'WiFiAnalyzer-style readiness' in diagnostics_bridge
+    assert 'WiFiAnalyzer-style decision support' in diagnostics_bridge
+    assert 'Gemma-visible Wi-Fi channel decision packet' in diagnostics_bridge
+    assert 'Current link decision' in diagnostics_bridge
+    assert 'Roaming candidate decision' in diagnostics_bridge
+    assert 'Permission and refresh decision' in diagnostics_bridge
     assert 'Channel signal graph' in diagnostics_bridge
     assert 'Channel utilization occupancy' in diagnostics_bridge
     assert 'Agent AP semantic and risk labels' in diagnostics_bridge
     assert 'Band coverage and 2.4/5/6GHz visibility' in diagnostics_bridge
     assert 'wifi_analyzer_report' in chat_client
+    assert 'wifi_signal_advisor_report' in chat_client
+    assert 'wifi_channel_decision_packet_report' in chat_client
     assert 'wifi_connection_link' in chat_client
     assert '"wifi_connection_link"' in chat_client
+    assert '"wifi_signal_advisor_matrix"' in chat_client
+    assert '"wifi_roaming_candidates"' in chat_client
+    assert '"wifi_channel_decision_packet"' in chat_client
+    assert '"wifi_channel_decision_routes"' in chat_client
+    assert '"wifi_channel_decision_claim_boundaries"' in chat_client
+    assert '"gemma_wifi_channel_decision_directives"' in chat_client
     assert 'wifi_filtered_scan' in chat_client
     assert 'wifi_channel_graph' in chat_client
     assert '"filter_band"' in chat_client
@@ -818,18 +1315,26 @@ def test_android_diagnostics_exposes_wifi_analyzer_report_for_readiness_and_scan
     assert '"wifi_band_coverage"' in chat_client
     assert '"wifi_analyzer_workflow_routes"' in chat_client
     assert '"wifi_scan_policy_matrix"' in chat_client
+    assert '"wifi_signal_advisor_count"' in chat_client
+    assert '"wifi_roaming_candidate_count"' in chat_client
     assert '"wifi_scan_control"' in chat_client
     assert '"scan_mode"' in chat_client
     assert 'Wi-Fi or Bluetooth scan mode for direct signal actions' in chat_client
     assert '"wifi_channel_graph" -> wifiChannelGraphRow(row)' in diagnostic_cards
     assert '"wifi_channel_utilization" -> wifiChannelUtilizationRow(row)' in diagnostic_cards
+    assert '"wifi_channel_decision_packet", "wifi_channel_decision_routes", "wifi_channel_decision_claim_boundaries"' in diagnostic_cards
     assert '"wifi_access_point_semantics" -> wifiAccessPointSemanticRow(row)' in diagnostic_cards
     assert '"wifi_band_coverage" -> wifiBandCoverageRow(row)' in diagnostic_cards
     assert '"wifi_analyzer_feature_matrix", "wifi_analyzer_workflow_routes", "wifi_scan_policy_matrix"' in diagnostic_cards
     assert '"wifi_connection_link",' in diagnostic_cards
+    assert '"wifi_signal_advisor_matrix", "wifi_roaming_candidates"' in diagnostic_cards
     assert '"wifi_filter_application"' in diagnostic_cards
     assert 'capabilityMatrixRow(row)' in diagnostic_cards
-    assert 'diagnosticAction = "wifi_connection_link"' in (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+    assert 'id = "wifi_advisor"' in quick_actions
+    assert 'id = "wifi_channel_decision"' in quick_actions
+    assert 'diagnosticAction = "wifi_signal_advisor_report"' in quick_actions
+    assert 'diagnosticAction = "wifi_channel_decision_packet_report"' in quick_actions
+    assert 'diagnosticAction = "wifi_connection_link"' in quick_actions
     assert ':app:compileDebugAndroidTestKotlin' in workflow
 
 
@@ -842,6 +1347,23 @@ def test_android_diagnostics_exposes_bluetooth_analyzer_report_for_readiness_and
     assert '"bluetooth_signal_history"' in diagnostics_bridge
     assert '"bluetooth_device_details"' in diagnostics_bridge
     assert '"bluetooth_export"' in diagnostics_bridge
+    assert '"bluetooth_signal_advisor_report"' in diagnostics_bridge
+    assert '"bluetooth_nearby_decision_packet_report"' in diagnostics_bridge
+    assert 'bluetoothSignalAdvisorReportJson(appContext' in diagnostics_bridge
+    assert 'bluetoothNearbyDecisionPacketReportJson(appContext' in diagnostics_bridge
+    assert 'fun bluetoothNearbyDecisionPacketReportJson(context: Context' in diagnostics_bridge
+    assert 'bluetoothNearbyDecisionPacketRows(' in diagnostics_bridge
+    assert 'bluetoothNearbyDecisionRouteRows(' in diagnostics_bridge
+    assert 'bluetoothNearbyDecisionClaimBoundaryRows(' in diagnostics_bridge
+    assert 'bluetoothSignalAdvisorRows(' in diagnostics_bridge
+    assert 'bluetoothDeviceCandidateRows(' in diagnostics_bridge
+    assert '"bluetooth_signal_advisor_matrix"' in diagnostics_bridge
+    assert '"bluetooth_device_candidates"' in diagnostics_bridge
+    assert '"gemma_bluetooth_advisor_directives"' in diagnostics_bridge
+    assert '"bluetooth_nearby_decision_packet"' in diagnostics_bridge
+    assert '"bluetooth_nearby_decision_routes"' in diagnostics_bridge
+    assert '"bluetooth_nearby_claim_boundaries"' in diagnostics_bridge
+    assert '"gemma_bluetooth_nearby_directives"' in diagnostics_bridge
     assert 'mergeBluetoothSignalHistory(' in diagnostics_bridge
     assert 'bluetoothSignalHistoryRowsFromStore(' in diagnostics_bridge
     assert 'bluetoothAnalyzerReportJson(appContext' in diagnostics_bridge
@@ -876,7 +1398,10 @@ def test_android_diagnostics_exposes_bluetooth_analyzer_report_for_readiness_and
     assert 'scan_mode=paused' in diagnostics_bridge
     assert 'scan_mode=resumed' in diagnostics_bridge
     assert 'Bluetooth Analyzer readiness' in diagnostics_bridge
+    assert 'Gemma-visible Bluetooth nearby decision packet' in diagnostics_bridge
     assert 'bluetooth_analyzer_report' in chat_client
+    assert 'bluetooth_signal_advisor_report' in chat_client
+    assert 'bluetooth_nearby_decision_packet_report' in chat_client
     assert 'bluetooth_signal_history' in chat_client
     assert 'bluetooth_device_details' in chat_client
     assert 'bluetooth_export' in chat_client
@@ -890,7 +1415,16 @@ def test_android_diagnostics_exposes_bluetooth_analyzer_report_for_readiness_and
     assert '"bluetooth_analyzer_feature_matrix"' in chat_client
     assert '"bluetooth_analyzer_workflow_routes"' in chat_client
     assert '"bluetooth_scan_policy_matrix"' in chat_client
+    assert '"bluetooth_signal_advisor_matrix"' in chat_client
+    assert '"bluetooth_device_candidates"' in chat_client
+    assert '"bluetooth_nearby_decision_packet"' in chat_client
+    assert '"bluetooth_nearby_decision_routes"' in chat_client
+    assert '"bluetooth_nearby_claim_boundaries"' in chat_client
+    assert '"gemma_bluetooth_nearby_directives"' in chat_client
+    assert '"bluetooth_device_candidate_count"' in chat_client
     assert '"bluetooth_scan_control"' in chat_client
+    assert 'bluetoothDiagnosticArguments("bluetooth_signal_advisor_report", userText)' in chat_client
+    assert 'bluetoothDiagnosticArguments("bluetooth_nearby_decision_packet_report", userText)' in chat_client
     assert 'bluetoothDiagnosticArguments("bluetooth_scan", userText)' in chat_client
     assert 'bluetoothDiagnosticArguments("bluetooth_device_details", userText)' in chat_client
     assert 'bluetoothDiagnosticArguments("bluetooth_export", userText)' in chat_client
@@ -898,10 +1432,15 @@ def test_android_diagnostics_exposes_bluetooth_analyzer_report_for_readiness_and
     assert '"filter_bluetooth_manufacturer"' in chat_client
     assert '"filter_bluetooth_proximity"' in chat_client
     assert 'Wi-Fi or Bluetooth scan mode for direct signal actions' in chat_client
-    assert 'diagnosticAction = "bluetooth_device_details"' in (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+    assert 'diagnosticAction = "bluetooth_signal_advisor_report"' in quick_actions
+    assert 'diagnosticAction = "bluetooth_nearby_decision_packet_report"' in quick_actions
+    assert 'diagnosticAction = "bluetooth_device_details"' in quick_actions
     assert '"bluetooth_signal_history" -> bluetoothSignalHistoryRow(row)' in diagnostic_cards
     assert '"bluetooth_device_detail" -> bluetoothRow(row)' in diagnostic_cards
     assert '"bluetooth_analyzer_feature_matrix", "bluetooth_analyzer_workflow_routes", "bluetooth_scan_policy_matrix"' in diagnostic_cards
+    assert '"bluetooth_nearby_decision_packet", "bluetooth_nearby_decision_routes", "bluetooth_nearby_claim_boundaries"' in diagnostic_cards
+    assert '"bluetooth_signal_advisor_matrix", "bluetooth_device_candidates"' in diagnostic_cards
     assert '"bluetooth_filter_application"' in diagnostic_cards
     assert 'capabilityMatrixRow(row)' in diagnostic_cards
 
@@ -912,10 +1451,20 @@ def test_android_diagnostics_exposes_sensor_analyzer_report_for_motion_and_sampl
     diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
 
     assert '"sensor_analyzer_report"' in diagnostics_bridge
+    assert '"sensor_workflow_advisor_report"' in diagnostics_bridge
+    assert '"motion_sensor_decision_packet_report"' in diagnostics_bridge
     assert '"motion_sensor_history"' in diagnostics_bridge
     assert 'mergeMotionSensorHistory(' in diagnostics_bridge
     assert 'motionSensorHistoryRowsFromStore(' in diagnostics_bridge
     assert 'sensorAnalyzerReportJson(appContext' in diagnostics_bridge
+    assert 'sensorWorkflowAdvisorReportJson(appContext' in diagnostics_bridge
+    assert 'motionSensorDecisionPacketReportJson(appContext' in diagnostics_bridge
+    assert 'fun motionSensorDecisionPacketReportJson(context: Context' in diagnostics_bridge
+    assert 'motionSensorDecisionPacketRows(' in diagnostics_bridge
+    assert 'motionSensorDecisionRouteRows(' in diagnostics_bridge
+    assert 'motionSensorDecisionClaimBoundaryRows(' in diagnostics_bridge
+    assert 'sensorWorkflowAdvisorRows(' in diagnostics_bridge
+    assert 'sensorWorkflowCandidateRows(' in diagnostics_bridge
     assert 'sensorAnalyzerFeatureRows(' in diagnostics_bridge
     assert 'sensorAnalyzerWorkflowRows(' in diagnostics_bridge
     assert 'sensorSamplingPolicyRows(' in diagnostics_bridge
@@ -923,6 +1472,13 @@ def test_android_diagnostics_exposes_sensor_analyzer_report_for_motion_and_sampl
     assert '"sensor_analyzer_feature_matrix"' in diagnostics_bridge
     assert '"sensor_analyzer_workflow_routes"' in diagnostics_bridge
     assert '"sensor_sampling_policy_matrix"' in diagnostics_bridge
+    assert '"sensor_workflow_advisor_matrix"' in diagnostics_bridge
+    assert '"sensor_workflow_candidates"' in diagnostics_bridge
+    assert '"gemma_sensor_workflow_directives"' in diagnostics_bridge
+    assert '"motion_sensor_decision_packet"' in diagnostics_bridge
+    assert '"motion_sensor_decision_routes"' in diagnostics_bridge
+    assert '"motion_sensor_claim_boundaries"' in diagnostics_bridge
+    assert '"gemma_motion_sensor_decision_directives"' in diagnostics_bridge
     assert '"motion_pose_estimates"' in diagnostics_bridge
     assert '"motion_pose_estimate"' in diagnostics_bridge
     assert '"motion_sensor_quality"' in diagnostics_bridge
@@ -933,20 +1489,42 @@ def test_android_diagnostics_exposes_sensor_analyzer_report_for_motion_and_sampl
     assert 'accelerometer' in diagnostics_bridge
     assert 'gyroscope' in diagnostics_bridge
     assert 'sensor_analyzer_report' in chat_client
+    assert 'sensor_workflow_advisor_report' in chat_client
+    assert 'motion_sensor_decision_packet_report' in chat_client
     assert 'motion_sensor_quality' in chat_client
     assert 'motion_sensor_history' in chat_client
     assert 'motion_pose' in chat_client
     assert '"motion_sensor_quality"' in chat_client
     assert '"motion_pose_estimates"' in chat_client
+    assert '"sensor_workflow_advisor_matrix"' in chat_client
+    assert '"sensor_workflow_candidates"' in chat_client
+    assert '"sensor_workflow_candidate_count"' in chat_client
+    assert '"motion_sensor_decision_packet"' in chat_client
+    assert '"motion_sensor_decision_routes"' in chat_client
+    assert '"motion_sensor_claim_boundaries"' in chat_client
+    assert '"gemma_motion_sensor_decision_directives"' in chat_client
+    assert 'diagnosticArguments("sensor_workflow_advisor_report", "include_snapshot" to false)' in chat_client
+    assert 'diagnosticArguments("motion_sensor_decision_packet_report", "include_snapshot" to false)' in chat_client
+    assert '"motion_sensor_decision_packet"' in diagnostic_cards
+    assert '"motion_sensor_decision_routes"' in diagnostic_cards
+    assert '"motion_sensor_claim_boundaries"' in diagnostic_cards
     assert '"motion_sensor_quality"' in diagnostic_cards
+    assert '"sensor_workflow_advisor_matrix"' in diagnostic_cards
+    assert '"sensor_workflow_candidates"' in diagnostic_cards
     assert '"sensor_analyzer_feature_matrix"' in chat_client
     assert '"sensor_analyzer_workflow_routes"' in chat_client
     assert '"sensor_sampling_policy_matrix"' in chat_client
     assert '"sensor_analyzer_feature_matrix", "sensor_analyzer_workflow_routes", "sensor_sampling_policy_matrix"' in diagnostic_cards
+    assert '"sensor_workflow_advisor_matrix", "sensor_workflow_candidates"' in diagnostic_cards
+    assert '"motion_sensor_decision_packet", "motion_sensor_decision_routes", "motion_sensor_claim_boundaries"' in diagnostic_cards
     assert '"motion_sensor_quality" -> capabilityMatrixRow(row)' in diagnostic_cards
     assert '"motion_sensor_history" -> motionSensorHistoryRow(row)' in diagnostic_cards
     assert '"motion_pose_estimate" -> motionPoseEstimateRow(row)' in diagnostic_cards
     assert 'capabilityMatrixRow(row)' in diagnostic_cards
+    quick_actions = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt").read_text(encoding="utf-8")
+    assert 'diagnosticAction = "sensor_workflow_advisor_report"' in quick_actions
+    assert 'diagnosticAction = "motion_sensor_decision_packet_report"' in quick_actions
+    assert 'id = "motion_decision"' in quick_actions
 
 
 def test_android_linux_subsystem_reapplies_executable_bits_before_reusing_cached_prefix():
@@ -1389,3 +1967,291 @@ def test_android_ui_tool_reviews_repeated_opengui_actions_before_execution():
     assert '"class_name"' in automation_bridge
     assert '"className"' in automation_bridge
     assert '"widget_class"' in automation_bridge
+
+
+def test_android_diagnostics_exposes_agent_signal_session_snapshot_for_fused_context():
+    diagnostics_bridge = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+    ).read_text(encoding="utf-8")
+    chat_client = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+    ).read_text(encoding="utf-8")
+    diagnostic_cards = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt"
+    ).read_text(encoding="utf-8")
+    quick_actions = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt"
+    ).read_text(encoding="utf-8")
+
+    assert '"agent_signal_session_snapshot_report"' in diagnostics_bridge
+    assert '"signal_session_snapshot_report"' in diagnostics_bridge
+    assert 'agentSignalSessionSnapshotReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentSignalSessionSnapshotReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalSessionSnapshotRows(' in diagnostics_bridge
+    assert 'agentSignalSessionDomainRows(' in diagnostics_bridge
+    assert 'agentSignalSessionActionRouteRows()' in diagnostics_bridge
+    assert 'agentSignalSessionSnapshotSourceActions()' in diagnostics_bridge
+    assert '"agent_signal_session_snapshot_matrix"' in diagnostics_bridge
+    assert '"agent_signal_session_domain_matrix"' in diagnostics_bridge
+    assert '"agent_signal_session_action_routes"' in diagnostics_bridge
+    assert '"gemma_signal_session_snapshot_directives"' in diagnostics_bridge
+    assert 'Agent Signal Session Snapshot' in diagnostics_bridge
+    assert 'Session Domain Coverage' in diagnostics_bridge
+    assert 'MediaTek launch session gate' in diagnostics_bridge
+    assert 'RF coexistence session risk' in diagnostics_bridge
+    assert 'agent_signal_session_snapshot_report' in chat_client
+    assert '"agent_signal_session_snapshot_matrix"' in chat_client
+    assert '"agent_signal_session_domain_matrix"' in chat_client
+    assert '"agent_signal_session_action_routes"' in chat_client
+    assert '"agent_signal_session_snapshot_matrix"' in diagnostic_cards
+    assert '"agent_signal_session_domain_matrix"' in diagnostic_cards
+    assert '"agent_signal_session_action_routes"' in diagnostic_cards
+    assert 'id = "signal_session_snapshot"' in quick_actions
+    assert 'action=agent_signal_session_snapshot_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_agent_signal_proof_audit_for_claim_boundaries():
+    diagnostics_bridge = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+    ).read_text(encoding="utf-8")
+    chat_client = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+    ).read_text(encoding="utf-8")
+    diagnostic_cards = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt"
+    ).read_text(encoding="utf-8")
+    quick_actions = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt"
+    ).read_text(encoding="utf-8")
+
+    assert '"agent_signal_proof_audit_report"' in diagnostics_bridge
+    assert '"signal_proof_audit_report"' in diagnostics_bridge
+    assert 'agentSignalProofAuditReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentSignalProofAuditReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalProofAuditRows(' in diagnostics_bridge
+    assert 'agentSignalClaimBoundaryRows(' in diagnostics_bridge
+    assert 'agentSignalProofAuditSourceActions()' in diagnostics_bridge
+    assert '"agent_signal_proof_audit_matrix"' in diagnostics_bridge
+    assert '"agent_signal_claim_boundary_matrix"' in diagnostics_bridge
+    assert '"gemma_signal_proof_audit_directives"' in diagnostics_bridge
+    assert 'Signal Proof Audit' in diagnostics_bridge
+    assert 'Signal Claim Boundaries' in diagnostics_bridge
+    assert 'active_evidence_present' in diagnostics_bridge
+    assert 'passive_fallback_action' in diagnostics_bridge
+    assert 'bridge_required' in diagnostics_bridge
+    assert 'physical_device_validation_required' in diagnostics_bridge
+    assert 'release_validation_required' in diagnostics_bridge
+    assert 'agent_signal_proof_audit_report' in chat_client
+    assert '"agent_signal_proof_audit_matrix"' in chat_client
+    assert '"agent_signal_claim_boundary_matrix"' in chat_client
+    assert 'signal proof audit' in chat_client
+    assert '"agent_signal_proof_audit_matrix"' in diagnostic_cards
+    assert '"agent_signal_claim_boundary_matrix"' in diagnostic_cards
+    assert 'id = "signal_proof_audit"' in quick_actions
+    assert 'action=agent_signal_proof_audit_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_mediatek_signal_stack_for_non_adreno_signal_context():
+    diagnostics_bridge = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+    ).read_text(encoding="utf-8")
+    chat_client = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+    ).read_text(encoding="utf-8")
+    diagnostic_cards = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt"
+    ).read_text(encoding="utf-8")
+    quick_actions = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt"
+    ).read_text(encoding="utf-8")
+
+    assert '"mediatek_signal_stack_report"' in diagnostics_bridge
+    assert 'mediatekSignalStackReportJson(appContext)' in diagnostics_bridge
+    assert 'fun mediatekSignalStackReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'mediatekSignalStackRows(' in diagnostics_bridge
+    assert 'mediatekSignalStackRouteRows(' in diagnostics_bridge
+    assert 'mediatekSignalClaimBoundaryRows(' in diagnostics_bridge
+    assert 'mediatekSignalStackSourceActions()' in diagnostics_bridge
+    assert 'mediatekSignalStackGraphTypes()' in diagnostics_bridge
+    assert '"mediatek_signal_stack_matrix"' in diagnostics_bridge
+    assert '"mediatek_signal_refresh_routes"' in diagnostics_bridge
+    assert '"mediatek_signal_claim_boundaries"' in diagnostics_bridge
+    assert '"gemma_mediatek_signal_directives"' in diagnostics_bridge
+    assert 'MediaTek Signal Stack' in diagnostics_bridge
+    assert 'MediaTek Signal Routes' in diagnostics_bridge
+    assert 'MediaTek Claim Boundaries' in diagnostics_bridge
+    assert 'Backend policy is not a live signal' in diagnostics_bridge
+    assert 'AM/FM and broad RF require bridge proof' in diagnostics_bridge
+    assert 'Physical MediaTek device proof remains separate' in diagnostics_bridge
+    assert 'mediatek_signal_stack_report' in chat_client
+    assert 'MediaTek signal-stack reports' in chat_client
+    assert 'diagnosticArguments("mediatek_signal_stack_report")' in chat_client
+    assert '"mediatek_signal_stack_matrix"' in chat_client
+    assert '"mediatek_signal_refresh_routes"' in chat_client
+    assert '"mediatek_signal_claim_boundaries"' in chat_client
+    assert '"source_graph_type"' in chat_client
+    assert '"proof_action"' in chat_client
+    assert '"backend_risk_action"' in chat_client
+    assert '"claim_scope"' in chat_client
+    assert '"mediatek_signal_stack_matrix"' in diagnostic_cards
+    assert '"mediatek_signal_refresh_routes"' in diagnostic_cards
+    assert '"mediatek_signal_claim_boundaries"' in diagnostic_cards
+    assert 'id = "mediatek_signal_stack"' in quick_actions
+    assert 'label = "MTK Signals"' in quick_actions
+    assert 'action=mediatek_signal_stack_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_mediatek_device_validation_for_physical_phone_proof():
+    diagnostics_bridge = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+    ).read_text(encoding="utf-8")
+    chat_client = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+    ).read_text(encoding="utf-8")
+    diagnostic_cards = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt"
+    ).read_text(encoding="utf-8")
+    quick_actions = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt"
+    ).read_text(encoding="utf-8")
+
+    assert '"mediatek_device_validation_report"' in diagnostics_bridge
+    assert '"physical_mediatek_validation_report"' in diagnostics_bridge
+    assert '"non_adreno_device_validation_report"' in diagnostics_bridge
+    assert 'mediatekDeviceValidationReportJson(appContext)' in diagnostics_bridge
+    assert 'fun mediatekDeviceValidationReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'mediatekDeviceValidationRows(' in diagnostics_bridge
+    assert 'mediatekDeviceValidationRouteRows(' in diagnostics_bridge
+    assert 'mediatekDeviceReleaseProofGateRows(' in diagnostics_bridge
+    assert 'mediatekDeviceValidationSourceActions()' in diagnostics_bridge
+    assert 'mediatekDeviceValidationGraphTypes()' in diagnostics_bridge
+    assert '"mediatek_device_validation_matrix"' in diagnostics_bridge
+    assert '"live_signal_validation_routes"' in diagnostics_bridge
+    assert '"release_device_proof_gates"' in diagnostics_bridge
+    assert '"gemma_device_validation_directives"' in diagnostics_bridge
+    assert 'Physical MediaTek/non-Adreno identity' in diagnostics_bridge
+    assert 'Live Wi-Fi analyzer proof' in diagnostics_bridge
+    assert 'GitHub release APK proof' in diagnostics_bridge
+    assert 'physical_device_validation_required' in diagnostics_bridge
+    assert 'release_validation_required' in diagnostics_bridge
+    assert 'bridge_required' in diagnostics_bridge
+    assert 'claim_scope' in diagnostics_bridge
+    assert 'mediatek_device_validation_report' in chat_client
+    assert 'physical MediaTek/non-Adreno device validation reports' in chat_client
+    assert 'diagnosticArguments("mediatek_device_validation_report")' in chat_client
+    assert '"mediatek_device_validation_matrix"' in chat_client
+    assert '"live_signal_validation_routes"' in chat_client
+    assert '"release_device_proof_gates"' in chat_client
+    assert '"gemma_device_validation_directives"' in chat_client
+    assert '"mediatek_device_validation_matrix"' in diagnostic_cards
+    assert '"live_signal_validation_routes"' in diagnostic_cards
+    assert '"release_device_proof_gates"' in diagnostic_cards
+    assert 'id = "mediatek_device_validation"' in quick_actions
+    assert 'label = "Device Proof"' in quick_actions
+    assert 'action=mediatek_device_validation_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_device_validation_evidence_export_for_phone_release_proof():
+    diagnostics_bridge = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+    ).read_text(encoding="utf-8")
+    chat_client = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+    ).read_text(encoding="utf-8")
+    diagnostic_cards = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt"
+    ).read_text(encoding="utf-8")
+    quick_actions = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt"
+    ).read_text(encoding="utf-8")
+
+    assert '"device_validation_evidence_export_report"' in diagnostics_bridge
+    assert '"phone_validation_evidence_export"' in diagnostics_bridge
+    assert 'deviceValidationEvidenceExportReportJson(appContext)' in diagnostics_bridge
+    assert 'fun deviceValidationEvidenceExportReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'deviceValidationEvidenceManifestRows(' in diagnostics_bridge
+    assert 'deviceValidationRequiredArtifactRows(' in diagnostics_bridge
+    assert 'deviceValidationPhoneCommandRouteRows(' in diagnostics_bridge
+    assert 'deviceValidationGithubReleaseRouteRows(' in diagnostics_bridge
+    assert 'deviceValidationFdroidRouteRows(' in diagnostics_bridge
+    assert '"device_validation_evidence_manifest"' in diagnostics_bridge
+    assert '"device_validation_required_artifacts"' in diagnostics_bridge
+    assert '"phone_validation_command_routes"' in diagnostics_bridge
+    assert '"github_release_evidence_routes"' in diagnostics_bridge
+    assert '"fdroid_evidence_routes"' in diagnostics_bridge
+    assert '"device_validation_evidence_export_bundle"' in diagnostics_bridge
+    assert '"gemma_device_validation_export_directives"' in diagnostics_bridge
+    assert 'Physical phone identity capture' in diagnostics_bridge
+    assert 'LiteRT /health backend proof' in diagnostics_bridge
+    assert 'GitHub release asset checksum proof' in diagnostics_bridge
+    assert 'F-Droid metadata/Fastlane proof' in diagnostics_bridge
+    assert 'adb shell getprop' in diagnostics_bridge
+    assert 'capture_command' in diagnostics_bridge
+    assert 'phone_validation_evidence_export' in chat_client
+    assert 'device-validation evidence export bundles' in chat_client
+    assert 'action=device_validation_evidence_export_report' in chat_client
+    assert 'diagnosticArguments("device_validation_evidence_export_report")' in chat_client
+    assert '"device_validation_evidence_manifest"' in chat_client
+    assert '"device_validation_required_artifacts"' in chat_client
+    assert '"phone_validation_command_routes"' in chat_client
+    assert '"github_release_evidence_routes"' in chat_client
+    assert '"fdroid_evidence_routes"' in chat_client
+    assert '"gemma_device_validation_export_directives"' in chat_client
+    assert '"device_validation_evidence_manifest"' in diagnostic_cards
+    assert '"device_validation_required_artifacts"' in diagnostic_cards
+    assert '"phone_validation_command_routes"' in diagnostic_cards
+    assert '"github_release_evidence_routes"' in diagnostic_cards
+    assert '"fdroid_evidence_routes"' in diagnostic_cards
+    assert 'id = "device_evidence_export"' in quick_actions
+    assert 'label = "Proof Export"' in quick_actions
+    assert 'action=device_validation_evidence_export_report' in quick_actions
+
+
+def test_android_diagnostics_exposes_signal_observation_packet_for_gemma_visible_top_cards():
+    diagnostics_bridge = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+    ).read_text(encoding="utf-8")
+    chat_client = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+    ).read_text(encoding="utf-8")
+    diagnostic_cards = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt"
+    ).read_text(encoding="utf-8")
+    quick_actions = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/SignalIntelligenceQuickActions.kt"
+    ).read_text(encoding="utf-8")
+
+    assert '"agent_signal_observation_packet_report"' in diagnostics_bridge
+    assert '"gemma_signal_observation_packet"' in diagnostics_bridge
+    assert 'agentSignalObservationPacketReportJson(appContext)' in diagnostics_bridge
+    assert 'fun agentSignalObservationPacketReportJson(context: Context): JSONObject' in diagnostics_bridge
+    assert 'agentSignalObservationPacketRows(' in diagnostics_bridge
+    assert 'agentSignalObservationVisualSlotRows(' in diagnostics_bridge
+    assert 'agentSignalObservationGraphRouteRows(' in diagnostics_bridge
+    assert 'agentSignalObservationClaimBoundaryRows(' in diagnostics_bridge
+    assert '"agent_signal_observation_packet"' in diagnostics_bridge
+    assert '"agent_signal_observation_visual_slots"' in diagnostics_bridge
+    assert '"agent_signal_observation_graph_routes"' in diagnostics_bridge
+    assert '"agent_signal_observation_claim_boundaries"' in diagnostics_bridge
+    assert '"agent_signal_observation_packet_bundle"' in diagnostics_bridge
+    assert '"gemma_signal_observation_packet_directives"' in diagnostics_bridge
+    assert 'Wi-Fi Analyzer observation packet' in diagnostics_bridge
+    assert 'Bluetooth proximity observation packet' in diagnostics_bridge
+    assert 'AM/FM and SDR radio observation packet' in diagnostics_bridge
+    assert 'wifi_analyzer_parity_keys' in diagnostics_bridge
+    assert 'kai_parity_keys' in diagnostics_bridge
+    assert 'agent_signal_observation_packet_report' in chat_client
+    assert 'compact signal observation packets' in chat_client
+    assert 'diagnosticArguments("agent_signal_observation_packet_report")' in chat_client
+    assert '"agent_signal_observation_packet"' in chat_client
+    assert '"agent_signal_observation_visual_slots"' in chat_client
+    assert '"agent_signal_observation_graph_routes"' in chat_client
+    assert '"agent_signal_observation_claim_boundaries"' in chat_client
+    assert '"gemma_signal_observation_packet_directives"' in chat_client
+    assert '"agent_signal_observation_packet"' in diagnostic_cards
+    assert '"agent_signal_observation_visual_slots"' in diagnostic_cards
+    assert '"agent_signal_observation_graph_routes"' in diagnostic_cards
+    assert '"agent_signal_observation_claim_boundaries"' in diagnostic_cards
+    assert 'id = "signal_observation_packet"' in quick_actions
+    assert 'label = "Sight Packet"' in quick_actions
+    assert 'action=agent_signal_observation_packet_report' in quick_actions

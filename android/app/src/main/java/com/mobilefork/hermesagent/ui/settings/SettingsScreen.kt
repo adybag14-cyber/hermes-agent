@@ -518,6 +518,13 @@ private fun RemoteFallbackCard(
                 label = { Text(strings.baseUrlLabel()) },
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (providerId == "custom") {
+                Text(
+                    strings.customEndpointConnectionHint(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             providerPreset?.modelHint?.takeIf { it.isNotBlank() }?.let { modelHint ->
                 Button(onClick = { onModelChange(modelHint) }) {
                     Text(strings.suggestedModelSummary(modelHint))

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
+import java.net.URI
 import java.util.UUID
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
@@ -230,7 +231,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     attachments = emptyList(),
                     isSending = true,
                     error = "",
-                    status = if (attachments.isEmpty()) "Hermes is replying…" else "Hermes is reading the image…",
+                    status = endpoint.streamingStatus(attachments.isNotEmpty()),
                     isShowingHistory = false,
                 )
             }
@@ -268,7 +269,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             isSending = false,
-                            error = error.message ?: error.javaClass.simpleName,
+                            error = endpoint.failureMessage(error.message ?: error.javaClass.simpleName),
                             status = "",
                         )
                     }
@@ -331,14 +332,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     },
                     onError = { error ->
-                        _uiState.update { it.copy(isSending = false, error = error, status = "") }
+                        _uiState.update { it.copy(isSending = false, error = endpoint.failureMessage(error), status = "") }
                     },
                 )
             }.onFailure { error ->
                 _uiState.update {
                     it.copy(
                         isSending = false,
-                        error = error.message ?: error.javaClass.simpleName,
+                        error = endpoint.failureMessage(error.message ?: error.javaClass.simpleName),
                         status = "",
                     )
                 }
@@ -352,6 +353,42 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val modelName: String,
         val nativeToolCalling: Boolean = false,
     )
+
+    private fun ChatEndpoint.streamingStatus(hasAttachments: Boolean): String {
+        val action = if (hasAttachments) "Hermes is reading the image" else "Hermes is replying"
+        return if (nativeToolCalling) {
+            "$action on-device…"
+        } else {
+            "$action via ${endpointHostLabel(baseUrl)}…"
+        }
+    }
+
+    private fun ChatEndpoint.failureMessage(message: String): String {
+        val clean = message.ifBlank { "Endpoint request failed" }
+        if (nativeToolCalling || !clean.looksLikeEndpointDisconnect()) {
+            return clean
+        }
+        return "$clean If this is a custom endpoint, verify the Base URL includes /v1, the model name matches the server exactly, the phone network is stable, and the server keeps SSE streams open until [DONE]."
+    }
+
+    private fun String.looksLikeEndpointDisconnect(): Boolean {
+        val lower = lowercase()
+        return listOf("timeout", "closed", "reset", "disconnect", "unexpected end", "[done]", "sse").any { token ->
+            lower.contains(token)
+        }
+    }
+
+    private fun endpointHostLabel(baseUrl: String): String {
+        return runCatching {
+            val uri = URI(baseUrl)
+            val host = uri.host.orEmpty().ifBlank { baseUrl }
+            val port = uri.port.takeIf { it > 0 }?.let { ":$it" }.orEmpty()
+            "$host$port"
+        }.getOrDefault(baseUrl)
+            .replace("https://", "")
+            .replace("http://", "")
+            .take(64)
+    }
 
     private fun resolveChatEndpoint(runtime: HermesRuntimeManager.RuntimeState): ChatEndpoint? {
         val localBackend = OnDeviceBackendManager.currentStatus()

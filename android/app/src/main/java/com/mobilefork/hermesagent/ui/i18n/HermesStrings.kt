@@ -145,6 +145,33 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "Base URL"
     }
 
+    fun customEndpointConnectionHint(): String = when (language) {
+        AppLanguage.CHINESE -> "自定义 OpenAI 兼容端点应包含协议和 /v1 路径，并使用服务器上完全匹配的模型名称。如果流提前断开，Hermes 会在聊天中显示连接提示。"
+        AppLanguage.SPANISH -> "Los endpoints personalizados compatibles con OpenAI deben incluir el esquema y la ruta /v1, y usar el nombre exacto del modelo del servidor. Si el stream se corta antes de tiempo, Hermes mostrará una pista de conexión en el chat."
+        AppLanguage.GERMAN -> "Benutzerdefinierte OpenAI-kompatible Endpunkte sollten Schema und /v1-Pfad enthalten und den exakten Modellnamen des Servers verwenden. Wenn der Stream vorzeitig endet, zeigt Hermes im Chat einen Verbindungshinweis."
+        AppLanguage.PORTUGUESE -> "Endpoints personalizados compatíveis com OpenAI devem incluir o esquema e o caminho /v1, e usar o nome exato do modelo no servidor. Se o stream cair cedo, o Hermes mostrará uma dica de conexão no chat."
+        AppLanguage.FRENCH -> "Les endpoints personnalisés compatibles OpenAI doivent inclure le schéma et le chemin /v1, avec le nom exact du modèle côté serveur. Si le flux se ferme trop tôt, Hermes affichera une indication de connexion dans le chat."
+        AppLanguage.ENGLISH -> "Custom OpenAI-compatible endpoints should include the scheme and /v1 path, and use the exact model name from the server. If the stream closes early, Hermes will show a connection hint in chat."
+    }
+
+    fun endpointStatusIndicatorLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "端点流状态"
+        AppLanguage.SPANISH -> "Estado del stream del endpoint"
+        AppLanguage.GERMAN -> "Endpunkt-Streamstatus"
+        AppLanguage.PORTUGUESE -> "Status do stream do endpoint"
+        AppLanguage.FRENCH -> "État du flux endpoint"
+        AppLanguage.ENGLISH -> "Endpoint stream status"
+    }
+
+    fun endpointStatusTroubleshootingHint(): String = when (language) {
+        AppLanguage.CHINESE -> "检查 /v1、模型名称、移动网络和服务器 SSE 保活设置。"
+        AppLanguage.SPANISH -> "Revisa /v1, el nombre del modelo, la red móvil y el keep-alive SSE del servidor."
+        AppLanguage.GERMAN -> "Prüfe /v1, Modellnamen, Mobilnetz und SSE-Keepalive des Servers."
+        AppLanguage.PORTUGUESE -> "Verifique /v1, nome do modelo, rede móvel e keep-alive SSE do servidor."
+        AppLanguage.FRENCH -> "Vérifiez /v1, le nom du modèle, le réseau mobile et le keep-alive SSE du serveur."
+        AppLanguage.ENGLISH -> "Check /v1, the exact model name, mobile network, and server SSE keep-alive."
+    }
+
     fun modelLabel(): String = when (language) {
         AppLanguage.CHINESE -> "模型"
         AppLanguage.SPANISH -> "Modelo"

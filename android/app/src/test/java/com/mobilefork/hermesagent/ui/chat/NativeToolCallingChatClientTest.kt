@@ -22,6 +22,29 @@ class NativeToolCallingChatClientTest {
         assertTrue(content.contains("schedule_task/list_tasks/cancel_task"))
         assertTrue(content.contains("not unrestricted background AI prompt execution"))
         assertTrue(content.contains("action=agent_signal_evidence_report"))
+        assertTrue(content.contains("action=agent_signal_replay_export_report"))
+        assertTrue(content.contains("action=agent_signal_replay_freshness_audit_report"))
+        assertTrue(content.contains("action=agent_signal_observation_packet_report"))
+        assertTrue(content.contains("action=agent_signal_proof_audit_report"))
+        assertTrue(content.contains("action=agent_signal_workflow_handoff_report"))
+        assertTrue(content.contains("action=agent_signal_permission_runbook_report"))
+        assertTrue(content.contains("action=mediatek_signal_stack_report"))
+        assertTrue(content.contains("action=device_validation_evidence_export_report"))
+        assertTrue(content.contains("action=wifi_channel_decision_packet_report"))
+        assertTrue(content.contains("action=bluetooth_nearby_decision_packet_report"))
+        assertTrue(content.contains("action=motion_sensor_decision_packet_report"))
+        assertTrue(content.contains("action=radio_signal_decision_packet_report"))
+        assertTrue(content.contains("signal proof audits"))
+        assertTrue(content.contains("signal replay/export bundles"))
+        assertTrue(content.contains("device-validation evidence export bundles"))
+        assertTrue(content.contains("replay freshness/staleness audits"))
+        assertTrue(content.contains("compact signal observation packets"))
+        assertTrue(content.contains("visual slots, graph routes"))
+        assertTrue(content.contains("signal workflow handoff and next-action reports"))
+        assertTrue(content.contains("signal permission and active-refresh runbooks"))
+        assertTrue(content.contains("MediaTek signal-stack reports"))
+        assertTrue(content.contains("MCP tool-server registry reports"))
+        assertTrue(content.contains("full upgrade objective audit reports"))
         assertTrue(content.contains("what Hermes/Gemma can see from nearby signals"))
         assertTrue(content.contains("User-configured agent persona"))
         assertTrue(content.contains("Stay concise and use Wi-Fi analyzer cards"))
@@ -95,6 +118,68 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun extractsExplicitWifiSignalAdvisorDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=wifi_signal_advisor_report refresh=false",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("wifi_signal_advisor_report", parsed.getString("action"))
+        assertFalse(parsed.getBoolean("refresh"))
+    }
+
+    @Test
+    fun extractsExplicitWifiChannelDecisionPacketDiagnosticQuickActionArguments() {
+        val canonical = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=wifi_channel_decision_packet_report refresh=false",
+        )
+        val alias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=mediatek_wifi_channel_decision refresh=false",
+        )
+
+        requireNotNull(canonical)
+        requireNotNull(alias)
+        assertEquals("wifi_channel_decision_packet_report", canonical.getString("action"))
+        assertFalse(canonical.getBoolean("refresh"))
+        assertEquals("mediatek_wifi_channel_decision", alias.getString("action"))
+        assertFalse(alias.getBoolean("refresh"))
+    }
+
+    @Test
+    fun extractsExplicitBluetoothNearbyDecisionPacketDiagnosticQuickActionArguments() {
+        val canonical = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=bluetooth_nearby_decision_packet_report refresh=false",
+        )
+        val alias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=mediatek_bluetooth_decision_packet refresh=false",
+        )
+
+        requireNotNull(canonical)
+        requireNotNull(alias)
+        assertEquals("bluetooth_nearby_decision_packet_report", canonical.getString("action"))
+        assertFalse(canonical.getBoolean("refresh"))
+        assertEquals("mediatek_bluetooth_decision_packet", alias.getString("action"))
+        assertFalse(alias.getBoolean("refresh"))
+    }
+
+    @Test
+    fun extractsExplicitMotionSensorDecisionPacketDiagnosticQuickActionArguments() {
+        val canonical = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=motion_sensor_decision_packet_report include_snapshot=false",
+        )
+        val alias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=mediatek_motion_decision_packet include_snapshot=false",
+        )
+
+        requireNotNull(canonical)
+        requireNotNull(alias)
+        assertEquals("motion_sensor_decision_packet_report", canonical.getString("action"))
+        assertFalse(canonical.getBoolean("include_snapshot"))
+        assertEquals("mediatek_motion_decision_packet", alias.getString("action"))
+        assertFalse(alias.getBoolean("include_snapshot"))
+    }
+
+    @Test
     fun extractsExplicitSocCompatibilityDiagnosticQuickActionArguments() {
         val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
             "Run android_device_diagnostics_tool action=soc_compatibility_report",
@@ -112,6 +197,26 @@ class NativeToolCallingChatClientTest {
 
         requireNotNull(parsed)
         assertEquals("mediatek_readiness_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitAcceleratorPreflightDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=accelerator_preflight_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("accelerator_preflight_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitNonAdrenoBackendAdvisorDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=non_adreno_backend_advisor_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("non_adreno_backend_advisor_report", parsed.getString("action"))
     }
 
     @Test
@@ -145,6 +250,170 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun extractsExplicitSignalReplayExportDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_signal_replay_export_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_signal_replay_export_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitSignalReplayFreshnessDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_signal_replay_freshness_audit_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_signal_replay_freshness_audit_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitSignalSessionSnapshotDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_signal_session_snapshot_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_signal_session_snapshot_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitSignalProofAuditDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_signal_proof_audit_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_signal_proof_audit_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitSignalPermissionRunbookDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_signal_permission_runbook_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_signal_permission_runbook_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitSignalTimelineDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_signal_timeline_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_signal_timeline_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitUpgradeCoverageAndReleaseReadinessDiagnosticAliases() {
+        val coverage = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_upgrade_coverage_report",
+        )
+        val release = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=github_release_readiness_report",
+        )
+
+        requireNotNull(coverage)
+        requireNotNull(release)
+        assertEquals("agent_upgrade_coverage_report", coverage.getString("action"))
+        assertEquals("github_release_readiness_report", release.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitMediatekDeviceValidationDiagnosticAliases() {
+        val canonical = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=mediatek_device_validation_report",
+        )
+        val phoneAlias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=phone_signal_validation_report",
+        )
+
+        requireNotNull(canonical)
+        requireNotNull(phoneAlias)
+        assertEquals("mediatek_device_validation_report", canonical.getString("action"))
+        assertEquals("phone_signal_validation_report", phoneAlias.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitDeviceValidationEvidenceExportDiagnosticAliases() {
+        val canonical = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=device_validation_evidence_export_report",
+        )
+        val phoneAlias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=phone_validation_evidence_export",
+        )
+        val fdroidAlias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=fdroid_device_evidence_export",
+        )
+
+        requireNotNull(canonical)
+        requireNotNull(phoneAlias)
+        requireNotNull(fdroidAlias)
+        assertEquals("device_validation_evidence_export_report", canonical.getString("action"))
+        assertEquals("phone_validation_evidence_export", phoneAlias.getString("action"))
+        assertEquals("fdroid_device_evidence_export", fdroidAlias.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitSignalObservationPacketDiagnosticAliases() {
+        val canonical = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_signal_observation_packet_report",
+        )
+        val gemmaAlias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=gemma_signal_observation_packet",
+        )
+        val contextAlias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=signal_context_packet_report",
+        )
+
+        requireNotNull(canonical)
+        requireNotNull(gemmaAlias)
+        requireNotNull(contextAlias)
+        assertEquals("agent_signal_observation_packet_report", canonical.getString("action"))
+        assertEquals("gemma_signal_observation_packet", gemmaAlias.getString("action"))
+        assertEquals("signal_context_packet_report", contextAlias.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitMcpRegistryDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=mcp_tool_server_registry_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("mcp_tool_server_registry_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitUpgradeAuditDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_capability_upgrade_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_capability_upgrade_report", parsed.getString("action"))
+    }
+
+    @Test
+    fun extractsExplicitSdrBridgeSampleDiagnosticArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=sdr_bridge_samples sdr_samples_json=noaa_sample span_hz=200000 sample_rate_hz=240000 receiver_id=external_sdr_bridge",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("sdr_bridge_samples", parsed.getString("action"))
+        assertEquals("noaa_sample", parsed.getString("sdr_samples_json"))
+        assertEquals("200000", parsed.getString("span_hz"))
+        assertEquals("240000", parsed.getString("sample_rate_hz"))
+        assertEquals("external_sdr_bridge", parsed.getString("receiver_id"))
+    }
+
+    @Test
     fun extractsImplicitSignalEvidenceForNearbySignalQuestionsOnly() {
         val parsed = NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments(
             "What can Hermes see from nearby Wi-Fi, Bluetooth, and radio signals right now?",
@@ -156,6 +425,50 @@ class NativeToolCallingChatClientTest {
             "agent_signal_evidence_report",
             NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the current signal evidence bundle.")?.getString("action"),
         )
+        assertEquals(
+            "agent_signal_timeline_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the agent signal timeline for what Gemma recently saw.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_replay_export_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Export a portable signal replay bundle for Gemma.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_replay_freshness_audit_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the replay freshness audit before treating the exported signal rows as current.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_observation_packet_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Build a Gemma signal observation packet for the top card signal context.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_card_deck_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the expanded signal card deck for Gemma.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_card_refresh_plan_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the signal card refresh plan before refreshing an expanded top card.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_card_refresh_status_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Which signal cards can refresh right now?")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_proof_audit_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the current signal proof audit before claiming live evidence.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_session_snapshot_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the current signal session snapshot.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_workflow_handoff_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the signal workflow handoff for the next evidence route.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_permission_runbook_report",
+            NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("Show the signal permission runbook before a live scan.")?.getString("action"),
+        )
         assertNull(
             NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments("What can you see on the screen?"),
         )
@@ -164,8 +477,100 @@ class NativeToolCallingChatClientTest {
     @Test
     fun extractsImplicitDomainDiagnosticsForSignalHardwareQuestions() {
         assertEquals(
+            "wifi_signal_advisor_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show Wi-Fi advisor recommendations and roaming candidates.")?.getString("action"),
+        )
+        assertEquals(
+            "mcp_tool_server_registry_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the Kai MCP server registry and Context7 parity.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_capability_upgrade_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the full upgrade objective audit and what remains incomplete.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_objective_coverage_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the objective coverage gaps and Kai Wi-Fi Analyzer parity map.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_objective_coverage_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the Hermes upgrade coverage report for the full objective.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_release_validation_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show release validation for GitHub release artifacts and F-Droid metadata.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_release_validation_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show GitHub release readiness before I publish the Android APK.")?.getString("action"),
+        )
+        assertEquals(
+            "device_validation_evidence_export_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Build a release proof package for physical phone evidence.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_observation_packet_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Build a nearby signal context packet showing what Gemma can see from Wi-Fi, Bluetooth, sensors, and radio.")?.getString("action"),
+        )
+        assertEquals(
+            "mediatek_device_validation_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show physical MediaTek validation and device proof gates for the phone.")?.getString("action"),
+        )
+        assertEquals(
+            "mediatek_device_validation_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show phone signal validation before claiming live signal proof.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_card_deck_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the top signal card deck with Wi-Fi, Bluetooth, radio, sensors, backend, and release cards.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_card_refresh_plan_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the per-card refresh plan for the expanded signal cards.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_card_refresh_status_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show top card refresh status and which signal cards can refresh.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_proof_audit_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the signal proof audit so Gemma knows what live evidence can be claimed.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_session_snapshot_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the current signal session snapshot before picking a top card.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_replay_export_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the signal replay export for nearby RF evidence.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_replay_freshness_audit_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show signal replay staleness and freshness for the export bundle.")?.getString("action"),
+        )
+        assertEquals(
+            "wifi_channel_decision_packet_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Which Wi-Fi channel should my router use with MediaTek RF coexistence?")?.getString("action"),
+        )
+        assertEquals(
+            "bluetooth_nearby_decision_packet_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the nearby Bluetooth decision packet with MediaTek RF coexistence context.")?.getString("action"),
+        )
+        assertEquals(
             "wifi_channel_rating",
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Rate the best Wi-Fi channel for the nearby APs.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_timeline_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the recent signal timeline for what the agent recently saw.")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_workflow_handoff_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("What should Gemma check next for nearby signals?")?.getString("action"),
+        )
+        assertEquals(
+            "agent_signal_permission_runbook_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the active signal refresh routes before requesting permissions.")?.getString("action"),
         )
         assertEquals(
             "wifi_connection_link",
@@ -176,12 +581,20 @@ class NativeToolCallingChatClientTest {
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show nearby Bluetooth devices and BLE beacons.")?.getString("action"),
         )
         assertEquals(
+            "bluetooth_signal_advisor_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the Bluetooth advisor recommendation for nearby devices.")?.getString("action"),
+        )
+        assertEquals(
             "bluetooth_device_details",
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show Bluetooth device details for nearby BLE devices.")?.getString("action"),
         )
         assertEquals(
             "bluetooth_export",
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Export Bluetooth device metadata as CSV.")?.getString("action"),
+        )
+        assertEquals(
+            "motion_sensor_decision_packet_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the IMU decision packet with accelerometer and gyroscope claim boundaries.")?.getString("action"),
         )
         assertEquals(
             "motion_sensor_history",
@@ -192,12 +605,48 @@ class NativeToolCallingChatClientTest {
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Check IMU quality and sensor calibration before orientation automation.")?.getString("action"),
         )
         assertEquals(
+            "sensor_workflow_advisor_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the sensor workflow advisor for accelerometer and gyroscope tasks.")?.getString("action"),
+        )
+        assertEquals(
+            "radio_signal_decision_packet_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the radio decision packet for AM/FM and SDR bridge evidence with MediaTek context.")?.getString("action"),
+        )
+        assertEquals(
+            "radio_signal_advisor_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the radio advisor recommendation for AM/FM and SDR receiver choices.")?.getString("action"),
+        )
+        assertEquals(
             "radio_signal_graph",
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the AM/FM radio graph.")?.getString("action"),
         )
         assertEquals(
+            "radio_signal_graph",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show external SDR bridge sample readiness.")?.getString("action"),
+        )
+        assertEquals(
+            "mediatek_signal_stack_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show MediaTek signal stack for Wi-Fi Bluetooth radio sensors.")?.getString("action"),
+        )
+        assertEquals(
+            "mediatek_signal_stack_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show non-Adreno signal stack claim boundaries.")?.getString("action"),
+        )
+        assertEquals(
             "mediatek_readiness_report",
             NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show MediaTek Dimensity readiness for Mali GPU fallback.")?.getString("action"),
+        )
+        assertEquals(
+            "accelerator_preflight_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Run an OpenCL preflight before starting the MediaTek GPU delegate.")?.getString("action"),
+        )
+        assertEquals(
+            "mediatek_backend_launch_checklist_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Before starting local inference on a MediaTek Mali phone, show the non-Adreno backend advisor launch plan.")?.getString("action"),
+        )
+        assertEquals(
+            "mediatek_backend_launch_checklist_report",
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the MediaTek launch checklist before starting local inference.")?.getString("action"),
         )
         assertEquals(
             "soc_compatibility_report",
@@ -291,6 +740,16 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun extractsExplicitSignalWorkflowHandoffDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=agent_signal_workflow_handoff_report",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_signal_workflow_handoff_report", parsed.getString("action"))
+    }
+
+    @Test
     fun extractsExplicitLocalBackendRuntimeDiagnosticQuickActionArguments() {
         val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
             "Run android_device_diagnostics_tool action=local_backend_runtime_report",
@@ -325,6 +784,18 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun extractsExplicitBluetoothAdvisorDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=bluetooth_signal_advisor_report refresh=false scan_mode=paused",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("bluetooth_signal_advisor_report", parsed.getString("action"))
+        assertFalse(parsed.getBoolean("refresh"))
+        assertEquals("paused", parsed.getString("scan_mode"))
+    }
+
+    @Test
     fun extractsExplicitBluetoothSignalHistoryDiagnosticQuickActionArguments() {
         val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
             "Run android_device_diagnostics_tool action=bluetooth_signal_history refresh=false scan_mode=paused",
@@ -353,6 +824,18 @@ class NativeToolCallingChatClientTest {
         requireNotNull(export)
         assertEquals("bluetooth_export", export.getString("action"))
         assertEquals("both", export.getString("export_format"))
+    }
+
+    @Test
+    fun extractsExplicitSensorWorkflowAdvisorDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=sensor_workflow_advisor_report include_snapshot=false sensor_types=accelerometer,gyroscope",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("sensor_workflow_advisor_report", parsed.getString("action"))
+        assertFalse(parsed.getBoolean("include_snapshot"))
+        assertEquals("accelerometer,gyroscope", parsed.getString("sensor_types"))
     }
 
     @Test
@@ -416,6 +899,35 @@ class NativeToolCallingChatClientTest {
         assertEquals("31", parsed.getString("snr_db"))
         assertEquals("fm", parsed.getString("modulation"))
         assertEquals("HERMES", parsed.getString("rds_program_service"))
+    }
+
+    @Test
+    fun extractsExplicitRadioSignalAdvisorDiagnosticQuickActionArguments() {
+        val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=radio_signal_advisor_report sample_source=vendor_fm_bridge receiver_id=fm_vendor_or_sdr",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("radio_signal_advisor_report", parsed.getString("action"))
+        assertEquals("vendor_fm_bridge", parsed.getString("sample_source"))
+        assertEquals("fm_vendor_or_sdr", parsed.getString("receiver_id"))
+    }
+
+    @Test
+    fun extractsExplicitRadioSignalDecisionPacketDiagnosticQuickActionArguments() {
+        val canonical = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=radio_signal_decision_packet_report sample_source=vendor_fm_bridge receiver_id=fm_vendor_or_sdr",
+        )
+        val alias = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
+            "Run android_device_diagnostics_tool action=mediatek_radio_decision_packet",
+        )
+
+        requireNotNull(canonical)
+        requireNotNull(alias)
+        assertEquals("radio_signal_decision_packet_report", canonical.getString("action"))
+        assertEquals("vendor_fm_bridge", canonical.getString("sample_source"))
+        assertEquals("fm_vendor_or_sdr", canonical.getString("receiver_id"))
+        assertEquals("mediatek_radio_decision_packet", alias.getString("action"))
     }
 
     @Test
@@ -759,6 +1271,10 @@ class NativeToolCallingChatClientTest {
             .put("workflow_readiness_count", 1)
             .put("agent_tool_sandbox_count", 1)
             .put("ready_agent_tool_sandbox_count", 1)
+            .put("mcp_tool_server_count", 1)
+            .put("ready_mcp_tool_server_count", 0)
+            .put("mcp_tool_server_route_count", 1)
+            .put("ready_mcp_tool_server_route_count", 1)
             .put("agent_capability_matrix", capabilities)
             .put(
                 "kai_parity_matrix",
@@ -799,6 +1315,35 @@ class NativeToolCallingChatClientTest {
                 ),
             )
             .put(
+                "mcp_tool_server_registry",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "mcp_tool_server_registry")
+                        .put("label", "Context7 documentation server")
+                        .put("ready", false)
+                        .put("value_label", "external docs MCP needed")
+                        .put("tool_action", "external_mcp_context7")
+                        .put("mcp_server_name", "Context7")
+                        .put("route_status", "external_mcp_needed")
+                        .put("remote_endpoint_required", true)
+                        .put("streamable_http_supported", false)
+                        .put("metadata_keys", JSONArray().put("library_id")),
+                ),
+            )
+            .put(
+                "mcp_tool_server_routes",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "mcp_tool_server_route")
+                        .put("label", "Prefer native Hermes tools first")
+                        .put("ready", true)
+                        .put("value_label", "native tools")
+                        .put("tool_action", "android_device_diagnostics_tool:tool_catalog")
+                        .put("route_policy", "native_tool_first")
+                        .put("mcp_streamable_http_supported", false),
+                ),
+            )
+            .put(
                 "workflow_readiness_matrix",
                 JSONArray().put(
                     JSONObject()
@@ -817,12 +1362,16 @@ class NativeToolCallingChatClientTest {
         val kaiParity = parsed.getJSONArray("kai_parity_matrix")
         val kaiOperations = parsed.getJSONArray("kai_operations_matrix")
         val toolSandbox = parsed.getJSONArray("agent_tool_sandbox_matrix")
+        val mcpRegistry = parsed.getJSONArray("mcp_tool_server_registry")
+        val mcpRoutes = parsed.getJSONArray("mcp_tool_server_routes")
         val readiness = parsed.getJSONArray("workflow_readiness_matrix")
 
         assertTrue(parsed.getBoolean("_hermes_context_compressed"))
         assertEquals(20, parsed.getInt("agent_capability_count"))
         assertEquals(1, parsed.getInt("agent_tool_sandbox_count"))
         assertEquals(1, parsed.getInt("ready_agent_tool_sandbox_count"))
+        assertEquals(1, parsed.getInt("mcp_tool_server_count"))
+        assertEquals(1, parsed.getInt("mcp_tool_server_route_count"))
         assertEquals("array", capabilityMatrix.getString("type"))
         assertEquals(20, capabilityMatrix.getInt("original_count"))
         assertEquals("Capability 0", capabilityMatrix.getJSONArray("items").getJSONObject(0).getString("label"))
@@ -834,7 +1383,233 @@ class NativeToolCallingChatClientTest {
         assertEquals("terminal_tool", toolSandbox.getJSONObject(0).getString("tool_action"))
         assertEquals("app-private workspace", toolSandbox.getJSONObject(0).getString("sandbox_scope"))
         assertEquals("Kai Linux sandbox analogue", toolSandbox.getJSONObject(0).getString("mcp_parity_status"))
+        assertEquals("Context7 documentation server", mcpRegistry.getJSONObject(0).getString("label"))
+        assertEquals("Context7", mcpRegistry.getJSONObject(0).getString("mcp_server_name"))
+        assertEquals("external_mcp_needed", mcpRegistry.getJSONObject(0).getString("route_status"))
+        assertFalse(mcpRegistry.getJSONObject(0).getBoolean("streamable_http_supported"))
+        assertEquals("Prefer native Hermes tools first", mcpRoutes.getJSONObject(0).getString("label"))
+        assertEquals("native_tool_first", mcpRoutes.getJSONObject(0).getString("route_policy"))
         assertEquals("Analyze nearby Wi-Fi", readiness.getJSONObject(0).getString("label"))
+    }
+
+    @Test
+    fun compactsAgentCapabilityUpgradeReportWithoutDroppingObjectiveRows() {
+        val objectives = JSONArray()
+        repeat(12) { index ->
+            objectives.put(
+                JSONObject()
+                    .put("category", "agent_upgrade_objective")
+                    .put("label", "Upgrade objective $index")
+                    .put("ready", index < 9)
+                    .put("value_label", "objective value $index")
+                    .put("detail", "Detailed upgrade objective row $index")
+                    .put("recommendation", "Open the matching report.")
+                    .put("evidence_status", "passive_analyzer_ready")
+                    .put("bridge_required", index == 3)
+                    .put("physical_device_validation_required", index == 5)
+                    .put("source_actions", JSONArray().put("agent_capability_upgrade_report"))
+                    .put("card_graph_types", JSONArray().put("agent_upgrade_objective_matrix"))
+                    .put("fraction", 0.86),
+            )
+        }
+        val routes = JSONArray().put(
+            JSONObject()
+                .put("category", "agent_upgrade_route")
+                .put("label", "Start with full upgrade audit")
+                .put("ready", true)
+                .put("value_label", "agent_capability_upgrade_report")
+                .put("tool_action", "agent_capability_upgrade_report")
+                .put("graph_type", "agent_upgrade_objective_matrix")
+                .put("bridge_required", false)
+                .put("physical_device_validation_required", false),
+        )
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "agent_capability_upgrade_report")
+            .put("agent_upgrade_objective_count", 12)
+            .put("ready_agent_upgrade_objective_count", 9)
+            .put("agent_upgrade_route_count", 1)
+            .put("ready_agent_upgrade_route_count", 1)
+            .put("agent_upgrade_objective_matrix", objectives)
+            .put("agent_upgrade_route_matrix", routes)
+            .put("gemma_upgrade_audit_directives", JSONArray().put("Read agent_upgrade_objective_matrix first."))
+            .put("cards", JSONArray().put(JSONObject().put("title", "Upgrade Objective Matrix").put("body", "12 rows")))
+            .toString()
+
+        val compacted = NativeToolContextCompressor.compactToolResult(result)
+        val parsed = JSONObject(compacted)
+        val objectiveMatrix = parsed.getJSONObject("agent_upgrade_objective_matrix")
+        val routeMatrix = parsed.getJSONArray("agent_upgrade_route_matrix")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(12, parsed.getInt("agent_upgrade_objective_count"))
+        assertEquals(9, parsed.getInt("ready_agent_upgrade_objective_count"))
+        assertEquals("array", objectiveMatrix.getString("type"))
+        assertEquals(12, objectiveMatrix.getInt("original_count"))
+        assertEquals("Upgrade objective 0", objectiveMatrix.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("passive_analyzer_ready", objectiveMatrix.getJSONArray("items").getJSONObject(0).getString("evidence_status"))
+        assertFalse(objectiveMatrix.getJSONArray("items").getJSONObject(0).getBoolean("bridge_required"))
+        assertEquals("Start with full upgrade audit", routeMatrix.getJSONObject(0).getString("label"))
+        assertEquals("agent_capability_upgrade_report", routeMatrix.getJSONObject(0).getString("tool_action"))
+    }
+
+    @Test
+    fun compactsSignalWorkflowHandoffReportWithoutDroppingNextActionRows() {
+        val handoffRows = JSONArray()
+        repeat(12) { index ->
+            handoffRows.put(
+                JSONObject()
+                    .put("category", "agent_signal_workflow_handoff")
+                    .put("label", if (index == 0) "Open Wi-Fi Analyzer graph" else "Workflow handoff $index")
+                    .put("ready", index < 9)
+                    .put("value_label", "handoff value $index")
+                    .put("detail", "Detailed workflow handoff row $index with refresh policy and permission gates")
+                    .put("recommendation", "Open the matching next action.")
+                    .put("handoff_status", "passive_first")
+                    .put("tool_action", if (index == 0) "wifi_channel_graph" else "agent_signal_workflow_handoff_report")
+                    .put("open_next_action", if (index == 0) "wifi_channel_graph" else "agent_signal_workflow_handoff_report")
+                    .put("graph_type", if (index == 0) "wifi_channel_graph" else "agent_signal_workflow_handoff_matrix")
+                    .put("refresh_policy", "passive_first")
+                    .put("permission_gate", "source_report_permissions")
+                    .put("bridge_required", index == 3)
+                    .put("physical_device_validation_required", index == 5)
+                    .put("fraction", 0.86),
+            )
+        }
+        val routes = JSONArray()
+        repeat(9) { index ->
+            routes.put(
+                JSONObject()
+                    .put("category", "agent_signal_next_action_route")
+                    .put("label", if (index == 0) "Open signal workflow handoff" else "Next action route $index")
+                    .put("ready", true)
+                    .put("value_label", "agent_signal_workflow_handoff_report")
+                    .put("tool_action", "agent_signal_workflow_handoff_report")
+                    .put("open_next_action", "agent_signal_workflow_handoff_report")
+                    .put("graph_type", "agent_signal_workflow_handoff_matrix")
+                    .put("refresh_policy", "passive_workflow_handoff")
+                    .put("permission_gate", "source_report_permissions_and_hardware_boundaries")
+                    .put("agent_question_patterns", JSONArray().put("what should i open next")),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "agent_signal_workflow_handoff_report")
+            .put("agent_signal_workflow_handoff_count", 12)
+            .put("ready_agent_signal_workflow_handoff_count", 9)
+            .put("agent_signal_next_action_route_count", 9)
+            .put("ready_agent_signal_next_action_route_count", 9)
+            .put("agent_signal_workflow_handoff_matrix", handoffRows)
+            .put("agent_signal_next_action_routes", routes)
+            .put("gemma_signal_workflow_handoff_directives", JSONArray().put("Read open_next_action first."))
+            .put("cards", JSONArray().put(JSONObject().put("title", "Signal Workflow Handoff").put("body", "12 rows")))
+            .toString()
+
+        val compacted = NativeToolContextCompressor.compactToolResult(result)
+        val parsed = JSONObject(compacted)
+        val compactedHandoff = parsed.getJSONObject("agent_signal_workflow_handoff_matrix")
+        val compactedRoutes = parsed.getJSONObject("agent_signal_next_action_routes")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(12, parsed.getInt("agent_signal_workflow_handoff_count"))
+        assertEquals(9, parsed.getInt("ready_agent_signal_workflow_handoff_count"))
+        assertEquals(9, parsed.getInt("agent_signal_next_action_route_count"))
+        assertEquals("array", compactedHandoff.getString("type"))
+        assertEquals(12, compactedHandoff.getInt("original_count"))
+        assertEquals("Open Wi-Fi Analyzer graph", compactedHandoff.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("wifi_channel_graph", compactedHandoff.getJSONArray("items").getJSONObject(0).getString("open_next_action"))
+        assertEquals("array", compactedRoutes.getString("type"))
+        assertEquals(9, compactedRoutes.getInt("original_count"))
+        assertEquals("Open signal workflow handoff", compactedRoutes.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("agent_signal_workflow_handoff_report", compactedRoutes.getJSONArray("items").getJSONObject(0).getString("tool_action"))
+    }
+
+    @Test
+    fun compactsSignalPermissionRunbookReportWithoutDroppingRefreshRoutes() {
+        val runbookRows = JSONArray()
+        repeat(10) { index ->
+            runbookRows.put(
+                JSONObject()
+                    .put("category", "agent_signal_permission_runbook")
+                    .put("label", if (index == 0) "Prepare active Wi-Fi scan" else "Permission runbook $index")
+                    .put("ready", index < 5)
+                    .put("value_label", if (index == 0) "wifi_scan" else "action $index")
+                    .put("detail", "Detailed permission runbook row $index with Android settings, user consent, active refresh arguments, passive fallback, bridge boundaries, and physical-device proof requirements.")
+                    .put("recommendation", "Use active_refresh_arguments only after user consent and Android permission gates are satisfied.")
+                    .put("tool_action", if (index == 0) "wifi_scan" else "agent_signal_permission_runbook_report")
+                    .put("open_next_action", if (index == 0) "wifi_scan" else "agent_signal_permission_runbook_report")
+                    .put("graph_type", "agent_signal_permission_runbook_matrix")
+                    .put("permission_gate", "user_consent_and_android_permissions")
+                    .put("settings_actions", JSONArray().put("open_app_settings").put("open_location_settings"))
+                    .put("required_permissions", JSONArray().put("android.permission.ACCESS_FINE_LOCATION"))
+                    .put("required_settings", JSONArray().put("location_services_enabled"))
+                    .put("active_refresh_arguments", JSONObject().put("action", "wifi_scan").put("refresh", true))
+                    .put("passive_fallback_action", "wifi_analyzer_report")
+                    .put("user_consent_required", true)
+                    .put("bridge_required", index == 3)
+                    .put("physical_device_validation_required", true)
+                    .put("active_refresh_requires_physical_device", true)
+                    .put("runbook_status", "permission_gate_pending")
+                    .put("fraction", 0.86),
+            )
+        }
+        val routes = JSONArray()
+        repeat(9) { index ->
+            routes.put(
+                JSONObject()
+                    .put("category", "agent_signal_active_refresh_route")
+                    .put("label", if (index == 0) "Run active Wi-Fi scan" else "Active refresh route $index")
+                    .put("ready", true)
+                    .put("value_label", "wifi_scan")
+                    .put("detail", "Route row $index for safe active refresh after consent.")
+                    .put("tool_action", "wifi_scan")
+                    .put("open_next_action", "wifi_scan")
+                    .put("graph_type", "agent_signal_active_refresh_routes")
+                    .put("permission_gate", "nearby_wifi_or_location_permission")
+                    .put("settings_actions", JSONArray().put("open_app_settings").put("open_location_settings"))
+                    .put("active_refresh_arguments", JSONObject().put("action", "wifi_scan").put("refresh", true))
+                    .put("passive_fallback_action", "agent_signal_permission_runbook_report")
+                    .put("user_consent_required", true),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "agent_signal_permission_runbook_report")
+            .put("agent_signal_permission_runbook_count", 10)
+            .put("ready_agent_signal_permission_runbook_count", 5)
+            .put("agent_signal_active_refresh_route_count", 9)
+            .put("ready_agent_signal_active_refresh_route_count", 9)
+            .put("agent_signal_permission_runbook_matrix", runbookRows)
+            .put("agent_signal_active_refresh_routes", routes)
+            .put("gemma_signal_permission_runbook_directives", JSONArray().put("Use active_refresh_arguments exactly."))
+            .put("cards", JSONArray().put(JSONObject().put("title", "Signal Permission Runbook").put("body", "10 rows")))
+            .toString()
+
+        val compacted = NativeToolContextCompressor.compactToolResult(result)
+        val parsed = JSONObject(compacted)
+        val compactedRunbook = parsed.getJSONObject("agent_signal_permission_runbook_matrix")
+        val compactedRoutes = parsed.getJSONObject("agent_signal_active_refresh_routes")
+        val firstRunbookRow = compactedRunbook.getJSONArray("items").getJSONObject(0)
+        val firstRouteRow = compactedRoutes.getJSONArray("items").getJSONObject(0)
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(10, parsed.getInt("agent_signal_permission_runbook_count"))
+        assertEquals(5, parsed.getInt("ready_agent_signal_permission_runbook_count"))
+        assertEquals(9, parsed.getInt("agent_signal_active_refresh_route_count"))
+        assertEquals(9, parsed.getInt("ready_agent_signal_active_refresh_route_count"))
+        assertEquals("array", compactedRunbook.getString("type"))
+        assertEquals(10, compactedRunbook.getInt("original_count"))
+        assertEquals("Prepare active Wi-Fi scan", firstRunbookRow.getString("label"))
+        assertEquals("open_app_settings", firstRunbookRow.getJSONArray("settings_actions").getString(0))
+        assertEquals("android.permission.ACCESS_FINE_LOCATION", firstRunbookRow.getJSONArray("required_permissions").getString(0))
+        assertEquals("wifi_scan", firstRunbookRow.getJSONObject("active_refresh_arguments").getString("action"))
+        assertEquals("wifi_analyzer_report", firstRunbookRow.getString("passive_fallback_action"))
+        assertTrue(firstRunbookRow.getBoolean("user_consent_required"))
+        assertTrue(firstRunbookRow.getBoolean("active_refresh_requires_physical_device"))
+        assertEquals("array", compactedRoutes.getString("type"))
+        assertEquals("Run active Wi-Fi scan", firstRouteRow.getString("label"))
+        assertEquals("wifi_scan", firstRouteRow.getJSONObject("active_refresh_arguments").getString("action"))
+        assertEquals("Use active_refresh_arguments exactly.", parsed.getJSONArray("gemma_signal_permission_runbook_directives").getString(0))
     }
 
     @Test
@@ -1268,6 +2043,156 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun compactsAcceleratorPreflightReportWithoutDroppingDelegateRows() {
+        val rows = JSONArray()
+        repeat(18) { index ->
+            rows.put(
+                JSONObject()
+                    .put("category", "accelerator_preflight")
+                    .put("label", if (index == 0) "OpenCL library visibility" else "Accelerator row $index")
+                    .put("ready", index < 4)
+                    .put("value_label", if (index == 0) "visible" else "delegate preflight")
+                    .put("detail", "Detailed accelerator preflight row $index with MediaTek Mali OpenCL and CPU fallback context.")
+                    .put("recommendation", "Use accelerator_preflight_report before starting the local model.")
+                    .put("opencl_library_visible", index == 0)
+                    .put("tool_action", if (index == 0) "local_backend_runtime_report" else "soc_compatibility_report"),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "accelerator_preflight_report")
+            .put("accelerator_preflight_count", 18)
+            .put("ready_accelerator_preflight_count", 4)
+            .put("accelerator_preflight_matrix", rows)
+            .put("cards", JSONArray().put(JSONObject().put("title", "Accelerator Preflight").put("body", "18 rows")))
+            .toString()
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result))
+        val matrix = parsed.getJSONObject("accelerator_preflight_matrix")
+        val first = matrix.getJSONArray("items").getJSONObject(0)
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(18, parsed.getInt("accelerator_preflight_count"))
+        assertEquals(4, parsed.getInt("ready_accelerator_preflight_count"))
+        assertEquals("array", matrix.getString("type"))
+        assertEquals(18, matrix.getInt("original_count"))
+        assertEquals("OpenCL library visibility", first.getString("label"))
+        assertEquals(true, first.getBoolean("opencl_library_visible"))
+        assertEquals("local_backend_runtime_report", first.getString("tool_action"))
+    }
+
+    @Test
+    fun compactsNonAdrenoBackendAdvisorWithoutDroppingLaunchRows() {
+        val rows = JSONArray()
+        repeat(18) { index ->
+            rows.put(
+                JSONObject()
+                    .put("category", "non_adreno_backend_advisor")
+                    .put("label", if (index == 0) "Classify device family before launch" else "Backend advisor row $index")
+                    .put("ready", index < 5)
+                    .put("value_label", if (index == 0) "MediaTek / Mali" else "launch advisor")
+                    .put("detail", "Detailed non-Adreno backend advisor row $index with MediaTek Mali PowerVR launch context.")
+                    .put("recommendation", "Use non_adreno_backend_advisor_report before starting local inference.")
+                    .put("tool_action", if (index == 0) "soc_compatibility_report" else "accelerator_preflight_report")
+                    .put("graph_type", if (index == 0) "soc_backend_matrix" else "accelerator_preflight_matrix")
+                    .put("non_adreno_policy_active", index == 0),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "non_adreno_backend_advisor_report")
+            .put("non_adreno_backend_advisor_score", 76)
+            .put("non_adreno_backend_advisor_level", "good")
+            .put("non_adreno_backend_advisor_count", 18)
+            .put("ready_non_adreno_backend_advisor_count", 5)
+            .put("non_adreno_backend_advisor_matrix", rows)
+            .put(
+                "non_adreno_backend_launch_sequence",
+                JSONArray()
+                    .put("soc_compatibility_report")
+                    .put("accelerator_preflight_report")
+                    .put("local_backend_runtime_report"),
+            )
+            .put(
+                "gemma_non_adreno_backend_directives",
+                JSONArray().put("Open non_adreno_backend_advisor_matrix before starting local inference."),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "Non-Adreno Backend Advisor").put("body", "18 rows")))
+            .toString()
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result))
+        val matrix = parsed.getJSONObject("non_adreno_backend_advisor_matrix")
+        val first = matrix.getJSONArray("items").getJSONObject(0)
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(76, parsed.getInt("non_adreno_backend_advisor_score"))
+        assertEquals("good", parsed.getString("non_adreno_backend_advisor_level"))
+        assertEquals(18, parsed.getInt("non_adreno_backend_advisor_count"))
+        assertEquals(5, parsed.getInt("ready_non_adreno_backend_advisor_count"))
+        assertEquals("array", matrix.getString("type"))
+        assertEquals(18, matrix.getInt("original_count"))
+        assertEquals("Classify device family before launch", first.getString("label"))
+        assertEquals("soc_compatibility_report", first.getString("tool_action"))
+        assertEquals("soc_backend_matrix", first.getString("graph_type"))
+        assertTrue(parsed.get("non_adreno_backend_launch_sequence").toString().contains("local_backend_runtime_report"))
+        assertTrue(parsed.get("gemma_non_adreno_backend_directives").toString().contains("before starting local inference"))
+    }
+
+    @Test
+    fun compactsMediatekBackendLaunchChecklistWithoutDroppingGates() {
+        val rows = JSONArray()
+        repeat(16) { index ->
+            rows.put(
+                JSONObject()
+                    .put("category", "mediatek_backend_launch_checklist")
+                    .put("label", if (index == 0) "Verify GPU proof or name CPU fallback" else "Launch gate $index")
+                    .put("ready", index < 6)
+                    .put("value_label", if (index == 0) "cpu fallback" else "gate")
+                    .put("detail", "Detailed MediaTek launch gate $index")
+                    .put("recommendation", "Use the source report before starting local inference.")
+                    .put("launch_step", index + 1)
+                    .put("launch_gate_status", if (index < 6) "ready" else "needs_runtime")
+                    .put("status_label", if (index < 6) "ready" else "needs_runtime")
+                    .put("tool_action", if (index == 0) "local_backend_runtime_report" else "accelerator_preflight_report")
+                    .put("graph_type", if (index == 0) "runtime_backend_matrix" else "accelerator_preflight_matrix")
+                    .put("live_runtime_proof", index == 0)
+                    .put("cpu_fallback_explicit", index == 0),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "mediatek_backend_launch_checklist_report")
+            .put("mediatek_backend_launch_checklist_count", 16)
+            .put("ready_mediatek_backend_launch_checklist_count", 6)
+            .put("blocked_mediatek_backend_launch_checklist_count", 2)
+            .put("mediatek_backend_launch_checklist_matrix", rows)
+            .put(
+                "gemma_mediatek_launch_directives",
+                JSONArray().put("Open mediatek_backend_launch_checklist_matrix before starting local inference."),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "MediaTek Launch Checklist").put("body", "16 rows")))
+            .toString()
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result))
+        val matrix = parsed.getJSONObject("mediatek_backend_launch_checklist_matrix")
+        val first = matrix.getJSONArray("items").getJSONObject(0)
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(16, parsed.getInt("mediatek_backend_launch_checklist_count"))
+        assertEquals(6, parsed.getInt("ready_mediatek_backend_launch_checklist_count"))
+        assertEquals(2, parsed.getInt("blocked_mediatek_backend_launch_checklist_count"))
+        assertEquals("array", matrix.getString("type"))
+        assertEquals(16, matrix.getInt("original_count"))
+        assertEquals("Verify GPU proof or name CPU fallback", first.getString("label"))
+        assertEquals(1, first.getInt("launch_step"))
+        assertEquals("ready", first.getString("launch_gate_status"))
+        assertEquals("local_backend_runtime_report", first.getString("tool_action"))
+        assertTrue(first.getBoolean("live_runtime_proof"))
+        assertTrue(first.getBoolean("cpu_fallback_explicit"))
+        assertTrue(parsed.get("gemma_mediatek_launch_directives").toString().contains("before starting local inference"))
+    }
+
+    @Test
     fun compactsWifiAnalyzerReportWithoutDroppingPolicyRoutes() {
         val features = JSONArray()
         repeat(18) { index ->
@@ -1427,6 +2352,140 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun compactsBluetoothAdvisorReportWithoutDroppingDecisionRowsOrCandidates() {
+        val advisorRows = JSONArray()
+        repeat(14) { index ->
+            advisorRows.put(
+                JSONObject()
+                    .put("category", "bluetooth_signal_advisor")
+                    .put("label", "Bluetooth advisor decision $index")
+                    .put("ready", index % 2 == 0)
+                    .put("value_label", "decision $index")
+                    .put("detail", "Bluetooth advisor row $index with candidate, trend, metadata, permission, detail, and RF coexistence evidence.")
+                    .put("recommendation", "Route through the Bluetooth advisor matrix.")
+                    .put("tool_action", "bluetooth_device_details")
+                    .put("graph_type", "bluetooth_signal_advisor_matrix")
+                    .put("fraction", 0.84),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "bluetooth_signal_advisor_report")
+            .put("bluetooth_signal_advisor_count", 14)
+            .put("ready_bluetooth_signal_advisor_count", 7)
+            .put("bluetooth_device_candidate_count", 1)
+            .put("bluetooth_signal_advisor_matrix", advisorRows)
+            .put(
+                "bluetooth_device_candidates",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "bluetooth_device_candidate")
+                        .put("label", "Hermes Heart")
+                        .put("ready", true)
+                        .put("value_label", "-47 dBm near")
+                        .put("candidate_score", 94)
+                        .put("rssi_dbm", -47)
+                        .put("address_suffix", "...11:22")
+                        .put("paired", true)
+                        .put("service_labels", JSONArray().put("Heart Rate"))
+                        .put("manufacturer_names", JSONArray().put("Apple"))
+                        .put("tool_action", "bluetooth_device_details"),
+                ),
+            )
+            .put(
+                "gemma_bluetooth_advisor_directives",
+                JSONArray().put("Use bluetooth_signal_advisor_matrix first."),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "Bluetooth Advisor").put("body", "14 rows")))
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result.toString()))
+        val matrix = parsed.getJSONObject("bluetooth_signal_advisor_matrix")
+        val candidates = parsed.getJSONArray("bluetooth_device_candidates")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(14, parsed.getInt("bluetooth_signal_advisor_count"))
+        assertEquals(7, parsed.getInt("ready_bluetooth_signal_advisor_count"))
+        assertEquals("array", matrix.getString("type"))
+        assertEquals("Bluetooth advisor decision 0", matrix.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("bluetooth_device_details", matrix.getJSONArray("items").getJSONObject(0).getString("tool_action"))
+        assertEquals("Hermes Heart", candidates.getJSONObject(0).getString("label"))
+        assertEquals(94, candidates.getJSONObject(0).getInt("candidate_score"))
+        assertEquals("Heart Rate", candidates.getJSONObject(0).getJSONArray("service_labels").getString(0))
+        assertEquals("Use bluetooth_signal_advisor_matrix first.", parsed.getJSONArray("gemma_bluetooth_advisor_directives").getString(0))
+    }
+
+    @Test
+    fun compactsBluetoothNearbyDecisionPacketWithoutDroppingRoutesOrBoundaries() {
+        val packetRows = JSONArray()
+        repeat(12) { index ->
+            packetRows.put(
+                JSONObject()
+                    .put("category", "bluetooth_nearby_decision_packet")
+                    .put("label", "Bluetooth nearby packet $index")
+                    .put("ready", index % 2 == 0)
+                    .put("value_label", "packet $index")
+                    .put("detail", "Bluetooth nearby decision packet $index with metadata, RF, and MediaTek context.")
+                    .put("recommendation", "Keep Bluetooth claims bounded.")
+                    .put("tool_action", "bluetooth_nearby_decision_packet_report")
+                    .put("graph_type", "bluetooth_nearby_decision_packet")
+                    .put("source_graph_type", "bluetooth_device_candidates")
+                    .put("decision_status", "candidate_available")
+                    .put("claim_scope", "Android-visible Bluetooth metadata only")
+                    .put("active_refresh_action", "bluetooth_scan")
+                    .put("passive_fallback_action", "bluetooth_signal_advisor_report")
+                    .put("mediatek_sensitive", true)
+                    .put("rf_coexistence_sensitive", true)
+                    .put("fraction", 0.84),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "bluetooth_nearby_decision_packet_report")
+            .put("bluetooth_nearby_decision_packet_count", 12)
+            .put("ready_bluetooth_nearby_decision_packet_count", 6)
+            .put("bluetooth_nearby_decision_packet", packetRows)
+            .put(
+                "bluetooth_nearby_decision_routes",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "bluetooth_nearby_decision_route")
+                        .put("label", "Nearby BLE refresh route")
+                        .put("ready", true)
+                        .put("tool_action", "bluetooth_scan")
+                        .put("target_graph_type", "bluetooth_rssi"),
+                ),
+            )
+            .put(
+                "bluetooth_nearby_claim_boundaries",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "bluetooth_nearby_claim_boundary")
+                        .put("label", "MediaTek/backend boundary")
+                        .put("ready", true)
+                        .put("claim_scope", "SOC/backend compatibility context only"),
+                ),
+            )
+            .put(
+                "gemma_bluetooth_nearby_directives",
+                JSONArray().put("Use bluetooth_nearby_decision_packet first."),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "Bluetooth Nearby Decision").put("body", "12 rows")))
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result.toString()))
+        val packet = parsed.getJSONObject("bluetooth_nearby_decision_packet")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(12, parsed.getInt("bluetooth_nearby_decision_packet_count"))
+        assertEquals("array", packet.getString("type"))
+        assertEquals("Bluetooth nearby packet 0", packet.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("candidate_available", packet.getJSONArray("items").getJSONObject(0).getString("decision_status"))
+        assertTrue(packet.getJSONArray("items").getJSONObject(0).getBoolean("mediatek_sensitive"))
+        assertEquals("Nearby BLE refresh route", parsed.getJSONArray("bluetooth_nearby_decision_routes").getJSONObject(0).getString("label"))
+        assertEquals("MediaTek/backend boundary", parsed.getJSONArray("bluetooth_nearby_claim_boundaries").getJSONObject(0).getString("label"))
+        assertEquals("Use bluetooth_nearby_decision_packet first.", parsed.getJSONArray("gemma_bluetooth_nearby_directives").getString(0))
+    }
+
+    @Test
     fun compactsSensorAnalyzerReportWithoutDroppingPolicyRoutes() {
         val features = JSONArray()
         repeat(18) { index ->
@@ -1522,6 +2581,270 @@ class NativeToolCallingChatClientTest {
         assertEquals("IMU fusion source coverage", quality.getJSONObject(0).getString("label"))
         assertEquals("fusion_sources", quality.getJSONObject(0).getString("quality_signal"))
         assertEquals("motion_sensor_quality", quality.getJSONObject(0).getString("tool_action"))
+    }
+
+    @Test
+    fun compactsSensorWorkflowAdvisorReportWithoutDroppingCandidates() {
+        val advisorRows = JSONArray()
+        repeat(14) { index ->
+            advisorRows.put(
+                JSONObject()
+                    .put("category", "sensor_workflow_advisor")
+                    .put("label", "Sensor advisor decision $index")
+                    .put("ready", index % 2 == 0)
+                    .put("value_label", "decision $index")
+                    .put("detail", "Sensor advisor row $index with accelerometer, gyroscope, sampling, and runtime evidence.")
+                    .put("recommendation", "Use the matching sensor workflow route.")
+                    .put("tool_action", "sensor_snapshot")
+                    .put("graph_type", "sensor_workflow_advisor_matrix")
+                    .put("fraction", 0.86),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "sensor_workflow_advisor_report")
+            .put("sensor_workflow_advisor_count", 14)
+            .put("ready_sensor_workflow_advisor_count", 7)
+            .put("sensor_workflow_candidate_count", 1)
+            .put("sensor_workflow_advisor_matrix", advisorRows)
+            .put(
+                "sensor_workflow_candidates",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "sensor_workflow_candidate")
+                        .put("label", "Accelerometer")
+                        .put("ready", true)
+                        .put("sensor_type", "accelerometer")
+                        .put("value_label", "available")
+                        .put("candidate_score", 92)
+                        .put("power_ma", 0.5)
+                        .put("tool_action", "motion_sensor_quality"),
+                ),
+            )
+            .put(
+                "gemma_sensor_workflow_directives",
+                JSONArray().put("Use sensor_workflow_advisor_matrix first."),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "Sensor Workflow Advisor").put("body", "14 rows")))
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result.toString()))
+        val matrix = parsed.getJSONObject("sensor_workflow_advisor_matrix")
+        val candidates = parsed.getJSONArray("sensor_workflow_candidates")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(14, parsed.getInt("sensor_workflow_advisor_count"))
+        assertEquals(7, parsed.getInt("ready_sensor_workflow_advisor_count"))
+        assertEquals("array", matrix.getString("type"))
+        assertEquals("Sensor advisor decision 0", matrix.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("sensor_snapshot", matrix.getJSONArray("items").getJSONObject(0).getString("tool_action"))
+        assertEquals("Accelerometer", candidates.getJSONObject(0).getString("label"))
+        assertEquals("accelerometer", candidates.getJSONObject(0).getString("sensor_type"))
+        assertEquals(92, candidates.getJSONObject(0).getInt("candidate_score"))
+        assertEquals("Use sensor_workflow_advisor_matrix first.", parsed.getJSONArray("gemma_sensor_workflow_directives").getString(0))
+    }
+
+    @Test
+    fun compactsMotionSensorDecisionPacketWithoutDroppingRoutesOrBoundaries() {
+        val packetRows = JSONArray()
+        repeat(12) { index ->
+            packetRows.put(
+                JSONObject()
+                    .put("category", "motion_sensor_decision_packet")
+                    .put("label", "Motion sensor packet $index")
+                    .put("ready", index % 2 == 0)
+                    .put("value_label", "packet $index")
+                    .put("detail", "Motion sensor decision packet $index with accelerometer, gyroscope, pose, sampling, and MediaTek context.")
+                    .put("recommendation", "Keep motion claims bounded.")
+                    .put("tool_action", "motion_sensor_decision_packet_report")
+                    .put("graph_type", "motion_sensor_decision_packet")
+                    .put("source_graph_type", "motion_sensor_quality")
+                    .put("decision_status", "motion_context_available")
+                    .put("claim_scope", "Android SensorManager motion metadata only")
+                    .put("active_refresh_action", "motion_sensor_quality")
+                    .put("passive_fallback_action", "sensor_analyzer_report")
+                    .put("mediatek_sensitive", true)
+                    .put("sensor_privacy_sensitive", true)
+                    .put("fraction", 0.88),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "motion_sensor_decision_packet_report")
+            .put("motion_sensor_decision_packet_count", 12)
+            .put("ready_motion_sensor_decision_packet_count", 6)
+            .put("motion_sensor_decision_packet", packetRows)
+            .put(
+                "motion_sensor_decision_routes",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "motion_sensor_decision_route")
+                        .put("label", "Open motion quality gates")
+                        .put("ready", true)
+                        .put("tool_action", "motion_sensor_quality")
+                        .put("target_graph_type", "motion_sensor_quality"),
+                ),
+            )
+            .put(
+                "motion_sensor_claim_boundaries",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "motion_sensor_claim_boundary")
+                        .put("label", "Android SensorManager boundary")
+                        .put("ready", true)
+                        .put("claim_scope", "Android-reported motion sensor metadata and bounded samples only")
+                        .put("sensor_privacy_sensitive", true),
+                ),
+            )
+            .put(
+                "gemma_motion_sensor_decision_directives",
+                JSONArray().put("Use motion_sensor_decision_packet first."),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "Motion Sensor Decision").put("body", "12 rows")))
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result.toString()))
+        val packet = parsed.getJSONObject("motion_sensor_decision_packet")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(12, parsed.getInt("motion_sensor_decision_packet_count"))
+        assertEquals("array", packet.getString("type"))
+        assertEquals("Motion sensor packet 0", packet.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("motion_context_available", packet.getJSONArray("items").getJSONObject(0).getString("decision_status"))
+        assertTrue(packet.getJSONArray("items").getJSONObject(0).getBoolean("sensor_privacy_sensitive"))
+        assertEquals("Open motion quality gates", parsed.getJSONArray("motion_sensor_decision_routes").getJSONObject(0).getString("label"))
+        assertEquals("Android SensorManager boundary", parsed.getJSONArray("motion_sensor_claim_boundaries").getJSONObject(0).getString("label"))
+        assertEquals("Use motion_sensor_decision_packet first.", parsed.getJSONArray("gemma_motion_sensor_decision_directives").getString(0))
+    }
+
+    @Test
+    fun compactsRadioSignalAdvisorReportWithoutDroppingReceiverDecisions() {
+        val advisorRows = JSONArray()
+        repeat(14) { index ->
+            advisorRows.put(
+                JSONObject()
+                    .put("category", "radio_signal_advisor")
+                    .put("label", "Radio advisor decision $index")
+                    .put("ready", index % 2 == 0)
+                    .put("value_label", "decision $index")
+                    .put("detail", "Radio advisor row $index with receiver, AM/FM, SDR bridge, metadata, and safety-boundary evidence.")
+                    .put("recommendation", "Use the matching receiver route.")
+                    .put("tool_action", "radio_signal_graph")
+                    .put("graph_type", "radio_signal_advisor_matrix")
+                    .put("fraction", 0.88),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "radio_signal_advisor_report")
+            .put("radio_signal_advisor_count", 14)
+            .put("ready_radio_signal_advisor_count", 7)
+            .put("radio_receiver_candidate_count", 1)
+            .put("radio_signal_advisor_matrix", advisorRows)
+            .put(
+                "radio_receiver_candidates",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "radio_receiver_candidate")
+                        .put("label", "FM station receiver profile")
+                        .put("ready", true)
+                        .put("value_label", "1 sample(s)")
+                        .put("candidate_score", 92)
+                        .put("receiver_id", "fm_vendor_or_sdr")
+                        .put("sample_count", 1)
+                        .put("ready_metadata_count", 1)
+                        .put("tool_action", "radio_signal_graph"),
+                ),
+            )
+            .put(
+                "gemma_radio_advisor_directives",
+                JSONArray().put("Use radio_signal_advisor_matrix first."),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "Radio Signal Advisor").put("body", "14 rows")))
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result.toString()))
+        val matrix = parsed.getJSONObject("radio_signal_advisor_matrix")
+        val candidates = parsed.getJSONArray("radio_receiver_candidates")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(14, parsed.getInt("radio_signal_advisor_count"))
+        assertEquals(7, parsed.getInt("ready_radio_signal_advisor_count"))
+        assertEquals("array", matrix.getString("type"))
+        assertEquals("Radio advisor decision 0", matrix.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("radio_signal_graph", matrix.getJSONArray("items").getJSONObject(0).getString("tool_action"))
+        assertEquals("FM station receiver profile", candidates.getJSONObject(0).getString("label"))
+        assertEquals("fm_vendor_or_sdr", candidates.getJSONObject(0).getString("receiver_id"))
+        assertEquals(92, candidates.getJSONObject(0).getInt("candidate_score"))
+        assertEquals("Use radio_signal_advisor_matrix first.", parsed.getJSONArray("gemma_radio_advisor_directives").getString(0))
+    }
+
+    @Test
+    fun compactsRadioSignalDecisionPacketWithoutDroppingRoutesOrBoundaries() {
+        val packetRows = JSONArray()
+        repeat(12) { index ->
+            packetRows.put(
+                JSONObject()
+                    .put("category", "radio_signal_decision_packet")
+                    .put("label", "Radio decision packet $index")
+                    .put("ready", index % 2 == 0)
+                    .put("value_label", "packet $index")
+                    .put("detail", "Radio signal decision packet $index with AM/FM, SDR, RF, and MediaTek context.")
+                    .put("recommendation", "Keep radio claims bounded.")
+                    .put("tool_action", "radio_signal_decision_packet_report")
+                    .put("graph_type", "radio_signal_decision_packet")
+                    .put("source_graph_type", "radio_signal_graph")
+                    .put("decision_status", "am_fm_samples_available")
+                    .put("claim_scope", "receiver-provided samples only")
+                    .put("active_refresh_action", "radio_signal_graph")
+                    .put("passive_fallback_action", "radio_signal_status")
+                    .put("mediatek_sensitive", true)
+                    .put("rf_coexistence_sensitive", true)
+                    .put("fraction", 0.88),
+            )
+        }
+        val result = JSONObject()
+            .put("success", true)
+            .put("action", "radio_signal_decision_packet_report")
+            .put("radio_signal_decision_packet_count", 12)
+            .put("ready_radio_signal_decision_packet_count", 6)
+            .put("radio_signal_decision_packet", packetRows)
+            .put(
+                "radio_signal_decision_routes",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "radio_signal_decision_route")
+                        .put("label", "AM/FM or SDR graph route")
+                        .put("ready", true)
+                        .put("tool_action", "radio_signal_graph")
+                        .put("target_graph_type", "radio_signal_graph"),
+                ),
+            )
+            .put(
+                "radio_signal_claim_boundaries",
+                JSONArray().put(
+                    JSONObject()
+                        .put("category", "radio_signal_claim_boundary")
+                        .put("label", "Public Android radio boundary")
+                        .put("ready", true)
+                        .put("claim_scope", "public Android radio capability limits"),
+                ),
+            )
+            .put(
+                "gemma_radio_signal_decision_directives",
+                JSONArray().put("Use radio_signal_decision_packet first."),
+            )
+            .put("cards", JSONArray().put(JSONObject().put("title", "Radio Signal Decision").put("body", "12 rows")))
+
+        val parsed = JSONObject(NativeToolContextCompressor.compactToolResult(result.toString()))
+        val packet = parsed.getJSONObject("radio_signal_decision_packet")
+
+        assertTrue(parsed.getBoolean("_hermes_context_compressed"))
+        assertEquals(12, parsed.getInt("radio_signal_decision_packet_count"))
+        assertEquals("array", packet.getString("type"))
+        assertEquals("Radio decision packet 0", packet.getJSONArray("items").getJSONObject(0).getString("label"))
+        assertEquals("am_fm_samples_available", packet.getJSONArray("items").getJSONObject(0).getString("decision_status"))
+        assertTrue(packet.getJSONArray("items").getJSONObject(0).getBoolean("rf_coexistence_sensitive"))
+        assertEquals("AM/FM or SDR graph route", parsed.getJSONArray("radio_signal_decision_routes").getJSONObject(0).getString("label"))
+        assertEquals("Public Android radio boundary", parsed.getJSONArray("radio_signal_claim_boundaries").getJSONObject(0).getString("label"))
+        assertEquals("Use radio_signal_decision_packet first.", parsed.getJSONArray("gemma_radio_signal_decision_directives").getString(0))
     }
 
     @Test

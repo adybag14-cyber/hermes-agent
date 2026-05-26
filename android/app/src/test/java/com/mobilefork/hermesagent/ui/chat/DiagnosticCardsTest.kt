@@ -135,6 +135,857 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesExpandedSignalCardDeckManifestAsTopPriorityCard() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Expanded Signal Card Deck")
+                        .put("body", "Preloaded signal cards.")
+                        .put("graph_type", "agent_signal_card_deck_manifest")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "agent_signal_card_deck")
+                                    .put("label", "Wi-Fi Channel Graph")
+                                    .put("ready", true)
+                                    .put("value_label", "Wi-Fi Analyzer: 4 row(s)")
+                                    .put("detail", "top_card_slot=1; graph_type=wifi_channel_graph; open_next_action=wifi_channel_graph")
+                                    .put("recommendation", "Expand Wi-Fi Channel Graph.")
+                                    .put("fraction", 0.94),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("agent_signal_card_deck_manifest", card.graphType)
+        assertEquals("Wi-Fi Channel Graph", row.label)
+        assertEquals("Wi-Fi Analyzer: 4 row(s)", row.valueLabel)
+        assertTrue(row.detail.contains("agent signal card deck"))
+        assertTrue(row.detail.contains("wifi_channel_graph"))
+        assertEquals(0, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
+    fun parsesMediatekDeviceValidationRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "MediaTek Device Validation")
+                            .put("body", "Phone proof rows.")
+                            .put("graph_type", "mediatek_device_validation_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "mediatek_device_validation")
+                                        .put("label", "Physical MediaTek/non-Adreno identity")
+                                        .put("ready", false)
+                                        .put("value_label", "MediaTek / Mali")
+                                        .put("detail", "physical_device_validation_required=true; claim_scope=SOC family identity only")
+                                        .put("recommendation", "Validate on physical hardware.")
+                                        .put("fraction", 0.72),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Live Signal Validation Routes")
+                            .put("body", "Route rows.")
+                            .put("graph_type", "live_signal_validation_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "mediatek_device_validation_route")
+                                        .put("label", "Run live Wi-Fi proof")
+                                        .put("ready", true)
+                                        .put("value_label", "wifi_scan")
+                                        .put("detail", "permission_gate=nearby_wifi_or_location_permission")
+                                        .put("recommendation", "Use active refresh only on request.")
+                                        .put("fraction", 0.88),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Release Device Proof Gates")
+                            .put("body", "Release gates.")
+                            .put("graph_type", "release_device_proof_gates")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "mediatek_device_validation_route")
+                                        .put("label", "Signed APK/AAB checksum gate")
+                                        .put("ready", false)
+                                        .put("value_label", "checksum required")
+                                        .put("detail", "release_validation_required=true")
+                                        .put("recommendation", "Verify release assets.")
+                                        .put("fraction", 0.38),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(3, cards.size)
+        assertEquals("mediatek_device_validation_matrix", cards[0].graphType)
+        assertEquals("Physical MediaTek/non-Adreno identity", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("physical_device_validation_required"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals("live_signal_validation_routes", cards[1].graphType)
+        assertEquals("Run live Wi-Fi proof", cards[1].rows.single().label)
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+        assertEquals("release_device_proof_gates", cards[2].graphType)
+        assertEquals("Signed APK/AAB checksum gate", cards[2].rows.single().label)
+        assertEquals(0, diagnosticCardPreviewPriority(cards[2]))
+    }
+
+    @Test
+    fun parsesDeviceValidationEvidenceExportRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Required Device Artifacts")
+                            .put("body", "Phone evidence artifacts.")
+                            .put("graph_type", "device_validation_required_artifacts")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "device_validation_required_artifact")
+                                        .put("label", "LiteRT /health backend proof")
+                                        .put("ready", false)
+                                        .put("value_label", "backend /health required")
+                                        .put("detail", "physical_device_validation_required=true; capture_command=adb reverse tcp:8765 tcp:8765")
+                                        .put("recommendation", "Capture phone backend health.")
+                                        .put("fraction", 0.36),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Phone Validation Routes")
+                            .put("body", "ADB routes.")
+                            .put("graph_type", "phone_validation_command_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "phone_validation_command_route")
+                                        .put("label", "Capture phone identity and installed package")
+                                        .put("ready", true)
+                                        .put("value_label", "ADB/operator route")
+                                        .put("detail", "capture_command=adb shell getprop")
+                                        .put("recommendation", "Attach output.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "GitHub Release Evidence")
+                            .put("body", "Release routes.")
+                            .put("graph_type", "github_release_evidence_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "github_release_evidence_route")
+                                        .put("label", "Signed APK/AAB asset and checksum route")
+                                        .put("ready", false)
+                                        .put("value_label", "checksum assets required")
+                                        .put("detail", "release_validation_required=true")
+                                        .put("recommendation", "Verify GitHub assets.")
+                                        .put("fraction", 0.35),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(3, cards.size)
+        assertEquals("device_validation_required_artifacts", cards[0].graphType)
+        assertEquals("LiteRT /health backend proof", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("device validation required artifact"))
+        assertEquals("phone_validation_command_routes", cards[1].graphType)
+        assertEquals("Capture phone identity and installed package", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("adb shell getprop"))
+        assertEquals("github_release_evidence_routes", cards[2].graphType)
+        assertEquals("Signed APK/AAB asset and checksum route", cards[2].rows.single().label)
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[2]))
+    }
+
+    @Test
+    fun parsesSignalCardRefreshPlanAsTopPriorityCard() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Signal Card Refresh Plan")
+                        .put("body", "Per-card refresh routes.")
+                        .put("graph_type", "agent_signal_card_refresh_plan_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "agent_signal_card_refresh_plan")
+                                    .put("label", "Wi-Fi Channel Graph")
+                                    .put("ready", true)
+                                    .put("value_label", "wifi_scan")
+                                    .put("detail", "passive_fallback_action=wifi_analyzer_report; active_refresh_arguments={refresh:true}")
+                                    .put("recommendation", "Refresh only when current AP rows are needed.")
+                                    .put("fraction", 0.9),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("agent_signal_card_refresh_plan_matrix", card.graphType)
+        assertEquals("Wi-Fi Channel Graph", row.label)
+        assertEquals("wifi_scan", row.valueLabel)
+        assertTrue(row.detail.contains("agent signal card refresh plan"))
+        assertTrue(row.detail.contains("active_refresh_arguments"))
+        assertEquals(0, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
+    fun parsesSignalCardRefreshStatusAsTopPriorityCard() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Signal Card Refresh Status")
+                        .put("body", "Per-card refresh status.")
+                        .put("graph_type", "agent_signal_card_refresh_status_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "agent_signal_card_refresh_status")
+                                    .put("label", "Wi-Fi Channel Graph")
+                                    .put("ready", true)
+                                    .put("value_label", "ready_phone_validation")
+                                    .put("detail", "status_label=ready_phone_validation; next_best_action=wifi_scan; open_settings_action=open_wifi_settings")
+                                    .put("recommendation", "Run wifi_scan on phone with explicit user intent.")
+                                    .put("fraction", 0.84),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("agent_signal_card_refresh_status_matrix", card.graphType)
+        assertEquals("Wi-Fi Channel Graph", row.label)
+        assertEquals("ready_phone_validation", row.valueLabel)
+        assertTrue(row.detail.contains("agent signal card refresh status"))
+        assertTrue(row.detail.contains("next_best_action"))
+        assertEquals(0, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
+    fun parsesSignalSessionSnapshotRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Agent Signal Session Snapshot")
+                            .put("body", "Current fused signal posture.")
+                            .put("graph_type", "agent_signal_session_snapshot_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_session_snapshot")
+                                        .put("label", "Session signal posture")
+                                        .put("ready", true)
+                                        .put("value_label", "5/7 domains ready")
+                                        .put("detail", "Wi-Fi, Bluetooth, sensor, radio, RF, cards, backend")
+                                        .put("recommendation", "Read this before opening domain cards.")
+                                        .put("fraction", 0.88),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Session Domain Coverage")
+                            .put("body", "Per-domain readiness.")
+                            .put("graph_type", "agent_signal_session_domain_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_session_domain")
+                                        .put("label", "Wi-Fi graph domain")
+                                        .put("ready", true)
+                                        .put("value_label", "ready")
+                                        .put("detail", "wifi_analyzer_report -> wifi_channel_graph")
+                                        .put("recommendation", "Open Wi-Fi graph cards first.")
+                                        .put("fraction", 0.91),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("agent_signal_session_snapshot_matrix", cards[0].graphType)
+        assertEquals("Session signal posture", cards[0].rows.single().label)
+        assertEquals("5/7 domains ready", cards[0].rows.single().valueLabel)
+        assertTrue(cards[0].rows.single().detail.contains("agent signal session snapshot"))
+        assertEquals("agent_signal_session_domain_matrix", cards[1].graphType)
+        assertEquals("Wi-Fi graph domain", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("agent signal session domain"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
+    fun parsesSignalProofAuditRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Signal Proof Audit")
+                            .put("body", "Active and passive proof boundaries.")
+                            .put("graph_type", "agent_signal_proof_audit_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_proof_audit")
+                                        .put("label", "Wi-Fi active proof")
+                                        .put("ready", false)
+                                        .put("value_label", "passive evidence only")
+                                        .put("detail", "proof_status=passive_evidence_only; claim_scope=passive analyzer metadata")
+                                        .put("recommendation", "Use passive_fallback_action before claiming live evidence.")
+                                        .put("fraction", 0.64),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Signal Claim Boundaries")
+                            .put("body", "Claim limits.")
+                            .put("graph_type", "agent_signal_claim_boundary_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_claim_boundary")
+                                        .put("label", "Radio bridge boundary")
+                                        .put("ready", false)
+                                        .put("value_label", "1 bridge-required row")
+                                        .put("detail", "claim_boundary=radio_bridge; proof_status=bridge_required")
+                                        .put("recommendation", "Supply SDR bridge samples first.")
+                                        .put("fraction", 0.42),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("agent_signal_proof_audit_matrix", cards[0].graphType)
+        assertEquals("Wi-Fi active proof", cards[0].rows.single().label)
+        assertEquals("passive evidence only", cards[0].rows.single().valueLabel)
+        assertTrue(cards[0].rows.single().detail.contains("agent signal proof audit"))
+        assertTrue(cards[0].rows.single().detail.contains("proof_status"))
+        assertEquals("agent_signal_claim_boundary_matrix", cards[1].graphType)
+        assertEquals("Radio bridge boundary", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("agent signal claim boundary"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
+    fun parsesSignalReplayExportRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Signal Replay Export")
+                            .put("body", "Portable replay manifest.")
+                            .put("graph_type", "agent_signal_replay_export_manifest")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_replay_export")
+                                        .put("label", "Evidence bundle frame")
+                                        .put("ready", true)
+                                        .put("value_label", "9 evidence row(s)")
+                                        .put("detail", "source_action=agent_signal_evidence_report; graph_type=signal_evidence_matrix; proof_status=passive_evidence_present")
+                                        .put("recommendation", "Replay without claiming live evidence.")
+                                        .put("fraction", 0.92),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Replay Frame Index")
+                            .put("body", "Frame order.")
+                            .put("graph_type", "agent_signal_replay_frame_index")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_replay_frame")
+                                        .put("label", "Proof audit replay frame")
+                                        .put("ready", true)
+                                        .put("value_label", "8 row(s)")
+                                        .put("detail", "frame_key=proof_audit; claim_scope=claim-safe proof ledger; proof_status=proof_status_required")
+                                        .put("recommendation", "Read proof audit before replay.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Replay Metadata Keys")
+                            .put("body", "Preserved keys.")
+                            .put("graph_type", "agent_signal_replay_metadata_keys")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_replay_metadata_key")
+                                        .put("label", "Proof boundary keys")
+                                        .put("ready", true)
+                                        .put("value_label", "8 key(s)")
+                                        .put("detail", "metadata_key_group=proof_boundaries; metadata_keys=claim_scope,proof_status")
+                                        .put("recommendation", "Preserve these keys when compacting.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(3, cards.size)
+        assertEquals("agent_signal_replay_export_manifest", cards[0].graphType)
+        assertEquals("Evidence bundle frame", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("agent signal replay export"))
+        assertTrue(cards[0].rows.single().detail.contains("proof_status"))
+        assertEquals("agent_signal_replay_frame_index", cards[1].graphType)
+        assertEquals("Proof audit replay frame", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("agent signal replay frame"))
+        assertEquals("agent_signal_replay_metadata_keys", cards[2].graphType)
+        assertEquals("Proof boundary keys", cards[2].rows.single().label)
+        assertTrue(cards[2].rows.single().detail.contains("agent signal replay metadata key"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[2]))
+    }
+
+    @Test
+    fun parsesSignalReplayFreshnessRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Replay Freshness Audit")
+                            .put("body", "Freshness matrix.")
+                            .put("graph_type", "agent_signal_replay_freshness_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_replay_freshness")
+                                        .put("label", "Evidence bundle replay frame")
+                                        .put("ready", true)
+                                        .put("value_label", "passive_cached, medium risk")
+                                        .put("detail", "freshness_status=passive_cached; staleness_risk=medium; active_refresh_action=agent_signal_evidence_report; proof_status=passive_replay_frame")
+                                        .put("recommendation", "Refresh before live claims.")
+                                        .put("fraction", 0.64),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Replay Refresh Routes")
+                            .put("body", "Route rows.")
+                            .put("graph_type", "agent_signal_replay_refresh_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_replay_refresh_route")
+                                        .put("label", "Refresh Evidence bundle replay frame")
+                                        .put("ready", true)
+                                        .put("value_label", "agent_signal_evidence_report")
+                                        .put("detail", "route_type=active_refresh; freshness_status=active_refresh_ready")
+                                        .put("recommendation", "Run the active refresh only when needed.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Replay Staleness Summary")
+                            .put("body", "Summary rows.")
+                            .put("graph_type", "agent_signal_replay_staleness_summary")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_replay_staleness_summary")
+                                        .put("label", "Blocked live-claim frames")
+                                        .put("ready", false)
+                                        .put("value_label", "1 blocked frame(s)")
+                                        .put("detail", "summary_key=blocked_live_claim_replay_frames")
+                                        .put("recommendation", "Keep behind claim boundaries.")
+                                        .put("fraction", 0.35),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(3, cards.size)
+        assertEquals("agent_signal_replay_freshness_matrix", cards[0].graphType)
+        assertEquals("Evidence bundle replay frame", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("agent signal replay freshness"))
+        assertTrue(cards[0].rows.single().detail.contains("freshness_status"))
+        assertEquals("agent_signal_replay_refresh_routes", cards[1].graphType)
+        assertEquals("Refresh Evidence bundle replay frame", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("agent signal replay refresh route"))
+        assertEquals("agent_signal_replay_staleness_summary", cards[2].graphType)
+        assertEquals("Blocked live-claim frames", cards[2].rows.single().label)
+        assertTrue(cards[2].rows.single().detail.contains("agent signal replay staleness summary"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[2]))
+    }
+
+    @Test
+    fun parsesMediatekLaunchChecklistAsTopPriorityCard() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "MediaTek Launch Checklist")
+                        .put("body", "Launch gates.")
+                        .put("graph_type", "mediatek_backend_launch_checklist_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "mediatek_backend_launch_checklist")
+                                    .put("label", "Verify GPU proof or name CPU fallback")
+                                    .put("ready", true)
+                                    .put("value_label", "cpu fallback")
+                                    .put("detail", "launch_step=5; launch_gate_status=ready; next_best_action=local_backend_runtime_report")
+                                    .put("recommendation", "Name CPU fallback when GPU is not proven.")
+                                    .put("fraction", 0.78),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("mediatek_backend_launch_checklist_matrix", card.graphType)
+        assertEquals("Verify GPU proof or name CPU fallback", row.label)
+        assertEquals("cpu fallback", row.valueLabel)
+        assertTrue(row.detail.contains("mediatek backend launch checklist"))
+        assertTrue(row.detail.contains("launch_gate_status"))
+        assertEquals(0, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
+    fun parsesObjectiveCoverageRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Objective Coverage")
+                            .put("body", "Requirement coverage.")
+                            .put("graph_type", "agent_objective_coverage_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_objective_coverage")
+                                        .put("label", "WiFiAnalyzer graph and metadata parity")
+                                        .put("ready", true)
+                                        .put("value_label", "implemented surface")
+                                        .put("detail", "coverage_status=implemented_surface_available; graph_type=wifi_channel_graph")
+                                        .put("recommendation", "Open Wi-Fi graph.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Objective Gaps")
+                            .put("body", "Proof gaps.")
+                            .put("graph_type", "agent_objective_gap_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_objective_gap")
+                                        .put("label", "Release and CI proof")
+                                        .put("ready", false)
+                                        .put("value_label", "release validation required")
+                                        .put("detail", "release_validation_required=true")
+                                        .put("recommendation", "Validate release workflow.")
+                                        .put("fraction", 0.35),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("agent_objective_coverage_matrix", cards[0].graphType)
+        assertEquals("WiFiAnalyzer graph and metadata parity", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("coverage_status"))
+        assertEquals("agent_objective_gap_matrix", cards[1].graphType)
+        assertEquals("Release and CI proof", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("release_validation_required"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
+    fun parsesReleaseValidationRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Release Validation")
+                            .put("body", "Release proof.")
+                            .put("graph_type", "agent_release_validation_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_release_validation")
+                                        .put("label", "Signed release workflow gate")
+                                        .put("ready", false)
+                                        .put("value_label", "android-release.yml proof required")
+                                        .put("detail", "workflow_file=.github/workflows/android-release.yml; release_validation_required=true")
+                                        .put("recommendation", "Confirm workflow success.")
+                                        .put("fraction", 0.36),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Release Artifact Gates")
+                            .put("body", "Artifact proof.")
+                            .put("graph_type", "agent_release_artifact_gates")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_release_artifact_gate")
+                                        .put("label", "SHA-256 checksum assets")
+                                        .put("ready", false)
+                                        .put("value_label", "checksum proof")
+                                        .put("detail", "artifact_globs=dist/android-release/*.sha256")
+                                        .put("recommendation", "Compare checksums.")
+                                        .put("fraction", 0.34),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("agent_release_validation_matrix", cards[0].graphType)
+        assertEquals("Signed release workflow gate", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("android-release.yml"))
+        assertEquals("agent_release_artifact_gates", cards[1].graphType)
+        assertEquals("SHA-256 checksum assets", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("sha256"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
+    fun parsesAgentSignalTimelineRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Agent Signal Timeline")
+                            .put("body", "Recent signal observations.")
+                            .put("graph_type", "agent_signal_timeline")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_timeline")
+                                        .put("label", "Bluetooth proximity and identity view")
+                                        .put("ready", true)
+                                        .put("value_label", "2 device row(s), 1 trend row(s)")
+                                        .put("detail", "open_next_action=bluetooth_signal_history; freshness=cached_rssi_history_available")
+                                        .put("recommendation", "Open Bluetooth history.")
+                                        .put("fraction", 0.95),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Signal Refresh Routes")
+                            .put("body", "Live refresh routes.")
+                            .put("graph_type", "agent_signal_refresh_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_refresh_route")
+                                        .put("label", "Supply radio bridge samples")
+                                        .put("ready", true)
+                                        .put("value_label", "radio_signal_graph")
+                                        .put("detail", "Refresh argument: radio_samples_json or direct frequency/rssi fields.")
+                                        .put("recommendation", "Use radio bridge samples only when available.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("agent_signal_timeline", cards[0].graphType)
+        assertEquals("Bluetooth proximity and identity view", cards[0].rows.single().label)
+        assertEquals("2 device row(s), 1 trend row(s)", cards[0].rows.single().valueLabel)
+        assertTrue(cards[0].rows.single().detail.contains("cached_rssi_history_available"))
+        assertEquals("agent_signal_refresh_routes", cards[1].graphType)
+        assertEquals("Supply radio bridge samples", cards[1].rows.single().label)
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
+    fun parsesSignalPermissionRunbookRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Signal Permission Runbook")
+                            .put("body", "Permission and active-refresh gates.")
+                            .put("graph_type", "agent_signal_permission_runbook_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_permission_runbook")
+                                        .put("label", "Prepare active Wi-Fi scan")
+                                        .put("ready", false)
+                                        .put("value_label", "wifi_scan")
+                                        .put("detail", "permission_gate=user_consent_and_android_permissions; settings_actions=open_app_settings,open_location_settings; active_refresh_arguments={action:wifi_scan,refresh:true}; passive_fallback_action=wifi_analyzer_report")
+                                        .put("recommendation", "Use passive fallback until permissions are complete.")
+                                        .put("permission_gate", "user_consent_and_android_permissions")
+                                        .put("passive_fallback_action", "wifi_analyzer_report")
+                                        .put("fraction", 0.94),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Active Signal Refresh Routes")
+                            .put("body", "Active refresh routes.")
+                            .put("graph_type", "agent_signal_active_refresh_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_active_refresh_route")
+                                        .put("label", "Run active Wi-Fi scan")
+                                        .put("ready", true)
+                                        .put("value_label", "wifi_scan")
+                                        .put("detail", "permission_gate=nearby_wifi_or_location_permission; active_refresh_arguments={action:wifi_scan,refresh:true}")
+                                        .put("recommendation", "Run only after consent.")
+                                        .put("permission_gate", "nearby_wifi_or_location_permission")
+                                        .put("fraction", 0.91),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("agent_signal_permission_runbook_matrix", cards[0].graphType)
+        assertEquals("Prepare active Wi-Fi scan", cards[0].rows.single().label)
+        assertEquals("wifi_scan", cards[0].rows.single().valueLabel)
+        assertTrue(cards[0].rows.single().detail.contains("user_consent_and_android_permissions"))
+        assertTrue(cards[0].rows.single().detail.contains("wifi_analyzer_report"))
+        assertEquals("agent_signal_active_refresh_routes", cards[1].graphType)
+        assertEquals("Run active Wi-Fi scan", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("nearby_wifi_or_location_permission"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
     fun parsesWifiGraphRowsForExpandableSignalCards() {
         val content = JSONObject()
             .put(
@@ -223,6 +1074,69 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("2 overlaps"))
         assertTrue(row.detail.contains("near HermesNarrow, LabAP"))
         assertTrue(row.fraction > 0.8f)
+    }
+
+    @Test
+    fun parsesWifiAdvisorRowsForExpandableSignalCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Wi-Fi Advisor")
+                            .put("body", "Decision matrix.")
+                            .put("graph_type", "wifi_signal_advisor_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "wifi_signal_advisor")
+                                        .put("label", "Current link decision")
+                                        .put("ready", true)
+                                        .put("value_label", "-50 dBm excellent")
+                                        .put("detail", "ssid=HermesMesh | band=5GHz | channel=36")
+                                        .put("recommendation", "Inspect roaming candidates only when the current link is weak.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Wi-Fi Roaming Candidates")
+                            .put("body", "Ranked AP rows.")
+                            .put("graph_type", "wifi_roaming_candidates")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "wifi_roaming_candidate")
+                                        .put("label", "HermesMesh ...EE:02")
+                                        .put("ready", true)
+                                        .put("value_label", "-48 dBm excellent")
+                                        .put("detail", "band=5GHz | channel=36 | width=80MHz | security=WPA3")
+                                        .put("recommendation", "Strong same-SSID candidate; compare with current AP before roaming.")
+                                        .put("fraction", 0.96),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("wifi_signal_advisor_matrix", cards[0].graphType)
+        assertEquals("Current link decision", cards[0].rows.single().label)
+        assertEquals("-50 dBm excellent", cards[0].rows.single().valueLabel)
+        assertTrue(cards[0].rows.single().detail.contains("wifi signal advisor"))
+        assertTrue(cards[0].rows.single().detail.contains("ssid=HermesMesh"))
+        assertEquals("wifi_roaming_candidates", cards[1].graphType)
+        assertEquals("HermesMesh ...EE:02", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("wifi roaming candidate"))
+        assertTrue(cards[1].rows.single().detail.contains("same-SSID candidate"))
+        assertEquals(1, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(1, diagnosticCardPreviewPriority(cards[1]))
     }
 
     @Test
@@ -424,6 +1338,63 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("40MHz max width"))
         assertTrue(row.detail.contains("HermesNet"))
         assertTrue(row.fraction > 0.7f)
+    }
+
+    @Test
+    fun parsesWifiChannelDecisionPacketRowsForExpandableSignalCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Bluetooth Context")
+                            .put("body", "Lower priority context.")
+                            .put("graph_type", "bluetooth_rssi")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("label", "Agent context")
+                                        .put("ready", true)
+                                        .put("value_label", "ready"),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Wi-Fi Channel Decision")
+                            .put("body", "Decision packets.")
+                            .put("graph_type", "wifi_channel_decision_packet")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("label", "Channel recommendation packet")
+                                        .put("category", "wifi_channel_decision_packet")
+                                        .put("ready", true)
+                                        .put("value_label", "5GHz ch 36 excellent")
+                                        .put("detail", "recommended_channels=1 | utilization_rows=3")
+                                        .put("recommendation", "Use this as the first router-channel packet.")
+                                        .put("fraction", 0.92)
+                                        .put("claim_scope", "visible Android Wi-Fi scan/channel evidence only"),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+        val card = cards.single { it.title == "Wi-Fi Channel Decision" }
+        val row = card.rows.single()
+
+        assertEquals("Wi-Fi Channel Decision", card.title)
+        assertEquals("Channel recommendation packet", row.label)
+        assertEquals("5GHz ch 36 excellent", row.valueLabel)
+        assertTrue(row.detail.contains("wifi channel decision packet"))
+        assertTrue(row.detail.contains("recommended_channels=1"))
+        assertTrue(row.detail.contains("first router-channel packet"))
+        assertTrue(row.fraction > 0.9f)
     }
 
     @Test
@@ -696,6 +1667,82 @@ class DiagnosticCardsTest {
                     )
                     .put(
                         JSONObject()
+                            .put("title", "MCP Tool Servers")
+                            .put("body", "Kai MCP registry rows.")
+                            .put("graph_type", "mcp_tool_server_registry")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "mcp_tool_server_registry")
+                                        .put("label", "Context7 documentation server")
+                                        .put("ready", false)
+                                        .put("value_label", "external docs MCP needed")
+                                        .put("detail", "source_action=mcp_tool_server_registry_report; Streamable HTTP MCP bridge required.")
+                                        .put("recommendation", "Disclose that Context7 parity needs an external MCP server.")
+                                        .put("fraction", 0.35),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "MCP Routing Policy")
+                            .put("body", "MCP route rows.")
+                            .put("graph_type", "mcp_tool_server_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "mcp_tool_server_route")
+                                        .put("label", "Prefer native Hermes tools first")
+                                        .put("ready", true)
+                                        .put("value_label", "native tools")
+                                        .put("detail", "Use native tools before external MCP servers.")
+                                        .put("recommendation", "Call tool_catalog first.")
+                                        .put("fraction", 0.96),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Upgrade Objective Matrix")
+                            .put("body", "Full upgrade audit.")
+                            .put("graph_type", "agent_upgrade_objective_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_upgrade_objective")
+                                        .put("label", "MediaTek and non-Adreno backend compatibility")
+                                        .put("ready", true)
+                                        .put("value_label", "7/8 row(s)")
+                                        .put("detail", "physical_device_validation_required=true; accelerator_preflight_report is needed.")
+                                        .put("recommendation", "Open accelerator preflight before GPU claims.")
+                                        .put("fraction", 0.84),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Upgrade Verification Routes")
+                            .put("body", "Upgrade routes.")
+                            .put("graph_type", "agent_upgrade_route_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_upgrade_route")
+                                        .put("label", "Start with full upgrade audit")
+                                        .put("ready", true)
+                                        .put("value_label", "agent_capability_upgrade_report")
+                                        .put("detail", "source_action=agent_capability_upgrade_report; graph_type=agent_upgrade_objective_matrix.")
+                                        .put("recommendation", "Run before broad status answers.")
+                                        .put("fraction", 0.96),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
                             .put("title", "Agent Observation")
                             .put("body", "Observation dashboard.")
                             .put("graph_type", "agent_observation_matrix")
@@ -721,7 +1768,11 @@ class DiagnosticCardsTest {
         val heartbeatRow = cards[1].rows.single()
         val operationsRow = cards[2].rows.single()
         val sandboxRow = cards[3].rows.single()
-        val observationRow = cards[4].rows.single()
+        val mcpRegistryRow = cards[4].rows.single()
+        val mcpRouteRow = cards[5].rows.single()
+        val upgradeObjectiveRow = cards[6].rows.single()
+        val upgradeRouteRow = cards[7].rows.single()
+        val observationRow = cards[8].rows.single()
 
         assertEquals("SOC and LiteRT backend policy", socRow.label)
         assertEquals("ARM MediaTek/Mali", socRow.valueLabel)
@@ -739,6 +1790,22 @@ class DiagnosticCardsTest {
         assertEquals("terminal_tool", sandboxRow.valueLabel)
         assertTrue(sandboxRow.detail.contains("agent tool sandbox"))
         assertTrue(sandboxRow.detail.contains("permission gates"))
+        assertEquals("Context7 documentation server", mcpRegistryRow.label)
+        assertEquals("external docs MCP needed", mcpRegistryRow.valueLabel)
+        assertTrue(mcpRegistryRow.detail.contains("mcp tool server registry"))
+        assertTrue(mcpRegistryRow.detail.contains("external MCP server"))
+        assertEquals("Prefer native Hermes tools first", mcpRouteRow.label)
+        assertEquals("native tools", mcpRouteRow.valueLabel)
+        assertTrue(mcpRouteRow.detail.contains("mcp tool server route"))
+        assertTrue(mcpRouteRow.detail.contains("tool_catalog"))
+        assertEquals("MediaTek and non-Adreno backend compatibility", upgradeObjectiveRow.label)
+        assertEquals("7/8 row(s)", upgradeObjectiveRow.valueLabel)
+        assertTrue(upgradeObjectiveRow.detail.contains("agent upgrade objective"))
+        assertTrue(upgradeObjectiveRow.detail.contains("accelerator preflight"))
+        assertEquals("Start with full upgrade audit", upgradeRouteRow.label)
+        assertEquals("agent_capability_upgrade_report", upgradeRouteRow.valueLabel)
+        assertTrue(upgradeRouteRow.detail.contains("agent upgrade route"))
+        assertTrue(upgradeRouteRow.detail.contains("agent_capability_upgrade_report"))
         assertEquals("Gemma signal dashboard", observationRow.label)
         assertEquals("single observation report", observationRow.valueLabel)
         assertTrue(observationRow.detail.contains("agent observation"))
@@ -910,6 +1977,78 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesSignalWorkflowHandoffCardsAsTopPriorityCapabilityRows() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Signal Workflow Handoff")
+                            .put("body", "Handoff rows.")
+                            .put("graph_type", "agent_signal_workflow_handoff_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_workflow_handoff")
+                                        .put("label", "Open Wi-Fi Analyzer graph")
+                                        .put("ready", true)
+                                        .put("value_label", "3 graph row(s)")
+                                        .put("detail", "Use open_next_action, refresh_policy, and permission_gate.")
+                                        .put("recommendation", "Open wifi_channel_graph.")
+                                        .put("open_next_action", "wifi_channel_graph")
+                                        .put("graph_type", "wifi_channel_graph")
+                                        .put("refresh_policy", "passive_by_default_refresh_when_needed")
+                                        .put("permission_gate", "nearby_wifi_or_location_permission")
+                                        .put("bridge_required", false)
+                                        .put("physical_device_validation_required", false)
+                                        .put("fraction", 0.92),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Next Signal Actions")
+                            .put("body", "Routes.")
+                            .put("graph_type", "agent_signal_next_action_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_next_action_route")
+                                        .put("label", "Open radio receiver advisor")
+                                        .put("ready", true)
+                                        .put("value_label", "radio_signal_advisor_report")
+                                        .put("detail", "Bridge route with permission gate.")
+                                        .put("recommendation", "Use before AM/FM claims.")
+                                        .put("open_next_action", "radio_signal_advisor_report")
+                                        .put("graph_type", "radio_signal_advisor_matrix")
+                                        .put("refresh_policy", "passive_receiver_decision_first")
+                                        .put("permission_gate", "vendor_radio_bridge_or_external_sdr_for_am_fm")
+                                        .put("bridge_required", true)
+                                        .put("physical_device_validation_required", false)
+                                        .put("fraction", 0.78),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals("agent_signal_workflow_handoff_matrix", cards[0].graphType)
+        assertEquals("Open Wi-Fi Analyzer graph", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("open_next_action"))
+        assertTrue(cards[0].rows.single().detail.contains("Open wifi_channel_graph"))
+        assertEquals("agent_signal_next_action_routes", cards[1].graphType)
+        assertEquals("Open radio receiver advisor", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("Bridge route"))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
     fun parsesSignalAwarenessRowsForExpandableCards() {
         val content = JSONObject()
             .put(
@@ -1039,6 +2178,120 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("schema frequency_mhz"))
         assertTrue(row.detail.contains("Use this profile"))
         assertTrue(row.fraction > 0.6f)
+    }
+
+    @Test
+    fun parsesRadioSignalAdvisorRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Radio Signal Advisor")
+                        .put("body", "Advisor rows.")
+                        .put("graph_type", "radio_signal_advisor_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "radio_signal_advisor")
+                                    .put("label", "Receiver source decision")
+                                    .put("ready", true)
+                                    .put("value_label", "1 sample(s)")
+                                    .put("detail", "receiver=fm_vendor_or_sdr | score=92 | samples=1")
+                                    .put("recommendation", "Choose the highest-ranked receiver route first.")
+                                    .put("fraction", 0.92),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("Receiver source decision", row.label)
+        assertEquals("1 sample(s)", row.valueLabel)
+        assertTrue(row.detail.contains("radio signal advisor"))
+        assertTrue(row.detail.contains("Choose the highest-ranked receiver route"))
+        assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
+    fun parsesRadioSignalDecisionPacketRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Radio Signal Decision")
+                        .put("body", "Decision packet rows.")
+                        .put("graph_type", "radio_signal_decision_packet")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "radio_signal_decision_packet")
+                                    .put("label", "AM/FM sample packet")
+                                    .put("ready", true)
+                                    .put("value_label", "1 FM / 1 AM sample(s)")
+                                    .put("detail", "decision_status=am_fm_samples_available; claim_scope=AM/FM band plan plus receiver-provided samples only")
+                                    .put("recommendation", "Use AM/FM graph rows only when a vendor radio bridge or SDR supplies station samples.")
+                                    .put("active_refresh_action", "radio_signal_graph")
+                                    .put("passive_fallback_action", "radio_signal_status")
+                                    .put("fraction", 0.95),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("radio_signal_decision_packet", card.graphType)
+        assertEquals("AM/FM sample packet", row.label)
+        assertEquals("1 FM / 1 AM sample(s)", row.valueLabel)
+        assertTrue(row.detail.contains("radio signal decision packet"))
+        assertTrue(row.detail.contains("am_fm_samples_available"))
+        assertTrue(row.detail.contains("receiver-provided samples only"))
+        assertEquals(3, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
+    fun parsesRadioReceiverCandidateRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Radio Receiver Candidates")
+                        .put("body", "Candidate rows.")
+                        .put("graph_type", "radio_receiver_candidates")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "radio_receiver_candidate")
+                                    .put("label", "FM station receiver profile")
+                                    .put("ready", true)
+                                    .put("value_label", "1 sample(s)")
+                                    .put("detail", "receiver=fm_vendor_or_sdr | source=fm_broadcast | samples=1")
+                                    .put("recommendation", "Use the receiver route only when metadata is available.")
+                                    .put("candidate_score", 92)
+                                    .put("fraction", 0.92),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("FM station receiver profile", row.label)
+        assertEquals("1 sample(s)", row.valueLabel)
+        assertTrue(row.detail.contains("radio receiver candidate"))
+        assertTrue(row.detail.contains("Use the receiver route"))
+        assertTrue(row.fraction > 0.9f)
     }
 
     @Test
@@ -1467,6 +2720,88 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesMediatekSignalStackRowsAsTopPriorityCapabilityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "MediaTek Signal Stack")
+                            .put("body", "SOC and signal rows.")
+                            .put("graph_type", "mediatek_signal_stack_matrix")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "mediatek_signal_stack")
+                                        .put("label", "Wi-Fi analyzer evidence")
+                                        .put("ready", true)
+                                        .put("value_label", "2 AP / 4 channel row(s)")
+                                        .put("detail", "Passive Wi-Fi Analyzer rows joined to SOC policy.")
+                                        .put("recommendation", "Open wifi_analyzer_report before making live claims.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "MediaTek Signal Routes")
+                            .put("body", "Refresh routes.")
+                            .put("graph_type", "mediatek_signal_refresh_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "mediatek_signal_refresh_route")
+                                        .put("label", "Refresh Wi-Fi and Bluetooth evidence")
+                                        .put("ready", false)
+                                        .put("value_label", "permission gated")
+                                        .put("detail", "Refresh only the requested signal domain.")
+                                        .put("recommendation", "Use passive rows until permission is available.")
+                                        .put("fraction", 0.35),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "MediaTek Claim Boundaries")
+                            .put("body", "Claim boundaries.")
+                            .put("graph_type", "mediatek_signal_claim_boundaries")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "mediatek_signal_claim_boundary")
+                                        .put("label", "Backend policy is not a live signal")
+                                        .put("ready", true)
+                                        .put("value_label", "separate claims")
+                                        .put("detail", "Backend policy and nearby signal evidence are distinct.")
+                                        .put("recommendation", "Mention evidence classes separately.")
+                                        .put("fraction", 0.95),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(3, cards.size)
+        assertEquals("mediatek_signal_stack_matrix", cards[0].graphType)
+        assertEquals("Wi-Fi analyzer evidence", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("mediatek signal stack"))
+        assertEquals("mediatek_signal_refresh_routes", cards[1].graphType)
+        assertEquals("Refresh Wi-Fi and Bluetooth evidence", cards[1].rows.single().label)
+        assertTrue(cards[1].rows.single().detail.contains("permission"))
+        assertEquals("mediatek_signal_claim_boundaries", cards[2].graphType)
+        assertEquals("Backend policy is not a live signal", cards[2].rows.single().label)
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[2]))
+    }
+
+    @Test
     fun parsesWifiAnalyzerReadinessRowsForExpandableCards() {
         val content = JSONObject()
             .put(
@@ -1539,6 +2874,78 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesBluetoothAdvisorRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Bluetooth Advisor")
+                        .put("body", "Advisor rows.")
+                        .put("graph_type", "bluetooth_signal_advisor_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "bluetooth_signal_advisor")
+                                    .put("label", "Nearby device decision")
+                                    .put("ready", true)
+                                    .put("value_label", "-47 dBm near")
+                                    .put("detail", "candidate=Hermes Heart | score=94")
+                                    .put("recommendation", "Use bluetooth_device_details.")
+                                    .put("fraction", 0.94),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("Nearby device decision", row.label)
+        assertEquals("-47 dBm near", row.valueLabel)
+        assertTrue(row.detail.contains("bluetooth signal advisor"))
+        assertTrue(row.detail.contains("Use bluetooth_device_details"))
+        assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
+    fun parsesBluetoothDeviceCandidateRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Bluetooth Device Candidates")
+                        .put("body", "Candidate rows.")
+                        .put("graph_type", "bluetooth_device_candidates")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "bluetooth_device_candidate")
+                                    .put("label", "Hermes Heart")
+                                    .put("ready", true)
+                                    .put("value_label", "-47 dBm near")
+                                    .put("detail", "category=wearable_health | services=Heart Rate")
+                                    .put("recommendation", "Inspect details.")
+                                    .put("fraction", 0.96),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("Hermes Heart", row.label)
+        assertEquals("-47 dBm near", row.valueLabel)
+        assertTrue(row.detail.contains("bluetooth device candidate"))
+        assertTrue(row.detail.contains("Inspect details"))
+        assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
     fun parsesSensorAnalyzerReadinessRowsForExpandableCards() {
         val content = JSONObject()
             .put(
@@ -1572,6 +2979,78 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("sensor analyzer parity"))
         assertTrue(row.detail.contains("Use sensor_snapshot"))
         assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
+    fun parsesSensorWorkflowAdvisorRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Sensor Workflow Advisor")
+                        .put("body", "Advisor rows.")
+                        .put("graph_type", "sensor_workflow_advisor_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "sensor_workflow_advisor")
+                                    .put("label", "Accelerometer workflow readiness")
+                                    .put("ready", true)
+                                    .put("value_label", "Accelerometer ready")
+                                    .put("detail", "sensor=accelerometer | available=true")
+                                    .put("recommendation", "Use sensor_snapshot.")
+                                    .put("fraction", 0.95),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("Accelerometer workflow readiness", row.label)
+        assertEquals("Accelerometer ready", row.valueLabel)
+        assertTrue(row.detail.contains("sensor workflow advisor"))
+        assertTrue(row.detail.contains("Use sensor_snapshot"))
+        assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
+    fun parsesSensorWorkflowCandidateRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Sensor Workflow Candidates")
+                        .put("body", "Candidate rows.")
+                        .put("graph_type", "sensor_workflow_candidates")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "sensor_workflow_candidate")
+                                    .put("label", "Gyroscope")
+                                    .put("ready", true)
+                                    .put("value_label", "available")
+                                    .put("detail", "type=gyroscope | power_ma=0.7")
+                                    .put("recommendation", "Use for angular velocity.")
+                                    .put("fraction", 0.88),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("Gyroscope", row.label)
+        assertEquals("available", row.valueLabel)
+        assertTrue(row.detail.contains("sensor workflow candidate"))
+        assertTrue(row.detail.contains("Use for angular velocity"))
+        assertTrue(row.fraction > 0.8f)
     }
 
     @Test
@@ -1610,6 +3089,49 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("motion sensor quality"))
         assertTrue(row.detail.contains("Use motion_sensor_quality"))
         assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
+    fun parsesMotionSensorDecisionPacketRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Motion Sensor Decision")
+                        .put("body", "Decision packet rows.")
+                        .put("graph_type", "motion_sensor_decision_packet")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "motion_sensor_decision_packet")
+                                    .put("label", "Gyroscope and pose packet")
+                                    .put("ready", true)
+                                    .put("value_label", "rotation vector ready")
+                                    .put("detail", "decision_status=rotation_context_available | claim_scope=orientation and angular-motion estimate")
+                                    .put("recommendation", "Use rotation_vector or gyroscope plus accelerometer before heading-sensitive claims.")
+                                    .put("claim_scope", "orientation and angular-motion estimate")
+                                    .put("active_refresh_action", "motion_pose")
+                                    .put("passive_fallback_action", "motion_sensor_quality")
+                                    .put("sensor_privacy_sensitive", true)
+                                    .put("fraction", 0.86),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("motion_sensor_decision_packet", card.graphType)
+        assertEquals("Gyroscope and pose packet", row.label)
+        assertEquals("rotation vector ready", row.valueLabel)
+        assertTrue(row.detail.contains("motion sensor decision packet"))
+        assertTrue(row.detail.contains("rotation_context_available"))
+        assertTrue(row.detail.contains("orientation and angular-motion estimate"))
+        assertEquals(4, diagnosticCardPreviewPriority(card))
     }
 
     @Test
@@ -1687,6 +3209,46 @@ class DiagnosticCardsTest {
     }
 
     @Test
+    fun parsesNonAdrenoBackendAdvisorRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Non-Adreno Backend Advisor")
+                        .put("body", "Launch rows.")
+                        .put("graph_type", "non_adreno_backend_advisor_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "non_adreno_backend_advisor")
+                                    .put("label", "Preflight delegate order")
+                                    .put("ready", true)
+                                    .put("value_label", "gpu > cpu")
+                                    .put("detail", "selected=local_gemma | supported_abis=arm64-v8a")
+                                    .put("recommendation", "Open accelerator preflight before launch.")
+                                    .put("tool_action", "accelerator_preflight_report")
+                                    .put("graph_type", "accelerator_preflight_matrix")
+                                    .put("fraction", 0.88),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("non_adreno_backend_advisor_matrix", card.graphType)
+        assertEquals("Preflight delegate order", row.label)
+        assertEquals("gpu > cpu", row.valueLabel)
+        assertTrue(row.detail.contains("non adreno backend advisor"))
+        assertTrue(row.detail.contains("Open accelerator preflight before launch"))
+        assertEquals(5, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
     fun parsesRuntimeBackendRowsForExpandableCards() {
         val content = JSONObject()
             .put(
@@ -1722,5 +3284,186 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("runtime backend"))
         assertTrue(row.detail.contains("Use local_backend_runtime_report"))
         assertTrue(row.fraction > 0.9f)
+    }
+
+    @Test
+    fun parsesSignalObservationPacketRowsAsTopPriorityCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray()
+                    .put(
+                        JSONObject()
+                            .put("title", "Signal Observation Packet")
+                            .put("body", "Gemma-visible packet rows.")
+                            .put("graph_type", "agent_signal_observation_packet")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_observation_packet")
+                                        .put("label", "Wi-Fi Analyzer observation packet")
+                                        .put("ready", true)
+                                        .put("value_label", "8 fused evidence row(s)")
+                                        .put("detail", "modality=wifi_graph; observation_status=passive_wifi_analyzer_context; graph_type=wifi_channel_graph")
+                                        .put("recommendation", "Open the packet before answering what Gemma can see.")
+                                        .put("fraction", 0.9),
+                                ),
+                            ),
+                    )
+                    .put(
+                        JSONObject()
+                            .put("title", "Observation Graph Routes")
+                            .put("body", "Routes.")
+                            .put("graph_type", "agent_signal_observation_graph_routes")
+                            .put(
+                                "rows",
+                                JSONArray().put(
+                                    JSONObject()
+                                        .put("category", "agent_signal_observation_graph_route")
+                                        .put("label", "Open Bluetooth proximity graph")
+                                        .put("ready", true)
+                                        .put("value_label", "bluetooth_signal_history via bluetooth_signal_history")
+                                        .put("detail", "active_refresh_action=bluetooth_scan; passive_fallback_action=bluetooth_analyzer_report")
+                                        .put("recommendation", "Use active refresh only when needed.")
+                                        .put("fraction", 0.86),
+                                ),
+                            ),
+                    ),
+            )
+            .toString()
+
+        val cards = extractDiagnosticCards(content)
+
+        assertEquals(2, cards.size)
+        assertEquals("agent_signal_observation_packet", cards[0].graphType)
+        assertEquals("Wi-Fi Analyzer observation packet", cards[0].rows.single().label)
+        assertTrue(cards[0].rows.single().detail.contains("agent signal observation packet"))
+        assertTrue(cards[0].rows.single().detail.contains("passive_wifi_analyzer_context"))
+        assertEquals("agent_signal_observation_graph_routes", cards[1].graphType)
+        assertEquals("Open Bluetooth proximity graph", cards[1].rows.single().label)
+        assertEquals(0, diagnosticCardPreviewPriority(cards[0]))
+        assertEquals(0, diagnosticCardPreviewPriority(cards[1]))
+    }
+
+    @Test
+    fun parsesBluetoothNearbyDecisionPacketRowsForExpandableSignalCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Bluetooth Nearby Decision")
+                        .put("body", "Gemma-visible Bluetooth decision packet.")
+                        .put("graph_type", "bluetooth_nearby_decision_packet")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "bluetooth_nearby_decision_packet")
+                                    .put("label", "Nearby Bluetooth candidate packet")
+                                    .put("ready", true)
+                                    .put("value_label", "-47 dBm near")
+                                    .put("detail", "decision_status=candidate_available; source_graph_type=bluetooth_device_candidates; claim_scope=Android-visible Bluetooth metadata only")
+                                    .put("recommendation", "Use this packet before answering what Gemma can safely infer from Bluetooth metadata.")
+                                    .put("claim_scope", "Android-visible Bluetooth metadata only")
+                                    .put("active_refresh_action", "bluetooth_scan")
+                                    .put("passive_fallback_action", "bluetooth_signal_advisor_report")
+                                    .put("fraction", 0.86),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("bluetooth_nearby_decision_packet", card.graphType)
+        assertEquals("Nearby Bluetooth candidate packet", row.label)
+        assertEquals("-47 dBm near", row.valueLabel)
+        assertTrue(row.detail.contains("bluetooth nearby decision packet"))
+        assertTrue(row.detail.contains("candidate_available"))
+        assertTrue(row.detail.contains("Android-visible Bluetooth metadata only"))
+        assertEquals(2, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
+    fun parsesAcceleratorPreflightRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Accelerator Preflight")
+                        .put("body", "Delegate preflight rows.")
+                        .put("graph_type", "accelerator_preflight_matrix")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "accelerator_preflight")
+                                    .put("label", "OpenCL library visibility")
+                                    .put("ready", true)
+                                    .put("value_label", "visible")
+                                    .put("detail", "visible=/vendor/lib64/libOpenCL.so")
+                                    .put("recommendation", "Use OpenCL path visibility as a hint only.")
+                                    .put("opencl_library_visible", true)
+                                    .put("fraction", 0.9),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("accelerator_preflight_matrix", card.graphType)
+        assertEquals("OpenCL library visibility", row.label)
+        assertEquals("visible", row.valueLabel)
+        assertTrue(row.detail.contains("accelerator preflight"))
+        assertTrue(row.detail.contains("Use OpenCL path visibility as a hint"))
+        assertEquals(5, diagnosticCardPreviewPriority(card))
+    }
+
+    @Test
+    fun parsesRadioBridgeSampleMetadataRowsForExpandableCards() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Radio Bridge Sample Metadata")
+                        .put("body", "Receiver sample readiness.")
+                        .put("graph_type", "radio_bridge_sample_metadata")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("category", "radio_bridge_sample_metadata")
+                                    .put("label", "NOAA sample")
+                                    .put("ready", true)
+                                    .put("value_label", "sample ready")
+                                    .put("detail", "162.55 MHz | receiver=external_sdr_bridge | span_hz=200000 | sample_rate_hz=240000")
+                                    .put("recommendation", "Display as bridge-provided receiver metadata.")
+                                    .put("external_sdr_sample", true)
+                                    .put("metadata_completeness_score", 100)
+                                    .put("fraction", 1.0),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val card = extractDiagnosticCards(content).single()
+        val row = card.rows.single()
+
+        assertEquals("radio_bridge_sample_metadata", card.graphType)
+        assertEquals("NOAA sample", row.label)
+        assertEquals("sample ready", row.valueLabel)
+        assertTrue(row.detail.contains("radio bridge sample metadata"))
+        assertTrue(row.detail.contains("span_hz=200000"))
+        assertEquals(3, diagnosticCardPreviewPriority(card))
     }
 }

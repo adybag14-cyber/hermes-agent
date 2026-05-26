@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -414,10 +413,9 @@ fun ChatScreen(
                         }
                     }
                 }
+                // The Activity uses adjustResize; adding imePadding here double-lifts the composer on phones.
                 ChatComposer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .imePadding(),
+                    modifier = Modifier.fillMaxWidth(),
                     input = uiState.input,
                     attachments = uiState.attachments,
                     isSending = uiState.isSending,
@@ -525,18 +523,61 @@ private fun ChatHeaderCard(
 private fun StatusBanner(text: String, isError: Boolean = false) {
     val strings = LocalHermesStrings.current
     val displayText = if (isError) text else strings.chatStatusText(text)
+    val endpointStatus = isEndpointStatusText(displayText)
+    val indicatorColor = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = if (isError) MaterialTheme.colorScheme.error.copy(alpha = 0.14f) else MaterialTheme.colorScheme.secondaryContainer,
         shape = MaterialTheme.shapes.medium,
     ) {
-        Text(
-            text = displayText,
+        Row(
             modifier = Modifier.padding(12.dp),
-            color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSecondaryContainer,
-            style = MaterialTheme.typography.bodySmall,
-        )
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            if (endpointStatus) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .size(9.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(indicatorColor),
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                if (endpointStatus) {
+                    Text(
+                        text = strings.endpointStatusIndicatorLabel(),
+                        color = indicatorColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                Text(
+                    text = displayText,
+                    color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSecondaryContainer,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (endpointStatus && isError) {
+                    Text(
+                        text = strings.endpointStatusTroubleshootingHint(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        }
     }
+}
+
+private fun isEndpointStatusText(text: String): Boolean {
+    val lower = text.lowercase()
+    return listOf("custom endpoint", "sse", "[done]", "base url", "model name").any { token ->
+        lower.contains(token)
+    } || (lower.contains("hermes is") && lower.contains(" via "))
 }
 
 @Composable
@@ -1491,7 +1532,9 @@ private fun ComposerInputField(
     OutlinedTextField(
         value = input,
         onValueChange = onInputChange,
-        modifier = modifier.testTag("HermesChatInput"),
+        modifier = modifier
+            .heightIn(max = 128.dp)
+            .testTag("HermesChatInput"),
         shape = MaterialTheme.shapes.large,
         placeholder = {
             Text(
@@ -1500,7 +1543,7 @@ private fun ComposerInputField(
                 overflow = TextOverflow.Ellipsis,
             )
         },
-        maxLines = 4,
+        maxLines = 3,
     )
 }
 

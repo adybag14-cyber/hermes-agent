@@ -552,7 +552,7 @@ class NativeToolCallingChatClient(
             "file_write_tool", "write_file", "file_tool" -> executeFileWriteTool(toolCall)
             "android_system_tool", "android_system_action", "system_tool", "settings_tool", "phone_tool" ->
                 executeAndroidSystemTool(toolCall)
-            "android_device_diagnostics_tool", "device_diagnostics_tool", "diagnostics_tool", "resource_tool", "wifi_analyzer_tool", "bluetooth_scanner_tool", "bluetooth_analyzer_tool", "sensor_tool", "sensor_analyzer_tool", "camera_tool", "radio_signal_tool", "rf_coexistence_tool", "soc_backend_tool", "runtime_stability_tool", "device_performance_tool" ->
+            "android_device_diagnostics_tool", "device_diagnostics_tool", "diagnostics_tool", "resource_tool", "wifi_analyzer_tool", "bluetooth_scanner_tool", "bluetooth_analyzer_tool", "sensor_tool", "sensor_analyzer_tool", "camera_tool", "radio_signal_tool", "rf_coexistence_tool", "soc_backend_tool", "runtime_stability_tool", "device_performance_tool", "mcp_tool_server_tool", "mcp_registry_tool" ->
                 executeAndroidDeviceDiagnosticsTool(toolCall)
             "hindsight_memory_tool", "memory_tool", "recall_tool", "retain_tool" -> executeHindsightMemoryTool(toolCall)
             "android_automation_tool", "automation_tool", "tasker_tool", "kai_task_tool" -> executeAndroidAutomationTool(toolCall)
@@ -1299,13 +1299,17 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_device_diagnostics_tool",
-                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, current Wi-Fi association/link-quality telemetry, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth device detail/export rows, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, motion sensor quality gates for IMU source coverage, freshness, calibration, stability, cadence, and workflow readiness, camera capability, overlay status, passive local backend runtime health, dedicated MediaTek/Dimensity/Helio/Mali/PowerVR/non-Adreno readiness profiles, GPU/backend risk matrices, local inference compatibility scorecards, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible signal briefing decks and evidence bundles, agent observation dashboards with fused signal-context matrices, direct diagnostic card manifests, ranked top-card priority planners with open-next actions and Kai interactive screen parity rows, Kai-style agent environment parity/readiness and tool sandbox/status matrices, passive agent self-check/heartbeat readiness matrices, cross-signal awareness routes, RF coexistence matrices for Wi-Fi/Bluetooth/radio/backend interference summaries, tool catalog, radio analyzer AM/FM band-plan rows, AM/FM signal graph rows, receiver profile schemas for vendor AM/FM and external SDR bridges, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
+                    description = "Inspect resource-heavy apps, storage/memory status, nearby Wi-Fi signals, filterable Wi-Fi Analyzer readiness/scan-policy reports, Wi-Fi advisor decision matrices and roaming candidates, Wi-Fi channel decision packets for router-channel, interference, RF coexistence, and MediaTek/non-Adreno claim boundaries, current Wi-Fi association/link-quality telemetry, channel ratings, inferred channel utilization/occupancy, access-point detail/export rows, AP semantic/risk labels, band coverage, signal history, vendor/OUI metadata and filter facets, Bluetooth Analyzer readiness/scan-policy reports, Bluetooth advisor decision matrices and nearby-device candidates, Bluetooth nearby decision packets for scanner/advisor/RSSI/metadata, RF coexistence, and MediaTek/non-Adreno claim boundaries, nearby Bluetooth devices plus service UUID labels/manufacturer names/proximity metadata, Bluetooth device detail/export rows, Bluetooth RSSI history/trends, Sensor Analyzer readiness/sampling-policy reports, Sensor workflow advisor decision matrices and ranked accelerometer/gyroscope candidates, motion sensor decision packets for accelerometer/gyroscope/IMU/pose/workflow/MediaTek claim boundaries, accelerometer/gyroscope/ambient sensor snapshots, motion sensor history/trends, fused motion pose/heading/angular-motion/acceleration estimates, motion sensor quality gates for IMU source coverage, freshness, calibration, stability, cadence, and workflow readiness, camera capability, overlay status, passive local backend runtime health, dedicated MediaTek/Dimensity/Helio/Mali/PowerVR/non-Adreno readiness profiles, MediaTek signal-stack compatibility cards that join SOC/backend policy to Wi-Fi, Bluetooth, radio, motion-sensor, RF coexistence, and claim-boundary rows, physical MediaTek/non-Adreno device validation reports that join phone identity, live signal proof, backend launch gates, GitHub release artifacts, checksums, and claim boundaries, device-validation evidence export bundles that preserve required artifacts, ADB/operator capture routes, GitHub release evidence, F-Droid evidence, and claim scopes, non-Adreno backend launch advisors, GPU/backend risk matrices, local inference compatibility scorecards, thermal/memory/power runtime stability guardrails, SOC/GPU compatibility and backend-policy reports, Gemma-visible signal session snapshots, signal proof audits/claim boundary matrices, signal briefing decks, unified signal timelines, signal replay/export bundles, signal replay freshness/staleness audits, Gemma-visible signal observation packets/top-card snapshots, evidence bundles, signal workflow handoff/next-action reports, signal permission/active-refresh runbooks, agent observation dashboards with fused signal-context matrices, direct diagnostic card manifests, ranked top-card priority planners with open-next actions and Kai interactive screen parity rows, Kai-style agent environment parity/readiness and tool sandbox/status matrices, MCP tool-server registry/parity reports for Kai curated servers and Streamable HTTP gaps, objective coverage and upgrade coverage reports with research parity mapping, release validation and GitHub release readiness reports for Android CI, signed GitHub artifacts, SHA-256 checksums, F-Droid metadata and tagged Fastlane graphics, full upgrade objective audit reports, passive agent self-check/heartbeat readiness matrices, cross-signal awareness routes, RF coexistence matrices for Wi-Fi/Bluetooth/radio/backend interference summaries, tool catalog, radio analyzer AM/FM band-plan rows, AM/FM signal graph rows, radio decision packets with receiver/sample/RF/MediaTek claim boundaries, radio advisor decision matrices and receiver candidates, receiver profile schemas for vendor AM/FM and external SDR bridges, vendor radio hints, Wi-Fi/Bluetooth radio routes, external SDR constraints, RF/AM/FM hardware limits, and phone preflight readiness for TikTok/Instagram/Gmail end-to-end work.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_connection_link, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_history, bluetooth_device_details, bluetooth_export, sensor_analyzer_report, motion_sensor_quality, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_signal_graph, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, mediatek_readiness_report, soc_compatibility_report, gpu_backend_risk_report, local_inference_compatibility_report, device_performance_report, signal_awareness_report, rf_coexistence_report, agent_signal_briefing_report, agent_signal_evidence_report, signal_evidence_bundle, agent_observation_report, agent_card_manifest_report, agent_card_priority_report, agent_environment_report, agent_self_check_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_camera_permission_settings."))
+                        .put("action", stringProp("status, top_apps, wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_signal_advisor_report, wifi_channel_decision_packet_report, wifi_connection_link, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, wifi_ap_details, wifi_export, bluetooth_scan, bluetooth_analyzer_report, bluetooth_signal_advisor_report, bluetooth_nearby_decision_packet_report, bluetooth_signal_history, bluetooth_device_details, bluetooth_export, sensor_analyzer_report, sensor_workflow_advisor_report, motion_sensor_decision_packet_report, motion_sensor_quality, motion_sensor_history, motion_pose, sensor_snapshot, camera_status, radio_signal_status, radio_signal_graph, radio_signal_advisor_report, radio_signal_decision_packet_report, radio_bridge_sample_report, sdr_bridge_samples, radio_analyzer_report, signal_capability_status, local_backend_runtime_report, accelerator_preflight_report, mediatek_readiness_report, mediatek_signal_stack_report, mediatek_device_validation_report, physical_mediatek_validation_report, non_adreno_device_validation_report, signal_device_validation_report, gemma_phone_validation_report, phone_signal_validation_report, device_validation_evidence_export_report, mediatek_device_validation_export_report, physical_device_evidence_export_report, phone_validation_evidence_export, github_release_device_evidence_export, fdroid_device_evidence_export, agent_signal_observation_packet_report, gemma_signal_observation_packet, signal_context_packet_report, multimodal_signal_observation_report, top_card_signal_observation_packet, nearby_signal_context_packet, non_adreno_backend_advisor_report, mediatek_backend_launch_checklist_report, soc_compatibility_report, gpu_backend_risk_report, local_inference_compatibility_report, device_performance_report, signal_awareness_report, rf_coexistence_report, agent_signal_session_snapshot_report, agent_signal_proof_audit_report, agent_signal_briefing_report, agent_signal_card_refresh_plan_report, agent_signal_card_refresh_status_report, agent_signal_timeline_report, agent_signal_evidence_report, agent_signal_replay_export_report, agent_signal_replay_freshness_audit_report, signal_replay_export, signal_replay_freshness, signal_replay_staleness_report, signal_evidence_export, portable_signal_bundle, signal_evidence_bundle, agent_signal_workflow_handoff_report, agent_signal_permission_runbook_report, agent_observation_report, agent_card_manifest_report, agent_card_priority_report, mcp_tool_server_registry_report, agent_objective_coverage_report, agent_upgrade_coverage_report, hermes_upgrade_coverage_report, agent_release_validation_report, github_release_readiness_report, release_validation_readiness_report, agent_capability_upgrade_report, agent_environment_report, agent_self_check_report, social_gmail_goal_preflight, show_active_overlay, tool_catalog, open_usage_access_settings, open_app_settings, open_location_settings, open_wifi_settings, open_bluetooth_settings, open_camera_permission_settings."))
                         .put("limit", intProp("Maximum rows for top apps, Wi-Fi networks, or Bluetooth devices. Defaults to 5."))
                         .put("detail_limit", intProp("Maximum Wi-Fi access-point or Bluetooth device detail/export rows. Defaults to limit, or the action max for detail/export actions."))
                         .put("export_format", stringProp("Export format for wifi_export or bluetooth_export: json, csv, or both."))
                         .put("radio_samples_json", stringProp("Optional JSON array or object of vendor/SDR bridge radio samples for radio_signal_graph. Accepted fields include station_label, frequency_mhz, frequency_khz, rssi_dbm, power_db, snr_db, receiver_id, modulation, and RDS fields."))
+                        .put("radio_bridge_samples_json", stringProp("Alias JSON array/object for vendor AM/FM or external SDR bridge samples accepted by radio_signal_graph."))
+                        .put("sdr_samples_json", stringProp("Alias JSON array/object for external SDR bridge samples. Include center_frequency_hz or frequency_hz, power_db, receiver_id, span_hz, and sample_rate_hz when available."))
+                        .put("receiver_samples_json", stringProp("Alias JSON array/object for receiver-provided AM/FM or SDR sample rows accepted by radio_signal_graph."))
+                        .put("spectrum_samples_json", stringProp("Alias JSON array/object for bridge-reported spectrum sample rows accepted by radio_signal_graph."))
                         .put("sample_source", stringProp("Optional source label for radio_signal_graph bridge samples, such as vendor_fm_bridge or external_sdr_bridge."))
                         .put("receiver_id", stringProp("Optional radio_signal_graph receiver id such as fm_vendor_or_sdr, am_vendor_or_sdr, or external_sdr_bridge."))
                         .put("station_label", stringProp("Optional AM/FM station label for a single radio_signal_graph bridge sample."))
@@ -1313,6 +1317,10 @@ class NativeToolCallingChatClient(
                         .put("frequency_khz", scalarProp("Optional AM sample frequency in kHz for a single radio_signal_graph bridge sample."))
                         .put("frequency_hz", scalarProp("Optional sample frequency in Hz for external radio/SDR bridge samples."))
                         .put("center_frequency_hz", scalarProp("Optional center frequency in Hz for external SDR bridge samples."))
+                        .put("span_hz", scalarProp("Optional external SDR span in Hz for bridge sample metadata readiness."))
+                        .put("sample_rate_hz", scalarProp("Optional external SDR sample rate in Hz for bridge sample metadata readiness."))
+                        .put("bin_width_hz", scalarProp("Optional external SDR bin width in Hz for bridge sample metadata readiness."))
+                        .put("bandwidth_hz", scalarProp("Optional receiver or SDR bandwidth in Hz for bridge sample metadata readiness."))
                         .put("rssi_dbm", scalarProp("Optional RSSI in dBm for a single AM/FM radio_signal_graph bridge sample."))
                         .put("power_db", scalarProp("Optional power in dB for a single radio_signal_graph bridge sample."))
                         .put("snr_db", scalarProp("Optional SNR in dB for a single radio_signal_graph bridge sample."))
@@ -1321,7 +1329,7 @@ class NativeToolCallingChatClient(
                         .put("rds_radio_text", stringProp("Optional FM RDS radio text reported by a receiver bridge."))
                         .put("scan_mode", stringProp("Wi-Fi or Bluetooth scan mode for direct signal actions: auto, paused, or resumed. Paused reuses cached rows/history; resumed requests a fresh Android scan or BLE sample."))
                         .put("refresh", boolProp("For wifi_scan, wifi_export, wifi_ap_details, bluetooth_scan, bluetooth_signal_history, bluetooth_device_details, bluetooth_export, motion_sensor_quality, motion_sensor_history, or motion_pose, request Android to refresh scan/sensor results before reading available results; analyzer reports stay passive."))
-                        .put("filter_band", stringProp("Optional Wi-Fi filter for wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_ap_details, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, or wifi_export. Accepts 2.4GHz, 5GHz, 6GHz, or comma-separated values."))
+                        .put("filter_band", stringProp("Optional Wi-Fi filter for wifi_scan, wifi_filtered_scan, wifi_analyzer_report, wifi_channel_decision_packet_report, wifi_ap_details, wifi_channel_graph, wifi_channel_rating, wifi_channel_utilization, or wifi_export. Accepts 2.4GHz, 5GHz, 6GHz, or comma-separated values."))
                         .put("filter_security", stringProp("Optional Wi-Fi security filter such as WPA3, WPA2, Enhanced Open, Open, WEP, or comma-separated values."))
                         .put("filter_signal", stringProp("Optional Wi-Fi signal quality filter: excellent, good, fair, or weak."))
                         .put("filter_ssid", stringProp("Optional case-insensitive substring filter for Wi-Fi SSID/display SSID."))
@@ -1337,7 +1345,7 @@ class NativeToolCallingChatClient(
                         .put("filter_bluetooth_proximity", stringProp("Optional Bluetooth proximity bucket filter: immediate, near, room, or far."))
                         .put("include_hidden", boolProp("For Wi-Fi filters, false excludes hidden SSID rows from returned cards."))
                         .put("hidden_only", boolProp("For Wi-Fi filters, true returns only hidden SSID rows."))
-                        .put("include_snapshot", boolProp("For sensor_analyzer_report or motion_sensor_quality, include a bounded one-shot sensor snapshot; default is passive readiness, cached history, and policy rows only."))
+                        .put("include_snapshot", boolProp("For sensor_analyzer_report, sensor_workflow_advisor_report, motion_sensor_decision_packet_report, or motion_sensor_quality, include a bounded one-shot sensor snapshot when supported; default is passive readiness, cached history, and policy rows only."))
                         .put("sensor_types", stringProp("Comma-separated sensor types such as accelerometer, gyroscope, magnetic_field, light, proximity; returned rows include sensor range, resolution, power, FIFO, wake-up, and sampling-rate metadata when Android exposes it."))
                         .put("timeout_ms", intProp("Sensor or Bluetooth sampling timeout in milliseconds."))
                         .put("message", stringProp("Overlay message for show_active_overlay."))
@@ -1599,7 +1607,17 @@ class NativeToolCallingChatClient(
                     "wi-fi security",
                     "interference",
                     "signal evidence",
+                    "signal timeline",
+                    "agent signal timeline",
                     "signal evidence bundle",
+                    "signal timeline",
+                    "signal timeline report",
+                    "agent signal timeline",
+                    "gemma signal timeline",
+                    "signal workflow handoff",
+                    "next signal action",
+                    "next evidence route",
+                    "what did the agent recently see",
                     "current signal evidence",
                     "current signal context",
                     "evidence bundle",
@@ -1617,6 +1635,15 @@ class NativeToolCallingChatClient(
                     "bluetooth readiness",
                     "bluetooth scan policy",
                     "nearby bluetooth report",
+                    "bluetooth advisor",
+                    "bluetooth recommendation",
+                    "bluetooth recommendations",
+                    "bluetooth decision",
+                    "bluetooth device recommendation",
+                    "bluetooth nearby advisor",
+                    "ble advisor",
+                    "ble recommendation",
+                    "nearby bluetooth scanner report",
                     "ble policy",
                     "bluetooth scanner",
                     "nearby bluetooth",
@@ -1634,6 +1661,14 @@ class NativeToolCallingChatClient(
                     "beacon",
                     "sensor",
                     "sensors",
+                    "sensor advisor",
+                    "sensor workflow",
+                    "motion sensor advisor",
+                    "motion sensor workflow",
+                    "accelerometer advisor",
+                    "gyroscope advisor",
+                    "gyro accelerometer advisor",
+                    "imu workflow advisor",
                     "sensor analyzer report",
                     "sensor readiness",
                     "sensor sampling policy",
@@ -1669,6 +1704,12 @@ class NativeToolCallingChatClient(
                     "soc backend report",
                     "soc backend",
                     "litert backend",
+                    "backend launch advisor",
+                    "backend route advisor",
+                    "non adreno launch",
+                    "non-adreno launch",
+                    "mediatek launch",
+                    "gpu backend advisor",
                     "gpu backend",
                     "gpu backend risk",
                     "backend risk",
@@ -3160,9 +3201,24 @@ class NativeToolCallingChatClient(
                     "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel graph envelopes/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names/device detail export rows, radio analyzer checks for AM/FM band-plan boundaries, AM/FM signal graph rows, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, Kai-style custom agent persona/system prompt, Kai-compatible schedule_task/list_tasks/cancel_task native Android task aliases, or Tasker-style automation. " +
                     "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                     "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
-                    "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal briefing decks and evidence bundles, agent observation dashboards, Kai-style agent environment reports, passive agent self-check/heartbeat reports, cross-signal awareness reports, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                    "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports, Bluetooth nearby decision packets, and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion sensor decision packets, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal briefing decks, expanded signal card decks, per-card signal refresh plans/status indicators, signal proof audits and claim-boundary matrices, unified signal timelines, signal replay/export bundles and replay freshness/staleness audits, compact signal observation packets/top-card snapshots, evidence bundles, signal workflow handoff and next-action reports, signal permission and active-refresh runbooks, agent observation dashboards, Kai-style agent environment reports, MCP tool-server registry reports, objective coverage/gap and upgrade coverage reports, release validation and GitHub release readiness reports for Android CI, signed GitHub artifacts, SHA-256 checksums, F-Droid metadata and tagged Fastlane graphics, full upgrade objective audit reports, passive agent self-check/heartbeat reports, cross-signal awareness reports, MediaTek signal-stack reports that fuse SOC/backend policy with Wi-Fi/Bluetooth/radio/sensor evidence and claim boundaries, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports and backend launch advisors for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, radio decision packets, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                    "For MediaTek/non-Adreno signal questions, first call android_device_diagnostics_tool action=mediatek_signal_stack_report so SOC/backend policy, Wi-Fi, Bluetooth, radio, motion, RF coexistence, and claim boundaries stay together. " +
+                    "For physical MediaTek/non-Adreno phone validation, call android_device_diagnostics_tool action=mediatek_device_validation_report before claiming live Wi-Fi, Bluetooth, motion, radio bridge, backend, GitHub release, checksum, F-Droid, or physical-device proof. " +
+                    "For phone or release proof export packages and device-validation evidence export bundles, call android_device_diagnostics_tool action=device_validation_evidence_export_report so required artifacts, ADB/operator capture routes, GitHub release routes, F-Droid routes, and claim scopes stay together. " +
+                    "Before starting local inference on MediaTek, Mali, PowerVR/IMG, Xclipse, Tensor, Exynos, Unisoc, or unknown ARM phones, call android_device_diagnostics_tool action=mediatek_backend_launch_checklist_report so artifact, preflight, live /health, CPU fallback, stability, and phone-validation launch gates are visible together. " +
                     "For broad readiness or stability questions, first call android_device_diagnostics_tool action=agent_self_check_report so heartbeat, wireless, sensors, radio, MediaTek/non-Adreno backend guardrails, and expandable card routes are visible together. " +
-                    "For broad questions about what Hermes/Gemma can see from nearby signals, first call android_device_diagnostics_tool action=agent_signal_evidence_report; then drill into Wi-Fi, Bluetooth, sensor, radio, backend-risk, or card-manifest actions only when the evidence rows say a source card or live refresh is needed. " +
+                    "When deciding which signal/card/tool to open next, first call android_device_diagnostics_tool action=agent_signal_workflow_handoff_report so refresh policy, permission gates, bridges, and physical-device boundaries are explicit. " +
+                    "Before refreshing an expanded top card, call android_device_diagnostics_tool action=agent_signal_card_refresh_status_report so ready/passive-only/permission/bridge/phone-validation hints are visible, then use agent_signal_card_refresh_plan_report when exact active_refresh_arguments are needed. " +
+                    "Before opening settings panels or requesting active Wi-Fi, Bluetooth, motion, radio, or accelerator refreshes, call android_device_diagnostics_tool action=agent_signal_permission_runbook_report. " +
+                    "Before claiming live/current signal evidence, call android_device_diagnostics_tool action=agent_signal_proof_audit_report so active evidence, passive fallbacks, permission gates, bridge requirements, physical-phone validation, and release boundaries are visible. " +
+                    "For compact multimodal signal observation packets or top-card snapshots of what Gemma can see, call android_device_diagnostics_tool action=agent_signal_observation_packet_report so visual slots, graph routes, freshness, proof_status, and claim_scope stay attached. " +
+                    "For router-channel or Wi-Fi interference decisions, call android_device_diagnostics_tool action=wifi_channel_decision_packet_report so channel ratings, utilization, RF coexistence, MediaTek/backend sensitivity, and claim_scope stay attached. " +
+                    "For nearby Bluetooth or BLE decision-packet questions, call android_device_diagnostics_tool action=bluetooth_nearby_decision_packet_report so scanner/advisor rows, RSSI trends, service/manufacturer metadata, RF coexistence, MediaTek/backend sensitivity, and claim_scope stay attached. " +
+                    "For accelerometer, gyroscope, IMU, pose, or motion workflow decisions, call android_device_diagnostics_tool action=motion_sensor_decision_packet_report so quality, history, pose, workflow routes, sampling privacy, MediaTek/backend sensitivity, and claim_scope stay attached. " +
+                    "For AM/FM, SDR, receiver bridge, or radio evidence decisions, call android_device_diagnostics_tool action=radio_signal_decision_packet_report so band-plan limits, graph samples, bridge metadata, RF coexistence, MediaTek/backend sensitivity, and claim_scope stay attached. " +
+                    "For broad questions about what Hermes/Gemma can see from nearby signals, first call android_device_diagnostics_tool action=agent_signal_evidence_report; then drill into Wi-Fi, Bluetooth, sensor, radio, backend-risk, observation-packet, or card-manifest actions only when the evidence rows say a source card or live refresh is needed. " +
+                    "For portable signal replay/export requests, call android_device_diagnostics_tool action=agent_signal_replay_export_report so source_action, graph_type, claim_scope, proof_status, and refresh policy stay visible together. " +
+                    "Before treating replay/export rows as current, call android_device_diagnostics_tool action=agent_signal_replay_freshness_audit_report so freshness_status, staleness_risk, active_refresh_action, passive_fallback_action, permission_gate, hardware_gate, and proof_status stay attached. " +
                     "Use schedule_task/list_tasks/cancel_task for Kai-style scheduled reminders; these create, list, and cancel native Android automation notification records, not unrestricted background AI prompt execution. " +
                     "Use hindsight_memory_tool to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
                     "Report missing Android permissions honestly. Keep replies brief."
@@ -3247,10 +3303,85 @@ class NativeToolCallingChatClient(
 
         internal fun extractImplicitSignalEvidenceArguments(userText: String): JSONObject? {
             val lower = userText.lowercase()
+            val explicitReplayFreshnessPhrase = listOf(
+                "signal replay freshness",
+                "replay freshness",
+                "signal replay staleness",
+                "replay staleness",
+                "stale replay",
+                "freshness audit",
+                "replay audit",
+                "export freshness",
+                "signal export freshness",
+            ).any { it in lower }
+            val explicitReplayPhrase = listOf(
+                "signal replay",
+                "signal replay export",
+                "signal export bundle",
+                "signal evidence export",
+                "replay signal evidence",
+                "export signal evidence",
+                "portable signal bundle",
+                "signal session replay",
+                "gemma signal replay",
+                "replay export",
+            ).any { it in lower }
+            val explicitObservationPacketPhrase = listOf(
+                "signal observation packet",
+                "observation packet for signals",
+                "gemma signal observation packet",
+                "gemma observation packet",
+                "multimodal signal observation",
+                "top card signal observation",
+                "signal context packet",
+                "nearby signal context packet",
+                "what gemma can see packet",
+                "what the agent is viewing packet",
+            ).any { it in lower }
             val explicitEvidencePhrase = listOf(
                 "signal briefing",
                 "briefing deck",
                 "signal briefing deck",
+                "expanded signal card deck",
+                "signal card deck",
+                "top signal card deck",
+                "gemma signal card deck",
+                "signal card refresh plan",
+                "signal card refresh status",
+                "signal session snapshot",
+                "agent signal session snapshot",
+                "current signal session",
+                "current signal session snapshot",
+                "rf signal session snapshot",
+                "session snapshot",
+                "signal proof audit",
+                "active signal proof",
+                "current signal proof",
+                "signal evidence validation",
+                "signal validation audit",
+                "claim proof",
+                "proof ledger",
+                "can gemma claim live evidence",
+                "top card refresh plan",
+                "top card refresh status",
+                "expanded signal refresh plan",
+                "expanded signal refresh status",
+                "which signal cards can refresh",
+                "card refresh readiness",
+                "card live refresh plan",
+                "per-card refresh plan",
+                "signal timeline",
+                "agent signal timeline",
+                "gemma signal timeline",
+                "signal workflow handoff",
+                "workflow handoff",
+                "signal permission runbook",
+                "permission runbook",
+                "refresh runbook",
+                "active refresh route",
+                "active refresh routes",
+                "next signal action",
+                "next evidence route",
                 "agent signal briefing",
                 "gemma signal briefing",
                 "top card slots",
@@ -3272,6 +3403,8 @@ class NativeToolCallingChatClient(
                 "what is the agent viewing",
                 "what are nearby signals",
                 "what signals are nearby",
+                "what is gemma viewing",
+                "what is hermes viewing",
             ).any { it in lower }
             val hasSignalDomain = listOf(
                 "signal",
@@ -3295,13 +3428,65 @@ class NativeToolCallingChatClient(
                 "signal briefing",
                 "briefing deck",
                 "signal briefing deck",
+                "expanded signal card deck",
+                "signal card deck",
+                "top signal card deck",
+                "gemma signal card deck",
+                "signal card refresh plan",
+                "signal card refresh status",
+                "signal session snapshot",
+                "agent signal session snapshot",
+                "current signal session",
+                "current signal session snapshot",
+                "rf signal session snapshot",
+                "session snapshot",
+                "signal proof audit",
+                "active signal proof",
+                "current signal proof",
+                "signal evidence validation",
+                "signal validation audit",
+                "claim proof",
+                "proof ledger",
+                "can gemma claim live evidence",
+                "top card refresh plan",
+                "top card refresh status",
+                "expanded signal refresh plan",
+                "expanded signal refresh status",
+                "which signal cards can refresh",
+                "card refresh readiness",
                 "agent signal briefing",
                 "gemma signal briefing",
                 "top card slots",
                 "what is the agent viewing",
             ).any { it in lower }
-            return if (explicitEvidencePhrase || (asksWhatCanBeSeen && hasSignalDomain)) {
-                JSONObject().put("action", if (explicitBriefingPhrase) "agent_signal_briefing_report" else "agent_signal_evidence_report")
+            return if (explicitReplayFreshnessPhrase || explicitReplayPhrase || explicitObservationPacketPhrase || explicitEvidencePhrase || (asksWhatCanBeSeen && hasSignalDomain)) {
+                val action = when {
+                    explicitReplayFreshnessPhrase ->
+                        "agent_signal_replay_freshness_audit_report"
+                    explicitReplayPhrase ->
+                        "agent_signal_replay_export_report"
+                    explicitObservationPacketPhrase ->
+                        "agent_signal_observation_packet_report"
+                    lower.containsAny("signal proof audit", "active signal proof", "current signal proof", "signal evidence validation", "signal validation audit", "claim proof", "proof ledger", "can gemma claim live evidence") ->
+                        "agent_signal_proof_audit_report"
+                    lower.containsAny("signal session snapshot", "agent signal session snapshot", "current signal session", "current signal session snapshot", "rf signal session snapshot", "session snapshot") ->
+                        "agent_signal_session_snapshot_report"
+                    lower.containsAny("signal card refresh status", "top card refresh status", "expanded signal refresh status", "which signal cards can refresh", "card refresh readiness") ->
+                        "agent_signal_card_refresh_status_report"
+                    lower.containsAny("signal card refresh plan", "top card refresh plan", "expanded signal refresh plan", "card live refresh plan", "per-card refresh plan") ->
+                        "agent_signal_card_refresh_plan_report"
+                    lower.containsAny("expanded signal card deck", "signal card deck", "top signal card deck", "gemma signal card deck", "expanded signal cards", "all signal cards") ->
+                        "agent_signal_card_deck_report"
+                    lower.containsAny("signal permission runbook", "permission runbook", "refresh runbook", "active refresh route", "active refresh routes", "before live scan", "request permissions") ->
+                        "agent_signal_permission_runbook_report"
+                    lower.containsAny("signal workflow handoff", "workflow handoff", "next signal action", "next evidence route", "what should i open next", "what should gemma check next") ->
+                        "agent_signal_workflow_handoff_report"
+                    lower.containsAny("signal timeline", "agent signal timeline", "gemma signal timeline", "recently see", "recently saw") ->
+                        "agent_signal_timeline_report"
+                    explicitBriefingPhrase -> "agent_signal_briefing_report"
+                    else -> "agent_signal_evidence_report"
+                }
+                JSONObject().put("action", action)
             } else {
                 null
             }
@@ -3309,17 +3494,59 @@ class NativeToolCallingChatClient(
 
         internal fun extractImplicitAndroidDiagnosticsArguments(userText: String): JSONObject? {
             val lower = userText.lowercase()
-            if (lower.contains("screen") && !lower.containsAny("wifi", "wi-fi", "bluetooth", "ble", "radio", "rf", "sensor", "motion", "soc", "mediatek")) {
+            if (lower.contains("screen") && !lower.containsAny("wifi", "wi-fi", "bluetooth", "ble", "radio", "rf", "sensor", "motion", "soc", "mediatek", "mcp", "tool server", "upgrade", "objective")) {
                 return null
             }
             return when {
+                lower.containsAny("signal observation packet", "gemma signal observation packet", "gemma observation packet", "multimodal signal observation", "top card signal observation", "signal context packet", "nearby signal context packet", "what gemma can see packet", "what the agent is viewing packet") ->
+                    diagnosticArguments("agent_signal_observation_packet_report")
+                lower.containsAny("signal replay freshness", "replay freshness", "signal replay staleness", "replay staleness", "stale replay", "freshness audit", "replay audit", "export freshness", "signal export freshness") ->
+                    diagnosticArguments("agent_signal_replay_freshness_audit_report")
+                lower.containsAny("signal replay", "signal replay export", "signal export bundle", "signal evidence export", "replay signal evidence", "export signal evidence", "portable signal bundle", "signal session replay", "gemma signal replay", "replay export") ->
+                    diagnosticArguments("agent_signal_replay_export_report")
+                lower.containsAny("signal proof audit", "active signal proof", "current signal proof", "signal evidence validation", "signal validation audit", "claim proof", "proof ledger", "can gemma claim live evidence", "claim live evidence") ->
+                    diagnosticArguments("agent_signal_proof_audit_report")
+                lower.containsAny("device evidence export", "phone evidence export", "device validation export", "phone validation evidence", "device proof export", "physical device evidence export", "release proof package", "github device evidence", "github release device evidence", "f-droid device evidence", "fdroid device evidence") ->
+                    diagnosticArguments("device_validation_evidence_export_report")
+                lower.containsAny("physical mediatek validation", "physical mediaTek validation", "phone signal validation", "non-adreno device validation", "non adreno device validation", "device proof gates", "live signal proof", "mediatek device validation", "gemma phone validation", "signal device validation") ->
+                    diagnosticArguments("mediatek_device_validation_report")
+                lower.containsAny("signal session snapshot", "agent signal session snapshot", "current signal session", "current signal session snapshot", "rf signal session snapshot", "session snapshot", "ambient session context") ->
+                    diagnosticArguments("agent_signal_session_snapshot_report")
+                lower.containsAny("signal card refresh status", "top card refresh status", "expanded signal refresh status", "which signal cards can refresh", "card refresh readiness", "refresh status for expanded cards") ->
+                    diagnosticArguments("agent_signal_card_refresh_status_report")
+                lower.containsAny("signal card refresh plan", "top card refresh plan", "expanded signal refresh plan", "card live refresh plan", "per-card refresh plan", "refresh an expanded top card") ->
+                    diagnosticArguments("agent_signal_card_refresh_plan_report")
+                lower.containsAny("expanded signal card deck", "signal card deck", "top signal card deck", "gemma signal card deck", "expanded signal cards", "all signal cards") ->
+                    diagnosticArguments("agent_signal_card_deck_report")
+                lower.containsAny("signal permission runbook", "permission runbook", "refresh runbook", "active signal refresh", "active refresh route", "active refresh routes", "before live scan", "request permissions") ->
+                    diagnosticArguments("agent_signal_permission_runbook_report")
+                lower.containsAny("workflow handoff", "signal workflow handoff", "signal handoff", "next signal action", "next diagnostic action", "what should i open next", "what should hermes open next", "what should gemma check next", "card handoff", "next evidence route", "operational signal plan", "signal next actions") ->
+                    diagnosticArguments("agent_signal_workflow_handoff_report")
+                lower.containsAny("objective coverage", "coverage gap", "coverage gaps", "objective gap", "objective gaps", "research parity coverage", "kai wifi analyzer parity", "kai wi-fi analyzer parity", "full objective coverage", "agent upgrade coverage", "hermes upgrade coverage", "upgrade coverage report", "upgrade coverage map") ->
+                    diagnosticArguments("agent_objective_coverage_report")
+                lower.containsAny("release validation", "release workflow", "github release", "github release readiness", "release readiness", "release validation readiness", "signed release", "release artifact", "release artifacts", "apk checksum", "aab checksum", "fdroid readiness", "f-droid readiness", "fdroid metadata", "f-droid metadata", "fastlane graphics") ->
+                    diagnosticArguments("agent_release_validation_report")
+                lower.containsAny("upgrade audit", "capability upgrade", "full system upgrade", "full objective", "objective audit", "upgrade objective", "completion audit", "capability coverage", "upgrade coverage", "what is still missing", "what remains incomplete") ->
+                    diagnosticArguments("agent_capability_upgrade_report")
+                lower.containsAny("mcp server", "mcp servers", "mcp tool", "mcp tools", "mcp registry", "mcp parity", "mcp tool server", "tool server registry", "tool-server registry", "kai mcp", "external tool server", "streamable http mcp", "streamable http", "context7", "deepwiki", "globalping", "coingecko", "manifold markets", "find-a-domain", "find a domain") ->
+                    diagnosticArguments("mcp_tool_server_registry_report")
+                lower.containsAny("wifi channel decision", "wi-fi channel decision", "wifi decision packet", "wi-fi decision packet", "router channel plan", "wifi router channel", "wi-fi router channel", "which wifi channel", "which wi-fi channel", "wifi interference decision", "wi-fi interference decision", "gemma wifi channel", "gemma wi-fi channel", "mediatek wifi channel", "mediatek wi-fi channel", "wifi channel proof packet", "wi-fi channel proof packet") ->
+                    wifiDiagnosticArguments("wifi_channel_decision_packet_report", userText)
+                lower.containsAny("bluetooth decision packet", "ble decision packet", "nearby bluetooth decision", "nearby ble decision", "bluetooth nearby decision", "ble nearby decision", "gemma bluetooth nearby", "gemma ble nearby", "what bluetooth devices can gemma see", "what ble devices can gemma see", "mediatek bluetooth packet", "mediatek ble packet", "top card bluetooth packet", "bluetooth top card packet") ->
+                    bluetoothDiagnosticArguments("bluetooth_nearby_decision_packet_report", userText)
+                lower.containsAny("motion decision packet", "motion sensor decision packet", "imu decision packet", "gyro accelerometer decision packet", "gyroscope accelerometer decision packet", "accelerometer decision packet", "gyroscope decision packet", "gemma motion sensor", "gemma imu", "top card motion packet", "motion top card packet", "mediatek motion packet", "motion claim boundary", "motion claim boundaries", "sensor decision packet") ->
+                    diagnosticArguments("motion_sensor_decision_packet_report", "include_snapshot" to false)
                 lower.containsAny("rf coexistence", "wireless coexistence", "wifi bluetooth coexistence", "wi-fi bluetooth coexistence", "bluetooth wifi interference", "bluetooth wi-fi interference", "cross signal interference", "2.4 ghz coexistence", "2.4ghz coexistence") ->
                     diagnosticArguments("rf_coexistence_report")
+                lower.containsAny("signal timeline", "agent signal timeline", "gemma signal timeline", "what did the agent recently see", "what did hermes recently see", "recent signal view", "recently viewed signals") ->
+                    diagnosticArguments("agent_signal_timeline_report")
                 (lower.contains("export") && lower.containsAny("wifi", "wi-fi", "access point", "access points")) ||
                     lower.containsAny("export ap", "export aps", "ap export") ->
                     wifiDiagnosticArguments("wifi_export", userText)
                 lower.containsAny("wifi ap details", "wi-fi ap details", "wifi access point details", "wi-fi access point details", "access point details", "complete access point", "compact access point", "ap details") ->
                     wifiDiagnosticArguments("wifi_ap_details", userText)
+                lower.containsAny("wifi advisor", "wi-fi advisor", "wifi recommendation", "wi-fi recommendation", "wifi recommendations", "wi-fi recommendations", "wifi decision", "wi-fi decision", "wifi roaming", "wi-fi roaming", "roaming candidate", "roaming candidates", "best access point", "better access point") ->
+                    wifiDiagnosticArguments("wifi_signal_advisor_report", userText)
                 lower.containsAny("best wifi channel", "best wi-fi channel", "channel rating", "rate wifi", "rate wi-fi", "wifi congestion", "wi-fi congestion") ->
                     wifiDiagnosticArguments("wifi_channel_rating", userText)
                 lower.containsAny("wifi utilization", "wi-fi utilization", "wifi occupancy", "wi-fi occupancy", "wifi interference", "wi-fi interference", "wifi spectrum", "wi-fi spectrum") ->
@@ -3332,6 +3559,8 @@ class NativeToolCallingChatClient(
                     wifiDiagnosticArguments("wifi_analyzer_report", userText)
                 lower.containsAny("nearby wifi", "nearby wi-fi", "scan wifi", "scan wi-fi", "wifi networks", "wi-fi networks", "access points nearby", "nearby access points") ->
                     wifiDiagnosticArguments("wifi_scan", userText)
+                lower.containsAny("bluetooth advisor", "ble advisor", "bluetooth recommendation", "bluetooth recommendations", "ble recommendation", "ble recommendations", "bluetooth decision", "ble decision", "bluetooth device recommendation", "bluetooth nearby advisor", "nearby bluetooth advisor", "nearby bluetooth scanner report") ->
+                    bluetoothDiagnosticArguments("bluetooth_signal_advisor_report", userText)
                 lower.containsAny("bluetooth history", "bluetooth trend", "bluetooth trends", "bluetooth rssi history", "ble history", "ble trend", "rssi trend") ->
                     bluetoothDiagnosticArguments("bluetooth_signal_history", userText)
                 lower.containsAny("bluetooth analyzer", "bluetooth readiness", "bluetooth scan policy", "analyze bluetooth", "analyze ble") ->
@@ -3343,6 +3572,8 @@ class NativeToolCallingChatClient(
                     bluetoothDiagnosticArguments("bluetooth_device_details", userText)
                 lower.containsAny("nearby bluetooth", "nearby ble", "scan bluetooth", "scan ble", "bluetooth devices", "ble devices", "bluetooth scanner", "ble scanner", "bluetooth filter", "ble filter") ->
                     bluetoothDiagnosticArguments("bluetooth_scan", userText)
+                lower.containsAny("sensor advisor", "sensor workflow", "motion sensor advisor", "motion sensor workflow", "accelerometer advisor", "gyroscope advisor", "gyro accelerometer advisor", "imu workflow advisor", "motion workflow recommendation", "sensor workflow recommendation") ->
+                    diagnosticArguments("sensor_workflow_advisor_report", "include_snapshot" to false)
                 lower.containsAny("motion quality", "sensor fusion quality", "imu quality", "gyro quality", "gyroscope quality", "accelerometer quality", "motion readiness", "orientation quality", "sensor calibration", "motion calibration") ->
                     diagnosticArguments("motion_sensor_quality", "include_snapshot" to false)
                 lower.containsAny("motion history", "motion trend", "motion trends", "imu history", "imu trend", "accelerometer history", "gyroscope history") ->
@@ -3359,12 +3590,44 @@ class NativeToolCallingChatClient(
                     )
                 lower.containsAny("sensor analyzer", "sensor readiness", "sensor sampling policy", "sensor metadata", "sensor capability", "accelerometer", "gyroscope", "gyrometer") ->
                     diagnosticArguments("sensor_analyzer_report", "include_snapshot" to false)
+                lower.containsAny("radio decision packet", "radio signal decision packet", "radio signal packet", "am fm decision packet", "am/fm decision packet", "fm am radio decision", "sdr radio decision", "sdr decision packet", "gemma radio signal", "top card radio packet", "radio top card packet", "mediatek radio packet", "radio claim boundary", "radio claim boundaries") ->
+                    diagnosticArguments("radio_signal_decision_packet_report")
+                lower.containsAny("radio bridge sample", "radio bridge samples", "sdr bridge sample", "sdr bridge samples", "external sdr sample", "external sdr samples", "receiver sample", "receiver samples", "spectrum sample", "waterfall sample") ->
+                    diagnosticArguments("radio_signal_graph")
+                lower.containsAny("radio advisor", "radio signal advisor", "radio recommendation", "radio recommendations", "am fm advisor", "am/fm advisor", "fm advisor", "am advisor", "sdr advisor", "receiver advisor", "radio receiver advisor", "radio decision", "radio signal decision") ->
+                    diagnosticArguments("radio_signal_advisor_report")
                 lower.containsAny("radio graph", "rf graph", "fm graph", "am graph", "am/fm graph", "am fm graph", "signal graph") ->
                     diagnosticArguments("radio_signal_graph")
                 lower.containsAny("fm radio", "am radio", "am/fm radio", "am fm radio", "radio signals", "rf signals", "radio scanner", "radio scan", "broadcast radio") ->
                     diagnosticArguments("radio_signal_status")
+                lower.containsAny("mediatek signal stack", "mediatek signal compatibility", "mediatek signal context", "non adreno signal stack", "non-adreno signal stack", "soc signal stack", "mediatek wifi bluetooth sensors", "mediatek wi-fi bluetooth sensors") ->
+                    diagnosticArguments("mediatek_signal_stack_report")
                 lower.containsAny("mediatek readiness", "mediatek device readiness", "mediatek soc readiness", "dimensity readiness", "helio readiness", "mali readiness", "immortalis readiness", "powervr readiness", "img readiness", "non adreno readiness", "non-adreno readiness") ->
                     diagnosticArguments("mediatek_readiness_report")
+                lower.containsAny("accelerator preflight", "gpu preflight", "delegate preflight", "litert preflight", "litert-lm preflight", "opencl preflight", "gpu delegate preflight", "mediatek accelerator", "non adreno accelerator", "non-adreno accelerator") ->
+                    diagnosticArguments("accelerator_preflight_report")
+                (
+                    lower.contains("before starting local inference") &&
+                        lower.containsAny("mediatek", "mali", "powervr", "power vr", "img", "xclipse", "tensor", "exynos", "unisoc", "unknown arm", "non adreno", "non-adreno")
+                ) ||
+                    lower.containsAny(
+                    "mediatek launch checklist", "mediatek backend launch checklist", "non adreno launch checklist", "non-adreno launch checklist",
+                    "mediatek local inference checklist", "non adreno local inference checklist", "non-adreno local inference checklist",
+                    "before starting local inference on mediatek", "before starting local inference on mali",
+                    "before starting local inference on powervr", "before starting local inference on power vr",
+                    "before starting local inference on img", "before starting local inference on xclipse",
+                    "before starting local inference on tensor", "before starting local inference on exynos",
+                    "before starting local inference on unisoc", "before starting local inference on unknown arm",
+                    "start local inference on mediatek", "start local inference on non adreno", "start local inference on non-adreno",
+                ) ->
+                    diagnosticArguments("mediatek_backend_launch_checklist_report")
+                lower.containsAny(
+                    "non adreno backend advisor", "non-adreno backend advisor",
+                    "mediatek backend advisor", "backend launch advisor", "backend route advisor",
+                    "non adreno launch", "non-adreno launch", "non adreno launch plan", "non-adreno launch plan",
+                    "mediatek launch", "gpu backend advisor",
+                ) ->
+                    diagnosticArguments("non_adreno_backend_advisor_report")
                 lower.containsAny("gpu backend risk", "backend risk", "accelerator risk", "non adreno backend", "mali backend", "powervr backend", "xclipse backend") ->
                     diagnosticArguments("gpu_backend_risk_report")
                 lower.containsAny("local inference compatibility", "inference compatibility", "model compatibility", "inference fit", "litert compatibility", "gemma compatibility", "will gemma run", "can gemma run") ->
@@ -3535,6 +3798,18 @@ class NativeToolCallingChatClient(
             "wifi_scan",
             "wifi_filtered_scan",
             "wifi_analyzer_report",
+            "wifi_signal_advisor_report",
+            "wifi_signal_advisor",
+            "wifi_decision_report",
+            "wifi_network_advisor",
+            "wifi_roaming_advisor",
+            "wifi_recommendation_report",
+            "wifi_channel_decision_packet_report",
+            "wifi_channel_decision_packet",
+            "wifi_interference_decision_packet",
+            "gemma_wifi_channel_decision",
+            "mediatek_wifi_channel_decision",
+            "wifi_router_channel_plan_report",
             "wifi_connection_link",
             "wifi_link_status",
             "wifi_current_connection",
@@ -3547,6 +3822,19 @@ class NativeToolCallingChatClient(
             "wifi_export",
             "bluetooth_scan",
             "bluetooth_analyzer_report",
+            "bluetooth_signal_advisor_report",
+            "bluetooth_signal_advisor",
+            "bluetooth_nearby_advisor_report",
+            "bluetooth_device_advisor_report",
+            "ble_signal_advisor_report",
+            "bluetooth_device_recommendation_report",
+            "bluetooth_nearby_scanner_report",
+            "bluetooth_nearby_decision_packet_report",
+            "bluetooth_decision_packet",
+            "ble_nearby_decision_packet",
+            "gemma_bluetooth_nearby_packet",
+            "top_card_bluetooth_packet",
+            "mediatek_bluetooth_decision_packet",
             "bluetooth_signal_history",
             "bluetooth_device_details",
             "bluetooth_details",
@@ -3554,6 +3842,19 @@ class NativeToolCallingChatClient(
             "bluetooth_export",
             "bluetooth_device_export",
             "sensor_analyzer_report",
+            "sensor_workflow_advisor_report",
+            "sensor_workflow_advisor",
+            "motion_sensor_advisor_report",
+            "motion_sensor_workflow_report",
+            "gyro_accelerometer_advisor_report",
+            "imu_workflow_advisor_report",
+            "motion_sensor_decision_packet_report",
+            "motion_decision_packet",
+            "imu_decision_packet",
+            "gyro_accelerometer_decision_packet",
+            "gemma_motion_sensor_packet",
+            "top_card_motion_packet",
+            "mediatek_motion_decision_packet",
             "motion_sensor_quality",
             "imu_quality_report",
             "motion_fusion_quality",
@@ -3565,15 +3866,75 @@ class NativeToolCallingChatClient(
             "camera_status",
             "radio_signal_status",
             "radio_signal_graph",
+            "radio_signal_advisor_report",
+            "radio_signal_advisor",
+            "radio_advisor_report",
+            "am_fm_signal_advisor_report",
+            "sdr_signal_advisor_report",
+            "radio_receiver_advisor_report",
+            "radio_signal_decision_packet_report",
+            "radio_decision_packet",
+            "am_fm_decision_packet",
+            "fm_am_radio_decision_packet",
+            "sdr_radio_decision_packet",
+            "gemma_radio_signal_packet",
+            "top_card_radio_packet",
+            "mediatek_radio_decision_packet",
+            "radio_bridge_sample_report",
+            "radio_bridge_samples",
+            "sdr_bridge_samples",
+            "external_sdr_samples",
             "radio_analyzer_report",
             "signal_capability_status",
             "local_backend_runtime_report",
+            "accelerator_preflight_report",
+            "litert_accelerator_preflight_report",
+            "gpu_delegate_preflight_report",
+            "mediatek_accelerator_preflight_report",
+            "non_adreno_accelerator_preflight_report",
+            "opencl_preflight_report",
             "mediatek_readiness_report",
             "mediatek_device_readiness_report",
             "mediatek_soc_readiness_report",
             "non_adreno_readiness_report",
+            "mediatek_signal_stack_report",
+            "mediatek_signal_compatibility_report",
+            "mediatek_signal_context_report",
+            "non_adreno_signal_stack_report",
+            "soc_signal_stack_report",
+            "gemma_mediatek_signal_stack",
+            "mediatek_device_validation_report",
+            "physical_mediatek_validation_report",
+            "non_adreno_device_validation_report",
+            "signal_device_validation_report",
+            "gemma_phone_validation_report",
+            "phone_signal_validation_report",
+            "device_validation_evidence_export_report",
+            "mediatek_device_validation_export_report",
+            "physical_device_evidence_export_report",
+            "phone_validation_evidence_export",
+            "github_release_device_evidence_export",
+            "fdroid_device_evidence_export",
+            "agent_signal_observation_packet_report",
+            "gemma_signal_observation_packet",
+            "signal_context_packet_report",
+            "multimodal_signal_observation_report",
+            "top_card_signal_observation_packet",
+            "nearby_signal_context_packet",
             "dimensity_readiness_report",
             "helio_readiness_report",
+            "non_adreno_backend_advisor_report",
+            "mediatek_backend_advisor_report",
+            "backend_route_advisor_report",
+            "non_adreno_backend_launch_report",
+            "mediatek_launch_advisor_report",
+            "gpu_backend_advisor_report",
+            "mediatek_backend_launch_checklist_report",
+            "mediatek_launch_checklist_report",
+            "non_adreno_launch_checklist_report",
+            "gemma_mediatek_launch_checklist",
+            "mediatek_local_inference_checklist",
+            "non_adreno_local_inference_checklist",
             "soc_compatibility_report",
             "gpu_backend_risk_report",
             "local_inference_compatibility_report",
@@ -3587,11 +3948,75 @@ class NativeToolCallingChatClient(
             "signal_evidence_bundle",
             "current_signal_evidence",
             "gemma_signal_evidence",
+            "agent_signal_replay_export_report",
+            "signal_replay_export_report",
+            "signal_replay_export",
+            "signal_session_replay_export",
+            "signal_evidence_export",
+            "gemma_signal_replay_export",
+            "portable_signal_bundle",
+            "agent_signal_export_bundle",
+            "agent_signal_replay_freshness_audit_report",
+            "signal_replay_freshness_audit",
+            "signal_export_freshness_audit",
+            "gemma_signal_replay_freshness",
+            "signal_replay_staleness_report",
+            "signal_replay_freshness",
+            "agent_signal_session_snapshot_report",
+            "signal_session_snapshot_report",
+            "gemma_signal_session_snapshot",
+            "agent_signal_session_snapshot",
+            "signal_session_snapshot",
+            "rf_signal_session_snapshot",
+            "current_signal_session_snapshot",
+            "agent_signal_proof_audit_report",
+            "signal_proof_audit_report",
+            "signal_proof_audit",
+            "active_signal_proof_report",
+            "current_signal_proof_report",
+            "gemma_signal_proof_audit",
+            "signal_claim_validation_report",
+            "signal_evidence_validation_report",
             "agent_signal_briefing_report",
             "signal_briefing_report",
             "gemma_signal_briefing",
             "agent_top_card_slots",
             "signal_briefing_deck",
+            "agent_signal_card_deck_report",
+            "signal_card_deck_report",
+            "gemma_signal_card_deck",
+            "expanded_signal_cards",
+            "top_signal_card_deck",
+            "signal_top_card_deck",
+            "agent_signal_card_refresh_plan_report",
+            "signal_card_refresh_plan_report",
+            "gemma_signal_card_refresh_plan",
+            "top_card_refresh_plan",
+            "signal_card_live_refresh_plan",
+            "expanded_signal_refresh_plan",
+            "agent_signal_card_refresh_status_report",
+            "signal_card_refresh_status_report",
+            "gemma_signal_card_refresh_status",
+            "top_card_refresh_status",
+            "expanded_signal_refresh_status",
+            "signal_cards_can_refresh",
+            "agent_signal_timeline_report",
+            "signal_timeline_report",
+            "gemma_signal_timeline",
+            "agent_signal_timeline",
+            "what_agent_recently_saw",
+            "agent_signal_workflow_handoff_report",
+            "signal_workflow_handoff_report",
+            "gemma_signal_workflow_handoff",
+            "agent_next_signal_action_report",
+            "next_signal_action_report",
+            "signal_next_actions",
+            "agent_signal_permission_runbook_report",
+            "signal_permission_runbook_report",
+            "signal_refresh_runbook_report",
+            "agent_signal_refresh_runbook_report",
+            "active_signal_refresh_runbook",
+            "signal_active_refresh_routes",
             "agent_observation_report",
             "agent_card_manifest_report",
             "agent_card_priority_report",
@@ -3599,6 +4024,31 @@ class NativeToolCallingChatClient(
             "agent_observation_planner",
             "top_signal_cards",
             "kai_card_priority_report",
+            "mcp_tool_server_registry_report",
+            "mcp_tool_registry_report",
+            "mcp_server_registry_report",
+            "mcp_server_parity_report",
+            "kai_mcp_server_report",
+            "tool_server_registry_report",
+            "agent_objective_coverage_report",
+            "objective_coverage_report",
+            "hermes_objective_coverage_report",
+            "agent_upgrade_coverage_report",
+            "hermes_upgrade_coverage_report",
+            "full_upgrade_coverage_report",
+            "research_parity_coverage_report",
+            "agent_release_validation_report",
+            "release_validation_report",
+            "github_release_validation_report",
+            "github_release_readiness_report",
+            "release_validation_readiness_report",
+            "fdroid_release_validation_report",
+            "release_workflow_audit",
+            "agent_capability_upgrade_report",
+            "hermes_upgrade_audit_report",
+            "full_system_upgrade_report",
+            "gemma_capability_upgrade_report",
+            "objective_upgrade_report",
             "card_manifest_report",
             "diagnostic_card_manifest",
             "graph_card_manifest",
@@ -3607,6 +4057,12 @@ class NativeToolCallingChatClient(
             "social_gmail_goal_preflight",
             "show_active_overlay",
             "tool_catalog",
+            "open_usage_access_settings",
+            "open_app_settings",
+            "open_location_settings",
+            "open_wifi_settings",
+            "open_bluetooth_settings",
+            "open_camera_permission_settings",
         )
         private val DIAGNOSTIC_ACTION_REGEX = Regex(
             """(?i)\b(?:action|operation|name)\s*[:=]\s*["']?([a-zA-Z0-9_/-]+)["']?""",
@@ -3646,6 +4102,12 @@ class NativeToolCallingChatClient(
             "filter_bluetooth_proximity",
             "sensor_types",
             "radio_samples_json",
+            "radio_bridge_samples_json",
+            "receiver_samples_json",
+            "sdr_samples_json",
+            "sdr_spectrum_samples_json",
+            "spectrum_samples_json",
+            "waterfall_rows_json",
             "sample_source",
             "receiver_id",
             "station_label",
@@ -3653,6 +4115,10 @@ class NativeToolCallingChatClient(
             "frequency_khz",
             "frequency_hz",
             "center_frequency_hz",
+            "span_hz",
+            "sample_rate_hz",
+            "bin_width_hz",
+            "bandwidth_hz",
             "rssi_dbm",
             "power_db",
             "snr_db",
@@ -4013,6 +4479,9 @@ internal object NativeToolContextCompressor {
                 "wifi_standard_summary_count",
                 "wifi_connection_link_count",
                 "ready_wifi_connection_link_count",
+                "wifi_signal_advisor_count",
+                "ready_wifi_signal_advisor_count",
+                "wifi_roaming_candidate_count",
                 "cached_wifi_history_network_count",
                 "wifi_analyzer_feature_count",
                 "ready_wifi_analyzer_feature_count",
@@ -4025,16 +4494,43 @@ internal object NativeToolContextCompressor {
                 "ready_kai_operations_count",
                 "agent_tool_sandbox_count",
                 "ready_agent_tool_sandbox_count",
+                "mcp_tool_server_count",
+                "ready_mcp_tool_server_count",
+                "mcp_tool_server_route_count",
+                "ready_mcp_tool_server_route_count",
+                "agent_upgrade_objective_count",
+                "ready_agent_upgrade_objective_count",
+                "agent_upgrade_route_count",
+                "ready_agent_upgrade_route_count",
                 "workflow_readiness_count",
                 "agent_observation_count",
                 "ready_agent_observation_count",
                 "agent_observation_route_count",
                 "agent_signal_briefing_count",
                 "ready_agent_signal_briefing_count",
+                "agent_signal_card_deck_count",
+                "ready_agent_signal_card_deck_count",
+                "agent_signal_card_refresh_plan_count",
+                "ready_agent_signal_card_refresh_plan_count",
+                "agent_signal_card_refresh_status_count",
+                "ready_agent_signal_card_refresh_status_count",
+                "active_ready_agent_signal_card_refresh_status_count",
+                "blocked_agent_signal_card_refresh_status_count",
+                "mediatek_backend_launch_checklist_count",
+                "ready_mediatek_backend_launch_checklist_count",
+                "blocked_mediatek_backend_launch_checklist_count",
                 "agent_top_card_slot_count",
                 "ready_agent_top_card_slot_count",
                 "agent_signal_metadata_key_count",
                 "ready_agent_signal_metadata_key_count",
+                "agent_signal_workflow_handoff_count",
+                "ready_agent_signal_workflow_handoff_count",
+                "agent_signal_next_action_route_count",
+                "ready_agent_signal_next_action_route_count",
+                "agent_signal_permission_runbook_count",
+                "ready_agent_signal_permission_runbook_count",
+                "agent_signal_active_refresh_route_count",
+                "ready_agent_signal_active_refresh_route_count",
                 "agent_signal_context_count",
                 "ready_agent_signal_context_count",
                 "agent_card_manifest_count",
@@ -4049,6 +4545,14 @@ internal object NativeToolContextCompressor {
                 "ready_signal_evidence_count",
                 "signal_evidence_route_count",
                 "signal_evidence_graph_type_count",
+                "agent_objective_coverage_count",
+                "ready_agent_objective_coverage_count",
+                "agent_objective_gap_count",
+                "agent_research_parity_count",
+                "agent_release_validation_count",
+                "ready_agent_release_validation_count",
+                "agent_release_artifact_gate_count",
+                "fdroid_release_metadata_count",
                 "signal_awareness_count",
                 "ready_signal_awareness_count",
                 "signal_workflow_route_count",
@@ -4058,6 +4562,12 @@ internal object NativeToolContextCompressor {
                 "rf_coexistence_route_count",
                 "rf_coexistence_risk_score",
                 "rf_coexistence_risk_level",
+                "mediatek_signal_stack_count",
+                "ready_mediatek_signal_stack_count",
+                "mediatek_signal_refresh_route_count",
+                "ready_mediatek_signal_refresh_route_count",
+                "mediatek_signal_claim_boundary_count",
+                "ready_mediatek_signal_claim_boundary_count",
                 "radio_band_plan_count",
                 "radio_signal_feature_count",
                 "ready_radio_signal_feature_count",
@@ -4066,7 +4576,12 @@ internal object NativeToolContextCompressor {
                 "radio_signal_graph_row_count",
                 "radio_signal_graph_sample_count",
                 "radio_signal_graph_bridge_ready",
+                "radio_signal_advisor_count",
+                "ready_radio_signal_advisor_count",
+                "radio_receiver_candidate_count",
                 "radio_receiver_bridge_schema_count",
+                "accelerator_preflight_count",
+                "ready_accelerator_preflight_count",
                 "runtime_backend_feature_count",
                 "ready_runtime_backend_feature_count",
                 "runtime_stability_feature_count",
@@ -4075,6 +4590,10 @@ internal object NativeToolContextCompressor {
                 "mediatek_readiness_level",
                 "mediatek_readiness_count",
                 "ready_mediatek_readiness_count",
+                "non_adreno_backend_advisor_score",
+                "non_adreno_backend_advisor_level",
+                "non_adreno_backend_advisor_count",
+                "ready_non_adreno_backend_advisor_count",
                 "soc_backend_feature_count",
                 "ready_soc_backend_feature_count",
                 "soc_backend_route_count",
@@ -4111,6 +4630,15 @@ internal object NativeToolContextCompressor {
                 "ready_sensor_analyzer_feature_count",
                 "sensor_analyzer_workflow_route_count",
                 "sensor_sampling_policy_count",
+                "sensor_workflow_advisor_count",
+                "ready_sensor_workflow_advisor_count",
+                "sensor_workflow_candidate_count",
+                "motion_sensor_decision_packet_count",
+                "ready_motion_sensor_decision_packet_count",
+                "motion_sensor_decision_route_count",
+                "ready_motion_sensor_decision_route_count",
+                "motion_sensor_claim_boundary_count",
+                "ready_motion_sensor_claim_boundary_count",
                 "bluetooth_device_count",
                 "bluetooth_total_device_count",
                 "bluetooth_active_filter_count",
@@ -4127,6 +4655,9 @@ internal object NativeToolContextCompressor {
                 "ready_bluetooth_analyzer_feature_count",
                 "bluetooth_analyzer_workflow_route_count",
                 "bluetooth_scan_policy_count",
+                "bluetooth_signal_advisor_count",
+                "ready_bluetooth_signal_advisor_count",
+                "bluetooth_device_candidate_count",
                 "radio_receiver_profile_count",
                 "ready_radio_receiver_profile_count",
                 "usage_access_granted",
@@ -4200,6 +4731,13 @@ internal object NativeToolContextCompressor {
         "wifi_channel_width_summary",
         "wifi_standard_summary",
         "wifi_connection_link",
+        "wifi_signal_advisor_matrix",
+        "wifi_roaming_candidates",
+        "wifi_channel_decision_packet",
+        "wifi_channel_decision_routes",
+        "wifi_channel_decision_claim_boundaries",
+        "wifi_channel_decision_graph_types",
+        "gemma_wifi_channel_decision_directives",
         "wifi_signal_history",
         "wifi_analyzer_feature_matrix",
         "wifi_analyzer_workflow_routes",
@@ -4209,12 +4747,61 @@ internal object NativeToolContextCompressor {
         "kai_parity_matrix",
         "kai_operations_matrix",
         "agent_tool_sandbox_matrix",
+        "mcp_tool_server_registry",
+        "mcp_tool_server_routes",
+        "agent_objective_coverage_matrix",
+        "agent_objective_gap_matrix",
+        "agent_research_parity_matrix",
+        "gemma_objective_coverage_directives",
+        "agent_release_validation_matrix",
+        "agent_release_artifact_gates",
+        "fdroid_release_metadata_matrix",
+        "gemma_release_validation_directives",
+        "agent_upgrade_objective_matrix",
+        "agent_upgrade_route_matrix",
         "workflow_readiness_matrix",
         "agent_self_check_matrix",
         "agent_self_check_routes",
         "agent_signal_briefing_matrix",
+        "agent_signal_card_deck_manifest",
+        "gemma_signal_card_deck_directives",
+        "agent_signal_card_refresh_plan_matrix",
+        "gemma_signal_card_refresh_plan_directives",
+        "agent_signal_card_refresh_status_matrix",
+        "gemma_signal_card_refresh_status_directives",
+        "agent_signal_session_snapshot_matrix",
+        "agent_signal_session_domain_matrix",
+        "agent_signal_session_action_routes",
+        "gemma_signal_session_snapshot_directives",
+        "agent_signal_proof_audit_matrix",
+        "agent_signal_claim_boundary_matrix",
+        "gemma_signal_proof_audit_directives",
+        "agent_signal_replay_export_manifest",
+        "agent_signal_replay_frame_index",
+        "agent_signal_replay_metadata_keys",
+        "agent_signal_replay_export_graph_types",
+        "agent_signal_replay_export_bundle",
+        "gemma_signal_replay_export_directives",
+        "agent_signal_replay_freshness_matrix",
+        "agent_signal_replay_refresh_routes",
+        "agent_signal_replay_staleness_summary",
+        "agent_signal_replay_freshness_graph_types",
+        "gemma_signal_replay_freshness_directives",
+        "agent_signal_observation_packet",
+        "agent_signal_observation_visual_slots",
+        "agent_signal_observation_graph_routes",
+        "agent_signal_observation_claim_boundaries",
+        "agent_signal_observation_packet_graph_types",
+        "agent_signal_observation_packet_bundle",
+        "gemma_signal_observation_packet_directives",
         "agent_top_card_slots",
         "agent_signal_metadata_keys",
+        "agent_signal_workflow_handoff_matrix",
+        "agent_signal_next_action_routes",
+        "gemma_signal_workflow_handoff_directives",
+        "agent_signal_permission_runbook_matrix",
+        "agent_signal_active_refresh_routes",
+        "gemma_signal_permission_runbook_directives",
         "gemma_signal_briefing_directives",
         "agent_observation_matrix",
         "agent_observation_routes",
@@ -4224,6 +4811,8 @@ internal object NativeToolContextCompressor {
         "agent_card_open_sequence",
         "kai_interactive_screen_parity",
         "gemma_card_planner_directives",
+        "gemma_mcp_registry_directives",
+        "gemma_upgrade_audit_directives",
         "signal_evidence_matrix",
         "signal_evidence_routes",
         "signal_evidence_graph_types",
@@ -4234,9 +4823,33 @@ internal object NativeToolContextCompressor {
         "signal_constraint_matrix",
         "rf_coexistence_matrix",
         "rf_coexistence_routes",
+        "mediatek_signal_stack_matrix",
+        "mediatek_signal_refresh_routes",
+        "mediatek_signal_claim_boundaries",
+        "mediatek_signal_graph_types",
+        "gemma_mediatek_signal_directives",
+        "mediatek_device_validation_matrix",
+        "live_signal_validation_routes",
+        "release_device_proof_gates",
+        "mediatek_device_validation_graph_types",
+        "gemma_device_validation_directives",
+        "device_validation_evidence_manifest",
+        "device_validation_required_artifacts",
+        "phone_validation_command_routes",
+        "github_release_evidence_routes",
+        "fdroid_evidence_routes",
+        "device_validation_evidence_graph_types",
+        "device_validation_evidence_export_bundle",
+        "gemma_device_validation_export_directives",
+        "accelerator_preflight_matrix",
         "runtime_backend_matrix",
         "runtime_stability_matrix",
         "mediatek_readiness_matrix",
+        "non_adreno_backend_advisor_matrix",
+        "non_adreno_backend_launch_sequence",
+        "mediatek_backend_launch_checklist_matrix",
+        "gemma_mediatek_launch_directives",
+        "gemma_non_adreno_backend_directives",
         "soc_backend_matrix",
         "soc_backend_policy_routes",
         "soc_backend_constraint_matrix",
@@ -4258,15 +4871,32 @@ internal object NativeToolContextCompressor {
         "bluetooth_analyzer_feature_matrix",
         "bluetooth_analyzer_workflow_routes",
         "bluetooth_scan_policy_matrix",
+        "bluetooth_signal_advisor_matrix",
+        "bluetooth_device_candidates",
+        "gemma_bluetooth_advisor_directives",
+        "bluetooth_nearby_decision_packet",
+        "bluetooth_nearby_decision_routes",
+        "bluetooth_nearby_claim_boundaries",
+        "bluetooth_nearby_decision_graph_types",
+        "gemma_bluetooth_nearby_directives",
         "bluetooth_filter_application",
         "radio_bands",
         "radio_receiver_profiles",
         "radio_receiver_bridge_schema",
         "radio_signal_graph_rows",
         "radio_signal_graph_sample_rows",
+        "radio_bridge_sample_metadata",
         "radio_signal_feature_matrix",
         "radio_signal_workflow_routes",
         "radio_signal_constraint_matrix",
+        "radio_signal_decision_packet",
+        "radio_signal_decision_routes",
+        "radio_signal_claim_boundaries",
+        "radio_signal_decision_graph_types",
+        "gemma_radio_signal_decision_directives",
+        "radio_signal_advisor_matrix",
+        "radio_receiver_candidates",
+        "gemma_radio_advisor_directives",
         "radio_scan_rows",
         "agent_signal_context_matrix",
         "sensor_samples",
@@ -4282,6 +4912,14 @@ internal object NativeToolContextCompressor {
         "sensor_analyzer_feature_matrix",
         "sensor_analyzer_workflow_routes",
         "sensor_sampling_policy_matrix",
+        "sensor_workflow_advisor_matrix",
+        "sensor_workflow_candidates",
+        "gemma_sensor_workflow_directives",
+        "motion_sensor_decision_packet",
+        "motion_sensor_decision_routes",
+        "motion_sensor_claim_boundaries",
+        "motion_sensor_decision_graph_types",
+        "gemma_motion_sensor_decision_directives",
         "native_tools",
         "promoted_memories",
         "diagnostics_actions",
@@ -4453,11 +5091,35 @@ internal object NativeToolContextCompressor {
         "mitigation",
         "runtime_signal",
         "graph_type",
+        "source_graph_type",
+        "target_graph_type",
         "source_action",
         "card_title",
         "card_index",
         "refresh_policy",
+        "decision_status",
+        "bundle_kind",
+        "schema_version",
+        "export_status",
+        "replay_frame",
+        "frame_index",
+        "frame_key",
+        "replay_section",
+        "row_count",
+        "metadata_key_group",
+        "metadata_keys",
+        "freshness_status",
+        "staleness_risk",
+        "timeline_freshness",
+        "timeline_source_action",
+        "refresh_status_source",
+        "proof_source",
+        "route_type",
+        "summary_key",
+        "summary_count",
+        "freshness_statuses",
         "slot_rank",
+        "top_card_slot",
         "open_next_action",
         "user_visible_surface",
         "requires_permission",
@@ -4466,18 +5128,93 @@ internal object NativeToolContextCompressor {
         "parity_source",
         "feature_source",
         "tool_action",
+        "proof_action",
+        "backend_risk_action",
         "evidence_key",
         "evidence_domain",
         "source_actions",
         "card_graph_types",
         "permission_gate",
+        "settings_actions",
+        "required_permissions",
+        "required_settings",
+        "active_refresh_arguments",
+        "active_refresh_action",
+        "passive_source_action",
+        "passive_fallback_action",
+        "status_label",
+        "status_hint",
+        "launch_step",
+        "launch_gate_status",
+        "next_best_action",
+        "open_settings_action",
+        "ready_for_active_refresh",
+        "passive_refresh_available",
+        "blocked_by_permission",
+        "blocked_by_hardware",
+        "live_runtime_proof",
+        "cpu_fallback_explicit",
+        "user_consent_required",
+        "active_refresh_requires_physical_device",
+        "runbook_status",
+        "card_refresh_status",
         "hardware_gate",
         "constraint_type",
         "source_surface",
+        "opencl_library_visible",
+        "opencl_probe_loads_library",
+        "visible_opencl_paths",
+        "opencl_candidate_paths",
+        "translated_arm64_on_x86",
+        "non_adreno_policy_active",
+        "litert_lm_backend_order",
         "sandbox_scope",
         "host_access",
         "remote_dispatch_capable",
         "mcp_parity_status",
+        "mcp_server_name",
+        "mcp_server_slug",
+        "server_kind",
+        "curated_server_category",
+        "native_equivalent_action",
+        "route_status",
+        "remote_endpoint_required",
+        "streamable_http_supported",
+        "auto_reconnect_policy",
+        "startup_reconnect_expected",
+        "kai_readme_feature",
+        "route_policy",
+        "mcp_streamable_http_supported",
+        "mcp_auto_reconnect_supported",
+        "mcp_session_equivalent",
+        "native_tool_count",
+        "diagnostics_action_count",
+        "evidence_status",
+        "proof_status",
+        "proof_level",
+        "claim_scope",
+        "mediatek_sensitive",
+        "rf_coexistence_sensitive",
+        "claim_ready",
+        "claim_boundary",
+        "active_evidence_present",
+        "passive_evidence_present",
+        "sensor_privacy_sensitive",
+        "coverage_status",
+        "bridge_required",
+        "physical_device_validation_required",
+        "release_validation_required",
+        "next_verification_action",
+        "research_source_url",
+        "evidence_required",
+        "terminal_commands",
+        "workflow_file",
+        "workflow_job",
+        "artifact_globs",
+        "expected_tag_pattern",
+        "fdroid_metadata_path",
+        "fastlane_metadata_path",
+        "application_id",
         "report_scope",
         "count",
         "options",
@@ -4504,6 +5241,7 @@ internal object NativeToolContextCompressor {
         "device_name",
         "advertised_name",
         "address",
+        "address_suffix",
         "device_type",
         "device_category",
         "major_device_class",
@@ -4519,11 +5257,14 @@ internal object NativeToolContextCompressor {
         "metadata_completeness_score",
         "evidence_summary",
         "scan_record_bytes",
+        "candidate_score",
+        "paired",
         "semantic_label",
         "display_label",
         "semantic_context",
         "proximity_label",
         "estimated_distance_meters",
+        "evidence_count",
         "bond_state",
         "connectable",
         "tx_power_dbm",
@@ -4538,9 +5279,12 @@ internal object NativeToolContextCompressor {
         "public_android_scan_supported",
         "built_in_android_source",
         "hardware_hint_supported",
+        "vendor_bridge_possible",
+        "requires_vendor_bridge",
         "requires_external_hardware",
         "data_available",
         "scan_state",
+        "route_action",
         "channel_step",
         "access_path",
         "agent_usage",
@@ -4556,6 +5300,7 @@ internal object NativeToolContextCompressor {
         "frequency_label",
         "center_frequency_hz",
         "receiver_id",
+        "ready_metadata_count",
         "sample_source",
         "station_label",
         "modulation",

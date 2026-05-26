@@ -88,6 +88,97 @@ class HermesSseClientTest {
         assertNull(error)
     }
 
+    @Test
+    fun streamChatCompletion_reports_endpoint_hint_when_sse_stream_closes_before_done() {
+        val body = """
+            data: {"choices":[{"delta":{"content":"partial"}}]}
+
+        """.trimIndent() + "\n"
+        val client = HermesSseClient(
+            baseUrl = "http://127.0.0.1:15436",
+            httpClient = singleResponseClient(body),
+        )
+
+        val deltas = mutableListOf<String>()
+        var completed = false
+        var error: String? = null
+
+        client.streamChatCompletion(
+            request = sampleRequest(),
+            onDelta = { deltas += it },
+            onComplete = { completed = true },
+            onError = { error = it },
+        )
+
+        assertEquals(listOf("partial"), deltas)
+        assertFalse(completed)
+        assertNotNull(error)
+        assertTrue(error!!.contains("closed before"))
+        assertTrue(error!!.contains("[DONE]"))
+        assertTrue(error!!.contains("Base URL"))
+    }
+
+    @Test
+    fun streamChatCompletion_accepts_finishReasonAsCompletionWhenDoneFrameIsMissing() {
+        val body = """
+            data: {"choices":[{"delta":{"content":"hello"}}]}
+
+            data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+        """.trimIndent() + "\n"
+        val client = HermesSseClient(
+            baseUrl = "http://127.0.0.1:15436",
+            httpClient = singleResponseClient(body),
+        )
+
+        val deltas = mutableListOf<String>()
+        var completed = false
+        var error: String? = null
+
+        client.streamChatCompletion(
+            request = sampleRequest(),
+            onDelta = { deltas += it },
+            onComplete = { completed = true },
+            onError = { error = it },
+        )
+
+        assertEquals(listOf("hello"), deltas)
+        assertTrue(completed)
+        assertNull(error)
+    }
+
+    @Test
+    fun streamChatCompletion_accepts_dataFramesWithoutSpaceAndKeepAliveLines() {
+        val body = """
+            : keep-alive
+            event: message
+            data:{"choices":[{"delta":{"content":"hello"}}]}
+
+            : keep-alive
+            data:[DONE]
+
+        """.trimIndent() + "\n"
+        val client = HermesSseClient(
+            baseUrl = "http://127.0.0.1:15436",
+            httpClient = singleResponseClient(body),
+        )
+
+        val deltas = mutableListOf<String>()
+        var completed = false
+        var error: String? = null
+
+        client.streamChatCompletion(
+            request = sampleRequest(),
+            onDelta = { deltas += it },
+            onComplete = { completed = true },
+            onError = { error = it },
+        )
+
+        assertEquals(listOf("hello"), deltas)
+        assertTrue(completed)
+        assertNull(error)
+    }
+
     private fun sampleRequest(): ChatCompletionRequest {
         return ChatCompletionRequest(
             model = "gemma-4-local",
