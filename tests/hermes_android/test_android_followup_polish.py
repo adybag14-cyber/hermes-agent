@@ -178,15 +178,15 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'provider == "custom"' not in settings_view_model.split("private fun loadApiKeyForProvider", 1)[1].split("fun updateOnDeviceBackend", 1)[0]
     assert 'strings.settingsSavedBackendRestarted()' in settings_view_model
     assert 'android:windowSoftInputMode="adjustResize"' in manifest
-    assert '.widthIn(max = 960.dp)\n                        .padding(horizontal = 16.dp, vertical = 12.dp),' in chat
+    assert '.widthIn(max = 960.dp)\n                        .padding(horizontal = 12.dp, vertical = 8.dp),' in chat
     assert 'adding imePadding here double-lifts the composer on phones' in chat
-    assert '.heightIn(max = 128.dp)\n            .testTag("HermesChatInput")' in chat
-    assert 'maxLines = 3' in chat
+    assert '.heightIn(max = 112.dp)\n            .testTag("HermesChatInput")' in chat
+    assert 'maxLines = 4' in chat
     assert '.imePadding()' not in chat
     assert 'strings = strings' in chat
     assert '.testTag("HermesChatComposerFrame")' in chat
     assert '.testTag("HermesChatComposerCompact")' in chat
-    assert 'val stackedComposer = maxWidth < 360.dp' in chat
+    assert 'val stackedComposer = maxWidth < 340.dp' in chat
     assert 'strings.chatDisplayModeLabel(chatDisplayMode)' in chat
     assert 'strings.chatStatusText(text)' in chat
     assert 'isEndpointStatusText(displayText)' in chat
