@@ -1,0 +1,8 @@
+Hermes Agent Fork 0.13.120
+
+- Adds visible endpoint connection, HTTP, SSE, and fallback status messages before and during chat requests.
+- Retries OpenAI-compatible endpoints with non-stream chat when SSE streaming fails.
+- Shows failed SSE HTTP messages and compact response body snippets for faster endpoint debugging.
+- Simplifies the chat layout with a compact header, shorter welcome state, wider message bubbles, and a lower-profile composer.
+- Keeps chat history, image attachments, camera, voice, TTS, quick actions, display modes, and native tool calling intact.
+- Adds a dashboard chat banner for WebSocket endpoint close and backend error states.
