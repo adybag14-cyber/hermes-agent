@@ -1390,7 +1390,7 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         return;
       }
       if (ev.code === 1011) {
-        // Server already wrote an ANSI error frame.
+        setBanner("Chat backend reported an internal error. Check the terminal output and server logs.");
         setPtyState("closed");
         return;
       }
@@ -1421,6 +1421,12 @@ export default function ChatPage({ isActive = true }: { isActive?: boolean }) {
         `\r\n\x1b[90m[session ended (code ${ev.code})]\x1b[0m\r\n`,
       );
       setPtyState("ended");
+    };
+
+    ws.onerror = () => {
+      if (!unmounting) {
+        setBanner("Chat endpoint connection failed. Check the server is running and the session token is valid.");
+      }
     };
 
     // Keystrokes → PTY.
