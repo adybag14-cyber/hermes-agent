@@ -139,10 +139,7 @@ class NativeAppChatAndToolInstrumentedTest {
 
     @Test
     fun qwenGgufBackendStartsOnDevice() {
-        val modelFile = File(
-            app.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
-            "models/$QWEN_GGUF_FILE_NAME",
-        )
+        val modelFile = qwenModelFile()
         assumeTrue("Qwen GGUF model is not provisioned at ${modelFile.absolutePath}", modelFile.isFile)
         assertEquals("Qwen GGUF model size", QWEN_GGUF_BYTES, modelFile.length())
         seedPreferredQwenGgufModel(modelFile)
@@ -157,10 +154,7 @@ class NativeAppChatAndToolInstrumentedTest {
 
     @Test
     fun nativeAppChatUsesQwenGgufAndFileWriteToolOnDevice() {
-        val modelFile = File(
-            app.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
-            "models/$QWEN_GGUF_FILE_NAME",
-        )
+        val modelFile = qwenModelFile()
         assumeTrue("Qwen GGUF model is not provisioned at ${modelFile.absolutePath}", modelFile.isFile)
         assertEquals("Qwen GGUF model size", QWEN_GGUF_BYTES, modelFile.length())
         seedPreferredQwenGgufModel(modelFile)
@@ -221,10 +215,7 @@ class NativeAppChatAndToolInstrumentedTest {
 
     @Test
     fun chatViewModelUsesQwenGgufForVisibleRepliesAndTools() {
-        val modelFile = File(
-            app.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
-            "models/$QWEN_GGUF_FILE_NAME",
-        )
+        val modelFile = qwenModelFile()
         assumeTrue("Qwen GGUF model is not provisioned at ${modelFile.absolutePath}", modelFile.isFile)
         seedPreferredQwenGgufModel(modelFile)
 
@@ -322,6 +313,17 @@ class NativeAppChatAndToolInstrumentedTest {
                     backendStatus.modelName.isNotBlank(),
             )
         }
+
+    private fun qwenModelFile(): File {
+        val externalModelFile = File(
+            app.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+            "models/$QWEN_GGUF_FILE_NAME",
+        )
+        if (externalModelFile.isFile) {
+            return externalModelFile
+        }
+        return File(app.filesDir, "hermes-home/downloads/models/$QWEN_GGUF_FILE_NAME")
+    }
 
     private fun seedPreferredGemma4Model(modelFile: File) {
         val record = LocalModelDownloadRecord(
