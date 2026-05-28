@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -317,7 +318,7 @@ fun ChatScreen(
                 }
                 val contentSpacing = if (tinyRuntimeViewport) 4.dp else 8.dp
                 val showFloatingActionIcon = !uiState.isShowingHistory &&
-                    uiState.messages.isNotEmpty() && !composerActionMenuOpen &&
+                    !composerActionMenuOpen &&
                     !tinyVerticalViewport &&
                     !tinyHorizontalViewport
                 Column(
@@ -346,9 +347,6 @@ fun ChatScreen(
                             null
                         },
                     )
-                }
-                if (uiState.status.isNotBlank() && !tinyRuntimeViewport) {
-                    StatusBanner(text = uiState.status)
                 }
                 if (uiState.error.isNotBlank()) {
                     StatusBanner(text = uiState.error, isError = true)
@@ -433,11 +431,13 @@ fun ChatScreen(
                         }
                     }
                 }
-                // The Activity uses adjustResize; adding imePadding here double-lifts the composer on phones.
                 ChatComposer(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .imePadding(),
                     input = uiState.input,
                     attachments = uiState.attachments,
+                    statusText = if (tinyRuntimeViewport) "" else uiState.status,
                     isSending = uiState.isSending,
                     isListening = uiState.isListening,
                     onInputChange = viewModel::updateInput,
@@ -682,7 +682,10 @@ private fun HermesFloatingActionIcon(
         ) {
             Image(
                 painter = painterResource(id = R.drawable.ic_hermes_floating_mark),
-                contentDescription = strings.openPageActions.ifBlank { "Open Hermes actions" },
+                contentDescription = listOf(
+                    strings.openPageActions.ifBlank { "Open Hermes actions" },
+                    strings.floatingOverlayPermissionHint(),
+                ).joinToString(". "),
                 modifier = Modifier.size(34.dp),
                 contentScale = ContentScale.Fit,
             )
@@ -1494,6 +1497,7 @@ private fun ChatComposer(
     modifier: Modifier = Modifier,
     input: String,
     attachments: List<ChatAttachment>,
+    statusText: String,
     isSending: Boolean,
     isListening: Boolean,
     onInputChange: (String) -> Unit,
@@ -1532,6 +1536,12 @@ private fun ChatComposer(
                 .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            if (statusText.isNotBlank()) {
+                QuietMetaText(
+                    text = strings.chatStatusText(statusText),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             if (actionMenuOpen) {
                 BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                     val ultraNarrowActionMenu = maxWidth < 220.dp

@@ -35,18 +35,19 @@ def apply_linux_subsystem_env(files_dir: str | Path) -> dict[str, str]:
         item for item in [shell_library_dir, native_library_dir, lib_path, os.environ.get("LD_LIBRARY_PATH", "")] if item
     )
     execution_mode = str(state.get("execution_mode", "android_system_shell"))
+    prefix_bin_allowed = "1" if execution_mode == "embedded_termux" and str(state.get("bin_path", "")) else ""
     return {
         "TERMINAL_ENV": "android_linux",
         "HERMES_ANDROID_EXECUTION_MODE": execution_mode,
         "HERMES_ANDROID_SHELL": process_shell_path,
         "HERMES_ANDROID_NATIVE_SHELL": native_shell_path,
         "HERMES_ANDROID_LINUX_PREFIX": str(state.get("prefix_path", "")),
-        "HERMES_ANDROID_LINUX_BASH": process_shell_path,
+        "HERMES_ANDROID_LINUX_BASH": native_shell_path or process_shell_path,
         "HERMES_ANDROID_LINUX_NATIVE_BASH": native_shell_path,
         "HERMES_ANDROID_LINUX_BIN": str(state.get("bin_path", "")),
         "HERMES_ANDROID_LINUX_LIB": lib_path,
         "HERMES_ANDROID_NATIVE_LIB": native_library_dir,
-        "HERMES_ANDROID_ALLOW_PREFIX_BIN": "",
+        "HERMES_ANDROID_ALLOW_PREFIX_BIN": prefix_bin_allowed,
         "LD_LIBRARY_PATH": ld_library_path,
         "HERMES_ANDROID_LINUX_HOME": str(state.get("home_path", "")),
         "HERMES_ANDROID_LINUX_TMP": str(state.get("tmp_path", "")),

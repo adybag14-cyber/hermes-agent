@@ -1,0 +1,7 @@
+Hermes Agent Fork 0.13.122
+
+- Restores chat history recall for custom endpoints and local on-device models.
+- Keeps the composer visible above the Android soft keyboard and removes the extra runtime banner.
+- Compacts native tool JSON in chat while preserving diagnostic card data.
+- Fixes a Python tool-result classifier import crash that could break terminal/tool runs.
+- Improves Android Linux shell routing, package-prefix metadata, MCP/Context7 diagnostics, and overlay permission guidance.

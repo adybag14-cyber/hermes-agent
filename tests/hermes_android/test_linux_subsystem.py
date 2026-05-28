@@ -34,10 +34,10 @@ def test_apply_linux_subsystem_env_sets_terminal_backend_markers(tmp_path):
     assert env_updates["HERMES_ANDROID_LINUX_PREFIX"] == state["prefix_path"]
     assert env_updates["HERMES_ANDROID_SHELL"] == "/system/bin/sh"
     assert env_updates["HERMES_ANDROID_NATIVE_SHELL"] == state["bash_path"]
-    assert env_updates["HERMES_ANDROID_LINUX_BASH"] == "/system/bin/sh"
+    assert env_updates["HERMES_ANDROID_LINUX_BASH"] == state["bash_path"]
     assert env_updates["HERMES_ANDROID_LINUX_NATIVE_BASH"] == state["bash_path"]
     assert env_updates["HERMES_ANDROID_NATIVE_LIB"] == state["native_library_dir"]
-    assert env_updates["HERMES_ANDROID_ALLOW_PREFIX_BIN"] == ""
+    assert env_updates["HERMES_ANDROID_ALLOW_PREFIX_BIN"] == "1"
     assert str(Path(state["bash_path"]).parent) in env_updates["LD_LIBRARY_PATH"]
     assert state["native_library_dir"] in env_updates["LD_LIBRARY_PATH"]
     assert state["lib_path"] in env_updates["LD_LIBRARY_PATH"]

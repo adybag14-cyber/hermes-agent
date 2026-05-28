@@ -191,7 +191,7 @@ object HermesLinuxSubsystemBridge {
             "HERMES_ANDROID_EXECUTION_MODE" to state.optString("execution_mode"),
             "HERMES_ANDROID_SHELL" to SYSTEM_SHELL_PATH,
             "HERMES_ANDROID_NATIVE_SHELL" to state.optString("shell_path"),
-            "HERMES_ANDROID_LINUX_BASH" to SYSTEM_SHELL_PATH,
+            "HERMES_ANDROID_LINUX_BASH" to state.optString("shell_path").ifBlank { SYSTEM_SHELL_PATH },
             "HERMES_ANDROID_LINUX_NATIVE_BASH" to state.optString("shell_path"),
             "TERM" to "xterm-256color",
             "LANG" to "C.UTF-8",

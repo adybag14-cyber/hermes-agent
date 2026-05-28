@@ -2,9 +2,9 @@
 
 import json
 
-from agent.tool_result_classification import (
-    file_mutation_result_landed,
-)
+from agent.display import _detect_tool_failure
+from agent.tool_guardrails import classify_tool_failure
+from agent.tool_result_classification import file_mutation_result_landed
 
 
 def test_write_file_with_nested_lint_error_counts_as_landed():
@@ -18,6 +18,13 @@ def test_write_file_with_nested_lint_error_counts_as_landed():
 
 
 
+
+
+def test_display_and_guardrail_classifiers_share_file_mutation_landed_import():
+    result = json.dumps({"bytes_written": 12})
+
+    assert _detect_tool_failure("write_file", result) == (False, "")
+    assert classify_tool_failure("write_file", result) == (False, "")
 
 
 def test_side_effect_classification_keeps_session_mutations():

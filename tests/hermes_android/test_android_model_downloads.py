@@ -254,7 +254,9 @@ def test_native_tool_loop_has_structured_file_write_tool():
 def test_native_android_shell_tool_prefers_system_commands_over_noexec_prefix():
     shell_tool = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/NativeAndroidShellTool.kt").read_text(encoding="utf-8")
 
-    assert 'val shellPath = "/system/bin/sh"' in shell_tool
+    assert "val shellPath = resolveShellPath(state)" in shell_tool
+    assert 'return "/system/bin/sh"' in shell_tool
+    assert 'configured.startsWith("/system/")' in shell_tool
     assert '"/system/bin",' in shell_tool
     assert 'state.optString("bin_path")' in shell_tool
 

@@ -11,6 +11,40 @@ import java.io.InterruptedIOException
 
 class NativeToolCallingChatClientTest {
     @Test
+    fun initialNativeMessagesIncludePriorConversationBeforeCurrentPrompt() {
+        val messages = NativeToolCallingChatClient.buildInitialNativeMessages(
+            systemMessage = JSONObject().put("role", "system").put("content", "system"),
+            priorMessages = listOf(
+                com.mobilefork.hermesagent.api.ChatMessage(role = "user", content = "hello"),
+                com.mobilefork.hermesagent.api.ChatMessage(role = "assistant", content = "You sent hello."),
+            ),
+            userText = "What did I just send?",
+        )
+
+        assertEquals(4, messages.length())
+        assertEquals("system", messages.getJSONObject(0).getString("role"))
+        assertEquals("hello", messages.getJSONObject(1).getString("content"))
+        assertEquals("You sent hello.", messages.getJSONObject(2).getString("content"))
+        assertEquals("What did I just send?", messages.getJSONObject(3).getString("content"))
+    }
+
+    @Test
+    fun visibleToolResultSummaryHidesRawUnknownJson() {
+        val summary = NativeToolContextCompressor.visibleToolResultSummary(
+            JSONObject()
+                .put("rows", JSONArray().put(JSONObject().put("ssid", "HermesLab")))
+                .put("diagnostics", JSONObject().put("raw", "x".repeat(300)))
+                .toString(),
+        )
+
+        assertTrue(summary.startsWith("json_fields="))
+        assertTrue(summary.contains("rows"))
+        assertTrue(summary.contains("diagnostics"))
+        assertFalse(summary.contains("\"rows\""))
+        assertFalse(summary.contains("HermesLab"))
+    }
+
+    @Test
     fun systemPromptIncludesBoundedCustomPersonaBeforePromotedMemory() {
         val content = NativeToolCallingChatClient.buildSystemPromptContent(
             toolsEnabled = true,

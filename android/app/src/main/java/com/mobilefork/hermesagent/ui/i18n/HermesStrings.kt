@@ -2767,6 +2767,15 @@ data class HermesStrings(
         AppLanguage.FRENCH -> "Connecté avec $label"
         AppLanguage.ENGLISH -> "Signed in with $label"
     }
+
+    fun floatingOverlayPermissionHint(): String = when (language) {
+        AppLanguage.CHINESE -> "若要让浮动 Hermes 按钮在其他应用上保持显示，请在 Android 设置中允许 Hermes 显示在其他应用上层。"
+        AppLanguage.SPANISH -> "Para mantener el botón flotante de Hermes sobre otras apps, permite que Hermes se muestre sobre otras apps en Ajustes de Android."
+        AppLanguage.GERMAN -> "Damit die schwebende Hermes-Schaltfläche über anderen Apps sichtbar bleibt, erlaube Hermes in den Android-Einstellungen die Anzeige über anderen Apps."
+        AppLanguage.PORTUGUESE -> "Para manter o botão flutuante do Hermes sobre outros apps, permita que o Hermes apareça sobre outros apps nas configurações do Android."
+        AppLanguage.FRENCH -> "Pour garder le bouton flottant Hermes au-dessus des autres apps, autorisez Hermes à s’afficher par-dessus les autres apps dans les paramètres Android."
+        AppLanguage.ENGLISH -> "To keep the floating Hermes button available over other apps, allow Hermes to draw over other apps in Android settings."
+    }
 }
 
 val LocalHermesStrings = staticCompositionLocalOf { hermesStringsFor(AppLanguage.ENGLISH) }

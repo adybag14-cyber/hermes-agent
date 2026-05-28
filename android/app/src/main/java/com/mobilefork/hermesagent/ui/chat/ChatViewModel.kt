@@ -195,6 +195,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         val sessionId = conversationStore.currentSessionId()
+        val priorConversationMessages = buildPriorChatRequestMessages(snapshot.messages)
         val now = System.currentTimeMillis()
         val userMessage = ChatUiMessage(UUID.randomUUID().toString(), "user", text, now, attachments)
         val assistantMessageId = UUID.randomUUID().toString()
@@ -256,6 +257,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         sessionId = sessionId,
                         userText = text,
                         userContentParts = userContentParts,
+                        priorMessages = priorConversationMessages,
                     )
                     conversationStore.updateMessageContent(
                         sessionId = sessionId,
@@ -307,6 +309,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     userText = text,
                     userContentParts = userContentParts,
                     customSystemPrompt = customSystemPrompt,
+                    priorMessages = priorConversationMessages,
                 ),
                 stream = true,
                 sessionId = sessionId,
@@ -679,22 +682,63 @@ internal fun buildChatRequestMessages(
     userText: String,
     userContentParts: List<ChatContentPart> = emptyList(),
     customSystemPrompt: String = "",
+    priorMessages: List<ChatMessage> = emptyList(),
 ): List<ChatMessage> {
     val userMessage = ChatMessage(role = "user", content = userText, contentParts = userContentParts)
     val persona = NativeToolContextCompressor.compactCustomSystemPrompt(
         AppSettings.normalizeCustomSystemPrompt(customSystemPrompt),
     )
+    val requestMessages = mutableListOf<ChatMessage>()
     if (persona.isBlank()) {
-        return listOf(userMessage)
+        requestMessages += NativeToolContextCompressor.compactPriorChatRequestMessages(priorMessages)
+        requestMessages += userMessage
+        return requestMessages
     }
-    return listOf(
-        ChatMessage(
-            role = "system",
-            content = "User-configured agent persona/system instructions. Apply them unless they conflict " +
-                "with the current user request, Android permissions, tool truthfulness, or safety constraints:\n" +
-                persona,
-        ),
-        userMessage,
+    requestMessages += ChatMessage(
+        role = "system",
+        content = "User-configured agent persona/system instructions. Apply them unless they conflict " +
+            "with the current user request, Android permissions, tool truthfulness, or safety constraints:\n" +
+            persona,
+    )
+    requestMessages += NativeToolContextCompressor.compactPriorChatRequestMessages(priorMessages)
+    requestMessages += userMessage
+    return requestMessages
+}
+
+internal fun buildPriorChatRequestMessages(messages: List<ChatUiMessage>): List<ChatMessage> {
+    return NativeToolContextCompressor.compactPriorChatRequestMessages(
+        messages.mapNotNull { message ->
+            if (message.role != "user" && message.role != "assistant") {
+                return@mapNotNull null
+            }
+            val content = buildString {
+                val text = message.content.trim()
+                if (text.isNotBlank()) {
+                    append(text)
+                }
+                val attachmentLabels = message.attachments.map { attachment ->
+                    attachment.displayName
+                        .ifBlank { attachment.mimeType }
+                        .ifBlank { "attachment" }
+                }
+                if (attachmentLabels.isNotEmpty()) {
+                    if (isNotEmpty()) append('\n')
+                    append(
+                        attachmentLabels.joinToString("\n") { label ->
+                            "[prior turn attachment omitted: $label]"
+                        },
+                    )
+                }
+            }.trim()
+            if (content.isBlank()) {
+                null
+            } else {
+                ChatMessage(
+                    role = message.role,
+                    content = content,
+                )
+            }
+        },
     )
 }
 

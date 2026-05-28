@@ -4156,6 +4156,25 @@ object HermesDeviceDiagnosticsBridge {
             .put("mcp_native_tool_bridge_available", true)
             .put("mcp_streamable_http_supported", false)
             .put("mcp_auto_reconnect_supported", false)
+            .put(
+                "agent_endpoint_modes",
+                JSONArray()
+                    .put("normal_provider_endpoint")
+                    .put("custom_openai_compatible_endpoint")
+                    .put("local_on_device_model_endpoint")
+                    .put("native_android_tool_bridge")
+                    .put("external_streamable_http_mcp_bridge_planned"),
+            )
+            .put(
+                "context7_test_diagnostic",
+                JSONObject()
+                    .put("server_slug", "context7")
+                    .put("server_name", "Context7")
+                    .put("diagnostic_status", "external_mcp_client_missing")
+                    .put("test_prompt", "Ask for current library docs through a configured Context7 MCP endpoint.")
+                    .put("expected_native_response", "Hermes must disclose that in-app Context7 requires an external MCP bridge, then offer native HTTP/browser fallback when available.")
+                    .put("source_action", "mcp_tool_server_registry_report"),
+            )
             .put("mcp_tool_server_registry", registryRows)
             .put("mcp_tool_server_count", registryRows.length())
             .put("ready_mcp_tool_server_count", countReadyRows(registryRows))
@@ -4166,7 +4185,9 @@ object HermesDeviceDiagnosticsBridge {
                 "gemma_mcp_registry_directives",
                 JSONArray()
                     .put("Use native Hermes tools first for diagnostics, memory, UI, Android system, automation, terminal, file, and simple HTTP work.")
+                    .put("Provider endpoints, custom OpenAI-compatible endpoints, and local on-device model endpoints can all use the native Android tool bridge; external MCP server sessions are a separate bridge.")
                     .put("Treat Streamable HTTP MCP endpoints, startup auto-reconnect, Context7, DeepWiki, Globalping, and Find-A-Domain as explicit future external-server gaps until a configured MCP bridge exists.")
+                    .put("For Context7 tests, return the context7_test_diagnostic row rather than claiming an in-app Context7 session is connected.")
                     .put("Use android_automation_tool perform_http_request/http_get only for simple public HTTP APIs, and disclose that it is not a full MCP server session.")
                     .put("When the user asks about Kai MCP parity, open mcp_tool_server_registry_report before tool_catalog so Gemma can compare native equivalents with external-server needs."),
             )
@@ -4454,7 +4475,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = false,
                     valueLabel = "external docs MCP needed",
                     detail = "Hermes has no in-app Context7 MCP client. Library docs should be treated as external-tool work rather than native Android sensor or diagnostics context.",
-                    recommendation = "Disclose that Context7 parity needs a configured external MCP server or a separate docs tool.",
+                    recommendation = "Use context7_test_diagnostic for a real diagnostic target; disclose that Context7 parity needs a configured external MCP server or a separate docs tool.",
                     fraction = 0.35f,
                     serverName = "Context7",
                     serverSlug = "context7",

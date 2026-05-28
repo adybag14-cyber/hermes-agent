@@ -157,6 +157,7 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
         "portalReloadDescription",
         "newChatActionDescription",
         "accountsActionDescription",
+        "floatingOverlayPermissionHint",
     ]:
         assert key in strings
 
@@ -182,10 +183,12 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'PaddingValues(horizontal = 4.dp, vertical = 4.dp)' in chat
     assert 'PaddingValues(horizontal = 12.dp, vertical = 8.dp)' in chat
     assert '.widthIn(max = 960.dp)\n                        .padding(contentPadding),' in chat
-    assert 'adding imePadding here double-lifts the composer on phones' in chat
+    assert 'import androidx.compose.foundation.layout.imePadding' in chat
+    assert '.fillMaxWidth()\n                        .imePadding(),' in chat
+    assert 'statusText = if (tinyRuntimeViewport) "" else uiState.status' in chat
+    assert 'uiState.messages.isNotEmpty() && !composerActionMenuOpen' not in chat
     assert '.heightIn(max = 112.dp)\n            .testTag("HermesChatInput")' in chat
     assert 'maxLines = 4' in chat
-    assert '.imePadding()' not in chat
     assert 'strings = strings' in chat
     assert '.testTag("HermesChatComposerFrame")' in chat
     assert '.testTag("HermesChatComposerCompact")' in chat
@@ -194,12 +197,14 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'UltraNarrowComposerSendButton(' in chat
     assert 'strings.chatDisplayModeLabel(chatDisplayMode)' in chat
     assert 'strings.chatStatusText(text)' in chat
+    assert 'strings.chatStatusText(statusText)' in chat
     assert 'isEndpointStatusText(displayText)' in chat
     assert 'strings.endpointStatusIndicatorLabel()' in chat
     assert 'strings.endpointStatusTroubleshootingHint()' in chat
     assert 'strings.userRoleLabel()' in chat
     assert 'strings.attachmentPreviewUnavailable()' in chat
     assert 'strings.voiceRecognitionUnavailable()' in chat
+    assert 'floatingOverlayPermissionHint()' in chat
 
 
 def test_settings_backend_toggles_sync_with_download_runtime_target_controls():
@@ -419,6 +424,11 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert 'Globalping network probe server' in diagnostics_bridge
     assert 'CoinGecko market data server' in diagnostics_bridge
     assert 'Find-A-Domain server' in diagnostics_bridge
+    assert 'agent_endpoint_modes' in diagnostics_bridge
+    assert 'custom_openai_compatible_endpoint' in diagnostics_bridge
+    assert 'local_on_device_model_endpoint' in diagnostics_bridge
+    assert 'context7_test_diagnostic' in diagnostics_bridge
+    assert 'external_mcp_client_missing' in diagnostics_bridge
     assert 'mcp_streamable_http_supported' in diagnostics_bridge
     assert 'Tool Sandbox Status' in diagnostics_bridge
     assert 'Multi-provider priority and fallback' in diagnostics_bridge
@@ -1536,6 +1546,7 @@ def test_android_linux_subsystem_reapplies_executable_bits_before_reusing_cached
     bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesLinuxSubsystemBridge.kt").read_text(encoding="utf-8")
     linux_subsystem = (REPO_ROOT / "hermes_android/linux_subsystem.py").read_text(encoding="utf-8")
     android_environment = (REPO_ROOT / "tools/environments/android_linux.py").read_text(encoding="utf-8")
+    runtime_spec = (REPO_ROOT / "docs/plans/orboelectric-android-agent-runtime-spec.md").read_text(encoding="utf-8")
 
     cached_state_block = bridge.split('readState(context)?.let { state ->', 1)[1]
 
@@ -1546,13 +1557,17 @@ def test_android_linux_subsystem_reapplies_executable_bits_before_reusing_cached
     assert 'launchShellProbe(shellPath, homeDir, buildRunEnvironment(state)).ready' in cached_state_block
     assert 'reset(context)' in cached_state_block
     assert '"HERMES_ANDROID_SHELL" to SYSTEM_SHELL_PATH' in bridge
+    assert '"HERMES_ANDROID_LINUX_BASH" to state.optString("shell_path").ifBlank { SYSTEM_SHELL_PATH }' in bridge
     assert '"HERMES_ANDROID_LINUX_NATIVE_BASH" to state.optString("shell_path")' in bridge
     assert '"HERMES_ANDROID_NATIVE_LIB"' in linux_subsystem
-    assert '"HERMES_ANDROID_ALLOW_PREFIX_BIN": ""' in linux_subsystem
+    assert '"HERMES_ANDROID_ALLOW_PREFIX_BIN": prefix_bin_allowed' in linux_subsystem
     assert '"LD_LIBRARY_PATH": ld_library_path' in linux_subsystem
     assert 'self.execution_mode = os.environ.get("HERMES_ANDROID_EXECUTION_MODE", "android_system_shell").strip()' in android_environment
     assert 'run_env["LD_LIBRARY_PATH"]' in android_environment
     assert 'path_parts = [system_path]' in android_environment
+    assert "Orboelectric Android Agent Runtime Spec" in runtime_spec
+    assert "Context7 test status" in runtime_spec
+    assert "terminal commands run in the app-private Linux prefix" in runtime_spec
 
 
 def test_android_intent_bridge_can_open_generated_workspace_html_with_fileprovider():
@@ -2010,7 +2025,7 @@ def test_chat_endpoint_url_normalization_and_floating_icon_are_guarded():
     assert '.verticalScroll(actionMenuScrollState)' in chat
     assert 'compact = true' in chat
     assert 'onActionMenuExpandedChange = { composerActionMenuOpen = it }' in chat
-    assert '&& !composerActionMenuOpen' in chat
+    assert '!composerActionMenuOpen &&' in chat
     assert 'containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)' in chat
     assert 'val narrowHeader = maxWidth < 360.dp' in chat
     assert 'val tinyVerticalViewport = maxHeight < 360.dp' in chat

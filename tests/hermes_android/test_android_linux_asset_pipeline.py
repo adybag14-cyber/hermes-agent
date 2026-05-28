@@ -225,6 +225,7 @@ def test_android_linux_subsystem_retries_after_app_update():
     assert "Embedded Linux assets unavailable" in bridge
     assert '"HERMES_ANDROID_SHELL" to SYSTEM_SHELL_PATH' in bridge
     assert '"HERMES_ANDROID_NATIVE_SHELL" to state.optString("shell_path")' in bridge
+    assert '"HERMES_ANDROID_LINUX_BASH" to state.optString("shell_path").ifBlank { SYSTEM_SHELL_PATH }' in bridge
     assert "private fun appVersionCode(context: Context): Long" in bridge
 
 
