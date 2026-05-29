@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.125
+
+- Routes Chinese all-features prompts such as "全部功能全测试" directly through the real native Kotlin self-test bridge instead of letting a provider invent markdown diagnostics.
+- Cleans collapsed inline markdown tables, emphasis markers, and inline-code ticks in chat bubbles so diagnostic replies remain readable on phone screenshots and in translated shares.
+- Keeps the signed fork release, adaptive icon, custom-instructions, context-recovery, and native diagnostics fixes from 0.13.123 and 0.13.124.

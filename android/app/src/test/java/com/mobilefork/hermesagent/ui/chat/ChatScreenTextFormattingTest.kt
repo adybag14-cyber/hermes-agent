@@ -22,4 +22,18 @@ class ChatScreenTextFormattingTest {
         assertFalse(rendered.contains("**Hermes self-test**"))
         assertFalse(rendered.contains("| --- | --- | --- |"))
     }
+
+    @Test
+    fun chatDisplayTextCleansCollapsedInlineDiagnosticTable() {
+        val rendered = sanitizeChatDisplayText(
+            "**Full feature test results** | Tool | Status | Detail || --- | --- | --- || **Terminal** | X error | `env_var_enabled` not defined || **Android UI** | needs service | `HermesAccessibilityUiBridge` gated",
+        )
+
+        assertTrue(rendered.contains("Full feature test results  Tool  Status  Detail"))
+        assertTrue(rendered.contains("Terminal  X error  env_var_enabled not defined"))
+        assertTrue(rendered.contains("Android UI  needs service  HermesAccessibilityUiBridge gated"))
+        assertFalse(rendered.contains("**"))
+        assertFalse(rendered.contains("`"))
+        assertFalse(rendered.contains("| --- |"))
+    }
 }

@@ -137,6 +137,14 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun chineseAllFeaturesPromptRoutesDirectlyToNativeSelfTestDiagnostics() {
+        val arguments = directNativeDiagnosticArgumentsForPrompt("全部功能全测试")
+
+        requireNotNull(arguments)
+        assertEquals("agent_native_tool_self_test_report", arguments.getString("action"))
+    }
+
+    @Test
     fun ordinaryChatPromptDoesNotBypassConfiguredEndpoint() {
         val arguments = directNativeDiagnosticArgumentsForPrompt("Write a short welcome message")
 

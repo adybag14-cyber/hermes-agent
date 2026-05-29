@@ -1067,28 +1067,51 @@ internal fun sanitizeChatDisplayText(text: String): String {
             cleanedLines.add(line)
             return@forEach
         }
-        val markdownTableCells = if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
-            trimmed.trim('|')
-                .split('|')
-                .map { it.trim() }
-                .filter { it.isNotBlank() }
-        } else {
-            emptyList()
-        }
-        if (markdownTableCells.isNotEmpty()) {
-            if (markdownTableCells.all { it.matches(Regex(""":?-{3,}:?""")) }) {
-                return@forEach
+        expandCollapsedMarkdownRows(line).forEach { expandedLine ->
+            val markdownTableCells = markdownTableCells(expandedLine)
+            if (markdownTableCells.isNotEmpty()) {
+                if (markdownTableCells.all(::isMarkdownTableSeparatorCell)) {
+                    return@forEach
+                }
+                cleanedLines.add(markdownTableCells.joinToString("  "))
+            } else {
+                cleanedLines.add(cleanMarkdownInlineMarkers(expandedLine))
             }
-            cleanedLines.add(markdownTableCells.joinToString("  "))
-        } else {
-            cleanedLines.add(
-                line
-                    .replace(Regex("""\*\*([^*\n]+)\*\*"""), "$1")
-                    .replace(Regex("""__([^_\n]+)__"""), "$1"),
-            )
         }
     }
     return cleanedLines.joinToString("\n").trimEnd()
+}
+
+private fun expandCollapsedMarkdownRows(line: String): List<String> {
+    if (line.count { it == '|' } < 2) {
+        return listOf(line)
+    }
+    return line
+        .replace(Regex("""\s*\|\|\s*"""), "\n| ")
+        .lines()
+}
+
+private fun markdownTableCells(line: String): List<String> {
+    val cleaned = cleanMarkdownInlineMarkers(line.trim())
+    if (cleaned.count { it == '|' } < 2) {
+        return emptyList()
+    }
+    return cleaned.trim('|')
+        .split('|')
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+}
+
+private fun cleanMarkdownInlineMarkers(text: String): String {
+    return text
+        .replace(Regex("""\*\*([^*\n]+)\*\*"""), "$1")
+        .replace(Regex("""__([^_\n]+)__"""), "$1")
+        .replace(Regex("""(?<!\*)\*([^*\n]+)\*(?!\*)"""), "$1")
+        .replace(Regex("""`([^`\n]+)`"""), "$1")
+}
+
+private fun isMarkdownTableSeparatorCell(cell: String): Boolean {
+    return cell.replace(" ", "").matches(Regex(""":?-{3,}:?"""))
 }
 
 @Composable

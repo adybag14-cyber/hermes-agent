@@ -3603,7 +3603,29 @@ class NativeToolCallingChatClient(
                 return null
             }
             return when {
-                lower.containsAny("all features test", "all feature test", "full features test", "full feature test", "test all features", "native tool self test", "native bridge self test", "native tools self test", "agent native tool self test", "tool bridge status", "bridge class loading") ->
+                lower.containsAny(
+                    "all features test",
+                    "all feature test",
+                    "full features test",
+                    "full feature test",
+                    "test all features",
+                    "native tool self test",
+                    "native bridge self test",
+                    "native tools self test",
+                    "agent native tool self test",
+                    "tool bridge status",
+                    "bridge class loading",
+                    "全部功能全测试",
+                    "全部功能测试",
+                    "全功能测试",
+                    "所有功能测试",
+                    "完整功能测试",
+                    "系统测试所有功能",
+                    "原生工具自检",
+                    "原生桥接自检",
+                    "安卓功能测试",
+                    "安卓工具自检",
+                ) ->
                     diagnosticArguments("agent_native_tool_self_test_report")
                 lower.containsAny("signal observation packet", "gemma signal observation packet", "gemma observation packet", "multimodal signal observation", "top card signal observation", "signal context packet", "nearby signal context packet", "what gemma can see packet", "what the agent is viewing packet") ->
                     diagnosticArguments("agent_signal_observation_packet_report")
