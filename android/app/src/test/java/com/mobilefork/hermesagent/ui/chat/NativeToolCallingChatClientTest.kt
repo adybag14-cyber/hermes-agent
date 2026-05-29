@@ -80,9 +80,13 @@ class NativeToolCallingChatClientTest {
         assertTrue(content.contains("MCP tool-server registry reports"))
         assertTrue(content.contains("full upgrade objective audit reports"))
         assertTrue(content.contains("what Hermes/Gemma can see from nearby signals"))
+        assertTrue(content.contains("action=agent_native_tool_self_test_report"))
+        assertTrue(content.contains("never invent class-loading failures"))
         assertTrue(content.contains("User-configured agent persona"))
         assertTrue(content.contains("Stay concise and use Wi-Fi analyzer cards"))
         assertTrue(content.contains("Promoted local memory context"))
+        assertTrue(content.startsWith("User-configured agent persona"))
+        assertTrue(content.indexOf("User-configured agent persona") < content.indexOf("You are Hermes running inside the native Android app"))
         assertTrue(content.indexOf("User-configured agent persona") < content.indexOf("Promoted local memory context"))
     }
 
@@ -113,6 +117,29 @@ class NativeToolCallingChatClientTest {
         assertTrue(recovered.toString().length < messages.toString().length)
         assertTrue(recovered.getJSONObject(0).getString("content").contains("hermes context compressed"))
         assertTrue(recovered.getJSONObject(1).getString("content").contains("hermes context compressed"))
+    }
+
+    @Test
+    fun contextRecoveryKeepsLatestUserWhenTailContainsOnlyToolTurns() {
+        val messages = JSONArray()
+            .put(JSONObject().put("role", "system").put("content", "system ".repeat(1_200)))
+            .put(JSONObject().put("role", "user").put("content", "OLD USER ASK"))
+            .put(JSONObject().put("role", "user").put("content", "CURRENT USER ASK: preserve this prompt"))
+        repeat(5) { index ->
+            messages.put(
+                JSONObject()
+                    .put("role", "tool")
+                    .put("name", "tool_$index")
+                    .put("content", "tool payload $index ".repeat(260)),
+            )
+        }
+
+        val recovered = NativeToolContextCompressor.recoverMessagesAfterContextOverflow(messages)
+        val recoveredText = recovered.toString()
+
+        assertTrue(recoveredText.contains("CURRENT USER ASK: preserve this prompt"))
+        assertFalse(recoveredText.contains("OLD USER ASK"))
+        assertTrue(recoveredText.length < messages.toString().length)
     }
 
     @Test
@@ -164,6 +191,11 @@ class NativeToolCallingChatClientTest {
         assertTrue(
             NativeToolCallingChatClient.isContextWindowError(
                 IllegalStateException("The local model ran out of context."),
+            ),
+        )
+        assertTrue(
+            NativeToolCallingChatClient.isContextWindowError(
+                IllegalStateException("context length exceeded after adding too many tokens"),
             ),
         )
         assertFalse(
@@ -226,6 +258,16 @@ class NativeToolCallingChatClientTest {
         assertEquals("wifi_analyzer_report", parsed.getString("action"))
         assertFalse(parsed.getBoolean("refresh"))
         assertEquals(12, parsed.getInt("max_results"))
+    }
+
+    @Test
+    fun routesAllFeatureRequestsToNativeSelfTestDiagnostic() {
+        val parsed = NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments(
+            "Run an all features test and check bridge class loading.",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("agent_native_tool_self_test_report", parsed.getString("action"))
     }
 
     @Test

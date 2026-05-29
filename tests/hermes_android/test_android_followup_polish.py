@@ -131,6 +131,7 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     settings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsScreen.kt").read_text(encoding="utf-8")
     settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
     chat = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatScreen.kt").read_text(encoding="utf-8")
+    app_shell = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/shell/AppShell.kt").read_text(encoding="utf-8")
     manifest = (REPO_ROOT / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 
     for key in [
@@ -179,14 +180,26 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'provider == "custom"' not in settings_view_model.split("private fun loadApiKeyForProvider", 1)[1].split("fun updateOnDeviceBackend", 1)[0]
     assert 'strings.settingsSavedBackendRestarted()' in settings_view_model
     assert 'android:windowSoftInputMode="adjustResize"' in manifest
+    assert 'WindowInsets.ime.getBottom(density) > 0' in app_shell
+    assert 'currentSection == AppSection.Hermes && (tinyRuntimeViewport || imeVisible)' in app_shell
     assert 'val contentPadding = if (tinyRuntimeViewport)' in chat
     assert 'PaddingValues(horizontal = 4.dp, vertical = 4.dp)' in chat
     assert 'PaddingValues(horizontal = 12.dp, vertical = 8.dp)' in chat
     assert '.widthIn(max = 960.dp)\n                        .padding(contentPadding),' in chat
     assert 'import androidx.compose.foundation.layout.imePadding' in chat
     assert '.fillMaxWidth()\n                        .imePadding(),' in chat
+    assert 'focusManager.clearFocus(force = true)' in chat
+    assert 'WindowInsets.ime.getBottom(density) > 0' not in chat
+    assert '!imeVisible &&' not in chat
+    assert 'val showFloatingActionIcon' not in chat
+    assert 'val messageListBottomPadding = 8.dp' in chat
+    assert 'PaddingValues(bottom = messageListBottomPadding)' in chat
+    assert 'PaddingValues(top = 24.dp, bottom = messageListBottomPadding)' in chat
+    assert 'sanitizeChatDisplayText(text)' in chat
+    assert 'markdownTableCells.joinToString("  ")' in chat
+    assert 'Regex("""\\*\\*([^*\\n]+)\\*\\*""")' in chat
     assert 'statusText = if (tinyRuntimeViewport) "" else uiState.status' in chat
-    assert 'uiState.messages.isNotEmpty() && !composerActionMenuOpen' not in chat
+    assert '.padding(end = 16.dp, bottom = 320.dp)' not in chat
     assert '.heightIn(max = 112.dp)\n            .testTag("HermesChatInput")' in chat
     assert 'maxLines = 4' in chat
     assert 'strings = strings' in chat
@@ -204,7 +217,36 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'strings.userRoleLabel()' in chat
     assert 'strings.attachmentPreviewUnavailable()' in chat
     assert 'strings.voiceRecognitionUnavailable()' in chat
-    assert 'floatingOverlayPermissionHint()' in chat
+    assert 'testTag("HermesFloatingActionButton")' in chat
+
+
+def test_screenshot_reported_native_tool_self_test_is_real_bridge_diagnostic():
+    diagnostics_bridge = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+    ).read_text(encoding="utf-8")
+    chat_client = (
+        REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+    ).read_text(encoding="utf-8")
+
+    assert '"agent_native_tool_self_test_report"' in diagnostics_bridge
+    assert '"native_tool_self_test"' in diagnostics_bridge
+    assert 'nativeToolSelfTestReportJson(appContext)' in diagnostics_bridge
+    assert 'NativeAndroidShellTool.run(appContext, "printf hermes-native-shell", 5)' in diagnostics_bridge
+    assert 'JSONObject(HermesSystemControlBridge.statusJson())' in diagnostics_bridge
+    assert 'JSONObject(HermesAccessibilityUiBridge.snapshotJson(1))' in diagnostics_bridge
+    assert 'HermesHindsightMemoryBridge.statusJson(appContext)' in diagnostics_bridge
+    assert 'HermesWorkspaceFileBridge.writeTextJson(appContext, path, "hermes-native-file", false)' in diagnostics_bridge
+    assert '"verified_by_direct_native_calls"' in diagnostics_bridge
+    assert '"not_used_by_native_android_tool_bridges"' in diagnostics_bridge
+    assert 'Class loading was verified by direct Kotlin bridge calls' in diagnostics_bridge
+    assert 'Native Android tool bridges do not use Python env_var_enabled' in diagnostics_bridge
+    assert 'permission-gated rows report needs_accessibility_service' in diagnostics_bridge
+
+    assert 'action=agent_native_tool_self_test_report' in chat_client
+    assert 'never invent class-loading failures from guessed class names' in chat_client
+    assert 'diagnosticArguments("agent_native_tool_self_test_report")' in chat_client
+    assert '"all features test"' in chat_client
+    assert '"bridge class loading"' in chat_client
 
 
 def test_settings_backend_toggles_sync_with_download_runtime_target_controls():
@@ -2006,26 +2048,21 @@ def test_chat_endpoint_url_normalization_and_floating_icon_are_guarded():
     assert 'Hermes normalizes raw hosts, /v1 URLs, and /v1/chat/completions URLs' in (
         REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatViewModel.kt"
     ).read_text(encoding="utf-8")
-    assert 'private fun HermesFloatingActionIcon(' in chat
-    assert 'Brush.linearGradient' in chat
-    floating_mark = (
-        REPO_ROOT / "android/app/src/main/res/drawable/ic_hermes_floating_mark.xml"
-    ).read_text(encoding="utf-8")
-    assert 'R.drawable.ic_hermes_floating_mark' in chat
-    assert 'xmlns:aapt="http://schemas.android.com/aapt"' in floating_mark
-    assert 'android:type="radial"' in floating_mark
-    assert 'android:type="linear"' in floating_mark
-    assert '#FF7EF4FF' in floating_mark
-    assert '#FFCBB7FF' in floating_mark
-    assert '#FFFFD77A' in floating_mark
+    assert 'private fun HermesFloatingActionIcon(' not in chat
     assert '.testTag("HermesFloatingActionButton")' in chat
+    assert '.testTag("HermesChatPageActionsButton")' in chat
+    assert 'R.drawable.ic_hermes_floating_mark' not in chat
+    assert 'Brush.linearGradient' not in chat
     assert 'val actionMenuScrollState = rememberScrollState()' in chat
     assert 'val ultraNarrowActionMenu = maxWidth < 220.dp' in chat
     assert '.heightIn(max = if (ultraNarrowActionMenu) 64.dp else 220.dp)' in chat
     assert '.verticalScroll(actionMenuScrollState)' in chat
     assert 'compact = true' in chat
     assert 'onActionMenuExpandedChange = { composerActionMenuOpen = it }' in chat
-    assert '!composerActionMenuOpen &&' in chat
+    assert '!composerActionMenuOpen &&' not in chat
+    assert '!imeVisible &&' not in chat
+    assert 'val messageListBottomPadding = 8.dp' in chat
+    assert 'PaddingValues(bottom = messageListBottomPadding)' in chat
     assert 'containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)' in chat
     assert 'val narrowHeader = maxWidth < 360.dp' in chat
     assert 'val tinyVerticalViewport = maxHeight < 360.dp' in chat

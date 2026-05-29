@@ -13,7 +13,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,11 +58,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -99,6 +98,7 @@ fun ChatScreen(
     val settingsState by settingsViewModel.uiState.collectAsState()
     val strings = LocalHermesStrings.current
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val listState = rememberLazyListState()
     val scrollScope = rememberCoroutineScope()
     val showScrollToBottom by remember {
@@ -280,6 +280,7 @@ fun ChatScreen(
     fun handleSend() {
         val input = uiState.input.trim()
         if (input.isEmpty() && uiState.attachments.isEmpty()) return
+        focusManager.clearFocus(force = true)
         if (input.isEmpty()) {
             viewModel.sendMessage()
             return
@@ -317,10 +318,7 @@ fun ChatScreen(
                     PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 }
                 val contentSpacing = if (tinyRuntimeViewport) 4.dp else 8.dp
-                val showFloatingActionIcon = !uiState.isShowingHistory &&
-                    !composerActionMenuOpen &&
-                    !tinyVerticalViewport &&
-                    !tinyHorizontalViewport
+                val messageListBottomPadding = 8.dp
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -364,7 +362,7 @@ fun ChatScreen(
                             .weight(1f)
                             .fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(top = 24.dp, bottom = 8.dp),
+                        contentPadding = PaddingValues(top = 24.dp, bottom = messageListBottomPadding),
                     ) {
                         item {
                             EmptyChatHint(
@@ -385,7 +383,7 @@ fun ChatScreen(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(bottom = 8.dp),
+                            contentPadding = PaddingValues(bottom = messageListBottomPadding),
                         ) {
                             if (settingsState.chatDisplayMode == "expanded") {
                                 itemsIndexed(uiState.messages, key = { _, message -> message.id }) { index, message ->
@@ -450,21 +448,6 @@ fun ChatScreen(
                     onSignalQuickAction = { action -> viewModel.sendQuickPrompt(action.prompt) },
                 )
             }
-                if (showFloatingActionIcon) {
-                    HermesFloatingActionIcon(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 92.dp),
-                        onClick = {
-                            if (shellActions.isNotEmpty() && onOpenContextActions != null) {
-                                onContextActionsChanged(shellActions)
-                                onOpenContextActions()
-                            } else {
-                                viewModel.showHistory()
-                            }
-                        },
-                    )
-                }
         }
     }
 }
@@ -629,65 +612,22 @@ private fun ChatHeaderDisplayModeButton(
 @Composable
 private fun ChatHeaderPageActionsButton(onOpenActions: () -> Unit) {
     val strings = LocalHermesStrings.current
-    IconButton(
-        onClick = onOpenActions,
+    Box(
         modifier = Modifier
             .size(40.dp)
-            .testTag("HermesChatPageActionsButton"),
+            .testTag("HermesFloatingActionButton"),
     ) {
-        Icon(
-            painter = painterResource(id = R.drawable.ic_action_cog),
-            contentDescription = strings.openPageActions.ifBlank { "Open page actions" },
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp),
-        )
-    }
-}
-
-@Composable
-private fun HermesFloatingActionIcon(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val strings = LocalHermesStrings.current
-    Surface(
-        modifier = modifier
-            .size(52.dp)
-            .testTag("HermesFloatingActionButton")
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(18.dp),
-        tonalElevation = 5.dp,
-        shadowElevation = 4.dp,
-    ) {
-        Box(
+        IconButton(
+            onClick = onOpenActions,
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.10f),
-                            MaterialTheme.colorScheme.surface,
-                        ),
-                    ),
-                )
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-                    shape = RoundedCornerShape(18.dp),
-                ),
-            contentAlignment = Alignment.Center,
+                .testTag("HermesChatPageActionsButton"),
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_hermes_floating_mark),
-                contentDescription = listOf(
-                    strings.openPageActions.ifBlank { "Open Hermes actions" },
-                    strings.floatingOverlayPermissionHint(),
-                ).joinToString(". "),
-                modifier = Modifier.size(34.dp),
-                contentScale = ContentScale.Fit,
+            Icon(
+                painter = painterResource(id = R.drawable.ic_action_cog),
+                contentDescription = strings.openPageActions.ifBlank { "Open page actions" },
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
             )
         }
     }
@@ -1075,8 +1015,9 @@ private fun HighlightedMessageText(
     color: androidx.compose.ui.graphics.Color,
     keywordHighlightingEnabled: Boolean,
 ) {
+    val displayText = remember(text) { sanitizeChatDisplayText(text) }
     if (!keywordHighlightingEnabled || text.isBlank()) {
-        Text(text = text, color = color, style = MaterialTheme.typography.bodyMedium)
+        Text(text = displayText, color = color, style = MaterialTheme.typography.bodyMedium)
         return
     }
     val pattern = remember {
@@ -1086,9 +1027,9 @@ private fun HighlightedMessageText(
     }
     val highlighted = buildAnnotatedString {
         var cursor = 0
-        pattern.findAll(text).forEach { match ->
+        pattern.findAll(displayText).forEach { match ->
             if (match.range.first > cursor) {
-                append(text.substring(cursor, match.range.first))
+                append(displayText.substring(cursor, match.range.first))
             }
             val start = length
             append(match.value)
@@ -1103,11 +1044,51 @@ private fun HighlightedMessageText(
             )
             cursor = match.range.last + 1
         }
-        if (cursor < text.length) {
-            append(text.substring(cursor))
+        if (cursor < displayText.length) {
+            append(displayText.substring(cursor))
         }
     }
     Text(text = highlighted, color = color, style = MaterialTheme.typography.bodyMedium)
+}
+
+internal fun sanitizeChatDisplayText(text: String): String {
+    if (text.isBlank()) return text
+    val normalized = text.replace("\r\n", "\n")
+    val cleanedLines = mutableListOf<String>()
+    var insideCodeFence = false
+    normalized.lines().forEach { line ->
+        val trimmed = line.trim()
+        if (trimmed.startsWith("```")) {
+            insideCodeFence = !insideCodeFence
+            cleanedLines.add(line)
+            return@forEach
+        }
+        if (insideCodeFence) {
+            cleanedLines.add(line)
+            return@forEach
+        }
+        val markdownTableCells = if (trimmed.startsWith("|") && trimmed.endsWith("|")) {
+            trimmed.trim('|')
+                .split('|')
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+        } else {
+            emptyList()
+        }
+        if (markdownTableCells.isNotEmpty()) {
+            if (markdownTableCells.all { it.matches(Regex(""":?-{3,}:?""")) }) {
+                return@forEach
+            }
+            cleanedLines.add(markdownTableCells.joinToString("  "))
+        } else {
+            cleanedLines.add(
+                line
+                    .replace(Regex("""\*\*([^*\n]+)\*\*"""), "$1")
+                    .replace(Regex("""__([^_\n]+)__"""), "$1"),
+            )
+        }
+    }
+    return cleanedLines.joinToString("\n").trimEnd()
 }
 
 @Composable

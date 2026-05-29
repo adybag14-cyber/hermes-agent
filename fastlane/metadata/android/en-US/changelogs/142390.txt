@@ -1,0 +1,8 @@
+Hermes Agent Fork 0.13.123
+
+- Fixes custom agent instructions so saved personas lead the native on-device prompt instead of being buried after long tool policy text.
+- Improves local context-window recovery by keeping the latest user request when retrying after tool-heavy turns overflow the model context.
+- Removes the extra keyboard gap in chat by collapsing Hermes bottom navigation while the IME is visible and clearing composer focus on send.
+- Moves the former floating Hermes action shortcut into the chat header so it cannot cover the composer or assistant cards.
+- Cleans simple markdown emphasis and table separators in chat bubbles for more readable diagnostic output.
+- Switches the launcher to adaptive icon resources with foreground, background, round, and monochrome layers for modern Android launchers.

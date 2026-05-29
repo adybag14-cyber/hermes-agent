@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -105,7 +108,9 @@ fun AppShellScreen(
         CompositionLocalProvider(LocalHermesStrings provides strings) {
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val tinyRuntimeViewport = maxHeight < 360.dp || maxWidth < 220.dp
-                val collapseBottomNavigation = currentSection == AppSection.Hermes && tinyRuntimeViewport
+                val density = LocalDensity.current
+                val imeVisible = WindowInsets.ime.getBottom(density) > 0
+                val collapseBottomNavigation = currentSection == AppSection.Hermes && (tinyRuntimeViewport || imeVisible)
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = MaterialTheme.colorScheme.background,

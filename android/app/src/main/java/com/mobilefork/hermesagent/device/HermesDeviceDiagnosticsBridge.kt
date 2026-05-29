@@ -250,6 +250,9 @@ object HermesDeviceDiagnosticsBridge {
                 agentEnvironmentReportJson(appContext).toString()
             "agent_self_check_report", "agent_heartbeat_report", "kai_heartbeat_report", "self_check_report", "heartbeat_report" ->
                 agentSelfCheckReportJson(appContext).toString()
+            "agent_native_tool_self_test_report", "native_tool_self_test", "all_features_test", "full_feature_test",
+            "all_features_self_test", "native_bridge_self_test", "native_tool_bridge_report" ->
+                nativeToolSelfTestReportJson(appContext).toString()
             "social_gmail_goal_preflight", "social_gmail_preflight", "phone_goal_preflight", "end_to_end_goal_preflight" ->
                 socialGmailGoalPreflightJson(appContext).toString()
             "show_active_overlay", "show_working_overlay", "active_overlay" ->
@@ -22941,6 +22944,161 @@ object HermesDeviceDiagnosticsBridge {
             .put("overlay_payload", payload)
     }
 
+    private fun nativeToolSelfTestReportJson(context: Context): JSONObject {
+        val appContext = context.applicationContext
+        val rows = JSONArray()
+            .put(
+                nativeSelfTestRow("terminal_tool", "Native shell", "NativeAndroidShellTool") {
+                    val result = NativeAndroidShellTool.run(appContext, "printf hermes-native-shell", 5)
+                    val ready = result.optInt("exit_code", -1) == 0 &&
+                        result.optString("output").contains("hermes-native-shell")
+                    NativeSelfTestResult(
+                        ready = ready,
+                        status = if (ready) "ready" else "error",
+                        detail = if (ready) {
+                            "Android shell command executed through the native bridge."
+                        } else {
+                            result.optString("error").ifBlank { "Shell exited with code ${result.optInt("exit_code", -1)}." }
+                        },
+                        metadata = JSONObject()
+                            .put("exit_code", result.optInt("exit_code", -1))
+                            .put("execution_mode", result.optString("execution_mode"))
+                            .put("uses_termux", result.optBoolean("uses_termux", false))
+                            .put("shell", result.optString("shell")),
+                    )
+                },
+            )
+            .put(
+                nativeSelfTestRow("android_system_tool", "Android system", "HermesSystemControlBridge") {
+                    val status = JSONObject(HermesSystemControlBridge.statusJson())
+                    NativeSelfTestResult(
+                        ready = true,
+                        status = "ready",
+                        detail = "System bridge returned network, permission, overlay, and runtime status.",
+                        metadata = JSONObject()
+                            .put("active_network_label", status.optString("active_network_label"))
+                            .put("overlay_permission_granted", status.optBoolean("overlay_permission_granted", false))
+                            .put("runtime_service_running", status.optBoolean("runtime_service_running", false)),
+                    )
+                },
+            )
+            .put(
+                nativeSelfTestRow("android_ui_tool", "Android UI", "HermesAccessibilityUiBridge") {
+                    val status = JSONObject(HermesAccessibilityUiBridge.snapshotJson(1))
+                    val connected = status.optBoolean("accessibility_connected", false)
+                    val error = status.optString("error")
+                    NativeSelfTestResult(
+                        ready = connected,
+                        status = if (connected) "ready" else "needs_accessibility_service",
+                        detail = if (connected) {
+                            "Accessibility bridge returned the active package and semantic screen hash."
+                        } else {
+                            error.ifBlank { "Hermes accessibility service is not connected." }
+                        },
+                        metadata = JSONObject()
+                            .put("accessibility_connected", connected)
+                            .put("active_package", status.optString("active_package"))
+                            .put("ui_state_hash", status.optString("ui_state_hash"))
+                            .put("error", error),
+                    )
+                },
+            )
+            .put(
+                nativeSelfTestRow("hindsight_memory_tool", "Hindsight memory", "HermesHindsightMemoryBridge") {
+                    val status = HermesHindsightMemoryBridge.statusJson(appContext)
+                    NativeSelfTestResult(
+                        ready = status.optBoolean("success", false),
+                        status = if (status.optBoolean("success", false)) "ready" else "error",
+                        detail = "Memory bridge returned ${status.optInt("memory_count", 0)} retained local memory row(s).",
+                        metadata = compactHindsightStatusJson(status),
+                    )
+                },
+            )
+            .put(
+                nativeSelfTestRow("file_write_tool", "Workspace file write", "HermesWorkspaceFileBridge") {
+                    val path = ".hermes-native-self-test.txt"
+                    val writeResult = HermesWorkspaceFileBridge.writeTextJson(appContext, path, "hermes-native-file", false)
+                    HermesWorkspaceFileBridge.deleteJson(appContext, path)
+                    val ready = writeResult.optBoolean("success", false) && writeResult.optInt("exit_code", -1) == 0
+                    NativeSelfTestResult(
+                        ready = ready,
+                        status = if (ready) "ready" else "error",
+                        detail = if (ready) {
+                            "Workspace write/delete bridge completed inside the app sandbox."
+                        } else {
+                            writeResult.optString("error").ifBlank { "Workspace write bridge returned a nonzero result." }
+                        },
+                        metadata = JSONObject()
+                            .put("exit_code", writeResult.optInt("exit_code", -1))
+                            .put("path", writeResult.optString("path"))
+                            .put("bytes", writeResult.optLong("bytes", 0L)),
+                    )
+                },
+            )
+        val readyCount = countBooleanRows(rows, "ready")
+        return JSONObject()
+            .put("success", readyCount >= rows.length() - 1)
+            .put("action", "agent_native_tool_self_test_report")
+            .put("ready_count", readyCount)
+            .put("row_count", rows.length())
+            .put("rows", rows)
+            .put("class_loading_status", "verified_by_direct_native_calls")
+            .put("env_var_enabled_status", "not_used_by_native_android_tool_bridges")
+            .put("output", nativeSelfTestOutput(rows))
+            .put(
+                "cards",
+                JSONArray().put(card("Native Tool Self-Test", "$readyCount of ${rows.length()} native tool bridge(s) are ready; permission-gated rows report needs_accessibility_service rather than guessed class-loading failures.")),
+            )
+    }
+
+    private fun nativeSelfTestRow(
+        toolName: String,
+        label: String,
+        bridgeClass: String,
+        block: () -> NativeSelfTestResult,
+    ): JSONObject {
+        return runCatching {
+            val result = block()
+            JSONObject()
+                .put("tool_name", toolName)
+                .put("label", label)
+                .put("bridge_class", bridgeClass)
+                .put("bridge_loaded", true)
+                .put("ready", result.ready)
+                .put("status_label", result.status)
+                .put("detail", result.detail)
+                .put("metadata", result.metadata)
+        }.getOrElse { error ->
+            JSONObject()
+                .put("tool_name", toolName)
+                .put("label", label)
+                .put("bridge_class", bridgeClass)
+                .put("bridge_loaded", false)
+                .put("ready", false)
+                .put("status_label", "error")
+                .put("detail", error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    private fun nativeSelfTestOutput(rows: JSONArray): String {
+        val lines = mutableListOf("Hermes native tool self-test")
+        for (index in 0 until rows.length()) {
+            val row = rows.optJSONObject(index) ?: continue
+            val state = if (row.optBoolean("ready", false)) "ready" else row.optString("status_label").ifBlank { "not_ready" }
+            lines.add("${row.optString("tool_name")}: $state - ${row.optString("detail")}")
+        }
+        lines.add("Class loading was verified by direct Kotlin bridge calls. No guessed class-name checks were used.")
+        lines.add("Native Android tool bridges do not use Python env_var_enabled.")
+        return lines.joinToString("\n")
+    }
+
+    private data class NativeSelfTestResult(
+        val ready: Boolean,
+        val status: String,
+        val detail: String,
+        val metadata: JSONObject = JSONObject(),
+    )
+
     private fun toolCatalogJson(): JSONObject {
         return JSONObject()
             .put("success", true)
@@ -28710,6 +28868,7 @@ object HermesDeviceDiagnosticsBridge {
         "agent_capability_upgrade_report",
         "agent_environment_report",
         "agent_self_check_report",
+        "agent_native_tool_self_test_report",
         "social_gmail_goal_preflight",
         "show_active_overlay",
         "tool_catalog",

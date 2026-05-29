@@ -134,6 +134,29 @@ def test_runtime_service_enters_foreground_before_runtime_startup():
     assert 'val notification = buildNotification(runtime)' in service
 
 
+def test_android_launcher_uses_adaptive_icons():
+    manifest = (REPO_ROOT / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+    adaptive_icon = (REPO_ROOT / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml").read_text(encoding="utf-8")
+    adaptive_round_icon = (
+        REPO_ROOT / "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
+    ).read_text(encoding="utf-8")
+    foreground = (REPO_ROOT / "android/app/src/main/res/drawable/ic_launcher_foreground.xml").read_text(encoding="utf-8")
+    background = (REPO_ROOT / "android/app/src/main/res/drawable/ic_launcher_background.xml").read_text(encoding="utf-8")
+    monochrome = (REPO_ROOT / "android/app/src/main/res/drawable/ic_launcher_monochrome.xml").read_text(encoding="utf-8")
+
+    assert 'android:icon="@mipmap/ic_launcher"' in manifest
+    assert 'android:roundIcon="@mipmap/ic_launcher_round"' in manifest
+    assert "<adaptive-icon" in adaptive_icon
+    assert '<background android:drawable="@drawable/ic_launcher_background" />' in adaptive_icon
+    assert '<foreground android:drawable="@drawable/ic_launcher_foreground" />' in adaptive_icon
+    assert '<monochrome android:drawable="@drawable/ic_launcher_monochrome" />' in adaptive_icon
+    assert adaptive_icon == adaptive_round_icon
+    assert 'android:viewportWidth="108"' in foreground
+    assert 'android:viewportHeight="108"' in foreground
+    assert "#101827" in background
+    assert 'android:fillColor="#FFFFFFFF"' in monochrome
+
+
 def test_android_anthropic_stub_warns_at_runtime():
     stub_init = (REPO_ROOT / "android/pip-stubs/anthropic-stub/anthropic/__init__.py").read_text(encoding="utf-8")
 
