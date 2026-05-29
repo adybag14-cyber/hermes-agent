@@ -37,21 +37,21 @@ Requirements:
 
 Usage:
     # Process mode (offline data generation with OPD)
-    python environments/agentic_opd_env.py process \\
-        --env.total_steps 10 --env.group_size 2 \\
-        --env.data_path_to_save_groups output.jsonl \\
-        --openai.base_url http://localhost:8000/v1 \\
+    python environments/agentic_opd_env.py process \
+        --env.total_steps 10 --env.group_size 2 \
+        --env.data_path_to_save_groups output.jsonl \
+        --openai.base_url http://localhost:8000/v1 \
         --openai.model_name Qwen/Qwen3-4B
 
     # Serve mode (connected to Atropos trainer)
-    python environments/agentic_opd_env.py serve \\
-        --openai.base_url http://localhost:8000/v1 \\
+    python environments/agentic_opd_env.py serve \
+        --openai.base_url http://localhost:8000/v1 \
         --openai.model_name Qwen/Qwen3-4B
 
     # Evaluate mode
-    python environments/agentic_opd_env.py evaluate \\
-        --env.eval_size 10 \\
-        --openai.base_url http://localhost:8000/v1 \\
+    python environments/agentic_opd_env.py evaluate \
+        --env.eval_size 10 \
+        --openai.base_url http://localhost:8000/v1 \
         --openai.model_name Qwen/Qwen3-4B
 
 Reference: Wang et al., "OpenClaw-RL: Train Any Agent Simply by Talking"
@@ -86,6 +86,7 @@ from atroposlib.type_definitions import Item
 
 from environments.hermes_base_env import HermesAgentBaseEnv, HermesAgentEnvConfig
 from environments.agent_loop import AgentResult, HermesAgentLoop
+from environments.numba_token_span import find_token_span, prepare_token_span_full
 from environments.tool_context import ToolContext
 
 logger = logging.getLogger(__name__)
@@ -525,24 +526,12 @@ class AgenticOPDEnv(HermesAgentBaseEnv):
     # ═══════════════════════════════════════════════════════════════════
 
     def format_prompt(self, item: dict) -> str:
-        """Format the coding task as a user prompt."""
-        prompt = (
-            f"Solve the following coding task.\n\n"
-            f"## Task\n{item['task']}\n\n"
+        """Format a coding task for the agent."""
+        return (
+            f"Task:\n{item['task']}\n\n"
+            "Write your solution to solution.py, then write the tests to "
+            "test_solution.py and run them."
         )
-        if item.get("test_code"):
-            prompt += (
-                f"## Tests\nThe following test code will be used to verify your solution:\n"
-                f"```python\n{item['test_code']}```\n\n"
-            )
-        prompt += (
-            "## Instructions\n"
-            "1. Write your solution to `solution.py`\n"
-            "2. Write the test code to `test_solution.py`\n"
-            "3. Run `python test_solution.py` to verify\n"
-            "4. Fix any failures and re-run until all tests pass\n"
-        )
-        return prompt
 
     # ═══════════════════════════════════════════════════════════════════
     # 4. compute_reward
@@ -552,98 +541,75 @@ class AgenticOPDEnv(HermesAgentBaseEnv):
         self,
         item: dict,
         result: AgentResult,
-        ctx: ToolContext,
+        context: ToolContext,
     ) -> float:
         """
-        Multi-signal reward:
-          - correctness (0.7): Did the tests pass?
-          - efficiency (0.15): Fewer turns = better
-          - tool_usage (0.15): Did the agent actually write + run code?
+        Compute reward from code correctness, efficiency, and tool usage.
+
+        Uses the agent's written files and test execution results.
         """
-        cfg = self.config
-
-        # ---- Signal 1: Test correctness ----
-        # Check if test_solution.py exists and passes in the agent's sandbox
         correctness = 0.0
-        try:
-            test_result = ctx.terminal("python test_solution.py 2>&1", timeout=30)
-            output = test_result.get("output", "")
-            exit_code = test_result.get("exit_code", 1)
-            if exit_code == 0 and "passed" in output.lower():
-                correctness = 1.0
-            elif exit_code == 0:
-                correctness = 0.8  # Ran without error but no explicit "passed"
-            elif "assert" in output.lower() and "error" in output.lower():
-                correctness = 0.2  # Partial — code runs but assertions fail
-            else:
-                correctness = 0.1  # Code errors out entirely
-        except Exception as e:
-            logger.debug("Test execution failed in reward: %s", e)
-            correctness = 0.0
+        efficiency = 0.0
+        tool_usage = 0.0
 
-        # ---- Signal 2: Efficiency ----
-        max_turns = cfg.max_agent_turns
-        turns_used = result.turns_used
-        if turns_used <= 3:
-            efficiency = 1.0
-        elif turns_used <= max_turns // 2:
-            efficiency = 0.8
-        elif turns_used <= max_turns * 3 // 4:
-            efficiency = 0.5
-        else:
-            efficiency = 0.2
+        # Check if solution.py exists and run tests
+        solution_exists = context.file_exists("solution.py")
+        test_exists = context.file_exists("test_solution.py")
 
-        # ---- Signal 3: Tool usage ----
-        tools_used = set()
-        for msg in result.messages:
-            if msg.get("role") == "assistant" and msg.get("tool_calls"):
-                for tc in msg["tool_calls"]:
-                    fn = tc.get("function", {}) if isinstance(tc, dict) else {}
-                    name = fn.get("name", "")
-                    if name:
-                        tools_used.add(name)
+        if solution_exists and test_exists:
+            try:
+                # Run the test file
+                exec_result = await context.run_terminal_command(
+                    "python test_solution.py",
+                    timeout=30,
+                )
+                output = exec_result.get("output", "")
+                if exec_result.get("exit_code") == 0:
+                    correctness = 1.0
+                elif "AssertionError" in output or "FAILED" in output:
+                    correctness = 0.2  # Attempted but wrong
+                else:
+                    correctness = 0.1  # Runtime/import/etc error
+            except Exception as e:
+                logger.debug("Reward test execution failed: %s", e)
+                correctness = 0.0
 
-        # Good: used both terminal and file tools
-        if "terminal" in tools_used and ("write_file" in tools_used or "patch" in tools_used):
-            tool_usage = 1.0
-        elif "terminal" in tools_used:
-            tool_usage = 0.6
-        elif tools_used:
-            tool_usage = 0.3
-        else:
-            tool_usage = 0.0
+        # Efficiency: fewer turns is better
+        max_turns = max(1, self.config.max_agent_turns)
+        efficiency = max(0.0, 1.0 - (result.turns_used - 1) / max_turns)
 
-        # ---- Combine ----
+        # Tool usage: using both file and terminal tools is ideal
+        used_tools = {msg.get("tool_name") for msg in result.messages if msg.get("role") == "tool"}
+        if "file_write" in used_tools or "file_create" in used_tools:
+            tool_usage += 0.5
+        if any("terminal" in str(t) or "shell" in str(t) for t in used_tools):
+            tool_usage += 0.5
+        tool_usage = min(tool_usage, 1.0)
+
         reward = (
-            cfg.correctness_weight * correctness
-            + cfg.efficiency_weight * efficiency
-            + cfg.tool_usage_weight * tool_usage
+            self.config.correctness_weight * correctness
+            + self.config.efficiency_weight * efficiency
+            + self.config.tool_usage_weight * tool_usage
         )
-        reward = min(1.0, max(0.0, reward))
 
-        # Track metrics
+        # Track for wandb
         self._reward_buffer.append(reward)
         self._correctness_buffer.append(correctness)
         self._efficiency_buffer.append(efficiency)
         self._tool_usage_buffer.append(tool_usage)
 
-        logger.debug(
-            "Reward: correctness=%.2f, efficiency=%.2f, tool_usage=%.2f → %.3f",
-            correctness,
-            efficiency,
-            tool_usage,
-            reward,
-        )
         return reward
 
     # ═══════════════════════════════════════════════════════════════════
-    # 5. collect_trajectories — OPD pipeline
+    # 5. collect_trajectories + OPD pipeline
     # ═══════════════════════════════════════════════════════════════════
 
     async def collect_trajectories(
-        self, item: Item
-    ) -> Tuple[
-        Union[Optional[ScoredDataGroup], List[Optional[ScoredDataGroup]]],
+        self,
+        item: dict,
+    ) -> tuple[
+        Optional[ScoredDataGroup],
+        list[tuple[str, Optional[ScoredDataGroup]]],
         List[Item],
     ]:
         """
@@ -752,6 +718,7 @@ class AgenticOPDEnv(HermesAgentBaseEnv):
 
         hints_extracted = 0
         turns_scored = 0
+        prepared_full_tokens = prepare_token_span_full(student_tokens)
 
         for pair in turn_pairs:
             try:
@@ -827,7 +794,9 @@ class AgenticOPDEnv(HermesAgentBaseEnv):
                 # Map these back to the student's full sequence positions
                 # Find where this assistant turn's tokens appear in the full sequence
                 turn_start = self._find_token_span(
-                    student_tokens, response_ids
+                    student_tokens,
+                    response_ids,
+                    prepared_full_tokens=prepared_full_tokens,
                 )
                 if turn_start is not None:
                     for j in range(min(response_len, seq_len - turn_start)):
@@ -979,7 +948,9 @@ class AgenticOPDEnv(HermesAgentBaseEnv):
 
     @staticmethod
     def _find_token_span(
-        full_tokens: List[int], sub_tokens: List[int]
+        full_tokens: List[int],
+        sub_tokens: List[int],
+        prepared_full_tokens: Optional[Any] = None,
     ) -> Optional[int]:
         """
         Find where sub_tokens appears in full_tokens.
@@ -988,18 +959,11 @@ class AgenticOPDEnv(HermesAgentBaseEnv):
         Uses a sliding window search. For long sequences, searches
         from the end since assistant responses are typically at the end.
         """
-        if not sub_tokens or not full_tokens:
-            return None
-        sub_len = len(sub_tokens)
-        full_len = len(full_tokens)
-        if sub_len > full_len:
-            return None
-
-        # Search backwards (assistant responses are usually near the end)
-        for i in range(full_len - sub_len, -1, -1):
-            if full_tokens[i : i + sub_len] == sub_tokens:
-                return i
-        return None
+        return find_token_span(
+            full_tokens,
+            sub_tokens,
+            prepared_full_tokens=prepared_full_tokens,
+        )
 
     # ═══════════════════════════════════════════════════════════════════
     # 6. evaluate
