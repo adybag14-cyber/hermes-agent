@@ -84,7 +84,8 @@ def test_empty_chat_layout_scrolls_welcome_state_on_small_or_large_font_screens(
 
     assert 'LazyColumn(' in chat_screen
     assert 'EmptyChatHint(' in chat_screen
-    assert 'contentPadding = PaddingValues(top = 24.dp, bottom = 8.dp)' in chat_screen
+    assert 'val messageListBottomPadding = 8.dp' in chat_screen
+    assert 'contentPadding = PaddingValues(top = 24.dp, bottom = messageListBottomPadding)' in chat_screen
 
 
 def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():

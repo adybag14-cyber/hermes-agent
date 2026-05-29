@@ -7,8 +7,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 def test_android_manifest_uses_hermes_theme_and_icon():
     manifest = (REPO_ROOT / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
 
-    assert 'android:icon="@drawable/hermes_agent_fork_logo"' in manifest
-    assert 'android:roundIcon="@drawable/hermes_agent_fork_logo"' in manifest
+    assert 'android:icon="@mipmap/ic_launcher"' in manifest
+    assert 'android:roundIcon="@mipmap/ic_launcher_round"' in manifest
     assert 'android:theme="@style/Theme.HermesAgent"' in manifest
 
 
