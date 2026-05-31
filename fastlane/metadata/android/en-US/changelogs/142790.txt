@@ -1,0 +1,7 @@
+Hermes Agent Fork 0.13.127
+
+- Replaces the bottom navigation banner with the top-left drawer navigation for Chat, Accounts, Portal, Device, and Settings.
+- Adds Settings model configuration tabs for local/backend model knobs, local accelerator controls, and API-provider generation knob switching.
+- Adds MCP configuration onboarding with simple auto-detect, auto-fill, auto-setup, advanced raw JSON edit, save/reload, server reload, and provider cache resend control.
+- Adds persisted crash diagnostics, hard-crash preview/export controls, and PII-redacted diagnostics log export.
+- Speeds app startup by removing eager backend health probes, eager settings ViewModel creation, routine native state writes, and foreground accessibility automation loops.
