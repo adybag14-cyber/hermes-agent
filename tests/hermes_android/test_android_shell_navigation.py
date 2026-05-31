@@ -4,14 +4,18 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_app_shell_uses_bottom_navigation_and_context_sheet():
+def test_app_shell_uses_drawer_navigation_and_context_sheet():
     app_shell = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/shell/AppShell.kt").read_text(encoding="utf-8")
     shell_models = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/shell/ShellModels.kt").read_text(encoding="utf-8")
     action_sheet = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/shell/ContextActionSheet.kt").read_text(encoding="utf-8")
 
     assert 'Scaffold(' in app_shell
-    assert 'NavigationBar(' in app_shell
-    assert 'FloatingActionButton' in app_shell
+    assert 'ShellNavigationDrawerOverlay(' in app_shell
+    assert 'shellDrawerNavigationSections()' in app_shell
+    assert 'ShellNavigationDrawerItem(' in app_shell
+    assert 'showNavigationDrawer' in app_shell
+    assert 'NavigationBar(' not in app_shell
+    assert 'FloatingActionButton' not in app_shell
     assert 'currentSection != AppSection.Hermes' in app_shell
     assert 'ContextActionSheet(' in app_shell
     assert 'TabRow' not in app_shell

@@ -83,7 +83,7 @@ def test_litert_lm_proxy_accepts_image_content_for_vision_models_and_rejects_tex
     assert 'maxNumImages = if (requestedSupportImage) 1 else null' in proxy
     assert 'visionBackend = visionBackend' in proxy
     assert 'label == "gpu" -> Backend.GPU()' in proxy
-    assert 'gpuBackendPolicy(context, openClAvailable)' in proxy
+    assert 'gpuBackendPolicy(context, openClAvailable, preferredAccelerator)' in proxy
     assert 'preferred.supportsImageInput()' in backend
     assert '"gemma-4" in lower' in backend
     assert '"gemma-3n" in lower' in backend

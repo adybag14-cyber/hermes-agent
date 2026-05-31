@@ -33,8 +33,8 @@ def test_settings_screen_includes_new_user_guidance():
     assert 'Use Accounts for Corr3xt app sign-in with email, phone, or Google' in strings
     assert 'Choose the provider you want Hermes to call directly.' in strings
     assert 'Paste the API key or access token for the selected provider, then tap Save' in strings
-    assert 'rememberScrollState()' in settings
-    assert 'verticalScroll(' in settings
+    assert 'LazyColumn(' in settings
+    assert 'contentPadding = PaddingValues(bottom = extraBottomSpacing)' in settings
 
 
 def test_portal_screen_auto_loads_and_uses_contextual_actions():
@@ -70,6 +70,7 @@ def test_portal_python_refresh_is_deferred_until_portal_is_visible():
     assert "withContext(Dispatchers.IO)" in portal
     assert "LaunchedEffect(strings.language) {" in portal
     portal_branch = app_shell.split("AppSection.NousPortal -> {", 1)[1].split("AppSection.Device ->", 1)[0]
+    before_portal_branch = app_shell.split("AppSection.NousPortal -> {", 1)[0]
 
     assert "val portalViewModel: NousPortalViewModel = viewModel()" in portal_branch
-    assert "val portalViewModel: NousPortalViewModel = viewModel()" not in app_shell.split("val settingsState", 1)[0]
+    assert "val portalViewModel: NousPortalViewModel = viewModel()" not in before_portal_branch

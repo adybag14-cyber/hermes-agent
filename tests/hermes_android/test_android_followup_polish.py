@@ -180,8 +180,8 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'provider == "custom"' not in settings_view_model.split("private fun loadApiKeyForProvider", 1)[1].split("fun updateOnDeviceBackend", 1)[0]
     assert 'strings.settingsSavedBackendRestarted()' in settings_view_model
     assert 'android:windowSoftInputMode="adjustResize"' in manifest
-    assert 'WindowInsets.ime.getBottom(density) > 0' in app_shell
-    assert 'currentSection == AppSection.Hermes && (tinyRuntimeViewport || imeVisible)' in app_shell
+    assert 'WindowInsets.ime.getBottom(density) > 0' not in app_shell
+    assert 'WindowInsets.ime.getBottom(density) > 0' in chat
     assert 'val contentPadding = if (tinyRuntimeViewport)' in chat
     assert 'PaddingValues(horizontal = 4.dp, vertical = 4.dp)' in chat
     assert 'PaddingValues(horizontal = 12.dp, vertical = 8.dp)' in chat
@@ -189,7 +189,6 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'import androidx.compose.foundation.layout.imePadding' in chat
     assert '.fillMaxWidth()\n                        .imePadding(),' in chat
     assert 'focusManager.clearFocus(force = true)' in chat
-    assert 'WindowInsets.ime.getBottom(density) > 0' not in chat
     assert '!imeVisible &&' not in chat
     assert 'val showFloatingActionIcon' not in chat
     assert 'val messageListBottomPadding = 8.dp' in chat
@@ -198,7 +197,7 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'sanitizeChatDisplayText(text)' in chat
     assert 'markdownTableCells.joinToString("  ")' in chat
     assert 'Regex("""\\*\\*([^*\\n]+)\\*\\*""")' in chat
-    assert 'statusText = if (tinyRuntimeViewport) "" else uiState.status' in chat
+    assert 'statusText = if (shouldShowComposerStatus(tinyRuntimeViewport, imeVisible)) uiState.status else ""' in chat
     assert '.padding(end = 16.dp, bottom = 320.dp)' not in chat
     assert '.heightIn(max = 112.dp)\n            .testTag("HermesChatInput")' in chat
     assert 'maxLines = 4' in chat
@@ -283,7 +282,7 @@ def test_settings_secret_store_initialization_stays_off_startup_main_thread():
     assert "refreshOnDeviceSummary(_uiState.value.onDeviceBackend)" not in settings_view_model
     assert "OnDeviceBackendManager.preferredDownloadSummary(getApplication(), backendValue)" in settings_view_model
     assert "withContext(Dispatchers.IO)" in settings_view_model.split("private fun refreshOnDeviceSummary", 1)[1]
-    assert "loadApiKeyForProvider(_uiState.value.provider)" in settings_view_model
+    assert "loadApiKeyForProvider(reloaded.provider)" in settings_view_model
     assert "withContext(Dispatchers.IO)" in settings_view_model.split("private fun loadApiKeyForProvider", 1)[1]
     assert "EncryptedSharedPreferences.create(" in secure_store
     assert "private val preferences by lazy" in secure_store
@@ -353,8 +352,9 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'updateLiteRtLmSpeculativeDecodingMode' in settings_view_model
     assert 'LiteRtLmMtpMode-${choice.value}' in settings
     assert 'gemma4MtpDescription()' in settings
-    assert 'speculativeDecodingModeFor(context)' in backend_manager
-    assert 'inferenceConfigFor(preferred, speculativeDecodingModeFor(context))' in backend_manager
+    assert 'inferenceConfig = inferenceConfigFor(preferred, AppSettingsStore(context).load())' in backend_manager
+    assert 'private fun speculativeDecodingModeFor(settings: AppSettings)' in backend_manager
+    assert 'speculativeDecodingMode = speculativeDecodingModeFor(settings)' in backend_manager
     assert 'speculativeDecodingDecision(context, modelPath, speculativeDecodingMode)' in litert_proxy
     assert 'decideSpeculativeDecoding(' in litert_proxy
     assert 'runtime setting disabled Gemma 4 MTP' in litert_proxy
@@ -2066,7 +2066,7 @@ def test_chat_endpoint_url_normalization_and_floating_icon_are_guarded():
     assert 'containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)' in chat
     assert 'val narrowHeader = maxWidth < 360.dp' in chat
     assert 'val tinyVerticalViewport = maxHeight < 360.dp' in chat
-    assert 'if (!tinyVerticalViewport)' in chat
+    assert 'denseHeader = tinyVerticalViewport' in chat
     assert '.testTag("HermesChatComposerUltraNarrowControls")' in chat
     assert 'private fun ChatHeaderDisplayModeButton(' in chat
     assert '.testTag("HermesChatHistoryButton")' in chat

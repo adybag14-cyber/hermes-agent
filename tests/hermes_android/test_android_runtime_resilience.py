@@ -13,11 +13,12 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     native_tool_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
     sse_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/api/HermesSseClient.kt").read_text(encoding="utf-8")
 
-    assert "BACKGROUND_RUNTIME_STARTUP_DELAY_MS = 1500L" in application
-    assert "STARTUP_BACKGROUND_WORK_DELAY_MS = 5000L" in application
-    assert "DeviceStateWriter.write(this@HermesApplication)" in application
-    assert "delay(STARTUP_BACKGROUND_WORK_DELAY_MS)" in application
-    assert "delay(BACKGROUND_RUNTIME_STARTUP_DELAY_MS)" in application
+    assert "class HermesApplication : Application()" in application
+    assert "instance = this" in application
+    assert "BACKGROUND_RUNTIME_STARTUP_DELAY_MS" not in application
+    assert "STARTUP_BACKGROUND_WORK_DELAY_MS" not in application
+    assert "DeviceStateWriter.write" not in application
+    assert "HermesRuntimeManager.ensureStarted" not in application
 
     assert "CoroutineScope(SupervisorJob() + Dispatchers.IO)" in runtime_service
     assert "promoteToForeground(runtime = null)" in runtime_service
@@ -26,12 +27,12 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     assert "context.startService(intent)" in runtime_service
     assert "ContextCompat.startForegroundService(context, intent)" in runtime_service
 
-    assert 'runCatching {' in boot_view_model
-    assert 'startupDelayMillis = if (firstRefresh) FIRST_LAUNCH_RUNTIME_WARMUP_DELAY_MS else 0L' in boot_view_model
+    assert 'startupDelayMillis = if (firstRefresh) FIRST_SHELL_REFRESH_DELAY_MS else 0L' in boot_view_model
+    assert 'private const val FIRST_SHELL_REFRESH_DELAY_MS = 150L' in boot_view_model
     assert 'delay(startupDelayMillis)' in boot_view_model
-    assert 'FIRST_LAUNCH_RUNTIME_WARMUP_DELAY_MS = 30_000L' in boot_view_model
-    assert 'checkHealth(runtime.baseUrl, runtime.apiKey)' in boot_view_model
-    assert 'Hermes backend health check failed' in boot_view_model
+    assert 'BootUiState(status = "Hermes shell ready", ready = true)' in boot_view_model
+    assert 'checkHealth(' not in boot_view_model
+    assert 'HermesRuntimeManager.ensureStarted' not in boot_view_model
     assert 'init {' not in boot_view_model
     assert 'LaunchedEffect(Unit)' in boot_screen
     assert 'withFrameNanos { }' in boot_screen
@@ -63,11 +64,12 @@ def test_android_python_runtime_smoke_resets_local_backend_selection_before_remo
 def test_main_activity_keeps_device_state_refresh_off_the_startup_thread():
     main_activity = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/MainActivity.kt").read_text(encoding="utf-8")
 
-    assert "private fun writeDeviceStateAsync()" in main_activity
-    assert "STARTUP_DEVICE_STATE_DELAY_MS = 2500L" in main_activity
-    assert "handleShortcutIntent(intent)\n        writeDeviceStateAsync()" in main_activity
-    assert "handleShortcutIntent(intent)\n        DeviceStateWriter.write(applicationContext)" not in main_activity
-    assert "lifecycleScope.launch(Dispatchers.IO) {\n            delay(STARTUP_DEVICE_STATE_DELAY_MS)\n            DeviceStateWriter.write(applicationContext)\n        }" in main_activity
+    assert "HermesCrashLogStore.install(applicationContext)" in main_activity
+    assert "private fun handleShortcutIntent(intent: Intent?)" in main_activity
+    assert "HermesLauncherShortcutBridge.handleShortcutIntentJson(applicationContext, intent)" in main_activity
+    assert "writeDeviceStateAsync" not in main_activity
+    assert "STARTUP_DEVICE_STATE_DELAY_MS" not in main_activity
+    assert "DeviceStateWriter.write(applicationContext)" not in main_activity
 
 
 def test_android_chat_ui_and_native_tool_prompt_stay_compact_on_large_font_phone_screens():
@@ -79,12 +81,13 @@ def test_android_chat_ui_and_native_tool_prompt_stay_compact_on_large_font_phone
     assert 'label = { Text(strings.messageHermes' not in chat_screen
     assert '.fillMaxWidth()\n                    .testTag("HermesChatSendButton")' in chat_screen
     assert 'TextOverflow.Ellipsis' in chat_screen
-    assert 'softWrap = false' in app_shell
-    assert 'style = MaterialTheme.typography.labelSmall' in app_shell
+    assert 'modifier = Modifier.size(22.dp)' in app_shell
+    assert 'style = MaterialTheme.typography.bodyLarge' in app_shell
     assert 'compactToolSpecsFor(userText)' in native_tool_client
     assert '.ifEmpty { inferredToolNames(userText) }' in native_tool_client
     assert 'return JSONArray()' in native_tool_client
-    assert 'systemMessage(toolsEnabled = activeToolSpecs.length() > 0)' in native_tool_client
+    assert 'toolsEnabled = activeToolSpecs.length() > 0' in native_tool_client
+    assert 'relevantMemoryContext = relevantMemoryContext' in native_tool_client
     assert 'compactCustomSystemPrompt' in native_tool_client
     assert 'Keep replies brief and direct.' in native_tool_client
     assert 'inferredToolNames(userText: String)' in native_tool_client

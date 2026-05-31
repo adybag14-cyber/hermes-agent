@@ -33,7 +33,7 @@ def test_android_brand_resources_exist_and_define_hermes_palette():
     assert '<string name="app_name">Hermes Agent Fork</string>' in strings
 
 
-def test_app_shell_has_compact_brand_bar_bottom_nav_and_custom_icons():
+def test_app_shell_has_compact_brand_bar_drawer_navigation_and_custom_icons():
     app_shell = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/shell/AppShell.kt").read_text(encoding="utf-8")
     shell_models = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/shell/ShellModels.kt").read_text(encoding="utf-8")
     theme_file = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/theme/HermesTheme.kt").read_text(encoding="utf-8")
@@ -41,9 +41,11 @@ def test_app_shell_has_compact_brand_bar_bottom_nav_and_custom_icons():
     drawable_files = sorted(path.name for path in (REPO_ROOT / "android/app/src/main/res/drawable").glob("ic_*.xml"))
 
     assert 'HermesTopBar(' in app_shell
-    assert 'NavigationBar(' in app_shell
+    assert 'ShellNavigationDrawerOverlay(' in app_shell
+    assert 'ShellNavigationDrawerItem(' in app_shell
+    assert 'showNavigationDrawer' in app_shell
+    assert 'NavigationBar(' not in app_shell
     assert 'R.drawable.hermes_agent_fork_logo' in app_shell
-    assert 'R.drawable.ic_action_cog' in app_shell
     assert 'R.drawable.ic_nav_hermes' in shell_models
     assert 'R.drawable.ic_nav_accounts' in shell_models
     assert 'R.drawable.ic_nav_portal' in shell_models

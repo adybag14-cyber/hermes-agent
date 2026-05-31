@@ -163,7 +163,7 @@ def test_litert_proxy_attempts_gpu_on_real_arm_devices_with_cpu_fallback():
     hardware_profile = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesAndroidHardwareProfile.kt").read_text(encoding="utf-8")
 
     assert 'val openClAvailable = hasLoadableOpenClLibrary()' in proxy
-    assert 'val gpuPolicy = gpuBackendPolicy(context, openClAvailable)' in proxy
+    assert 'val gpuPolicy = gpuBackendPolicy(context, openClAvailable, preferredAccelerator)' in proxy
     assert 'if (gpuPolicy.enabled)' in proxy
     assert 'disabled: translated arm64 package on x86 emulator/device' in proxy
     assert 'disabled: x86 emulator/device build' in proxy
