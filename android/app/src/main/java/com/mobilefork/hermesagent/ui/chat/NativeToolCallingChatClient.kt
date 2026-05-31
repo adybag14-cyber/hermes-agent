@@ -7,6 +7,8 @@ import com.mobilefork.hermesagent.api.HermesApiClient
 import com.mobilefork.hermesagent.api.toJsonObject
 import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
+import com.mobilefork.hermesagent.data.McpPromptCacheResendPolicy
+import com.mobilefork.hermesagent.data.McpSettingsStore
 import com.mobilefork.hermesagent.device.HermesAccessibilityController
 import com.mobilefork.hermesagent.device.HermesAccessibilityUiBridge
 import com.mobilefork.hermesagent.device.HermesAppControlBridge
@@ -54,6 +56,7 @@ class NativeToolCallingChatClient(
         userContentParts: List<ChatContentPart> = emptyList(),
         priorMessages: List<ChatMessage> = emptyList(),
         relevantMemoryContext: String = "",
+        providerId: String = "",
     ): Result {
         val normalizedBaseUrl = baseUrl.trimEnd('/')
         require(normalizedBaseUrl.startsWith("http://") || normalizedBaseUrl.startsWith("https://")) {
@@ -71,6 +74,10 @@ class NativeToolCallingChatClient(
         var executedToolCalls = 0
         var latestToolResult = ""
         var activeToolSpecs = compactToolSpecsFor(userText)
+        val cacheResendEnabled = McpPromptCacheResendPolicy.shouldResendCachedContext(
+            providerId = providerId.ifBlank { "local" },
+            settings = McpSettingsStore(appContext).load(),
+        )
         var messages = buildInitialNativeMessages(
             systemMessage = systemMessage(
                 toolsEnabled = activeToolSpecs.length() > 0,
@@ -79,6 +86,7 @@ class NativeToolCallingChatClient(
             priorMessages = priorMessages,
             userText = userText,
             userContentParts = userContentParts,
+            cacheResendEnabled = cacheResendEnabled,
         )
         val initialResponse = postChatCompletionWithContextRecovery(
             normalizedBaseUrl = normalizedBaseUrl,
@@ -122,8 +130,11 @@ class NativeToolCallingChatClient(
                 }
             }
 
-
-            messages = NativeToolContextCompressor.compactMessages(messages)
+            messages = if (cacheResendEnabled) {
+                NativeToolContextCompressor.cacheFriendlyMessages(messages)
+            } else {
+                NativeToolContextCompressor.compactMessages(messages)
+            }
             val followUp = try {
                 val response = postChatCompletionWithContextRecovery(
                     normalizedBaseUrl = normalizedBaseUrl,
@@ -3264,9 +3275,15 @@ class NativeToolCallingChatClient(
             priorMessages: List<ChatMessage>,
             userText: String,
             userContentParts: List<ChatContentPart> = emptyList(),
+            cacheResendEnabled: Boolean = false,
         ): JSONArray {
             val messages = JSONArray().put(systemMessage)
-            NativeToolContextCompressor.compactPriorChatRequestMessages(priorMessages).forEach { priorMessage ->
+            val history = if (cacheResendEnabled) {
+                NativeToolContextCompressor.cacheFriendlyPriorChatRequestMessages(priorMessages)
+            } else {
+                NativeToolContextCompressor.compactPriorChatRequestMessages(priorMessages)
+            }
+            history.forEach { priorMessage ->
                 messages.put(priorMessage.toJsonObject())
             }
             messages.put(
@@ -4392,6 +4409,8 @@ internal object NativeToolContextCompressor {
     private const val MAX_SUMMARY_CHARS = 2_400
     private const val MAX_PRIOR_CHAT_HISTORY_MESSAGES = 12
     private const val MAX_PRIOR_CHAT_HISTORY_MESSAGE_CHARS = 1_200
+    private const val MAX_CACHE_RESEND_PRIOR_CHAT_MESSAGES = 48
+    private const val MAX_CACHE_RESEND_PRIOR_CHAT_MESSAGE_CHARS = 8_000
     private const val STRING_FIELD_LIMIT = 600
     private const val OUTPUT_FIELD_LIMIT = 1_400
 
@@ -4447,6 +4466,7 @@ internal object NativeToolContextCompressor {
     fun compactPriorChatRequestMessages(
         priorMessages: List<ChatMessage>,
         maxMessages: Int = MAX_PRIOR_CHAT_HISTORY_MESSAGES,
+        maxMessageChars: Int = MAX_PRIOR_CHAT_HISTORY_MESSAGE_CHARS,
     ): List<ChatMessage> {
         return priorMessages
             .mapNotNull { message ->
@@ -4464,11 +4484,36 @@ internal object NativeToolContextCompressor {
                 } else {
                     ChatMessage(
                         role = message.role,
-                        content = compactStringValue(content, MAX_PRIOR_CHAT_HISTORY_MESSAGE_CHARS),
+                        content = compactStringValue(content, maxMessageChars),
                     )
                 }
             }
             .takeLast(maxMessages.coerceAtLeast(0))
+    }
+
+    fun cacheFriendlyPriorChatRequestMessages(priorMessages: List<ChatMessage>): List<ChatMessage> {
+        return compactPriorChatRequestMessages(
+            priorMessages = priorMessages,
+            maxMessages = MAX_CACHE_RESEND_PRIOR_CHAT_MESSAGES,
+            maxMessageChars = MAX_CACHE_RESEND_PRIOR_CHAT_MESSAGE_CHARS,
+        )
+    }
+
+    fun cacheFriendlyMessages(messages: JSONArray): JSONArray {
+        val copied = JSONArray()
+        val startIndex = (messages.length() - MAX_CACHE_RESEND_PRIOR_CHAT_MESSAGES).coerceAtLeast(0)
+        for (index in startIndex until messages.length()) {
+            val message = messages.optJSONObject(index) ?: continue
+            val copy = JSONObject(message.toString())
+            if (copy.optString("role") == "tool") {
+                copy.put(
+                    "content",
+                    compactStringValue(copy.optString("content"), MAX_CACHE_RESEND_PRIOR_CHAT_MESSAGE_CHARS),
+                )
+            }
+            copied.put(copy)
+        }
+        return copied
     }
 
     fun visibleToolResultSummary(toolResult: String): String {
