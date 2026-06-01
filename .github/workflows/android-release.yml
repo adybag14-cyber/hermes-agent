@@ -78,6 +78,7 @@ jobs:
           apksigner="$build_tools_dir/apksigner"
           unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
           signed_apk="app/build/outputs/apk/release/app-release.apk"
+          universal_apk="app/build/outputs/apk/release/app-universal-release.apk"
           test -x "$apksigner"
           test -f "$unsigned_apk"
           "$apksigner" sign \
@@ -92,6 +93,8 @@ jobs:
             --out "$signed_apk" \
             "$unsigned_apk"
           "$apksigner" verify --verbose "$signed_apk"
+          cp -f "$signed_apk" "$universal_apk"
+          rm -f "$unsigned_apk"
 
       - name: Rename artifacts and write checksums
         env:

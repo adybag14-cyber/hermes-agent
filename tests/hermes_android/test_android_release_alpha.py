@@ -42,8 +42,11 @@ def test_android_release_workflow_restores_signing_material_and_builds_release_a
     assert './gradlew :app:assembleRelease' in workflow
     assert './gradlew :app:bundleRelease' in workflow
     assert 'app-release-unsigned.apk' in workflow
+    assert 'app-universal-release.apk' in workflow
     assert '--v2-signing-enabled true' in workflow
     assert '--ks-pass env:ANDROID_KEYSTORE_PASSWORD' in workflow
+    assert 'cp -f "$signed_apk" "$universal_apk"' in workflow
+    assert 'rm -f "$unsigned_apk"' in workflow
     assert 'edit_args=(--target "$GITHUB_SHA" --title "$title")' in workflow
     assert 'scripts/android_release_manifest.py --tag' in workflow
     assert 'HERMES_RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}' in workflow
@@ -93,3 +96,19 @@ def test_android_release_manifest_rejects_ambiguous_split_only_apks(tmp_path):
 
     with pytest.raises(ValueError, match="no universal APK"):
         manifest.select_release_apk(apk_dir)
+
+
+def test_android_release_manifest_ignores_unsigned_companion_apk(tmp_path):
+    manifest = _load_android_release_manifest_module()
+    apk_dir = tmp_path / "release"
+    apk_dir.mkdir()
+
+    signed = apk_dir / "app-release.apk"
+    unsigned = apk_dir / "app-release-unsigned.apk"
+    signed.write_bytes(b"signed")
+    unsigned.write_bytes(b"unsigned")
+
+    unsigned_mtime = signed.stat().st_mtime + 30
+    os.utime(unsigned, (unsigned_mtime, unsigned_mtime))
+
+    assert manifest.select_release_apk(apk_dir) == signed

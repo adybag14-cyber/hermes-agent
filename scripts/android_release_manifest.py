@@ -27,14 +27,19 @@ def select_release_apk(path: Path) -> Path:
     if not matches:
         raise FileNotFoundError(f"No APK files found under {path}")
 
-    universal_matches = [item for item in matches if "universal" in item.name.lower()]
+    signed_matches = [item for item in matches if "unsigned" not in item.name.lower()]
+    if not signed_matches:
+        candidates = ", ".join(item.name for item in matches)
+        raise ValueError(f"No signed release APK was found. Candidates: {candidates}")
+
+    universal_matches = [item for item in signed_matches if "universal" in item.name.lower()]
     if universal_matches:
         return universal_matches[0]
 
-    if len(matches) == 1:
-        return matches[0]
+    if len(signed_matches) == 1:
+        return signed_matches[0]
 
-    candidates = ", ".join(item.name for item in matches)
+    candidates = ", ".join(item.name for item in signed_matches)
     raise ValueError(
         "Multiple release APKs were produced but no universal APK was found. "
         f"Candidates: {candidates}"
