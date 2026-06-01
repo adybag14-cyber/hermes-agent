@@ -82,6 +82,7 @@ jobs:
           test -x "$apksigner"
           test -f "$unsigned_apk"
           "$apksigner" sign \
+            --alignment-preserved true \
             --v1-signing-enabled false \
             --v2-signing-enabled true \
             --v3-signing-enabled false \

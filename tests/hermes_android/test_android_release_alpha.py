@@ -43,6 +43,7 @@ def test_android_release_workflow_restores_signing_material_and_builds_release_a
     assert './gradlew :app:bundleRelease' in workflow
     assert 'app-release-unsigned.apk' in workflow
     assert 'app-universal-release.apk' in workflow
+    assert '--alignment-preserved true' in workflow
     assert '--v2-signing-enabled true' in workflow
     assert '--ks-pass env:ANDROID_KEYSTORE_PASSWORD' in workflow
     assert 'cp -f "$signed_apk" "$universal_apk"' in workflow
