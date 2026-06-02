@@ -128,6 +128,37 @@ def test_aiagent_forwards_user_id_alt_to_memory_provider():
     assert "status_callback" not in provider.init_kwargs
 
 
+def test_hy_memory_provider_is_loaded_when_configured():
+    provider = RecordingMemoryProvider()
+    provider.name = "hy_memory"
+    cfg = {"memory": {"provider": "hy_memory"}, "agent": {}}
+
+    with (
+        patch("hermes_cli.config.load_config", return_value=cfg),
+        patch("hermes_cli.config.load_config_readonly", return_value=cfg),
+        patch("hermes_cli.config.save_config") as save_config,
+        patch("plugins.memory.load_memory_provider", return_value=provider) as load_provider,
+        patch("agent.model_metadata.get_model_context_length", return_value=204_800),
+        patch("model_tools.get_tool_definitions", return_value=[]),
+        patch("model_tools.check_toolset_requirements", return_value={}),
+        patch("agent.process_bootstrap.OpenAI"),
+    ):
+        from run_agent import AIAgent
+
+        agent = AIAgent(
+            api_key="test-key-1234567890",
+            base_url="https://openrouter.ai/api/v1",
+            quiet_mode=True,
+            skip_context_files=True,
+            skip_memory=False,
+        )
+
+    load_provider.assert_called_once_with("hy_memory")
+    assert agent._memory_manager is not None
+    assert provider.init_kwargs["agent_context"] == "primary"
+    save_config.assert_not_called()
+
+
 class CoreShadowProvider:
     """Provider that tries to register tools shadowing built-in core tools."""
 
@@ -168,5 +199,3 @@ def test_core_tool_names_rejected_from_memory_routing_table():
     assert "clarify" not in schema_names
     assert "delegate_task" not in schema_names
     assert "honcho_search" in schema_names
-
-

@@ -63,6 +63,10 @@ def _patch_gateway_discovery():
     phase's fresh ``from hermes_cli.gateway import ...`` then loads an
     UNPATCHED copy of the module — silently discarding every mock here and
     letting real gateway discovery (and real ``os.kill``) run on the dev box.
+
+    Empty discovery is not a no-op on Windows: the updater cold-starts a
+    missing gateway and registers an atexit restart. Isolate the frozen
+    pause/resume seams too; this module tests Git recovery, not fleet lifecycle.
     """
     with patch("hermes_cli.gateway.find_gateway_pids", return_value=[]), \
          patch("hermes_cli.gateway.supports_systemd_services", return_value=False), \
@@ -71,6 +75,10 @@ def _patch_gateway_discovery():
          patch("hermes_cli.update_inventory.report_unaccounted_runtimes", return_value=False), \
          patch.object(hermes_main, "_fleet_probe_expected_runtimes", lambda *a, **kw: False), \
          patch.object(hermes_main, "_purge_stale_hermes_modules", lambda *a, **kw: None), \
+         patch.object(hermes_main, "_pause_windows_gateways_for_update", return_value=None), \
+         patch.object(hermes_main, "_resume_windows_gateways_after_update"), \
+         patch.object(hermes_main, "_cold_start_windows_gateway_after_update", side_effect=AssertionError("Git recovery tests must not launch gateways")), \
+         patch.object(update_cmd, "_post_update_sqlite_runtime_status", return_value=(True, None)), \
          patch("hermes_cli.update_receipt.collect_fleet_versions", return_value=[]):
         yield
 

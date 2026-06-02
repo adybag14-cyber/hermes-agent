@@ -1199,8 +1199,12 @@ DEFAULT_CONFIG = {
         # Periodic built-in memory review; 0 when an external provider auto-extracts.
         "nudge_interval": 10,
         # External memory provider plugin (empty = built-in only); only ONE at a time: "openviking",
-        # "mem0", "hindsight", "holographic", "retaindb", "byterover".
-        "provider": "",
+        # "mem0", "hy_memory", "hindsight", "holographic", "retaindb", "byterover".
+        "provider": "hy_memory",
+        "hy_memory": {
+            "mode": "lite",
+            "limit": 8,
+        },
     },
     # Subagent delegation — override the provider:model used by delegate_task so children run on a
     # cheaper/faster model. Uses the same runtime provider resolution as CLI/gateway startup, so

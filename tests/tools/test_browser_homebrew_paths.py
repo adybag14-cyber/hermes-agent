@@ -246,10 +246,7 @@ class TestAgentBrowserCandidatePresent:
         binary.chmod(0o755)
         assert _agent_browser_candidate_present(str(binary)) is True
 
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="exec-bit is not meaningful on Windows; os.name == 'nt' short-circuits",
-    )
+    @pytest.mark.linux_only
     def test_nonexecutable_file_is_false(self, tmp_path):
         binary = tmp_path / "agent-browser"
         binary.write_text("#!/bin/sh\n")
@@ -444,7 +441,11 @@ class TestRunBrowserCommandPathConstruction:
              patch("os.open", return_value=99), \
              patch("os.close"), \
              patch("tools.interrupt.is_interrupted", return_value=False), \
-             patch.dict(os.environ, {"PATH": "/usr/bin:/bin", "HOME": "/home/test"}, clear=True):
+             patch.dict(os.environ, {
+                 "PATH": os.pathsep.join(("/usr/bin", "/bin")),
+                 "HOME": str(tmp_path), "USERPROFILE": str(tmp_path),
+                 "HERMES_HOME": str(tmp_path / "hermes-home"),
+             }, clear=True):
             with patch("builtins.open", mock_open(read_data=fake_json)):
                 _run_browser_command("test-task", "navigate", ["https://example.com"])
 

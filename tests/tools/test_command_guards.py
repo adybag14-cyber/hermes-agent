@@ -14,6 +14,10 @@ from tools.approval_context import set_current_session_key, reset_current_sessio
 import tools.tirith_security
 
 
+def test_approval_module_imports_env_var_enabled_for_android_terminal_bridge():
+    assert approval_module.env_var_enabled("HERMES_TEST_ENV_VAR_THAT_SHOULD_NOT_EXIST") is False
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
