@@ -283,6 +283,8 @@ val prepareHermesAndroidLinuxAssets = tasks.register<Exec>("prepareHermesAndroid
     val outputDir = generatedHermesLinuxAssetsDir.get().asFile
     inputs.file(repoRoot.resolve("scripts/prepare_android_linux_assets.py"))
     inputs.file(hermesLinuxAssetLockFile)
+    inputs.file(repoRoot.resolve("scripts/prepare_android_linux_assets.py"))
+    inputs.file(repoRoot.resolve("hermes_android/linux_assets.py"))
     outputs.dir(outputDir)
     doFirst {
         outputDir.mkdirs()
