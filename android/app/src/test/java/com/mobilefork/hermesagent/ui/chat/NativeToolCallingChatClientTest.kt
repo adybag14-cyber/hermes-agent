@@ -45,6 +45,42 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun compactToolResultPreservesLinuxSandboxCatalogRows() {
+        val sandboxes = JSONArray()
+        repeat(12) { index ->
+            sandboxes.put(
+                JSONObject()
+                    .put("id", "sandbox_$index")
+                    .put("name", "Sandbox $index")
+                    .put("description", "proot-distro compatible sandbox ".repeat(8))
+                    .put("install_command", "proot-distro install sandbox_$index"),
+            )
+        }
+        val compacted = JSONObject(
+            NativeToolContextCompressor.compactToolResult(
+                JSONObject()
+                    .put("success", true)
+                    .put("output", "tool output ".repeat(600))
+                    .put("downloadable_linux_sandboxes", sandboxes)
+                    .put("recommended_linux_sandboxes", JSONArray().put("debian-bookworm").put("ubuntu-24-04"))
+                    .put(
+                        "desktop_environment_catalog",
+                        JSONArray().put(JSONObject().put("id", "xfce4").put("name", "Xfce4")),
+                    )
+                    .toString(),
+            ),
+        )
+
+        val compactedSandboxes = compacted.getJSONObject("downloadable_linux_sandboxes")
+        assertEquals("array", compactedSandboxes.getString("type"))
+        assertEquals(12, compactedSandboxes.getInt("original_count"))
+        assertTrue(compactedSandboxes.getJSONArray("items").length() > 0)
+        assertEquals("sandbox_0", compactedSandboxes.getJSONArray("items").getJSONObject(0).getString("id"))
+        assertTrue(compacted.has("recommended_linux_sandboxes"))
+        assertTrue(compacted.has("desktop_environment_catalog"))
+    }
+
+    @Test
     fun systemPromptIncludesBoundedCustomPersonaBeforePromotedMemory() {
         val content = NativeToolCallingChatClient.buildSystemPromptContent(
             toolsEnabled = true,
@@ -205,10 +241,42 @@ class NativeToolCallingChatClientTest {
                 IllegalStateException("context length exceeded after adding too many tokens"),
             ),
         )
+        assertTrue(
+            NativeToolCallingChatClient.isContextWindowError(
+                IllegalStateException(
+                    "INVALID_ARGUMENT: Input token ids are too long. Exceeding the maximum number of tokens allowed: 2129 >= 1024",
+                ),
+            ),
+        )
         assertFalse(
             NativeToolCallingChatClient.isContextWindowError(
                 IllegalStateException("HTTP 500 backend unavailable"),
             ),
+        )
+    }
+
+    @Test
+    fun directTerminalCommandAcceptsRunShorthandAfterToolName() {
+        assertEquals(
+            "echo sandbox_catalog_ok",
+            NativeToolCallingChatClient.extractDirectTerminalCommand(
+                "Use terminal_tool to run: echo sandbox_catalog_ok",
+            ),
+        )
+        assertEquals(
+            "printf model-tool-ok",
+            NativeToolCallingChatClient.extractDirectTerminalCommand(
+                "Use terminal_tool to run exactly this command: printf model-tool-ok",
+            ),
+        )
+        assertEquals(
+            "proot-distro list",
+            NativeToolCallingChatClient.extractDirectTerminalCommand(
+                "Use terminal_tool to run: proot-distro list",
+            ),
+        )
+        assertNull(
+            NativeToolCallingChatClient.extractDirectTerminalCommand("run: echo missing tool name"),
         )
     }
 

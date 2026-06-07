@@ -86,6 +86,15 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "FORK"
     }
 
+    fun openNavigationMenu(): String = when (language) {
+        AppLanguage.CHINESE -> "打开导航菜单"
+        AppLanguage.SPANISH -> "Abrir menú de navegación"
+        AppLanguage.GERMAN -> "Navigationsmenü öffnen"
+        AppLanguage.PORTUGUESE -> "Abrir menu de navegação"
+        AppLanguage.FRENCH -> "Ouvrir le menu de navigation"
+        AppLanguage.ENGLISH -> "Open navigation menu"
+    }
+
     fun forkDisclosure(): String = when (language) {
         AppLanguage.CHINESE -> "分支状态：Hermes Agent Fork 是独立社区分支，并非 Nous Research 或 Teknium 官方软件。"
         AppLanguage.SPANISH -> "Estado del fork: Hermes Agent Fork es un fork comunitario independiente. No es software oficial de Nous Research ni de Teknium."
@@ -1154,6 +1163,407 @@ data class HermesStrings(
         AppLanguage.PORTUGUESE -> "Inteligência de sinais"
         AppLanguage.FRENCH -> "Intelligence des signaux"
         AppLanguage.ENGLISH -> "Signal intelligence"
+    }
+
+    fun signalQuickActionLabel(id: String, fallback: String): String {
+        return SIGNAL_QUICK_ACTION_TRANSLATIONS[language]?.get(id) ?: fallback
+    }
+
+    fun mcpConfigurationTitle(): String = when (language) {
+        AppLanguage.CHINESE -> "MCP 配置"
+        AppLanguage.SPANISH -> "Configuración MCP"
+        AppLanguage.GERMAN -> "MCP-Konfiguration"
+        AppLanguage.PORTUGUESE -> "Configuração MCP"
+        AppLanguage.FRENCH -> "Configuration MCP"
+        AppLanguage.ENGLISH -> "MCP configuration"
+    }
+
+    fun mcpConfigurationDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "简单模式会检测并写入安全的原生工具配置。高级模式可编辑原始 MCP JSON 文件。"
+        AppLanguage.SPANISH -> "El modo simple detecta y escribe una configuración segura de herramientas nativas. El modo avanzado edita el JSON MCP sin procesar."
+        AppLanguage.GERMAN -> "Der einfache Modus erkennt und schreibt eine sichere Native-Tools-Konfiguration. Der erweiterte Modus bearbeitet die rohe MCP-JSON-Datei."
+        AppLanguage.PORTUGUESE -> "O modo simples detecta e grava uma configuração segura de ferramentas nativas. O modo avançado edita o JSON MCP bruto."
+        AppLanguage.FRENCH -> "Le mode simple détecte et écrit une configuration sûre d’outils natifs. Le mode avancé modifie le JSON MCP brut."
+        AppLanguage.ENGLISH -> "Simple mode auto-detects and writes a safe native-tools config. Advanced mode edits the raw MCP JSON file."
+    }
+
+    fun mcpSimpleMode(): String = when (language) {
+        AppLanguage.CHINESE -> "简单"
+        AppLanguage.SPANISH -> "Simple"
+        AppLanguage.GERMAN -> "Einfach"
+        AppLanguage.PORTUGUESE -> "Simples"
+        AppLanguage.FRENCH -> "Simple"
+        AppLanguage.ENGLISH -> "Simple"
+    }
+
+    fun mcpAdvancedMode(): String = when (language) {
+        AppLanguage.CHINESE -> "高级"
+        AppLanguage.SPANISH -> "Avanzado"
+        AppLanguage.GERMAN -> "Erweitert"
+        AppLanguage.PORTUGUESE -> "Avançado"
+        AppLanguage.FRENCH -> "Avancé"
+        AppLanguage.ENGLISH -> "Advanced"
+    }
+
+    fun mcpConfigFile(path: String): String = when (language) {
+        AppLanguage.CHINESE -> "配置文件：$path"
+        AppLanguage.SPANISH -> "Archivo de configuración: $path"
+        AppLanguage.GERMAN -> "Konfigurationsdatei: $path"
+        AppLanguage.PORTUGUESE -> "Arquivo de configuração: $path"
+        AppLanguage.FRENCH -> "Fichier de configuration : $path"
+        AppLanguage.ENGLISH -> "Config file: $path"
+    }
+
+    fun mcpAutoDetect(): String = when (language) {
+        AppLanguage.CHINESE -> "检测"
+        AppLanguage.SPANISH -> "Detectar"
+        AppLanguage.GERMAN -> "Erkennen"
+        AppLanguage.PORTUGUESE -> "Detectar"
+        AppLanguage.FRENCH -> "Détecter"
+        AppLanguage.ENGLISH -> "Detect"
+    }
+
+    fun mcpAutoFill(): String = when (language) {
+        AppLanguage.CHINESE -> "自动填写"
+        AppLanguage.SPANISH -> "Autorrellenar"
+        AppLanguage.GERMAN -> "Automatisch füllen"
+        AppLanguage.PORTUGUESE -> "Preencher"
+        AppLanguage.FRENCH -> "Préremplir"
+        AppLanguage.ENGLISH -> "Auto fill"
+    }
+
+    fun mcpAutoSetup(): String = when (language) {
+        AppLanguage.CHINESE -> "自动设置"
+        AppLanguage.SPANISH -> "Configurar"
+        AppLanguage.GERMAN -> "Einrichten"
+        AppLanguage.PORTUGUESE -> "Configurar"
+        AppLanguage.FRENCH -> "Configurer"
+        AppLanguage.ENGLISH -> "Auto setup"
+    }
+
+    fun mcpAddServer(): String = when (language) {
+        AppLanguage.CHINESE -> "添加 MCP"
+        AppLanguage.SPANISH -> "Añadir MCP"
+        AppLanguage.GERMAN -> "MCP hinzufügen"
+        AppLanguage.PORTUGUESE -> "Adicionar MCP"
+        AppLanguage.FRENCH -> "Ajouter MCP"
+        AppLanguage.ENGLISH -> "Add MCP"
+    }
+
+    fun mcpTestRefresh(): String = when (language) {
+        AppLanguage.CHINESE -> "测试/刷新"
+        AppLanguage.SPANISH -> "Probar/actualizar"
+        AppLanguage.GERMAN -> "Testen/aktualisieren"
+        AppLanguage.PORTUGUESE -> "Testar/atualizar"
+        AppLanguage.FRENCH -> "Tester/actualiser"
+        AppLanguage.ENGLISH -> "Test / refresh"
+    }
+
+    fun mcpPreview(): String = when (language) {
+        AppLanguage.CHINESE -> "预览"
+        AppLanguage.SPANISH -> "Vista previa"
+        AppLanguage.GERMAN -> "Vorschau"
+        AppLanguage.PORTUGUESE -> "Prévia"
+        AppLanguage.FRENCH -> "Aperçu"
+        AppLanguage.ENGLISH -> "Preview"
+    }
+
+    fun mcpSaveAndReload(): String = when (language) {
+        AppLanguage.CHINESE -> "保存并重载"
+        AppLanguage.SPANISH -> "Guardar y recargar"
+        AppLanguage.GERMAN -> "Speichern und neu laden"
+        AppLanguage.PORTUGUESE -> "Salvar e recarregar"
+        AppLanguage.FRENCH -> "Enregistrer et recharger"
+        AppLanguage.ENGLISH -> "Save and reload"
+    }
+
+    fun mcpReloadServers(): String = when (language) {
+        AppLanguage.CHINESE -> "重载服务器"
+        AppLanguage.SPANISH -> "Recargar servidores"
+        AppLanguage.GERMAN -> "Server neu laden"
+        AppLanguage.PORTUGUESE -> "Recarregar servidores"
+        AppLanguage.FRENCH -> "Recharger les serveurs"
+        AppLanguage.ENGLISH -> "Reload servers"
+    }
+
+    fun mcpConfigJsonLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "MCP 配置 JSON"
+        AppLanguage.SPANISH -> "JSON de configuración MCP"
+        AppLanguage.GERMAN -> "MCP-Konfigurations-JSON"
+        AppLanguage.PORTUGUESE -> "JSON de configuração MCP"
+        AppLanguage.FRENCH -> "JSON de configuration MCP"
+        AppLanguage.ENGLISH -> "MCP config JSON"
+    }
+
+    fun mcpProviderCacheResendTitle(): String = when (language) {
+        AppLanguage.CHINESE -> "提供商缓存重发"
+        AppLanguage.SPANISH -> "Reenvío de caché del proveedor"
+        AppLanguage.GERMAN -> "Anbieter-Cache erneut senden"
+        AppLanguage.PORTUGUESE -> "Reenvio de cache do provedor"
+        AppLanguage.FRENCH -> "Renvoi du cache fournisseur"
+        AppLanguage.ENGLISH -> "Provider cache resend"
+    }
+
+    fun mcpProviderCacheResendDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "开启后，Hermes 可为支持输入令牌缓存的提供商重发稳定的历史/工具输出上下文。关闭后会阻止缓存上下文重发。"
+        AppLanguage.SPANISH -> "Al activarlo, Hermes puede reenviar contexto estable previo o de herramientas para caché de tokens de entrada. Desactivado bloquea ese reenvío."
+        AppLanguage.GERMAN -> "Aktiviert kann Hermes stabilen früheren oder Tool-Ausgabe-Kontext für Anbieter mit Eingabetoken-Cache erneut senden. Deaktiviert blockiert dieses erneute Senden."
+        AppLanguage.PORTUGUESE -> "Quando ativado, o Hermes pode reenviar contexto estável anterior ou de ferramentas para cache de tokens de entrada. Desativado bloqueia esse reenvio."
+        AppLanguage.FRENCH -> "Activé, Hermes peut renvoyer un contexte stable précédent ou d’outils pour le cache de jetons d’entrée. Désactivé, ce renvoi est bloqué."
+        AppLanguage.ENGLISH -> "When enabled, Hermes may resend stable prior/tool-output context for provider input-token caching. When disabled, cached context resend is blocked."
+    }
+
+    fun mcpAddDialogTitle(): String = when (language) {
+        AppLanguage.CHINESE -> "添加 MCP 服务器"
+        AppLanguage.SPANISH -> "Añadir servidor MCP"
+        AppLanguage.GERMAN -> "MCP-Server hinzufügen"
+        AppLanguage.PORTUGUESE -> "Adicionar servidor MCP"
+        AppLanguage.FRENCH -> "Ajouter un serveur MCP"
+        AppLanguage.ENGLISH -> "Add MCP server"
+    }
+
+    fun mcpAddDialogDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "输入 MCP 命令或服务器名称，并添加备注。Hermes 会写入草稿配置；安装命令后再测试/刷新。"
+        AppLanguage.SPANISH -> "Introduce el comando o nombre del servidor MCP y una nota. Hermes escribirá un borrador; pruébalo/actualízalo cuando el comando esté instalado."
+        AppLanguage.GERMAN -> "Gib den MCP-Befehl oder Servernamen und eine Notiz ein. Hermes schreibt einen Entwurf; teste/aktualisiere ihn, sobald der Befehl installiert ist."
+        AppLanguage.PORTUGUESE -> "Insira o comando ou nome do servidor MCP e uma nota. O Hermes grava um rascunho; teste/atualize quando o comando estiver instalado."
+        AppLanguage.FRENCH -> "Saisissez la commande ou le nom du serveur MCP et une note. Hermes écrit un brouillon ; testez/actualisez quand la commande est installée."
+        AppLanguage.ENGLISH -> "Enter an MCP command or server name and a note. Hermes writes a draft config; test / refresh once the command is installed."
+    }
+
+    fun mcpServerNameLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "MCP 名称或命令"
+        AppLanguage.SPANISH -> "Nombre o comando MCP"
+        AppLanguage.GERMAN -> "MCP-Name oder Befehl"
+        AppLanguage.PORTUGUESE -> "Nome ou comando MCP"
+        AppLanguage.FRENCH -> "Nom ou commande MCP"
+        AppLanguage.ENGLISH -> "MCP name or command"
+    }
+
+    fun mcpServerNoteLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "备注"
+        AppLanguage.SPANISH -> "Nota"
+        AppLanguage.GERMAN -> "Notiz"
+        AppLanguage.PORTUGUESE -> "Nota"
+        AppLanguage.FRENCH -> "Note"
+        AppLanguage.ENGLISH -> "Note"
+    }
+
+    fun mcpAddAndTest(): String = when (language) {
+        AppLanguage.CHINESE -> "添加"
+        AppLanguage.SPANISH -> "Añadir"
+        AppLanguage.GERMAN -> "Hinzufügen"
+        AppLanguage.PORTUGUESE -> "Adicionar"
+        AppLanguage.FRENCH -> "Ajouter"
+        AppLanguage.ENGLISH -> "Add"
+    }
+
+    fun mcpCancel(): String = when (language) {
+        AppLanguage.CHINESE -> "取消"
+        AppLanguage.SPANISH -> "Cancelar"
+        AppLanguage.GERMAN -> "Abbrechen"
+        AppLanguage.PORTUGUESE -> "Cancelar"
+        AppLanguage.FRENCH -> "Annuler"
+        AppLanguage.ENGLISH -> "Cancel"
+    }
+
+    fun mcpStatusText(text: String): String {
+        if (language == AppLanguage.ENGLISH || text.isBlank()) {
+            return text
+        }
+        val enabledServerCount = Regex("""with (\d+) enabled server""").find(text)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+        val reloadedServerCount = Regex("""Reloaded (\d+) MCP server""").find(text)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toIntOrNull()
+        return when {
+            text == "MCP simple onboarding is ready. Auto setup writes a local native-tools config." -> when (language) {
+                AppLanguage.CHINESE -> "MCP 简单引导已就绪。自动设置会写入本地原生工具配置。"
+                AppLanguage.SPANISH -> "La guía simple de MCP está lista. La configuración automática escribe herramientas nativas locales."
+                AppLanguage.GERMAN -> "Die einfache MCP-Einrichtung ist bereit. Auto-Setup schreibt lokale Native-Tools."
+                AppLanguage.PORTUGUESE -> "A integração simples de MCP está pronta. A configuração automática grava ferramentas nativas locais."
+                AppLanguage.FRENCH -> "L’intégration simple MCP est prête. La configuration automatique écrit les outils natifs locaux."
+                AppLanguage.ENGLISH -> text
+            }
+            text == "Advanced MCP config editing is ready. Save validates JSON before reload." -> when (language) {
+                AppLanguage.CHINESE -> "高级 MCP 配置编辑已就绪。保存会先验证 JSON 再重载。"
+                AppLanguage.SPANISH -> "La edición avanzada de MCP está lista. Guardar valida el JSON antes de recargar."
+                AppLanguage.GERMAN -> "Die erweiterte MCP-Bearbeitung ist bereit. Speichern validiert JSON vor dem Neuladen."
+                AppLanguage.PORTUGUESE -> "A edição avançada de MCP está pronta. Salvar valida o JSON antes de recarregar."
+                AppLanguage.FRENCH -> "L’édition avancée MCP est prête. L’enregistrement valide le JSON avant rechargement."
+                AppLanguage.ENGLISH -> text
+            }
+            text.startsWith("No MCP config file found.") -> when (language) {
+                AppLanguage.CHINESE -> "未找到 MCP 配置文件。自动填写可创建 hermes-home/mcp/mcp_config.json。"
+                AppLanguage.SPANISH -> "No se encontró archivo MCP. Autorrellenar puede crear hermes-home/mcp/mcp_config.json."
+                AppLanguage.GERMAN -> "Keine MCP-Konfigurationsdatei gefunden. Automatisch füllen kann hermes-home/mcp/mcp_config.json erstellen."
+                AppLanguage.PORTUGUESE -> "Nenhum arquivo MCP encontrado. Preencher pode criar hermes-home/mcp/mcp_config.json."
+                AppLanguage.FRENCH -> "Aucun fichier MCP trouvé. Préremplir peut créer hermes-home/mcp/mcp_config.json."
+                AppLanguage.ENGLISH -> text
+            }
+            text.startsWith("Added MCP server draft") -> when (language) {
+                AppLanguage.CHINESE -> "已添加 MCP 服务器草稿。命令安装到设备后，请使用测试/刷新。"
+                AppLanguage.SPANISH -> "Borrador de servidor MCP añadido. Usa Probar/actualizar cuando el comando esté instalado."
+                AppLanguage.GERMAN -> "MCP-Serverentwurf hinzugefügt. Nutze Testen/aktualisieren, sobald der Befehl installiert ist."
+                AppLanguage.PORTUGUESE -> "Rascunho de servidor MCP adicionado. Use Testar/atualizar quando o comando estiver instalado."
+                AppLanguage.FRENCH -> "Brouillon de serveur MCP ajouté. Utilisez Tester/actualiser quand la commande est installée."
+                AppLanguage.ENGLISH -> text
+            }
+            text == "MCP server name is empty. Enter a command or server name before adding." -> when (language) {
+                AppLanguage.CHINESE -> "MCP 服务器名称为空。请先输入命令或服务器名称再添加。"
+                AppLanguage.SPANISH -> "El nombre del servidor MCP está vacío. Escribe un comando o nombre antes de añadirlo."
+                AppLanguage.GERMAN -> "Der MCP-Servername ist leer. Gib vor dem Hinzufügen einen Befehl oder Servernamen ein."
+                AppLanguage.PORTUGUESE -> "O nome do servidor MCP está vazio. Informe um comando ou nome antes de adicionar."
+                AppLanguage.FRENCH -> "Le nom du serveur MCP est vide. Saisissez une commande ou un nom avant l’ajout."
+                AppLanguage.ENGLISH -> text
+            }
+            text == "MCP config is empty. Add a JSON object before reloading." -> when (language) {
+                AppLanguage.CHINESE -> "MCP 配置为空。请先添加 JSON 对象再重载。"
+                AppLanguage.SPANISH -> "La configuración MCP está vacía. Añade un objeto JSON antes de recargar."
+                AppLanguage.GERMAN -> "Die MCP-Konfiguration ist leer. Füge vor dem Neuladen ein JSON-Objekt hinzu."
+                AppLanguage.PORTUGUESE -> "A configuração MCP está vazia. Adicione um objeto JSON antes de recarregar."
+                AppLanguage.FRENCH -> "La configuration MCP est vide. Ajoutez un objet JSON avant de recharger."
+                AppLanguage.ENGLISH -> text
+            }
+            text.startsWith("Provider cache resend is enabled globally") -> when (language) {
+                AppLanguage.CHINESE -> "已全局启用提供商缓存重发，但当前提供商不允许重发缓存上下文。"
+                AppLanguage.SPANISH -> "El reenvío de caché está activado globalmente, pero este proveedor no permite reenviar contexto en caché."
+                AppLanguage.GERMAN -> "Das erneute Senden des Anbieter-Cache ist global aktiv, aber dieser Anbieter erlaubt keinen gecachten Kontext."
+                AppLanguage.PORTUGUESE -> "O reenvio de cache está ativado globalmente, mas este provedor não permite reenviar contexto em cache."
+                AppLanguage.FRENCH -> "Le renvoi du cache est activé globalement, mais ce fournisseur n’autorise pas le contexte en cache."
+                AppLanguage.ENGLISH -> text
+            }
+            text.contains("Review it, then use Auto setup") -> localizedMcpServerCount(
+                "review",
+                enabledServerCount ?: 0,
+                text,
+            )
+            text.startsWith("Auto setup prepared MCP config") && enabledServerCount != null -> localizedMcpServerCount(
+                "prepared",
+                enabledServerCount,
+                text,
+            )
+            reloadedServerCount != null -> localizedMcpServerCount("reloaded", reloadedServerCount, text)
+            enabledServerCount != null -> localizedMcpServerCount("validated", enabledServerCount, text)
+            text.contains("No enabled server definitions") -> localizedMcpServerCount("none", 0, text)
+            text.contains("invalid", ignoreCase = true) -> when (language) {
+                AppLanguage.CHINESE -> "MCP 配置 JSON 无效。请检查语法后重试。"
+                AppLanguage.SPANISH -> "El JSON MCP no es válido. Revisa la sintaxis e inténtalo de nuevo."
+                AppLanguage.GERMAN -> "Das MCP-JSON ist ungültig. Prüfe die Syntax und versuche es erneut."
+                AppLanguage.PORTUGUESE -> "O JSON MCP é inválido. Verifique a sintaxe e tente novamente."
+                AppLanguage.FRENCH -> "Le JSON MCP est invalide. Vérifiez la syntaxe puis réessayez."
+                AppLanguage.ENGLISH -> text
+            }
+            text.startsWith("Provider cache resend enabled") -> when (language) {
+                AppLanguage.CHINESE -> "已启用提供商缓存重发。Hermes 仅会对允许的提供商重发稳定上下文。"
+                AppLanguage.SPANISH -> "Reenvío de caché activado. Hermes solo reenvía contexto estable a proveedores que lo permitan."
+                AppLanguage.GERMAN -> "Anbieter-Cache erneut senden ist aktiv. Hermes sendet stabilen Kontext nur an erlaubende Anbieter."
+                AppLanguage.PORTUGUESE -> "Reenvio de cache ativado. O Hermes só reenvia contexto estável a provedores que permitem."
+                AppLanguage.FRENCH -> "Renvoi du cache activé. Hermes ne renvoie le contexte stable qu’aux fournisseurs qui l’autorisent."
+                AppLanguage.ENGLISH -> text
+            }
+            text.startsWith("Provider cache resend disabled") -> when (language) {
+                AppLanguage.CHINESE -> "已关闭提供商缓存重发。Hermes 不会重发缓存的历史/工具输出上下文。"
+                AppLanguage.SPANISH -> "Reenvío de caché desactivado. Hermes no reenviará contexto previo o de herramientas."
+                AppLanguage.GERMAN -> "Anbieter-Cache erneut senden ist deaktiviert. Hermes sendet keinen gecachten Verlauf oder Tool-Kontext erneut."
+                AppLanguage.PORTUGUESE -> "Reenvio de cache desativado. O Hermes não reenviará histórico ou contexto de ferramentas."
+                AppLanguage.FRENCH -> "Renvoi du cache désactivé. Hermes ne renverra pas l’historique ou le contexte d’outils."
+                AppLanguage.ENGLISH -> text
+            }
+            else -> text
+        }
+    }
+
+    fun mcpConfigPreviewText(text: String): String {
+        if (language == AppLanguage.ENGLISH || text.isBlank()) {
+            return text
+        }
+        val replacements = when (language) {
+            AppLanguage.CHINESE -> listOf(
+                "Hermes Android local tools exposed to the agent runtime" to "Hermes Android 本地工具已暴露给代理运行时",
+                "User-added MCP server draft" to "用户添加的 MCP 服务器草稿",
+                "Use Test / refresh after the command is installed on this device." to "命令安装到此设备后，请使用测试/刷新。",
+                "Use Test \\/ refresh after the command is installed on this device." to "命令安装到此设备后，请使用测试/刷新。",
+            )
+            AppLanguage.SPANISH -> listOf(
+                "Hermes Android local tools exposed to the agent runtime" to "Herramientas locales de Hermes Android expuestas al runtime del agente",
+                "User-added MCP server draft" to "Borrador de servidor MCP añadido por el usuario",
+                "Use Test / refresh after the command is installed on this device." to "Usa Probar/actualizar cuando el comando esté instalado en este dispositivo.",
+                "Use Test \\/ refresh after the command is installed on this device." to "Usa Probar/actualizar cuando el comando esté instalado en este dispositivo.",
+            )
+            AppLanguage.GERMAN -> listOf(
+                "Hermes Android local tools exposed to the agent runtime" to "Lokale Hermes-Android-Tools für die Agentenlaufzeit",
+                "User-added MCP server draft" to "Vom Nutzer hinzugefügter MCP-Serverentwurf",
+                "Use Test / refresh after the command is installed on this device." to "Nach Installation des Befehls auf diesem Gerät Testen/aktualisieren verwenden.",
+                "Use Test \\/ refresh after the command is installed on this device." to "Nach Installation des Befehls auf diesem Gerät Testen/aktualisieren verwenden.",
+            )
+            AppLanguage.PORTUGUESE -> listOf(
+                "Hermes Android local tools exposed to the agent runtime" to "Ferramentas locais do Hermes Android expostas ao runtime do agente",
+                "User-added MCP server draft" to "Rascunho de servidor MCP adicionado pelo usuário",
+                "Use Test / refresh after the command is installed on this device." to "Use Testar/atualizar depois que o comando estiver instalado neste dispositivo.",
+                "Use Test \\/ refresh after the command is installed on this device." to "Use Testar/atualizar depois que o comando estiver instalado neste dispositivo.",
+            )
+            AppLanguage.FRENCH -> listOf(
+                "Hermes Android local tools exposed to the agent runtime" to "Outils locaux Hermes Android exposés au runtime de l’agent",
+                "User-added MCP server draft" to "Brouillon de serveur MCP ajouté par l’utilisateur",
+                "Use Test / refresh after the command is installed on this device." to "Utilisez Tester/actualiser une fois la commande installée sur cet appareil.",
+                "Use Test \\/ refresh after the command is installed on this device." to "Utilisez Tester/actualiser une fois la commande installée sur cet appareil.",
+            )
+            AppLanguage.ENGLISH -> emptyList()
+        }
+        var translated = text
+        replacements.forEach { (source, target) ->
+            translated = translated.replace(source, target)
+        }
+        return translated
+    }
+
+    private fun localizedMcpServerCount(kind: String, count: Int, fallback: String): String {
+        return when (kind) {
+            "reloaded" -> when (language) {
+                AppLanguage.CHINESE -> if (count == 0) "已重载 MCP 配置。未找到已启用的服务器定义。" else "已从本地配置重载 $count 个 MCP 服务器定义。"
+                AppLanguage.SPANISH -> if (count == 0) "Configuración MCP recargada. No hay servidores habilitados." else "Recargadas $count definiciones de servidor MCP desde la configuración local."
+                AppLanguage.GERMAN -> if (count == 0) "MCP-Konfiguration neu geladen. Keine aktivierten Serverdefinitionen gefunden." else "$count MCP-Serverdefinitionen aus lokaler Konfiguration neu geladen."
+                AppLanguage.PORTUGUESE -> if (count == 0) "Configuração MCP recarregada. Nenhum servidor habilitado encontrado." else "$count definições de servidor MCP recarregadas da configuração local."
+                AppLanguage.FRENCH -> if (count == 0) "Configuration MCP rechargée. Aucun serveur activé trouvé." else "$count définitions de serveur MCP rechargées depuis la configuration locale."
+                AppLanguage.ENGLISH -> fallback
+            }
+            "validated" -> when (language) {
+                AppLanguage.CHINESE -> "MCP 配置已验证，包含 $count 个已启用的服务器定义。"
+                AppLanguage.SPANISH -> "Configuración MCP validada con $count servidores habilitados."
+                AppLanguage.GERMAN -> "MCP-Konfiguration mit $count aktivierten Serverdefinitionen validiert."
+                AppLanguage.PORTUGUESE -> "Configuração MCP validada com $count servidores habilitados."
+                AppLanguage.FRENCH -> "Configuration MCP validée avec $count serveurs activés."
+                AppLanguage.ENGLISH -> fallback
+            }
+            "review" -> when (language) {
+                AppLanguage.CHINESE -> if (count == 0) "已自动填充 MCP 配置。未找到已启用的服务器定义。请检查后使用自动设置保存并重载。" else "已自动填充 MCP 配置，包含 $count 个已启用的服务器定义。请检查后使用自动设置保存并重载。"
+                AppLanguage.SPANISH -> if (count == 0) "Configuración MCP autorrellenada. No hay servidores habilitados. Revísala y usa Configuración automática para guardar y recargar." else "Configuración MCP autorrellenada con $count servidores habilitados. Revísala y usa Configuración automática para guardar y recargar."
+                AppLanguage.GERMAN -> if (count == 0) "MCP-Konfiguration automatisch ausgefüllt. Keine aktivierten Serverdefinitionen gefunden. Prüfe sie und nutze Auto-Setup zum Speichern und Neuladen." else "MCP-Konfiguration mit $count aktivierten Serverdefinitionen automatisch ausgefüllt. Prüfe sie und nutze Auto-Setup zum Speichern und Neuladen."
+                AppLanguage.PORTUGUESE -> if (count == 0) "Configuração MCP preenchida automaticamente. Nenhum servidor habilitado encontrado. Revise e use Configuração automática para salvar e recarregar." else "Configuração MCP preenchida automaticamente com $count servidores habilitados. Revise e use Configuração automática para salvar e recarregar."
+                AppLanguage.FRENCH -> if (count == 0) "Configuration MCP préremplie. Aucun serveur activé trouvé. Vérifiez-la puis utilisez la configuration automatique pour enregistrer et recharger." else "Configuration MCP préremplie avec $count serveurs activés. Vérifiez-la puis utilisez la configuration automatique pour enregistrer et recharger."
+                AppLanguage.ENGLISH -> fallback
+            }
+            "prepared" -> when (language) {
+                AppLanguage.CHINESE -> "自动设置已准备 MCP 配置，包含 $count 个已启用的服务器定义。"
+                AppLanguage.SPANISH -> "La configuración automática preparó MCP con $count servidores habilitados."
+                AppLanguage.GERMAN -> "Auto-Setup hat die MCP-Konfiguration mit $count aktivierten Serverdefinitionen vorbereitet."
+                AppLanguage.PORTUGUESE -> "A configuração automática preparou o MCP com $count servidores habilitados."
+                AppLanguage.FRENCH -> "La configuration automatique a préparé MCP avec $count serveurs activés."
+                AppLanguage.ENGLISH -> fallback
+            }
+            else -> when (language) {
+                AppLanguage.CHINESE -> "MCP 配置已验证。未找到已启用的服务器定义。"
+                AppLanguage.SPANISH -> "Configuración MCP validada. No hay servidores habilitados."
+                AppLanguage.GERMAN -> "MCP-Konfiguration validiert. Keine aktivierten Serverdefinitionen gefunden."
+                AppLanguage.PORTUGUESE -> "Configuração MCP validada. Nenhum servidor habilitado encontrado."
+                AppLanguage.FRENCH -> "Configuration MCP validée. Aucun serveur activé trouvé."
+                AppLanguage.ENGLISH -> fallback
+            }
+        }
     }
 
     fun chatCommandHelp(): String = when (language) {
@@ -2300,6 +2710,7 @@ data class HermesStrings(
             AppLanguage.CHINESE -> listOf(
                 "Cleared Hugging Face token" to "已清除 Hugging Face 令牌",
                 "Saved Hugging Face token for private or gated model downloads" to "已保存用于私有或受限模型下载的 Hugging Face 令牌",
+                "Tap Refresh catalog to load signed model choices when needed." to "需要时点按刷新目录以加载已签名的模型选项。",
                 "Refreshing signed Hugging Face model catalog…" to "正在刷新已签名的 Hugging Face 模型目录…",
                 "Signed catalog loaded, but no downloadable model files were detected yet" to "已加载签名目录，但还没有检测到可下载的模型文件",
                 "Signed catalog loaded with " to "已加载签名目录，包含 ",
@@ -2324,6 +2735,11 @@ data class HermesStrings(
                 "Android Downloads is not available on this device" to "此设备没有 Android 下载界面",
                 "Marked this model as the preferred local runtime candidate" to "已将此模型标记为首选本地运行时候选项",
                 "Preferred model is ready. Starting Hermes runtime…" to "首选模型已准备好。正在启动 Hermes 运行时…",
+                "Existing model file is present on disk" to "现有模型文件已存在于磁盘上",
+                "Download file is present on disk" to "下载文件已存在于磁盘上",
+                "Imported model file is missing on disk" to "导入的模型文件在磁盘上缺失",
+                "Android no longer reports this download" to "Android 不再报告此下载",
+                "Imported existing model file from disk" to "已从磁盘导入现有模型文件",
                 "File: " to "文件：",
                 "Size: " to "大小：",
                 "Phone RAM: " to "手机内存：",
@@ -2334,6 +2750,7 @@ data class HermesStrings(
             AppLanguage.SPANISH -> listOf(
                 "Cleared Hugging Face token" to "Token de Hugging Face borrado",
                 "Saved Hugging Face token for private or gated model downloads" to "Token de Hugging Face guardado para descargas privadas o restringidas",
+                "Tap Refresh catalog to load signed model choices when needed." to "Toca Actualizar catálogo para cargar modelos firmados cuando sea necesario.",
                 "Refreshing signed Hugging Face model catalog…" to "Actualizando el catálogo firmado de modelos de Hugging Face…",
                 "Signed catalog loaded, but no downloadable model files were detected yet" to "Catálogo firmado cargado, pero aún no se detectaron archivos de modelo descargables",
                 "Signed catalog loaded with " to "Catálogo firmado cargado con ",
@@ -2358,6 +2775,11 @@ data class HermesStrings(
                 "Android Downloads is not available on this device" to "Descargas de Android no está disponible en este dispositivo",
                 "Marked this model as the preferred local runtime candidate" to "Este modelo se marcó como candidato local preferido del runtime",
                 "Preferred model is ready. Starting Hermes runtime…" to "El modelo preferido está listo. Iniciando el runtime de Hermes…",
+                "Existing model file is present on disk" to "El archivo de modelo existente está en el disco",
+                "Download file is present on disk" to "El archivo descargado está en el disco",
+                "Imported model file is missing on disk" to "Falta el archivo de modelo importado en el disco",
+                "Android no longer reports this download" to "Android ya no informa de esta descarga",
+                "Imported existing model file from disk" to "Archivo de modelo existente importado desde el disco",
                 "File: " to "Archivo: ",
                 "Size: " to "Tamaño: ",
                 "Phone RAM: " to "RAM del teléfono: ",
@@ -2368,6 +2790,7 @@ data class HermesStrings(
             AppLanguage.GERMAN -> listOf(
                 "Cleared Hugging Face token" to "Hugging-Face-Token gelöscht",
                 "Saved Hugging Face token for private or gated model downloads" to "Hugging-Face-Token für private oder beschränkte Modell-Downloads gespeichert",
+                "Tap Refresh catalog to load signed model choices when needed." to "Tippe bei Bedarf auf Katalog aktualisieren, um signierte Modelloptionen zu laden.",
                 "Refreshing signed Hugging Face model catalog…" to "Signierten Hugging-Face-Modellkatalog aktualisieren…",
                 "Signed catalog loaded, but no downloadable model files were detected yet" to "Signierter Katalog geladen, aber noch keine herunterladbaren Modelldateien erkannt",
                 "Signed catalog loaded with " to "Signierter Katalog geladen mit ",
@@ -2392,6 +2815,11 @@ data class HermesStrings(
                 "Android Downloads is not available on this device" to "Android-Downloads ist auf diesem Gerät nicht verfügbar",
                 "Marked this model as the preferred local runtime candidate" to "Dieses Modell wurde als bevorzugter lokaler Laufzeitkandidat markiert",
                 "Preferred model is ready. Starting Hermes runtime…" to "Bevorzugtes Modell ist bereit. Hermes-Laufzeit wird gestartet…",
+                "Existing model file is present on disk" to "Vorhandene Modelldatei ist auf dem Datenträger",
+                "Download file is present on disk" to "Download-Datei ist auf dem Datenträger",
+                "Imported model file is missing on disk" to "Importierte Modelldatei fehlt auf dem Datenträger",
+                "Android no longer reports this download" to "Android meldet diesen Download nicht mehr",
+                "Imported existing model file from disk" to "Vorhandene Modelldatei vom Datenträger importiert",
                 "File: " to "Datei: ",
                 "Size: " to "Größe: ",
                 "Phone RAM: " to "Telefon-RAM: ",
@@ -2402,6 +2830,7 @@ data class HermesStrings(
             AppLanguage.PORTUGUESE -> listOf(
                 "Cleared Hugging Face token" to "Token do Hugging Face apagado",
                 "Saved Hugging Face token for private or gated model downloads" to "Token do Hugging Face salvo para downloads privados ou restritos",
+                "Tap Refresh catalog to load signed model choices when needed." to "Toque em Atualizar catálogo para carregar modelos assinados quando necessário.",
                 "Refreshing signed Hugging Face model catalog…" to "Atualizando catálogo assinado de modelos do Hugging Face…",
                 "Signed catalog loaded, but no downloadable model files were detected yet" to "Catálogo assinado carregado, mas nenhum arquivo de modelo baixável foi detectado ainda",
                 "Signed catalog loaded with " to "Catálogo assinado carregado com ",
@@ -2426,6 +2855,11 @@ data class HermesStrings(
                 "Android Downloads is not available on this device" to "Downloads do Android não está disponível neste dispositivo",
                 "Marked this model as the preferred local runtime candidate" to "Este modelo foi marcado como candidato local preferido do runtime",
                 "Preferred model is ready. Starting Hermes runtime…" to "O modelo preferido está pronto. Iniciando o runtime do Hermes…",
+                "Existing model file is present on disk" to "O arquivo de modelo existente está no disco",
+                "Download file is present on disk" to "O arquivo baixado está no disco",
+                "Imported model file is missing on disk" to "O arquivo de modelo importado está ausente no disco",
+                "Android no longer reports this download" to "O Android não informa mais este download",
+                "Imported existing model file from disk" to "Arquivo de modelo existente importado do disco",
                 "File: " to "Arquivo: ",
                 "Size: " to "Tamanho: ",
                 "Phone RAM: " to "RAM do telefone: ",
@@ -2436,6 +2870,7 @@ data class HermesStrings(
             AppLanguage.FRENCH -> listOf(
                 "Cleared Hugging Face token" to "Jeton Hugging Face effacé",
                 "Saved Hugging Face token for private or gated model downloads" to "Jeton Hugging Face enregistré pour les téléchargements privés ou restreints",
+                "Tap Refresh catalog to load signed model choices when needed." to "Touchez Actualiser le catalogue pour charger les modèles signés au besoin.",
                 "Refreshing signed Hugging Face model catalog…" to "Actualisation du catalogue signé de modèles Hugging Face…",
                 "Signed catalog loaded, but no downloadable model files were detected yet" to "Catalogue signé chargé, mais aucun fichier de modèle téléchargeable n’a encore été détecté",
                 "Signed catalog loaded with " to "Catalogue signé chargé avec ",
@@ -2460,6 +2895,11 @@ data class HermesStrings(
                 "Android Downloads is not available on this device" to "Téléchargements Android n’est pas disponible sur cet appareil",
                 "Marked this model as the preferred local runtime candidate" to "Ce modèle a été marqué comme candidat local préféré du runtime",
                 "Preferred model is ready. Starting Hermes runtime…" to "Le modèle préféré est prêt. Démarrage du runtime Hermes…",
+                "Existing model file is present on disk" to "Le fichier modèle existant est présent sur le disque",
+                "Download file is present on disk" to "Le fichier téléchargé est présent sur le disque",
+                "Imported model file is missing on disk" to "Le fichier modèle importé est absent du disque",
+                "Android no longer reports this download" to "Android ne signale plus ce téléchargement",
+                "Imported existing model file from disk" to "Fichier modèle existant importé depuis le disque",
                 "File: " to "Fichier : ",
                 "Size: " to "Taille : ",
                 "Phone RAM: " to "RAM du téléphone : ",
@@ -2777,6 +3217,294 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "To keep the floating Hermes button available over other apps, allow Hermes to draw over other apps in Android settings."
     }
 }
+
+private val SIGNAL_QUICK_ACTION_TRANSLATIONS: Map<AppLanguage, Map<String, String>> = mapOf(
+    AppLanguage.CHINESE to mapOf(
+        "signal_overview" to "信号概览",
+        "signal_briefing" to "信号简报",
+        "signal_session_snapshot" to "会话快照",
+        "signal_proof_audit" to "证据审计",
+        "signal_replay_export" to "回放导出",
+        "signal_replay_freshness" to "回放新鲜度",
+        "signal_observation_packet" to "观察包",
+        "signal_card_deck" to "卡片组",
+        "card_refresh_plan" to "刷新计划",
+        "card_refresh_status" to "刷新状态",
+        "signal_timeline" to "信号时间线",
+        "signal_evidence" to "证据包",
+        "workflow_handoff" to "流程交接",
+        "permission_runbook" to "权限手册",
+        "rf_coexistence" to "射频共存",
+        "agent_environment" to "代理环境",
+        "agent_self_check" to "自检",
+        "agent_observation" to "代理观察",
+        "card_manifest" to "卡片清单",
+        "top_cards" to "重点卡片",
+        "mcp_registry" to "MCP 注册表",
+        "upgrade_audit" to "升级审计",
+        "objective_coverage" to "目标覆盖",
+        "release_validation" to "发布验证",
+        "soc_compatibility" to "SOC 兼容",
+        "mediatek_readiness" to "联发科就绪",
+        "mediatek_signal_stack" to "MTK 信号",
+        "mediatek_device_validation" to "设备证明",
+        "device_evidence_export" to "证明导出",
+        "accelerator_preflight" to "加速预检",
+        "non_adreno_backend_advisor" to "后端建议",
+        "mediatek_launch_checklist" to "MTK 启动",
+        "backend_risk" to "后端风险",
+        "inference_compatibility" to "推理适配",
+        "runtime_backend" to "运行后端",
+        "runtime_stability" to "运行稳定",
+        "wifi_analyzer" to "Wi-Fi 分析",
+        "wifi_advisor" to "Wi-Fi 建议",
+        "wifi_channel_decision" to "Wi-Fi 决策",
+        "wifi_link" to "Wi-Fi 链路",
+        "wifi_nearby" to "附近 Wi-Fi",
+        "wifi_occupancy" to "Wi-Fi 占用",
+        "bluetooth_analyzer" to "蓝牙分析",
+        "bluetooth_advisor" to "蓝牙建议",
+        "bluetooth_decision" to "蓝牙决策",
+        "bluetooth_history" to "蓝牙趋势",
+        "bluetooth_details" to "蓝牙详情",
+        "sensor_analyzer" to "传感器分析",
+        "sensor_advisor" to "传感器建议",
+        "motion_decision" to "运动决策",
+        "motion_history" to "运动趋势",
+        "motion_quality" to "运动质量",
+        "radio_limits" to "无线电信号",
+        "radio_advisor" to "无线电建议",
+        "radio_decision" to "无线电决策",
+    ),
+    AppLanguage.SPANISH to mapOf(
+        "signal_overview" to "Resumen señal",
+        "signal_briefing" to "Informe señal",
+        "signal_session_snapshot" to "Instantánea",
+        "signal_proof_audit" to "Auditoría prueba",
+        "signal_replay_export" to "Exportar replay",
+        "signal_replay_freshness" to "Vigencia replay",
+        "signal_observation_packet" to "Paquete visual",
+        "signal_card_deck" to "Tarjetas señal",
+        "card_refresh_plan" to "Plan refresco",
+        "card_refresh_status" to "Estado refresco",
+        "signal_timeline" to "Cronología señal",
+        "signal_evidence" to "Evidencias",
+        "workflow_handoff" to "Traspaso flujo",
+        "permission_runbook" to "Permisos",
+        "rf_coexistence" to "Coexistencia RF",
+        "agent_environment" to "Entorno agente",
+        "agent_self_check" to "Autochequeo",
+        "agent_observation" to "Observación",
+        "card_manifest" to "Manifiesto",
+        "top_cards" to "Tarjetas top",
+        "mcp_registry" to "Registro MCP",
+        "upgrade_audit" to "Auditoría mejora",
+        "objective_coverage" to "Cobertura objetivo",
+        "release_validation" to "Validar release",
+        "soc_compatibility" to "Compat. SOC",
+        "mediatek_readiness" to "MediaTek listo",
+        "mediatek_signal_stack" to "Señales MTK",
+        "mediatek_device_validation" to "Prueba dispositivo",
+        "device_evidence_export" to "Exportar prueba",
+        "accelerator_preflight" to "Prevuelo accel",
+        "non_adreno_backend_advisor" to "Consejo backend",
+        "mediatek_launch_checklist" to "Lanzar MTK",
+        "backend_risk" to "Riesgo backend",
+        "inference_compatibility" to "Ajuste inferencia",
+        "runtime_backend" to "Backend runtime",
+        "runtime_stability" to "Estabilidad",
+        "wifi_analyzer" to "Analizar Wi-Fi",
+        "wifi_advisor" to "Consejo Wi-Fi",
+        "wifi_channel_decision" to "Decisión Wi-Fi",
+        "wifi_link" to "Enlace Wi-Fi",
+        "wifi_nearby" to "Wi-Fi cercano",
+        "wifi_occupancy" to "Ocupación Wi-Fi",
+        "bluetooth_analyzer" to "Analizar BT",
+        "bluetooth_advisor" to "Consejo BT",
+        "bluetooth_decision" to "Decisión BT",
+        "bluetooth_history" to "Tendencias BT",
+        "bluetooth_details" to "Detalles BT",
+        "sensor_analyzer" to "Analizar sensor",
+        "sensor_advisor" to "Consejo sensor",
+        "motion_decision" to "Decisión mov.",
+        "motion_history" to "Tendencias mov.",
+        "motion_quality" to "Calidad mov.",
+        "radio_limits" to "Señales radio",
+        "radio_advisor" to "Consejo radio",
+        "radio_decision" to "Decisión radio",
+    ),
+    AppLanguage.GERMAN to mapOf(
+        "signal_overview" to "Signalüberblick",
+        "signal_briefing" to "Signalbriefing",
+        "signal_session_snapshot" to "Sitzungsbild",
+        "signal_proof_audit" to "Nachweis-Audit",
+        "signal_replay_export" to "Replay-Export",
+        "signal_replay_freshness" to "Replay-Aktualität",
+        "signal_observation_packet" to "Sichtpaket",
+        "signal_card_deck" to "Signalkarten",
+        "card_refresh_plan" to "Refresh-Plan",
+        "card_refresh_status" to "Refresh-Status",
+        "signal_timeline" to "Signalzeitlinie",
+        "signal_evidence" to "Nachweispaket",
+        "workflow_handoff" to "Workflow-Übergabe",
+        "permission_runbook" to "Berechtigungen",
+        "rf_coexistence" to "RF-Koexistenz",
+        "agent_environment" to "Agent-Umgebung",
+        "agent_self_check" to "Selbsttest",
+        "agent_observation" to "Agent-Beobachtung",
+        "card_manifest" to "Kartenmanifest",
+        "top_cards" to "Top-Karten",
+        "mcp_registry" to "MCP-Registry",
+        "upgrade_audit" to "Upgrade-Audit",
+        "objective_coverage" to "Zielabdeckung",
+        "release_validation" to "Release-Prüfung",
+        "soc_compatibility" to "SOC-Kompat.",
+        "mediatek_readiness" to "MediaTek bereit",
+        "mediatek_signal_stack" to "MTK-Signale",
+        "mediatek_device_validation" to "Gerätenachweis",
+        "device_evidence_export" to "Nachweis-Export",
+        "accelerator_preflight" to "Accel-Prüfung",
+        "non_adreno_backend_advisor" to "Backend-Rat",
+        "mediatek_launch_checklist" to "MTK-Start",
+        "backend_risk" to "Backend-Risiko",
+        "inference_compatibility" to "Inferenz-Fit",
+        "runtime_backend" to "Runtime-Backend",
+        "runtime_stability" to "Stabilität",
+        "wifi_analyzer" to "Wi-Fi-Analyse",
+        "wifi_advisor" to "Wi-Fi-Rat",
+        "wifi_channel_decision" to "Wi-Fi-Entscheid",
+        "wifi_link" to "Wi-Fi-Link",
+        "wifi_nearby" to "Nahes Wi-Fi",
+        "wifi_occupancy" to "Wi-Fi-Belegung",
+        "bluetooth_analyzer" to "BT-Analyse",
+        "bluetooth_advisor" to "BT-Rat",
+        "bluetooth_decision" to "BT-Entscheid",
+        "bluetooth_history" to "BT-Trends",
+        "bluetooth_details" to "BT-Details",
+        "sensor_analyzer" to "Sensoranalyse",
+        "sensor_advisor" to "Sensor-Rat",
+        "motion_decision" to "Bewegungsentscheid",
+        "motion_history" to "Bewegungstrends",
+        "motion_quality" to "Bewegungsqualität",
+        "radio_limits" to "Funksignale",
+        "radio_advisor" to "Funk-Rat",
+        "radio_decision" to "Funk-Entscheid",
+    ),
+    AppLanguage.PORTUGUESE to mapOf(
+        "signal_overview" to "Visão de sinais",
+        "signal_briefing" to "Resumo sinais",
+        "signal_session_snapshot" to "Instantâneo",
+        "signal_proof_audit" to "Auditoria prova",
+        "signal_replay_export" to "Exportar replay",
+        "signal_replay_freshness" to "Atualidade replay",
+        "signal_observation_packet" to "Pacote visual",
+        "signal_card_deck" to "Cartões sinal",
+        "card_refresh_plan" to "Plano refresh",
+        "card_refresh_status" to "Estado refresh",
+        "signal_timeline" to "Linha do sinal",
+        "signal_evidence" to "Pacote prova",
+        "workflow_handoff" to "Passagem fluxo",
+        "permission_runbook" to "Permissões",
+        "rf_coexistence" to "Coexistência RF",
+        "agent_environment" to "Ambiente agente",
+        "agent_self_check" to "Autoteste",
+        "agent_observation" to "Observação",
+        "card_manifest" to "Manifesto",
+        "top_cards" to "Cartões top",
+        "mcp_registry" to "Registro MCP",
+        "upgrade_audit" to "Auditoria upgrade",
+        "objective_coverage" to "Cobertura objetivo",
+        "release_validation" to "Validar release",
+        "soc_compatibility" to "Compat. SOC",
+        "mediatek_readiness" to "MediaTek pronto",
+        "mediatek_signal_stack" to "Sinais MTK",
+        "mediatek_device_validation" to "Prova aparelho",
+        "device_evidence_export" to "Exportar prova",
+        "accelerator_preflight" to "Pré-voo accel",
+        "non_adreno_backend_advisor" to "Conselho backend",
+        "mediatek_launch_checklist" to "Lançar MTK",
+        "backend_risk" to "Risco backend",
+        "inference_compatibility" to "Ajuste inferência",
+        "runtime_backend" to "Backend runtime",
+        "runtime_stability" to "Estabilidade",
+        "wifi_analyzer" to "Analisar Wi-Fi",
+        "wifi_advisor" to "Conselho Wi-Fi",
+        "wifi_channel_decision" to "Decisão Wi-Fi",
+        "wifi_link" to "Link Wi-Fi",
+        "wifi_nearby" to "Wi-Fi próximo",
+        "wifi_occupancy" to "Ocupação Wi-Fi",
+        "bluetooth_analyzer" to "Analisar BT",
+        "bluetooth_advisor" to "Conselho BT",
+        "bluetooth_decision" to "Decisão BT",
+        "bluetooth_history" to "Tendências BT",
+        "bluetooth_details" to "Detalhes BT",
+        "sensor_analyzer" to "Analisar sensor",
+        "sensor_advisor" to "Conselho sensor",
+        "motion_decision" to "Decisão mov.",
+        "motion_history" to "Tendências mov.",
+        "motion_quality" to "Qualidade mov.",
+        "radio_limits" to "Sinais rádio",
+        "radio_advisor" to "Conselho rádio",
+        "radio_decision" to "Decisão rádio",
+    ),
+    AppLanguage.FRENCH to mapOf(
+        "signal_overview" to "Vue signaux",
+        "signal_briefing" to "Brief signaux",
+        "signal_session_snapshot" to "Instantané",
+        "signal_proof_audit" to "Audit preuve",
+        "signal_replay_export" to "Export replay",
+        "signal_replay_freshness" to "Fraîcheur replay",
+        "signal_observation_packet" to "Paquet visuel",
+        "signal_card_deck" to "Cartes signaux",
+        "card_refresh_plan" to "Plan refresh",
+        "card_refresh_status" to "Statut refresh",
+        "signal_timeline" to "Chronologie",
+        "signal_evidence" to "Preuves",
+        "workflow_handoff" to "Relais flux",
+        "permission_runbook" to "Permissions",
+        "rf_coexistence" to "Coexistence RF",
+        "agent_environment" to "Environnement",
+        "agent_self_check" to "Auto-test",
+        "agent_observation" to "Observation",
+        "card_manifest" to "Manifeste",
+        "top_cards" to "Cartes clés",
+        "mcp_registry" to "Registre MCP",
+        "upgrade_audit" to "Audit upgrade",
+        "objective_coverage" to "Couverture objectif",
+        "release_validation" to "Validation release",
+        "soc_compatibility" to "Compat. SOC",
+        "mediatek_readiness" to "MediaTek prêt",
+        "mediatek_signal_stack" to "Signaux MTK",
+        "mediatek_device_validation" to "Preuve appareil",
+        "device_evidence_export" to "Export preuve",
+        "accelerator_preflight" to "Prévol accel",
+        "non_adreno_backend_advisor" to "Conseil backend",
+        "mediatek_launch_checklist" to "Lancer MTK",
+        "backend_risk" to "Risque backend",
+        "inference_compatibility" to "Ajustement inf.",
+        "runtime_backend" to "Backend runtime",
+        "runtime_stability" to "Stabilité",
+        "wifi_analyzer" to "Analyse Wi-Fi",
+        "wifi_advisor" to "Conseil Wi-Fi",
+        "wifi_channel_decision" to "Décision Wi-Fi",
+        "wifi_link" to "Lien Wi-Fi",
+        "wifi_nearby" to "Wi-Fi proche",
+        "wifi_occupancy" to "Occupation Wi-Fi",
+        "bluetooth_analyzer" to "Analyse BT",
+        "bluetooth_advisor" to "Conseil BT",
+        "bluetooth_decision" to "Décision BT",
+        "bluetooth_history" to "Tendances BT",
+        "bluetooth_details" to "Détails BT",
+        "sensor_analyzer" to "Analyse capteur",
+        "sensor_advisor" to "Conseil capteur",
+        "motion_decision" to "Décision mouvement",
+        "motion_history" to "Tendances mouv.",
+        "motion_quality" to "Qualité mouv.",
+        "radio_limits" to "Signaux radio",
+        "radio_advisor" to "Conseil radio",
+        "radio_decision" to "Décision radio",
+    ),
+)
 
 val LocalHermesStrings = staticCompositionLocalOf { hermesStringsFor(AppLanguage.ENGLISH) }
 

@@ -635,11 +635,12 @@ private fun ChatHeaderCard(
 private fun ChatHeaderDrawerButton(
     onOpenNavigationMenu: () -> Unit,
 ) {
+    val strings = LocalHermesStrings.current
     IconButton(
         onClick = onOpenNavigationMenu,
         modifier = Modifier
             .size(40.dp)
-            .semantics { contentDescription = "Open navigation menu" }
+            .semantics { contentDescription = strings.openNavigationMenu() }
             .testTag("HermesChatDrawerButton"),
     ) {
         HamburgerMenuIcon()
@@ -1155,14 +1156,13 @@ private fun HighlightedMessageText(
 
 internal fun sanitizeChatDisplayText(text: String): String {
     if (text.isBlank()) return text
-    val normalized = text.replace("\r\n", "\n")
+    val normalized = formatXmlToolCallsForDisplay(text.replace("\r\n", "\n"))
     val cleanedLines = mutableListOf<String>()
     var insideCodeFence = false
     normalized.lines().forEach { line ->
         val trimmed = line.trim()
         if (trimmed.startsWith("```")) {
             insideCodeFence = !insideCodeFence
-            cleanedLines.add(line)
             return@forEach
         }
         if (insideCodeFence) {
@@ -1184,9 +1184,67 @@ internal fun sanitizeChatDisplayText(text: String): String {
     return cleanedLines.joinToString("\n").trimEnd()
 }
 
+internal fun formatXmlToolCallsForDisplay(text: String): String {
+    if ('<' !in text || '>' !in text) {
+        return text
+    }
+    return formatNamedXmlToolCalls(
+        XML_TOOL_CALL_BLOCK_REGEX.replace(text) { match ->
+            val attributes = match.value.substringBefore(">")
+            val body = match.groups[1]?.value.orEmpty().trim()
+            val name = XML_TOOL_NAME_ATTRIBUTE_REGEX.find(attributes)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.ifBlank { null }
+                ?: XML_TOOL_JSON_NAME_REGEX.find(body)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    ?.trim()
+                    ?.ifBlank { null }
+                ?: "tool"
+            xmlToolCallDisplayBlock(name = name, arguments = body)
+        }
+    )
+}
+
 internal fun shouldShowComposerStatus(tinyRuntimeViewport: Boolean, imeVisible: Boolean): Boolean {
     return !tinyRuntimeViewport && !imeVisible
 }
+
+private fun formatNamedXmlToolCalls(text: String): String {
+    return XML_NAMED_TOOL_CALL_BLOCK_REGEX.replace(text) { match ->
+        val name = match.groups[1]?.value.orEmpty().trim().ifBlank { "tool" }
+        val body = match.groups[2]?.value.orEmpty().trim()
+        xmlToolCallDisplayBlock(name = name, arguments = body)
+    }
+}
+
+private fun xmlToolCallDisplayBlock(name: String, arguments: String): String {
+    val cleanedName = name.trim().ifBlank { "tool" }
+    val cleanedArguments = arguments.trim()
+    return if (cleanedArguments.isBlank()) {
+        "Tool call: $cleanedName"
+    } else {
+        "Tool call: $cleanedName\nArguments: $cleanedArguments"
+    }
+}
+
+private val XML_TOOL_CALL_BLOCK_REGEX = Regex(
+    pattern = """(?is)<tool_call(?:\s+[^>]*)?>(.*?)</tool_call>""",
+)
+
+private val XML_NAMED_TOOL_CALL_BLOCK_REGEX = Regex(
+    pattern = """(?is)<(terminal_tool|file_write_tool|android_device_diagnostics_tool|android_automation_tool|android_ui_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool)(?:\s+[^>]*)?>(.*?)</\1>""",
+)
+
+private val XML_TOOL_NAME_ATTRIBUTE_REGEX = Regex(
+    pattern = """(?i)\b(?:name|tool|function)=["']([^"']+)["']""",
+)
+
+private val XML_TOOL_JSON_NAME_REGEX = Regex(
+    pattern = """"(?:name|tool|function)"\s*:\s*"([^"]+)"""",
+)
 
 private fun expandCollapsedMarkdownRows(line: String): List<String> {
     if (line.count { it == '|' } < 2) {
@@ -2009,8 +2067,9 @@ private fun SignalIntelligenceQuickActionGrid(
             .testTag("HermesSignalQuickActions"),
         verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp),
     ) {
+        val strings = LocalHermesStrings.current
         Text(
-            text = LocalHermesStrings.current.signalIntelligence(),
+            text = strings.signalIntelligence(),
             style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
@@ -2048,7 +2107,7 @@ private fun SignalIntelligenceQuickActionGrid(
                             modifier = Modifier.size(if (compact) 14.dp else 16.dp),
                         )
                         Text(
-                            text = " ${action.label}",
+                            text = " ${strings.signalQuickActionLabel(action.id, action.label)}",
                             style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

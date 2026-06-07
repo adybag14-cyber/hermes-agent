@@ -12,11 +12,13 @@ object NativeAndroidShellTool {
         context: Context,
         command: String,
         timeoutSeconds: Long = 60,
+        includeLinuxSandboxStatus: Boolean = true,
     ): JSONObject {
         val state = HermesLinuxSubsystemBridge.ensureInstalled(context.applicationContext)
         val homeDir = File(state.getString("home_path")).apply { mkdirs() }
         val tmpDir = File(state.getString("tmp_path")).apply { mkdirs() }
         val shellPath = resolveShellPath(state)
+        val effectiveCommand = HermesLinuxSubsystemBridge.commandWithEmbeddedToolAliases(state, command)
         val environment = HermesLinuxSubsystemBridge.buildRunEnvironment(state).toMutableMap().apply {
             this["HOME"] = homeDir.absolutePath
             this["TMPDIR"] = tmpDir.absolutePath
@@ -30,7 +32,7 @@ object NativeAndroidShellTool {
                 .joinToString(":")
         }
 
-        val process = ProcessBuilder(shellInvocation(shellPath, command))
+        val process = ProcessBuilder(shellInvocation(shellPath, effectiveCommand))
             .directory(homeDir)
             .apply {
                 environment().putAll(environment)
@@ -54,7 +56,7 @@ object NativeAndroidShellTool {
         val error = stderr.get(1, TimeUnit.SECONDS)
         executor.shutdownNow()
 
-        return JSONObject()
+        val result = JSONObject()
             .put("exit_code", exitCode)
             .put("output", output)
             .put("error", error)
@@ -70,11 +72,20 @@ object NativeAndroidShellTool {
             .put(
                 "package_management_hint",
                 if (state.optBoolean("uses_termux", false)) {
-                    "Use packaged prefix commands from PATH. Installing additional packages requires a future signed package-feed bridge."
+                    "Use packaged prefix commands from PATH. For downloadable Linux sandboxes, use the proot-distro-compatible catalog in downloadable_linux_sandboxes and keep rootfs data in app-private storage."
                 } else {
                     "Embedded package prefix is unavailable; this run used Android's system shell only."
                 },
             )
+        if (includeLinuxSandboxStatus) {
+            result
+                .put("downloadable_linux_sandboxes", HermesLinuxSandboxCatalog.distroCatalog())
+                .put("recommended_linux_sandboxes", HermesLinuxSandboxCatalog.recommendedSandboxIds())
+                .put("desktop_environment_catalog", HermesLinuxSandboxCatalog.desktopCatalog())
+                .put("linux_sandbox_agent_summary", HermesLinuxSandboxCatalog.agentSummary())
+                .put("linux_sandbox_status", HermesLinuxSandboxBridge.status(state))
+        }
+        return result
     }
 
     internal fun resolveShellPath(state: JSONObject): String {

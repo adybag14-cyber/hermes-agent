@@ -185,6 +185,10 @@ android {
         compose = true
     }
 
+    androidResources {
+        ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~"
+    }
+
     sourceSets {
         getByName("main") {
             if (!skipHermesAndroidLinuxAssets) {

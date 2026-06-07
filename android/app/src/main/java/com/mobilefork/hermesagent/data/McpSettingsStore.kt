@@ -211,6 +211,61 @@ class McpSettingsStore(context: Context) {
         return reloadServers(nowEpochMs)
     }
 
+    fun addDraftServer(
+        serverNameOrCommand: String,
+        note: String,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): McpConfigActionResult {
+        val serverName = serverNameOrCommand.trim().take(120)
+        if (serverName.isBlank()) {
+            val status = "MCP server name is empty. Enter a command or server name before adding."
+            saveStatus(status)
+            return McpConfigActionResult(
+                success = false,
+                statusMessage = status,
+                configText = readConfigText(),
+            )
+        }
+        val configJson = runCatching { JSONObject(readConfigText()) }.getOrElse {
+            JSONObject().put("mcpServers", JSONObject())
+        }
+        val servers = configJson.optJSONObject("mcpServers") ?: JSONObject().also {
+            configJson.put("mcpServers", it)
+        }
+        val serverKey = serverName.toMcpServerKey()
+        val description = note.trim().take(240).ifBlank { "User-added MCP server draft" }
+        servers.put(
+            serverKey,
+            JSONObject()
+                .put("transport", "stdio")
+                .put("command", serverName)
+                .put("args", JSONArray())
+                .put("enabled", true)
+                .put("autoStart", false)
+                .put("description", description)
+                .put(
+                    "healthCheck",
+                    JSONObject()
+                        .put("status", "pending")
+                        .put("createdEpochMs", nowEpochMs)
+                        .put("hint", "Use Test / refresh after the command is installed on this device."),
+                ),
+        )
+        val configText = configJson.toString(2)
+        writeConfigText(configText)
+        val validation = validateConfigText(
+            rawText = configText,
+            successPrefix = "Added MCP server draft $serverKey",
+            persistStatus = false,
+        )
+        val status = "Added MCP server draft $serverKey. Use Test / refresh after the command is available on this device."
+        saveStatus(status)
+        preferences.edit()
+            .putString(KEY_MODE, McpConfigurationMode.SIMPLE.persistedValue)
+            .apply()
+        return validation.copy(statusMessage = status, lastReloadEpochMs = nowEpochMs)
+    }
+
     fun saveAdvancedConfigTextAndReload(
         rawText: String,
         nowEpochMs: Long = System.currentTimeMillis(),
@@ -338,6 +393,15 @@ class McpSettingsStore(context: Context) {
         preferences.edit()
             .putString(KEY_LAST_STATUS, status)
             .apply()
+    }
+
+    private fun String.toMcpServerKey(): String {
+        return trim()
+            .lowercase(Locale.US)
+            .replace(Regex("""[^a-z0-9._-]+"""), "-")
+            .trim('-', '.', '_')
+            .take(64)
+            .ifBlank { "mcp-server" }
     }
 
     companion object {

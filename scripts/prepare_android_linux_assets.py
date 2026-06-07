@@ -338,6 +338,14 @@ def create_bionic_llama_server_launcher(prefix_dir: Path) -> None:
         destination.unlink(missing_ok=True)
 
 
+def manifest_file_list(prefix_dir: Path) -> list[str]:
+    return [
+        path.relative_to(prefix_dir).as_posix()
+        for path in sorted(prefix_dir.rglob("*"), key=lambda item: item.relative_to(prefix_dir).as_posix())
+        if path.is_file()
+    ]
+
+
 def prepare_assets(output_dir: Path, lock_file: Path | None = DEFAULT_LOCK_FILE, refresh_lock_file: bool = False) -> None:
     lock_payload = None
     if lock_file is not None:
@@ -372,7 +380,15 @@ def prepare_assets(output_dir: Path, lock_file: Path | None = DEFAULT_LOCK_FILE,
         for extra_dir in [prefix_dir / "home", prefix_dir / "tmp"]:
             extra_dir.mkdir(parents=True, exist_ok=True)
 
-        write_manifest(asset_manifest_path(output_dir, android_abi), serializable_manifest(android_abi, packages, links=links))
+        write_manifest(
+            asset_manifest_path(output_dir, android_abi),
+            serializable_manifest(
+                android_abi,
+                packages,
+                links=links,
+                files=manifest_file_list(prefix_dir),
+            ),
+        )
 
 
 def main() -> None:

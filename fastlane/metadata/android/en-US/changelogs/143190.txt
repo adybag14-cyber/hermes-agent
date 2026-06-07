@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.131
+
+- Refreshes the pinned Termux Linux asset lock so F-Droid no longer downloads the removed ca-certificates_1:2026.03.19 package.
+- Adds downloadable Linux sandbox tooling for the Android agent, with Alpine, Debian, Ubuntu, Fedora, Arch, Void, and openSUSE catalog entries.
+- Improves assistant rendering for XML tool calls, markdown output, localized settings, and MCP onboarding.

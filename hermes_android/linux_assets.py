@@ -35,7 +35,11 @@ ROOT_PACKAGES = [
     "gzip",
     "less",
     "llama-cpp",
+    "proot",
+    "proot-distro",
     "procps",
+    "qemu-user-aarch64",
+    "qemu-user-x86-64",
     "sed",
     "tar",
     "util-linux",
@@ -220,7 +224,12 @@ def _normalize_asset_link_path(path: str) -> str:
     return str(path).replace("\\", "/").strip().lstrip("/")
 
 
-def serializable_manifest(android_abi: str, packages: Iterable[TermuxPackageRecord], links: Iterable[dict] = ()) -> dict:
+def serializable_manifest(
+    android_abi: str,
+    packages: Iterable[TermuxPackageRecord],
+    links: Iterable[dict] = (),
+    files: Iterable[str] = (),
+) -> dict:
     package_list = list(packages)
     normalized_links = [
         {
@@ -231,12 +240,20 @@ def serializable_manifest(android_abi: str, packages: Iterable[TermuxPackageReco
         for link in links
     ]
     normalized_links.sort(key=lambda link: (link["path"], link["target"]))
+    normalized_files = sorted(
+        dict.fromkeys(
+            normalized
+            for normalized in (_normalize_asset_link_path(file_path) for file_path in files)
+            if normalized
+        )
+    )
     return {
         "asset_root": ANDROID_LINUX_ASSET_ROOT,
         "android_abi": android_abi,
         "termux_arch": ANDROID_TO_TERMUX_ARCH[android_abi],
         "root_packages": list(ROOT_PACKAGES),
         "ignored_dependencies": sorted(IGNORED_DEPENDENCIES),
+        "files": normalized_files,
         "links": normalized_links,
         "packages": [
             {

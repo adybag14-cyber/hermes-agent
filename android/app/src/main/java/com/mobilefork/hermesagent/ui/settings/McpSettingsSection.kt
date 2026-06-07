@@ -6,18 +6,24 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,6 +32,7 @@ import com.mobilefork.hermesagent.data.McpPromptCacheResendPolicy
 import com.mobilefork.hermesagent.data.McpSettings
 import com.mobilefork.hermesagent.data.McpSettingsMessages
 import com.mobilefork.hermesagent.data.McpSettingsStore
+import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -87,6 +94,18 @@ class McpSettingsViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun addDraftServer(serverNameOrCommand: String, note: String) {
+        val result = store.addDraftServer(serverNameOrCommand, note)
+        _uiState.update {
+            it.copy(
+                mode = McpConfigurationMode.SIMPLE,
+                configText = result.configText,
+                statusMessage = result.statusMessage,
+                lastReloadEpochMs = result.lastReloadEpochMs.takeIf { value -> value > 0L } ?: it.lastReloadEpochMs,
+            )
+        }
+    }
+
     fun updateAdvancedConfigText(value: String) {
         _uiState.update { it.copy(configText = value) }
     }
@@ -138,6 +157,7 @@ fun McpSettingsSection(
         onDetect = viewModel::detectExistingConfiguration,
         onAutoFill = viewModel::autoFillSimpleConfiguration,
         onAutoSetup = viewModel::autoSetupSimpleConfiguration,
+        onAddDraftServer = viewModel::addDraftServer,
         onConfigTextChange = viewModel::updateAdvancedConfigText,
         onSaveAdvanced = viewModel::saveAdvancedConfigAndReload,
         onReloadServers = viewModel::reloadServers,
@@ -153,12 +173,14 @@ fun McpSettingsCard(
     onDetect: () -> Unit,
     onAutoFill: () -> Unit,
     onAutoSetup: () -> Unit,
+    onAddDraftServer: (String, String) -> Unit,
     onConfigTextChange: (String) -> Unit,
     onSaveAdvanced: () -> Unit,
     onReloadServers: () -> Unit,
     onProviderPromptCacheResendChange: (Boolean, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val strings = LocalHermesStrings.current
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -171,9 +193,9 @@ fun McpSettingsCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("MCP configuration", style = MaterialTheme.typography.titleMedium)
+            Text(strings.mcpConfigurationTitle(), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Simple mode auto-detects and writes a safe native-tools config. Advanced mode edits the raw MCP JSON file.",
+                strings.mcpConfigurationDescription(),
                 style = MaterialTheme.typography.bodySmall,
             )
             Row(
@@ -182,22 +204,26 @@ fun McpSettingsCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Button(
-                    modifier = Modifier.testTag("McpSimpleModeButton"),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("McpSimpleModeButton"),
                     onClick = { onModeChange(McpConfigurationMode.SIMPLE) },
                     enabled = uiState.mode != McpConfigurationMode.SIMPLE,
                 ) {
-                    Text("Simple")
+                    McpButtonLabel(strings.mcpSimpleMode())
                 }
                 Button(
-                    modifier = Modifier.testTag("McpAdvancedModeButton"),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("McpAdvancedModeButton"),
                     onClick = { onModeChange(McpConfigurationMode.ADVANCED) },
                     enabled = uiState.mode != McpConfigurationMode.ADVANCED,
                 ) {
-                    Text("Advanced")
+                    McpButtonLabel(strings.mcpAdvancedMode())
                 }
             }
             Text(
-                "Config file: ${uiState.configFilePath}",
+                strings.mcpConfigFile(uiState.configFilePath),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag("McpConfigFilePath"),
             )
@@ -207,6 +233,8 @@ fun McpSettingsCard(
                     onDetect = onDetect,
                     onAutoFill = onAutoFill,
                     onAutoSetup = onAutoSetup,
+                    onAddDraftServer = onAddDraftServer,
+                    onReloadServers = onReloadServers,
                 )
             } else {
                 AdvancedMcpConfigEditor(
@@ -222,7 +250,7 @@ fun McpSettingsCard(
                 onChange = onProviderPromptCacheResendChange,
             )
             Text(
-                uiState.statusMessage,
+                strings.mcpStatusText(uiState.statusMessage),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag("McpStatusMessage"),
             )
@@ -236,7 +264,13 @@ private fun SimpleMcpOnboardingControls(
     onDetect: () -> Unit,
     onAutoFill: () -> Unit,
     onAutoSetup: () -> Unit,
+    onAddDraftServer: (String, String) -> Unit,
+    onReloadServers: () -> Unit,
 ) {
+    val strings = LocalHermesStrings.current
+    var addDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var serverName by rememberSaveable { mutableStateOf("") }
+    var serverNote by rememberSaveable { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -244,34 +278,104 @@ private fun SimpleMcpOnboardingControls(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Button(
-                modifier = Modifier.testTag("McpAutoDetectButton"),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpAutoDetectButton"),
                 onClick = onDetect,
             ) {
-                Text("Auto detect")
+                McpButtonLabel(strings.mcpAutoDetect())
             }
             Button(
-                modifier = Modifier.testTag("McpAutoFillButton"),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpAutoFillButton"),
                 onClick = onAutoFill,
             ) {
-                Text("Auto fill")
+                McpButtonLabel(strings.mcpAutoFill())
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpAddDraftServerButton"),
+                onClick = { addDialogVisible = true },
+            ) {
+                McpButtonLabel(strings.mcpAddServer())
             }
             Button(
-                modifier = Modifier.testTag("McpAutoSetupButton"),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpAutoSetupButton"),
                 onClick = onAutoSetup,
             ) {
-                Text("Auto setup")
+                McpButtonLabel(strings.mcpAutoSetup())
+            }
+            Button(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpTestRefreshButton"),
+                onClick = onReloadServers,
+            ) {
+                McpButtonLabel(strings.mcpTestRefresh())
             }
         }
         OutlinedTextField(
-            value = configText,
+            value = strings.mcpConfigPreviewText(configText),
             onValueChange = {},
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("McpSimpleConfigPreview"),
-            label = { Text("Preview") },
+            label = { Text(strings.mcpPreview()) },
             minLines = 4,
             maxLines = 10,
             readOnly = true,
+        )
+    }
+    if (addDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { addDialogVisible = false },
+            title = { Text(strings.mcpAddDialogTitle()) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(strings.mcpAddDialogDescription(), style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = serverName,
+                        onValueChange = { serverName = it },
+                        label = { Text(strings.mcpServerNameLabel()) },
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = serverNote,
+                        onValueChange = { serverNote = it },
+                        label = { Text(strings.mcpServerNoteLabel()) },
+                        minLines = 2,
+                        maxLines = 4,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = serverName.isNotBlank(),
+                    onClick = {
+                        onAddDraftServer(serverName, serverNote)
+                        serverName = ""
+                        serverNote = ""
+                        addDialogVisible = false
+                    },
+                ) {
+                    Text(strings.mcpAddAndTest())
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { addDialogVisible = false }) {
+                    Text(strings.mcpCancel())
+                }
+            },
         )
     }
 }
@@ -283,6 +387,7 @@ private fun AdvancedMcpConfigEditor(
     onSaveAdvanced: () -> Unit,
     onReloadServers: () -> Unit,
 ) {
+    val strings = LocalHermesStrings.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -290,16 +395,20 @@ private fun AdvancedMcpConfigEditor(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Button(
-                modifier = Modifier.testTag("McpSaveAdvancedButton"),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpSaveAdvancedButton"),
                 onClick = onSaveAdvanced,
             ) {
-                Text("Save and reload")
+                McpButtonLabel(strings.mcpSaveAndReload())
             }
             Button(
-                modifier = Modifier.testTag("McpReloadServersButton"),
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpReloadServersButton"),
                 onClick = onReloadServers,
             ) {
-                Text("Reload servers")
+                McpButtonLabel(strings.mcpReloadServers())
             }
         }
         OutlinedTextField(
@@ -308,7 +417,7 @@ private fun AdvancedMcpConfigEditor(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("McpAdvancedConfigText"),
-            label = { Text("MCP config JSON") },
+            label = { Text(strings.mcpConfigJsonLabel()) },
             minLines = 8,
             maxLines = 18,
         )
@@ -321,6 +430,7 @@ private fun ProviderPromptCacheControls(
     selectedProviderId: String,
     onChange: (Boolean, String) -> Unit,
 ) {
+    val strings = LocalHermesStrings.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -330,9 +440,9 @@ private fun ProviderPromptCacheControls(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text("Provider cache resend", style = MaterialTheme.typography.titleSmall)
+            Text(strings.mcpProviderCacheResendTitle(), style = MaterialTheme.typography.titleSmall)
             Text(
-                "When enabled, Hermes may resend stable prior/tool-output context for provider input-token caching. When disabled, cached context resend is blocked.",
+                strings.mcpProviderCacheResendDescription(),
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -342,6 +452,15 @@ private fun ProviderPromptCacheControls(
             onCheckedChange = { onChange(it, selectedProviderId) },
         )
     }
+}
+
+@Composable
+private fun McpButtonLabel(text: String) {
+    Text(
+        text = text,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 private fun McpSettings.toUiState(

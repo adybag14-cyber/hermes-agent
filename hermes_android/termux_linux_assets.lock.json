@@ -138,12 +138,57 @@
         },
         {
           "depends": [
+            "libtalloc"
+          ],
+          "filename": "pool/main/p/proot/proot_5.1.107.76_aarch64.deb",
+          "name": "proot",
+          "sha256": "390891fe974985e06fa42693cbbc82742d7c5d681eb7534cd5e0497f2836cd9f",
+          "version": "5.1.107.76"
+        },
+        {
+          "depends": [
+            "proot",
+            "python"
+          ],
+          "filename": "pool/main/p/proot-distro/proot-distro_5.1.4_all.deb",
+          "name": "proot-distro",
+          "sha256": "078e8427fe7ae8623f7817b6f199fe570da1859243e8f73a693acdcb3d3ca776",
+          "version": "5.1.4"
+        },
+        {
+          "depends": [
             "ncurses"
           ],
           "filename": "pool/main/p/procps/procps_3.3.17-6_aarch64.deb",
           "name": "procps",
           "sha256": "a55809b0bf5de6c3462fdff18325ebcf27bce79e6cb49cd5b7ba52a8ff45af11",
           "version": "3.3.17-6"
+        },
+        {
+          "depends": [
+            "glib",
+            "libandroid-shmem",
+            "libdw",
+            "libgnutls",
+            "libpixman"
+          ],
+          "filename": "pool/main/q/qemu-user-aarch64/qemu-user-aarch64_1:10.2.1_aarch64.deb",
+          "name": "qemu-user-aarch64",
+          "sha256": "fd74f3659e7f172140444b2cc6e723f087f795b3e6907cdfe76bc97d77d57297",
+          "version": "1:10.2.1"
+        },
+        {
+          "depends": [
+            "glib",
+            "libandroid-shmem",
+            "libdw",
+            "libgnutls",
+            "libpixman"
+          ],
+          "filename": "pool/main/q/qemu-user-x86-64/qemu-user-x86-64_1:10.2.1_aarch64.deb",
+          "name": "qemu-user-x86-64",
+          "sha256": "479ff1887d1bd6596e91d89765c12427ab8bc86b349d5ff82ebc3e29a488db8b",
+          "version": "1:10.2.1"
         },
         {
           "depends": [],
@@ -312,6 +357,92 @@
           "version": "29"
         },
         {
+          "depends": [],
+          "filename": "pool/main/libt/libtalloc/libtalloc_2.4.3_aarch64.deb",
+          "name": "libtalloc",
+          "sha256": "ac81ad623d74c209718b9f3acb2dd702cc8a88c431e820d212229910b4db29da",
+          "version": "2.4.3"
+        },
+        {
+          "depends": [
+            "gdbm",
+            "libandroid-posix-semaphore",
+            "libandroid-support",
+            "libbz2",
+            "libcrypt",
+            "libexpat",
+            "libffi",
+            "liblzma",
+            "libsqlite",
+            "ncurses",
+            "ncurses-ui-libs",
+            "openssl",
+            "readline",
+            "zlib"
+          ],
+          "filename": "pool/main/p/python/python_3.13.13-1_aarch64.deb",
+          "name": "python",
+          "sha256": "880f995ba4c793bd09556182be38533f4de6ee909841d7fcf6572f36f9b614ea",
+          "version": "3.13.13-1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "libffi",
+            "libiconv",
+            "pcre2",
+            "resolv-conf",
+            "zlib",
+            "python"
+          ],
+          "filename": "pool/main/g/glib/glib_2.88.1_aarch64.deb",
+          "name": "glib",
+          "sha256": "8410f893db6db849e7c138ac732a06db6f67e03d561201298cdc82f196c32df4",
+          "version": "2.88.1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-shmem/libandroid-shmem_0.7_aarch64.deb",
+          "name": "libandroid-shmem",
+          "sha256": "0da3a24d558b93c92bcf8d611e0826a99ff96e396b148e6cdf33b47c47c57ff6",
+          "version": "0.7"
+        },
+        {
+          "depends": [
+            "argp",
+            "libbz2",
+            "liblzma",
+            "libelf"
+          ],
+          "filename": "pool/main/libd/libdw/libdw_0.193-1_aarch64.deb",
+          "name": "libdw",
+          "sha256": "9b24d896aba9aa306b19c2dff9697074194ab6abeb9821b7f59ff5fe7e466b68",
+          "version": "0.193-1"
+        },
+        {
+          "depends": [
+            "libc++",
+            "libgmp",
+            "libnettle",
+            "ca-certificates",
+            "libidn2",
+            "libunbound",
+            "libunistring",
+            "zlib"
+          ],
+          "filename": "pool/main/libg/libgnutls/libgnutls_3.8.13_aarch64.deb",
+          "name": "libgnutls",
+          "sha256": "59cf7f94ba343e6a312ce36ee198c908a2da772fe3a230ae6a7aeb643fb7edc2",
+          "version": "3.8.13"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libp/libpixman/libpixman_0.46.4-1_aarch64.deb",
+          "name": "libpixman",
+          "sha256": "364b8c82ff68f8513930e5d413459fb7c52eccc7ba75a97a8c5a38760eee8d33",
+          "version": "0.46.4-1"
+        },
+        {
           "depends": [
             "attr"
           ],
@@ -359,10 +490,10 @@
         },
         {
           "depends": [],
-          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.03.19_all.deb",
+          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.05.14_all.deb",
           "name": "ca-certificates",
-          "sha256": "ce6925a2eae6a8fe205c6cef1ca14aa8fc43e2e4784b15017563ee3f02bcc159",
-          "version": "1:2026.03.19"
+          "sha256": "bd33b67306070679387e3b999590a0645eccce195017e1e10b76df9dd0c81d1d",
+          "version": "1:2026.05.14"
         },
         {
           "depends": [],
@@ -373,19 +504,19 @@
         },
         {
           "depends": [],
-          "filename": "pool/main/libn/libnghttp3/libnghttp3_1.15.0_aarch64.deb",
+          "filename": "pool/main/libn/libnghttp3/libnghttp3_1.16.0_aarch64.deb",
           "name": "libnghttp3",
-          "sha256": "948d726bda800cfa36f95a82d0cc0cd8dbba53d0fc81fe39df5f5132f92884ec",
-          "version": "1.15.0"
+          "sha256": "468ecdcc3063d9272f5cf09c590cbdbf42007d1ffe2166384c7ccee6a97b121a",
+          "version": "1.16.0"
         },
         {
           "depends": [
             "openssl"
           ],
-          "filename": "pool/main/libn/libngtcp2/libngtcp2_1.22.1_aarch64.deb",
+          "filename": "pool/main/libn/libngtcp2/libngtcp2_1.23.0_aarch64.deb",
           "name": "libngtcp2",
-          "sha256": "08215d81e34673a4c5fd7c423c88b65ff0bfc4432f0946ec203988afcb145f43",
-          "version": "1.22.1"
+          "sha256": "57cc3f6ac5d5cc280229d6fcbd1ff92af0b48a9858aaf9a26ed13fdc1158864e",
+          "version": "1.23.0"
         },
         {
           "depends": [
@@ -398,11 +529,147 @@
           "version": "1.11.1-1"
         },
         {
+          "depends": [
+            "readline"
+          ],
+          "filename": "pool/main/g/gdbm/gdbm_1.26-1_aarch64.deb",
+          "name": "gdbm",
+          "sha256": "c378de833aae3cf41f3028491ea11836479d9833ab653edc27d0c0e0e691d5c5",
+          "version": "1.26-1"
+        },
+        {
+          "depends": [
+            "openssl"
+          ],
+          "filename": "pool/main/libc/libcrypt/libcrypt_0.2-6_aarch64.deb",
+          "name": "libcrypt",
+          "sha256": "6c283eed576b98cc3568f99638156f8588f77d979579d03bef8683d6eb8601e1",
+          "version": "0.2-6"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libf/libffi/libffi_3.5.2_aarch64.deb",
+          "name": "libffi",
+          "sha256": "8c8c1d6ffb049d8496a21c1202d9b4dc9145140886fdbb45716684565f4ed3f5",
+          "version": "3.5.2"
+        },
+        {
+          "depends": [
+            "zlib"
+          ],
+          "filename": "pool/main/libs/libsqlite/libsqlite_3.53.2_aarch64.deb",
+          "name": "libsqlite",
+          "sha256": "ce9ad473f0ad4e9122144c54b2322a009e96f9184385a52fbd35e8d44d4ac37d",
+          "version": "3.53.2"
+        },
+        {
+          "depends": [
+            "ncurses"
+          ],
+          "filename": "pool/main/n/ncurses-ui-libs/ncurses-ui-libs_6.6.20260307+really6.5.20250830_aarch64.deb",
+          "name": "ncurses-ui-libs",
+          "sha256": "7393f369009be189b3d4ec1f9b16ebd57621d6a1b22949ae07685573950d1f37",
+          "version": "6.6.20260307+really6.5.20250830"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/r/resolv-conf/resolv-conf_1.3_aarch64.deb",
+          "name": "resolv-conf",
+          "sha256": "ab541abac8e0c81709cd7ca4a02bcfa0d60ba1f4bfe7fd6dce4a694a4a9dfffa",
+          "version": "1.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/a/argp/argp_1.5.0-1_aarch64.deb",
+          "name": "argp",
+          "sha256": "4096bfb8cba379efc3699e94e1cee400e72c274d734b5c1ed5f274ec42003405",
+          "version": "1.5.0-1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "zlib",
+            "zstd",
+            "json-c"
+          ],
+          "filename": "pool/main/libe/libelf/libelf_0.193-1_aarch64.deb",
+          "name": "libelf",
+          "sha256": "98fba46ed571c59d38269e5e0c36a7555335ed3546dc9eb0ea5889763e66e621",
+          "version": "0.193-1"
+        },
+        {
+          "depends": [
+            "libgmp"
+          ],
+          "filename": "pool/main/libn/libnettle/libnettle_4.0+really3.10.2_aarch64.deb",
+          "name": "libnettle",
+          "sha256": "f2d2a84083e66beab642e88496eb16976ccdb12d1278466e687f01431db8a5fb",
+          "version": "4.0+really3.10.2"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "libiconv",
+            "libunistring"
+          ],
+          "filename": "pool/main/libi/libidn2/libidn2_2.3.8-1_aarch64.deb",
+          "name": "libidn2",
+          "sha256": "a450a1ba25759ebf78738484a3efee316c51a1fe7bafb0b01a68e2c058a91020",
+          "version": "2.3.8-1"
+        },
+        {
+          "depends": [
+            "libevent",
+            "libnghttp2",
+            "libngtcp2",
+            "openssl",
+            "resolv-conf"
+          ],
+          "filename": "pool/main/libu/libunbound/libunbound_1.25.1_aarch64.deb",
+          "name": "libunbound",
+          "sha256": "a45c9f79f225a79b7c8dbbb6b385c87dc0e4946b1ea09fbe6186cf075618c0ee",
+          "version": "1.25.1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "libiconv"
+          ],
+          "filename": "pool/main/libu/libunistring/libunistring_1.3-1_aarch64.deb",
+          "name": "libunistring",
+          "sha256": "da6cb56c661792bfe42daa3b11849abeaf078ef2934029cb78321f3f303c8c96",
+          "version": "1.3-1"
+        },
+        {
           "depends": [],
           "filename": "pool/main/a/attr/attr_2.5.2-1_aarch64.deb",
           "name": "attr",
           "sha256": "f81bb14a1ded6c0857b9af94937d68bb2d64ec6c9fb31f3da8c646e54c68dd72",
           "version": "2.5.2-1"
+        },
+        {
+          "depends": [
+            "liblzma",
+            "zlib"
+          ],
+          "filename": "pool/main/z/zstd/zstd_1.5.7-1_aarch64.deb",
+          "name": "zstd",
+          "sha256": "e1b4a5113648da8de189620ba1fce74c48b2d0833d9043391b9a1c91fb606fd3",
+          "version": "1.5.7-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/j/json-c/json-c_0.18-2_aarch64.deb",
+          "name": "json-c",
+          "sha256": "1d63c5de4a3cc9cbbce85f97e776153e6257cc3effc9f13b8c5d9d841da63bc9",
+          "version": "0.18-2"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libe/libevent/libevent_2.1.12-3_aarch64.deb",
+          "name": "libevent",
+          "sha256": "9db37dd4a000ae43eff4e87422e5280be9b6348581702f582d2fe8bddc0f4572",
+          "version": "2.1.12-3"
         }
       ],
       "termux_arch": "aarch64"
@@ -545,12 +812,57 @@
         },
         {
           "depends": [
+            "libtalloc"
+          ],
+          "filename": "pool/main/p/proot/proot_5.1.107.76_x86_64.deb",
+          "name": "proot",
+          "sha256": "cc5bcbadb57fbb296a94f9b1d4fc12c332e17ef7c8c6504628c7a158a1848399",
+          "version": "5.1.107.76"
+        },
+        {
+          "depends": [
+            "proot",
+            "python"
+          ],
+          "filename": "pool/main/p/proot-distro/proot-distro_5.1.4_all.deb",
+          "name": "proot-distro",
+          "sha256": "078e8427fe7ae8623f7817b6f199fe570da1859243e8f73a693acdcb3d3ca776",
+          "version": "5.1.4"
+        },
+        {
+          "depends": [
             "ncurses"
           ],
           "filename": "pool/main/p/procps/procps_3.3.17-6_x86_64.deb",
           "name": "procps",
           "sha256": "46a05ce0dde79f1960255d4248a45823fb24b3e076dc896d501ab471053e2375",
           "version": "3.3.17-6"
+        },
+        {
+          "depends": [
+            "glib",
+            "libandroid-shmem",
+            "libdw",
+            "libgnutls",
+            "libpixman"
+          ],
+          "filename": "pool/main/q/qemu-user-aarch64/qemu-user-aarch64_1:10.2.1_x86_64.deb",
+          "name": "qemu-user-aarch64",
+          "sha256": "1c095431ee7c948a53733e29aca4c0420ebee1a3dd6a35096a51aa2a31ce2c54",
+          "version": "1:10.2.1"
+        },
+        {
+          "depends": [
+            "glib",
+            "libandroid-shmem",
+            "libdw",
+            "libgnutls",
+            "libpixman"
+          ],
+          "filename": "pool/main/q/qemu-user-x86-64/qemu-user-x86-64_1:10.2.1_x86_64.deb",
+          "name": "qemu-user-x86-64",
+          "sha256": "dc60515509e9efa23688b069535b01b89c71ead84a97133bca6eea3e7265cb3b",
+          "version": "1:10.2.1"
         },
         {
           "depends": [],
@@ -719,6 +1031,92 @@
           "version": "29"
         },
         {
+          "depends": [],
+          "filename": "pool/main/libt/libtalloc/libtalloc_2.4.3_x86_64.deb",
+          "name": "libtalloc",
+          "sha256": "7ca2eaae2e53b28228a01301bc410b62845403d6317c25b8e0a7f40681de0628",
+          "version": "2.4.3"
+        },
+        {
+          "depends": [
+            "gdbm",
+            "libandroid-posix-semaphore",
+            "libandroid-support",
+            "libbz2",
+            "libcrypt",
+            "libexpat",
+            "libffi",
+            "liblzma",
+            "libsqlite",
+            "ncurses",
+            "ncurses-ui-libs",
+            "openssl",
+            "readline",
+            "zlib"
+          ],
+          "filename": "pool/main/p/python/python_3.13.13-1_x86_64.deb",
+          "name": "python",
+          "sha256": "93083a4c32eb9cfbcac1f20d32db881b9ec7198199bd60dd104c1e98777cb5eb",
+          "version": "3.13.13-1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "libffi",
+            "libiconv",
+            "pcre2",
+            "resolv-conf",
+            "zlib",
+            "python"
+          ],
+          "filename": "pool/main/g/glib/glib_2.88.1_x86_64.deb",
+          "name": "glib",
+          "sha256": "86ed569c86d3c8d6c54b3842eb9658a9900d151cca818f4245720ebbd394d995",
+          "version": "2.88.1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/liba/libandroid-shmem/libandroid-shmem_0.7_x86_64.deb",
+          "name": "libandroid-shmem",
+          "sha256": "ffa9e4c87467b158b148d0ff92dda796aa038276c2075af3269cdcdb06f25797",
+          "version": "0.7"
+        },
+        {
+          "depends": [
+            "argp",
+            "libbz2",
+            "liblzma",
+            "libelf"
+          ],
+          "filename": "pool/main/libd/libdw/libdw_0.193-1_x86_64.deb",
+          "name": "libdw",
+          "sha256": "f1d10d5caf8251eb34e2870017938e684ac4777598b3571c301a56c9b9af738d",
+          "version": "0.193-1"
+        },
+        {
+          "depends": [
+            "libc++",
+            "libgmp",
+            "libnettle",
+            "ca-certificates",
+            "libidn2",
+            "libunbound",
+            "libunistring",
+            "zlib"
+          ],
+          "filename": "pool/main/libg/libgnutls/libgnutls_3.8.13_x86_64.deb",
+          "name": "libgnutls",
+          "sha256": "744224f1513e37a4fcef87603201607259e2f795e49f863f22e547e84961365c",
+          "version": "3.8.13"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libp/libpixman/libpixman_0.46.4-1_x86_64.deb",
+          "name": "libpixman",
+          "sha256": "169e3ce2e2adf1cbb51c39fc7e7e2532f519b3e5362fef24e895d6c98e82a8f5",
+          "version": "0.46.4-1"
+        },
+        {
           "depends": [
             "attr"
           ],
@@ -766,10 +1164,10 @@
         },
         {
           "depends": [],
-          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.03.19_all.deb",
+          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.05.14_all.deb",
           "name": "ca-certificates",
-          "sha256": "ce6925a2eae6a8fe205c6cef1ca14aa8fc43e2e4784b15017563ee3f02bcc159",
-          "version": "1:2026.03.19"
+          "sha256": "bd33b67306070679387e3b999590a0645eccce195017e1e10b76df9dd0c81d1d",
+          "version": "1:2026.05.14"
         },
         {
           "depends": [],
@@ -780,19 +1178,19 @@
         },
         {
           "depends": [],
-          "filename": "pool/main/libn/libnghttp3/libnghttp3_1.15.0_x86_64.deb",
+          "filename": "pool/main/libn/libnghttp3/libnghttp3_1.16.0_x86_64.deb",
           "name": "libnghttp3",
-          "sha256": "d196a1c7959085dbb7d50ae9ac261e5e9ecefc87e67faac4c58479677f9985b6",
-          "version": "1.15.0"
+          "sha256": "2147eb9542e8f78a22debadc225c47d90e6b8b67fafa4cfb690eb13292cbe566",
+          "version": "1.16.0"
         },
         {
           "depends": [
             "openssl"
           ],
-          "filename": "pool/main/libn/libngtcp2/libngtcp2_1.22.1_x86_64.deb",
+          "filename": "pool/main/libn/libngtcp2/libngtcp2_1.23.0_x86_64.deb",
           "name": "libngtcp2",
-          "sha256": "531cc70cbdc0296d32d2b8416d6e5565b3db58e59010f34f89f37f4d4ab4ace1",
-          "version": "1.22.1"
+          "sha256": "8b1801b98871b25f40f2c3caea1a20e66cace0c17aa7568b41b03e969ab470a5",
+          "version": "1.23.0"
         },
         {
           "depends": [
@@ -805,11 +1203,147 @@
           "version": "1.11.1-1"
         },
         {
+          "depends": [
+            "readline"
+          ],
+          "filename": "pool/main/g/gdbm/gdbm_1.26-1_x86_64.deb",
+          "name": "gdbm",
+          "sha256": "af6c89b403d42a98898c665fc2c48da59a7d20e6e26f651a654790661844001f",
+          "version": "1.26-1"
+        },
+        {
+          "depends": [
+            "openssl"
+          ],
+          "filename": "pool/main/libc/libcrypt/libcrypt_0.2-6_x86_64.deb",
+          "name": "libcrypt",
+          "sha256": "c424f96ce977cf2e8aa44925a852fd4c6c63564490a100cc44f63b71afd943e2",
+          "version": "0.2-6"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libf/libffi/libffi_3.5.2_x86_64.deb",
+          "name": "libffi",
+          "sha256": "fb3788bf51af4b838519291840c1f8a1e19c56423355f91a41e963109b8926a2",
+          "version": "3.5.2"
+        },
+        {
+          "depends": [
+            "zlib"
+          ],
+          "filename": "pool/main/libs/libsqlite/libsqlite_3.53.2_x86_64.deb",
+          "name": "libsqlite",
+          "sha256": "4d264e32e9bbb4b793c52ebd37e03ef0dffad7dbf8b126ddf01b13f0d022a1a3",
+          "version": "3.53.2"
+        },
+        {
+          "depends": [
+            "ncurses"
+          ],
+          "filename": "pool/main/n/ncurses-ui-libs/ncurses-ui-libs_6.6.20260307+really6.5.20250830_x86_64.deb",
+          "name": "ncurses-ui-libs",
+          "sha256": "1193618e18f579eb86064e00648d80648eaec5da70c0a5b944ac1315d209d16e",
+          "version": "6.6.20260307+really6.5.20250830"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/r/resolv-conf/resolv-conf_1.3_x86_64.deb",
+          "name": "resolv-conf",
+          "sha256": "0fcf8c5447bc5fbb0d411a47dc5c67d2aced861227e09052fc423220291a22c7",
+          "version": "1.3"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/a/argp/argp_1.5.0-1_x86_64.deb",
+          "name": "argp",
+          "sha256": "7e6521f6bcb2bb76ab3db95c883fc70db536765a3f0d38fcbca3695a6d2ac60e",
+          "version": "1.5.0-1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "zlib",
+            "zstd",
+            "json-c"
+          ],
+          "filename": "pool/main/libe/libelf/libelf_0.193-1_x86_64.deb",
+          "name": "libelf",
+          "sha256": "17a4ef9d1633a21fbf5226abb82c3547d22bbdf398d4114dd04064dbe3b110bb",
+          "version": "0.193-1"
+        },
+        {
+          "depends": [
+            "libgmp"
+          ],
+          "filename": "pool/main/libn/libnettle/libnettle_4.0+really3.10.2_x86_64.deb",
+          "name": "libnettle",
+          "sha256": "e754086e59615e260bdb24b8000732a3eaedefa40c8c11e30a30a9c22877e815",
+          "version": "4.0+really3.10.2"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "libiconv",
+            "libunistring"
+          ],
+          "filename": "pool/main/libi/libidn2/libidn2_2.3.8-1_x86_64.deb",
+          "name": "libidn2",
+          "sha256": "4f4f91f5bc8b7b215f153fb96808f75b55a86c6e8ec66ff3286b859cb6048500",
+          "version": "2.3.8-1"
+        },
+        {
+          "depends": [
+            "libevent",
+            "libnghttp2",
+            "libngtcp2",
+            "openssl",
+            "resolv-conf"
+          ],
+          "filename": "pool/main/libu/libunbound/libunbound_1.25.1_x86_64.deb",
+          "name": "libunbound",
+          "sha256": "9207a3f0fe525b1ba1f1ea61f02026f6edb422b8f1e7ccd545edaf843185c987",
+          "version": "1.25.1"
+        },
+        {
+          "depends": [
+            "libandroid-support",
+            "libiconv"
+          ],
+          "filename": "pool/main/libu/libunistring/libunistring_1.3-1_x86_64.deb",
+          "name": "libunistring",
+          "sha256": "02effdaa9c15303cdf305e2c825b3c9393b7abfb55d25bcba517e15871dda599",
+          "version": "1.3-1"
+        },
+        {
           "depends": [],
           "filename": "pool/main/a/attr/attr_2.5.2-1_x86_64.deb",
           "name": "attr",
           "sha256": "4af46af73496edad1aa7a0b23feefe57e8d813af76e6cd8161c3b2bf1202723b",
           "version": "2.5.2-1"
+        },
+        {
+          "depends": [
+            "liblzma",
+            "zlib"
+          ],
+          "filename": "pool/main/z/zstd/zstd_1.5.7-1_x86_64.deb",
+          "name": "zstd",
+          "sha256": "a76ba6c3d8742819bf4fff7780eb2e022269412700fc8f4471f530cc0d81833f",
+          "version": "1.5.7-1"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/j/json-c/json-c_0.18-2_x86_64.deb",
+          "name": "json-c",
+          "sha256": "f0b262acbcb6a995c0ec1fa999318de040cef0ddf48857ed4eab02df6d02272a",
+          "version": "0.18-2"
+        },
+        {
+          "depends": [],
+          "filename": "pool/main/libe/libevent/libevent_2.1.12-3_x86_64.deb",
+          "name": "libevent",
+          "sha256": "5e038528d7bf503f27ac24fbb5f1bf372da82807a6798504838117b9c15bd35c",
+          "version": "2.1.12-3"
         }
       ],
       "termux_arch": "x86_64"
@@ -829,7 +1363,11 @@
     "gzip",
     "less",
     "llama-cpp",
+    "proot",
+    "proot-distro",
     "procps",
+    "qemu-user-aarch64",
+    "qemu-user-x86-64",
     "sed",
     "tar",
     "util-linux",

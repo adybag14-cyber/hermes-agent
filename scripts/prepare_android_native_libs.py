@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import re
 from pathlib import Path
 
 
@@ -24,7 +25,18 @@ RUNTIME_LIBRARIES = {
     "libllama.so": "libllama.so",
     "libmtmd.so": "libmtmd.so",
     "libssl.so.3": "libssl.so",
+    "libtalloc.so.2.4.3": "libtalloc.so",
 }
+NATIVE_EXECUTABLE_SEARCH_DIRS = ("bin", "libexec")
+
+
+def native_executable_name(relative_path: str) -> str:
+    existing = NATIVE_EXECUTABLES.get(relative_path)
+    if existing:
+        return existing
+    safe = re.sub(r"[^0-9A-Za-z_]+", "_", relative_path.replace("\\", "/"))
+    safe = safe.strip("_") or "command"
+    return f"libhermes_exec_{safe}.so"
 
 
 def patch_needed(path: Path, old_name: str, new_name: str) -> None:
@@ -45,12 +57,20 @@ def copy_abi(linux_assets_dir: Path, output_dir: Path, abi: str) -> None:
     prefix_dir = linux_assets_dir / "hermes-linux" / abi / "prefix"
     abi_output = output_dir / abi
     abi_output.mkdir(parents=True, exist_ok=True)
-    for source_relative, destination_name in NATIVE_EXECUTABLES.items():
-        source = prefix_dir / source_relative
-        if source.is_file():
+    copied_destinations: set[str] = set()
+    for source_root in NATIVE_EXECUTABLE_SEARCH_DIRS:
+        root = prefix_dir / source_root
+        if not root.is_dir():
+            continue
+        for source in sorted(path for path in root.rglob("*") if path.is_file()):
+            source_relative = source.relative_to(prefix_dir).as_posix()
+            destination_name = native_executable_name(source_relative)
+            if destination_name in copied_destinations:
+                continue
             destination = abi_output / destination_name
             shutil.copy2(source, destination)
             destination.chmod(0o755)
+            copied_destinations.add(destination_name)
     lib_dir = prefix_dir / "lib"
     for source_name, destination_name in sorted(RUNTIME_LIBRARIES.items()):
         source = lib_dir / source_name
@@ -65,6 +85,7 @@ def copy_abi(linux_assets_dir: Path, output_dir: Path, abi: str) -> None:
     patch_needed(abi_output / "libssl.so", "libssl.so.3", "libssl.so")
     patch_needed(abi_output / "libssl.so", "libcrypto.so.3", "libcrypto.so")
     patch_needed(abi_output / "libcrypto.so", "libcrypto.so.3", "libcrypto.so")
+    patch_needed(abi_output / "libhermes_exec_bin_proot.so", "libtalloc.so.2", "libtalloc.so")
 
 
 def prepare_native_libs(linux_assets_dir: Path, output_dir: Path) -> None:

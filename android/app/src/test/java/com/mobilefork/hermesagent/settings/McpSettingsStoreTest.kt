@@ -100,6 +100,26 @@ class McpSettingsStoreTest {
     }
 
     @Test
+    fun addDraftServerWritesSimpleOnboardingDraft() {
+        val store = freshStore()
+
+        val result = store.addDraftServer(
+            serverNameOrCommand = "context7",
+            note = "Docs lookup",
+            nowEpochMs = 5000L,
+        )
+
+        assertTrue(result.success)
+        assertTrue(result.statusMessage.contains("Added MCP server draft context7"))
+        val config = JSONObject(result.configText).getJSONObject("mcpServers")
+        val draft = config.getJSONObject("context7")
+        assertEquals("stdio", draft.getString("transport"))
+        assertEquals("context7", draft.getString("command"))
+        assertTrue(draft.getBoolean("enabled"))
+        assertEquals("Docs lookup", draft.getString("description"))
+    }
+
+    @Test
     fun detectExistingConfigurationReportsMissingFileWithoutCreatingIt() {
         val store = freshStore()
 

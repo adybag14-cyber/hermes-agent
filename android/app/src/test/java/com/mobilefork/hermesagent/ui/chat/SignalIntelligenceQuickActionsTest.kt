@@ -1,5 +1,7 @@
 package com.mobilefork.hermesagent.ui.chat
 
+import com.mobilefork.hermesagent.ui.i18n.AppLanguage
+import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -109,5 +111,17 @@ class SignalIntelligenceQuickActionsTest {
                 assertFalse(parsed.getBoolean("refresh"))
             }
         }
+    }
+
+    @Test
+    fun signalQuickActionLabelsLocalizeForChineseUi() {
+        val strings = hermesStringsFor(AppLanguage.CHINESE)
+
+        assertEquals("信号概览", strings.signalQuickActionLabel("signal_overview", "Signal Overview"))
+        assertEquals("信号简报", strings.signalQuickActionLabel("signal_briefing", "Signal Briefing"))
+        assertEquals("会话快照", strings.signalQuickActionLabel("signal_session_snapshot", "Session Snapshot"))
+        assertEquals("证据审计", strings.signalQuickActionLabel("signal_proof_audit", "Proof Audit"))
+        assertEquals("回放导出", strings.signalQuickActionLabel("signal_replay_export", "Replay Export"))
+        assertEquals("回放新鲜度", strings.signalQuickActionLabel("signal_replay_freshness", "Replay Freshness"))
     }
 }

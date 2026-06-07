@@ -56,6 +56,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
     extraBottomSpacing: Dp = 0.dp,
     onContextActionsChanged: (List<ShellActionItem>) -> Unit = {},
+    onSettingsChanged: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val strings = LocalHermesStrings.current
@@ -90,7 +91,10 @@ fun SettingsScreen(
                     item {
                         LanguagePickerCard(
                             currentLanguageTag = uiState.languageTag,
-                            onSelectLanguage = viewModel::selectLanguage,
+                            onSelectLanguage = { language ->
+                                viewModel.selectLanguage(language)
+                                onSettingsChanged()
+                            },
                             strings = strings,
                         )
                     }
@@ -211,9 +215,9 @@ fun SettingsScreen(
     }
 }
 
-private enum class ModelConfigTab(val label: String) {
-    ModelConfigs("Model configs"),
-    SystemPrompt("System prompt"),
+private enum class ModelConfigTab {
+    ModelConfigs,
+    SystemPrompt,
 }
 
 @Composable
@@ -236,6 +240,7 @@ private fun ModelGenerationConfigCard(
     onClearPrompt: () -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(ModelConfigTab.ModelConfigs) }
+    val language = LocalHermesStrings.current.language
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -248,27 +253,27 @@ private fun ModelGenerationConfigCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Configurations", style = MaterialTheme.typography.titleMedium)
+            Text(settingsGenerationText(language, "configurations"), style = MaterialTheme.typography.titleMedium)
             TabRow(selectedTabIndex = selectedTab.ordinal) {
                 ModelConfigTab.entries.forEach { tab ->
                     Tab(
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
-                        text = { Text(tab.label) },
+                        text = { Text(modelConfigTabLabel(language, tab)) },
                     )
                 }
             }
             when (selectedTab) {
                 ModelConfigTab.ModelConfigs -> {
                     GenerationSwitchRow(
-                        title = "Use generation knobs for API models",
-                        description = "Off keeps provider models on their existing defaults.",
+                        title = settingsGenerationText(language, "api_knobs_title"),
+                        description = settingsGenerationText(language, "api_knobs_description"),
                         checked = apiGenerationKnobsEnabled,
                         onCheckedChange = onApiGenerationKnobsEnabledChange,
                     )
                     GenerationIntegerRow(
-                        title = "Max tokens",
-                        valueLabel = maxTokensLabel(maxTokens),
+                        title = settingsGenerationText(language, "max_tokens"),
+                        valueLabel = maxTokensLabel(maxTokens, language),
                         value = maxTokens,
                         defaultValue = AppSettings.DEFAULT_LOCAL_MODEL_MAX_TOKENS,
                         minValue = AppSettings.DEFAULT_LOCAL_MODEL_MAX_TOKENS,
@@ -304,13 +309,13 @@ private fun ModelGenerationConfigCard(
                         onValueChange = onTemperatureChange,
                         testTag = "LocalModelTemperature",
                     )
-                    Text("Accelerator", style = MaterialTheme.typography.titleSmall)
+                    Text(settingsGenerationText(language, "accelerator"), style = MaterialTheme.typography.titleSmall)
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        acceleratorChoices().forEach { choice ->
+                        acceleratorChoices(language).forEach { choice ->
                             Button(
                                 modifier = Modifier.testTag("LocalModelAccelerator-${choice.value}"),
                                 onClick = { onAcceleratorChange(choice.value) },
@@ -321,7 +326,7 @@ private fun ModelGenerationConfigCard(
                         }
                     }
                     Text(
-                        "Auto keeps Hermes on the runtime default. CPU, GPU, and NPU are saved as preferences for compatible local backends.",
+                        settingsGenerationText(language, "accelerator_description"),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
@@ -329,8 +334,8 @@ private fun ModelGenerationConfigCard(
                     OutlinedTextField(
                         value = customSystemPrompt,
                         onValueChange = onPromptChange,
-                        label = { Text("System prompt") },
-                        placeholder = { Text("Optional instructions for Hermes replies.") },
+                        label = { Text(settingsGenerationText(language, "system_prompt")) },
+                        placeholder = { Text(settingsGenerationText(language, "system_prompt_placeholder")) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag("LocalModelSystemPrompt"),
@@ -346,7 +351,7 @@ private fun ModelGenerationConfigCard(
                         onClick = onClearPrompt,
                         enabled = customSystemPrompt.isNotBlank(),
                     ) {
-                        Text("Clear prompt")
+                        Text(settingsGenerationText(language, "clear_prompt"))
                     }
                 }
             }
@@ -356,7 +361,7 @@ private fun ModelGenerationConfigCard(
                     .testTag("SaveLocalModelGenerationConfigButton"),
                 onClick = onSave,
             ) {
-                Text("Save model configuration")
+                Text(settingsGenerationText(language, "save_model_configuration"))
             }
         }
     }
@@ -425,7 +430,7 @@ private fun GenerationIntegerRow(
                 onClick = { onValueChange(defaultValue) },
                 enabled = value != defaultValue,
             ) {
-                Text("Default")
+                Text(settingsGenerationText(LocalHermesStrings.current.language, "default"))
             }
             Button(
                 modifier = Modifier.testTag("${testTagPrefix}Increase"),
@@ -477,15 +482,132 @@ private data class AcceleratorChoice(
     val label: String,
 )
 
-private fun acceleratorChoices(): List<AcceleratorChoice> = listOf(
-    AcceleratorChoice("auto", "Auto"),
+private fun acceleratorChoices(language: AppLanguage): List<AcceleratorChoice> = listOf(
+    AcceleratorChoice("auto", settingsGenerationText(language, "auto")),
     AcceleratorChoice("cpu", "CPU"),
     AcceleratorChoice("gpu", "GPU"),
     AcceleratorChoice("npu", "NPU"),
 )
 
-private fun maxTokensLabel(value: Int): String {
-    return if (value <= 0) "Default" else value.toString()
+private fun maxTokensLabel(value: Int, language: AppLanguage): String {
+    return if (value <= 0) settingsGenerationText(language, "default") else value.toString()
+}
+
+private fun modelConfigTabLabel(language: AppLanguage, tab: ModelConfigTab): String {
+    return when (tab) {
+        ModelConfigTab.ModelConfigs -> settingsGenerationText(language, "model_configs")
+        ModelConfigTab.SystemPrompt -> settingsGenerationText(language, "system_prompt")
+    }
+}
+
+private fun settingsGenerationText(language: AppLanguage, key: String): String {
+    return when (key) {
+        "configurations" -> when (language) {
+            AppLanguage.CHINESE -> "配置"
+            AppLanguage.SPANISH -> "Configuraciones"
+            AppLanguage.GERMAN -> "Konfigurationen"
+            AppLanguage.PORTUGUESE -> "Configurações"
+            AppLanguage.FRENCH -> "Configurations"
+            AppLanguage.ENGLISH -> "Configurations"
+        }
+        "model_configs" -> when (language) {
+            AppLanguage.CHINESE -> "模型配置"
+            AppLanguage.SPANISH -> "Config. modelo"
+            AppLanguage.GERMAN -> "Modellkonfig."
+            AppLanguage.PORTUGUESE -> "Config. modelo"
+            AppLanguage.FRENCH -> "Config. modèle"
+            AppLanguage.ENGLISH -> "Model configs"
+        }
+        "system_prompt" -> when (language) {
+            AppLanguage.CHINESE -> "系统提示词"
+            AppLanguage.SPANISH -> "Prompt del sistema"
+            AppLanguage.GERMAN -> "Systemprompt"
+            AppLanguage.PORTUGUESE -> "Prompt do sistema"
+            AppLanguage.FRENCH -> "Prompt système"
+            AppLanguage.ENGLISH -> "System prompt"
+        }
+        "api_knobs_title" -> when (language) {
+            AppLanguage.CHINESE -> "对 API 模型使用生成参数"
+            AppLanguage.SPANISH -> "Usar controles de generación para API"
+            AppLanguage.GERMAN -> "Generierungsregler für API-Modelle"
+            AppLanguage.PORTUGUESE -> "Usar controles de geração para APIs"
+            AppLanguage.FRENCH -> "Utiliser les réglages de génération API"
+            AppLanguage.ENGLISH -> "Use generation knobs for API models"
+        }
+        "api_knobs_description" -> when (language) {
+            AppLanguage.CHINESE -> "关闭时，提供商模型会保持现有默认值。"
+            AppLanguage.SPANISH -> "Desactivado mantiene los modelos del proveedor con sus valores predeterminados."
+            AppLanguage.GERMAN -> "Aus lässt Anbieter-Modelle bei ihren vorhandenen Standardwerten."
+            AppLanguage.PORTUGUESE -> "Desativado mantém os modelos do provedor nos padrões atuais."
+            AppLanguage.FRENCH -> "Désactivé garde les modèles fournisseur sur leurs valeurs par défaut."
+            AppLanguage.ENGLISH -> "Off keeps provider models on their existing defaults."
+        }
+        "max_tokens" -> when (language) {
+            AppLanguage.CHINESE -> "最大 token 数"
+            AppLanguage.SPANISH -> "Tokens máximos"
+            AppLanguage.GERMAN -> "Max. Tokens"
+            AppLanguage.PORTUGUESE -> "Tokens máximos"
+            AppLanguage.FRENCH -> "Tokens max."
+            AppLanguage.ENGLISH -> "Max tokens"
+        }
+        "accelerator" -> when (language) {
+            AppLanguage.CHINESE -> "加速器"
+            AppLanguage.SPANISH -> "Acelerador"
+            AppLanguage.GERMAN -> "Beschleuniger"
+            AppLanguage.PORTUGUESE -> "Acelerador"
+            AppLanguage.FRENCH -> "Accélérateur"
+            AppLanguage.ENGLISH -> "Accelerator"
+        }
+        "accelerator_description" -> when (language) {
+            AppLanguage.CHINESE -> "自动会使用 Hermes 运行时默认值。CPU、GPU 和 NPU 会作为兼容本地后端的偏好保存。"
+            AppLanguage.SPANISH -> "Auto mantiene el valor predeterminado del runtime. CPU, GPU y NPU se guardan para backends locales compatibles."
+            AppLanguage.GERMAN -> "Auto nutzt den Runtime-Standard. CPU, GPU und NPU werden für kompatible lokale Backends gespeichert."
+            AppLanguage.PORTUGUESE -> "Auto mantém o padrão do runtime. CPU, GPU e NPU são salvos para backends locais compatíveis."
+            AppLanguage.FRENCH -> "Auto garde la valeur par défaut du runtime. CPU, GPU et NPU sont enregistrés pour les backends locaux compatibles."
+            AppLanguage.ENGLISH -> "Auto keeps Hermes on the runtime default. CPU, GPU, and NPU are saved as preferences for compatible local backends."
+        }
+        "system_prompt_placeholder" -> when (language) {
+            AppLanguage.CHINESE -> "Hermes 回复的可选指令。"
+            AppLanguage.SPANISH -> "Instrucciones opcionales para las respuestas de Hermes."
+            AppLanguage.GERMAN -> "Optionale Anweisungen für Hermes-Antworten."
+            AppLanguage.PORTUGUESE -> "Instruções opcionais para respostas do Hermes."
+            AppLanguage.FRENCH -> "Instructions facultatives pour les réponses de Hermes."
+            AppLanguage.ENGLISH -> "Optional instructions for Hermes replies."
+        }
+        "clear_prompt" -> when (language) {
+            AppLanguage.CHINESE -> "清空提示词"
+            AppLanguage.SPANISH -> "Borrar prompt"
+            AppLanguage.GERMAN -> "Prompt löschen"
+            AppLanguage.PORTUGUESE -> "Limpar prompt"
+            AppLanguage.FRENCH -> "Effacer le prompt"
+            AppLanguage.ENGLISH -> "Clear prompt"
+        }
+        "save_model_configuration" -> when (language) {
+            AppLanguage.CHINESE -> "保存模型配置"
+            AppLanguage.SPANISH -> "Guardar configuración del modelo"
+            AppLanguage.GERMAN -> "Modellkonfiguration speichern"
+            AppLanguage.PORTUGUESE -> "Salvar configuração do modelo"
+            AppLanguage.FRENCH -> "Enregistrer la configuration modèle"
+            AppLanguage.ENGLISH -> "Save model configuration"
+        }
+        "default" -> when (language) {
+            AppLanguage.CHINESE -> "默认"
+            AppLanguage.SPANISH -> "Predeterminado"
+            AppLanguage.GERMAN -> "Standard"
+            AppLanguage.PORTUGUESE -> "Padrão"
+            AppLanguage.FRENCH -> "Par défaut"
+            AppLanguage.ENGLISH -> "Default"
+        }
+        "auto" -> when (language) {
+            AppLanguage.CHINESE -> "自动"
+            AppLanguage.SPANISH -> "Auto"
+            AppLanguage.GERMAN -> "Auto"
+            AppLanguage.PORTUGUESE -> "Auto"
+            AppLanguage.FRENCH -> "Auto"
+            AppLanguage.ENGLISH -> "Auto"
+        }
+        else -> key
+    }
 }
 
 private fun incrementGenerationValue(value: Int, defaultValue: Int, maxValue: Int, step: Int): Int {

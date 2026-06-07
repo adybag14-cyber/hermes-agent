@@ -65,6 +65,31 @@ class ChatScreenTextFormattingTest {
     }
 
     @Test
+    fun chatDisplayTextFormatsXmlToolCalls() {
+        val rendered = sanitizeChatDisplayText(
+            """<terminal_tool>{"command":"pwd"}</terminal_tool>""",
+        )
+
+        assertTrue(rendered.contains("Tool call: terminal_tool"))
+        assertTrue(rendered.contains("""Arguments: {"command":"pwd"}"""))
+        assertFalse(rendered.contains("<terminal_tool>"))
+    }
+
+    @Test
+    fun chatDisplayTextRemovesMarkdownCodeFenceMarkers() {
+        val rendered = sanitizeChatDisplayText(
+            """
+            ```json
+            {"ok":true}
+            ```
+            """.trimIndent(),
+        )
+
+        assertTrue(rendered.contains("""{"ok":true}"""))
+        assertFalse(rendered.contains("```"))
+    }
+
+    @Test
     fun composerStatusCollapsesWhenKeyboardIsVisible() {
         assertTrue(shouldShowComposerStatus(tinyRuntimeViewport = false, imeVisible = false))
         assertFalse(shouldShowComposerStatus(tinyRuntimeViewport = true, imeVisible = false))

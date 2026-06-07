@@ -15,6 +15,8 @@ import com.mobilefork.hermesagent.device.HermesAppControlBridge
 import com.mobilefork.hermesagent.device.HermesAutomationBridge
 import com.mobilefork.hermesagent.device.HermesDeviceDiagnosticsBridge
 import com.mobilefork.hermesagent.device.HermesHyMemoryBridge
+import com.mobilefork.hermesagent.device.HermesLinuxSandboxBridge
+import com.mobilefork.hermesagent.device.HermesLinuxSandboxCatalog
 import com.mobilefork.hermesagent.device.HermesPrivilegedAccessBridge
 import com.mobilefork.hermesagent.device.HermesSystemControlBridge
 import com.mobilefork.hermesagent.device.HermesWorkspaceFileBridge
@@ -38,6 +40,7 @@ class NativeToolCallingChatClient(
         .build(),
 ) {
     private val appContext = context.applicationContext
+    private val directToolKeyValueRegex = Regex("""([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("[^"]*"|'[^']*'|[^\s,]+)""")
     private val openGuiWorkingMemoryPrefs = appContext.getSharedPreferences("hermes_opengui_working_memory", Context.MODE_PRIVATE)
     private var activeOpenGuiMemorySessionId: String = ""
     private val openGuiActionHistory = OpenGuiActionHistory()
@@ -251,6 +254,7 @@ class NativeToolCallingChatClient(
             return Result(
                 content = toolCompletionReply(toolResult),
                 executedToolCalls = 1,
+                lastToolResult = toolResult,
             )
         }
 
@@ -265,6 +269,7 @@ class NativeToolCallingChatClient(
             return Result(
                 content = toolCompletionReply(toolResult),
                 executedToolCalls = 1,
+                lastToolResult = toolResult,
             )
         }
 
@@ -279,24 +284,116 @@ class NativeToolCallingChatClient(
             return Result(
                 content = toolCompletionReply(toolResult),
                 executedToolCalls = 1,
+                lastToolResult = toolResult,
             )
         }
 
-        val command = extractExactTerminalCommand(userText) ?: return null
-        val toolResult = executeTerminalTool(
-            ToolCall(
-                id = "direct_${UUID.randomUUID()}",
-                name = "terminal_tool",
-                arguments = JSONObject()
-                    .put("command", command)
-                    .put("timeout_seconds", TOOL_TIMEOUT_SECONDS),
+        extractDirectTerminalCommand(userText)?.let { command ->
+            val toolResult = executeTerminalTool(
+                ToolCall(
+                    id = "direct_${UUID.randomUUID()}",
+                    name = "terminal_tool",
+                    arguments = JSONObject()
+                        .put("command", command)
+                        .put("timeout_seconds", TOOL_TIMEOUT_SECONDS),
+                )
             )
-        )
-        return Result(
-            content = toolCompletionReply(toolResult),
-            executedToolCalls = 1,
-            lastToolResult = toolResult,
-        )
+            return Result(
+                content = toolCompletionReply(toolResult),
+                executedToolCalls = 1,
+            )
+        }
+
+        extractExplicitLinuxSandboxArguments(userText)?.let { arguments ->
+            val toolResult = executeLinuxSandboxTool(
+                ToolCall(
+                    id = "direct_${UUID.randomUUID()}",
+                    name = "linux_sandbox_tool",
+                    arguments = arguments,
+                )
+            )
+            return Result(
+                content = toolCompletionReply(toolResult),
+                executedToolCalls = 1,
+            )
+        }
+
+        return null
+    }
+
+    private fun extractExplicitLinuxSandboxArguments(userText: String): JSONObject? {
+        val lower = userText.lowercase()
+        if (
+            "linux_sandbox_tool" !in lower &&
+            "linux sandbox" !in lower &&
+            "downloadable linux" !in lower &&
+            "proot-distro" !in lower &&
+            "proot distro" !in lower
+        ) {
+            return null
+        }
+        val arguments = JSONObject()
+        directToolKeyValueRegex.findAll(userText).forEach { match ->
+            val key = match.groupValues.getOrNull(1).orEmpty().trim()
+            val value = match.groupValues.getOrNull(2).orEmpty().trim().trim('"', '\'')
+            if (key.isNotBlank() && value.isNotBlank()) {
+                arguments.put(key, value)
+            }
+        }
+        if (!arguments.has("action")) {
+            arguments.put(
+                "action",
+                when {
+                    "install" in lower -> "install"
+                    "remove" in lower || "delete" in lower -> "remove"
+                    "run" in lower || "execute" in lower -> "run"
+                    "catalog" in lower -> "catalog"
+                    "list" in lower -> "list"
+                    else -> "status"
+                },
+            )
+        }
+        val catalog = HermesLinuxSandboxCatalog.distroCatalog()
+        for (index in 0 until catalog.length()) {
+            val distro = catalog.optJSONObject(index) ?: continue
+            val id = distro.optString("id")
+            val name = distro.optString("name")
+            val image = distro.optString("image")
+            if (!arguments.has("distro_id") && id.isNotBlank() && id.lowercase() in lower) {
+                arguments.put("distro_id", id)
+            }
+            if (!arguments.has("name") && name.isNotBlank() && name.lowercase() in lower) {
+                arguments.put("name", name)
+            }
+            if (!arguments.has("image") && image.isNotBlank() && image.lowercase() in lower) {
+                arguments.put("image", image)
+            }
+        }
+        if (!arguments.has("command")) {
+            extractMarkedTail(
+                userText = userText,
+                markers = listOf("sandbox command:", "command:", "cmd:"),
+            )?.let { arguments.put("command", it) }
+        }
+        if (!arguments.has("timeout_seconds") && arguments.optString("action") == "install") {
+            arguments.put("timeout_seconds", 900)
+        }
+        return arguments
+    }
+
+    private fun extractMarkedTail(userText: String, markers: List<String>): String? {
+        val lower = userText.lowercase()
+        val match = markers
+            .mapNotNull { marker ->
+                lower.indexOf(marker)
+                    .takeIf { it >= 0 }
+                    ?.let { index -> marker to index }
+            }
+            .minByOrNull { (_, index) -> index }
+            ?: return null
+        val start = match.second + match.first.length
+        val tail = userText.substring(start).trim()
+        return tail.takeIf { it.isNotBlank() }
     }
 
     private fun extractExplicitFileWriteRequest(userText: String): ExplicitFileWriteRequest? {
@@ -491,31 +588,6 @@ class NativeToolCallingChatClient(
             </body>
             </html>
         """.trimIndent()
-    }
-
-    private fun extractExactTerminalCommand(userText: String): String? {
-        val lower = userText.lowercase()
-        if ("terminal_tool" !in lower) {
-            return null
-        }
-        val markers = listOf("run exactly this command:", "run exactly:")
-        val marker = markers.firstOrNull { it in lower } ?: return null
-        val markerIndex = lower.indexOf(marker)
-        if (markerIndex < 0) {
-            return null
-        }
-        val start = markerIndex + marker.length
-        val tail = userText.substring(start).trim()
-        val endMarkers = listOf(". After terminal_tool", "\nAfter terminal_tool", " After terminal_tool")
-        val end = endMarkers
-            .map { tail.indexOf(it) }
-            .filter { it >= 0 }
-            .minOrNull()
-            ?: tail.length
-        return tail.substring(0, end)
-            .trim()
-            .trim('`')
-            .takeIf { it.isNotBlank() }
     }
 
     private fun toolCompletionReply(toolResult: String): String {
@@ -740,6 +812,8 @@ class NativeToolCallingChatClient(
     private fun executeToolCall(toolCall: ToolCall): String {
         return when (toolCall.name) {
             "terminal_tool", "terminal", "shell" -> executeTerminalTool(toolCall)
+            "linux_sandbox_tool", "linux_sandbox", "proot_distro_tool", "proot-distro", "proot_distro" ->
+                executeLinuxSandboxTool(toolCall)
             "file_write_tool", "write_file", "file_tool" -> executeFileWriteTool(toolCall)
             "android_system_tool", "android_system_action", "system_tool", "settings_tool", "phone_tool" ->
                 executeAndroidSystemTool(toolCall)
@@ -780,9 +854,39 @@ class NativeToolCallingChatClient(
             .put("execution_mode", result.optString("execution_mode"))
             .put("uses_termux", result.optBoolean("uses_termux", false))
             .put("available_package_count", result.optInt("available_package_count", 0))
+            .put("downloadable_linux_sandboxes", result.optJSONArray("downloadable_linux_sandboxes") ?: JSONArray())
+            .put("recommended_linux_sandboxes", result.optJSONArray("recommended_linux_sandboxes") ?: JSONArray())
+            .put("desktop_environment_catalog", result.optJSONArray("desktop_environment_catalog") ?: JSONArray())
+            .put("linux_sandbox_agent_summary", result.optJSONObject("linux_sandbox_agent_summary") ?: JSONObject())
+            .put("linux_sandbox_status", result.optJSONObject("linux_sandbox_status") ?: JSONObject())
             .put("package_manager_status", result.optString("package_manager_status"))
             .put("package_management_hint", result.optString("package_management_hint"))
             .toString()
+    }
+
+    private fun executeLinuxSandboxTool(toolCall: ToolCall): String {
+        val action = listOf("action", "command_action", "input")
+            .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+            ?: "status"
+        val result = HermesLinuxSandboxBridge.performAction(
+            context = appContext,
+            action = action,
+            distroId = listOf("distro_id", "distro", "id")
+                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+                .orEmpty(),
+            name = listOf("name", "sandbox_name", "container")
+                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+                .orEmpty(),
+            image = listOf("image", "image_ref", "rootfs")
+                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+                .orEmpty(),
+            command = listOf("command", "cmd", "shell_command")
+                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+                .orEmpty(),
+            timeoutSeconds = toolCall.arguments.optLong("timeout_seconds", TOOL_TIMEOUT_SECONDS.toLong())
+                .coerceIn(1, 900),
+        )
+        return result.toString()
     }
 
     private fun executeFileWriteTool(toolCall: ToolCall): String {
@@ -1455,11 +1559,25 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "terminal_tool",
-                    description = "Run /system/bin/sh in the Hermes workspace.",
+                    description = "Run a packaged Android/Termux shell command in the Hermes workspace. proot-distro and pd are available when the embedded Linux sandbox packages are installed.",
                     properties = JSONObject()
                         .put("command", stringProp("Shell command."))
                         .put("timeout_seconds", intProp("Optional timeout.")),
                     required = JSONArray().put("command"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "linux_sandbox_tool",
+                    description = "List, install, remove, or run app-private downloadable Linux sandboxes through packaged Termux proot-distro.",
+                    properties = JSONObject()
+                        .put("action", stringProp("catalog, status, list, install, run, or remove."))
+                        .put("distro_id", stringProp("Recommended id such as alpine-3-21, debian-bookworm, ubuntu-24-04, archlinux, fedora-latest, or voidlinux."))
+                        .put("name", stringProp("Installed sandbox/container name such as hermes-alpine."))
+                        .put("image", stringProp("OCI image reference or rootfs/archive URL for custom installs."))
+                        .put("command", stringProp("Command to run inside the installed sandbox when action=run."))
+                        .put("timeout_seconds", intProp("Optional timeout.")),
+                    required = JSONArray().put("action"),
                 ),
             )
             .put(
@@ -1741,9 +1859,31 @@ class NativeToolCallingChatClient(
                     "ls ",
                     "cat ",
                     "python ",
+                    "linux sandbox",
+                    "downloadable linux",
+                    "proot-distro",
+                    "proot distro",
+                    "debian sandbox",
+                    "ubuntu sandbox",
+                    "alpine sandbox",
                 ).any { it in lower }
             ) {
                 add("terminal_tool")
+            }
+            if (
+                listOf(
+                    "linux sandbox",
+                    "downloadable linux",
+                    "proot-distro",
+                    "proot distro",
+                    "install alpine",
+                    "install debian",
+                    "install ubuntu",
+                    "sandbox status",
+                    "sandbox command",
+                ).any { it in lower }
+            ) {
+                add("linux_sandbox_tool")
             }
             if (
                 listOf(
@@ -3350,6 +3490,23 @@ class NativeToolCallingChatClient(
         }
 
         companion object {
+            private val xmlToolCallBlockRegex = Regex(
+                pattern = """(?is)<tool_call(?:\s+[^>]*)?>(.*?)</tool_call>""",
+            )
+            private val xmlNamedToolCallBlockRegex = Regex(
+                pattern = """(?is)<(terminal_tool|linux_sandbox_tool|file_write_tool|android_device_diagnostics_tool|android_automation_tool|android_ui_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool)(?:\s+[^>]*)?>(.*?)</\1>""",
+            )
+            private val xmlToolNameAttributeRegex = Regex(
+                pattern = """(?i)\b(?:name|tool|function)=["']([^"']+)["']""",
+            )
+            private val xmlToolJsonNameRegex = Regex(
+                pattern = """"(?:name|tool|function)"\s*:\s*"([^"]+)"""",
+            )
+            private val xmlToolLooseArgumentRegex = Regex(
+                pattern = """([A-Za-z_][A-Za-z0-9_-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s]+)""",
+            )
+            private val xmlToolNameKeys = setOf("name", "tool", "function")
+
             fun fromJson(json: JSONObject): AssistantMessage {
                 val toolCalls = mutableListOf<ToolCall>()
                 val rawToolCalls = json.optJSONArray("tool_calls") ?: JSONArray()
@@ -3366,10 +3523,122 @@ class NativeToolCallingChatClient(
                         arguments = arguments,
                     )
                 }
+                val rawContent = json.optString("content").takeUnless { json.isNull("content") }.orEmpty()
+                val xmlToolCalls = if (toolCalls.isEmpty()) {
+                    parseXmlToolCallsFromContent(rawContent)
+                } else {
+                    emptyList()
+                }
+                toolCalls += xmlToolCalls
                 return AssistantMessage(
-                    content = json.optString("content").takeUnless { json.isNull("content") }.orEmpty(),
+                    content = if (xmlToolCalls.isNotEmpty()) {
+                        removeXmlToolCallsFromContent(rawContent).trim()
+                    } else {
+                        rawContent
+                    },
                     toolCalls = toolCalls,
                 )
+            }
+
+            private fun parseXmlToolCallsFromContent(content: String): List<ToolCall> {
+                if ('<' !in content || '>' !in content) {
+                    return emptyList()
+                }
+                val calls = mutableListOf<ToolCall>()
+                xmlToolCallBlockRegex.findAll(content).forEachIndexed { index, match ->
+                    val attributes = match.value.substringBefore(">")
+                    val body = match.groups[1]?.value.orEmpty().trim()
+                    val name = xmlToolNameAttributeRegex.find(attributes)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.trim()
+                        ?.ifBlank { null }
+                        ?: xmlToolJsonNameRegex.find(body)
+                            ?.groupValues
+                            ?.getOrNull(1)
+                            ?.trim()
+                            ?.ifBlank { null }
+                        ?: "terminal_tool"
+                    calls += ToolCall(
+                        id = "xml_call_${UUID.randomUUID()}_$index",
+                        name = name,
+                        arguments = xmlToolArguments(name, body),
+                    )
+                }
+                xmlNamedToolCallBlockRegex.findAll(content).forEachIndexed { index, match ->
+                    val name = match.groups[1]?.value.orEmpty().trim().ifBlank { "terminal_tool" }
+                    val body = match.groups[2]?.value.orEmpty().trim()
+                    calls += ToolCall(
+                        id = "xml_named_call_${UUID.randomUUID()}_$index",
+                        name = name,
+                        arguments = xmlToolArguments(name, body),
+                    )
+                }
+                return calls
+            }
+
+            private fun removeXmlToolCallsFromContent(content: String): String {
+                return xmlNamedToolCallBlockRegex.replace(
+                    xmlToolCallBlockRegex.replace(content, ""),
+                    "",
+                )
+            }
+
+            private fun xmlToolArguments(name: String, body: String): JSONObject {
+                val trimmed = body.trim()
+                if (trimmed.isBlank()) {
+                    return JSONObject()
+                }
+                val parsed = runCatching { JSONObject(trimmed) }.getOrNull()
+                if (parsed != null) {
+                    val arguments = parsed.opt("arguments")
+                    if (arguments is JSONObject) {
+                        return arguments
+                    }
+                    if (arguments is String && arguments.isNotBlank()) {
+                        return runCatching { JSONObject(arguments) }.getOrNull()
+                            ?: JSONObject().put(defaultXmlToolArgumentName(name), arguments)
+                    }
+                    if (parsed.has("name") || parsed.has("tool") || parsed.has("function")) {
+                        val withoutName = JSONObject()
+                        parsed.keys().forEach { key ->
+                            if (key !in xmlToolNameKeys) {
+                                withoutName.put(key, parsed.opt(key))
+                            }
+                        }
+                        if (withoutName.length() > 0) {
+                            return withoutName
+                        }
+                    }
+                    return parsed
+                }
+                val looseArguments = parseLooseXmlToolArguments(trimmed)
+                if (looseArguments.length() > 0) {
+                    return looseArguments
+                }
+                return JSONObject().put(defaultXmlToolArgumentName(name), trimmed)
+            }
+
+            private fun defaultXmlToolArgumentName(name: String): String {
+                return when (name) {
+                    "terminal_tool", "terminal", "shell" -> "command"
+                    "linux_sandbox_tool", "linux_sandbox", "proot_distro_tool" -> "action"
+                    "android_device_diagnostics_tool", "device_diagnostics_tool", "diagnostics_tool" -> "action"
+                    "file_write_tool", "write_file", "file_tool" -> "content"
+                    else -> "input"
+                }
+            }
+
+            private fun parseLooseXmlToolArguments(body: String): JSONObject {
+                val parsed = JSONObject()
+                xmlToolLooseArgumentRegex.findAll(body).forEach { match ->
+                    val key = match.groupValues.getOrNull(1).orEmpty().trim()
+                    val value = match.groupValues.getOrNull(2).orEmpty().trim().trim('"', '\'')
+                    if (key.isNotBlank() && value.isNotBlank()) {
+                        parsed.put(key, value)
+                    }
+                }
+                return parsed
             }
         }
     }
@@ -3431,6 +3700,7 @@ class NativeToolCallingChatClient(
                     "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                     "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
                     "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports, Bluetooth nearby decision packets, and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion sensor decision packets, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal briefing decks, expanded signal card decks, per-card signal refresh plans/status indicators, signal proof audits and claim-boundary matrices, unified signal timelines, signal replay/export bundles and replay freshness/staleness audits, compact signal observation packets/top-card snapshots, evidence bundles, signal workflow handoff and next-action reports, signal permission and active-refresh runbooks, agent observation dashboards, Kai-style agent environment reports, MCP tool-server registry reports, objective coverage/gap and upgrade coverage reports, release validation and GitHub release readiness reports for Android CI, signed GitHub artifacts, SHA-256 checksums, F-Droid metadata and tagged Fastlane graphics, full upgrade objective audit reports, passive agent self-check/heartbeat reports, cross-signal awareness reports, MediaTek signal-stack reports that fuse SOC/backend policy with Wi-Fi/Bluetooth/radio/sensor evidence and claim boundaries, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports and backend launch advisors for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, radio decision packets, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
+                    "For downloadable Linux sandboxes, inspect terminal_tool results for downloadable_linux_sandboxes, recommended_linux_sandboxes, and desktop_environment_catalog; prefer Debian Bookworm, Ubuntu 24.04 LTS, or Alpine 3.21 before advanced rolling distros. " +
                     "For MediaTek/non-Adreno signal questions, first call android_device_diagnostics_tool action=mediatek_signal_stack_report so SOC/backend policy, Wi-Fi, Bluetooth, radio, motion, RF coexistence, and claim boundaries stay together. " +
                     "For physical MediaTek/non-Adreno phone validation, call android_device_diagnostics_tool action=mediatek_device_validation_report before claiming live Wi-Fi, Bluetooth, motion, radio bridge, backend, GitHub release, checksum, F-Droid, or physical-device proof. " +
                     "For phone or release proof export packages and device-validation evidence export bundles, call android_device_diagnostics_tool action=device_validation_evidence_export_report so required artifacts, ADB/operator capture routes, GitHub release routes, F-Droid routes, and claim scopes stay together. " +
@@ -3490,10 +3760,51 @@ class NativeToolCallingChatClient(
                 "ran out of context" in lower ||
                 "context length" in lower ||
                 "maximum context" in lower ||
+                "maximum number of tokens allowed" in lower ||
                 "too many tokens" in lower ||
                 "tokens exceed" in lower ||
+                "input token ids are too long" in lower ||
                 "prompt is too long" in lower ||
                 "input is too long" in lower
+        }
+
+        internal fun extractDirectTerminalCommand(userText: String): String? {
+            val lower = userText.lowercase()
+            val toolIndex = lower.indexOf("terminal_tool")
+            if (toolIndex < 0) {
+                return null
+            }
+            val markers = listOf(
+                "run exactly this command:",
+                "run exactly:",
+                "run command:",
+                "run:",
+                "execute command:",
+                "execute:",
+                "command:",
+                "cmd:",
+            )
+            val markerMatch = markers
+                .mapNotNull { marker ->
+                    lower.indexOf(marker, startIndex = toolIndex)
+                        .takeIf { it >= 0 }
+                        ?.let { index -> marker to index }
+                }
+                .minByOrNull { (_, index) -> index }
+                ?: return null
+            val (marker, markerIndex) = markerMatch
+            val start = markerIndex + marker.length
+            val tail = userText.substring(start).trim()
+            val endMarkers = listOf(". After terminal_tool", "\nAfter terminal_tool", " After terminal_tool")
+            val end = endMarkers
+                .map { tail.indexOf(it) }
+                .filter { it >= 0 }
+                .minOrNull()
+                ?: tail.length
+            return tail.substring(0, end)
+                .trim()
+                .trim('`')
+                .takeIf { it.isNotBlank() }
         }
 
         fun shouldSkipNativeFollowUpAfterToolResult(toolResult: String): Boolean {
@@ -4985,10 +5296,21 @@ internal object NativeToolContextCompressor {
                 "action",
                 "path",
                 "message",
+                "output",
                 "error",
                 "cwd",
                 "shell",
                 "execution_mode",
+                "sandbox_execution_mode",
+                "sandbox_name",
+                "distro_id",
+                "sandbox_command",
+                "qemu_user_available",
+                "qemu_user_path",
+                "fallback_from",
+                "qemu_exit_code",
+                "qemu_error",
+                "sandbox_execution_note",
                 "package_manager_status",
                 "package_management_hint",
                 "available_package_count",
@@ -5290,6 +5612,10 @@ internal object NativeToolContextCompressor {
         "kai_parity_matrix",
         "kai_operations_matrix",
         "agent_tool_sandbox_matrix",
+        "downloadable_linux_sandboxes",
+        "recommended_linux_sandboxes",
+        "installed_sandboxes",
+        "desktop_environment_catalog",
         "mcp_tool_server_registry",
         "mcp_tool_server_routes",
         "agent_objective_coverage_matrix",
@@ -5480,10 +5806,20 @@ internal object NativeToolContextCompressor {
     )
     private val PRESERVED_OBJECT_KEYS = listOf(
         "rank",
+        "id",
         "title",
         "body",
         "name",
         "description",
+        "source_url",
+        "source_distribution",
+        "release",
+        "profile",
+        "package_manager",
+        "install_command",
+        "run_command",
+        "agent_command_hint",
+        "download_policy",
         "package_name",
         "label",
         "app_name",
@@ -5712,6 +6048,14 @@ internal object NativeToolContextCompressor {
         "non_adreno_policy_active",
         "litert_lm_backend_order",
         "sandbox_scope",
+        "sandbox_name",
+        "sandbox_command",
+        "proot_available",
+        "proot_distro_available",
+        "python_available",
+        "runtime_dir",
+        "containers_dir",
+        "agent_usage_hint",
         "host_access",
         "remote_dispatch_capable",
         "mcp_parity_status",

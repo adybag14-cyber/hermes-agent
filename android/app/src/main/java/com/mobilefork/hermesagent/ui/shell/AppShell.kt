@@ -284,6 +284,7 @@ fun AppShellScreen(
                                     viewModel = settingsViewModel,
                                     extraBottomSpacing = pageBottomClearance,
                                     onContextActionsChanged = ::setActions,
+                                    onSettingsChanged = ::refreshShellSettings,
                                 )
                             }
                         }
@@ -409,11 +410,12 @@ private fun TopBarStatusBadge(
 private fun ShellTopBarDrawerButton(
     onOpenNavigationMenu: () -> Unit,
 ) {
+    val strings = LocalHermesStrings.current
     IconButton(
         onClick = onOpenNavigationMenu,
         modifier = Modifier
             .size(40.dp)
-            .semantics { contentDescription = "Open navigation menu" }
+            .semantics { contentDescription = strings.openNavigationMenu() }
             .testTag("HermesShellDrawerButton"),
     ) {
         ShellHamburgerMenuIcon()
