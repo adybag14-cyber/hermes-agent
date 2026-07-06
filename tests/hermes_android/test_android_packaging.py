@@ -157,8 +157,8 @@ def test_hy_memory_dependency_is_registered_as_lazy_optional_provider():
     config = (REPO_ROOT / "hermes_cli/config.py").read_text(encoding="utf-8")
     provider = (REPO_ROOT / "plugins/memory/hy_memory/__init__.py").read_text(encoding="utf-8")
 
-    assert pyproject["project"]["optional-dependencies"]["hy-memory"] == ["hy-memory==1.2.16"]
-    assert '"memory.hy_memory": ("hy-memory==1.2.16",)' in lazy_deps
+    assert pyproject["project"]["optional-dependencies"]["hy-memory"] == ["hy-memory==1.2.18"]
+    assert '"memory.hy_memory": ("hy-memory==1.2.18",)' in lazy_deps
     assert '"provider": "hy_memory"' in config
     assert '_lazy_ensure("memory.hy_memory", prompt=False)' in provider
     assert 'from hy_memory import HyMemoryClient' in provider

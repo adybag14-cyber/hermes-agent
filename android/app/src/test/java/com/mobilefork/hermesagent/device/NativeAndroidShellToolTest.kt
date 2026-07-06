@@ -39,6 +39,7 @@ class NativeAndroidShellToolTest {
         assertTrue(ids.contains("ubuntu-24-04"))
         assertTrue(ids.contains("alpine-3-21"))
         assertTrue(ids.contains("archlinux"))
+        assertTrue(ids.contains("opensuse-tumbleweed"))
         assertTrue(HermesLinuxSandboxCatalog.agentSummary().getJSONArray("desktops").length() >= 3)
     }
 
@@ -48,6 +49,34 @@ class NativeAndroidShellToolTest {
 
         assertEquals("alpine-3-21", alpine?.getString("id"))
         assertEquals("proot-distro install --name hermes-alpine alpine:3.21", alpine?.getString("install_command"))
+    }
+
+    @Test
+    fun linuxSandboxCatalogIncludesMirrorProfiles() {
+        val mirrors = HermesLinuxSandboxCatalog.mirrorProfiles()
+        val ids = buildSet {
+            for (index in 0 until mirrors.length()) {
+                add(mirrors.getJSONObject(index).getString("id"))
+            }
+        }
+        assertTrue(ids.contains("default"))
+        assertTrue(ids.contains("china"))
+        assertTrue(ids.contains("aliyun"))
+        assertTrue(HermesLinuxSandboxCatalog.mirrorCommandFor("apt", "china").contains("mirrors.aliyun.com"))
+        assertTrue(HermesLinuxSandboxCatalog.mirrorCommandFor("apk", "tsinghua").contains("mirrors.tuna.tsinghua.edu.cn"))
+    }
+
+    @Test
+    fun linuxSandboxBridgeBuildsPackageUpdateCommands() {
+        assertEquals(
+            "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade",
+            HermesLinuxSandboxBridge.updateCommandFor("apt"),
+        )
+        assertEquals(
+            "zypper --non-interactive refresh && zypper --non-interactive update",
+            HermesLinuxSandboxBridge.updateCommandFor("zypper"),
+        )
+        assertTrue(HermesLinuxSandboxBridge.updateCommandFor("").contains("command -v apt-get"))
     }
 
     @Test

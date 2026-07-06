@@ -7,13 +7,16 @@ import java.util.Locale
 object HermesHyMemoryBridge {
     private const val PROVIDER_NAME = "hy_memory"
     private const val ANDROID_BACKEND = "android_local_hy_memory"
+    private const val HY_MEMORY_PACKAGE_VERSION = "1.2.18"
 
     fun performActionJson(context: Context, rawAction: String, arguments: JSONObject = JSONObject()): String {
         val action = rawAction.trim().lowercase(Locale.US).ifBlank { "status" }
         val delegatedAction = when (action) {
-            "hy_memory_status" -> "status"
-            "hy_memory_retain" -> "retain"
-            "hy_memory_recall" -> "recall"
+            "hy_memory_status", "memory_status" -> "status"
+            "hy_memory_retain", "memory_add", "add" -> "retain"
+            "hy_memory_recall", "memory_search", "search" -> "recall"
+            "memory_list", "list" -> "list"
+            "memory_delete", "delete", "forget" -> "delete"
             else -> action
         }
         return annotate(
@@ -38,6 +41,10 @@ object HermesHyMemoryBridge {
             .put("tool_name", "hy_memory_tool")
             .put("compatibility_alias", "hindsight_memory_tool")
             .put("hy_memory_package", "hy-memory")
+            .put("hy_memory_package_version", HY_MEMORY_PACKAGE_VERSION)
+            .put("provider_mode", "android_local_companion")
+            .put("default_agent_enabled", true)
+            .put("compatible_tool_names", "hy_memory_tool,memory_search,memory_add,memory_delete,memory_list")
             .put("python_provider", "plugins.memory.hy_memory")
     }
 }

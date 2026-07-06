@@ -1,0 +1,22 @@
+{
+  "version": "0.13.133",
+  "version_code": 143390,
+  "emulator": "HermesX86Api35 (API 35, x86_64)",
+  "validated_at": "2026-07-06T23:10:00Z",
+  "instrumented_tests": {
+    "HermesHyMemoryBridgeInstrumentedTest": "passed",
+    "NativeAppChatAndToolInstrumentedTest#nativeAppChatUsesQwenGgufAndFileWriteToolOnDevice": "passed",
+    "Gemma4LocalInferenceInstrumentedTest#aGemma4LiteRtLmLoadsAndAnswersLocally": "passed"
+  },
+  "models_provisioned": [
+    "Qwen3.5-0.8B-Q4_K_M.gguf",
+    "gemma-4-E2B-it.litertlm"
+  ],
+  "ui_verification": {
+    "linux_sandbox_card_visible": true,
+    "one_click_deploy_label": true,
+    "storage_root_shown": "/storage/emulated/0/Android/data/com.mobilefork.hermesagent",
+    "screenshots_dir": "verification-screenshots/v0.13.133"
+  },
+  "android_unit_tests": "522 passed (prior session run)"
+}

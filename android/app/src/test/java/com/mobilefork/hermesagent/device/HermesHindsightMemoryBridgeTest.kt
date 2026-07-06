@@ -124,4 +124,50 @@ class HermesHindsightMemoryBridgeTest {
         assertTrue(promoted.getInt("hit_count") >= 5)
         assertTrue(promoted.getJSONArray("tags").toString().contains("promoted"))
     }
+
+    @Test
+    fun hyMemoryBridgeSupportsPackageCompatibleToolAliases() {
+        val added = JSONObject(
+            HermesHyMemoryBridge.performActionJson(
+                context,
+                "memory_add",
+                JSONObject()
+                    .put("content", "Use Qwen GGUF as the small local emulator model when validating memory chat.")
+                    .put("source", "test")
+                    .put("category", "validation"),
+            ),
+        )
+
+        assertTrue(added.getBoolean("success"))
+        assertEquals("hy_memory", added.getString("provider"))
+        assertEquals("1.2.18", added.getString("hy_memory_package_version"))
+        assertEquals(true, added.getBoolean("default_agent_enabled"))
+
+        val search = JSONObject(
+            HermesHyMemoryBridge.performActionJson(
+                context,
+                "memory_search",
+                JSONObject().put("query", "Qwen emulator memory").put("limit", 3),
+            ),
+        )
+        assertTrue(search.getBoolean("success"))
+        assertEquals("recall", search.getString("action"))
+        assertEquals(1, search.getInt("result_count"))
+        val memoryId = search.getJSONArray("memories").getJSONObject(0).getString("id")
+
+        val listed = JSONObject(HermesHyMemoryBridge.performActionJson(context, "memory_list", JSONObject().put("limit", 5)))
+        assertTrue(listed.getBoolean("success"))
+        assertEquals("list", listed.getString("action"))
+        assertEquals(1, listed.getInt("result_count"))
+
+        val deleted = JSONObject(
+            HermesHyMemoryBridge.performActionJson(
+                context,
+                "memory_delete",
+                JSONObject().put("memory_id", memoryId),
+            ),
+        )
+        assertTrue(deleted.getBoolean("success"))
+        assertEquals(1, deleted.getInt("deleted_count"))
+    }
 }

@@ -325,10 +325,22 @@ class NativeToolCallingChatClient(
         val lower = userText.lowercase()
         if (
             "linux_sandbox_tool" !in lower &&
+            "mcp_run_in_proot" !in lower &&
             "linux sandbox" !in lower &&
             "downloadable linux" !in lower &&
+            "download linux" !in lower &&
             "proot-distro" !in lower &&
-            "proot distro" !in lower
+            "proot distro" !in lower &&
+            "start sandbox" !in lower &&
+            "stop sandbox" !in lower &&
+            "close sandbox" !in lower &&
+            "uninstall sandbox" !in lower &&
+            "one-click" !in lower &&
+            "one click" !in lower &&
+            "deploy sandbox" !in lower &&
+            "set mirror" !in lower &&
+            "switch mirror" !in lower &&
+            "domestic mirror" !in lower
         ) {
             return null
         }
@@ -344,8 +356,15 @@ class NativeToolCallingChatClient(
             arguments.put(
                 "action",
                 when {
+                    "mcp_run_in_proot" in lower -> "run"
+                    "deploy" in lower || "one-click" in lower || "one click" in lower -> "deploy"
+                    "set mirror" in lower || "switch mirror" in lower || "domestic mirror" in lower -> "set_mirror"
+                    "download" in lower -> "download"
                     "install" in lower -> "install"
-                    "remove" in lower || "delete" in lower -> "remove"
+                    "update" in lower || "upgrade" in lower || "refresh" in lower -> "update"
+                    "start" in lower || "enable" in lower || "launch" in lower -> "start"
+                    "stop" in lower || "close" in lower || "disable" in lower -> "stop"
+                    "uninstall" in lower || "remove" in lower || "delete" in lower -> "uninstall"
                     "run" in lower || "execute" in lower -> "run"
                     "catalog" in lower -> "catalog"
                     "list" in lower -> "list"
@@ -377,6 +396,19 @@ class NativeToolCallingChatClient(
         }
         if (!arguments.has("timeout_seconds") && arguments.optString("action") == "install") {
             arguments.put("timeout_seconds", 900)
+        }
+        if (!arguments.has("timeout_seconds") && arguments.optString("action") == "download") {
+            arguments.put("timeout_seconds", 900)
+        }
+        if (!arguments.has("timeout_seconds") && arguments.optString("action") == "deploy") {
+            arguments.put("timeout_seconds", 900)
+        }
+        if (!arguments.has("mirror_profile")) {
+            when {
+                "tsinghua" in lower || "tuna" in lower -> arguments.put("mirror_profile", "tsinghua")
+                "aliyun" in lower -> arguments.put("mirror_profile", "aliyun")
+                "china" in lower || "domestic" in lower || "国内" in userText -> arguments.put("mirror_profile", "china")
+            }
         }
         return arguments
     }
@@ -811,7 +843,8 @@ class NativeToolCallingChatClient(
 
     private fun executeToolCall(toolCall: ToolCall): String {
         return when (toolCall.name) {
-            "terminal_tool", "terminal", "shell" -> executeTerminalTool(toolCall)
+            "terminal_tool", "terminal", "shell", "mcp_send_terminal_input" -> executeTerminalTool(toolCall)
+            "mcp_run_in_proot" -> executeProotAliasTool(toolCall)
             "linux_sandbox_tool", "linux_sandbox", "proot_distro_tool", "proot-distro", "proot_distro" ->
                 executeLinuxSandboxTool(toolCall)
             "file_write_tool", "write_file", "file_tool" -> executeFileWriteTool(toolCall)
@@ -819,7 +852,8 @@ class NativeToolCallingChatClient(
                 executeAndroidSystemTool(toolCall)
             "android_device_diagnostics_tool", "device_diagnostics_tool", "diagnostics_tool", "resource_tool", "wifi_analyzer_tool", "bluetooth_scanner_tool", "bluetooth_analyzer_tool", "sensor_tool", "sensor_analyzer_tool", "camera_tool", "radio_signal_tool", "rf_coexistence_tool", "soc_backend_tool", "runtime_stability_tool", "device_performance_tool", "mcp_tool_server_tool", "mcp_registry_tool" ->
                 executeAndroidDeviceDiagnosticsTool(toolCall)
-            "hy_memory_tool", "hymemory_tool", "hindsight_memory_tool", "memory_tool", "recall_tool", "retain_tool" -> executeHyMemoryTool(toolCall)
+            "hy_memory_tool", "hymemory_tool", "hindsight_memory_tool", "memory_tool", "recall_tool", "retain_tool",
+            "memory_search", "memory_add", "memory_delete", "memory_list" -> executeHyMemoryTool(toolCall)
             "android_automation_tool", "automation_tool", "tasker_tool", "kai_task_tool" -> executeAndroidAutomationTool(toolCall)
             "schedule_task" -> executeAndroidAutomationAliasTool(toolCall, "schedule_task")
             "list_tasks" -> executeAndroidAutomationAliasTool(toolCall, "list_tasks")
@@ -830,6 +864,20 @@ class NativeToolCallingChatClient(
                 .put("error", "Unsupported native Hermes tool: ${toolCall.name}")
                 .toString()
         }
+    }
+
+    private fun executeProotAliasTool(toolCall: ToolCall): String {
+        val arguments = JSONObject(toolCall.arguments.toString())
+        if (!arguments.has("action") && !arguments.has("command_action") && !arguments.has("input")) {
+            arguments.put("action", "run")
+        }
+        return executeLinuxSandboxTool(
+            ToolCall(
+                id = toolCall.id,
+                name = "linux_sandbox_tool",
+                arguments = arguments,
+            ),
+        )
     }
 
     private fun executeTerminalTool(toolCall: ToolCall): String {
@@ -881,6 +929,9 @@ class NativeToolCallingChatClient(
                 .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
                 .orEmpty(),
             command = listOf("command", "cmd", "shell_command")
+                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+                .orEmpty(),
+            mirrorProfile = listOf("mirror_profile", "mirror", "mirror_id", "source_mirror")
                 .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
                 .orEmpty(),
             timeoutSeconds = toolCall.arguments.optLong("timeout_seconds", TOOL_TIMEOUT_SECONDS.toLong())
@@ -954,7 +1005,10 @@ class NativeToolCallingChatClient(
         val action = listOf("action", "operation", "name")
             .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
             ?.trim()
-            .orEmpty()
+            ?: when (toolCall.name) {
+                "memory_search", "memory_add", "memory_delete", "memory_list" -> toolCall.name
+                else -> ""
+            }
         return HermesHyMemoryBridge.performActionJson(appContext, action, toolCall.arguments)
     }
 
@@ -1568,16 +1622,39 @@ class NativeToolCallingChatClient(
             )
             .put(
                 functionSpec(
-                    name = "linux_sandbox_tool",
-                    description = "List, install, remove, or run app-private downloadable Linux sandboxes through packaged Termux proot-distro.",
+                    name = "mcp_send_terminal_input",
+                    description = "Alias for terminal_tool used by MCP-style local agents. Sends one terminal command into the Hermes Android shell and returns stdout, stderr, cwd, exit code, and Linux sandbox hints.",
                     properties = JSONObject()
-                        .put("action", stringProp("catalog, status, list, install, run, or remove."))
-                        .put("distro_id", stringProp("Recommended id such as alpine-3-21, debian-bookworm, ubuntu-24-04, archlinux, fedora-latest, or voidlinux."))
+                        .put("command", stringProp("Shell command or terminal input to send."))
+                        .put("timeout_seconds", intProp("Optional timeout.")),
+                    required = JSONArray().put("command"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "linux_sandbox_tool",
+                    description = "List, download/install, one-click deploy, update, set_mirror, start/enable, stop/disable/close, uninstall/remove, or run app-private downloadable Linux sandboxes through packaged Termux proot-distro.",
+                    properties = JSONObject()
+                        .put("action", stringProp("catalog, status, list, download/install, deploy, update, set_mirror, start/enable, stop/close/disable, run, or uninstall/remove."))
+                        .put("distro_id", stringProp("Recommended id such as alpine-3-21, debian-bookworm, ubuntu-24-04, archlinux, fedora-latest, voidlinux, or opensuse-tumbleweed."))
                         .put("name", stringProp("Installed sandbox/container name such as hermes-alpine."))
                         .put("image", stringProp("OCI image reference or rootfs/archive URL for custom installs."))
+                        .put("mirror_profile", stringProp("Mirror profile for set_mirror/deploy: default, china, aliyun, or tsinghua."))
                         .put("command", stringProp("Command to run inside the installed sandbox when action=run."))
                         .put("timeout_seconds", intProp("Optional timeout.")),
                     required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "mcp_run_in_proot",
+                    description = "MCP-style alias for linux_sandbox_tool action=run. Runs a command inside the active or named Hermes proot Linux sandbox only when agent shell use is started/enabled.",
+                    properties = JSONObject()
+                        .put("command", stringProp("Command to run inside the installed proot sandbox."))
+                        .put("distro_id", stringProp("Optional distro id such as alpine-3-21, debian-bookworm, ubuntu-24-04, or opensuse-tumbleweed."))
+                        .put("name", stringProp("Optional installed sandbox/container name such as hermes-alpine."))
+                        .put("timeout_seconds", intProp("Optional timeout.")),
+                    required = JSONArray().put("command"),
                 ),
             )
             .put(
@@ -1673,12 +1750,13 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "hy_memory_tool",
-                    description = "Retain, recall, reflect, build relevant prompt context, inspect promoted context, or clear lightweight local memories using the HY Memory stack with keyword, entity, recency, salience, reinforcement, and Kai-style promotion signals.",
+                    description = "Retain, recall, reflect, build relevant prompt context, inspect promoted context, or clear lightweight local memories using the HY Memory stack with keyword, entity, recency, salience, reinforcement, and Kai-style promotion signals. Package-compatible aliases are memory_search, memory_add, memory_delete, and memory_list.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, retain, recall, reflect, relevant_context, promoted_context, or clear."))
+                        .put("action", stringProp("status, retain, recall, list, delete, reflect, relevant_context, promoted_context, or clear."))
                         .put("content", stringProp("Fact or memory content for retain."))
                         .put("facts", stringProp("Optional list of fact strings for retain."))
                         .put("query", stringProp("Recall query."))
+                        .put("memory_id", stringProp("Memory id for delete."))
                         .put("tags", stringProp("Comma-separated tags for retain."))
                         .put("category", stringProp("Memory category for retain."))
                         .put("source", stringProp("Memory source such as chat, tool_result, user_preference, or device_state."))
@@ -1686,6 +1764,45 @@ class NativeToolCallingChatClient(
                         .put("max_chars", intProp("Maximum relevant/promoted context characters."))
                         .put("max_entries", intProp("Maximum rows to keep after reflect.")),
                     required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "memory_search",
+                    description = "HY Memory package-compatible alias for searching retained local memories.",
+                    properties = JSONObject()
+                        .put("query", stringProp("Search query."))
+                        .put("limit", intProp("Maximum memory rows to return.")),
+                    required = JSONArray().put("query"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "memory_add",
+                    description = "HY Memory package-compatible alias for storing a durable local memory.",
+                    properties = JSONObject()
+                        .put("content", stringProp("Memory content to store."))
+                        .put("tags", stringProp("Comma-separated memory tags."))
+                        .put("category", stringProp("Memory category."))
+                        .put("source", stringProp("Memory source such as chat, tool_result, user_preference, or device_state.")),
+                    required = JSONArray().put("content"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "memory_delete",
+                    description = "HY Memory package-compatible alias for deleting a retained local memory by id.",
+                    properties = JSONObject()
+                        .put("memory_id", stringProp("Memory id to delete.")),
+                    required = JSONArray().put("memory_id"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "memory_list",
+                    description = "HY Memory package-compatible alias for listing retained local memories.",
+                    properties = JSONObject()
+                        .put("limit", intProp("Maximum memory rows to return.")),
                 ),
             )
             .put(
@@ -1863,6 +1980,7 @@ class NativeToolCallingChatClient(
                     "downloadable linux",
                     "proot-distro",
                     "proot distro",
+                    "mcp_send_terminal_input",
                     "debian sandbox",
                     "ubuntu sandbox",
                     "alpine sandbox",
@@ -1874,11 +1992,18 @@ class NativeToolCallingChatClient(
                 listOf(
                     "linux sandbox",
                     "downloadable linux",
+                    "download linux",
                     "proot-distro",
                     "proot distro",
+                    "mcp_run_in_proot",
                     "install alpine",
                     "install debian",
                     "install ubuntu",
+                    "start sandbox",
+                    "stop sandbox",
+                    "close sandbox",
+                    "update sandbox",
+                    "uninstall sandbox",
                     "sandbox status",
                     "sandbox command",
                 ).any { it in lower }
@@ -2179,8 +2304,13 @@ class NativeToolCallingChatClient(
     private fun explicitlyRequestedToolNames(userText: String): Set<String> {
         val lower = userText.lowercase()
         return buildSet {
-            if ("terminal_tool" in lower || "shell tool" in lower) {
+            if ("terminal_tool" in lower || "mcp_send_terminal_input" in lower || "shell tool" in lower) {
                 add("terminal_tool")
+                add("mcp_send_terminal_input")
+            }
+            if ("linux_sandbox_tool" in lower || "mcp_run_in_proot" in lower || "proot_distro_tool" in lower) {
+                add("linux_sandbox_tool")
+                add("mcp_run_in_proot")
             }
             if ("file_write_tool" in lower || "write_file" in lower) {
                 add("file_write_tool")
@@ -2210,6 +2340,10 @@ class NativeToolCallingChatClient(
                 "hymemory_tool" in lower ||
                 "hindsight_memory_tool" in lower ||
                 "memory_tool" in lower ||
+                "memory_search" in lower ||
+                "memory_add" in lower ||
+                "memory_delete" in lower ||
+                "memory_list" in lower ||
                 "recall_tool" in lower ||
                 "retain_tool" in lower
             ) {
@@ -3494,7 +3628,7 @@ class NativeToolCallingChatClient(
                 pattern = """(?is)<tool_call(?:\s+[^>]*)?>(.*?)</tool_call>""",
             )
             private val xmlNamedToolCallBlockRegex = Regex(
-                pattern = """(?is)<(terminal_tool|linux_sandbox_tool|file_write_tool|android_device_diagnostics_tool|android_automation_tool|android_ui_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool)(?:\s+[^>]*)?>(.*?)</\1>""",
+                pattern = """(?is)<(terminal_tool|mcp_send_terminal_input|linux_sandbox_tool|mcp_run_in_proot|file_write_tool|android_device_diagnostics_tool|android_automation_tool|android_ui_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool|memory_search|memory_add|memory_delete|memory_list)(?:\s+[^>]*)?>(.*?)</\1>""",
             )
             private val xmlToolNameAttributeRegex = Regex(
                 pattern = """(?i)\b(?:name|tool|function)=["']([^"']+)["']""",
@@ -3621,9 +3755,13 @@ class NativeToolCallingChatClient(
 
             private fun defaultXmlToolArgumentName(name: String): String {
                 return when (name) {
-                    "terminal_tool", "terminal", "shell" -> "command"
+                    "terminal_tool", "terminal", "shell", "mcp_send_terminal_input" -> "command"
+                    "mcp_run_in_proot" -> "command"
                     "linux_sandbox_tool", "linux_sandbox", "proot_distro_tool" -> "action"
                     "android_device_diagnostics_tool", "device_diagnostics_tool", "diagnostics_tool" -> "action"
+                    "memory_search" -> "query"
+                    "memory_add" -> "content"
+                    "memory_delete" -> "memory_id"
                     "file_write_tool", "write_file", "file_tool" -> "content"
                     else -> "input"
                 }
@@ -3700,7 +3838,7 @@ class NativeToolCallingChatClient(
                     "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                     "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
                     "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports, Bluetooth nearby decision packets, and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion sensor decision packets, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal briefing decks, expanded signal card decks, per-card signal refresh plans/status indicators, signal proof audits and claim-boundary matrices, unified signal timelines, signal replay/export bundles and replay freshness/staleness audits, compact signal observation packets/top-card snapshots, evidence bundles, signal workflow handoff and next-action reports, signal permission and active-refresh runbooks, agent observation dashboards, Kai-style agent environment reports, MCP tool-server registry reports, objective coverage/gap and upgrade coverage reports, release validation and GitHub release readiness reports for Android CI, signed GitHub artifacts, SHA-256 checksums, F-Droid metadata and tagged Fastlane graphics, full upgrade objective audit reports, passive agent self-check/heartbeat reports, cross-signal awareness reports, MediaTek signal-stack reports that fuse SOC/backend policy with Wi-Fi/Bluetooth/radio/sensor evidence and claim boundaries, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports and backend launch advisors for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, radio decision packets, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
-                    "For downloadable Linux sandboxes, inspect terminal_tool results for downloadable_linux_sandboxes, recommended_linux_sandboxes, and desktop_environment_catalog; prefer Debian Bookworm, Ubuntu 24.04 LTS, or Alpine 3.21 before advanced rolling distros. " +
+                    "For downloadable Linux sandboxes, inspect terminal_tool results for downloadable_linux_sandboxes, recommended_linux_sandboxes, mirror_profiles, and desktop_environment_catalog; use linux_sandbox_tool action=deploy for one-click Debian setup, action=download, action=set_mirror with mirror_profile=china|aliyun|tsinghua, start, stop/close, update, run, or uninstall/remove rather than treating /system/bin as a full Linux distro. When the user asks to update the terminal or Linux packages, call linux_sandbox_tool action=update (or deploy first if no sandbox is installed) instead of claiming apt is unavailable. mcp_send_terminal_input aliases terminal_tool, and mcp_run_in_proot aliases linux_sandbox_tool action=run. Prefer Debian Bookworm, Ubuntu 24.04 LTS, or Alpine 3.21 before advanced rolling distros. " +
                     "For MediaTek/non-Adreno signal questions, first call android_device_diagnostics_tool action=mediatek_signal_stack_report so SOC/backend policy, Wi-Fi, Bluetooth, radio, motion, RF coexistence, and claim boundaries stay together. " +
                     "For physical MediaTek/non-Adreno phone validation, call android_device_diagnostics_tool action=mediatek_device_validation_report before claiming live Wi-Fi, Bluetooth, motion, radio bridge, backend, GitHub release, checksum, F-Droid, or physical-device proof. " +
                     "For phone or release proof export packages and device-validation evidence export bundles, call android_device_diagnostics_tool action=device_validation_evidence_export_report so required artifacts, ADB/operator capture routes, GitHub release routes, F-Droid routes, and claim scopes stay together. " +
@@ -3720,7 +3858,7 @@ class NativeToolCallingChatClient(
                     "For portable signal replay/export requests, call android_device_diagnostics_tool action=agent_signal_replay_export_report so source_action, graph_type, claim_scope, proof_status, and refresh policy stay visible together. " +
                     "Before treating replay/export rows as current, call android_device_diagnostics_tool action=agent_signal_replay_freshness_audit_report so freshness_status, staleness_risk, active_refresh_action, passive_fallback_action, permission_gate, hardware_gate, and proof_status stay attached. " +
                     "Use schedule_task/list_tasks/cancel_task for Kai-style scheduled reminders; these create, list, and cancel native Android automation notification records, not unrestricted background AI prompt execution. " +
-                    "Use hy_memory_tool to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
+                    "Use hy_memory_tool or package-compatible memory_search/memory_add/memory_delete/memory_list to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
                     "Report missing Android permissions honestly. Keep replies brief."
             } else {
                 "You are Hermes running inside the native Android app. Keep replies brief and direct."
@@ -3770,7 +3908,11 @@ class NativeToolCallingChatClient(
 
         internal fun extractDirectTerminalCommand(userText: String): String? {
             val lower = userText.lowercase()
-            val toolIndex = lower.indexOf("terminal_tool")
+            val toolIndex = listOf("terminal_tool", "mcp_send_terminal_input")
+                .map { lower.indexOf(it) }
+                .filter { it >= 0 }
+                .minOrNull()
+                ?: -1
             if (toolIndex < 0) {
                 return null
             }
@@ -3795,7 +3937,14 @@ class NativeToolCallingChatClient(
             val (marker, markerIndex) = markerMatch
             val start = markerIndex + marker.length
             val tail = userText.substring(start).trim()
-            val endMarkers = listOf(". After terminal_tool", "\nAfter terminal_tool", " After terminal_tool")
+            val endMarkers = listOf(
+                ". After terminal_tool",
+                "\nAfter terminal_tool",
+                " After terminal_tool",
+                ". After mcp_send_terminal_input",
+                "\nAfter mcp_send_terminal_input",
+                " After mcp_send_terminal_input",
+            )
             val end = endMarkers
                 .map { tail.indexOf(it) }
                 .filter { it >= 0 }

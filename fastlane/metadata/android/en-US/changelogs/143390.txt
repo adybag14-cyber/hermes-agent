@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.133
+
+- Adds one-click Linux sandbox deploy, domestic mirror switching, and start/stop agent shell controls.
+- Improves chat copy/edit UX and hides the keyboard while Hermes is thinking.
+- Expands MCP-style proot and memory tool aliases for on-device agent workflows.

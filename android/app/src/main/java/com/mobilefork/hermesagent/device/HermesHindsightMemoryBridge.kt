@@ -18,7 +18,7 @@ object HermesHindsightMemoryBridge {
     private const val PROMOTED_CONTEXT_MAX_CHARS = 1200
     private const val RELEVANT_CONTEXT_LIMIT = 6
     private const val RELEVANT_CONTEXT_MAX_CHARS = 1600
-    private val ACTIONS = listOf("status", "retain", "recall", "reflect", "relevant_context", "promoted_context", "clear")
+    private val ACTIONS = listOf("status", "retain", "recall", "list", "delete", "reflect", "relevant_context", "promoted_context", "clear")
 
     fun performActionJson(context: Context, rawAction: String, arguments: JSONObject = JSONObject()): String {
         val action = rawAction.trim().lowercase(Locale.US).ifBlank { "status" }
@@ -26,6 +26,8 @@ object HermesHindsightMemoryBridge {
             "status", "read_status" -> statusJson(context)
             "retain", "remember", "store" -> retainJson(context, arguments)
             "recall", "search", "retrieve" -> recallJson(context, arguments)
+            "list", "memory_list", "all" -> listJson(context, arguments)
+            "delete", "remove", "forget", "memory_delete" -> deleteJson(context, arguments)
             "reflect", "consolidate", "compact" -> reflectJson(context, arguments)
             "relevant_context", "rag_context", "context", "system_prompt_context", "prompt_context" -> relevantContextJson(context, arguments)
             "promoted_context" -> promotedContextJson(context, arguments)
@@ -132,6 +134,45 @@ object HermesHindsightMemoryBridge {
             .put("result_count", memories.length())
             .put("memories", memories)
             .put("cards", JSONArray().put(card("Memory Recall", "${memories.length()} memory row(s) matched by keyword, entity, recency, and reinforcement signals.")))
+    }
+
+    private fun listJson(context: Context, arguments: JSONObject): JSONObject {
+        val limit = arguments.optInt("limit", MAX_LIMIT).coerceIn(1, MAX_LIMIT)
+        val entries = readEntries(context)
+            .sortedWith(compareByDescending<JSONObject> { it.optDouble("salience", 0.0) }.thenByDescending { it.optLong("last_accessed_at_ms", 0L) })
+            .take(limit)
+            .map(::compactEntry)
+        return JSONObject()
+            .put("success", true)
+            .put("action", "list")
+            .put("result_count", entries.size)
+            .put("memories", JSONArray(entries))
+            .put("cards", JSONArray().put(card("Memory List", "${entries.size} retained local HY Memory row(s) returned.")))
+    }
+
+    private fun deleteJson(context: Context, arguments: JSONObject): JSONObject {
+        val memoryId = arguments.optString("memory_id").ifBlank {
+            arguments.optString("id").ifBlank { arguments.optString("target") }
+        }
+        if (memoryId.isBlank()) {
+            return JSONObject()
+                .put("success", false)
+                .put("action", "delete")
+                .put("error", "memory_delete requires memory_id")
+                .put("available_actions", JSONArray(ACTIONS))
+        }
+        val entries = readEntries(context)
+        val before = entries.size
+        val remaining = entries.filterNot { it.optString("id") == memoryId }
+        saveEntries(context, remaining)
+        val deleted = before - remaining.size
+        return JSONObject()
+            .put("success", deleted > 0)
+            .put("action", "delete")
+            .put("memory_id", memoryId)
+            .put("deleted_count", deleted)
+            .put("memory_count", remaining.size)
+            .put("cards", JSONArray().put(card("Memory Delete", "$deleted local HY Memory row(s) deleted.")))
     }
 
     private fun reflectJson(context: Context, arguments: JSONObject): JSONObject {
