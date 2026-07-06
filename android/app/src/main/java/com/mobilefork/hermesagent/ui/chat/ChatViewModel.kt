@@ -204,6 +204,33 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         sendPreparedMessage(text = normalized, attachments = emptyList())
     }
 
+    fun stageMessageEdit(messageId: String) {
+        val snapshot = _uiState.value
+        if (snapshot.isSending) {
+            _uiState.update { it.copy(status = "Wait for Hermes to finish before editing a sent message.") }
+            return
+        }
+        val message = snapshot.messages.firstOrNull { it.id == messageId && it.role == "user" } ?: return
+        _uiState.update {
+            it.copy(
+                input = message.content,
+                attachments = message.attachments,
+                status = "Editing sent message; send to resubmit.",
+                error = "",
+                isShowingHistory = false,
+            )
+        }
+    }
+
+    fun resendMessage(messageId: String) {
+        val snapshot = _uiState.value
+        if (snapshot.isSending) {
+            return
+        }
+        val message = snapshot.messages.firstOrNull { it.id == messageId && it.role == "user" } ?: return
+        sendPreparedMessage(text = message.content.trim(), attachments = message.attachments)
+    }
+
     private fun sendPreparedMessage(text: String, attachments: List<ChatAttachment>) {
         val snapshot = _uiState.value
         if ((text.isEmpty() && attachments.isEmpty()) || snapshot.isSending) {

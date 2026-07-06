@@ -12,6 +12,8 @@ class FakeHyMemoryClient:
         self.mode = mode
         self.add_calls = []
         self.search_calls = []
+        self.delete_calls = []
+        self.list_calls = []
         self.closed = False
         self.search_payload = {
             "memories": {
@@ -46,6 +48,22 @@ class FakeHyMemoryClient:
             }
         )
         return self.search_payload
+
+    def delete(self, memory_id):
+        self.delete_calls.append(memory_id)
+        return {"success": True, "deleted_count": 1, "memory_id": memory_id}
+
+    def list_memories(self, *, user_id="", agent_id=None, limit=100, offset=0, order="desc"):
+        self.list_calls.append(
+            {
+                "user_id": user_id,
+                "agent_id": agent_id,
+                "limit": limit,
+                "offset": offset,
+                "order": order,
+            }
+        )
+        return {"memories": [{"id": "hy-1", "content": "Keep Shizuku status."}]}
 
     def close(self):
         self.closed = True
@@ -97,15 +115,35 @@ def test_hy_memory_tools_do_not_collide_with_builtin_memory_tool(monkeypatch, tm
     provider.initialize("session-1", hermes_home=str(tmp_path), platform="cli")
 
     tool_names = {schema["name"] for schema in provider.get_tool_schemas()}
-    assert tool_names == {"hy_memory_retain", "hy_memory_recall", "hy_memory_status"}
+    assert tool_names == {
+        "hy_memory_retain",
+        "hy_memory_recall",
+        "hy_memory_status",
+        "memory_search",
+        "memory_add",
+        "memory_delete",
+        "memory_list",
+    }
     assert "memory" not in tool_names
 
     retained = json.loads(provider.handle_tool_call("hy_memory_retain", {"content": "Keep Shizuku status."}))
     recalled = json.loads(provider.handle_tool_call("hy_memory_recall", {"query": "Shizuku", "limit": 2}))
+    package_added = json.loads(provider.handle_tool_call("memory_add", {"content": "Remember local Qwen validation."}))
+    package_search = json.loads(provider.handle_tool_call("memory_search", {"query": "Qwen", "limit": 2}))
+    package_list = json.loads(provider.handle_tool_call("memory_list", {"limit": 2}))
+    package_delete = json.loads(provider.handle_tool_call("memory_delete", {"memory_id": "hy-1"}))
     status = json.loads(provider.handle_tool_call("hy_memory_status", {}))
 
     assert retained["success"] is True
     assert recalled["success"] is True
+    assert package_added["success"] is True
+    assert package_search["success"] is True
+    assert package_list["success"] is True
+    assert package_delete["success"] is True
     assert status["provider"] == "hy_memory"
     assert status["success"] is True
+    client = FakeHyMemoryClient.instances[-1]
+    assert client.delete_calls == ["hy-1"]
+    assert client.list_calls[-1]["agent_id"] == "cli"
+    assert client.list_calls[-1]["limit"] == 2
     provider.shutdown()

@@ -3,6 +3,8 @@ package com.mobilefork.hermesagent.ui.chat
 import android.Manifest
 import android.app.Activity
 import android.content.ActivityNotFoundException
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -40,6 +42,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -300,6 +303,21 @@ fun ChatScreen(
         }
     }
 
+    LaunchedEffect(uiState.isSending) {
+        if (uiState.isSending) {
+            keyboardController?.hide()
+            focusManager.clearFocus(force = true)
+        }
+    }
+
+    fun copyMessage(message: ChatUiMessage) {
+        val text = messageClipboardText(message)
+        if (text.isNotBlank()) {
+            copyTextToClipboard(context, text)
+            viewModel.setStatus("Message copied")
+        }
+    }
+
     fun handleSend() {
         val input = uiState.input.trim()
         if (input.isEmpty() && uiState.attachments.isEmpty()) return
@@ -426,6 +444,9 @@ fun ChatScreen(
                                             minuteBucket(previous.createdAtEpochMs) != minuteBucket(message.createdAtEpochMs),
                                         keywordHighlightingEnabled = keywordHighlightingEnabled,
                                         onSpeak = { speak(message.content) },
+                                        onCopy = { copyMessage(message) },
+                                        onEdit = { viewModel.stageMessageEdit(message.id) },
+                                        onResend = { viewModel.resendMessage(message.id) },
                                     )
                                 }
                             } else {
@@ -435,6 +456,9 @@ fun ChatScreen(
                                         turn = turn,
                                         keywordHighlightingEnabled = keywordHighlightingEnabled,
                                         onSpeak = { message -> speak(message.content) },
+                                        onCopy = { message -> copyMessage(message) },
+                                        onEdit = { message -> viewModel.stageMessageEdit(message.id) },
+                                        onResend = { message -> viewModel.resendMessage(message.id) },
                                     )
                                 }
                             }
@@ -884,6 +908,9 @@ private fun ChatBubble(
     showTimestamp: Boolean = true,
     keywordHighlightingEnabled: Boolean,
     onSpeak: () -> Unit,
+    onCopy: () -> Unit,
+    onEdit: () -> Unit,
+    onResend: () -> Unit,
 ) {
     val isUser = message.role == "user"
     val containerColor = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
@@ -917,10 +944,23 @@ private fun ChatBubble(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(roleLabel, style = MaterialTheme.typography.labelLarge, color = contentColor)
-                        if (showTimestamp) {
-                            QuietMetaText(
-                                text = DateFormat.format("HH:mm", message.createdAtEpochMs).toString(),
-                                color = contentColor,
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (showTimestamp) {
+                                QuietMetaText(
+                                    text = DateFormat.format("HH:mm", message.createdAtEpochMs).toString(),
+                                    color = contentColor,
+                                )
+                            }
+                            ChatMessageActionMenu(
+                                message = message,
+                                contentColor = contentColor,
+                                onCopy = onCopy,
+                                onEdit = if (isUser) onEdit else null,
+                                onResend = if (isUser) onResend else null,
+                                onSpeak = if (!isUser && message.content.isNotBlank()) onSpeak else null,
                             )
                         }
                     }
@@ -933,21 +973,71 @@ private fun ChatBubble(
                     if (!isUser && hasToolActivity(message.content)) {
                         CompactActivityRow(content = message.content, contentColor = contentColor)
                     }
-                    if (!isUser && message.content.isNotBlank()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            IconButton(onClick = onSpeak) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_action_speaker),
-                                    contentDescription = strings.speakReply(),
-                                    tint = contentColor,
-                                )
-                            }
-                        }
-                    }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatMessageActionMenu(
+    message: ChatUiMessage,
+    contentColor: androidx.compose.ui.graphics.Color,
+    onCopy: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onResend: (() -> Unit)? = null,
+    onSpeak: (() -> Unit)? = null,
+) {
+    val strings = LocalHermesStrings.current
+    var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = { expanded = true },
+            modifier = Modifier
+                .size(34.dp)
+                .testTag("HermesMessageActionsButton"),
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_nav_settings),
+                contentDescription = "Message actions",
+                tint = contentColor.copy(alpha = 0.86f),
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Copy") },
+                onClick = {
+                    expanded = false
+                    onCopy()
+                },
+            )
+            if (onEdit != null) {
+                DropdownMenuItem(
+                    text = { Text("Edit") },
+                    onClick = {
+                        expanded = false
+                        onEdit()
+                    },
+                )
+            }
+            if (onResend != null) {
+                DropdownMenuItem(
+                    text = { Text("Resend") },
+                    onClick = {
+                        expanded = false
+                        onResend()
+                    },
+                )
+            }
+            if (onSpeak != null) {
+                DropdownMenuItem(
+                    text = { Text(strings.speakReply()) },
+                    onClick = {
+                        expanded = false
+                        onSpeak()
+                    },
+                )
             }
         }
     }
@@ -958,6 +1048,9 @@ private fun CompactChatTurn(
     turn: ChatTurn,
     keywordHighlightingEnabled: Boolean,
     onSpeak: (ChatUiMessage) -> Unit,
+    onCopy: (ChatUiMessage) -> Unit,
+    onEdit: (ChatUiMessage) -> Unit,
+    onResend: (ChatUiMessage) -> Unit,
 ) {
     var promptExpanded by rememberSaveable(turn.id) { mutableStateOf(false) }
     val userMessage = turn.userMessage
@@ -980,17 +1073,34 @@ private fun CompactChatTurn(
                     expanded = promptExpanded,
                     keywordHighlightingEnabled = keywordHighlightingEnabled,
                     onToggle = { promptExpanded = !promptExpanded },
+                    onCopy = { onCopy(userMessage) },
+                    onEdit = { onEdit(userMessage) },
+                    onResend = { onResend(userMessage) },
                 )
             }
             if (turn.assistantMessages.isEmpty()) {
                 QuietMetaText(text = strings.hermesPreparingReply(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 turn.assistantMessages.forEachIndexed { index, assistantMessage ->
-                    if (index == 0) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
-                            text = "Hermes",
+                            text = if (index == 0) "Hermes" else "",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
+                        )
+                        ChatMessageActionMenu(
+                            message = assistantMessage,
+                            contentColor = MaterialTheme.colorScheme.primary,
+                            onCopy = { onCopy(assistantMessage) },
+                            onSpeak = if (assistantMessage.content.isNotBlank()) {
+                                { onSpeak(assistantMessage) }
+                            } else {
+                                null
+                            },
                         )
                     }
                     HighlightedMessageText(
@@ -1046,6 +1156,9 @@ private fun CompactPromptHeader(
     expanded: Boolean,
     keywordHighlightingEnabled: Boolean,
     onToggle: () -> Unit,
+    onCopy: () -> Unit,
+    onEdit: () -> Unit,
+    onResend: () -> Unit,
 ) {
     val strings = LocalHermesStrings.current
     val label = strings.compactPromptLabel(expanded)
@@ -1078,6 +1191,13 @@ private fun CompactPromptHeader(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
+                    ChatMessageActionMenu(
+                        message = message,
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        onCopy = onCopy,
+                        onEdit = onEdit,
+                        onResend = onResend,
+                    )
                     Text(if (expanded) "▲" else "▼", color = MaterialTheme.colorScheme.primary)
                 }
             }
@@ -1120,7 +1240,9 @@ private fun HighlightedMessageText(
 ) {
     val displayText = remember(text) { sanitizeChatDisplayText(text) }
     if (!keywordHighlightingEnabled || text.isBlank()) {
-        Text(text = displayText, color = color, style = MaterialTheme.typography.bodyMedium)
+        SelectionContainer {
+            Text(text = displayText, color = color, style = MaterialTheme.typography.bodyMedium)
+        }
         return
     }
     val pattern = remember {
@@ -1151,7 +1273,28 @@ private fun HighlightedMessageText(
             append(displayText.substring(cursor))
         }
     }
-    Text(text = highlighted, color = color, style = MaterialTheme.typography.bodyMedium)
+    SelectionContainer {
+        Text(text = highlighted, color = color, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+private fun messageClipboardText(message: ChatUiMessage): String {
+    val attachmentText = message.attachments
+        .joinToString(separator = "\n") { attachment ->
+            attachment.displayName.ifBlank { attachment.mimeType }.ifBlank { "attachment" }
+        }
+    return listOf(message.content, attachmentText)
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .joinToString(separator = "\n")
+}
+
+private fun copyTextToClipboard(context: Context, text: String) {
+    if (text.isBlank()) {
+        return
+    }
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
+    clipboard.setPrimaryClip(ClipData.newPlainText("Hermes message", text))
 }
 
 internal fun sanitizeChatDisplayText(text: String): String {
@@ -1882,6 +2025,7 @@ private fun ChatComposer(
                         ComposerInputField(
                             input = input,
                             onInputChange = onInputChange,
+                            enabled = !isSending,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         if (ultraNarrowComposer) {
@@ -1957,6 +2101,7 @@ private fun ChatComposer(
                         ComposerInputField(
                             input = input,
                             onInputChange = onInputChange,
+                            enabled = !isSending,
                             modifier = Modifier.weight(1f),
                         )
                         ComposerMicButton(
@@ -2002,12 +2147,14 @@ private fun ComposerActionsButton(
 private fun ComposerInputField(
     input: String,
     onInputChange: (String) -> Unit,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val strings = LocalHermesStrings.current
     OutlinedTextField(
         value = input,
         onValueChange = onInputChange,
+        enabled = enabled,
         modifier = modifier
             .heightIn(max = 112.dp)
             .testTag("HermesChatInput"),

@@ -115,6 +115,13 @@ class NativeToolCallingChatClientTest {
         assertTrue(content.contains("signal permission and active-refresh runbooks"))
         assertTrue(content.contains("MediaTek signal-stack reports"))
         assertTrue(content.contains("MCP tool-server registry reports"))
+        assertTrue(content.contains("mcp_send_terminal_input aliases terminal_tool"))
+        assertTrue(content.contains("mcp_run_in_proot aliases linux_sandbox_tool action=run"))
+        assertTrue(content.contains("action=deploy"))
+        assertTrue(content.contains("action=set_mirror"))
+        assertTrue(content.contains("action=download, action=set_mirror"))
+        assertTrue(content.contains("linux_sandbox_tool action=update"))
+        assertTrue(content.contains("memory_search/memory_add/memory_delete/memory_list"))
         assertTrue(content.contains("full upgrade objective audit reports"))
         assertTrue(content.contains("what Hermes/Gemma can see from nearby signals"))
         assertTrue(content.contains("action=agent_native_tool_self_test_report"))
@@ -273,6 +280,12 @@ class NativeToolCallingChatClientTest {
             "proot-distro list",
             NativeToolCallingChatClient.extractDirectTerminalCommand(
                 "Use terminal_tool to run: proot-distro list",
+            ),
+        )
+        assertEquals(
+            "echo mcp-alias-ok",
+            NativeToolCallingChatClient.extractDirectTerminalCommand(
+                "Use mcp_send_terminal_input to run: echo mcp-alias-ok",
             ),
         )
         assertNull(

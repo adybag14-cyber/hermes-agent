@@ -146,6 +146,15 @@ fun DeviceScreen(
                     uiState = uiState,
                     onInstallSuite = viewModel::installLinuxSuite,
                 )
+                LinuxSandboxCard(
+                    uiState = uiState,
+                    onDeploy = { viewModel.performSandboxAction("deploy", mirrorProfile = "china") },
+                    onUpdate = { viewModel.performSandboxAction("update") },
+                    onStart = { viewModel.performSandboxAction("start") },
+                    onStop = { viewModel.performSandboxAction("stop") },
+                    onSetMirror = { viewModel.performSandboxAction("set_mirror", mirrorProfile = "china") },
+                    onUninstall = { viewModel.performSandboxAction("uninstall") },
+                )
                 OperatorStandbyCard(uiState = uiState)
                 ConnectivityCard(
                     uiState = uiState,
@@ -376,6 +385,59 @@ private fun LinuxSuiteCard(
             )
             Button(onClick = onInstallSuite) {
                 Text(strings.deviceLinuxInstallSuiteLabel())
+            }
+        }
+    }
+}
+
+@Composable
+private fun LinuxSandboxCard(
+    uiState: DeviceUiState,
+    onDeploy: () -> Unit,
+    onUpdate: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onSetMirror: () -> Unit,
+    onUninstall: () -> Unit,
+) {
+    val strings = LocalHermesStrings.current
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(strings.deviceLinuxSandboxTitle(), style = MaterialTheme.typography.titleMedium)
+            Text(strings.deviceLinuxSandboxSummary())
+            if (uiState.sandboxStorageRoot.isNotBlank()) {
+                Text(
+                    strings.deviceLinuxSandboxStorage(uiState.sandboxStorageRoot),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            Text(
+                strings.deviceLinuxSandboxInstalled(uiState.installedSandboxCount, uiState.installedSandboxNames),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                strings.deviceLinuxSandboxAgentState(
+                    enabled = uiState.sandboxAgentEnabled,
+                    activeSandbox = uiState.activeSandboxName,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(onClick = onDeploy) { Text(strings.deviceLinuxSandboxDeployLabel()) }
+                Button(onClick = onUpdate) { Text(strings.deviceLinuxSandboxUpdateLabel()) }
+                Button(onClick = onStart) { Text(strings.deviceLinuxSandboxStartLabel()) }
+                Button(onClick = onStop) { Text(strings.deviceLinuxSandboxStopLabel()) }
+                Button(onClick = onSetMirror) { Text(strings.deviceLinuxSandboxMirrorLabel()) }
+                Button(onClick = onUninstall) { Text(strings.deviceLinuxSandboxUninstallLabel()) }
             }
         }
     }
@@ -979,6 +1041,80 @@ private fun HermesStrings.deviceLinuxInstallSuiteLabel(): String = when (languag
     AppLanguage.PORTUGUESE -> "Instalar / atualizar terminal Linux"
     AppLanguage.FRENCH -> "Installer / actualiser le terminal Linux"
     AppLanguage.ENGLISH -> "Install / refresh Linux terminal"
+}
+
+private fun HermesStrings.deviceLinuxSandboxTitle(): String = when (language) {
+    AppLanguage.CHINESE -> "Linux 沙盒"
+    AppLanguage.ENGLISH -> "Linux sandbox"
+    else -> "Linux sandbox"
+}
+
+private fun HermesStrings.deviceLinuxSandboxSummary(): String = when (language) {
+    AppLanguage.CHINESE -> "在应用私有目录下载、更新、启动、关闭或卸载 proot Linux 沙盒。启动后 AI 才能通过 shell 工具使用沙盒。"
+    AppLanguage.ENGLISH -> "Download, update, start, stop, or uninstall the proot Linux sandbox inside app-private storage. AI shell tools can use the sandbox after start."
+    else -> "Download, update, start, stop, or uninstall the proot Linux sandbox inside app-private storage."
+}
+
+private fun HermesStrings.deviceLinuxSandboxStorage(path: String): String = when (language) {
+    AppLanguage.CHINESE -> "存储根目录：$path"
+    AppLanguage.ENGLISH -> "Storage root: $path"
+    else -> "Storage root: $path"
+}
+
+private fun HermesStrings.deviceLinuxSandboxInstalled(count: Int, names: List<String>): String = when (language) {
+    AppLanguage.CHINESE -> if (names.isEmpty()) "已安装沙盒：0" else "已安装沙盒：$count（${names.joinToString()}）"
+    AppLanguage.ENGLISH -> if (names.isEmpty()) "Installed sandboxes: 0" else "Installed sandboxes: $count (${names.joinToString()})"
+    else -> if (names.isEmpty()) "Installed sandboxes: 0" else "Installed sandboxes: $count (${names.joinToString()})"
+}
+
+private fun HermesStrings.deviceLinuxSandboxAgentState(enabled: Boolean, activeSandbox: String): String = when (language) {
+    AppLanguage.CHINESE -> if (enabled) {
+        if (activeSandbox.isBlank()) "AI shell：已启用" else "AI shell：已启用 · 活动沙盒 $activeSandbox"
+    } else {
+        if (activeSandbox.isBlank()) "AI shell：已关闭" else "AI shell：已关闭 · 上次沙盒 $activeSandbox"
+    }
+    AppLanguage.ENGLISH -> if (enabled) {
+        if (activeSandbox.isBlank()) "AI shell: enabled" else "AI shell: enabled · active sandbox $activeSandbox"
+    } else {
+        if (activeSandbox.isBlank()) "AI shell: disabled" else "AI shell: disabled · last sandbox $activeSandbox"
+    }
+    else -> if (enabled) "AI shell: enabled" else "AI shell: disabled"
+}
+
+private fun HermesStrings.deviceLinuxSandboxDeployLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "一键部署"
+    AppLanguage.ENGLISH -> "One-click deploy"
+    else -> "Deploy"
+}
+
+private fun HermesStrings.deviceLinuxSandboxUpdateLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "更新"
+    AppLanguage.ENGLISH -> "Update"
+    else -> "Update"
+}
+
+private fun HermesStrings.deviceLinuxSandboxStartLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "启动"
+    AppLanguage.ENGLISH -> "Start"
+    else -> "Start"
+}
+
+private fun HermesStrings.deviceLinuxSandboxStopLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "关闭"
+    AppLanguage.ENGLISH -> "Stop"
+    else -> "Stop"
+}
+
+private fun HermesStrings.deviceLinuxSandboxMirrorLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "国内源"
+    AppLanguage.ENGLISH -> "China mirrors"
+    else -> "Mirrors"
+}
+
+private fun HermesStrings.deviceLinuxSandboxUninstallLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "卸载"
+    AppLanguage.ENGLISH -> "Uninstall"
+    else -> "Uninstall"
 }
 
 private fun HermesStrings.deviceConnectivityTitle(): String = when (language) {

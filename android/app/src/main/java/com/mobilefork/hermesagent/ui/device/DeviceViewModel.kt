@@ -14,6 +14,7 @@ import com.mobilefork.hermesagent.device.HermesAccessibilityController
 import com.mobilefork.hermesagent.device.HermesAutomationBridge
 import com.mobilefork.hermesagent.device.HermesCrashLogStore
 import com.mobilefork.hermesagent.device.HermesGlobalAction
+import com.mobilefork.hermesagent.device.HermesLinuxSandboxBridge
 import com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridge
 import com.mobilefork.hermesagent.device.HermesSystemControlBridge
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +45,11 @@ data class DeviceUiState(
     val linuxHomePath: String = "",
     val linuxTmpPath: String = "",
     val linuxPackageCount: Int = 0,
+    val sandboxStorageRoot: String = "",
+    val sandboxAgentEnabled: Boolean = false,
+    val activeSandboxName: String = "",
+    val installedSandboxCount: Int = 0,
+    val installedSandboxNames: List<String> = emptyList(),
     val accessibilityEnabled: Boolean = false,
     val accessibilityConnected: Boolean = false,
     val wifiEnabled: Boolean = false,
@@ -117,6 +123,32 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         val context = getApplication<Application>()
         DeviceStateWriter.write(context)
         _uiState.value = buildState(status)
+    }
+
+    fun performSandboxAction(action: String, mirrorProfile: String = "") {
+        val context = getApplication<Application>()
+        _uiState.value = _uiState.value.copy(status = "Running Linux sandbox action: $action…")
+        viewModelScope.launch(Dispatchers.IO) {
+            val status = runCatching {
+                HermesLinuxSubsystemBridge.ensureInstalled(context)
+                val result = HermesLinuxSandboxBridge.performAction(
+                    context = context,
+                    action = action,
+                    distroId = "debian-bookworm",
+                    name = "hermes-debian",
+                    mirrorProfile = mirrorProfile,
+                    timeoutSeconds = 900,
+                )
+                val message = result.optString("message")
+                    .ifBlank { result.optString("error") }
+                    .ifBlank { "Linux sandbox action '$action' finished with exit_code=${result.optInt("exit_code", -1)}" }
+                message
+            }.getOrElse { error ->
+                "Linux sandbox action failed: ${error.message ?: error.javaClass.simpleName}"
+            }
+            DeviceStateWriter.write(context)
+            _uiState.value = buildState(status)
+        }
     }
 
     fun installLinuxSuite() {
@@ -264,6 +296,19 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         val standbyStatus = automationStandbyStatus(context)
         val modelRoutingStatus = automationModelRoutingStatus(context)
         val crashLogStatus = HermesCrashLogStore.statusSnapshot(context)
+        val sandboxStatus = linuxState?.let { HermesLinuxSandboxBridge.status(it, context) }
+        val installedSandboxes = sandboxStatus?.optJSONArray("installed_sandboxes")
+        val installedSandboxNames = buildList {
+            if (installedSandboxes != null) {
+                for (index in 0 until installedSandboxes.length()) {
+                    val item = installedSandboxes.optJSONObject(index) ?: continue
+                    val name = item.optString("name")
+                    if (name.isNotBlank()) {
+                        add(name)
+                    }
+                }
+            }
+        }
         val workspace = DeviceStateWriter.workspaceDir(context)
         val workspaceFiles = workspace
             .listFiles()
@@ -292,6 +337,11 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
             linuxHomePath = linuxState?.optString("home_path").orEmpty(),
             linuxTmpPath = linuxState?.optString("tmp_path").orEmpty(),
             linuxPackageCount = linuxState?.optJSONArray("packages")?.length() ?: 0,
+            sandboxStorageRoot = sandboxStatus?.optString("app_private_storage_root").orEmpty(),
+            sandboxAgentEnabled = sandboxStatus?.optBoolean("agent_shell_enabled", true) == true,
+            activeSandboxName = sandboxStatus?.optString("active_sandbox_name").orEmpty(),
+            installedSandboxCount = installedSandboxNames.size,
+            installedSandboxNames = installedSandboxNames,
             accessibilityEnabled = HermesAccessibilityController.isServiceEnabled(context),
             accessibilityConnected = HermesAccessibilityController.isServiceConnected(),
             wifiEnabled = systemStatus.wifiEnabled,
