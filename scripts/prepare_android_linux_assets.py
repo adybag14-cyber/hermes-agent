@@ -40,10 +40,10 @@ BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
 DEFAULT_LOCK_FILE = REPO_ROOT / "hermes_android" / "termux_linux_assets.lock.json"
 LOCK_FILE_VERSION = 1
 TERMUX_MAIN_FALLBACK_BASE_URLS = (
-    "https://termux.librehat.com/apt/termux-main",
-    "https://mirror.rinarin.dev/termux/termux-main",
     TERMUX_MAIN_BASE_URL,
     "https://packages-cf.termux.dev/apt/termux-main",
+    "https://termux.librehat.com/apt/termux-main",
+    "https://mirror.rinarin.dev/termux/termux-main",
 )
 
 
