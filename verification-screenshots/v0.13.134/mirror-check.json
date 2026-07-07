@@ -1,0 +1,43 @@
+{
+  "checked_at": "2026-07-07T04:41:07Z",
+  "termux_arch": "x86_64",
+  "healthy_count": 2,
+  "recommended_base_urls": [
+    "https://packages.termux.dev/apt/termux-main",
+    "https://termux.librehat.com/apt/termux-main"
+  ],
+  "mirrors": [
+    {
+      "base_url": "https://packages.termux.dev/apt/termux-main",
+      "url": "https://packages.termux.dev/apt/termux-main/dists/stable/main/binary-x86_64/Packages",
+      "status": "ok",
+      "elapsed_ms": 171,
+      "detail": "",
+      "preferred_rank": 0
+    },
+    {
+      "base_url": "https://packages-cf.termux.dev/apt/termux-main",
+      "url": "https://packages-cf.termux.dev/apt/termux-main/dists/stable/main/binary-x86_64/Packages",
+      "status": "http_403",
+      "elapsed_ms": 63,
+      "detail": "HTTP Error 403: Forbidden",
+      "preferred_rank": null
+    },
+    {
+      "base_url": "https://termux.librehat.com/apt/termux-main",
+      "url": "https://termux.librehat.com/apt/termux-main/dists/stable/main/binary-x86_64/Packages",
+      "status": "ok",
+      "elapsed_ms": 77,
+      "detail": "",
+      "preferred_rank": 1
+    },
+    {
+      "base_url": "https://mirror.rinarin.dev/termux/termux-main",
+      "url": "https://mirror.rinarin.dev/termux/termux-main/dists/stable/main/binary-x86_64/Packages",
+      "status": "http_403",
+      "elapsed_ms": 63,
+      "detail": "HTTP Error 403: Forbidden",
+      "preferred_rank": null
+    }
+  ]
+}

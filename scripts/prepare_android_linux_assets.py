@@ -391,6 +391,25 @@ def prepare_assets(output_dir: Path, lock_file: Path | None = DEFAULT_LOCK_FILE,
         )
 
 
+def check_termux_mirror_health(termux_arch: str = "x86_64") -> dict:
+    import importlib.util
+
+    harness_path = REPO_ROOT / "scripts" / "android_visual_harness.py"
+    spec = importlib.util.spec_from_file_location("android_visual_harness", harness_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load {harness_path}")
+    harness = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(harness)
+    mirrors = harness.check_termux_package_mirrors(termux_arch=termux_arch)
+    healthy = [item for item in mirrors if item["status"] == "ok"]
+    return {
+        "termux_arch": termux_arch,
+        "healthy_count": len(healthy),
+        "recommended_base_urls": [item["base_url"] for item in healthy],
+        "mirrors": mirrors,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Prepare Android Linux CLI assets for Hermes Android builds")
     parser.add_argument("--output-dir", required=True, help="Directory where generated assets should be written")
@@ -401,7 +420,24 @@ def main() -> None:
     )
     parser.add_argument("--refresh-lock-file", action="store_true", help="Refresh the pinned Termux package lock file")
     parser.add_argument("--lock-only", action="store_true", help="Only refresh the lock file, without extracting assets")
+    parser.add_argument(
+        "--check-mirrors",
+        action="store_true",
+        help="Probe configured Termux main mirrors and print a JSON health report",
+    )
+    parser.add_argument("--mirror-report", help="Optional path to write the mirror health JSON report")
+    parser.add_argument("--termux-arch", default="x86_64", help="Termux arch used for mirror health probes")
     args = parser.parse_args()
+    if args.check_mirrors:
+        report = check_termux_mirror_health(termux_arch=args.termux_arch)
+        encoded = json.dumps(report, indent=2, sort_keys=True) + "\n"
+        if args.mirror_report:
+            Path(args.mirror_report).expanduser().resolve().write_text(encoded, encoding="utf-8")
+        else:
+            sys.stdout.write(encoded)
+        if report["healthy_count"] == 0:
+            raise SystemExit(1)
+        return
     output_dir = Path(args.output_dir).expanduser().resolve()
     lock_file = Path(args.lock_file).expanduser().resolve() if args.lock_file else None
     if args.lock_only:
