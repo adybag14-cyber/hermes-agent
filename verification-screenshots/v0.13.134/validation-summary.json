@@ -1,0 +1,40 @@
+{
+  "version": "0.13.134",
+  "versionCode": 143490,
+  "validatedAt": "2026-07-07T03:10:00Z",
+  "emulator": "HermesX86Api35 / emulator-5554",
+  "unitTests": {
+    "androidDebugUnitTest": 530,
+    "failures": 0,
+    "newTests": [
+      "ChatScreenTextFormattingTest (sandbox/MCP/memory tool display)",
+      "NativeToolCallingChatClientToolRoutingTest",
+      "DeviceViewModelSandboxTargetTest"
+    ]
+  },
+  "pythonTests": {
+    "hermes_android_packaging": 61,
+    "failures": 0
+  },
+  "releaseWorkflow": {
+    "runId": 28838272381,
+    "conclusion": "success",
+    "duration": "9m28s",
+    "tag": "v0.13.134",
+    "assets": [
+      "hermes-agent-android-v0.13.134-universal.apk",
+      "hermes-agent-android-v0.13.134.aab"
+    ]
+  },
+  "screenshots": [
+    "01-chat-home.png",
+    "02-navigation-menu.png",
+    "03-device-top-manual.png",
+    "04-device-sandbox-manual.png"
+  ],
+  "notes": [
+    "LiteRT-LM bumped to com.google.ai.edge.litertlm:litertlm-android:0.13.1",
+    "Device screen shows Deploy Alpine after scrolling Linux sandbox card (Compose scroll requires additional harness tuning)",
+    "Gemma3 1B instrumented test skips unless gemma3-1b-it-int4.litertlm is provisioned"
+  ]
+}
