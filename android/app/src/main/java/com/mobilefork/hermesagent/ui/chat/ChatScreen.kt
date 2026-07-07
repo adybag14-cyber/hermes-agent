@@ -1378,7 +1378,7 @@ private val XML_TOOL_CALL_BLOCK_REGEX = Regex(
 )
 
 private val XML_NAMED_TOOL_CALL_BLOCK_REGEX = Regex(
-    pattern = """(?is)<(terminal_tool|file_write_tool|android_device_diagnostics_tool|android_automation_tool|android_ui_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool)(?:\s+[^>]*)?>(.*?)</\1>""",
+    pattern = """(?is)<(terminal_tool|mcp_send_terminal_input|linux_sandbox_tool|mcp_run_in_proot|file_write_tool|android_device_diagnostics_tool|android_automation_tool|android_ui_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool|memory_search|memory_add|memory_delete|memory_list)(?:\s+[^>]*)?>(.*?)</\1>""",
 )
 
 private val XML_TOOL_NAME_ATTRIBUTE_REGEX = Regex(

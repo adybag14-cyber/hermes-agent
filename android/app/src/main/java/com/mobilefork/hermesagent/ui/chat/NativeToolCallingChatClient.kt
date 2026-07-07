@@ -1926,7 +1926,7 @@ class NativeToolCallingChatClient(
             )
     }
 
-    private fun compactToolSpecsFor(userText: String): JSONArray {
+    internal fun compactToolSpecsFor(userText: String): JSONArray {
         val selectedNames = explicitlyRequestedToolNames(userText)
             .ifEmpty { inferredToolNames(userText) }
         if (selectedNames.isEmpty()) {
@@ -1995,8 +1995,11 @@ class NativeToolCallingChatClient(
                     "download linux",
                     "proot-distro",
                     "proot distro",
+                    "proot sandbox",
                     "mcp_run_in_proot",
                     "install alpine",
+                    "deploy alpine",
+                    "alpine 3.21",
                     "install debian",
                     "install ubuntu",
                     "start sandbox",
@@ -2006,9 +2009,11 @@ class NativeToolCallingChatClient(
                     "uninstall sandbox",
                     "sandbox status",
                     "sandbox command",
+                    "uname -a",
                 ).any { it in lower }
             ) {
                 add("linux_sandbox_tool")
+                add("mcp_run_in_proot")
             }
             if (
                 listOf(
@@ -2348,6 +2353,18 @@ class NativeToolCallingChatClient(
                 "retain_tool" in lower
             ) {
                 add("hy_memory_tool")
+                if ("memory_search" in lower) {
+                    add("memory_search")
+                }
+                if ("memory_add" in lower) {
+                    add("memory_add")
+                }
+                if ("memory_delete" in lower) {
+                    add("memory_delete")
+                }
+                if ("memory_list" in lower) {
+                    add("memory_list")
+                }
             }
             if ("android_ui_tool" in lower || "screen_tool" in lower || "accessibility_tool" in lower) {
                 add("android_ui_tool")

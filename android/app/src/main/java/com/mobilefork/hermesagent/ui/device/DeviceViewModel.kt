@@ -15,6 +15,7 @@ import com.mobilefork.hermesagent.device.HermesAutomationBridge
 import com.mobilefork.hermesagent.device.HermesCrashLogStore
 import com.mobilefork.hermesagent.device.HermesGlobalAction
 import com.mobilefork.hermesagent.device.HermesLinuxSandboxBridge
+import com.mobilefork.hermesagent.device.HermesLinuxSandboxCatalog
 import com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridge
 import com.mobilefork.hermesagent.device.HermesSystemControlBridge
 import kotlinx.coroutines.Dispatchers
@@ -125,17 +126,24 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.value = buildState(status)
     }
 
-    fun performSandboxAction(action: String, mirrorProfile: String = "") {
+    fun performSandboxAction(
+        action: String,
+        distroId: String = "debian-bookworm",
+        mirrorProfile: String = "",
+    ) {
+        val (resolvedDistroId, sandboxName) = resolveSandboxTarget(distroId)
         val context = getApplication<Application>()
-        _uiState.value = _uiState.value.copy(status = "Running Linux sandbox action: $action…")
+        _uiState.value = _uiState.value.copy(
+            status = "Running Linux sandbox action: $action ($resolvedDistroId)…",
+        )
         viewModelScope.launch(Dispatchers.IO) {
             val status = runCatching {
                 HermesLinuxSubsystemBridge.ensureInstalled(context)
                 val result = HermesLinuxSandboxBridge.performAction(
                     context = context,
                     action = action,
-                    distroId = "debian-bookworm",
-                    name = "hermes-debian",
+                    distroId = resolvedDistroId,
+                    name = sandboxName,
                     mirrorProfile = mirrorProfile,
                     timeoutSeconds = 900,
                 )
@@ -440,4 +448,11 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
             suffix += 1
         }
     }
+}
+
+internal fun resolveSandboxTarget(distroId: String): Pair<String, String> {
+    val distro = HermesLinuxSandboxCatalog.findDistro(distroId)
+    val resolvedDistroId = distro?.optString("id")?.ifBlank { null } ?: distroId
+    val sandboxName = distro?.optString("name")?.ifBlank { null } ?: "hermes-debian"
+    return resolvedDistroId to sandboxName
 }

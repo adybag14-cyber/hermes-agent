@@ -149,6 +149,13 @@ fun DeviceScreen(
                 LinuxSandboxCard(
                     uiState = uiState,
                     onDeploy = { viewModel.performSandboxAction("deploy", mirrorProfile = "china") },
+                    onDeployAlpine = {
+                        viewModel.performSandboxAction(
+                            action = "deploy",
+                            distroId = "alpine-3-21",
+                            mirrorProfile = "china",
+                        )
+                    },
                     onUpdate = { viewModel.performSandboxAction("update") },
                     onStart = { viewModel.performSandboxAction("start") },
                     onStop = { viewModel.performSandboxAction("stop") },
@@ -394,6 +401,7 @@ private fun LinuxSuiteCard(
 private fun LinuxSandboxCard(
     uiState: DeviceUiState,
     onDeploy: () -> Unit,
+    onDeployAlpine: () -> Unit,
     onUpdate: () -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -433,6 +441,7 @@ private fun LinuxSandboxCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Button(onClick = onDeploy) { Text(strings.deviceLinuxSandboxDeployLabel()) }
+                Button(onClick = onDeployAlpine) { Text(strings.deviceLinuxSandboxDeployAlpineLabel()) }
                 Button(onClick = onUpdate) { Text(strings.deviceLinuxSandboxUpdateLabel()) }
                 Button(onClick = onStart) { Text(strings.deviceLinuxSandboxStartLabel()) }
                 Button(onClick = onStop) { Text(strings.deviceLinuxSandboxStopLabel()) }
@@ -1085,6 +1094,12 @@ private fun HermesStrings.deviceLinuxSandboxDeployLabel(): String = when (langua
     AppLanguage.CHINESE -> "一键部署"
     AppLanguage.ENGLISH -> "One-click deploy"
     else -> "Deploy"
+}
+
+private fun HermesStrings.deviceLinuxSandboxDeployAlpineLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "部署 Alpine"
+    AppLanguage.ENGLISH -> "Deploy Alpine"
+    else -> "Deploy Alpine"
 }
 
 private fun HermesStrings.deviceLinuxSandboxUpdateLabel(): String = when (language) {

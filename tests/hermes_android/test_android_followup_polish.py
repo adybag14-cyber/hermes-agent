@@ -336,7 +336,7 @@ def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
     assert 'Backend.GPU() to "gpu"' in litert_proxy
     assert 'Backend.CPU() to "cpu"' in litert_proxy
     assert 'put("accelerator", runtimeBackendLabel)' in litert_proxy
-    assert 'com.google.ai.edge.litertlm:litertlm-android:0.12.0' in gradle
+    assert 'com.google.ai.edge.litertlm:litertlm-android:0.13.1' in gradle
     assert 'ExperimentalFlags.enableSpeculativeDecoding' in litert_proxy
     assert 'SpeculativeDecodingMode' in litert_proxy
     assert 'liteRtLmSpeculativeDecodingMode' in app_settings
