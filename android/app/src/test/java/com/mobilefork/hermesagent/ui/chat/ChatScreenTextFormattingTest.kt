@@ -76,6 +76,44 @@ class ChatScreenTextFormattingTest {
     }
 
     @Test
+    fun chatDisplayTextFormatsLinuxSandboxAndMcpToolCalls() {
+        val rendered = sanitizeChatDisplayText(
+            """
+            <linux_sandbox_tool>{"action":"deploy","distro_id":"alpine-3-21"}</linux_sandbox_tool>
+            <mcp_run_in_proot>{"command":"uname -a"}</mcp_run_in_proot>
+            <mcp_send_terminal_input>{"command":"echo ok"}</mcp_send_terminal_input>
+            """.trimIndent(),
+        )
+
+        assertTrue(rendered.contains("Tool call: linux_sandbox_tool"))
+        assertTrue(rendered.contains("""Arguments: {"action":"deploy","distro_id":"alpine-3-21"}"""))
+        assertTrue(rendered.contains("Tool call: mcp_run_in_proot"))
+        assertTrue(rendered.contains("""Arguments: {"command":"uname -a"}"""))
+        assertTrue(rendered.contains("Tool call: mcp_send_terminal_input"))
+        assertFalse(rendered.contains("<linux_sandbox_tool>"))
+        assertFalse(rendered.contains("<mcp_run_in_proot>"))
+    }
+
+    @Test
+    fun chatDisplayTextFormatsMemoryToolAliases() {
+        val rendered = sanitizeChatDisplayText(
+            """
+            <memory_search>{"query":"sandbox notes"}</memory_search>
+            <memory_add>{"content":"alpine deploy ok"}</memory_add>
+            <memory_delete>{"id":"mem-1"}</memory_delete>
+            <memory_list>{}</memory_list>
+            """.trimIndent(),
+        )
+
+        assertTrue(rendered.contains("Tool call: memory_search"))
+        assertTrue(rendered.contains("Tool call: memory_add"))
+        assertTrue(rendered.contains("Tool call: memory_delete"))
+        assertTrue(rendered.contains("Tool call: memory_list"))
+        assertFalse(rendered.contains("<memory_search>"))
+        assertFalse(rendered.contains("<memory_add>"))
+    }
+
+    @Test
     fun chatDisplayTextRemovesMarkdownCodeFenceMarkers() {
         val rendered = sanitizeChatDisplayText(
             """

@@ -121,6 +121,7 @@ class NativeToolCallingChatClientTest {
         assertTrue(content.contains("action=set_mirror"))
         assertTrue(content.contains("action=download, action=set_mirror"))
         assertTrue(content.contains("linux_sandbox_tool action=update"))
+        assertTrue(content.contains("Alpine 3.21"))
         assertTrue(content.contains("memory_search/memory_add/memory_delete/memory_list"))
         assertTrue(content.contains("full upgrade objective audit reports"))
         assertTrue(content.contains("what Hermes/Gemma can see from nearby signals"))

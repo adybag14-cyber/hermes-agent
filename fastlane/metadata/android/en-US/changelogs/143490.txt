@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.134
+
+- Fixes chat UI display for Linux sandbox, MCP proot, and memory tool aliases.
+- Adds one-click Alpine Linux deploy on the Device sandbox card.
+- Updates LiteRT-LM Android runtime to 0.13.1 and adds Gemma 3 1B smoke coverage.
