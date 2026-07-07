@@ -4,18 +4,21 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shlex
 import shutil
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
 DEFAULT_PACKAGE = "com.mobilefork.hermesagent"
-DEFAULT_READY_TEXT = "Message Hermes Fork|Settings|Hermes Fork"
+DEFAULT_READY_TEXT = "Message Hermes Fork|Welcome to Hermes Agent Fork|Settings|Hermes Fork"
 UI_DUMP_REMOTE_PATH = "/sdcard/window_dump.xml"
 
 
@@ -192,6 +195,234 @@ def center_from_bounds(bounds: str) -> tuple[int, int] | None:
         return None
 
 
+def parse_bounds(bounds: str) -> tuple[int, int, int, int] | None:
+    try:
+        left_top, right_bottom = bounds.split("][", 1)
+        left, top = [int(part) for part in left_top.strip("[]").split(",", 1)]
+        right, bottom = [int(part) for part in right_bottom.strip("[]").split(",", 1)]
+        return left, top, right, bottom
+    except (AttributeError, ValueError):
+        return None
+
+
+def build_parent_map(root: ET.Element) -> dict[ET.Element, ET.Element]:
+    parent: dict[ET.Element, ET.Element] = {}
+    for ancestor in root.iter():
+        for child in ancestor:
+            if child.tag == "node":
+                parent[child] = ancestor
+    return parent
+
+
+def ui_contains_text(xml: str, *labels: str) -> bool:
+    return all(label in xml for label in labels)
+
+
+def navigation_drawer_is_open(xml: str) -> bool:
+    if is_chat_home_xml(xml):
+        return False
+    return ui_contains_text(xml, "Accounts", "Settings") and (
+        "Portal" in xml or "Provider Portal" in xml
+    )
+
+
+def find_scrollable_bounds(xml: str) -> tuple[int, int, int, int] | None:
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return None
+    best: tuple[int, int, int, int] | None = None
+    best_area = -1
+    for node in root.iter("node"):
+        if node.attrib.get("scrollable") != "true":
+            continue
+        bounds = parse_bounds(node.attrib.get("bounds", ""))
+        if bounds is None:
+            continue
+        left, top, right, bottom = bounds
+        area = max(0, right - left) * max(0, bottom - top)
+        if area > best_area:
+            best_area = area
+            best = bounds
+    return best
+
+
+def tap_center_for_label(xml: str, label: str) -> tuple[int, int] | None:
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return None
+    parent = build_parent_map(root)
+    for node in root.iter("node"):
+        text = node.attrib.get("text", "")
+        content_description = node.attrib.get("content-desc", "")
+        if text != label and content_description != label:
+            continue
+        current: ET.Element | None = node
+        for _ in range(8):
+            if current is None:
+                break
+            if current.attrib.get("clickable") == "true":
+                center = center_from_bounds(current.attrib.get("bounds", ""))
+                if center is not None:
+                    return center
+            current = parent.get(current)
+        return center_from_bounds(node.attrib.get("bounds", ""))
+    return None
+
+
+def tap_ui_label(serial: str | None, label: str) -> bool:
+    xml = read_ui_xml(serial)
+    if not xml:
+        return False
+    center = tap_center_for_label(xml, label)
+    if center is None:
+        return False
+    run_adb(serial, "shell", "input", "tap", str(center[0]), str(center[1]), check=False)
+    return True
+
+
+def is_chat_home_xml(xml: str) -> bool:
+    return "Message Hermes Fork" in xml or "Welcome to Hermes Agent Fork" in xml
+
+
+def ensure_chat_home(serial: str | None) -> bool:
+    xml = read_ui_xml(serial)
+    if xml and is_chat_home_xml(xml):
+        return True
+    if xml and ("Files, Linux suite, and phone controls" in xml or "How to use this alpha" in xml):
+        if navigate_drawer_section(serial, "Hermes Fork"):
+            time.sleep(2.0)
+            xml = read_ui_xml(serial)
+            return bool(xml and is_chat_home_xml(xml))
+        return False
+    launch(argparse.Namespace(serial=serial, package=DEFAULT_PACKAGE))
+    return wait_for_ui_text(serial, DEFAULT_READY_TEXT, 90_000)
+
+
+def open_navigation_drawer(serial: str | None) -> bool:
+    xml = read_ui_xml(serial)
+    if xml and navigation_drawer_is_open(xml):
+        return True
+    if xml:
+        center = tap_center_for_label(xml, "Open navigation menu")
+        if center is not None:
+            run_adb(serial, "shell", "input", "tap", str(center[0]), str(center[1]), check=False)
+            time.sleep(1.5)
+            return navigation_drawer_is_open(read_ui_xml(serial))
+    run_adb(serial, "shell", "input", "tap", "96", "241", check=False)
+    time.sleep(1.5)
+    return navigation_drawer_is_open(read_ui_xml(serial))
+
+
+def navigate_drawer_section(serial: str | None, section_label: str) -> bool:
+    if not open_navigation_drawer(serial):
+        return False
+    if not tap_ui_label(serial, section_label):
+        return False
+    time.sleep(2.0)
+    return True
+
+
+def swipe_in_scroll_region(
+    serial: str | None,
+    bounds: tuple[int, int, int, int],
+    *,
+    direction: str = "down",
+    duration_ms: int = 700,
+) -> None:
+    left, top, right, bottom = bounds
+    center_x = (left + right) // 2
+    if direction == "down":
+        start_y = top + int((bottom - top) * 0.78)
+        end_y = top + int((bottom - top) * 0.28)
+    else:
+        start_y = top + int((bottom - top) * 0.28)
+        end_y = top + int((bottom - top) * 0.78)
+    run_adb(
+        serial,
+        "shell",
+        "input",
+        "swipe",
+        str(center_x),
+        str(start_y),
+        str(center_x),
+        str(end_y),
+        str(duration_ms),
+        check=False,
+    )
+
+
+def scroll_until_text(
+    serial: str | None,
+    *labels: str,
+    max_attempts: int = 16,
+    pause_s: float = 1.0,
+) -> str:
+    required = tuple(labels)
+    last_xml = ""
+    for _ in range(max_attempts):
+        last_xml = read_ui_xml(serial)
+        if last_xml and ui_contains_text(last_xml, *required):
+            return last_xml
+        bounds = find_scrollable_bounds(last_xml) if last_xml else None
+        if bounds is None:
+            bounds = (0, 350, 1080, 2337)
+        swipe_in_scroll_region(serial, bounds, direction="down", duration_ms=800)
+        time.sleep(pause_s)
+    return last_xml
+
+
+def _load_prepare_android_linux_assets_module():
+    import importlib.util
+
+    repo_root = Path(__file__).resolve().parents[1]
+    module_path = repo_root / "scripts" / "prepare_android_linux_assets.py"
+    spec = importlib.util.spec_from_file_location("prepare_android_linux_assets", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def check_termux_package_mirrors(termux_arch: str = "x86_64") -> list[dict]:
+    prepare_module = _load_prepare_android_linux_assets_module()
+    relative_path = f"dists/stable/main/binary-{termux_arch}/Packages"
+    results: list[dict] = []
+    for base_url in prepare_module.configured_termux_main_base_urls():
+        url = f"{base_url.rstrip('/')}/{relative_path}"
+        started = time.monotonic()
+        status = "error"
+        detail = ""
+        try:
+            with urllib.request.urlopen(url, timeout=20) as response:
+                status = "ok" if 200 <= response.status < 400 else f"http_{response.status}"
+                response.read(1024)
+        except urllib.error.HTTPError as error:
+            status = f"http_{error.code}"
+            detail = str(error)
+        except Exception as error:  # pragma: no cover - live mirror probes
+            detail = str(error)
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        results.append(
+            {
+                "base_url": base_url,
+                "url": url,
+                "status": status,
+                "elapsed_ms": elapsed_ms,
+                "detail": detail,
+            }
+        )
+    healthy = [item for item in results if item["status"] == "ok"]
+    for index, item in enumerate(results):
+        item["preferred_rank"] = next(
+            (rank for rank, healthy_item in enumerate(healthy) if healthy_item["base_url"] == item["base_url"]),
+            None,
+        )
+    return results
+
+
 def tap_first_ui_text(serial: str | None, xml: str, labels: tuple[str, ...]) -> bool:
     try:
         root = ET.fromstring(xml)
@@ -262,6 +493,67 @@ def dump_ui(args: argparse.Namespace) -> int:
     out.write_text(xml, encoding="utf-8")
     print(out)
     return 0
+
+
+def tap_text(args: argparse.Namespace) -> int:
+    if not tap_ui_label(args.serial, args.label):
+        sys.stderr.write(f"UI label not found or not tappable: {args.label}\n")
+        return 1
+    print(args.label)
+    return 0
+
+
+def ensure_chat(args: argparse.Namespace) -> int:
+    return 0 if ensure_chat_home(args.serial) else 1
+
+
+def open_drawer(args: argparse.Namespace) -> int:
+    return 0 if open_navigation_drawer(args.serial) else 1
+
+
+def nav_section(args: argparse.Namespace) -> int:
+    return 0 if navigate_drawer_section(args.serial, args.section) else 1
+
+
+def scroll_until(args: argparse.Namespace) -> int:
+    xml = scroll_until_text(
+        args.serial,
+        *args.labels,
+        max_attempts=args.max_attempts,
+        pause_s=args.pause_s,
+    )
+    if not xml or not ui_contains_text(xml, *args.labels):
+        sys.stderr.write(f"Timed out scrolling to UI labels: {', '.join(args.labels)}\n")
+        return 1
+    if args.out:
+        Path(args.out).write_text(xml, encoding="utf-8")
+        print(args.out)
+    else:
+        print(",".join(args.labels))
+    return 0
+
+
+def mirror_check(args: argparse.Namespace) -> int:
+    results = check_termux_package_mirrors(termux_arch=args.termux_arch)
+    healthy = [item for item in results if item["status"] == "ok"]
+    payload = {
+        "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "termux_arch": args.termux_arch,
+        "healthy_count": len(healthy),
+        "recommended_base_urls": [item["base_url"] for item in healthy],
+        "mirrors": results,
+    }
+    out = Path(args.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(out)
+    if args.write_env and healthy:
+        env_path = Path(args.write_env)
+        env_path.parent.mkdir(parents=True, exist_ok=True)
+        env_value = ",".join(item["base_url"] for item in healthy)
+        env_path.write_text(f"HERMES_TERMUX_MAIN_BASE_URLS={env_value}\n", encoding="utf-8")
+        print(env_path)
+    return 0 if healthy else 1
 
 
 def wide_capture(args: argparse.Namespace) -> int:
@@ -345,6 +637,36 @@ def parser() -> argparse.ArgumentParser:
     dump_parser = sub.add_parser("dump-ui")
     dump_parser.add_argument("--out", required=True, help="Host XML output path.")
     dump_parser.set_defaults(func=dump_ui)
+
+    tap_text_parser = sub.add_parser("tap-text")
+    tap_text_parser.add_argument("label", help="Visible text or content-desc label to tap.")
+    tap_text_parser.set_defaults(func=tap_text)
+
+    ensure_chat_parser = sub.add_parser("ensure-chat")
+    ensure_chat_parser.set_defaults(func=ensure_chat)
+
+    open_drawer_parser = sub.add_parser("open-drawer")
+    open_drawer_parser.set_defaults(func=open_drawer)
+
+    nav_section_parser = sub.add_parser("nav-section")
+    nav_section_parser.add_argument("section", help="Drawer section label such as Device or Hermes Fork.")
+    nav_section_parser.set_defaults(func=nav_section)
+
+    scroll_until_parser = sub.add_parser("scroll-until-text")
+    scroll_until_parser.add_argument("labels", nargs="+", help="All labels must be visible before success.")
+    scroll_until_parser.add_argument("--max-attempts", type=int, default=16)
+    scroll_until_parser.add_argument("--pause-s", type=float, default=1.0)
+    scroll_until_parser.add_argument("--out", help="Optional host XML output path after scrolling.")
+    scroll_until_parser.set_defaults(func=scroll_until)
+
+    mirror_parser = sub.add_parser("check-termux-mirrors")
+    mirror_parser.add_argument("--out", required=True, help="JSON report output path.")
+    mirror_parser.add_argument("--termux-arch", default="x86_64")
+    mirror_parser.add_argument(
+        "--write-env",
+        help="Optional .env path to write HERMES_TERMUX_MAIN_BASE_URLS from healthy mirrors.",
+    )
+    mirror_parser.set_defaults(func=mirror_check)
 
     wide_parser = sub.add_parser("wide-capture")
     wide_parser.add_argument("--out", required=True, help="Host PNG output path.")

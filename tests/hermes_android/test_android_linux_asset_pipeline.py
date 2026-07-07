@@ -55,6 +55,7 @@ def test_prepare_android_linux_assets_script_imports_from_android_workdir():
     assert result.returncode == 0, result.stderr
     assert "Prepare Android Linux CLI assets" in result.stdout
     assert "--lock-file" in result.stdout
+    assert "--check-mirrors" in result.stdout
 
 
 def test_prepare_android_linux_assets_uses_mirror_fallback(monkeypatch):

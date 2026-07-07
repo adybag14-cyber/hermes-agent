@@ -345,5 +345,10 @@ def test_android_visual_harness_supports_wide_screenshots_and_clicks():
     assert '"wm", "density"' in harness
     assert "DEFAULT_READY_TEXT" in harness
     assert "wait_for_ui_text" in harness
+    assert "scroll_until_text" in harness
+    assert "check_termux_package_mirrors" in harness
+    assert "tap-text" in harness
+    assert "nav-section" in harness
+    assert "check-termux-mirrors" in harness
     assert "No activities found" in harness
     assert "com.mobilefork.hermesagent" in harness

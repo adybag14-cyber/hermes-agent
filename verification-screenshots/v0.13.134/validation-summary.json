@@ -1,40 +1,65 @@
 {
   "version": "0.13.134",
   "versionCode": 143490,
-  "validatedAt": "2026-07-07T03:10:00Z",
-  "emulator": "HermesX86Api35 / emulator-5554",
-  "unitTests": {
-    "androidDebugUnitTest": 530,
-    "failures": 0,
-    "newTests": [
-      "ChatScreenTextFormattingTest (sandbox/MCP/memory tool display)",
-      "NativeToolCallingChatClientToolRoutingTest",
-      "DeviceViewModelSandboxTargetTest"
-    ]
-  },
-  "pythonTests": {
-    "hermes_android_packaging": 61,
-    "failures": 0
-  },
-  "releaseWorkflow": {
-    "runId": 28838272381,
-    "conclusion": "success",
-    "duration": "9m28s",
-    "tag": "v0.13.134",
-    "assets": [
-      "hermes-agent-android-v0.13.134-universal.apk",
-      "hermes-agent-android-v0.13.134.aab"
-    ]
-  },
-  "screenshots": [
-    "01-chat-home.png",
-    "02-navigation-menu.png",
-    "03-device-top-manual.png",
-    "04-device-sandbox-manual.png"
+  "emulator": "emulator-5554",
+  "steps": [
+    {
+      "name": "termux_mirror_check",
+      "ok": true,
+      "report": "C:\\Users\\Ady\\work\\hermes-agent-termux-five-goals\\verification-screenshots\\v0.13.134\\mirror-check.json",
+      "env": "C:\\Users\\Ady\\work\\hermes-agent-termux-five-goals\\verification-screenshots\\v0.13.134\\termux-mirrors.env"
+    },
+    {
+      "name": "linux_sandbox_card",
+      "ok": true,
+      "xml": "C:\\Users\\Ady\\work\\hermes-agent-termux-five-goals\\verification-screenshots\\v0.13.134\\04-device-linux-sandbox-card.xml"
+    },
+    {
+      "name": "china_mirrors_button",
+      "ok": true
+    }
   ],
-  "notes": [
-    "LiteRT-LM bumped to com.google.ai.edge.litertlm:litertlm-android:0.13.1",
-    "Device screen shows Deploy Alpine after scrolling Linux sandbox card (Compose scroll requires additional harness tuning)",
-    "Gemma3 1B instrumented test skips unless gemma3-1b-it-int4.litertlm is provisioned"
-  ]
+  "mirror_check": {
+    "checked_at": "2026-07-07T04:41:07Z",
+    "termux_arch": "x86_64",
+    "healthy_count": 2,
+    "recommended_base_urls": [
+      "https://packages.termux.dev/apt/termux-main",
+      "https://termux.librehat.com/apt/termux-main"
+    ],
+    "mirrors": [
+      {
+        "base_url": "https://packages.termux.dev/apt/termux-main",
+        "url": "https://packages.termux.dev/apt/termux-main/dists/stable/main/binary-x86_64/Packages",
+        "status": "ok",
+        "elapsed_ms": 171,
+        "detail": "",
+        "preferred_rank": 0
+      },
+      {
+        "base_url": "https://packages-cf.termux.dev/apt/termux-main",
+        "url": "https://packages-cf.termux.dev/apt/termux-main/dists/stable/main/binary-x86_64/Packages",
+        "status": "http_403",
+        "elapsed_ms": 63,
+        "detail": "HTTP Error 403: Forbidden",
+        "preferred_rank": null
+      },
+      {
+        "base_url": "https://termux.librehat.com/apt/termux-main",
+        "url": "https://termux.librehat.com/apt/termux-main/dists/stable/main/binary-x86_64/Packages",
+        "status": "ok",
+        "elapsed_ms": 77,
+        "detail": "",
+        "preferred_rank": 1
+      },
+      {
+        "base_url": "https://mirror.rinarin.dev/termux/termux-main",
+        "url": "https://mirror.rinarin.dev/termux/termux-main/dists/stable/main/binary-x86_64/Packages",
+        "status": "http_403",
+        "elapsed_ms": 63,
+        "detail": "HTTP Error 403: Forbidden",
+        "preferred_rank": null
+      }
+    ]
+  }
 }
