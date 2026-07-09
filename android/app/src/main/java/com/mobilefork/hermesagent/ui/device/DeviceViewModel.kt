@@ -147,10 +147,12 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
                     mirrorProfile = mirrorProfile,
                     timeoutSeconds = 900,
                 )
-                val message = result.optString("message")
-                    .ifBlank { result.optString("error") }
-                    .ifBlank { "Linux sandbox action '$action' finished with exit_code=${result.optInt("exit_code", -1)}" }
-                message
+                formatSandboxActionMessage(
+                    action = action,
+                    distroId = resolvedDistroId,
+                    sandboxName = sandboxName,
+                    result = result,
+                )
             }.getOrElse { error ->
                 "Linux sandbox action failed: ${error.message ?: error.javaClass.simpleName}"
             }
@@ -455,4 +457,37 @@ internal fun resolveSandboxTarget(distroId: String): Pair<String, String> {
     val resolvedDistroId = distro?.optString("id")?.ifBlank { null } ?: distroId
     val sandboxName = distro?.optString("name")?.ifBlank { null } ?: "hermes-debian"
     return resolvedDistroId to sandboxName
+}
+
+internal fun formatSandboxActionMessage(
+    action: String,
+    distroId: String,
+    sandboxName: String,
+    result: JSONObject,
+): String {
+    val exitCode = result.optInt("exit_code", -1)
+    val base = result.optString("message")
+        .ifBlank { result.optString("error") }
+        .ifBlank { "Linux sandbox action '$action' finished" }
+    val detailParts = mutableListOf<String>()
+    detailParts += "exit_code=$exitCode"
+    detailParts += "distro=$distroId"
+    if (sandboxName.isNotBlank()) {
+        detailParts += "name=$sandboxName"
+    }
+    val install = result.optJSONObject("install_result")
+    if (install != null) {
+        val installErr = install.optString("error")
+            .ifBlank { install.optString("stderr") }
+            .ifBlank { install.optString("stdout") }
+            .trim()
+        if (installErr.isNotBlank()) {
+            detailParts += "install=${installErr.take(240)}"
+        }
+    }
+    val stderr = result.optString("stderr").trim()
+    if (stderr.isNotBlank() && detailParts.none { it.startsWith("install=") }) {
+        detailParts += "stderr=${stderr.take(240)}"
+    }
+    return "$base (${detailParts.joinToString(", ")})"
 }

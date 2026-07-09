@@ -275,6 +275,13 @@ object OnDeviceBackendManager {
                 temperature = 0.7f,
                 maxTokens = 4096,
             )
+            "gemma3-1b" in lower || "gemma-3-1b" in lower || "gemma3_1b" in lower -> LiteRtLmOpenAiProxy.InferenceConfig(
+                topK = 40,
+                topP = 0.95f,
+                temperature = 0.7f,
+                maxTokens = 1024,
+                maxContextLength = 4096,
+            )
             else -> LiteRtLmOpenAiProxy.InferenceConfig()
         }
         return LiteRtLmOpenAiProxy.InferenceConfig(
