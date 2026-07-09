@@ -1,0 +1,137 @@
+{
+  "version": "0.13.135",
+  "emulator": "emulator-5554",
+  "screenshot_reference": "C:\\Users\\Ady\\Downloads\\Screenshot_20260707_132306.jpg",
+  "steps": [
+    {
+      "name": "ensure_expanded_mode",
+      "ok": true
+    },
+    {
+      "name": "open_action_menu",
+      "label": "More input actions",
+      "ok": true,
+      "tap_ms": 2594.0
+    }
+  ],
+  "timing_tables": {
+    "cold_launch_to_chat_ms": {
+      "label": "cold_launch_to_chat",
+      "samples": 1,
+      "min_ms": 7641.0,
+      "median_ms": 7641.0,
+      "average_ms": 7641.0,
+      "max_ms": 7641.0
+    },
+    "header_control_tap_ms": {
+      "label": "open_action_menu",
+      "samples": 1,
+      "min_ms": 2594.0,
+      "median_ms": 2594.0,
+      "average_ms": 2594.0,
+      "max_ms": 2594.0
+    },
+    "quick_action_tap_ms": {
+      "label": "quick_action_tap",
+      "samples": 7,
+      "min_ms": 2547.0,
+      "median_ms": 2594.0,
+      "average_ms": 2654.3,
+      "max_ms": 2812.0
+    },
+    "quick_action_ack_ms": {
+      "label": "quick_action_ack",
+      "samples": 7,
+      "min_ms": 2687.0,
+      "median_ms": 2750.0,
+      "average_ms": 2754.4,
+      "max_ms": 2859.0
+    },
+    "quick_action_idle_ms": {
+      "label": "quick_action_idle",
+      "samples": 7,
+      "min_ms": 9922.0,
+      "median_ms": 10000.0,
+      "average_ms": 10087.1,
+      "max_ms": 10500.0
+    }
+  },
+  "quick_action_buttons": [
+    {
+      "label": "Sensor Advisor",
+      "menu_open": true,
+      "visible_before_tap": true,
+      "ok": true,
+      "tap_ms": 2812.0,
+      "ack_ms": 2782.0,
+      "ack_needle": "sensor_workflow_advisor_report",
+      "idle_ms": 10156.0
+    },
+    {
+      "label": "Motion Decision",
+      "menu_open": true,
+      "visible_before_tap": true,
+      "ok": true,
+      "tap_ms": 2766.0,
+      "ack_ms": 2859.0,
+      "ack_needle": "motion_sensor_decision_packet_report",
+      "idle_ms": 10188.0
+    },
+    {
+      "label": "Motion Trends",
+      "menu_open": true,
+      "visible_before_tap": true,
+      "ok": true,
+      "tap_ms": 2688.0,
+      "ack_ms": 2750.0,
+      "ack_needle": "motion_sensor_history",
+      "idle_ms": 10500.0
+    },
+    {
+      "label": "Motion Quality",
+      "menu_open": true,
+      "visible_before_tap": true,
+      "ok": true,
+      "tap_ms": 2594.0,
+      "ack_ms": 2687.0,
+      "ack_needle": "motion_sensor_quality",
+      "idle_ms": 10000.0
+    },
+    {
+      "label": "Radio Signals",
+      "menu_open": true,
+      "visible_before_tap": true,
+      "ok": true,
+      "tap_ms": 2594.0,
+      "ack_ms": 2734.0,
+      "ack_needle": "radio_signal_graph",
+      "idle_ms": 9922.0
+    },
+    {
+      "label": "Radio Advisor",
+      "menu_open": true,
+      "visible_before_tap": true,
+      "ok": true,
+      "tap_ms": 2579.0,
+      "ack_ms": 2703.0,
+      "ack_needle": "radio_signal_advisor_report",
+      "idle_ms": 9922.0
+    },
+    {
+      "label": "Radio Decision",
+      "menu_open": true,
+      "visible_before_tap": true,
+      "ok": true,
+      "tap_ms": 2547.0,
+      "ack_ms": 2766.0,
+      "ack_needle": "radio_signal_decision_packet_report",
+      "idle_ms": 9922.0
+    }
+  ],
+  "passed_quick_actions": 7,
+  "total_quick_actions": 7,
+  "expanded_mode_ok": true,
+  "emulator_recoveries": 1,
+  "validation_pass": 1,
+  "ok": true
+}

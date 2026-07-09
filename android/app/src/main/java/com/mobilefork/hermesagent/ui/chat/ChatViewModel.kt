@@ -190,18 +190,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun sendQuickPrompt(prompt: String) {
-        val normalized = prompt.trim()
         val snapshot = _uiState.value
-        if (normalized.isEmpty() || snapshot.isSending) {
-            return
-        }
-        if (snapshot.input.isNotBlank() || snapshot.attachments.isNotEmpty()) {
-            _uiState.update {
-                it.copy(status = "Send or clear the current draft before running a signal quick action.")
+        val decision = evaluateQuickPromptSend(prompt, snapshot)
+        if (!decision.shouldSend) {
+            if (decision.blockedStatus != null) {
+                _uiState.update { it.copy(status = decision.blockedStatus) }
             }
             return
         }
-        sendPreparedMessage(text = normalized, attachments = emptyList())
+        sendPreparedMessage(text = prompt.trim(), attachments = emptyList())
     }
 
     fun stageMessageEdit(messageId: String) {

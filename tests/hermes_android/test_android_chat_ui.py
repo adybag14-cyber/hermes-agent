@@ -271,3 +271,87 @@ def test_expanded_activity_rows_show_every_agent_visible_diagnostic_card():
     assert "diagnosticCards.take(3)" not in chat_screen
     assert "visibleDiagnosticCards.forEach" in chat_screen
     assert "strings.moreCards(hiddenDiagnosticCardCount)" in chat_screen
+
+
+def test_chat_header_exposes_expanded_mode_and_localized_composer_tray():
+    chat_screen = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatScreen.kt").read_text(encoding="utf-8")
+    strings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
+    chat_state = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatState.kt").read_text(encoding="utf-8")
+
+    assert "HermesChatDisplayToggle" in chat_screen or "ChatHeaderDisplayModeButton" in chat_screen
+    assert "strings.chatDisplayModeLabel(chatDisplayMode)" in chat_screen
+    assert "strings.moreInputActions()" in chat_screen
+    assert "fun expandedModeLabel()" in strings
+    assert "fun moreInputActions()" in strings
+    assert "fun chatDisplayModeLabel(mode: String)" in strings
+    assert "SIGNAL_QUICK_ACTION_TRANSLATIONS" in strings
+    assert "evaluateQuickPromptSend(" in chat_state
+    assert "evaluateQuickPromptSend(prompt, snapshot)" in (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatViewModel.kt").read_text(encoding="utf-8")
+
+
+def test_diagnostic_cards_surface_avg_median_and_signal_ranges():
+    diagnostic_cards = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCards.kt").read_text(encoding="utf-8")
+    bridge = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt").read_text(encoding="utf-8")
+    diagnostic_cards_test = (REPO_ROOT / "android/app/src/test/java/com/mobilefork/hermesagent/ui/chat/DiagnosticCardsTest.kt").read_text(encoding="utf-8")
+
+    assert '"median_magnitude"' in diagnostic_cards
+    assert "median ${formatDecimal" in diagnostic_cards or 'median ${formatDecimal' in diagnostic_cards
+    assert "range $minRssi..$maxRssi dBm" in diagnostic_cards
+    assert "fun medianOfDoubles(values: List<Double>)" in bridge
+    assert "parsesMotionSensorHistoryMedianForEvenSampleCount" in diagnostic_cards_test
+    assert "range -66..-55 dBm" in diagnostic_cards_test
+    assert "range -72..-58 dBm" in diagnostic_cards_test
+
+
+def test_emulator_chat_ui_validation_matches_whitespace_padded_labels():
+    import importlib.util
+    import sys
+
+    validation_path = REPO_ROOT / "scripts" / "emulator-chat-ui-validation.py"
+    spec = importlib.util.spec_from_file_location("emulator_chat_ui_validation", validation_path)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    xml = '<node text=" Sensor Advisor " bounds="[0,0][10,10]" />'
+    assert module.ui_label_visible(xml, "Sensor Advisor")
+    assert not module.ui_label_visible(xml, "Radio Decision")
+
+
+def test_emulator_chat_ui_validation_scrolls_down_before_up_and_records_medians():
+    validation = (REPO_ROOT / "scripts/emulator-chat-ui-validation.py").read_text(encoding="utf-8")
+
+    assert "statistics.median" in validation
+    assert 'def scroll_to_label(serial: str, label: str' in validation
+    assert "def ui_label_visible(xml: str, label: str)" in validation
+    assert "def reset_composer_menu_scroll(serial: str)" in validation
+    assert "def open_composer_menu(serial: str, *, reset_scroll: bool = False, attempts: int = 4)" in validation
+    assert "def start_new_chat(serial: str)" in validation
+    assert "Open page actions" in validation
+    assert "Open history" in validation
+    assert "Clear conversation" in validation
+    assert "def prepare_for_quick_action(serial: str" in validation
+    assert "prepare_for_quick_action(serial, index=index)" in validation
+    assert "def ensure_device_online(" in validation
+    assert "MAX_EMULATOR_RECOVERIES" in validation
+    assert "RECOVERY_DEADLINE_EXTENSION_S" in validation
+    assert "recovering chat home after failed" in validation
+    assert "def log_step(out_dir: Path" in validation
+    assert "def run_validation_pass(" in validation
+    assert "--retry-on-fail" in validation
+    assert "def reset_quick_action_surface(serial: str)" in validation
+    assert "def recover_chat_home(serial: str" in validation
+    assert "index >= 4" in validation
+    assert "recover_chat_home(serial)" in validation
+    assert "open_composer_menu(serial, reset_scroll=index > 1 or attempt > 0)" in validation
+    assert "reset_first=index > 1" in validation
+    assert "reset_first=True" in validation
+    assert "scroll_to_label(serial, label, reset_first=index > 1 or attempt > 0)" in validation
+    assert "avh.scroll_until_text" in validation
+    assert 'direction="up"' in validation
+    assert "tap-text\", \"New chat\"" in validation
+    assert "swipe_composer_menu(serial, direction=\"down\")" in validation
+    assert "swipe_composer_menu(serial, direction=\"up\")" in validation
+    assert "SCREENSHOT_QUICK_ACTIONS" in validation
+    assert "timing_tables" in validation
+    assert "median_ms" in validation

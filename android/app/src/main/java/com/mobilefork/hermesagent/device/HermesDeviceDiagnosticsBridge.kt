@@ -25285,6 +25285,7 @@ object HermesDeviceDiagnosticsBridge {
                 val firstMagnitude = magnitudes.first()
                 val currentMagnitude = magnitudes.last()
                 val averageMagnitude = magnitudes.average()
+                val medianMagnitude = medianOfDoubles(magnitudes)
                 val minMagnitude = magnitudes.minOrNull() ?: currentMagnitude
                 val maxMagnitude = magnitudes.maxOrNull() ?: currentMagnitude
                 val trendMagnitude = currentMagnitude - firstMagnitude
@@ -25303,6 +25304,7 @@ object HermesDeviceDiagnosticsBridge {
                         .put("sample_count", magnitudes.size)
                         .put("current_magnitude", currentMagnitude)
                         .put("average_magnitude", averageMagnitude)
+                        .put("median_magnitude", medianMagnitude)
                         .put("min_magnitude", minMagnitude)
                         .put("max_magnitude", maxMagnitude)
                         .put("trend_magnitude", trendMagnitude)
@@ -27736,6 +27738,17 @@ object HermesDeviceDiagnosticsBridge {
         trendDb >= 5 -> "approaching"
         trendDb <= -5 -> "fading"
         else -> "stable"
+    }
+
+    internal fun medianOfDoubles(values: List<Double>): Double {
+        if (values.isEmpty()) return 0.0
+        val sorted = values.sorted()
+        val mid = sorted.size / 2
+        return if (sorted.size % 2 == 0) {
+            (sorted[mid - 1] + sorted[mid]) / 2.0
+        } else {
+            sorted[mid]
+        }
     }
 
     private fun motionSensorTrendLabel(sensorType: String, trendMagnitude: Double): String {

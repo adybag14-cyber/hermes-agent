@@ -6364,6 +6364,7 @@ internal object NativeToolContextCompressor {
         "magnitude_unit",
         "current_magnitude",
         "average_magnitude",
+        "median_magnitude",
         "min_magnitude",
         "max_magnitude",
         "trend_magnitude",

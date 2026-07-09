@@ -24,6 +24,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -68,6 +69,11 @@ fun SettingsScreen(
 
     SideEffect {
         onContextActionsChanged(emptyList())
+    }
+
+    // Snapshot existing runtime state once; do not cold-start on every recomposition.
+    LaunchedEffect(Unit) {
+        viewModel.refreshAgentEndpoint(forceStart = false)
     }
 
     MaterialTheme {
@@ -199,6 +205,17 @@ fun SettingsScreen(
                         )
                     }
                     item {
+                        AgentEndpointCard(
+                            loopbackUrl = uiState.agentLoopbackUrl,
+                            lanUrl = uiState.agentLanUrl,
+                            apiKey = uiState.agentApiKey,
+                            modelName = uiState.agentModelName,
+                            started = uiState.agentEndpointStarted,
+                            onRefresh = { viewModel.refreshAgentEndpoint(forceStart = true) },
+                            strings = strings,
+                        )
+                    }
+                    item {
                         McpSettingsSection(selectedProviderId = uiState.provider)
                     }
                     item {
@@ -240,7 +257,8 @@ private fun ModelGenerationConfigCard(
     onClearPrompt: () -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(ModelConfigTab.ModelConfigs) }
-    val language = LocalHermesStrings.current.language
+    val strings = LocalHermesStrings.current
+    val language = strings.language
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -283,7 +301,7 @@ private fun ModelGenerationConfigCard(
                         testTagPrefix = "LocalModelMaxTokens",
                     )
                     GenerationIntegerRow(
-                        title = "Top K",
+                        title = strings.topKLabel(),
                         valueLabel = topK.toString(),
                         value = topK,
                         defaultValue = AppSettings.DEFAULT_LOCAL_MODEL_TOP_K,
@@ -294,7 +312,7 @@ private fun ModelGenerationConfigCard(
                         testTagPrefix = "LocalModelTopK",
                     )
                     GenerationSliderRow(
-                        title = "Top P",
+                        title = strings.topPLabel(),
                         valueLabel = formatGenerationDecimal(topP),
                         value = topP,
                         valueRange = AppSettings.MIN_LOCAL_MODEL_TOP_P..AppSettings.MAX_LOCAL_MODEL_TOP_P,
@@ -302,7 +320,7 @@ private fun ModelGenerationConfigCard(
                         testTag = "LocalModelTopP",
                     )
                     GenerationSliderRow(
-                        title = "Temperature",
+                        title = strings.temperatureLabel(),
                         valueLabel = formatGenerationDecimal(temperature),
                         value = temperature,
                         valueRange = AppSettings.MIN_LOCAL_MODEL_TEMPERATURE..AppSettings.MAX_LOCAL_MODEL_TEMPERATURE,

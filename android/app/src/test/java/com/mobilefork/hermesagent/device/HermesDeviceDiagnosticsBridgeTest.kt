@@ -655,6 +655,7 @@ class HermesDeviceDiagnosticsBridgeTest {
         assertEquals(2, row.getInt("sample_count"))
         assertEquals(11.18, row.getDouble("current_magnitude"), 0.02)
         assertEquals(10.50, row.getDouble("average_magnitude"), 0.02)
+        assertEquals(10.50, row.getDouble("median_magnitude"), 0.02)
         assertEquals("increasing", row.getString("trend_label"))
         assertEquals("drifting", row.getString("stability_label"))
         assertEquals(2, row.getJSONArray("magnitude_series").length())

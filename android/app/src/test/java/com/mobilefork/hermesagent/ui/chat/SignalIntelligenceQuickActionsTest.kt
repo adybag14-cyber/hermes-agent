@@ -4,6 +4,7 @@ import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -123,5 +124,113 @@ class SignalIntelligenceQuickActionsTest {
         assertEquals("证据审计", strings.signalQuickActionLabel("signal_proof_audit", "Proof Audit"))
         assertEquals("回放导出", strings.signalQuickActionLabel("signal_replay_export", "Replay Export"))
         assertEquals("回放新鲜度", strings.signalQuickActionLabel("signal_replay_freshness", "Replay Freshness"))
+    }
+
+    @Test
+    fun screenshotQuickActionLabelsLocalizeForAllLanguages() {
+        val expectedByLanguage = mapOf(
+            AppLanguage.CHINESE to mapOf(
+                "sensor_advisor" to "传感器建议",
+                "motion_decision" to "运动决策",
+                "motion_history" to "运动趋势",
+                "motion_quality" to "运动质量",
+                "radio_limits" to "无线电信号",
+                "radio_advisor" to "无线电建议",
+                "radio_decision" to "无线电决策",
+            ),
+            AppLanguage.SPANISH to mapOf(
+                "sensor_advisor" to "Consejo sensor",
+                "motion_decision" to "Decisión mov.",
+                "motion_history" to "Tendencias mov.",
+                "motion_quality" to "Calidad mov.",
+                "radio_limits" to "Señales radio",
+                "radio_advisor" to "Consejo radio",
+                "radio_decision" to "Decisión radio",
+            ),
+            AppLanguage.GERMAN to mapOf(
+                "sensor_advisor" to "Sensor-Rat",
+                "motion_decision" to "Bewegungsentscheid",
+                "motion_history" to "Bewegungstrends",
+                "motion_quality" to "Bewegungsqualität",
+                "radio_limits" to "Funksignale",
+                "radio_advisor" to "Funk-Rat",
+                "radio_decision" to "Funk-Entscheid",
+            ),
+            AppLanguage.PORTUGUESE to mapOf(
+                "sensor_advisor" to "Conselho sensor",
+                "motion_decision" to "Decisão mov.",
+                "motion_history" to "Tendências mov.",
+                "motion_quality" to "Qualidade mov.",
+                "radio_limits" to "Sinais rádio",
+                "radio_advisor" to "Conselho rádio",
+                "radio_decision" to "Decisão rádio",
+            ),
+            AppLanguage.FRENCH to mapOf(
+                "sensor_advisor" to "Conseil capteur",
+                "motion_decision" to "Décision mouvement",
+                "motion_history" to "Tendances mouv.",
+                "motion_quality" to "Qualité mouv.",
+                "radio_limits" to "Signaux radio",
+                "radio_advisor" to "Conseil radio",
+                "radio_decision" to "Décision radio",
+            ),
+            AppLanguage.ENGLISH to mapOf(
+                "sensor_advisor" to "Sensor Advisor",
+                "motion_decision" to "Motion Decision",
+                "motion_history" to "Motion Trends",
+                "motion_quality" to "Motion Quality",
+                "radio_limits" to "Radio Signals",
+                "radio_advisor" to "Radio Advisor",
+                "radio_decision" to "Radio Decision",
+            ),
+        )
+
+        expectedByLanguage.forEach { (language, labelsById) ->
+            val strings = hermesStringsFor(language)
+            labelsById.forEach { (id, expected) ->
+                val fallback = SIGNAL_INTELLIGENCE_QUICK_ACTIONS.first { it.id == id }.label
+                assertEquals(expected, strings.signalQuickActionLabel(id, fallback))
+            }
+        }
+    }
+
+    @Test
+    fun allQuickActionLabelsLocalizeForEverySupportedLanguage() {
+        val nonEnglishLanguages = AppLanguage.entries.filterNot { it == AppLanguage.ENGLISH }
+
+        AppLanguage.entries.forEach { language ->
+            val strings = hermesStringsFor(language)
+            SIGNAL_INTELLIGENCE_QUICK_ACTIONS.forEach { action ->
+                val localized = strings.signalQuickActionLabel(action.id, action.label)
+                assertFalse("$language missing label for ${action.id}", localized.isBlank())
+                if (language == AppLanguage.ENGLISH) {
+                    assertEquals(action.label, localized)
+                } else {
+                    assertNotEquals(
+                        "$language should localize ${action.id}",
+                        action.label,
+                        localized,
+                    )
+                }
+            }
+        }
+
+        nonEnglishLanguages.forEach { language ->
+            val strings = hermesStringsFor(language)
+            val localizedOverview = strings.signalQuickActionLabel("signal_overview", "Signal Overview")
+            val localizedSensorAdvisor = strings.signalQuickActionLabel("sensor_advisor", "Sensor Advisor")
+            assertNotEquals("Signal Overview", localizedOverview)
+            assertNotEquals("Sensor Advisor", localizedSensorAdvisor)
+        }
+    }
+
+    @Test
+    fun quickActionIdsAreUniqueWithStableDiagnosticRouting() {
+        val ids = SIGNAL_INTELLIGENCE_QUICK_ACTIONS.map { it.id }
+        val diagnosticActions = SIGNAL_INTELLIGENCE_QUICK_ACTIONS.map { it.diagnosticAction }
+
+        assertEquals(ids.size, ids.toSet().size)
+        assertEquals(diagnosticActions.size, diagnosticActions.toSet().size)
+        assertTrue(ids.size >= 55)
     }
 }

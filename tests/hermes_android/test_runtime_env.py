@@ -13,7 +13,9 @@ def test_prepare_runtime_env_sets_android_env_and_dirs(tmp_path, monkeypatch):
 
     assert runtime.files_dir == files_dir.resolve()
     assert runtime.hermes_home == files_dir.resolve() / "hermes-home"
-    assert runtime.api_server_host == "127.0.0.1"
+    # Default bind is all interfaces so LAN clients can reach the agent API;
+    # status URLs still advertise loopback separately for on-device clients.
+    assert runtime.api_server_host == "0.0.0.0"
     assert runtime.api_server_port == 8765
     assert runtime.api_server_key == "secret-key"
 
@@ -22,7 +24,7 @@ def test_prepare_runtime_env_sets_android_env_and_dirs(tmp_path, monkeypatch):
 
     assert os.environ["HERMES_HOME"] == str(runtime.hermes_home)
     assert os.environ["HERMES_ANDROID_BOOTSTRAP"] == "1"
-    assert os.environ["API_SERVER_HOST"] == "127.0.0.1"
+    assert os.environ["API_SERVER_HOST"] == "0.0.0.0"
     assert os.environ["API_SERVER_PORT"] == "8765"
     assert os.environ["API_SERVER_KEY"] == "secret-key"
     assert os.environ["API_SERVER_MODEL_NAME"] == "hermes-agent-android"

@@ -28,7 +28,9 @@ class AndroidServerHandle:
 
     @property
     def base_url(self) -> str:
-        return f"http://{self.runtime.api_server_host}:{self.runtime.api_server_port}"
+        from hermes_android.runtime_env import loopback_base_url
+
+        return loopback_base_url(self.runtime.api_server_host, self.runtime.api_server_port)
 
     def stop(self, timeout: float = 20.0) -> None:
         async def _shutdown() -> None:

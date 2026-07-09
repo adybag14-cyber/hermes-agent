@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.data.McpConfigurationMode
+import com.mobilefork.hermesagent.data.McpRuntimeBridge
 import com.mobilefork.hermesagent.data.McpPromptCacheResendPolicy
 import com.mobilefork.hermesagent.data.McpSettings
 import com.mobilefork.hermesagent.data.McpSettingsMessages
@@ -84,6 +85,7 @@ class McpSettingsViewModel(application: Application) : AndroidViewModel(applicat
 
     fun autoSetupSimpleConfiguration() {
         val result = store.autoSetupSimpleConfiguration()
+        McpRuntimeBridge.reloadIntoRuntime(getApplication())
         _uiState.update {
             it.copy(
                 mode = McpConfigurationMode.SIMPLE,
@@ -124,8 +126,48 @@ class McpSettingsViewModel(application: Application) : AndroidViewModel(applicat
 
     fun reloadServers() {
         val result = store.reloadServers()
+        McpRuntimeBridge.reloadIntoRuntime(getApplication())
         _uiState.update {
             it.copy(
+                configText = result.configText,
+                statusMessage = result.statusMessage,
+                lastReloadEpochMs = result.lastReloadEpochMs.takeIf { value -> value > 0L } ?: it.lastReloadEpochMs,
+            )
+        }
+    }
+
+    fun quickAddNativeTools() {
+        val result = store.quickAddNativeToolsPreset()
+        McpRuntimeBridge.reloadIntoRuntime(getApplication())
+        _uiState.update {
+            it.copy(
+                mode = McpConfigurationMode.SIMPLE,
+                configText = result.configText,
+                statusMessage = result.statusMessage,
+                lastReloadEpochMs = result.lastReloadEpochMs.takeIf { value -> value > 0L } ?: it.lastReloadEpochMs,
+            )
+        }
+    }
+
+    fun quickAddStdioServer(command: String) {
+        val result = store.quickAddStdioPreset(command)
+        McpRuntimeBridge.reloadIntoRuntime(getApplication())
+        _uiState.update {
+            it.copy(
+                mode = McpConfigurationMode.SIMPLE,
+                configText = result.configText,
+                statusMessage = result.statusMessage,
+                lastReloadEpochMs = result.lastReloadEpochMs.takeIf { value -> value > 0L } ?: it.lastReloadEpochMs,
+            )
+        }
+    }
+
+    fun quickAddSseServer(url: String) {
+        val result = store.quickAddSsePreset(url)
+        McpRuntimeBridge.reloadIntoRuntime(getApplication())
+        _uiState.update {
+            it.copy(
+                mode = McpConfigurationMode.SIMPLE,
                 configText = result.configText,
                 statusMessage = result.statusMessage,
                 lastReloadEpochMs = result.lastReloadEpochMs.takeIf { value -> value > 0L } ?: it.lastReloadEpochMs,
@@ -161,6 +203,9 @@ fun McpSettingsSection(
         onConfigTextChange = viewModel::updateAdvancedConfigText,
         onSaveAdvanced = viewModel::saveAdvancedConfigAndReload,
         onReloadServers = viewModel::reloadServers,
+        onQuickAddNativeTools = viewModel::quickAddNativeTools,
+        onQuickAddStdioServer = viewModel::quickAddStdioServer,
+        onQuickAddSseServer = viewModel::quickAddSseServer,
         onProviderPromptCacheResendChange = viewModel::updateProviderPromptCacheResend,
     )
 }
@@ -177,6 +222,9 @@ fun McpSettingsCard(
     onConfigTextChange: (String) -> Unit,
     onSaveAdvanced: () -> Unit,
     onReloadServers: () -> Unit,
+    onQuickAddNativeTools: () -> Unit,
+    onQuickAddStdioServer: (String) -> Unit,
+    onQuickAddSseServer: (String) -> Unit,
     onProviderPromptCacheResendChange: (Boolean, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -235,6 +283,9 @@ fun McpSettingsCard(
                     onAutoSetup = onAutoSetup,
                     onAddDraftServer = onAddDraftServer,
                     onReloadServers = onReloadServers,
+                    onQuickAddNativeTools = onQuickAddNativeTools,
+                    onQuickAddStdioServer = onQuickAddStdioServer,
+                    onQuickAddSseServer = onQuickAddSseServer,
                 )
             } else {
                 AdvancedMcpConfigEditor(
@@ -266,12 +317,47 @@ private fun SimpleMcpOnboardingControls(
     onAutoSetup: () -> Unit,
     onAddDraftServer: (String, String) -> Unit,
     onReloadServers: () -> Unit,
+    onQuickAddNativeTools: () -> Unit,
+    onQuickAddStdioServer: (String) -> Unit,
+    onQuickAddSseServer: (String) -> Unit,
 ) {
     val strings = LocalHermesStrings.current
     var addDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var sseDialogVisible by rememberSaveable { mutableStateOf(false) }
     var serverName by rememberSaveable { mutableStateOf("") }
     var serverNote by rememberSaveable { mutableStateOf("") }
+    var sseUrl by rememberSaveable { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Button(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpQuickAddNativeToolsButton"),
+                onClick = onQuickAddNativeTools,
+            ) {
+                McpButtonLabel(strings.mcpQuickAddNativeTools())
+            }
+            Button(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpQuickAddStdioButton"),
+                onClick = { addDialogVisible = true },
+            ) {
+                McpButtonLabel(strings.mcpQuickAddStdioServer())
+            }
+            Button(
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("McpQuickAddSseButton"),
+                onClick = { sseDialogVisible = true },
+            ) {
+                McpButtonLabel(strings.mcpQuickAddSseServer())
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -373,6 +459,40 @@ private fun SimpleMcpOnboardingControls(
             },
             dismissButton = {
                 TextButton(onClick = { addDialogVisible = false }) {
+                    Text(strings.mcpCancel())
+                }
+            },
+        )
+    }
+    if (sseDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { sseDialogVisible = false },
+            title = { Text(strings.mcpQuickAddSseServer()) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(strings.agentEndpointDescription(), style = MaterialTheme.typography.bodySmall)
+                    OutlinedTextField(
+                        value = sseUrl,
+                        onValueChange = { sseUrl = it },
+                        label = { Text(strings.baseUrlLabel()) },
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = sseUrl.isNotBlank(),
+                    onClick = {
+                        onQuickAddSseServer(sseUrl)
+                        sseUrl = ""
+                        sseDialogVisible = false
+                    },
+                ) {
+                    Text(strings.mcpAddAndTest())
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { sseDialogVisible = false }) {
                     Text(strings.mcpCancel())
                 }
             },

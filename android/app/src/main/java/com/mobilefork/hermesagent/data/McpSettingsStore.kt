@@ -287,6 +287,56 @@ class McpSettingsStore(context: Context) {
         return reloadServers(nowEpochMs)
     }
 
+    fun quickAddNativeToolsPreset(nowEpochMs: Long = System.currentTimeMillis()): McpConfigActionResult {
+        return autoSetupSimpleConfiguration(nowEpochMs)
+    }
+
+    fun quickAddStdioPreset(
+        command: String,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): McpConfigActionResult {
+        return addDraftServer(command, "Quick stdio MCP onboarding", nowEpochMs)
+    }
+
+    fun quickAddSsePreset(
+        url: String,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): McpConfigActionResult {
+        val normalizedUrl = url.trim()
+        if (normalizedUrl.isBlank()) {
+            val status = "MCP SSE URL is empty. Enter an http(s) endpoint before adding."
+            saveStatus(status)
+            return McpConfigActionResult(false, status, readConfigText())
+        }
+        val serverKey = normalizedUrl.toMcpServerKey()
+        val configJson = runCatching { JSONObject(readConfigText()) }.getOrElse {
+            JSONObject().put("mcpServers", JSONObject())
+        }
+        val servers = configJson.optJSONObject("mcpServers") ?: JSONObject().also {
+            configJson.put("mcpServers", it)
+        }
+        servers.put(
+            serverKey,
+            JSONObject()
+                .put("transport", "sse")
+                .put("url", normalizedUrl)
+                .put("enabled", true)
+                .put("autoStart", true)
+                .put("description", "Quick SSE MCP onboarding")
+                .put(
+                    "healthCheck",
+                    JSONObject()
+                        .put("status", "pending")
+                        .put("createdEpochMs", nowEpochMs),
+                ),
+        )
+        writeConfigText(configJson.toString(2))
+        preferences.edit()
+            .putString(KEY_MODE, McpConfigurationMode.SIMPLE.persistedValue)
+            .apply()
+        return reloadServers(nowEpochMs)
+    }
+
     fun reloadServers(nowEpochMs: Long = System.currentTimeMillis()): McpConfigActionResult {
         val configText = readConfigText()
         val validation = validateConfigText(

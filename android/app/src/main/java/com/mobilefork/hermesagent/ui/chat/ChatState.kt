@@ -74,6 +74,25 @@ fun buildChatTurns(messages: List<ChatUiMessage>): List<ChatTurn> {
 
 fun minuteBucket(epochMs: Long): Long = epochMs / 60_000L
 
+internal data class QuickPromptSendDecision(
+    val shouldSend: Boolean,
+    val blockedStatus: String? = null,
+)
+
+internal fun evaluateQuickPromptSend(prompt: String, state: ChatUiState): QuickPromptSendDecision {
+    val normalized = prompt.trim()
+    if (normalized.isEmpty() || state.isSending) {
+        return QuickPromptSendDecision(shouldSend = false)
+    }
+    if (state.input.isNotBlank() || state.attachments.isNotEmpty()) {
+        return QuickPromptSendDecision(
+            shouldSend = false,
+            blockedStatus = "Send or clear the current draft before running a signal quick action.",
+        )
+    }
+    return QuickPromptSendDecision(shouldSend = true)
+}
+
 fun shortPromptPreview(text: String, maxLength: Int = 96): String {
     val singleLine = text
         .lineSequence()

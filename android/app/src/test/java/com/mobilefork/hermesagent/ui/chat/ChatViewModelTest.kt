@@ -228,4 +228,51 @@ class ChatViewModelTest {
 
         assertEquals("Hermes native tool self-test\nterminal_tool: ready", reply)
     }
+
+    @Test
+    fun evaluateQuickPromptSend_blocksEmptyPromptWhileSendingOrDrafting() {
+        val idle = ChatUiState()
+        assertFalse(evaluateQuickPromptSend("", idle).shouldSend)
+        assertFalse(evaluateQuickPromptSend("   ", idle).shouldSend)
+        assertFalse(
+            evaluateQuickPromptSend(
+                "Run android_device_diagnostics_tool action=sensor_workflow_advisor_report",
+                idle.copy(isSending = true),
+            ).shouldSend,
+        )
+
+        val draftBlocked = evaluateQuickPromptSend(
+            "Run android_device_diagnostics_tool action=sensor_workflow_advisor_report",
+            idle.copy(input = "draft text"),
+        )
+        assertFalse(draftBlocked.shouldSend)
+        assertEquals(
+            "Send or clear the current draft before running a signal quick action.",
+            draftBlocked.blockedStatus,
+        )
+
+        val attachmentBlocked = evaluateQuickPromptSend(
+            "Run android_device_diagnostics_tool action=sensor_workflow_advisor_report",
+            idle.copy(
+                attachments = listOf(
+                    ChatAttachment(uri = "content://image", displayName = "photo.jpg", mimeType = "image/jpeg"),
+                ),
+            ),
+        )
+        assertFalse(attachmentBlocked.shouldSend)
+        assertEquals(
+            "Send or clear the current draft before running a signal quick action.",
+            attachmentBlocked.blockedStatus,
+        )
+    }
+
+    @Test
+    fun evaluateQuickPromptSend_allowsDiagnosticsPromptWhenComposerIsClear() {
+        val idle = ChatUiState()
+        val prompt = "Run android_device_diagnostics_tool action=motion_sensor_history"
+
+        assertTrue(evaluateQuickPromptSend(prompt, idle).shouldSend)
+        assertTrue(evaluateQuickPromptSend("  $prompt  ", idle).shouldSend)
+        assertEquals(null, evaluateQuickPromptSend(prompt, idle).blockedStatus)
+    }
 }
