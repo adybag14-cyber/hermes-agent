@@ -40,6 +40,10 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          # Skip emulator meta-package; debug assemble/unit tests only need
+          # platform-tools, platforms, and build-tools.
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
 
       - name: Install Python test dependencies
         run: |
@@ -103,6 +107,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
 
       - name: Restore signing material
         env:
