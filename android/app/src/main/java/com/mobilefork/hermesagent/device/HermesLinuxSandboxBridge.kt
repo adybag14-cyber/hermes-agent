@@ -95,6 +95,13 @@ object HermesLinuxSandboxBridge {
     fun status(state: JSONObject, context: Context? = null): JSONObject {
         val qemuUserPath = qemuPathForState(state)
         val control = context?.let { readAgentControl(it) } ?: defaultAgentControl()
+        val installed = installedSandboxes(state)
+        // With zero installed sandboxes, do not report AI shell as enabled — it misleads the Device UI.
+        val agentShellEnabled = if (installed.length() == 0) {
+            false
+        } else {
+            control.optBoolean("agent_shell_enabled", false)
+        }
         return JSONObject()
             .put("exit_code", 0)
             .put("execution_mode", state.optString("execution_mode"))
@@ -106,20 +113,22 @@ object HermesLinuxSandboxBridge {
             .put("python_available", hasPackage(state, "python"))
             .put("app_private_storage_root", context?.let { appPrivateStorageRoot(it).absolutePath }.orEmpty())
             .put("agent_control_file", context?.let { agentControlFile(it).absolutePath }.orEmpty())
-            .put("agent_shell_enabled", control.optBoolean("agent_shell_enabled", true))
+            .put("agent_shell_enabled", agentShellEnabled)
             .put("active_sandbox_name", control.optString("active_sandbox_name"))
             .put("active_distro_id", control.optString("active_distro_id"))
             .put(
                 "agent_shell_policy",
-                if (control.optBoolean("agent_shell_enabled", true)) {
+                if (agentShellEnabled) {
                     "enabled: AI agents may use linux_sandbox_tool/mcp_run_in_proot when a sandbox is installed."
+                } else if (installed.length() == 0) {
+                    "disabled: no proot sandbox is installed yet. Use action=deploy or download first."
                 } else {
                     "disabled: AI agents must not run proot sandbox commands until action=start is called."
                 },
             )
             .put("runtime_dir", runtimeDir(state).absolutePath)
             .put("containers_dir", containersDir(state).absolutePath)
-            .put("installed_sandboxes", installedSandboxes(state))
+            .put("installed_sandboxes", installed)
             .put("downloadable_linux_sandboxes", HermesLinuxSandboxCatalog.distroCatalog())
             .put("recommended_linux_sandboxes", HermesLinuxSandboxCatalog.recommendedSandboxIds())
             .put("mirror_profiles", HermesLinuxSandboxCatalog.mirrorProfiles())

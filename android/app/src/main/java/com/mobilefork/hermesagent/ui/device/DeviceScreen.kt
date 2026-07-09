@@ -148,12 +148,13 @@ fun DeviceScreen(
                 )
                 LinuxSandboxCard(
                     uiState = uiState,
-                    onDeploy = { viewModel.performSandboxAction("deploy", mirrorProfile = "china") },
+                    // Default mirrors (not China): China profile is opt-in via Set China mirrors.
+                    // Forcing china mirrors on deploy broke Alpine/Debian installs outside CN networks.
+                    onDeploy = { viewModel.performSandboxAction("deploy") },
                     onDeployAlpine = {
                         viewModel.performSandboxAction(
                             action = "deploy",
                             distroId = "alpine-3-21",
-                            mirrorProfile = "china",
                         )
                     },
                     onUpdate = { viewModel.performSandboxAction("update") },

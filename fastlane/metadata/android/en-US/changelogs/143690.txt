@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.136
+
+- Fixes Alpine/Debian deploy default mirrors (China opt-in only).
+- Honest AI shell status when no sandbox is installed.
+- Better sandbox action status text; 1B LiteRT defaults; model provision script.
