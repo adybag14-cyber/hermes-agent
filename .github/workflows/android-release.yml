@@ -36,6 +36,11 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
+        with:
+          # Avoid the full "tools" meta-package (pulls emulator) — zip fetch of
+          # emulator has been flaky on GitHub runners and is not needed to
+          # assemble/sign release APK/AAB.
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
 
       - name: Restore signing material
         env:
