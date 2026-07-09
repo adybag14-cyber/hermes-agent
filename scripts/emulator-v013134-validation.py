@@ -11,7 +11,13 @@ import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-HARNESS = REPO_ROOT / "scripts" / "android_visual_harness.py"
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+HARNESS = SCRIPTS_DIR / "android_visual_harness.py"
+
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from emulator_lifecycle import ensure_validation_ready  # noqa: E402
 DEFAULT_OUT = REPO_ROOT / "verification-screenshots" / "v0.13.134"
 DEFAULT_SERIAL = "emulator-5554"
 
@@ -28,11 +34,19 @@ def main() -> int:
     parser.add_argument("--serial", default=DEFAULT_SERIAL)
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--skip-chat", action="store_true", help="Only mirror + Device UI checks.")
+    parser.add_argument(
+        "--ensure-emulator",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Launch emulator detached and wait for ADB (default: true).",
+    )
     args = parser.parse_args()
 
     out_dir = args.out_dir.expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     serial = args.serial
+    if args.ensure_emulator:
+        serial = ensure_validation_ready(serial=serial)
     summary: dict = {
         "version": "0.13.134",
         "versionCode": 143490,
@@ -119,6 +133,12 @@ def main() -> int:
     time.sleep(8)
     run_harness(serial, "screenshot", "--out", str(out_dir / "05b-china-mirrors-tapped.png"))
     summary["steps"].append({"name": "china_mirrors_button", "ok": True})
+
+    print("Returning to Hermes chat for follow-up validation...")
+    run_harness(serial, "nav-section", "Hermes Fork")
+    time.sleep(2)
+    run_harness(serial, "ensure-chat")
+    run_harness(serial, "screenshot", "--out", str(out_dir / "05c-chat-restored.png"))
 
     if args.skip_chat:
         summary_path = out_dir / "validation-summary.json"

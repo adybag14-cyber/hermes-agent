@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/termux-install-path
+      - codex/termux-five-goals
   pull_request:
   workflow_dispatch:
     inputs:

@@ -2469,6 +2469,7 @@ class DiagnosticCardsTest {
         assertEquals("-55 dBm improving", row.valueLabel)
         assertTrue(row.detail.contains("2 samples"))
         assertTrue(row.detail.contains("avg -60 dBm"))
+        assertTrue(row.detail.contains("range -66..-55 dBm"))
         assertTrue(row.detail.contains("improving +11 dB"))
         assertTrue(row.fraction > 0.6f)
     }
@@ -2515,11 +2516,52 @@ class DiagnosticCardsTest {
         assertTrue(row.detail.contains("wearable_health"))
         assertTrue(row.detail.contains("2 samples"))
         assertTrue(row.detail.contains("avg -65 dBm"))
+        assertTrue(row.detail.contains("range -72..-58 dBm"))
         assertTrue(row.detail.contains("approaching +14 dB"))
         assertTrue(row.detail.contains("services Heart Rate"))
         assertTrue(row.detail.contains("manufacturers Apple"))
         assertTrue(row.detail.contains("manufacturers 0x004C"))
         assertTrue(row.fraction > 0.5f)
+    }
+
+    @Test
+    fun parsesMotionSensorHistoryMedianForEvenSampleCount() {
+        val content = JSONObject()
+            .put(
+                "cards",
+                JSONArray().put(
+                    JSONObject()
+                        .put("title", "Motion Sensor History")
+                        .put("body", "Even-count median.")
+                        .put("graph_type", "motion_sensor_history")
+                        .put(
+                            "rows",
+                            JSONArray().put(
+                                JSONObject()
+                                    .put("sensor_type", "gyroscope")
+                                    .put("sensor_label", "Gyroscope")
+                                    .put("magnitude_unit", "rad/s")
+                                    .put("sample_count", 4)
+                                    .put("current_magnitude", 0.8)
+                                    .put("average_magnitude", 0.7)
+                                    .put("median_magnitude", 0.65)
+                                    .put("min_magnitude", 0.4)
+                                    .put("max_magnitude", 0.9)
+                                    .put("trend_magnitude", 0.2)
+                                    .put("trend_label", "increasing")
+                                    .put("stability_label", "stable"),
+                            ),
+                        ),
+                ),
+            )
+            .toString()
+
+        val row = extractDiagnosticCards(content).single().rows.single()
+
+        assertEquals("Gyroscope", row.label)
+        assertTrue(row.detail.contains("median 0.65 rad/s"))
+        assertTrue(row.detail.contains("range 0.40..0.90 rad/s"))
+        assertTrue(row.detail.contains("4 samples"))
     }
 
     @Test
@@ -2576,6 +2618,7 @@ class DiagnosticCardsTest {
                                     .put("sample_count", 3)
                                     .put("current_magnitude", 11.18)
                                     .put("average_magnitude", 10.5)
+                                    .put("median_magnitude", 10.2)
                                     .put("min_magnitude", 9.81)
                                     .put("max_magnitude", 11.18)
                                     .put("trend_magnitude", 1.37)
@@ -2593,6 +2636,8 @@ class DiagnosticCardsTest {
         assertEquals("Accelerometer", row.label)
         assertEquals("11.18 m/s^2 increasing", row.valueLabel)
         assertTrue(row.detail.contains("3 samples"))
+        assertTrue(row.detail.contains("avg 10.50 m/s^2"))
+        assertTrue(row.detail.contains("median 10.20 m/s^2"))
         assertTrue(row.detail.contains("stability drifting"))
         assertTrue(row.detail.contains("range 9.81..11.18 m/s^2"))
         assertTrue(row.detail.contains("vector 0, 2, 11"))

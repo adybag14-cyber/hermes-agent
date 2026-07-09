@@ -59,6 +59,11 @@ data class SettingsUiState(
     val themeSurfaceVariantHex: String = "#1B202B",
     val themeCardShape: String = "rounded",
     val onDeviceSummary: String = "Remote provider mode",
+    val agentEndpointStarted: Boolean = false,
+    val agentLoopbackUrl: String = "",
+    val agentLanUrl: String = "",
+    val agentApiKey: String = "",
+    val agentModelName: String = "",
     val status: String = "",
 )
 
@@ -119,6 +124,32 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.value = reloaded
         loadApiKeyForProvider(reloaded.provider)
         refreshOnDeviceSummary(reloaded.onDeviceBackend)
+        refreshAgentEndpoint()
+    }
+
+    /**
+     * Refresh local agent endpoint fields shown on Settings.
+     *
+     * Passive Settings opens must not cold-start Python/API just to paint the card.
+     * Use [forceStart]=true only for the explicit Refresh button.
+     */
+    fun refreshAgentEndpoint(forceStart: Boolean = false) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val runtime = if (forceStart) {
+                HermesRuntimeManager.ensureStarted(getApplication())
+            } else {
+                HermesRuntimeManager.currentState()
+            }
+            _uiState.update {
+                it.copy(
+                    agentEndpointStarted = runtime.started,
+                    agentLoopbackUrl = runtime.baseUrl.orEmpty(),
+                    agentLanUrl = runtime.lanBaseUrl.orEmpty(),
+                    agentApiKey = runtime.apiKey.orEmpty(),
+                    agentModelName = runtime.modelName.orEmpty(),
+                )
+            }
+        }
     }
 
     fun updateProvider(provider: String) {

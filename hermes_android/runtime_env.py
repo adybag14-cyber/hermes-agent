@@ -25,15 +25,49 @@ class AndroidRuntimeEnv:
 
 
 def _find_free_port(host: str) -> int:
+    bind_host = host if host not in {"", "0.0.0.0"} else "127.0.0.1"
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind((host, 0))
+        sock.bind((bind_host, 0))
         return int(sock.getsockname()[1])
+
+
+def guess_lan_ipv4() -> str | None:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            candidate = sock.getsockname()[0]
+            if candidate and not candidate.startswith("127."):
+                return candidate
+    except OSError:
+        pass
+    try:
+        hostname = socket.gethostname()
+        for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
+            candidate = info[4][0]
+            if candidate and not candidate.startswith("127."):
+                return candidate
+    except OSError:
+        pass
+    return None
+
+
+def loopback_base_url(host: str, port: int) -> str:
+    return f"http://127.0.0.1:{port}"
+
+
+def lan_base_url(host: str, port: int) -> str | None:
+    if host in {"127.0.0.1", "localhost"}:
+        return None
+    lan_ip = guess_lan_ipv4()
+    if not lan_ip:
+        return None
+    return f"http://{lan_ip}:{port}"
 
 
 def prepare_runtime_env(
     files_dir: str | Path,
     *,
-    api_server_host: str = "127.0.0.1",
+    api_server_host: str = "0.0.0.0",
     api_server_port: int | None = None,
     api_server_key: str | None = None,
     api_server_model_name: str = "hermes-agent-android",

@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-08-21T20:44:00.1618157Z"
+exclude-newer = "2026-08-21T20:46:42.0604792Z"
 exclude-newer-span = "P14D"
 
 [options.exclude-newer-package]
@@ -1792,7 +1792,7 @@ wheels = [
 
 [[package]]
 name = "hermes-agent"
-version = "0.13.132"
+version = "0.13.135"
 source = { editable = "." }
 dependencies = [
     { name = "certifi" },
@@ -2112,7 +2112,7 @@ requires-dist = [
     { name = "httpx2", marker = "extra == 'computer-use'", specifier = "==2.7.0" },
     { name = "httpx2", marker = "extra == 'dev'", specifier = "==2.7.0" },
     { name = "httpx2", marker = "extra == 'mcp'", specifier = "==2.7.0" },
-    { name = "hy-memory", marker = "extra == 'hy-memory'", specifier = "==1.2.16" },
+    { name = "hy-memory", marker = "extra == 'hy-memory'", specifier = "==1.2.18" },
     { name = "jinja2", specifier = "==3.1.6" },
     { name = "lark-oapi", marker = "extra == 'feishu'", specifier = "==1.6.8" },
     { name = "markdown", specifier = "==3.10.2" },
@@ -2380,7 +2380,7 @@ wheels = [
 
 [[package]]
 name = "hy-memory"
-version = "1.2.16"
+version = "1.2.18"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "chromadb" },
@@ -2394,7 +2394,7 @@ dependencies = [
     { name = "scikit-learn" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/08/aa/a3c3e0a44766d0faabc5d5a6229fc25a08db2c1118748c30bea2a6149d00/hy_memory-1.2.16-py3-none-any.whl", hash = "sha256:bc555b2d197da5e4d499cf106a776aeb0ef665fb9acb773c464fbe714a543e2b", size = 367398, upload-time = "2026-05-28T17:58:46.612Z" },
+    { url = "https://files.pythonhosted.org/packages/78/f7/b416b7906ed62cc90fe5446bc1af568b17b1ec56e63e5dec251f0562ed35/hy_memory-1.2.18-py3-none-any.whl", hash = "sha256:24df729b326bb5f5ff79f34aaae079cd6188ea7b83a696cfac6e49470806264f", size = 486825, upload-time = "2026-06-08T12:47:50.62Z" },
 ]
 
 [[package]]

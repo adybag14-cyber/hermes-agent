@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.135
+
+- Adds Settings agent endpoint card (loopback/LAN URL) for ACP-style clients.
+- Improves MCP quick-add onboarding with live runtime config reload.
+- Expands Device sandbox and chat action i18n; avoids cold-start on Settings open.

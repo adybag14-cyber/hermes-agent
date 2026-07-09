@@ -15,6 +15,7 @@ object HermesRuntimeManager {
     data class RuntimeState(
         val started: Boolean,
         val baseUrl: String? = null,
+        val lanBaseUrl: String? = null,
         val apiKey: String? = null,
         val hermesHome: String? = null,
         val modelName: String? = null,
@@ -103,6 +104,7 @@ object HermesRuntimeManager {
             currentState = RuntimeState(
                 started = status.optBoolean("started", false),
                 baseUrl = status.optString("base_url").ifBlank { null },
+                lanBaseUrl = status.optString("lan_base_url").ifBlank { null },
                 apiKey = status.optString("api_server_key").ifBlank { null },
                 hermesHome = status.optString("hermes_home").ifBlank { null },
                 modelName = status.optString("api_server_model_name").ifBlank { null },

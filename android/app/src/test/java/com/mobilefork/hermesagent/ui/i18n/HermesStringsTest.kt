@@ -81,6 +81,49 @@ class HermesStringsTest {
     }
 
     @Test
+    fun messageActionAndDiagnosticsLabelsLocalizeForAllLanguages() {
+        AppLanguage.entries.forEach { language ->
+            val strings = hermesStringsFor(language)
+            assertFalse(strings.copyMessageLabel().isBlank())
+            assertFalse(strings.editMessageLabel().isBlank())
+            assertFalse(strings.resendMessageLabel().isBlank())
+            assertFalse(strings.diagnosticsLogsTitle().isBlank())
+            assertFalse(strings.diagnosticsExportLogsLabel().isBlank())
+            assertFalse(strings.agentEndpointTitle().isBlank())
+            assertFalse(strings.mcpQuickAddNativeTools().isBlank())
+            if (language != AppLanguage.ENGLISH) {
+                assertFalse(strings.copyMessageLabel() == "Copy")
+                assertFalse(strings.diagnosticsLogsTitle() == "Diagnostics logs")
+            }
+        }
+    }
+
+    @Test
+    fun bootStatusTextMapsEnglishRuntimeStatuses() {
+        val strings = hermesStringsFor(AppLanguage.CHINESE)
+        assertEquals("正在打开 Hermes…", strings.bootStatusText("Opening Hermes…"))
+        assertEquals("Hermes 外壳已就绪", strings.bootStatusText("Hermes shell ready"))
+    }
+
+    @Test
+    fun chatDisplayModeAndComposerLabelsLocalizeForAllLanguages() {
+        AppLanguage.entries.forEach { language ->
+            val strings = hermesStringsFor(language)
+            assertFalse(strings.expandedModeLabel().isBlank())
+            assertFalse(strings.compactModeLabel().isBlank())
+            assertFalse(strings.moreInputActions().isBlank())
+            assertFalse(strings.signalIntelligence().isBlank())
+            assertEquals(strings.expandedModeLabel(), strings.chatDisplayModeLabel("expanded"))
+            assertEquals(strings.expandedModeLabel(), strings.chatDisplayModeLabel(" Expanded "))
+            assertEquals(strings.compactModeLabel(), strings.chatDisplayModeLabel("compact"))
+            if (language != AppLanguage.ENGLISH) {
+                assertFalse(strings.moreInputActions() == "More input actions")
+                assertFalse(strings.expandedModeLabel() == "Expanded")
+            }
+        }
+    }
+
+    @Test
     fun localModelUiTextLocalizesCatalogAndDiskStatusForEveryNonEnglishLanguage() {
         val messages = listOf(
             "Tap Refresh catalog to load signed model choices when needed.",

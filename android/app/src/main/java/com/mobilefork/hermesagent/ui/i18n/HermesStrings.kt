@@ -1020,6 +1020,30 @@ data class HermesStrings(
             AppLanguage.FRENCH -> "Conversation précédente effacée"
             AppLanguage.ENGLISH -> text
         }
+        "Wait for Hermes to finish before editing a sent message." -> when (language) {
+            AppLanguage.CHINESE -> "请等待 Hermes 完成后再编辑已发送的消息。"
+            AppLanguage.SPANISH -> "Espera a que Hermes termine antes de editar un mensaje enviado."
+            AppLanguage.GERMAN -> "Warte, bis Hermes fertig ist, bevor du eine gesendete Nachricht bearbeitest."
+            AppLanguage.PORTUGUESE -> "Aguarde o Hermes terminar antes de editar uma mensagem enviada."
+            AppLanguage.FRENCH -> "Attendez la fin de Hermes avant de modifier un message envoyé."
+            AppLanguage.ENGLISH -> text
+        }
+        "Editing sent message; send to resubmit." -> when (language) {
+            AppLanguage.CHINESE -> "正在编辑已发送消息；发送以重新提交。"
+            AppLanguage.SPANISH -> "Editando mensaje enviado; envía para reenviar."
+            AppLanguage.GERMAN -> "Gesendete Nachricht wird bearbeitet; senden zum erneuten Absenden."
+            AppLanguage.PORTUGUESE -> "Editando mensagem enviada; envie para reenviar."
+            AppLanguage.FRENCH -> "Modification du message envoyé ; envoyez pour resoumettre."
+            AppLanguage.ENGLISH -> text
+        }
+        "Running native Android diagnostics…" -> when (language) {
+            AppLanguage.CHINESE -> "正在运行原生 Android 诊断…"
+            AppLanguage.SPANISH -> "Ejecutando diagnósticos nativos de Android…"
+            AppLanguage.GERMAN -> "Native Android-Diagnose wird ausgeführt…"
+            AppLanguage.PORTUGUESE -> "Executando diagnósticos nativos do Android…"
+            AppLanguage.FRENCH -> "Exécution des diagnostics Android natifs…"
+            AppLanguage.ENGLISH -> text
+        }
         "Send or clear the current draft before running a signal quick action." -> when (language) {
             AppLanguage.CHINESE -> "运行信号快捷操作前，请先发送或清除当前草稿。"
             AppLanguage.SPANISH -> "Envía o borra el borrador actual antes de ejecutar una acción rápida de señal."
@@ -1167,6 +1191,277 @@ data class HermesStrings(
 
     fun signalQuickActionLabel(id: String, fallback: String): String {
         return SIGNAL_QUICK_ACTION_TRANSLATIONS[language]?.get(id) ?: fallback
+    }
+
+    fun copyMessageLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "复制"
+        AppLanguage.SPANISH -> "Copiar"
+        AppLanguage.GERMAN -> "Kopieren"
+        AppLanguage.PORTUGUESE -> "Copiar"
+        AppLanguage.FRENCH -> "Copier"
+        AppLanguage.ENGLISH -> "Copy"
+    }
+
+    fun editMessageLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "编辑"
+        AppLanguage.SPANISH -> "Editar"
+        AppLanguage.GERMAN -> "Bearbeiten"
+        AppLanguage.PORTUGUESE -> "Editar"
+        AppLanguage.FRENCH -> "Modifier"
+        AppLanguage.ENGLISH -> "Edit"
+    }
+
+    fun resendMessageLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "重发"
+        AppLanguage.SPANISH -> "Reenviar"
+        AppLanguage.GERMAN -> "Erneut senden"
+        AppLanguage.PORTUGUESE -> "Reenviar"
+        AppLanguage.FRENCH -> "Renvoyer"
+        AppLanguage.ENGLISH -> "Resend"
+    }
+
+    fun messageActionsContentDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "消息操作"
+        AppLanguage.SPANISH -> "Acciones del mensaje"
+        AppLanguage.GERMAN -> "Nachrichtenaktionen"
+        AppLanguage.PORTUGUESE -> "Ações da mensagem"
+        AppLanguage.FRENCH -> "Actions du message"
+        AppLanguage.ENGLISH -> "Message actions"
+    }
+
+    fun diagnosticsLogsTitle(): String = when (language) {
+        AppLanguage.CHINESE -> "诊断日志"
+        AppLanguage.SPANISH -> "Registros de diagnóstico"
+        AppLanguage.GERMAN -> "Diagnoseprotokolle"
+        AppLanguage.PORTUGUESE -> "Logs de diagnóstico"
+        AppLanguage.FRENCH -> "Journaux de diagnostic"
+        AppLanguage.ENGLISH -> "Diagnostics logs"
+    }
+
+    fun diagnosticsLogsRedactionNote(): String = when (language) {
+        AppLanguage.CHINESE -> "崩溃预览和导出会脱敏密钥、令牌、邮箱、电话号码和用户路径。"
+        AppLanguage.SPANISH -> "Las vistas previas y exportaciones de fallos ocultan claves, tokens, correos, teléfonos y rutas de usuario."
+        AppLanguage.GERMAN -> "Absturzvorschauen und Exporte schwärzen Schlüssel, Tokens, E-Mails, Telefonnummern und Benutzerpfade."
+        AppLanguage.PORTUGUESE -> "Pré-visualizações e exportações de falhas ocultam chaves, tokens, e-mails, telefones e caminhos do usuário."
+        AppLanguage.FRENCH -> "Les aperçus et exports de crash masquent clés, jetons, e-mails, téléphones et chemins utilisateur."
+        AppLanguage.ENGLISH -> "Crash previews and exports redact keys, tokens, emails, phone numbers, and user paths."
+    }
+
+    fun diagnosticsExportLogsLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "导出日志"
+        AppLanguage.SPANISH -> "Exportar registros"
+        AppLanguage.GERMAN -> "Protokolle exportieren"
+        AppLanguage.PORTUGUESE -> "Exportar logs"
+        AppLanguage.FRENCH -> "Exporter les journaux"
+        AppLanguage.ENGLISH -> "Export logs"
+    }
+
+    fun diagnosticsClearLastCrashLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "清除上次崩溃"
+        AppLanguage.SPANISH -> "Borrar último fallo"
+        AppLanguage.GERMAN -> "Letzten Absturz löschen"
+        AppLanguage.PORTUGUESE -> "Limpar última falha"
+        AppLanguage.FRENCH -> "Effacer le dernier crash"
+        AppLanguage.ENGLISH -> "Clear last crash"
+    }
+
+    fun diagnosticsNoCrashCaptured(): String = when (language) {
+        AppLanguage.CHINESE -> "未捕获崩溃"
+        AppLanguage.SPANISH -> "No se capturó ningún fallo"
+        AppLanguage.GERMAN -> "Kein Absturz erfasst"
+        AppLanguage.PORTUGUESE -> "Nenhuma falha capturada"
+        AppLanguage.FRENCH -> "Aucun crash capturé"
+        AppLanguage.ENGLISH -> "No crash captured"
+    }
+
+    fun diagnosticsLastCrashCaptured(capturedAt: String, exceptionType: String): String {
+        val whenLabel = capturedAt.ifBlank {
+            when (language) {
+                AppLanguage.CHINESE -> "最近"
+                AppLanguage.SPANISH -> "recientemente"
+                AppLanguage.GERMAN -> "kürzlich"
+                AppLanguage.PORTUGUESE -> "recentemente"
+                AppLanguage.FRENCH -> "récemment"
+                AppLanguage.ENGLISH -> "recently"
+            }
+        }
+        val suffix = exceptionType.trim().takeIf { it.isNotBlank() }?.let { " ($it)" }.orEmpty()
+        return when (language) {
+            AppLanguage.CHINESE -> "上次崩溃捕获于 $whenLabel$suffix"
+            AppLanguage.SPANISH -> "Último fallo capturado $whenLabel$suffix"
+            AppLanguage.GERMAN -> "Letzter Absturz erfasst $whenLabel$suffix"
+            AppLanguage.PORTUGUESE -> "Última falha capturada $whenLabel$suffix"
+            AppLanguage.FRENCH -> "Dernier crash capturé $whenLabel$suffix"
+            AppLanguage.ENGLISH -> "Last crash captured $whenLabel$suffix"
+        }
+    }
+
+    fun bootStatusText(status: String): String = when (status) {
+        "Opening Hermes…" -> bootOpeningStatus()
+        "Hermes shell ready" -> bootShellReadyStatus()
+        else -> status
+    }
+
+    fun bootOpeningStatus(): String = when (language) {
+        AppLanguage.CHINESE -> "正在打开 Hermes…"
+        AppLanguage.SPANISH -> "Abriendo Hermes…"
+        AppLanguage.GERMAN -> "Hermes wird geöffnet…"
+        AppLanguage.PORTUGUESE -> "Abrindo Hermes…"
+        AppLanguage.FRENCH -> "Ouverture de Hermes…"
+        AppLanguage.ENGLISH -> "Opening Hermes…"
+    }
+
+    fun bootShellReadyStatus(): String = when (language) {
+        AppLanguage.CHINESE -> "Hermes 外壳已就绪"
+        AppLanguage.SPANISH -> "Shell de Hermes lista"
+        AppLanguage.GERMAN -> "Hermes-Shell bereit"
+        AppLanguage.PORTUGUESE -> "Shell do Hermes pronta"
+        AppLanguage.FRENCH -> "Shell Hermes prête"
+        AppLanguage.ENGLISH -> "Hermes shell ready"
+    }
+
+    fun topKLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "Top K"
+        AppLanguage.SPANISH -> "Top K"
+        AppLanguage.GERMAN -> "Top K"
+        AppLanguage.PORTUGUESE -> "Top K"
+        AppLanguage.FRENCH -> "Top K"
+        AppLanguage.ENGLISH -> "Top K"
+    }
+
+    fun topPLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "Top P"
+        AppLanguage.SPANISH -> "Top P"
+        AppLanguage.GERMAN -> "Top P"
+        AppLanguage.PORTUGUESE -> "Top P"
+        AppLanguage.FRENCH -> "Top P"
+        AppLanguage.ENGLISH -> "Top P"
+    }
+
+    fun temperatureLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "温度"
+        AppLanguage.SPANISH -> "Temperatura"
+        AppLanguage.GERMAN -> "Temperatur"
+        AppLanguage.PORTUGUESE -> "Temperatura"
+        AppLanguage.FRENCH -> "Température"
+        AppLanguage.ENGLISH -> "Temperature"
+    }
+
+    fun agentEndpointTitle(): String = when (language) {
+        AppLanguage.CHINESE -> "本地代理端点"
+        AppLanguage.SPANISH -> "Endpoint del agente local"
+        AppLanguage.GERMAN -> "Lokaler Agenten-Endpunkt"
+        AppLanguage.PORTUGUESE -> "Endpoint do agente local"
+        AppLanguage.FRENCH -> "Point de terminaison agent local"
+        AppLanguage.ENGLISH -> "Local agent endpoint"
+    }
+
+    fun agentEndpointDescription(): String = when (language) {
+        AppLanguage.CHINESE -> "其他代理应用可通过此 OpenAI 兼容端点连接 Hermes。"
+        AppLanguage.SPANISH -> "Otras apps agenticas pueden conectarse a Hermes mediante este endpoint compatible con OpenAI."
+        AppLanguage.GERMAN -> "Andere Agenten-Apps können über diesen OpenAI-kompatiblen Endpunkt mit Hermes verbinden."
+        AppLanguage.PORTUGUESE -> "Outros apps agenticos podem conectar ao Hermes por este endpoint compatível com OpenAI."
+        AppLanguage.FRENCH -> "D’autres apps agentiques peuvent se connecter à Hermes via ce point de terminaison compatible OpenAI."
+        AppLanguage.ENGLISH -> "Other agentic apps can connect to Hermes through this OpenAI-compatible endpoint."
+    }
+
+    fun agentEndpointNotReady(): String = when (language) {
+        AppLanguage.CHINESE -> "启动 Hermes 运行时后显示端点。"
+        AppLanguage.SPANISH -> "Inicia el runtime de Hermes para mostrar el endpoint."
+        AppLanguage.GERMAN -> "Starte die Hermes-Laufzeit, um den Endpunkt anzuzeigen."
+        AppLanguage.PORTUGUESE -> "Inicie o runtime do Hermes para mostrar o endpoint."
+        AppLanguage.FRENCH -> "Démarrez le runtime Hermes pour afficher le point de terminaison."
+        AppLanguage.ENGLISH -> "Start the Hermes runtime to reveal the endpoint."
+    }
+
+    fun agentEndpointLoopbackLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "本机回环"
+        AppLanguage.SPANISH -> "Bucle local"
+        AppLanguage.GERMAN -> "Loopback"
+        AppLanguage.PORTUGUESE -> "Loopback local"
+        AppLanguage.FRENCH -> "Boucle locale"
+        AppLanguage.ENGLISH -> "Device loopback"
+    }
+
+    fun agentEndpointLanLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "局域网 IP"
+        AppLanguage.SPANISH -> "IP de LAN"
+        AppLanguage.GERMAN -> "LAN-IP"
+        AppLanguage.PORTUGUESE -> "IP da LAN"
+        AppLanguage.FRENCH -> "IP LAN"
+        AppLanguage.ENGLISH -> "LAN IP"
+    }
+
+    fun agentEndpointApiKeyLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "API 密钥"
+        AppLanguage.SPANISH -> "Clave API"
+        AppLanguage.GERMAN -> "API-Schlüssel"
+        AppLanguage.PORTUGUESE -> "Chave API"
+        AppLanguage.FRENCH -> "Clé API"
+        AppLanguage.ENGLISH -> "API key"
+    }
+
+    fun agentEndpointApiKeyMasked(): String = when (language) {
+        AppLanguage.CHINESE -> "已配置（点击复制）"
+        AppLanguage.SPANISH -> "Configurada (toca para copiar)"
+        AppLanguage.GERMAN -> "Konfiguriert (zum Kopieren tippen)"
+        AppLanguage.PORTUGUESE -> "Configurada (toque para copiar)"
+        AppLanguage.FRENCH -> "Configurée (appuyer pour copier)"
+        AppLanguage.ENGLISH -> "Configured (tap to copy)"
+    }
+
+    fun agentEndpointModelLabel(modelName: String): String = when (language) {
+        AppLanguage.CHINESE -> "模型：$modelName"
+        AppLanguage.SPANISH -> "Modelo: $modelName"
+        AppLanguage.GERMAN -> "Modell: $modelName"
+        AppLanguage.PORTUGUESE -> "Modelo: $modelName"
+        AppLanguage.FRENCH -> "Modèle : $modelName"
+        AppLanguage.ENGLISH -> "Model: $modelName"
+    }
+
+    fun agentEndpointAcpHint(): String = when (language) {
+        AppLanguage.CHINESE -> "ACP/MCP 客户端可使用 LAN URL 和 API 密钥；MCP 服务器可在下方快速添加。"
+        AppLanguage.SPANISH -> "Clientes ACP/MCP pueden usar la URL LAN y la clave API; añade servidores MCP abajo."
+        AppLanguage.GERMAN -> "ACP/MCP-Clients können LAN-URL und API-Schlüssel nutzen; MCP-Server unten schnell hinzufügen."
+        AppLanguage.PORTUGUESE -> "Clientes ACP/MCP podem usar a URL LAN e a chave API; adicione servidores MCP abaixo."
+        AppLanguage.FRENCH -> "Les clients ACP/MCP peuvent utiliser l’URL LAN et la clé API ; ajoutez des serveurs MCP ci-dessous."
+        AppLanguage.ENGLISH -> "ACP/MCP clients can use the LAN URL and API key; add MCP servers quickly below."
+    }
+
+    fun agentEndpointRefresh(): String = when (language) {
+        AppLanguage.CHINESE -> "刷新端点"
+        AppLanguage.SPANISH -> "Actualizar endpoint"
+        AppLanguage.GERMAN -> "Endpunkt aktualisieren"
+        AppLanguage.PORTUGUESE -> "Atualizar endpoint"
+        AppLanguage.FRENCH -> "Actualiser le point de terminaison"
+        AppLanguage.ENGLISH -> "Refresh endpoint"
+    }
+
+    fun mcpQuickAddNativeTools(): String = when (language) {
+        AppLanguage.CHINESE -> "原生工具"
+        AppLanguage.SPANISH -> "Herramientas nativas"
+        AppLanguage.GERMAN -> "Native Tools"
+        AppLanguage.PORTUGUESE -> "Ferramentas nativas"
+        AppLanguage.FRENCH -> "Outils natifs"
+        AppLanguage.ENGLISH -> "Native tools"
+    }
+
+    fun mcpQuickAddStdioServer(): String = when (language) {
+        AppLanguage.CHINESE -> "添加 Stdio MCP"
+        AppLanguage.SPANISH -> "Añadir MCP stdio"
+        AppLanguage.GERMAN -> "Stdio-MCP hinzufügen"
+        AppLanguage.PORTUGUESE -> "Adicionar MCP stdio"
+        AppLanguage.FRENCH -> "Ajouter MCP stdio"
+        AppLanguage.ENGLISH -> "Add stdio MCP"
+    }
+
+    fun mcpQuickAddSseServer(): String = when (language) {
+        AppLanguage.CHINESE -> "添加 SSE MCP"
+        AppLanguage.SPANISH -> "Añadir MCP SSE"
+        AppLanguage.GERMAN -> "SSE-MCP hinzufügen"
+        AppLanguage.PORTUGUESE -> "Adicionar MCP SSE"
+        AppLanguage.FRENCH -> "Ajouter MCP SSE"
+        AppLanguage.ENGLISH -> "Add SSE MCP"
     }
 
     fun mcpConfigurationTitle(): String = when (language) {

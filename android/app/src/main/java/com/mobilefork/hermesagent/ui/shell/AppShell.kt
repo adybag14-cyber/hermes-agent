@@ -656,7 +656,7 @@ private fun HermesSetupScreen(
             contentDescription = strings.hermesLogoDescription,
             modifier = Modifier.size(72.dp),
         )
-        Text(uiState.status, style = MaterialTheme.typography.headlineSmall)
+        Text(strings.bootStatusText(uiState.status), style = MaterialTheme.typography.headlineSmall)
         if (uiState.baseUrl.isNotBlank()) {
             Text(uiState.baseUrl, style = MaterialTheme.typography.bodySmall)
         }

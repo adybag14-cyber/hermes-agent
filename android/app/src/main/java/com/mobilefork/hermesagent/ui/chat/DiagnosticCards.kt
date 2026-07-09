@@ -841,6 +841,7 @@ private fun motionSensorHistoryRow(row: JSONObject): DiagnosticGraphRow? {
         .takeIf { it.isNotBlank() }
     val sampleCount = row.optNumber("sample_count")?.toInt() ?: 0
     val averageMagnitude = row.optNumber("average_magnitude")?.toDouble()
+    val medianMagnitude = row.optNumber("median_magnitude")?.toDouble()
     val minMagnitude = row.optNumber("min_magnitude")?.toDouble()
     val maxMagnitude = row.optNumber("max_magnitude")?.toDouble()
     val trendMagnitude = row.optNumber("trend_magnitude")?.toDouble()
@@ -853,6 +854,7 @@ private fun motionSensorHistoryRow(row: JSONObject): DiagnosticGraphRow? {
         "$sampleCount sample${if (sampleCount == 1) "" else "s"}",
         stabilityLabel?.let { "stability $it" },
         averageMagnitude?.let { "avg ${formatDecimal(it, 2)}${unit?.let { value -> " $value" }.orEmpty()}" },
+        medianMagnitude?.let { "median ${formatDecimal(it, 2)}${unit?.let { value -> " $value" }.orEmpty()}" },
         if (minMagnitude != null && maxMagnitude != null) {
             "range ${formatDecimal(minMagnitude, 2)}..${formatDecimal(maxMagnitude, 2)}${unit?.let { " $it" }.orEmpty()}"
         } else {

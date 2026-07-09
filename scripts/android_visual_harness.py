@@ -19,6 +19,7 @@ from pathlib import Path
 
 DEFAULT_PACKAGE = "com.mobilefork.hermesagent"
 DEFAULT_READY_TEXT = "Message Hermes Fork|Welcome to Hermes Agent Fork|Settings|Hermes Fork"
+CHAT_HOME_READY_TEXT = "Message Hermes Fork|Welcome to Hermes Agent Fork"
 UI_DUMP_REMOTE_PATH = "/sdcard/window_dump.xml"
 
 
@@ -215,7 +216,10 @@ def build_parent_map(root: ET.Element) -> dict[ET.Element, ET.Element]:
 
 
 def ui_contains_text(xml: str, *labels: str) -> bool:
-    return all(label in xml for label in labels)
+    return all(
+        label in xml or f'>{label}<' in xml or f'>{label.strip()}<' in xml
+        for label in labels
+    )
 
 
 def navigation_drawer_is_open(xml: str) -> bool:
@@ -253,10 +257,11 @@ def tap_center_for_label(xml: str, label: str) -> tuple[int, int] | None:
     except ET.ParseError:
         return None
     parent = build_parent_map(root)
+    normalized_label = label.strip()
     for node in root.iter("node"):
-        text = node.attrib.get("text", "")
-        content_description = node.attrib.get("content-desc", "")
-        if text != label and content_description != label:
+        text = node.attrib.get("text", "").strip()
+        content_description = node.attrib.get("content-desc", "").strip()
+        if text != normalized_label and content_description != normalized_label:
             continue
         current: ET.Element | None = node
         for _ in range(8):
@@ -287,17 +292,31 @@ def is_chat_home_xml(xml: str) -> bool:
 
 
 def ensure_chat_home(serial: str | None) -> bool:
-    xml = read_ui_xml(serial)
-    if xml and is_chat_home_xml(xml):
-        return True
-    if xml and ("Files, Linux suite, and phone controls" in xml or "How to use this alpha" in xml):
-        if navigate_drawer_section(serial, "Hermes Fork"):
-            time.sleep(2.0)
+    for _ in range(4):
+        xml = read_ui_xml(serial)
+        if xml and is_chat_home_xml(xml) and not navigation_drawer_is_open(xml):
+            return True
+        if xml and navigation_drawer_is_open(xml):
+            if tap_ui_label(serial, "Hermes Fork"):
+                time.sleep(2.0)
+                continue
+        if xml and (
+            "Files, Linux suite, and phone controls" in xml
+            or "How to use this alpha" in xml
+            or 'text="Device"' in xml
+        ):
+            if navigate_drawer_section(serial, "Hermes Fork"):
+                time.sleep(2.0)
+                continue
+            return False
+        launch(argparse.Namespace(serial=serial, package=DEFAULT_PACKAGE))
+        if wait_for_ui_text(serial, CHAT_HOME_READY_TEXT, 30_000):
             xml = read_ui_xml(serial)
-            return bool(xml and is_chat_home_xml(xml))
-        return False
-    launch(argparse.Namespace(serial=serial, package=DEFAULT_PACKAGE))
-    return wait_for_ui_text(serial, DEFAULT_READY_TEXT, 90_000)
+            if xml and is_chat_home_xml(xml) and not navigation_drawer_is_open(xml):
+                return True
+        time.sleep(1.5)
+    xml = read_ui_xml(serial)
+    return bool(xml and is_chat_home_xml(xml) and not navigation_drawer_is_open(xml))
 
 
 def open_navigation_drawer(serial: str | None) -> bool:

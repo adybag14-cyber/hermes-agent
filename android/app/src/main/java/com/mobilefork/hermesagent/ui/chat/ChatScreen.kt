@@ -999,14 +999,14 @@ private fun ChatMessageActionMenu(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_nav_settings),
-                contentDescription = "Message actions",
+                contentDescription = strings.messageActionsContentDescription(),
                 tint = contentColor.copy(alpha = 0.86f),
                 modifier = Modifier.size(18.dp),
             )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
-                text = { Text("Copy") },
+                text = { Text(strings.copyMessageLabel()) },
                 onClick = {
                     expanded = false
                     onCopy()
@@ -1014,7 +1014,7 @@ private fun ChatMessageActionMenu(
             )
             if (onEdit != null) {
                 DropdownMenuItem(
-                    text = { Text("Edit") },
+                    text = { Text(strings.editMessageLabel()) },
                     onClick = {
                         expanded = false
                         onEdit()
@@ -1023,7 +1023,7 @@ private fun ChatMessageActionMenu(
             }
             if (onResend != null) {
                 DropdownMenuItem(
-                    text = { Text("Resend") },
+                    text = { Text(strings.resendMessageLabel()) },
                     onClick = {
                         expanded = false
                         onResend()
