@@ -282,6 +282,20 @@ object OnDeviceBackendManager {
                 maxTokens = 1024,
                 maxContextLength = 4096,
             )
+            "minicpm" in lower -> LiteRtLmOpenAiProxy.InferenceConfig(
+                topK = 40,
+                topP = 0.9f,
+                temperature = 0.7f,
+                maxTokens = 1024,
+                maxContextLength = 4096,
+            )
+            "qwen3.5-0.8" in lower || "qwen3-5-0-8" in lower || "0.8b" in lower -> LiteRtLmOpenAiProxy.InferenceConfig(
+                topK = 40,
+                topP = 0.9f,
+                temperature = 0.7f,
+                maxTokens = 512,
+                maxContextLength = 2048,
+            )
             else -> LiteRtLmOpenAiProxy.InferenceConfig()
         }
         return LiteRtLmOpenAiProxy.InferenceConfig(
