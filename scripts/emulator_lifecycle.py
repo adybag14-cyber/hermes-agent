@@ -130,8 +130,11 @@ def launch_emulator_detached(
         "stderr": subprocess.DEVNULL,
     }
     if os.name == "nt":
-        detached = getattr(subprocess, "DETACHED_PROCESS", 0)
-        new_group = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        # Hardcode Win32 values so this works even when the test suite
+        # monkeypatches os.name="nt" on Linux runners (where subprocess
+        # does not define DETACHED_PROCESS / CREATE_NEW_PROCESS_GROUP).
+        detached = getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+        new_group = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
         kwargs["creationflags"] = detached | new_group
     else:
         kwargs["start_new_session"] = True
