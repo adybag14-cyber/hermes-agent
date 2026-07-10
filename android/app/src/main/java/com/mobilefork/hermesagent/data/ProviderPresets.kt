@@ -56,6 +56,21 @@ object ProviderPresets {
             description = "Small Gemma 3 text model for low-memory local checks.",
         ),
         ModelSelectionPreset(
+            id = "MiniCPM5-1B",
+            label = "MiniCPM 5 1B (LiteRT-LM)",
+            description = "Compact MiniCPM 1B LiteRT-LM package for on-device chat smoke tests.",
+        ),
+        ModelSelectionPreset(
+            id = "Qwen2.5-1.5B-Instruct",
+            label = "Qwen2.5 1.5B Instruct (LiteRT-LM)",
+            description = "Qwen2.5 1.5B LiteRT-LM for lightweight mobile chat and tool routing.",
+        ),
+        ModelSelectionPreset(
+            id = "Qwen3.5-0.8B-Q4_K_M",
+            label = "Qwen3.5 0.8B Q4_K_M (GGUF)",
+            description = "Very small Qwen GGUF for fast llama.cpp smoke tests.",
+        ),
+        ModelSelectionPreset(
             id = "gemma3-4b-it-int4-web",
             label = "Gemma 3 4B IT Vision (.task)",
             description = "Gemma 3 image-text model for LiteRT-LM vision requests.",
