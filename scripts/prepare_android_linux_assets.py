@@ -39,34 +39,45 @@ BIONIC_LIBC_NEEDED = b"libc.so\0"
 BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
 DEFAULT_LOCK_FILE = REPO_ROOT / "hermes_android" / "termux_linux_assets.lock.json"
 LOCK_FILE_VERSION = 1
-# Prefer the Cloudflare mirror first: packages.termux.dev has been returning
-# 404/empty bodies for pinned historical .deb paths used by the asset lock file.
+# Prefer mirrors that still host historical lock-file .deb paths. packages.termux.dev
+# and packages-cf frequently 404/403 from GitHub Actions IPs; keep multiple fallthroughs.
 TERMUX_MAIN_FALLBACK_BASE_URLS = (
+    "https://grimler.se/termux/termux-main",
     "https://packages-cf.termux.dev/apt/termux-main",
+    "https://mirror.iscas.ac.cn/termux/apt/termux-main",
     TERMUX_MAIN_BASE_URL,
     "https://termux.librehat.com/apt/termux-main",
     "https://mirror.rinarin.dev/termux/termux-main",
+    "https://ftp.fau.de/termux/termux-main",
 )
 
 
 def download_bytes(url: str, attempts: int = 3) -> bytes:
+    import time
+
     last_error: Exception | None = None
-    # Termux Cloudflare mirrors reject bare urllib with 403 without a UA.
+    # Cloudflare-backed Termux hosts reject bare urllib UAs from CI.
     headers = {
-        "User-Agent": "HermesAgentAndroidAssetPrep/1.0 (+https://github.com/adybag14-cyber/hermes-agent)",
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        ),
         "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
     }
-    for _ in range(attempts):
+    for attempt in range(attempts):
         try:
             request = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(request, timeout=120) as response:
                 payload = response.read()
                 if not payload:
                     last_error = RuntimeError("empty response body")
+                    time.sleep(0.5 * (attempt + 1))
                     continue
                 return payload
         except Exception as exc:  # pragma: no cover - exercised by live smoke checks
             last_error = exc
+            time.sleep(0.5 * (attempt + 1))
     raise RuntimeError(f"Failed to download {url}: {last_error}")
 
 
