@@ -28,9 +28,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imeNestedScroll
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -42,6 +42,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -69,8 +71,13 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -83,6 +90,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -126,7 +135,39 @@ fun ChatScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val dismissKeyboard = remember(focusManager, keyboardController) {
+        {
+            keyboardController?.hide()
+            focusManager.clearFocus(force = true)
+        }
+    }
+    // User drag/fling on the transcript must dismiss the IME so scrolling near the composer
+    // never re-opens or resizes the keyboard (imeNestedScroll was the main cause).
+    val dismissKeyboardOnScroll = remember(dismissKeyboard) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                // Any vertical nested scroll (user drag near composer/list) hides IME.
+                // source filter avoided for BOM compatibility (Drag/Fling vs UserInput).
+                if (available.y != 0f) {
+                    dismissKeyboard()
+                }
+                return Offset.Zero
+            }
+        }
+    }
     val listState = rememberLazyListState()
+    val isNearBottom by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            if (total <= 0) {
+                true
+            } else {
+                val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: return@derivedStateOf true
+                lastVisible >= (total - 2).coerceAtLeast(0)
+            }
+        }
+    }
     val scrollScope = rememberCoroutineScope()
     val latestMessageFingerprint = uiState.messages.lastOrNull()?.let { message ->
         "${message.id}:${message.role}:${message.content.length}:${uiState.messages.size}"
@@ -289,7 +330,9 @@ fun ChatScreen(
     }
 
     LaunchedEffect(latestMessageFingerprint, uiState.isSending, uiState.isShowingHistory, chatDisplayMode) {
-        if (!uiState.isShowingHistory && uiState.messages.isNotEmpty()) {
+        // Only auto-scroll when the user is already near the bottom or a send is in flight.
+        // Avoid yanking the list (and re-opening the keyboard) while they scroll history.
+        if (!uiState.isShowingHistory && uiState.messages.isNotEmpty() && (uiState.isSending || isNearBottom)) {
             val targetIndex = if (chatDisplayMode == "compact") {
                 buildChatTurns(uiState.messages).size
             } else {
@@ -305,8 +348,13 @@ fun ChatScreen(
 
     LaunchedEffect(uiState.isSending) {
         if (uiState.isSending) {
-            keyboardController?.hide()
-            focusManager.clearFocus(force = true)
+            dismissKeyboard()
+        }
+    }
+
+    LaunchedEffect(uiState.isShowingHistory) {
+        if (uiState.isShowingHistory) {
+            dismissKeyboard()
         }
     }
 
@@ -321,8 +369,7 @@ fun ChatScreen(
     fun handleSend() {
         val input = uiState.input.trim()
         if (input.isEmpty() && uiState.attachments.isEmpty()) return
-        keyboardController?.hide()
-        focusManager.clearFocus(force = true)
+        dismissKeyboard()
         if (input.isEmpty()) {
             viewModel.sendMessage()
             return
@@ -351,9 +398,9 @@ fun ChatScreen(
     MaterialTheme {
         Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .imeNestedScroll(),
+                // Do not use imeNestedScroll here — it makes dragging near the composer
+                // open/resize the keyboard while scrolling the chat transcript.
+                modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.TopCenter,
             ) {
                 val tinyVerticalViewport = maxHeight < 360.dp
@@ -369,7 +416,8 @@ fun ChatScreen(
                     PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                 }
                 val contentSpacing = if (tinyRuntimeViewport || imeVisible) 4.dp else 8.dp
-                val messageListBottomPadding = 8.dp
+                // Keep list content clear of the composer so bottom bubbles are not under the IME edge.
+                val messageListBottomPadding = if (imeVisible) 12.dp else 8.dp
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -383,12 +431,25 @@ fun ChatScreen(
                         navigationSections = chatDrawerNavigationSections(),
                         drawerActions = shellActions,
                         denseHeader = tinyVerticalViewport,
-                        onNavigateToSection = onNavigateToSection,
-                        onOpenNavigationMenu = onOpenNavigationMenu,
-                        onOpenHistory = viewModel::showHistory,
-                        onToggleDisplayMode = onToggleChatDisplayMode,
+                        onNavigateToSection = { section ->
+                            dismissKeyboard()
+                            onNavigateToSection(section)
+                        },
+                        onOpenNavigationMenu = {
+                            dismissKeyboard()
+                            onOpenNavigationMenu()
+                        },
+                        onOpenHistory = {
+                            dismissKeyboard()
+                            viewModel.showHistory()
+                        },
+                        onToggleDisplayMode = {
+                            dismissKeyboard()
+                            onToggleChatDisplayMode()
+                        },
                         onOpenActions = if (shellActions.isNotEmpty() && onOpenContextActions != null) {
                             {
+                                dismissKeyboard()
                                 onContextActionsChanged(shellActions)
                                 onOpenContextActions()
                             }
@@ -402,24 +463,51 @@ fun ChatScreen(
                 if (uiState.isShowingHistory) {
                     ConversationHistoryList(
                         summaries = uiState.conversationSummaries,
-                        onOpenConversation = viewModel::openConversation,
-                        onStartNew = viewModel::startNewConversation,
-                        modifier = Modifier.weight(1f),
+                        onOpenConversation = { id ->
+                            dismissKeyboard()
+                            viewModel.openConversation(id)
+                        },
+                        onStartNew = {
+                            dismissKeyboard()
+                            viewModel.startNewConversation()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .nestedScroll(dismissKeyboardOnScroll)
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { dismissKeyboard() })
+                            },
                     )
                 } else if (uiState.messages.isEmpty()) {
                     LazyColumn(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            .nestedScroll(dismissKeyboardOnScroll)
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { dismissKeyboard() })
+                            },
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(top = 24.dp, bottom = messageListBottomPadding),
                     ) {
                         item {
                             EmptyChatHint(
-                                onNewChat = viewModel::startNewConversation,
-                                onOpenAccounts = { onNavigateToSection(AppSection.Accounts) },
-                                onOpenSettings = { onNavigateToSection(AppSection.Settings) },
-                                onSignalQuickAction = { action -> viewModel.sendQuickPrompt(action.prompt) },
+                                onNewChat = {
+                                    dismissKeyboard()
+                                    viewModel.startNewConversation()
+                                },
+                                onOpenAccounts = {
+                                    dismissKeyboard()
+                                    onNavigateToSection(AppSection.Accounts)
+                                },
+                                onOpenSettings = {
+                                    dismissKeyboard()
+                                    onNavigateToSection(AppSection.Settings)
+                                },
+                                onSignalQuickAction = { action ->
+                                    dismissKeyboard()
+                                    viewModel.sendQuickPrompt(action.prompt)
+                                },
                             )
                         }
                     }
@@ -427,7 +515,10 @@ fun ChatScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .fillMaxWidth(),
+                            .fillMaxWidth()
+                            // Nested scroll only — avoid parent detectTapGestures here so
+                            // SelectionContainer long-press / message action hits stay reliable.
+                            .nestedScroll(dismissKeyboardOnScroll),
                     ) {
                         LazyColumn(
                             state = listState,
@@ -477,10 +568,12 @@ fun ChatScreen(
                                     .padding(end = 8.dp, bottom = 8.dp)
                                     .size(38.dp)
                                     .clickable {
+                                        dismissKeyboard()
                                         scrollScope.launch {
                                             listState.animateScrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
                                         }
-                                    },
+                                    }
+                                    .testTag("HermesChatScrollToBottom"),
                                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
                                 shape = MaterialTheme.shapes.large,
                                 tonalElevation = 1.dp,
@@ -1836,6 +1929,11 @@ private fun ChatComposer(
     LaunchedEffect(actionMenuOpen) {
         onActionMenuExpandedChange(actionMenuOpen)
     }
+    LaunchedEffect(isSending) {
+        if (isSending) {
+            actionMenuOpen = false
+        }
+    }
     DisposableEffect(Unit) {
         onDispose { onActionMenuExpandedChange(false) }
     }
@@ -2026,6 +2124,8 @@ private fun ChatComposer(
                             input = input,
                             onInputChange = onInputChange,
                             enabled = !isSending,
+                            canSend = !isSending && (input.isNotBlank() || attachments.isNotEmpty()),
+                            onSend = onSend,
                             modifier = Modifier.fillMaxWidth(),
                         )
                         if (ultraNarrowComposer) {
@@ -2102,6 +2202,8 @@ private fun ChatComposer(
                             input = input,
                             onInputChange = onInputChange,
                             enabled = !isSending,
+                            canSend = !isSending && (input.isNotBlank() || attachments.isNotEmpty()),
+                            onSend = onSend,
                             modifier = Modifier.weight(1f),
                         )
                         ComposerMicButton(
@@ -2148,6 +2250,8 @@ private fun ComposerInputField(
     input: String,
     onInputChange: (String) -> Unit,
     enabled: Boolean,
+    canSend: Boolean,
+    onSend: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val strings = LocalHermesStrings.current
@@ -2156,7 +2260,7 @@ private fun ComposerInputField(
         onValueChange = onInputChange,
         enabled = enabled,
         modifier = modifier
-            .heightIn(max = 112.dp)
+            .heightIn(min = 48.dp, max = 112.dp)
             .testTag("HermesChatInput"),
         shape = MaterialTheme.shapes.large,
         placeholder = {
@@ -2167,6 +2271,18 @@ private fun ComposerInputField(
             )
         },
         maxLines = 4,
+        singleLine = false,
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = ImeAction.Send,
+        ),
+        keyboardActions = KeyboardActions(
+            onSend = {
+                if (canSend) {
+                    onSend()
+                }
+            },
+        ),
     )
 }
 

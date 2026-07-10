@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.137
+
+- Chat keyboard no longer opens while scrolling near the composer.
+- Smarter auto-scroll, IME Send, and smoother composer/header focus UX.
+- Small local model catalog/smoke coverage (MiniCPM, Qwen, Gemma 4 E2B).
