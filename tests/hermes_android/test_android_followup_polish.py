@@ -191,7 +191,7 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'focusManager.clearFocus(force = true)' in chat
     assert '!imeVisible &&' not in chat
     assert 'val showFloatingActionIcon' not in chat
-    assert 'val messageListBottomPadding = 8.dp' in chat
+    assert 'val messageListBottomPadding = if (imeVisible) 12.dp else 8.dp' in chat
     assert 'PaddingValues(bottom = messageListBottomPadding)' in chat
     assert 'PaddingValues(top = 24.dp, bottom = messageListBottomPadding)' in chat
     assert 'sanitizeChatDisplayText(text)' in chat
@@ -199,7 +199,7 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'Regex("""\\*\\*([^*\\n]+)\\*\\*""")' in chat
     assert 'statusText = if (shouldShowComposerStatus(tinyRuntimeViewport, imeVisible)) uiState.status else ""' in chat
     assert '.padding(end = 16.dp, bottom = 320.dp)' not in chat
-    assert '.heightIn(max = 112.dp)\n            .testTag("HermesChatInput")' in chat
+    assert '.heightIn(min = 48.dp, max = 112.dp)\n            .testTag("HermesChatInput")' in chat
     assert 'maxLines = 4' in chat
     assert 'strings = strings' in chat
     assert '.testTag("HermesChatComposerFrame")' in chat
@@ -2065,7 +2065,7 @@ def test_chat_endpoint_url_normalization_and_floating_icon_are_guarded():
     assert 'onActionMenuExpandedChange = { composerActionMenuOpen = it }' in chat
     assert '!composerActionMenuOpen &&' not in chat
     assert '!imeVisible &&' not in chat
-    assert 'val messageListBottomPadding = 8.dp' in chat
+    assert 'val messageListBottomPadding = if (imeVisible) 12.dp else 8.dp' in chat
     assert 'PaddingValues(bottom = messageListBottomPadding)' in chat
     assert 'containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)' in chat
     assert 'val narrowHeader = maxWidth < 360.dp' in chat

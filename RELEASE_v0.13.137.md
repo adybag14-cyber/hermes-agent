@@ -10,6 +10,7 @@ Chat keyboard/scroll UX polish plus unreleased small-model catalog work after v0
 - Only auto-scroll the transcript when the user is already near the bottom or a send is in flight (no yank while reading older messages).
 - Composer IME uses Send with sentence capitalization; keyboard Send respects attachments-only messages.
 - Composer action tray closes when a send starts.
+- Linux asset prep prefers packages-cf, sends a User-Agent, rejects empty bodies, and retries mirrors on SHA mismatch so release builds no longer fail on a stale Termux primary mirror.
 
 ## Also shipping (post-0.13.136 tip)
 

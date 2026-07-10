@@ -60,8 +60,12 @@ def test_launch_emulator_detached_uses_detached_flags_on_windows(monkeypatch):
     lifecycle.launch_emulator_detached(avd="HermesX86Api35")
     assert "6144" in captured["command"]
     flags = captured["kwargs"]["creationflags"]
-    assert flags & subprocess.DETACHED_PROCESS
-    assert flags & subprocess.CREATE_NEW_PROCESS_GROUP
+    # Windows-only creation flags are not defined on Linux runners; use the
+    # documented Win32 values so this guard stays valid under cross-platform CI.
+    detached_process = getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+    create_new_process_group = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+    assert flags & detached_process
+    assert flags & create_new_process_group
 
 
 def test_package_installed_detects_pm_path_output():
