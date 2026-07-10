@@ -39,9 +39,11 @@ BIONIC_LIBC_NEEDED = b"libc.so\0"
 BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
 DEFAULT_LOCK_FILE = REPO_ROOT / "hermes_android" / "termux_linux_assets.lock.json"
 LOCK_FILE_VERSION = 1
+# Prefer the Cloudflare mirror first: packages.termux.dev has been returning
+# 404/empty bodies for pinned historical .deb paths used by the asset lock file.
 TERMUX_MAIN_FALLBACK_BASE_URLS = (
-    TERMUX_MAIN_BASE_URL,
     "https://packages-cf.termux.dev/apt/termux-main",
+    TERMUX_MAIN_BASE_URL,
     "https://termux.librehat.com/apt/termux-main",
     "https://mirror.rinarin.dev/termux/termux-main",
 )
@@ -49,10 +51,20 @@ TERMUX_MAIN_FALLBACK_BASE_URLS = (
 
 def download_bytes(url: str, attempts: int = 3) -> bytes:
     last_error: Exception | None = None
+    # Termux Cloudflare mirrors reject bare urllib with 403 without a UA.
+    headers = {
+        "User-Agent": "HermesAgentAndroidAssetPrep/1.0 (+https://github.com/adybag14-cyber/hermes-agent)",
+        "Accept": "*/*",
+    }
     for _ in range(attempts):
         try:
-            with urllib.request.urlopen(url, timeout=120) as response:
-                return response.read()
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, timeout=120) as response:
+                payload = response.read()
+                if not payload:
+                    last_error = RuntimeError("empty response body")
+                    continue
+                return payload
         except Exception as exc:  # pragma: no cover - exercised by live smoke checks
             last_error = exc
     raise RuntimeError(f"Failed to download {url}: {last_error}")
@@ -75,12 +87,19 @@ def _packages_index_path(termux_arch: str) -> str:
     return f"dists/stable/main/binary-{termux_arch}/Packages"
 
 
-def download_termux_main_path(relative_path: str) -> bytes:
+def download_termux_main_path(relative_path: str, expected_sha256: str | None = None) -> bytes:
     errors: list[str] = []
     for base_url in configured_termux_main_base_urls():
         url = _termux_main_url(base_url, relative_path)
         try:
-            return download_bytes(url)
+            payload = download_bytes(url)
+            if expected_sha256:
+                try:
+                    verify_sha256(payload, expected_sha256)
+                except ValueError as exc:
+                    errors.append(f"{url}: {exc}")
+                    continue
+            return payload
         except Exception as exc:  # pragma: no cover - exercised by live release builds
             errors.append(f"{url}: {exc}")
     raise RuntimeError(f"Failed to download Termux path {relative_path}: {'; '.join(errors)}")
@@ -369,8 +388,8 @@ def prepare_assets(output_dir: Path, lock_file: Path | None = DEFAULT_LOCK_FILE,
 
         links: list[dict] = []
         for package in packages:
-            payload = download_termux_main_path(package.filename)
-            verify_sha256(payload, package.sha256)
+            # Pass expected SHA so a bad primary mirror falls through to the next base URL.
+            payload = download_termux_main_path(package.filename, expected_sha256=package.sha256)
             data_bytes, data_name = load_data_tar_bytes_from_deb(payload)
             with open_data_tar(data_bytes, data_name) as tar:
                 links.extend(mirror_data_tar(tar, prefix_dir))
