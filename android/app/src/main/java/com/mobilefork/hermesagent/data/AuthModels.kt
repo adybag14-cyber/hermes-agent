@@ -88,7 +88,7 @@ object AuthCatalog {
         AuthOption(
             id = "codex",
             label = "Codex / OpenAI Responses",
-            description = "Sign in with OpenAI device code (ChatGPT/Codex subscription) via in-app browser, or paste an API key.",
+            description = "Sign in with ChatGPT (openai/codex OAuth: localhost:1455 PKCE, device-code fallback) or paste an API key.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "openai-codex",
             defaultBaseUrl = "https://chatgpt.com/backend-api/codex",
@@ -98,7 +98,7 @@ object AuthCatalog {
         AuthOption(
             id = "chatgpt",
             label = "ChatGPT",
-            description = "Sign in with OpenAI device code in the in-app browser (subscription), or paste a ChatGPT Web access token.",
+            description = "Sign in with ChatGPT subscription via official Codex OAuth (in-app browser) or paste a web access token.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "chatgpt-web",
             defaultBaseUrl = "https://chatgpt.com/backend-api/f",
