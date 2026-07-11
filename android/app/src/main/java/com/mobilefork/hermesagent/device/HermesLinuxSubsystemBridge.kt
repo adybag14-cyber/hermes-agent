@@ -32,11 +32,35 @@ object HermesLinuxSubsystemBridge {
         val detail: String = "",
     )
 
+    private data class InstalledRuntimeCache(
+        val androidAbi: String,
+        val assetFingerprint: String,
+        val nativeLibraryDir: String,
+        val layoutVersion: Int,
+        val state: JSONObject,
+    )
+
+    @Volatile
+    private var installedRuntimeCache: InstalledRuntimeCache? = null
+
     fun ensureInstalled(context: Context): JSONObject {
         val androidAbi = selectAndroidAbi()
         val currentAppVersionCode = appVersionCode(context)
         val currentAssetFingerprint = assetManifestSha256(context, androidAbi)
         val currentNativeLibraryDir = context.applicationInfo.nativeLibraryDir.orEmpty()
+        installedRuntimeCache?.let { cache ->
+            if (
+                cache.androidAbi == androidAbi &&
+                cache.assetFingerprint == currentAssetFingerprint &&
+                cache.nativeLibraryDir == currentNativeLibraryDir &&
+                cache.layoutVersion == RUNTIME_LAYOUT_VERSION &&
+                File(cache.state.optString("shell_path", cache.state.optString("bash_path"))).let {
+                    it.path.startsWith("/system/") || (it.isFile && it.canExecute())
+                }
+            ) {
+                return cache.state
+            }
+        }
         readState(context)?.let { state ->
             var stateChanged = false
             if (state.optString("android_abi") != androidAbi) {
@@ -67,6 +91,25 @@ object HermesLinuxSubsystemBridge {
             val prefixDirPath = state.optString("prefix_path").ifBlank {
                 bashFile.parentFile?.parentFile?.absolutePath.orEmpty()
             }
+            // Fast path: binaries still present and executable — skip full markExecutable walk + shell probe.
+            val shellReady = shellPath.startsWith("/system/") ||
+                (File(shellPath).isFile && File(shellPath).canExecute())
+            if (shellReady && prefixDirPath.isNotBlank()) {
+                File(prefixDirPath, "home").mkdirs()
+                File(prefixDirPath, "tmp").mkdirs()
+                val refreshedState = attachSandboxCatalog(state)
+                if (stateChanged) {
+                    stateFile(context).writeText(refreshedState.toString(), Charsets.UTF_8)
+                }
+                installedRuntimeCache = InstalledRuntimeCache(
+                    androidAbi = androidAbi,
+                    assetFingerprint = currentAssetFingerprint,
+                    nativeLibraryDir = currentNativeLibraryDir,
+                    layoutVersion = RUNTIME_LAYOUT_VERSION,
+                    state = refreshedState,
+                )
+                return refreshedState
+            }
             if (prefixDirPath.isNotBlank()) {
                 val prefixDir = File(prefixDirPath)
                 File(prefixDir, "home").mkdirs()
@@ -81,6 +124,13 @@ object HermesLinuxSubsystemBridge {
                 if (stateChanged) {
                     stateFile(context).writeText(refreshedState.toString(), Charsets.UTF_8)
                 }
+                installedRuntimeCache = InstalledRuntimeCache(
+                    androidAbi = androidAbi,
+                    assetFingerprint = currentAssetFingerprint,
+                    nativeLibraryDir = currentNativeLibraryDir,
+                    layoutVersion = RUNTIME_LAYOUT_VERSION,
+                    state = refreshedState,
+                )
                 return refreshedState
             }
             reset(context)
@@ -170,6 +220,13 @@ object HermesLinuxSubsystemBridge {
             parentFile?.mkdirs()
             writeText(state.toString(), Charsets.UTF_8)
         }
+        installedRuntimeCache = InstalledRuntimeCache(
+            androidAbi = androidAbi,
+            assetFingerprint = currentAssetFingerprint,
+            nativeLibraryDir = currentNativeLibraryDir,
+            layoutVersion = RUNTIME_LAYOUT_VERSION,
+            state = state,
+        )
         return state
     }
 
@@ -190,6 +247,7 @@ object HermesLinuxSubsystemBridge {
     }
 
     fun reset(context: Context) {
+        installedRuntimeCache = null
         File(context.filesDir, "hermes-home/linux").deleteRecursively()
         File(context.filesDir, "hermes-home/native-shell").deleteRecursively()
     }

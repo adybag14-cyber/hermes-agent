@@ -37,6 +37,8 @@ data class ConversationSummary(
 
 class ConversationStore(context: Context) {
     private val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    @Volatile
+    private var cachedConversations: List<StoredConversation>? = null
 
     fun currentSessionId(): String = ensureCurrentConversation().sessionId
 
@@ -140,11 +142,34 @@ class ConversationStore(context: Context) {
     }
 
     fun clearAll() {
+        cachedConversations = null
         preferences.edit().remove(KEY_CONVERSATIONS).remove(KEY_SESSION_ID).apply()
     }
 
     fun clearSession() {
         preferences.edit().remove(KEY_SESSION_ID).apply()
+    }
+
+    /** In-memory content update for streaming; disk flush is caller's responsibility (throttled). */
+    fun updateMessageContentInMemory(sessionId: String, messageId: String, newContent: String) {
+        val conversations = readConversations().toMutableList()
+        val index = conversations.indexOfFirst { it.sessionId == sessionId }
+        if (index < 0) return
+        val conversation = conversations[index]
+        val updatedMessages = conversation.messages.map { message ->
+            if (message.id == messageId) message.copy(content = newContent) else message
+        }
+        conversations[index] = conversation.copy(
+            title = deriveTitle(conversation.title, updatedMessages),
+            updatedAtEpochMs = System.currentTimeMillis(),
+            messages = updatedMessages,
+        )
+        cachedConversations = conversations.sortedByDescending { it.updatedAtEpochMs }
+    }
+
+    fun flushCacheToDisk() {
+        val snapshot = cachedConversations ?: return
+        writeConversations(snapshot)
     }
 
     private fun ensureCurrentConversation(): StoredConversation {
@@ -184,11 +209,13 @@ class ConversationStore(context: Context) {
     }
 
     private fun readConversations(): List<StoredConversation> {
+        cachedConversations?.let { return it }
         val raw = preferences.getString(KEY_CONVERSATIONS, null).orEmpty()
         if (raw.isBlank()) {
+            cachedConversations = emptyList()
             return emptyList()
         }
-        return runCatching {
+        val parsed = runCatching {
             val array = JSONArray(raw)
             buildList {
                 for (index in 0 until array.length()) {
@@ -197,9 +224,12 @@ class ConversationStore(context: Context) {
                 }
             }
         }.getOrDefault(emptyList())
+        cachedConversations = parsed
+        return parsed
     }
 
     private fun writeConversations(conversations: List<StoredConversation>) {
+        cachedConversations = conversations
         val array = JSONArray()
         conversations.forEach { array.put(it.toJson()) }
         preferences.edit().putString(KEY_CONVERSATIONS, array.toString()).apply()

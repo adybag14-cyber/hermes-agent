@@ -206,9 +206,12 @@ data class AppSettings(
 
 class AppSettingsStore(context: Context) {
     private val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    @Volatile
+    private var cachedSettings: AppSettings? = null
 
     fun load(): AppSettings {
-        return AppSettings(
+        cachedSettings?.let { return it }
+        val loaded = AppSettings(
             provider = preferences.getString(KEY_PROVIDER, "openrouter").orEmpty(),
             baseUrl = preferences.getString(KEY_BASE_URL, "").orEmpty(),
             model = preferences.getString(KEY_MODEL, "").orEmpty(),
@@ -250,9 +253,12 @@ class AppSettingsStore(context: Context) {
             themeSurfaceVariantHex = preferences.getString(KEY_THEME_SURFACE_VARIANT_HEX, "#1B202B").orEmpty(),
             themeCardShape = preferences.getString(KEY_THEME_CARD_SHAPE, "rounded").orEmpty(),
         )
+        cachedSettings = loaded
+        return loaded
     }
 
     fun save(settings: AppSettings) {
+        cachedSettings = settings
         preferences.edit()
             .putString(KEY_PROVIDER, settings.provider)
             .putString(KEY_BASE_URL, settings.baseUrl)
