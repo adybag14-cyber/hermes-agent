@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.140
+
+- ChatGPT/Codex OAuth parity with openai/codex CLI (localhost:1455 PKCE + device-code fallback)
+- In-app WebView for authorize and device pages
+- xAI SuperGrok, Nous device code, host pkg, performance from 0.13.139
