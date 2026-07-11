@@ -9,11 +9,9 @@ import org.junit.Test
 
 class AuthCatalogTest {
     @Test
-    fun qwenZaiAndOtherApiKeyProvidersDoNotExposeBrowserOAuthSignIn() {
+    fun apiKeyOnlyProvidersDoNotExposeBrowserOAuthSignIn() {
         listOf(
             "openai",
-            "codex",
-            "chatgpt",
             "claude",
             "gemini",
             "qwen",
@@ -21,6 +19,8 @@ class AuthCatalogTest {
             "qwen-oauth",
             "zai",
             "zai-coding-plan",
+            "xai",
+            "bigmodel",
         ).forEach { optionId ->
             val option = requireNotNull(AuthCatalog.find(optionId)) {
                 "Missing auth option $optionId"
@@ -33,11 +33,35 @@ class AuthCatalogTest {
     }
 
     @Test
+    fun oauthAndDeviceCodeProvidersExposeBrowserSignIn() {
+        listOf(
+            "openrouter",
+            "xai-oauth",
+            "chatgpt",
+            "codex",
+            "nous",
+        ).forEach { optionId ->
+            val option = requireNotNull(AuthCatalog.find(optionId)) {
+                "Missing auth option $optionId"
+            }
+            assertTrue("$optionId should support browser/device sign-in", option.browserSignInSupported)
+            assertEquals(AuthScope.RuntimeProvider, option.scope)
+        }
+    }
+
+    @Test
     fun openRouterRemainsTheBrowserOAuthRuntimeProvider() {
         val option = requireNotNull(AuthCatalog.find("openrouter"))
 
         assertEquals(AuthScope.RuntimeProvider, option.scope)
         assertEquals("openrouter", option.runtimeProvider)
         assertTrue(option.browserSignInSupported)
+    }
+
+    @Test
+    fun xaiOauthUsesXaiOauthRuntimeProvider() {
+        val option = requireNotNull(AuthCatalog.find("xai-oauth"))
+        assertEquals("xai-oauth", option.runtimeProvider)
+        assertTrue(option.defaultBaseUrl.contains("api.x.ai"))
     }
 }

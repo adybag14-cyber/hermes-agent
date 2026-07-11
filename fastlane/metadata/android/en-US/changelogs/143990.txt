@@ -1,0 +1,6 @@
+Hermes Agent Fork 0.13.139
+
+- Full OAuth: xAI Grok SuperGrok PKCE, ChatGPT/Codex device code, Nous device code
+- In-app WebView sign-in with hermesagent:// and loopback callbacks
+- BigModel CN / Zhipu presets; host pkg suite updates
+- Leaner chat load, streaming, readiness strip, Linux suite cache

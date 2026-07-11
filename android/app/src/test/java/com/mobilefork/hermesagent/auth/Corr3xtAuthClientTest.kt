@@ -183,14 +183,24 @@ class Corr3xtAuthClientTest {
     @Test
     fun runtimeProviderAuthOptionsDeclareApiKeyFallbackTargets() {
         val runtimeOptions = AuthCatalog.options.filter { it.scope == AuthScope.RuntimeProvider }
+        val oauthOrDeviceIds = setOf(
+            "openrouter",
+            "xai-oauth",
+            "chatgpt",
+            "codex",
+            "nous",
+        )
 
         assertTrue(runtimeOptions.isNotEmpty())
         runtimeOptions.forEach { option ->
             assertTrue("${option.id} should declare runtimeProvider", option.runtimeProvider.isNotBlank())
             assertTrue("${option.id} should declare defaultBaseUrl", option.defaultBaseUrl.isNotBlank())
-            assertTrue("${option.id} should declare defaultModel", option.defaultModel.isNotBlank())
-            if (option.id == "openrouter") {
-                assertTrue("${option.id} should support native OpenRouter PKCE", option.browserSignInSupported)
+            // Nous discovers models after login; empty default is allowed.
+            if (option.id != "nous") {
+                assertTrue("${option.id} should declare defaultModel", option.defaultModel.isNotBlank())
+            }
+            if (option.id in oauthOrDeviceIds) {
+                assertTrue("${option.id} should support native OAuth/device sign-in", option.browserSignInSupported)
             } else {
                 assertTrue("${option.id} should prefer local key setup over unavailable Corr3xt", !option.browserSignInSupported)
             }
