@@ -146,6 +146,17 @@ fun DeviceScreen(
                     uiState = uiState,
                     onInstallSuite = viewModel::installLinuxSuite,
                 )
+                HostLinuxPkgCard(
+                    uiState = uiState,
+                    onRefreshIndex = { viewModel.performHostPkgAction("update") },
+                    onUpgradeSuite = { viewModel.performHostPkgAction("upgrade") },
+                    onUpgradeProot = {
+                        viewModel.performHostPkgAction("upgrade", listOf("proot", "proot-distro", "libtalloc"))
+                    },
+                    onSetChinaMirrors = {
+                        viewModel.performHostPkgAction("set_mirror", listOf("china"))
+                    },
+                )
                 LinuxSandboxCard(
                     uiState = uiState,
                     // Default mirrors (not China): China profile is opt-in via Set China mirrors.
@@ -405,6 +416,53 @@ private fun LinuxSuiteCard(
             )
             Button(onClick = onInstallSuite) {
                 Text(strings.deviceLinuxInstallSuiteLabel())
+            }
+        }
+    }
+}
+
+@Composable
+private fun HostLinuxPkgCard(
+    uiState: DeviceUiState,
+    onRefreshIndex: () -> Unit,
+    onUpgradeSuite: () -> Unit,
+    onUpgradeProot: () -> Unit,
+    onSetChinaMirrors: () -> Unit,
+) {
+    val strings = LocalHermesStrings.current
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(strings.deviceHostPkgTitle(), style = MaterialTheme.typography.titleMedium)
+            Text(strings.deviceHostPkgSummary())
+            Text(
+                strings.deviceHostPkgVersions(
+                    proot = uiState.hostPkgProotVersion.ifBlank { "—" },
+                    prootDistro = uiState.hostPkgProotDistroVersion.ifBlank { "—" },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Text(
+                strings.deviceHostPkgMeta(
+                    installed = uiState.hostPkgInstalledCount,
+                    indexCount = uiState.hostPkgIndexPackageCount,
+                    mirror = uiState.hostPkgMirrorProfile,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(onClick = onRefreshIndex) { Text(strings.deviceHostPkgRefreshIndexLabel()) }
+                Button(onClick = onUpgradeSuite) { Text(strings.deviceHostPkgUpgradeSuiteLabel()) }
+                Button(onClick = onUpgradeProot) { Text(strings.deviceHostPkgUpgradeProotLabel()) }
+                Button(onClick = onSetChinaMirrors) { Text(strings.deviceHostPkgChinaMirrorLabel()) }
             }
         }
     }
@@ -1063,6 +1121,78 @@ private fun HermesStrings.deviceLinuxInstallSuiteLabel(): String = when (languag
     AppLanguage.PORTUGUESE -> "Instalar / atualizar terminal Linux"
     AppLanguage.FRENCH -> "Installer / actualiser le terminal Linux"
     AppLanguage.ENGLISH -> "Install / refresh Linux terminal"
+}
+
+private fun HermesStrings.deviceHostPkgTitle(): String = when (language) {
+    AppLanguage.CHINESE -> "主机 Linux 套件 (pkg)"
+    AppLanguage.SPANISH -> "Suite Linux del host (pkg)"
+    AppLanguage.GERMAN -> "Host-Linux-Suite (pkg)"
+    AppLanguage.PORTUGUESE -> "Suíte Linux do host (pkg)"
+    AppLanguage.FRENCH -> "Suite Linux hôte (pkg)"
+    AppLanguage.ENGLISH -> "Host Linux suite (pkg)"
+}
+
+private fun HermesStrings.deviceHostPkgSummary(): String = when (language) {
+    AppLanguage.CHINESE -> "从 Termux 镜像在应用内更新 proot / proot-distro 等主机包，无需重装 APK。访客沙盒请用下方「更新软件包」。也可让 AI 使用 pkg 或 linux_host_pkg_tool。"
+    AppLanguage.SPANISH -> "Actualiza proot/proot-distro y otros paquetes del host desde espejos Termux sin reinstalar el APK. El sandbox invitado usa «Actualizar paquetes» abajo. También: pkg o linux_host_pkg_tool."
+    AppLanguage.GERMAN -> "Aktualisiere Host-Pakete wie proot/proot-distro aus Termux-Spiegeln ohne APK-Update. Gast-Sandbox: «Pakete aktualisieren» unten. Auch: pkg oder linux_host_pkg_tool."
+    AppLanguage.PORTUGUESE -> "Atualize proot/proot-distro e outros pacotes do host via espelhos Termux sem reinstalar o APK. Sandbox convidado: «Atualizar pacotes» abaixo. Também: pkg ou linux_host_pkg_tool."
+    AppLanguage.FRENCH -> "Mettez à jour proot/proot-distro et d’autres paquets hôtes depuis les miroirs Termux sans réinstaller l’APK. Sandbox invité : « Mettre à jour les paquets » ci-dessous. Aussi : pkg ou linux_host_pkg_tool."
+    AppLanguage.ENGLISH -> "Refresh host packages (proot, proot-distro, …) from Termux mirrors in-app — no APK reinstall. Guest sandbox packages use “Update packages” below. Also: terminal pkg or linux_host_pkg_tool."
+}
+
+private fun HermesStrings.deviceHostPkgVersions(proot: String, prootDistro: String): String = when (language) {
+    AppLanguage.CHINESE -> "proot：$proot · proot-distro：$prootDistro"
+    AppLanguage.SPANISH -> "proot: $proot · proot-distro: $prootDistro"
+    AppLanguage.GERMAN -> "proot: $proot · proot-distro: $prootDistro"
+    AppLanguage.PORTUGUESE -> "proot: $proot · proot-distro: $prootDistro"
+    AppLanguage.FRENCH -> "proot : $proot · proot-distro : $prootDistro"
+    AppLanguage.ENGLISH -> "proot: $proot · proot-distro: $prootDistro"
+}
+
+private fun HermesStrings.deviceHostPkgMeta(installed: Int, indexCount: Int, mirror: String): String = when (language) {
+    AppLanguage.CHINESE -> "已安装 $installed · 索引 $indexCount · 镜像 $mirror"
+    AppLanguage.SPANISH -> "Instalados $installed · índice $indexCount · espejo $mirror"
+    AppLanguage.GERMAN -> "Installiert $installed · Index $indexCount · Spiegel $mirror"
+    AppLanguage.PORTUGUESE -> "Instalados $installed · índice $indexCount · espelho $mirror"
+    AppLanguage.FRENCH -> "Installés $installed · index $indexCount · miroir $mirror"
+    AppLanguage.ENGLISH -> "Installed $installed · index $indexCount · mirror $mirror"
+}
+
+private fun HermesStrings.deviceHostPkgRefreshIndexLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "刷新索引"
+    AppLanguage.SPANISH -> "Actualizar índice"
+    AppLanguage.GERMAN -> "Index aktualisieren"
+    AppLanguage.PORTUGUESE -> "Atualizar índice"
+    AppLanguage.FRENCH -> "Rafraîchir l’index"
+    AppLanguage.ENGLISH -> "Refresh index"
+}
+
+private fun HermesStrings.deviceHostPkgUpgradeSuiteLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "升级套件"
+    AppLanguage.SPANISH -> "Actualizar suite"
+    AppLanguage.GERMAN -> "Suite upgraden"
+    AppLanguage.PORTUGUESE -> "Atualizar suíte"
+    AppLanguage.FRENCH -> "Mettre à niveau la suite"
+    AppLanguage.ENGLISH -> "Upgrade suite"
+}
+
+private fun HermesStrings.deviceHostPkgUpgradeProotLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "升级 proot"
+    AppLanguage.SPANISH -> "Actualizar proot"
+    AppLanguage.GERMAN -> "proot upgraden"
+    AppLanguage.PORTUGUESE -> "Atualizar proot"
+    AppLanguage.FRENCH -> "Mettre à jour proot"
+    AppLanguage.ENGLISH -> "Upgrade proot"
+}
+
+private fun HermesStrings.deviceHostPkgChinaMirrorLabel(): String = when (language) {
+    AppLanguage.CHINESE -> "国内镜像"
+    AppLanguage.SPANISH -> "Espejos China"
+    AppLanguage.GERMAN -> "China-Spiegel"
+    AppLanguage.PORTUGUESE -> "Espelhos China"
+    AppLanguage.FRENCH -> "Miroirs Chine"
+    AppLanguage.ENGLISH -> "China mirrors"
 }
 
 internal fun HermesStrings.deviceLinuxSandboxTitle(): String = when (language) {
