@@ -14,7 +14,44 @@ object NativeAndroidShellTool {
         timeoutSeconds: Long = 60,
         includeLinuxSandboxStatus: Boolean = true,
     ): JSONObject {
-        val state = HermesLinuxSubsystemBridge.ensureInstalled(context.applicationContext)
+        val appContext = context.applicationContext
+        // Route Termux-style host package manager before spawning a shell.
+        if (HermesTermuxPackageManager.isPkgCommand(command)) {
+            val pkgResult = HermesTermuxPackageManager.performCliCommand(appContext, command)
+            val state = HermesLinuxSubsystemBridge.ensureInstalled(appContext)
+            val message = pkgResult.optString("message")
+                .ifBlank { pkgResult.optString("error") }
+                .ifBlank { pkgResult.toString() }
+            val result = JSONObject()
+                .put("exit_code", pkgResult.optInt("exit_code", if (pkgResult.optBoolean("ok", false)) 0 else 1))
+                .put("output", message + "\n" + pkgResult.toString(2))
+                .put("error", if (pkgResult.optBoolean("ok", false)) "" else pkgResult.optString("error"))
+                .put("cwd", state.optString("home_path"))
+                .put("shell", "hermes-pkg")
+                .put("execution_mode", "host_pkg_manager")
+                .put("uses_termux", state.optBoolean("uses_termux", false))
+                .put("host_pkg_result", pkgResult)
+                .put(
+                    "package_manager_status",
+                    "hermes_host_pkg",
+                )
+                .put(
+                    "package_management_hint",
+                    "Host suite packages use Hermes pkg (Termux main mirrors). " +
+                        "Guest sandboxes use linux_sandbox_tool action=update (apt/apk).",
+                )
+            if (includeLinuxSandboxStatus) {
+                result
+                    .put("downloadable_linux_sandboxes", HermesLinuxSandboxCatalog.distroCatalog())
+                    .put("recommended_linux_sandboxes", HermesLinuxSandboxCatalog.recommendedSandboxIds())
+                    .put("desktop_environment_catalog", HermesLinuxSandboxCatalog.desktopCatalog())
+                    .put("linux_sandbox_agent_summary", HermesLinuxSandboxCatalog.agentSummary())
+                    .put("linux_sandbox_status", HermesLinuxSandboxBridge.status(state))
+            }
+            return result
+        }
+
+        val state = HermesLinuxSubsystemBridge.ensureInstalled(appContext)
         val homeDir = File(state.getString("home_path")).apply { mkdirs() }
         val tmpDir = File(state.getString("tmp_path")).apply { mkdirs() }
         val shellPath = resolveShellPath(state)
@@ -72,7 +109,9 @@ object NativeAndroidShellTool {
             .put(
                 "package_management_hint",
                 if (state.optBoolean("uses_termux", false)) {
-                    "Use packaged prefix commands from PATH. For downloadable Linux sandboxes, use the proot-distro-compatible catalog in downloadable_linux_sandboxes and keep rootfs data in app-private storage."
+                    "Host suite: use pkg update|upgrade|install (or linux_host_pkg_tool). " +
+                        "Guest sandboxes: linux_sandbox_tool action=update (apt/apk). " +
+                        "Packaged prefix commands are on PATH; proot-distro catalog is in downloadable_linux_sandboxes."
                 } else {
                     "Embedded package prefix is unavailable; this run used Android's system shell only."
                 },

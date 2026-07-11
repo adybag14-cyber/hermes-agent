@@ -77,6 +77,7 @@ object HermesLinuxSubsystemBridge {
             val homeDir = File(state.optString("home_path").ifBlank { prefixDirPath })
             if (launchShellProbe(shellPath, homeDir, buildRunEnvironment(state)).ready) {
                 val refreshedState = attachSandboxCatalog(state)
+                runCatching { HermesTermuxPackageManager.seedStatusFromApkIfNeeded(context, refreshedState) }
                 if (stateChanged) {
                     stateFile(context).writeText(refreshedState.toString(), Charsets.UTF_8)
                 }
@@ -142,7 +143,9 @@ object HermesLinuxSubsystemBridge {
             }
             val launchProbe = launchShellProbe(bashPath, File(prefixDir, "home"), buildRunEnvironment(embeddedState))
             if (launchProbe.ready) {
-                attachSandboxCatalog(embeddedState)
+                val ready = attachSandboxCatalog(embeddedState)
+                runCatching { HermesTermuxPackageManager.seedStatusFromApkIfNeeded(context, ready) }
+                ready
             } else {
                 installRoot.deleteRecursively()
                 systemShellState(
@@ -189,6 +192,100 @@ object HermesLinuxSubsystemBridge {
     fun reset(context: Context) {
         File(context.filesDir, "hermes-home/linux").deleteRecursively()
         File(context.filesDir, "hermes-home/native-shell").deleteRecursively()
+    }
+
+    /** Mark bin/libexec/lib trees executable after OTA package extract. */
+    fun markPrefixExecutables(prefixDir: File) {
+        markExecutableTree(File(prefixDir, "bin"))
+        markExecutableTree(File(prefixDir, "libexec"))
+        // Shared libraries sometimes need the execute bit for dlopen on older devices.
+        markExecutableTree(File(prefixDir, "lib"))
+    }
+
+    /**
+     * Prefer OTA-extracted prefix binaries over APK jniLibs by repointing native-exec shims.
+     * PATH currently puts native-exec first, so without this OTA proot/bin tools stay shadowed.
+     */
+    fun repointNativeExecForOtaFiles(context: Context, state: JSONObject, relativeFiles: List<String>) {
+        val prefixPath = state.optString("prefix_path")
+        if (prefixPath.isBlank()) return
+        val prefixDir = File(prefixPath)
+        val installRoot = prefixDir.parentFile ?: return
+        val nativeExecRoot = File(installRoot, NATIVE_EXEC_ROOT_NAME)
+        nativeExecRoot.mkdirs()
+        for (relative in relativeFiles) {
+            val normalized = normalizeAssetRelativePath(relative)
+            if (!isNativeExecutableShimPath(normalized)) continue
+            // Keep APK-native specials unless the OTA binary is clearly present & executable.
+            if (normalized in NATIVE_EXECUTABLE_NAMES.keys) continue
+            val prefixFile = File(prefixDir, normalized)
+            if (!prefixFile.isFile) continue
+            prefixFile.setExecutable(true, false)
+            if (!prefixFile.canExecute()) continue
+            val shim = File(nativeExecRoot, normalized)
+            shim.parentFile?.mkdirs()
+            if (shim.exists()) {
+                shim.delete()
+            }
+            runCatching {
+                Os.symlink(prefixFile.absolutePath, shim.absolutePath)
+            }.onFailure {
+                // Fall back to a tiny wrapper script when symlink fails.
+                shim.writeText(
+                    "#!/system/bin/sh\nexec ${shellQuote(prefixFile.absolutePath)} \"\$@\"\n",
+                    Charsets.UTF_8,
+                )
+                shim.setExecutable(true, false)
+            }
+        }
+        // Prefer prefix bin for OTA-updated tools by putting prefix ahead of native-exec when OTA shims exist.
+        val nativeBin = File(nativeExecRoot, "bin").absolutePath
+        val prefixBin = File(prefixDir, "bin").absolutePath
+        val binPath = listOf(prefixBin, nativeBin)
+            .filter { File(it).isDirectory || it.isNotBlank() }
+            .distinct()
+            .joinToString(":")
+        state.put("bin_path", binPath)
+        state.put("native_bin_path", nativeBin)
+        stateFile(context).apply {
+            parentFile?.mkdirs()
+            writeText(state.toString(), Charsets.UTF_8)
+        }
+    }
+
+    /** Merge OTA package DB versions into subsystem state for diagnostics/UI. */
+    fun refreshPackageStateAfterOta(context: Context, state: JSONObject, pkgStatusDb: JSONObject) {
+        val otaPackages = pkgStatusDb.optJSONObject("packages") ?: JSONObject()
+        val existing = state.optJSONArray("packages") ?: JSONArray()
+        val byName = linkedMapOf<String, JSONObject>()
+        for (i in 0 until existing.length()) {
+            val item = existing.optJSONObject(i) ?: continue
+            val name = item.optString("name")
+            if (name.isNotBlank()) byName[name] = item
+        }
+        val names = otaPackages.keys()
+        while (names.hasNext()) {
+            val name = names.next()
+            val row = otaPackages.optJSONObject(name) ?: continue
+            val prev = byName[name] ?: JSONObject().put("name", name)
+            prev.put("version", row.optString("version"))
+            prev.put("filename", row.optString("filename"))
+            prev.put("sha256", row.optString("sha256"))
+            prev.put("source", row.optString("source"))
+            if (row.has("depends")) {
+                prev.put("depends", row.optJSONArray("depends"))
+            }
+            byName[name] = prev
+        }
+        val merged = JSONArray()
+        byName.values.forEach { merged.put(it) }
+        state.put("packages", merged)
+        state.put("host_pkg_installed_count", otaPackages.length())
+        state.put("host_pkg_enabled", true)
+        stateFile(context).apply {
+            parentFile?.mkdirs()
+            writeText(state.toString(), Charsets.UTF_8)
+        }
     }
 
     private fun refreshNativeRuntimePaths(context: Context, androidAbi: String, state: JSONObject): JSONObject? {
@@ -388,6 +485,11 @@ object HermesLinuxSubsystemBridge {
             "export LD_LIBRARY_PATH=${shellQuote(runtimeLibraryPath)}",
             "proot-distro() { case \"\${1:-}\" in login|sh|run) local _pd_cmd=\"\$1\"; shift; command ${shellQuote(pythonPath)} ${shellQuote(prootDistroScript)} \"\$_pd_cmd\" -e \"LD_LIBRARY_PATH=\$LD_LIBRARY_PATH\" -e \"PROOT_TMP_DIR=\$PROOT_TMP_DIR\" -e \"PROOT_LOADER=\$PROOT_LOADER\" -e \"PROOT_LOADER_32=\$PROOT_LOADER_32\" -e \"PROOT_NO_SECCOMP=\$PROOT_NO_SECCOMP\" \"\$@\" ;; *) command ${shellQuote(pythonPath)} ${shellQuote(prootDistroScript)} \"\$@\" ;; esac; }",
             "pd() { proot-distro \"\$@\"; }",
+            // Host suite uses Hermes Termux-style pkg (in-app). Guest sandboxes use apt/apk via linux_sandbox_tool.
+            "pkg() { echo \"pkg is handled by Hermes host package manager (use terminal_tool 'pkg …' or linux_host_pkg_tool).\" >&2; echo \"Try: pkg update | pkg upgrade | pkg install <name> | pkg list | pkg search <q>\" >&2; return 64; }",
+            "hermes-pkg() { pkg \"\$@\"; }",
+            "apt() { echo \"Host suite uses pkg (Termux-style). For guest distro packages use linux_sandbox_tool action=update.\" >&2; return 64; }",
+            "apt-get() { apt \"\$@\"; }",
         ).joinToString("; ")
         return "$prelude; $command"
     }

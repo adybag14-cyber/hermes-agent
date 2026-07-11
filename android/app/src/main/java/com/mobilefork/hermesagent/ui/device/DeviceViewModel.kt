@@ -18,6 +18,7 @@ import com.mobilefork.hermesagent.device.HermesLinuxSandboxBridge
 import com.mobilefork.hermesagent.device.HermesLinuxSandboxCatalog
 import com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridge
 import com.mobilefork.hermesagent.device.HermesSystemControlBridge
+import com.mobilefork.hermesagent.device.HermesTermuxPackageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -46,6 +47,11 @@ data class DeviceUiState(
     val linuxHomePath: String = "",
     val linuxTmpPath: String = "",
     val linuxPackageCount: Int = 0,
+    val hostPkgProotVersion: String = "",
+    val hostPkgProotDistroVersion: String = "",
+    val hostPkgMirrorProfile: String = "default",
+    val hostPkgIndexPackageCount: Int = 0,
+    val hostPkgInstalledCount: Int = 0,
     val sandboxStorageRoot: String = "",
     val sandboxAgentEnabled: Boolean = false,
     val activeSandboxName: String = "",
@@ -172,6 +178,34 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
                 "Linux command suite ready ($arch, $packageCount packages)"
             }.getOrElse { error ->
                 "Linux command suite install failed: ${error.message ?: error.javaClass.simpleName}"
+            }
+            DeviceStateWriter.write(context)
+            _uiState.value = buildState(status)
+        }
+    }
+
+    fun performHostPkgAction(action: String, packages: List<String> = emptyList()) {
+        val context = getApplication<Application>()
+        _uiState.value = _uiState.value.copy(status = "Host pkg: $action…")
+        viewModelScope.launch(Dispatchers.IO) {
+            val status = runCatching {
+                val result = HermesTermuxPackageManager.performAction(
+                    context = context,
+                    action = action,
+                    packages = packages,
+                )
+                val message = result.optString("message")
+                    .ifBlank { result.optString("error") }
+                    .ifBlank { result.toString() }
+                val proot = result.optString("proot_version")
+                val pd = result.optString("proot_distro_version")
+                buildString {
+                    append(message)
+                    if (proot.isNotBlank()) append(" · proot $proot")
+                    if (pd.isNotBlank()) append(" · proot-distro $pd")
+                }
+            }.getOrElse { error ->
+                "Host pkg failed: ${error.message ?: error.javaClass.simpleName}"
             }
             DeviceStateWriter.write(context)
             _uiState.value = buildState(status)
@@ -307,6 +341,13 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         val modelRoutingStatus = automationModelRoutingStatus(context)
         val crashLogStatus = HermesCrashLogStore.statusSnapshot(context)
         val sandboxStatus = linuxState?.let { HermesLinuxSandboxBridge.status(it, context) }
+        val hostPkgStatus = runCatching {
+            if (linuxState != null && linuxState.optBoolean("uses_termux", false)) {
+                HermesTermuxPackageManager.performAction(context, "status")
+            } else {
+                null
+            }
+        }.getOrNull()
         val installedSandboxes = sandboxStatus?.optJSONArray("installed_sandboxes")
         val installedSandboxNames = buildList {
             if (installedSandboxes != null) {
@@ -347,6 +388,12 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
             linuxHomePath = linuxState?.optString("home_path").orEmpty(),
             linuxTmpPath = linuxState?.optString("tmp_path").orEmpty(),
             linuxPackageCount = linuxState?.optJSONArray("packages")?.length() ?: 0,
+            hostPkgProotVersion = hostPkgStatus?.optString("proot_version").orEmpty(),
+            hostPkgProotDistroVersion = hostPkgStatus?.optString("proot_distro_version").orEmpty(),
+            hostPkgMirrorProfile = hostPkgStatus?.optString("mirror_profile").orEmpty().ifBlank { "default" },
+            hostPkgIndexPackageCount = hostPkgStatus?.optInt("index_package_count", 0) ?: 0,
+            hostPkgInstalledCount = hostPkgStatus?.optInt("installed_count", 0)
+                ?: (linuxState?.optJSONArray("packages")?.length() ?: 0),
             sandboxStorageRoot = sandboxStatus?.optString("app_private_storage_root").orEmpty(),
             sandboxAgentEnabled = sandboxStatus?.optBoolean("agent_shell_enabled", true) == true,
             activeSandboxName = sandboxStatus?.optString("active_sandbox_name").orEmpty(),

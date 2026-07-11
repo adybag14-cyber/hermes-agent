@@ -19,6 +19,7 @@ import com.mobilefork.hermesagent.device.HermesLinuxSandboxBridge
 import com.mobilefork.hermesagent.device.HermesLinuxSandboxCatalog
 import com.mobilefork.hermesagent.device.HermesPrivilegedAccessBridge
 import com.mobilefork.hermesagent.device.HermesSystemControlBridge
+import com.mobilefork.hermesagent.device.HermesTermuxPackageManager
 import com.mobilefork.hermesagent.device.HermesWorkspaceFileBridge
 import com.mobilefork.hermesagent.device.NativeAndroidShellTool
 import okhttp3.MediaType.Companion.toMediaType
@@ -847,6 +848,8 @@ class NativeToolCallingChatClient(
             "mcp_run_in_proot" -> executeProotAliasTool(toolCall)
             "linux_sandbox_tool", "linux_sandbox", "proot_distro_tool", "proot-distro", "proot_distro" ->
                 executeLinuxSandboxTool(toolCall)
+            "linux_host_pkg_tool", "host_pkg_tool", "termux_pkg_tool", "pkg_tool", "hermes_pkg_tool" ->
+                executeLinuxHostPkgTool(toolCall)
             "file_write_tool", "write_file", "file_tool" -> executeFileWriteTool(toolCall)
             "android_system_tool", "android_system_action", "system_tool", "settings_tool", "phone_tool" ->
                 executeAndroidSystemTool(toolCall)
@@ -910,6 +913,39 @@ class NativeToolCallingChatClient(
             .put("package_manager_status", result.optString("package_manager_status"))
             .put("package_management_hint", result.optString("package_management_hint"))
             .toString()
+    }
+
+    private fun executeLinuxHostPkgTool(toolCall: ToolCall): String {
+        val action = listOf("action", "command_action", "input", "subcommand")
+            .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+            ?: "status"
+        val packages = mutableListOf<String>()
+        listOf("packages", "package", "name", "names", "pkg", "pkgs").forEach { key ->
+            val arr = toolCall.arguments.optJSONArray(key)
+            if (arr != null) {
+                for (i in 0 until arr.length()) {
+                    val value = arr.optString(i).trim()
+                    if (value.isNotBlank()) packages.add(value)
+                }
+            } else {
+                val value = toolCall.arguments.optString(key).trim()
+                if (value.isNotBlank()) {
+                    packages.addAll(value.split(Regex("[,\\s]+")).filter { it.isNotBlank() })
+                }
+            }
+        }
+        val result = HermesTermuxPackageManager.performAction(
+            context = appContext,
+            action = action,
+            packages = packages.distinct(),
+            mirrorProfile = listOf("mirror_profile", "mirror", "mirror_id")
+                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+                .orEmpty(),
+            query = listOf("query", "search", "q")
+                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
+                .orEmpty(),
+        )
+        return result.toString()
     }
 
     private fun executeLinuxSandboxTool(toolCall: ToolCall): String {
@@ -1631,8 +1667,21 @@ class NativeToolCallingChatClient(
             )
             .put(
                 functionSpec(
+                    name = "linux_host_pkg_tool",
+                    description = "Termux-style host package manager for the Hermes embedded prefix (proot, proot-distro, curl, git, …). Refreshes packages from Termux main mirrors in-app without an APK update. Use this for host suite updates; use linux_sandbox_tool action=update for guest distro apt/apk.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, update (refresh index), upgrade, install, remove, list, search, or set_mirror."))
+                        .put("packages", stringProp("Space-separated package names for install/upgrade/remove (e.g. proot proot-distro)."))
+                        .put("package", stringProp("Single package name alias."))
+                        .put("query", stringProp("Search query when action=search."))
+                        .put("mirror_profile", stringProp("default or china for Termux main mirror preference.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
                     name = "linux_sandbox_tool",
-                    description = "List, download/install, one-click deploy, update, set_mirror, start/enable, stop/disable/close, uninstall/remove, or run app-private downloadable Linux sandboxes through packaged Termux proot-distro.",
+                    description = "List, download/install, one-click deploy, update, set_mirror, start/enable, stop/disable/close, uninstall/remove, or run app-private downloadable Linux sandboxes through packaged Termux proot-distro. Guest package updates only — host proot/pkg uses linux_host_pkg_tool.",
                     properties = JSONObject()
                         .put("action", stringProp("catalog, status, list, download/install, deploy, update, set_mirror, start/enable, stop/close/disable, run, or uninstall/remove."))
                         .put("distro_id", stringProp("Recommended id such as alpine-3-21, debian-bookworm, ubuntu-24-04, archlinux, fedora-latest, voidlinux, or opensuse-tumbleweed."))
@@ -2020,6 +2069,47 @@ class NativeToolCallingChatClient(
             }
             if (
                 listOf(
+                    "pkg install",
+                    "pkg upgrade",
+                    "pkg update",
+                    "pkg search",
+                    "linux_host_pkg",
+                    "host package",
+                    "host pkg",
+                    "termux package",
+                    "termux packages",
+                    "update proot",
+                    "upgrade proot",
+                    "install proot",
+                    "proot package",
+                    "refresh host linux",
+                    "update host linux",
+                    "upgrade host linux",
+                    "linux suite upgrade",
+                    "linux suite update",
+                    "embedded termux",
+                ).any { it in lower }
+            ) {
+                add("linux_host_pkg_tool")
+                add("terminal_tool")
+            }
+            // Ambiguous "update packages / update terminal" → both host pkg and guest sandbox tools.
+            if (
+                listOf(
+                    "update packages",
+                    "upgrade packages",
+                    "update terminal",
+                    "upgrade terminal",
+                    "package manager",
+                ).any { it in lower } &&
+                "linux_sandbox_tool" !in this &&
+                "linux_host_pkg_tool" !in this
+            ) {
+                add("linux_host_pkg_tool")
+                add("linux_sandbox_tool")
+            }
+            if (
+                listOf(
                     "android setting",
                     "system setting",
                     "phone setting",
@@ -2319,6 +2409,14 @@ class NativeToolCallingChatClient(
             if ("linux_sandbox_tool" in lower || "mcp_run_in_proot" in lower || "proot_distro_tool" in lower) {
                 add("linux_sandbox_tool")
                 add("mcp_run_in_proot")
+            }
+            if (
+                "linux_host_pkg_tool" in lower ||
+                "host_pkg_tool" in lower ||
+                "termux_pkg_tool" in lower ||
+                "hermes_pkg_tool" in lower
+            ) {
+                add("linux_host_pkg_tool")
             }
             if ("file_write_tool" in lower || "write_file" in lower) {
                 add("file_write_tool")
@@ -3648,7 +3746,7 @@ class NativeToolCallingChatClient(
                 pattern = """(?is)<tool_call(?:\s+[^>]*)?>(.*?)</tool_call>""",
             )
             private val xmlNamedToolCallBlockRegex = Regex(
-                pattern = """(?is)<(terminal_tool|mcp_send_terminal_input|linux_sandbox_tool|mcp_run_in_proot|file_write_tool|android_device_diagnostics_tool|android_automation_tool|android_ui_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool|memory_search|memory_add|memory_delete|memory_list)(?:\s+[^>]*)?>(.*?)</\1>""",
+                pattern = """(?is)<(terminal_tool|mcp_send_terminal_input|linux_host_pkg_tool|linux_sandbox_tool|mcp_run_in_proot|file_write_tool|android_device_diagnostics_tool|android_automation_tool|android_ui_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool|memory_search|memory_add|memory_delete|memory_list)(?:\s+[^>]*)?>(.*?)</\1>""",
             )
             private val xmlToolNameAttributeRegex = Regex(
                 pattern = """(?i)\b(?:name|tool|function)=["']([^"']+)["']""",
@@ -3858,7 +3956,8 @@ class NativeToolCallingChatClient(
                     "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
                     "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
                     "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports, Bluetooth nearby decision packets, and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion sensor decision packets, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal briefing decks, expanded signal card decks, per-card signal refresh plans/status indicators, signal proof audits and claim-boundary matrices, unified signal timelines, signal replay/export bundles and replay freshness/staleness audits, compact signal observation packets/top-card snapshots, evidence bundles, signal workflow handoff and next-action reports, signal permission and active-refresh runbooks, agent observation dashboards, Kai-style agent environment reports, MCP tool-server registry reports, objective coverage/gap and upgrade coverage reports, release validation and GitHub release readiness reports for Android CI, signed GitHub artifacts, SHA-256 checksums, F-Droid metadata and tagged Fastlane graphics, full upgrade objective audit reports, passive agent self-check/heartbeat reports, cross-signal awareness reports, MediaTek signal-stack reports that fuse SOC/backend policy with Wi-Fi/Bluetooth/radio/sensor evidence and claim boundaries, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports and backend launch advisors for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, radio decision packets, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
-                    "For downloadable Linux sandboxes, inspect terminal_tool results for downloadable_linux_sandboxes, recommended_linux_sandboxes, mirror_profiles, and desktop_environment_catalog; use linux_sandbox_tool action=deploy for one-click Debian setup, action=download, action=set_mirror with mirror_profile=china|aliyun|tsinghua, start, stop/close, update, run, or uninstall/remove rather than treating /system/bin as a full Linux distro. When the user asks to update the terminal or Linux packages, call linux_sandbox_tool action=update (or deploy first if no sandbox is installed) instead of claiming apt is unavailable. mcp_send_terminal_input aliases terminal_tool, and mcp_run_in_proot aliases linux_sandbox_tool action=run. Prefer Debian Bookworm, Ubuntu 24.04 LTS, or Alpine 3.21 before advanced rolling distros. " +
+                    "For the embedded host Termux suite (proot, proot-distro, curl, git, …), use linux_host_pkg_tool action=update|upgrade|install or terminal_tool with pkg update/upgrade/install — this refreshes packages from Termux mirrors without an APK update. " +
+                    "For downloadable Linux sandboxes, inspect terminal_tool results for downloadable_linux_sandboxes, recommended_linux_sandboxes, mirror_profiles, and desktop_environment_catalog; use linux_sandbox_tool action=deploy for one-click Debian setup, action=download, action=set_mirror with mirror_profile=china|aliyun|tsinghua, start, stop/close, update (guest apt/apk only), run, or uninstall/remove rather than treating /system/bin as a full Linux distro. When the user asks to update proot or host packages, call linux_host_pkg_tool; when they ask to update packages inside Debian/Alpine, call linux_sandbox_tool action=update (or deploy first if no sandbox is installed) instead of claiming apt is unavailable. mcp_send_terminal_input aliases terminal_tool, and mcp_run_in_proot aliases linux_sandbox_tool action=run. Prefer Debian Bookworm, Ubuntu 24.04 LTS, or Alpine 3.21 before advanced rolling distros. " +
                     "For MediaTek/non-Adreno signal questions, first call android_device_diagnostics_tool action=mediatek_signal_stack_report so SOC/backend policy, Wi-Fi, Bluetooth, radio, motion, RF coexistence, and claim boundaries stay together. " +
                     "For physical MediaTek/non-Adreno phone validation, call android_device_diagnostics_tool action=mediatek_device_validation_report before claiming live Wi-Fi, Bluetooth, motion, radio bridge, backend, GitHub release, checksum, F-Droid, or physical-device proof. " +
                     "For phone or release proof export packages and device-validation evidence export bundles, call android_device_diagnostics_tool action=device_validation_evidence_export_report so required artifacts, ADB/operator capture routes, GitHub release routes, F-Droid routes, and claim scopes stay together. " +
