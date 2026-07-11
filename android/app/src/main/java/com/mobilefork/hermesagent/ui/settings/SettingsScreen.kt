@@ -219,6 +219,12 @@ fun SettingsScreen(
                         McpSettingsSection(selectedProviderId = uiState.provider)
                     }
                     item {
+                        SkillsSection()
+                    }
+                    item {
+                        LocalMemorySection()
+                    }
+                    item {
                         ToolProfileCard()
                     }
                     if (uiState.status.isNotBlank()) {

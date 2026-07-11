@@ -42,9 +42,16 @@ object HermesHyMemoryBridge {
             .put("compatibility_alias", "hindsight_memory_tool")
             .put("hy_memory_package", "hy-memory")
             .put("hy_memory_package_version", HY_MEMORY_PACKAGE_VERSION)
+            // Honest product mode: on-device SharedPreferences companion, not full Chroma package.
             .put("provider_mode", "android_local_companion")
+            .put(
+                "implementation_note",
+                "Android uses a local durable-memory companion (retain/recall/list/delete). " +
+                    "Desktop hy-memory package path is separate; Settings → Local memory manages this store.",
+            )
             .put("default_agent_enabled", true)
             .put("compatible_tool_names", "hy_memory_tool,memory_search,memory_add,memory_delete,memory_list")
             .put("python_provider", "plugins.memory.hy_memory")
+            .put("user_visible_name", "Local memory (hy-memory companion)")
     }
 }

@@ -42,6 +42,7 @@ private val ENABLED_TOOLS = listOf(
     "skill_manage",
     "todo",
     "memory",
+    "hy_memory_tool (local durable memory)",
     "session_search",
     "kanban (human UI board)",
 )
