@@ -1,7 +1,6 @@
 package com.mobilefork.hermesagent.ui.chat
 
 import android.app.Application
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -22,7 +21,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chaquo.python.Python
 import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
+import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
+import com.mobilefork.hermesagent.data.SecureSecretsStore
 import com.mobilefork.hermesagent.device.HermesHyMemoryBridge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -41,25 +42,48 @@ class ChatReadinessViewModel(application: Application) : AndroidViewModel(applic
     private val _uiState = MutableStateFlow(ChatReadinessUiState())
     val uiState: StateFlow<ChatReadinessUiState> = _uiState.asStateFlow()
 
+    @Volatile
+    private var cachedSettings: AppSettings? = null
+    @Volatile
+    private var memoryCountCache: Int = -1
+    @Volatile
+    private var memoryCountPolls: Int = 0
+
     fun refresh() {
         viewModelScope.launch {
             val app = getApplication<Application>()
             // Lightweight status only — never cold-start backends from the strip poller.
             val snapshot = withContext(Dispatchers.Default) {
-                val settings = AppSettingsStore(app).load()
+                val settings = cachedSettings ?: AppSettingsStore(app).load().also { cachedSettings = it }
                 val local = OnDeviceBackendManager.currentStatus()
                 val pythonReady = Python.isStarted()
-                val memoryCount = runCatching {
-                    HermesHyMemoryBridge.statusJson(app).optInt("memory_count", 0)
-                }.getOrDefault(0)
+                memoryCountPolls += 1
+                if (memoryCountCache < 0 || memoryCountPolls % 4 == 0) {
+                    memoryCountCache = runCatching {
+                        HermesHyMemoryBridge.statusJson(app).optInt("memory_count", 0)
+                    }.getOrDefault(0)
+                }
+                val hasDirectCredential = runCatching {
+                    val secrets = SecureSecretsStore(app)
+                    val providerId = settings.provider.ifBlank { "openrouter" }
+                    secrets.loadApiKey(providerId).isNotBlank() ||
+                        secrets.loadApiKey("openrouter").isNotBlank() ||
+                        settings.baseUrl.isNotBlank()
+                }.getOrDefault(settings.provider.isNotBlank())
                 val backendLabel = when {
                     local.started -> "${local.backendKind.persistedValue} · ${local.modelName.ifBlank { "model" }}"
                     settings.onDeviceBackend != BackendKind.NONE.persistedValue ->
                         "${settings.onDeviceBackend}: ${local.statusMessage.ifBlank { "not started" }}"
                     else -> "remote ${settings.provider.ifBlank { "provider" }} · ${settings.model.ifBlank { "model" }}"
                 }
+                // Direct OpenAI-compatible providers can chat without Python gateway when a key is present.
+                val remoteReadyWithoutPython =
+                    settings.onDeviceBackend == BackendKind.NONE.persistedValue &&
+                        settings.provider.isNotBlank() &&
+                        hasDirectCredential
                 val ready = when {
                     local.started -> true
+                    remoteReadyWithoutPython -> true
                     settings.onDeviceBackend == BackendKind.NONE.persistedValue &&
                         settings.provider.isNotBlank() &&
                         pythonReady -> true
@@ -70,9 +94,15 @@ class ChatReadinessViewModel(application: Application) : AndroidViewModel(applic
                     append(" · ")
                     append(backendLabel)
                     append(" · Python ")
-                    append(if (pythonReady) "up" else "booting")
+                    append(
+                        when {
+                            pythonReady -> "up"
+                            remoteReadyWithoutPython -> "optional"
+                            else -> "booting"
+                        },
+                    )
                     append(" · memory ")
-                    append(memoryCount)
+                    append(memoryCountCache.coerceAtLeast(0))
                 }
                 ChatReadinessUiState(line = line, ready = ready)
             }
@@ -82,12 +112,24 @@ class ChatReadinessViewModel(application: Application) : AndroidViewModel(applic
 
     fun pollWhileBooting() {
         viewModelScope.launch {
-            repeat(20) {
+            // Faster first paints, then back off. Stop once stable ready.
+            val delaysMs = longArrayOf(0, 400, 800, 1_200, 2_000, 2_000, 3_000, 3_000, 4_000, 5_000)
+            for (delayMs in delaysMs) {
+                if (delayMs > 0) delay(delayMs)
                 refresh()
-                if (_uiState.value.ready && _uiState.value.line.contains("Python up")) return@launch
-                delay(2_000)
+                val state = _uiState.value
+                if (state.ready && (state.line.contains("Python up") || state.line.contains("Python optional"))) {
+                    // One more delayed refresh for memory count, then stop.
+                    delay(3_000)
+                    refresh()
+                    return@launch
+                }
             }
         }
+    }
+
+    fun invalidateSettingsCache() {
+        cachedSettings = null
     }
 }
 

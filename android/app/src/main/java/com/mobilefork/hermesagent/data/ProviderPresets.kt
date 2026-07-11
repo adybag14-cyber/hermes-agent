@@ -294,10 +294,39 @@ object ProviderPresets {
             ),
         ),
         ProviderPreset(
+            id = "xai-oauth",
+            label = "xAI Grok OAuth",
+            baseUrl = "https://api.x.ai/v1",
+            modelHint = "grok-3",
+            apiKeyUrl = "https://console.x.ai/",
+            fallbackSetupUrls = listOf(
+                "https://auth.x.ai/",
+                "https://console.x.ai/",
+                "https://docs.x.ai/docs/overview",
+            ),
+        ),
+        ProviderPreset(
+            id = "openai-codex",
+            label = "OpenAI Codex (device OAuth)",
+            baseUrl = "https://chatgpt.com/backend-api/codex",
+            modelHint = "gpt-5",
+            apiKeyUrl = "https://auth.openai.com/codex/device",
+            fallbackSetupUrls = listOf(
+                "https://auth.openai.com/codex/device",
+                "https://chatgpt.com/",
+                "https://platform.openai.com/api-keys",
+            ),
+        ),
+        ProviderPreset(
             id = "nous",
             label = "Nous",
-            baseUrl = "",
+            baseUrl = "https://inference-api.nousresearch.com/v1",
             modelHint = "",
+            apiKeyUrl = "https://portal.nousresearch.com/",
+            fallbackSetupUrls = listOf(
+                "https://portal.nousresearch.com/",
+                "https://portal.nousresearch.com/login",
+            ),
         ),
         ProviderPreset(
             id = "custom",
@@ -400,8 +429,10 @@ object ProviderPresets {
                 "ZAI_API_KEY",
                 "Z_AI_API_KEY",
             )
-            "xai", "xai-oauth", "grok" -> listOf("XAI_API_KEY", "GROK_API_KEY")
-            "nous" -> listOf("NOUS_API_KEY")
+            "xai", "grok" -> listOf("XAI_API_KEY", "GROK_API_KEY")
+            "xai-oauth" -> listOf("XAI_API_KEY", "XAI_ACCESS_TOKEN", "GROK_API_KEY")
+            "openai-codex" -> listOf("OPENAI_API_KEY", "CODEX_API_KEY", "CHATGPT_WEB_ACCESS_TOKEN")
+            "nous" -> listOf("NOUS_API_KEY", "NOUS_ACCESS_TOKEN")
             else -> listOf(providerId.trim().uppercase().replace('-', '_') + "_API_KEY")
         }.distinct()
     }

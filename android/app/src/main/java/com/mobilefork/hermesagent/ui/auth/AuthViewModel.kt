@@ -8,11 +8,15 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobilefork.hermesagent.auth.AuthRuntimeApplier
+import com.mobilefork.hermesagent.auth.CodexDeviceCodeAuth
 import com.mobilefork.hermesagent.auth.Corr3xtAuthClient
+import com.mobilefork.hermesagent.auth.NousDeviceCodeAuth
 import com.mobilefork.hermesagent.auth.OpenRouterLoopbackOAuthServer
 import com.mobilefork.hermesagent.auth.OpenRouterOAuthClient
 import com.mobilefork.hermesagent.auth.ProviderSetupProbeResult
 import com.mobilefork.hermesagent.auth.ProviderSetupUrlProbe
+import com.mobilefork.hermesagent.auth.XaiLoopbackOAuthServer
+import com.mobilefork.hermesagent.auth.XaiOAuthClient
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.AuthCatalog
 import com.mobilefork.hermesagent.data.AuthOption
@@ -29,10 +33,13 @@ import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.HermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.UUID
@@ -71,6 +78,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val authSessionStore = AuthSessionStore(application)
     private val providerSetupOpenIndexes = mutableMapOf<String, Int>()
     private val providerCredentialInputs = mutableMapOf<String, String>()
+    private var deviceCodePollJob: Job? = null
     private val signedOutStatuses by lazy {
         buildSet {
             add("Not signed in")
@@ -141,6 +149,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val option = AuthCatalog.find(methodId) ?: return false
         if (option.id == "openrouter") {
             return startOpenRouterOAuth(option)
+        }
+        if (option.id == "xai-oauth") {
+            return startXaiOAuth(option)
+        }
+        if (option.id == "chatgpt" || option.id == "codex") {
+            return startCodexDeviceCode(option)
+        }
+        if (option.id == "nous") {
+            return startNousDeviceCode(option)
         }
         if (!option.browserSignInSupported && option.scope == AuthScope.RuntimeProvider) {
             prepareApiKeySetup(methodId)
@@ -346,6 +363,198 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             title = title,
             forceChooser = true,
         )
+    }
+
+    private fun startXaiOAuth(option: AuthOption): Boolean {
+        viewModelScope.launch {
+            _uiState.update { it.copy(globalStatus = "Starting xAI Grok OAuth…") }
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    val discovery = XaiOAuthClient.discover()
+                    val start = XaiOAuthClient.createStartRequest(discovery = discovery)
+                    val loopback = XaiLoopbackOAuthServer.start(
+                        context = getApplication(),
+                        pending = start.pending,
+                        tokenEndpoint = discovery.tokenEndpoint,
+                        codeChallenge = start.codeChallenge,
+                    )
+                    if (!loopback.started) {
+                        return@runCatching "Unable to bind xAI callback on 127.0.0.1:56121 (${loopback.errorName}). " +
+                            "Close other apps using that port, or paste an xAI API key under xAI / Grok API key."
+                    }
+                    authSessionStore.savePendingRequest(start.pending)
+                    val launch = openAuthStartPage(start.authorizeUri, "xAI Grok OAuth")
+                    if (!launch.success) {
+                        loopback.handle?.stop()
+                        authSessionStore.clearPendingRequest()
+                        return@runCatching "Unable to open xAI authorize page (${launch.errorName}). URL: ${start.authorizeUri}"
+                    }
+                    "Opened xAI Grok OAuth in the in-app browser. Approve SuperGrok; " +
+                        "callback returns to 127.0.0.1:56121 and Hermes saves tokens securely."
+                }.getOrElse { error ->
+                    "xAI OAuth failed: ${error.message ?: error.javaClass.simpleName}"
+                }
+            }
+            _uiState.update {
+                it.copy(
+                    globalStatus = result,
+                    pendingMethodLabel = option.label,
+                    hasPendingRequest = result.contains("Opened xAI"),
+                    apiKeyFallbackMethodId = if (result.contains("Opened xAI")) "" else option.id,
+                    apiKeyFallbackLabel = if (result.contains("Opened xAI")) "" else option.label,
+                )
+            }
+            refresh()
+        }
+        return true
+    }
+
+    private fun startCodexDeviceCode(option: AuthOption): Boolean {
+        deviceCodePollJob?.cancel()
+        viewModelScope.launch {
+            _uiState.update { it.copy(globalStatus = "Requesting OpenAI device code…") }
+            val start = withContext(Dispatchers.IO) {
+                runCatching { CodexDeviceCodeAuth.requestDeviceCode() }
+            }.getOrElse { error ->
+                _uiState.update {
+                    it.copy(
+                        globalStatus = "OpenAI device code failed: ${error.message ?: error.javaClass.simpleName}. " +
+                            "You can still paste a ChatGPT/Codex token below.",
+                        apiKeyFallbackMethodId = option.id,
+                        apiKeyFallbackLabel = option.label,
+                    )
+                }
+                return@launch
+            }
+            openAuthStartPage(
+                Uri.parse(start.verificationUrl),
+                "OpenAI device login",
+            )
+            _uiState.update {
+                it.copy(
+                    globalStatus = "Enter code ${start.userCode} on the OpenAI page (opened in-app). Waiting for approval…",
+                    pendingMethodLabel = option.label,
+                    hasPendingRequest = true,
+                    apiKeyFallbackMethodId = "",
+                    apiKeyFallbackLabel = "",
+                )
+            }
+            deviceCodePollJob = viewModelScope.launch(Dispatchers.IO) {
+                val deadline = System.currentTimeMillis() + 15 * 60_000L
+                while (isActive && System.currentTimeMillis() < deadline) {
+                    delay(start.pollIntervalSeconds * 1000L)
+                    val session = runCatching {
+                        CodexDeviceCodeAuth.pollOnce(start, methodId = option.id)
+                    }.getOrElse { error ->
+                        withContext(Dispatchers.Main) {
+                            _uiState.update {
+                                it.copy(globalStatus = "OpenAI device poll error: ${error.message}")
+                            }
+                        }
+                        return@launch
+                    }
+                    if (session != null) {
+                        authSessionStore.saveSession(session)
+                        if (session.signedIn) {
+                            AuthRuntimeApplier.apply(getApplication(), session)
+                        }
+                        withContext(Dispatchers.Main) {
+                            _uiState.update {
+                                it.copy(
+                                    globalStatus = session.status,
+                                    hasPendingRequest = false,
+                                    pendingMethodLabel = "",
+                                )
+                            }
+                            refresh()
+                        }
+                        return@launch
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        it.copy(
+                            globalStatus = "OpenAI device sign-in timed out. Tap Sign in to try again.",
+                            hasPendingRequest = false,
+                        )
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    private fun startNousDeviceCode(option: AuthOption): Boolean {
+        deviceCodePollJob?.cancel()
+        viewModelScope.launch {
+            _uiState.update { it.copy(globalStatus = "Starting Nous Portal device code…") }
+            val start = withContext(Dispatchers.IO) {
+                runCatching { NousDeviceCodeAuth.requestDeviceCode() }
+            }.getOrElse { error ->
+                _uiState.update {
+                    it.copy(
+                        globalStatus = "Nous device code failed: ${error.message ?: error.javaClass.simpleName}",
+                        apiKeyFallbackMethodId = option.id,
+                        apiKeyFallbackLabel = option.label,
+                    )
+                }
+                return@launch
+            }
+            openAuthStartPage(
+                Uri.parse(start.verificationUriComplete),
+                "Nous Portal sign-in",
+            )
+            _uiState.update {
+                it.copy(
+                    globalStatus = "Nous code ${start.userCode} — approve in the in-app browser. Waiting…",
+                    pendingMethodLabel = option.label,
+                    hasPendingRequest = true,
+                )
+            }
+            deviceCodePollJob = viewModelScope.launch(Dispatchers.IO) {
+                val deadline = System.currentTimeMillis() + start.expiresIn * 1000L
+                val intervalMs = (start.intervalSeconds.coerceAtLeast(1) * 1000L)
+                while (isActive && System.currentTimeMillis() < deadline) {
+                    delay(intervalMs)
+                    val session = runCatching {
+                        NousDeviceCodeAuth.pollOnce(start)
+                    }.getOrElse { error ->
+                        withContext(Dispatchers.Main) {
+                            _uiState.update {
+                                it.copy(globalStatus = "Nous poll error: ${error.message}")
+                            }
+                        }
+                        return@launch
+                    }
+                    if (session != null) {
+                        authSessionStore.saveSession(session)
+                        if (session.signedIn) {
+                            AuthRuntimeApplier.apply(getApplication(), session)
+                        }
+                        withContext(Dispatchers.Main) {
+                            _uiState.update {
+                                it.copy(
+                                    globalStatus = session.status,
+                                    hasPendingRequest = false,
+                                    pendingMethodLabel = "",
+                                )
+                            }
+                            refresh()
+                        }
+                        return@launch
+                    }
+                }
+                withContext(Dispatchers.Main) {
+                    _uiState.update {
+                        it.copy(
+                            globalStatus = "Nous sign-in timed out. Tap Sign in to try again.",
+                            hasPendingRequest = false,
+                        )
+                    }
+                }
+            }
+        }
+        return true
     }
 
     fun copyPendingSignInUrl() {
