@@ -43,6 +43,7 @@ private val ENABLED_TOOLS = listOf(
     "todo",
     "memory",
     "session_search",
+    "kanban (human UI board)",
 )
 
 private val BLOCKED_TOOL_CLASSES = listOf(

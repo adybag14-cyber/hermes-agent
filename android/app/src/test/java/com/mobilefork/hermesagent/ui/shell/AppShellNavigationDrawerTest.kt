@@ -13,6 +13,7 @@ class AppShellNavigationDrawerTest {
         assertTrue(sections.contains(AppSection.Accounts))
         assertTrue(sections.contains(AppSection.NousPortal))
         assertTrue(sections.contains(AppSection.Device))
+        assertTrue(sections.contains(AppSection.Kanban))
         assertTrue(sections.contains(AppSection.Settings))
         assertEquals(sections, sections.distinct())
     }

@@ -74,6 +74,11 @@ object ChatCommandRouter {
                 ChatCommandResult(handled = true, feedback = strings.chatCommandOpenedDevice())
             }
 
+            "/kanban", "/board" -> {
+                host.navigateToSection(AppSection.Kanban)
+                ChatCommandResult(handled = true, feedback = "Opened Kanban board")
+            }
+
             "/portal" -> {
                 host.navigateToSection(AppSection.NousPortal)
                 ChatCommandResult(handled = true, feedback = strings.chatCommandOpenedPortal())

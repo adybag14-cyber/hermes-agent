@@ -175,6 +175,19 @@ class McpSettingsViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun quickAddStreamableHttpServer(url: String, authorizationHeader: String = "") {
+        val result = store.quickAddStreamableHttpPreset(url, authorizationHeader)
+        McpRuntimeBridge.reloadIntoRuntime(getApplication())
+        _uiState.update {
+            it.copy(
+                mode = McpConfigurationMode.SIMPLE,
+                configText = result.configText,
+                statusMessage = result.statusMessage,
+                lastReloadEpochMs = result.lastReloadEpochMs.takeIf { value -> value > 0L } ?: it.lastReloadEpochMs,
+            )
+        }
+    }
+
     fun updateProviderPromptCacheResend(enabled: Boolean, providerId: String = "") {
         val updated = store.saveProviderPromptCacheResendEnabled(enabled)
         _uiState.value = updated.toUiState(
@@ -206,6 +219,7 @@ fun McpSettingsSection(
         onQuickAddNativeTools = viewModel::quickAddNativeTools,
         onQuickAddStdioServer = viewModel::quickAddStdioServer,
         onQuickAddSseServer = viewModel::quickAddSseServer,
+        onQuickAddStreamableHttpServer = viewModel::quickAddStreamableHttpServer,
         onProviderPromptCacheResendChange = viewModel::updateProviderPromptCacheResend,
     )
 }
@@ -225,6 +239,7 @@ fun McpSettingsCard(
     onQuickAddNativeTools: () -> Unit,
     onQuickAddStdioServer: (String) -> Unit,
     onQuickAddSseServer: (String) -> Unit,
+    onQuickAddStreamableHttpServer: (String, String) -> Unit = { _, _ -> },
     onProviderPromptCacheResendChange: (Boolean, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -286,6 +301,7 @@ fun McpSettingsCard(
                     onQuickAddNativeTools = onQuickAddNativeTools,
                     onQuickAddStdioServer = onQuickAddStdioServer,
                     onQuickAddSseServer = onQuickAddSseServer,
+                    onQuickAddStreamableHttpServer = onQuickAddStreamableHttpServer,
                 )
             } else {
                 AdvancedMcpConfigEditor(
@@ -320,13 +336,17 @@ private fun SimpleMcpOnboardingControls(
     onQuickAddNativeTools: () -> Unit,
     onQuickAddStdioServer: (String) -> Unit,
     onQuickAddSseServer: (String) -> Unit,
+    onQuickAddStreamableHttpServer: (String, String) -> Unit = { _, _ -> },
 ) {
     val strings = LocalHermesStrings.current
     var addDialogVisible by rememberSaveable { mutableStateOf(false) }
     var sseDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var streamableDialogVisible by rememberSaveable { mutableStateOf(false) }
     var serverName by rememberSaveable { mutableStateOf("") }
     var serverNote by rememberSaveable { mutableStateOf("") }
     var sseUrl by rememberSaveable { mutableStateOf("") }
+    var streamableUrl by rememberSaveable { mutableStateOf("") }
+    var streamableAuth by rememberSaveable { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -357,6 +377,14 @@ private fun SimpleMcpOnboardingControls(
             ) {
                 McpButtonLabel(strings.mcpQuickAddSseServer())
             }
+        }
+        Button(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("McpQuickAddStreamableHttpButton"),
+            onClick = { streamableDialogVisible = true },
+        ) {
+            McpButtonLabel("Add Streamable HTTP (Gallery-style)")
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -493,6 +521,53 @@ private fun SimpleMcpOnboardingControls(
             },
             dismissButton = {
                 TextButton(onClick = { sseDialogVisible = false }) {
+                    Text(strings.mcpCancel())
+                }
+            },
+        )
+    }
+    if (streamableDialogVisible) {
+        AlertDialog(
+            onDismissRequest = { streamableDialogVisible = false },
+            title = { Text("Streamable HTTP MCP") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Edge Gallery-style remote MCP: HTTPS URL that speaks Streamable HTTP. Optional API token is sent as Authorization.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    OutlinedTextField(
+                        value = streamableUrl,
+                        onValueChange = { streamableUrl = it },
+                        label = { Text("MCP server URL") },
+                        singleLine = true,
+                        modifier = Modifier.testTag("McpStreamableHttpUrlInput"),
+                    )
+                    OutlinedTextField(
+                        value = streamableAuth,
+                        onValueChange = { streamableAuth = it },
+                        label = { Text("API token (optional)") },
+                        singleLine = true,
+                        modifier = Modifier.testTag("McpStreamableHttpAuthInput"),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = streamableUrl.isNotBlank(),
+                    onClick = {
+                        onQuickAddStreamableHttpServer(streamableUrl, streamableAuth)
+                        streamableUrl = ""
+                        streamableAuth = ""
+                        streamableDialogVisible = false
+                    },
+                    modifier = Modifier.testTag("McpStreamableHttpConfirmButton"),
+                ) {
+                    Text(strings.mcpAddAndTest())
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { streamableDialogVisible = false }) {
                     Text(strings.mcpCancel())
                 }
             },

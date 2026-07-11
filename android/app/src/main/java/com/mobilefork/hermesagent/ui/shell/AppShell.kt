@@ -58,6 +58,8 @@ import com.mobilefork.hermesagent.ui.chat.ChatScreen
 import com.mobilefork.hermesagent.ui.chat.ChatViewModel
 import com.mobilefork.hermesagent.ui.device.DeviceScreen
 import com.mobilefork.hermesagent.ui.device.DeviceViewModel
+import com.mobilefork.hermesagent.ui.kanban.KanbanScreen
+import com.mobilefork.hermesagent.ui.kanban.KanbanViewModel
 import com.mobilefork.hermesagent.ui.portal.NousPortalScreen
 import com.mobilefork.hermesagent.ui.portal.NousPortalViewModel
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
@@ -269,6 +271,16 @@ fun AppShellScreen(
                                 DeviceScreen(
                                     modifier = Modifier.fillMaxSize(),
                                     viewModel = deviceViewModel,
+                                    extraBottomSpacing = pageBottomClearance,
+                                    onContextActionsChanged = ::setActions,
+                                )
+                            }
+
+                            AppSection.Kanban -> {
+                                val kanbanViewModel: KanbanViewModel = viewModel()
+                                KanbanScreen(
+                                    modifier = Modifier.fillMaxSize(),
+                                    viewModel = kanbanViewModel,
                                     extraBottomSpacing = pageBottomClearance,
                                     onContextActionsChanged = ::setActions,
                                 )
