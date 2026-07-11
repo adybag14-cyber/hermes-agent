@@ -15,7 +15,11 @@ enum class AppLanguage(
     companion object {
         fun fromTag(tag: String?): AppLanguage {
             val normalized = tag.orEmpty().trim().lowercase()
-            return entries.firstOrNull { it.tag == normalized } ?: ENGLISH
+            if (normalized.isBlank()) return ENGLISH
+            // Exact match first, then prefix (zh-CN → zh, pt-BR → pt).
+            return entries.firstOrNull { it.tag == normalized }
+                ?: entries.firstOrNull { normalized == it.tag || normalized.startsWith("${it.tag}-") || normalized.startsWith("${it.tag}_") }
+                ?: ENGLISH
         }
     }
 }

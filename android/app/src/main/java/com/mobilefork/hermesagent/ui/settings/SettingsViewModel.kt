@@ -710,8 +710,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun selectLanguage(language: AppLanguage) {
         val normalized = language.tag
+        // Persist first so AppShell / other screens reading AppSettingsStore see the new tag.
         settingsStore.save(settingsStore.load().copy(languageTag = normalized))
-        val strings = com.mobilefork.hermesagent.ui.i18n.hermesStringsFor(language)
+        val strings = hermesStringsFor(language)
         _uiState.update {
             it.copy(
                 languageTag = normalized,

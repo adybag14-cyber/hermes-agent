@@ -205,13 +205,66 @@ data class AppSettings(
 }
 
 class AppSettingsStore(context: Context) {
-    private val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    @Volatile
-    private var cachedSettings: AppSettings? = null
+    private val preferences = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(): AppSettings {
-        cachedSettings?.let { return it }
-        val loaded = AppSettings(
+        // Process-wide cache so Settings, AppShell, Chat, and Auth share one source of truth.
+        // (Per-instance cache previously broke language switching: Settings saved, shell kept stale cache.)
+        processCache?.let { return it }
+        synchronized(cacheLock) {
+            processCache?.let { return it }
+            val loaded = readFromPreferences()
+            processCache = loaded
+            return loaded
+        }
+    }
+
+    fun save(settings: AppSettings) {
+        synchronized(cacheLock) {
+            processCache = settings
+            preferences.edit()
+                .putString(KEY_PROVIDER, settings.provider)
+                .putString(KEY_BASE_URL, settings.baseUrl)
+                .putString(KEY_MODEL, settings.model)
+                .putString(KEY_CORR3XT_BASE_URL, settings.corr3xtBaseUrl)
+                .putBoolean(KEY_DATA_SAVER_MODE, settings.dataSaverMode)
+                .putBoolean(KEY_OFFLINE_AIRPLANE_MODE, settings.offlineAirplaneMode)
+                .putBoolean(KEY_PORTAL_ENABLED, settings.portalEnabled)
+                .putString(KEY_ON_DEVICE_BACKEND, settings.onDeviceBackend)
+                .putString(KEY_LITERT_LM_SPECULATIVE_DECODING_MODE, settings.liteRtLmSpeculativeDecodingMode)
+                .putInt(KEY_LOCAL_MODEL_MAX_TOKENS, AppSettings.normalizeLocalModelMaxTokens(settings.localModelMaxTokens))
+                .putInt(KEY_LOCAL_MODEL_TOP_K, AppSettings.normalizeLocalModelTopK(settings.localModelTopK))
+                .putFloat(KEY_LOCAL_MODEL_TOP_P, AppSettings.normalizeLocalModelTopP(settings.localModelTopP))
+                .putFloat(
+                    KEY_LOCAL_MODEL_TEMPERATURE,
+                    AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
+                )
+                .putString(KEY_LOCAL_MODEL_ACCELERATOR, AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator))
+                .putBoolean(KEY_API_GENERATION_KNOBS_ENABLED, settings.apiGenerationKnobsEnabled)
+                .putString(KEY_LANGUAGE_TAG, settings.languageTag)
+                .putString(KEY_CUSTOM_SYSTEM_PROMPT, AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt))
+                .putString(KEY_CHAT_DISPLAY_MODE, settings.chatDisplayMode)
+                .putBoolean(KEY_KEYWORD_HIGHLIGHTING_ENABLED, settings.keywordHighlightingEnabled)
+                .putString(KEY_THEME_PRIMARY_HEX, settings.themePrimaryHex)
+                .putString(KEY_THEME_SECONDARY_HEX, settings.themeSecondaryHex)
+                .putString(KEY_THEME_BACKGROUND_HEX, settings.themeBackgroundHex)
+                .putString(KEY_THEME_SURFACE_HEX, settings.themeSurfaceHex)
+                .putString(KEY_THEME_SURFACE_VARIANT_HEX, settings.themeSurfaceVariantHex)
+                .putString(KEY_THEME_CARD_SHAPE, settings.themeCardShape)
+                // commit() so a subsequent load() from another store never races past apply().
+                .commit()
+        }
+    }
+
+    /** Force next load() to re-read disk (tests / rare recovery). */
+    fun invalidateCache() {
+        synchronized(cacheLock) {
+            processCache = null
+        }
+    }
+
+    private fun readFromPreferences(): AppSettings {
+        return AppSettings(
             provider = preferences.getString(KEY_PROVIDER, "openrouter").orEmpty(),
             baseUrl = preferences.getString(KEY_BASE_URL, "").orEmpty(),
             model = preferences.getString(KEY_MODEL, "").orEmpty(),
@@ -253,42 +306,6 @@ class AppSettingsStore(context: Context) {
             themeSurfaceVariantHex = preferences.getString(KEY_THEME_SURFACE_VARIANT_HEX, "#1B202B").orEmpty(),
             themeCardShape = preferences.getString(KEY_THEME_CARD_SHAPE, "rounded").orEmpty(),
         )
-        cachedSettings = loaded
-        return loaded
-    }
-
-    fun save(settings: AppSettings) {
-        cachedSettings = settings
-        preferences.edit()
-            .putString(KEY_PROVIDER, settings.provider)
-            .putString(KEY_BASE_URL, settings.baseUrl)
-            .putString(KEY_MODEL, settings.model)
-            .putString(KEY_CORR3XT_BASE_URL, settings.corr3xtBaseUrl)
-            .putBoolean(KEY_DATA_SAVER_MODE, settings.dataSaverMode)
-            .putBoolean(KEY_OFFLINE_AIRPLANE_MODE, settings.offlineAirplaneMode)
-            .putBoolean(KEY_PORTAL_ENABLED, settings.portalEnabled)
-            .putString(KEY_ON_DEVICE_BACKEND, settings.onDeviceBackend)
-            .putString(KEY_LITERT_LM_SPECULATIVE_DECODING_MODE, settings.liteRtLmSpeculativeDecodingMode)
-            .putInt(KEY_LOCAL_MODEL_MAX_TOKENS, AppSettings.normalizeLocalModelMaxTokens(settings.localModelMaxTokens))
-            .putInt(KEY_LOCAL_MODEL_TOP_K, AppSettings.normalizeLocalModelTopK(settings.localModelTopK))
-            .putFloat(KEY_LOCAL_MODEL_TOP_P, AppSettings.normalizeLocalModelTopP(settings.localModelTopP))
-            .putFloat(
-                KEY_LOCAL_MODEL_TEMPERATURE,
-                AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
-            )
-            .putString(KEY_LOCAL_MODEL_ACCELERATOR, AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator))
-            .putBoolean(KEY_API_GENERATION_KNOBS_ENABLED, settings.apiGenerationKnobsEnabled)
-            .putString(KEY_LANGUAGE_TAG, settings.languageTag)
-            .putString(KEY_CUSTOM_SYSTEM_PROMPT, AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt))
-            .putString(KEY_CHAT_DISPLAY_MODE, settings.chatDisplayMode)
-            .putBoolean(KEY_KEYWORD_HIGHLIGHTING_ENABLED, settings.keywordHighlightingEnabled)
-            .putString(KEY_THEME_PRIMARY_HEX, settings.themePrimaryHex)
-            .putString(KEY_THEME_SECONDARY_HEX, settings.themeSecondaryHex)
-            .putString(KEY_THEME_BACKGROUND_HEX, settings.themeBackgroundHex)
-            .putString(KEY_THEME_SURFACE_HEX, settings.themeSurfaceHex)
-            .putString(KEY_THEME_SURFACE_VARIANT_HEX, settings.themeSurfaceVariantHex)
-            .putString(KEY_THEME_CARD_SHAPE, settings.themeCardShape)
-            .apply()
     }
 
     fun exportBundleJson(): JSONObject = AppSettings.exportBundle(load())
@@ -301,6 +318,10 @@ class AppSettingsStore(context: Context) {
     }
 
     companion object {
+        private val cacheLock = Any()
+        @Volatile
+        private var processCache: AppSettings? = null
+
         private const val PREFS_NAME = "hermes_android_settings"
         private const val KEY_PROVIDER = "provider"
         private const val KEY_BASE_URL = "base_url"
