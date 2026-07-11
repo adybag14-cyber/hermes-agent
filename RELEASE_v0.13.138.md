@@ -17,6 +17,7 @@ Feature and integration release after systematic UX, hy-memory, and upstream-gap
 - Honest hy-memory metadata (android local companion, not fake package runtime claim).
 - Empty-chat Signal tools collapsed by default (nav safety).
 - Larger chat drawer hit target; Kanban waits for Python boot with retries.
+- Termux `proot` lock updated to **5.1.107.84** (mirrors retired 5.1.107.83; fixes Android Release asset download SHA/404).
 
 ## Validation
 

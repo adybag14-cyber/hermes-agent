@@ -23,6 +23,17 @@ class NativeToolCallingChatClientToolRoutingTest {
     }
 
     @Test
+    fun compactToolSpecsAlwaysIncludeHyMemoryToolEvenWithoutMemoryKeywords() {
+        val specs = client.compactToolSpecsFor("hello, what can you do?")
+        val names = toolNames(specs)
+
+        assertTrue(
+            "hy_memory_tool must always be registered for native agent memory companion",
+            names.contains("hy_memory_tool"),
+        )
+    }
+
+    @Test
     fun compactToolSpecsIncludeMemoryAliasesForRecallPrompt() {
         val specs = client.compactToolSpecsFor(
             "Use memory_search to recall what we stored about the alpine sandbox.",
