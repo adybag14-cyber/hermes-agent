@@ -9,6 +9,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobilefork.hermesagent.auth.AuthRuntimeApplier
 import com.mobilefork.hermesagent.auth.CodexDeviceCodeAuth
+import com.mobilefork.hermesagent.auth.CodexLoopbackOAuthServer
+import com.mobilefork.hermesagent.auth.CodexOAuthClient
 import com.mobilefork.hermesagent.auth.Corr3xtAuthClient
 import com.mobilefork.hermesagent.auth.NousDeviceCodeAuth
 import com.mobilefork.hermesagent.auth.OpenRouterLoopbackOAuthServer
@@ -154,7 +156,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             return startXaiOAuth(option)
         }
         if (option.id == "chatgpt" || option.id == "codex") {
-            return startCodexDeviceCode(option)
+            // Primary path = openai/codex browser OAuth (localhost:1455); device code is fallback.
+            return startCodexBrowserOAuth(option)
         }
         if (option.id == "nous") {
             return startNousDeviceCode(option)
@@ -409,7 +412,86 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         return true
     }
 
-    private fun startCodexDeviceCode(option: AuthOption): Boolean {
+    /**
+     * Primary Codex path from openai/codex: PKCE browser OAuth with
+     * http://localhost:1455/auth/callback (fallback port 1457).
+     * Falls back to device-code if loopback cannot bind.
+     */
+    private fun startCodexBrowserOAuth(option: AuthOption): Boolean {
+        viewModelScope.launch {
+            _uiState.update { it.copy(globalStatus = "Starting ChatGPT/Codex OAuth (openai/codex path)…") }
+            val browserResult = withContext(Dispatchers.IO) {
+                runCatching {
+                    val start = CodexOAuthClient.createBrowserStartRequest(methodId = option.id)
+                    val loopback = CodexLoopbackOAuthServer.start(
+                        context = getApplication(),
+                        pending = start.pending,
+                        preferredPort = start.preferredPort,
+                    )
+                    if (!loopback.started) {
+                        return@runCatching null to
+                            "loopback_unavailable:${loopback.errorName.ifBlank { "bind" }}"
+                    }
+                    // Rebuild authorize URL if fallback port was used (1457).
+                    val authorizeUri = if (loopback.actualPort != start.preferredPort) {
+                        CodexOAuthClient.createBrowserStartRequest(
+                            methodId = option.id,
+                            state = start.pending.state,
+                            verifier = start.pending.codeVerifier,
+                            port = loopback.actualPort,
+                        ).authorizeUri
+                    } else {
+                        start.authorizeUri
+                    }
+                    // Re-save pending with matching verifier/state for the actual redirect port
+                    val pendingForPort = if (loopback.actualPort != start.preferredPort) {
+                        CodexOAuthClient.createBrowserStartRequest(
+                            methodId = option.id,
+                            state = start.pending.state,
+                            verifier = start.pending.codeVerifier,
+                            port = loopback.actualPort,
+                        ).pending
+                    } else {
+                        start.pending
+                    }
+                    authSessionStore.savePendingRequest(pendingForPort)
+                    val launch = openAuthStartPage(authorizeUri, "ChatGPT / Codex sign-in")
+                    if (!launch.success) {
+                        loopback.handle?.stop()
+                        authSessionStore.clearPendingRequest()
+                        return@runCatching null to "webview:${launch.errorName}"
+                    }
+                    true to
+                        "Opened ChatGPT/Codex OAuth in the in-app browser (openai/codex authorize). " +
+                        "Approve access; callback returns to localhost:${loopback.actualPort}/auth/callback."
+                }.getOrElse { error ->
+                    null to (error.message ?: error.javaClass.simpleName)
+                }
+            }
+            if (browserResult.first == true) {
+                _uiState.update {
+                    it.copy(
+                        globalStatus = browserResult.second,
+                        pendingMethodLabel = option.label,
+                        hasPendingRequest = true,
+                        apiKeyFallbackMethodId = "",
+                        apiKeyFallbackLabel = "",
+                    )
+                }
+                return@launch
+            }
+            // Fallback: official device-code path
+            _uiState.update {
+                it.copy(
+                    globalStatus = "Browser OAuth unavailable (${browserResult.second}); trying device code…",
+                )
+            }
+            startCodexDeviceCodeInternal(option)
+        }
+        return true
+    }
+
+    private fun startCodexDeviceCodeInternal(option: AuthOption) {
         deviceCodePollJob?.cancel()
         viewModelScope.launch {
             _uiState.update { it.copy(globalStatus = "Requesting OpenAI device code…") }
@@ -432,7 +514,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             )
             _uiState.update {
                 it.copy(
-                    globalStatus = "Enter code ${start.userCode} on the OpenAI page (opened in-app). Waiting for approval…",
+                    globalStatus = "Enter code ${start.userCode} at ${start.verificationUrl} " +
+                        "(opened in-app). Waiting for approval…",
                     pendingMethodLabel = option.label,
                     hasPendingRequest = true,
                     apiKeyFallbackMethodId = "",
@@ -481,7 +564,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
-        return true
     }
 
     private fun startNousDeviceCode(option: AuthOption): Boolean {
