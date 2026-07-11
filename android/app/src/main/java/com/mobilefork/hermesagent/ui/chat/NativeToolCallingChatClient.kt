@@ -1590,13 +1590,12 @@ class NativeToolCallingChatClient(
 
     private fun systemMessage(toolsEnabled: Boolean, relevantMemoryContext: String = ""): JSONObject {
         val customSystemPrompt = AppSettingsStore(appContext).load().customSystemPrompt
-        val promotedMemoryContext = if (toolsEnabled) {
+        // Always inject promoted memories — durable recall must not depend on tool selection.
+        val promotedMemoryContext = runCatching {
             JSONObject(HermesHyMemoryBridge.performActionJson(appContext, "promoted_context"))
                 .optString("system_prompt_context")
                 .takeIf { it.isNotBlank() }
-        } else {
-            null
-        }
+        }.getOrNull()
         val content = buildSystemPromptContent(
             toolsEnabled = toolsEnabled,
             customSystemPrompt = customSystemPrompt,
@@ -1929,6 +1928,10 @@ class NativeToolCallingChatClient(
     internal fun compactToolSpecsFor(userText: String): JSONArray {
         val selectedNames = explicitlyRequestedToolNames(userText)
             .ifEmpty { inferredToolNames(userText) }
+            .toMutableSet()
+        // Always expose local memory management so the agent can retain/recall without
+        // waiting for memory-related keywords (hy-memory companion integration).
+        selectedNames.add("hy_memory_tool")
         if (selectedNames.isEmpty()) {
             return JSONArray()
         }

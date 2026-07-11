@@ -164,6 +164,7 @@ fun DeviceScreen(
                     onUninstall = { viewModel.performSandboxAction("uninstall") },
                 )
                 OperatorStandbyCard(uiState = uiState)
+                AutomationsCard()
                 ConnectivityCard(
                     uiState = uiState,
                     onOpenWifi = { viewModel.performSystemAction("open_wifi_panel") },

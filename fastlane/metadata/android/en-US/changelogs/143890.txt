@@ -1,0 +1,5 @@
+Hermes Agent Fork 0.13.138
+
+- Kanban board UI, Skills browser, phone automations list.
+- Local hy-memory settings, chat readiness strip, Streamable HTTP MCP.
+- Always-on memory tools/context; drawer hit target and empty-state polish.

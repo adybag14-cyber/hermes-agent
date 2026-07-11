@@ -56,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -458,6 +459,9 @@ fun ChatScreen(
                             null
                         },
                     )
+                if (!tinyRuntimeViewport) {
+                    ChatReadinessStrip(modifier = Modifier.fillMaxWidth())
+                }
                 if (uiState.error.isNotBlank()) {
                     StatusBanner(text = uiState.error, isError = true)
                 }
@@ -924,6 +928,7 @@ private fun EmptyChatHint(
     onSignalQuickAction: (SignalIntelligenceQuickAction) -> Unit,
 ) {
     val strings = LocalHermesStrings.current
+    var showSignalTools by rememberSaveable { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -948,10 +953,19 @@ private fun EmptyChatHint(
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
-            SignalIntelligenceQuickActionGrid(
-                enabled = true,
-                onSignalQuickAction = onSignalQuickAction,
-            )
+            // Collapsed by default — large signal tiles were easy to hit while targeting the drawer.
+            TextButton(
+                onClick = { showSignalTools = !showSignalTools },
+                modifier = Modifier.testTag("HermesSignalToolsToggle"),
+            ) {
+                Text(if (showSignalTools) "Hide signal tools" else "Show signal tools")
+            }
+            if (showSignalTools) {
+                SignalIntelligenceQuickActionGrid(
+                    enabled = true,
+                    onSignalQuickAction = onSignalQuickAction,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
