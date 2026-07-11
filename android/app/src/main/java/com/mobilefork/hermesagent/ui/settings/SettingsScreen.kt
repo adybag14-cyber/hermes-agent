@@ -48,6 +48,7 @@ import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
+import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
 import java.util.Locale
 
@@ -60,7 +61,9 @@ fun SettingsScreen(
     onSettingsChanged: () -> Unit = {},
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val strings = LocalHermesStrings.current
+    // Settings content follows the selected language immediately (source of truth = uiState),
+    // so the page retranslates even before shell CompositionLocal catches up.
+    val strings = hermesStringsFor(AppLanguage.fromTag(uiState.languageTag))
     val selectedPreset = ProviderPresets.find(uiState.provider)
     val selectedProviderLabel = strings.providerDisplayLabel(
         uiState.provider,
@@ -1167,8 +1170,11 @@ private fun LanguagePickerCard(
     onSelectLanguage: (AppLanguage) -> Unit,
     strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings,
 ) {
+    val selected = AppLanguage.fromTag(currentLanguageTag)
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("SettingsLanguagePicker"),
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 2.dp,
         shape = MaterialTheme.shapes.medium,
@@ -1181,6 +1187,12 @@ private fun LanguagePickerCard(
         ) {
             Text(strings.appLanguageTitle.ifBlank { "App language" }, style = MaterialTheme.typography.titleMedium)
             Text(strings.appLanguageDescription, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = "${selected.flag} ${selected.nativeLabel}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.testTag("SettingsLanguageCurrent"),
+            )
             // Supported flags: 🇬🇧 🇨🇳 🇪🇸 🇩🇪 🇵🇹 🇫🇷
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -1188,11 +1200,30 @@ private fun LanguagePickerCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 AppLanguage.entries.forEach { language ->
-                    Button(
-                        onClick = { onSelectLanguage(language) },
-                        enabled = currentLanguageTag != language.tag,
-                    ) {
-                        Text("${language.flag} ${language.nativeLabel}")
+                    val isSelected = selected.tag == language.tag
+                    if (isSelected) {
+                        Button(
+                            onClick = { /* already active */ },
+                            enabled = true,
+                            modifier = Modifier
+                                .testTag("SettingsLanguage-${language.tag}")
+                                .semantics {
+                                    contentDescription = "Selected language ${language.nativeLabel}"
+                                },
+                        ) {
+                            Text("✓ ${language.flag} ${language.nativeLabel}")
+                        }
+                    } else {
+                        androidx.compose.material3.OutlinedButton(
+                            onClick = { onSelectLanguage(language) },
+                            modifier = Modifier
+                                .testTag("SettingsLanguage-${language.tag}")
+                                .semantics {
+                                    contentDescription = "Switch language to ${language.nativeLabel}"
+                                },
+                        ) {
+                            Text("${language.flag} ${language.nativeLabel}")
+                        }
                     }
                 }
             }

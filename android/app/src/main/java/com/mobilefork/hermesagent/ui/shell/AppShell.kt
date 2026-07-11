@@ -121,10 +121,20 @@ fun AppShellScreen(
     val context = LocalContext.current.applicationContext
     val appSettingsStore = remember(context) { AppSettingsStore(context) }
     var shellSettings by remember { mutableStateOf(loadShellSettingsState(appSettingsStore)) }
-    val strings = hermesStringsFor(AppLanguage.fromTag(shellSettings.languageTag))
+    // Keyed by languageTag so CompositionLocal always refreshes when language changes.
+    val strings = remember(shellSettings.languageTag) {
+        hermesStringsFor(AppLanguage.fromTag(shellSettings.languageTag))
+    }
 
     fun refreshShellSettings() {
         shellSettings = loadShellSettingsState(appSettingsStore)
+    }
+
+    // Re-sync shell language/theme when returning to Settings or after external saves.
+    LaunchedEffect(currentSection) {
+        if (currentSection == AppSection.Settings) {
+            refreshShellSettings()
+        }
     }
 
     fun updateChatDisplayMode(value: String) {
