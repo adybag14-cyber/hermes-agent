@@ -302,11 +302,55 @@ class McpSettingsStore(context: Context) {
         url: String,
         nowEpochMs: Long = System.currentTimeMillis(),
     ): McpConfigActionResult {
+        return quickAddHttpTransportPreset(
+            url = url,
+            transport = "sse",
+            description = "Quick SSE MCP onboarding",
+            emptyMessage = "MCP SSE URL is empty. Enter an http(s) endpoint before adding.",
+            nowEpochMs = nowEpochMs,
+        )
+    }
+
+    /**
+     * Gallery-style Streamable HTTP MCP onboarding (URL + optional Authorization header).
+     * Maps to Hermes runtime transport `streamable_http` via [hermes_android.mcp_bridge].
+     */
+    fun quickAddStreamableHttpPreset(
+        url: String,
+        authorizationHeader: String = "",
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): McpConfigActionResult {
+        val headers = linkedMapOf<String, String>()
+        val auth = authorizationHeader.trim()
+        if (auth.isNotBlank()) {
+            headers["Authorization"] = if (auth.startsWith("Bearer ", ignoreCase = true) || auth.contains(' ')) {
+                auth
+            } else {
+                "Bearer $auth"
+            }
+        }
+        return quickAddHttpTransportPreset(
+            url = url,
+            transport = "streamable_http",
+            description = "Quick Streamable HTTP MCP onboarding",
+            emptyMessage = "MCP Streamable HTTP URL is empty. Enter an http(s) endpoint before adding.",
+            headers = headers,
+            nowEpochMs = nowEpochMs,
+        )
+    }
+
+    private fun quickAddHttpTransportPreset(
+        url: String,
+        transport: String,
+        description: String,
+        emptyMessage: String,
+        headers: Map<String, String> = emptyMap(),
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ): McpConfigActionResult {
         val normalizedUrl = url.trim()
         if (normalizedUrl.isBlank()) {
-            val status = "MCP SSE URL is empty. Enter an http(s) endpoint before adding."
-            saveStatus(status)
-            return McpConfigActionResult(false, status, readConfigText())
+            saveStatus(emptyMessage)
+            return McpConfigActionResult(false, emptyMessage, readConfigText())
         }
         val serverKey = normalizedUrl.toMcpServerKey()
         val configJson = runCatching { JSONObject(readConfigText()) }.getOrElse {
@@ -315,21 +359,24 @@ class McpSettingsStore(context: Context) {
         val servers = configJson.optJSONObject("mcpServers") ?: JSONObject().also {
             configJson.put("mcpServers", it)
         }
-        servers.put(
-            serverKey,
-            JSONObject()
-                .put("transport", "sse")
-                .put("url", normalizedUrl)
-                .put("enabled", true)
-                .put("autoStart", true)
-                .put("description", "Quick SSE MCP onboarding")
-                .put(
-                    "healthCheck",
-                    JSONObject()
-                        .put("status", "pending")
-                        .put("createdEpochMs", nowEpochMs),
-                ),
-        )
+        val entry = JSONObject()
+            .put("transport", transport)
+            .put("url", normalizedUrl)
+            .put("enabled", true)
+            .put("autoStart", true)
+            .put("description", description)
+            .put(
+                "healthCheck",
+                JSONObject()
+                    .put("status", "pending")
+                    .put("createdEpochMs", nowEpochMs),
+            )
+        if (headers.isNotEmpty()) {
+            val headersJson = JSONObject()
+            headers.forEach { (key, value) -> headersJson.put(key, value) }
+            entry.put("headers", headersJson)
+        }
+        servers.put(serverKey, entry)
         writeConfigText(configJson.toString(2))
         preferences.edit()
             .putString(KEY_MODE, McpConfigurationMode.SIMPLE.persistedValue)

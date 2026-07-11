@@ -111,6 +111,7 @@ internal fun chatDrawerNavigationSections(): List<AppSection> = listOf(
     AppSection.Accounts,
     AppSection.NousPortal,
     AppSection.Device,
+    AppSection.Kanban,
     AppSection.Settings,
 )
 
@@ -755,8 +756,9 @@ private fun ChatHeaderDrawerButton(
     val strings = LocalHermesStrings.current
     IconButton(
         onClick = onOpenNavigationMenu,
+        // 48dp minimum touch target — emulator sweeps showed 40dp was easy to miss.
         modifier = Modifier
-            .size(40.dp)
+            .size(48.dp)
             .semantics { contentDescription = strings.openNavigationMenu() }
             .testTag("HermesChatDrawerButton"),
     ) {
