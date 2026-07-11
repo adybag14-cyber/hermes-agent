@@ -255,40 +255,61 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun startOpenRouterOAuth(option: AuthOption): Boolean {
         val state = UUID.randomUUID().toString()
+        // Prefer custom-scheme callback so in-app WebView can return to Hermes without localhost.
+        val customSchemeStart = OpenRouterOAuthClient.createStartRequest(state = state)
+        authSessionStore.savePendingRequest(customSchemeStart.pendingRequest)
+        val inApp = openAuthStartPage(customSchemeStart.startUri, "OpenRouter sign-in")
+        if (inApp.success) {
+            _uiState.update {
+                it.copy(
+                    globalStatus = "Opened OpenRouter sign-in in the in-app browser. Approve Hermes; the app will receive hermesagent://auth/callback and save the key securely.",
+                    pendingMethodLabel = option.label,
+                    hasPendingRequest = true,
+                    pendingStartUrl = customSchemeStart.pendingRequest.startUrl,
+                    apiKeyFallbackMethodId = "",
+                    apiKeyFallbackLabel = "",
+                )
+            }
+            return true
+        }
+
+        // Fallback: local loopback + external browser (older devices / WebView missing).
         val callbackUrl = OpenRouterLoopbackOAuthServer.callbackUrlForState(state)
-        val startRequest = OpenRouterOAuthClient.createStartRequest(
+        val loopbackStart = OpenRouterOAuthClient.createStartRequest(
             state = state,
             callbackUrl = callbackUrl,
         )
         val loopback = OpenRouterLoopbackOAuthServer.start(
             context = getApplication(),
-            pending = startRequest.pendingRequest,
+            pending = loopbackStart.pendingRequest,
         )
         if (!loopback.started) {
             authSessionStore.clearPendingRequest()
-            copyAuthStartUrl(startRequest.pendingRequest.startUrl, updateStatus = false)
+            copyAuthStartUrl(customSchemeStart.pendingRequest.startUrl, updateStatus = false)
             _uiState.update {
                 it.copy(
-                    globalStatus = "Unable to start local OpenRouter callback (${loopback.errorName.ifBlank { "loopback_error" }}); copied the sign-in URL. You can still paste an OpenRouter API key below.",
-                    pendingStartUrl = startRequest.pendingRequest.startUrl,
+                    globalStatus = "Unable to open OpenRouter sign-in (${inApp.errorName.ifBlank { "webview_error" }}); copied the URL. You can paste an OpenRouter API key below.",
+                    pendingStartUrl = customSchemeStart.pendingRequest.startUrl,
                     apiKeyFallbackMethodId = option.id,
                     apiKeyFallbackLabel = option.label,
                 )
             }
             return true
         }
-        authSessionStore.savePendingRequest(startRequest.pendingRequest)
-        val launch = openAuthStartPage(
-            uri = startRequest.startUri,
+        authSessionStore.savePendingRequest(loopbackStart.pendingRequest)
+        val external = HermesExternalBrowserLauncher.open(
+            context = getApplication(),
+            uri = loopbackStart.startUri,
             title = "Open OpenRouter sign-in",
+            forceChooser = true,
         )
-        if (launch.success) {
+        if (external.success) {
             _uiState.update {
                 it.copy(
-                    globalStatus = "Opened OpenRouter sign-in in your browser. Approve Hermes; the local callback will save the API key securely. Use Copy sign-in URL if the page stalls.",
+                    globalStatus = "Opened OpenRouter sign-in in an external browser (WebView unavailable). Approve Hermes; the local callback will save the API key.",
                     pendingMethodLabel = option.label,
                     hasPendingRequest = true,
-                    pendingStartUrl = startRequest.pendingRequest.startUrl,
+                    pendingStartUrl = loopbackStart.pendingRequest.startUrl,
                     apiKeyFallbackMethodId = "",
                     apiKeyFallbackLabel = "",
                 )
@@ -296,11 +317,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         } else {
             loopback.handle?.stop()
             authSessionStore.clearPendingRequest()
-            copyAuthStartUrl(startRequest.pendingRequest.startUrl, updateStatus = false)
+            copyAuthStartUrl(loopbackStart.pendingRequest.startUrl, updateStatus = false)
             _uiState.update {
                 it.copy(
-                    globalStatus = "Unable to open OpenRouter sign-in (${launch.errorName.ifBlank { "browser_error" }}); copied the sign-in URL. You can still paste an OpenRouter API key below.",
-                    pendingStartUrl = startRequest.pendingRequest.startUrl,
+                    globalStatus = "Unable to open OpenRouter sign-in; copied the URL. Paste an OpenRouter API key below if needed.",
+                    pendingStartUrl = loopbackStart.pendingRequest.startUrl,
                     apiKeyFallbackMethodId = option.id,
                     apiKeyFallbackLabel = option.label,
                 )
@@ -309,10 +330,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         return true
     }
 
-    private fun openAuthStartPage(
-        uri: Uri,
-        title: String,
-    ): BrowserLaunchResult {
+    private fun openAuthStartPage(uri: Uri, title: String): BrowserLaunchResult {
+        // Always prefer in-app WebView so OAuth can intercept hermesagent://auth/callback.
+        val inApp = HermesProviderSetupWebActivity.openInApp(
+            context = getApplication(),
+            uri = uri,
+            title = title,
+        )
+        if (inApp.success) {
+            return inApp
+        }
         return HermesExternalBrowserLauncher.open(
             context = getApplication(),
             uri = uri,
@@ -427,11 +454,19 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(globalStatus = "Provider setup URL must start with https:// or http://") }
             return
         }
-        val launch = HermesProviderSetupWebActivity.open(
+        // Prefer in-app WebView so subscription/login pages can return via hermesagent://auth/callback.
+        val launch = HermesProviderSetupWebActivity.openInApp(
             context = getApplication(),
             uri = uri,
-            title = "Open ${option.label} setup page",
-        )
+            title = "${option.label} setup",
+        ).let { inApp ->
+            if (inApp.success) inApp
+            else HermesProviderSetupWebActivity.open(
+                context = getApplication(),
+                uri = uri,
+                title = "Open ${option.label} setup page",
+            )
+        }
         if (launch.success) {
             copyProviderSetupUrl(methodId, updateStatus = false)
             _uiState.update {

@@ -127,6 +127,7 @@ object ProviderPresets {
             baseUrl = "https://chatgpt.com/backend-api/f",
             modelHint = "gpt-5-thinking",
             apiKeyUrl = "https://chatgpt.com/",
+            // Prefer login/console pages for in-app WebView subscription flows.
             fallbackSetupUrls = listOf("https://chatgpt.com/#settings"),
         ),
         ProviderPreset(
@@ -250,7 +251,11 @@ object ProviderPresets {
             baseUrl = "https://api.z.ai/api/paas/v4",
             modelHint = "glm-5.1",
             apiKeyUrl = "https://z.ai/manage-apikey/apikey-list",
-            fallbackSetupUrls = listOf("https://docs.z.ai/guides/"),
+            fallbackSetupUrls = listOf(
+                "https://z.ai/manage-apikey/apikey-list",
+                "https://docs.z.ai/guides/",
+                "https://open.bigmodel.cn/usercenter/apikeys",
+            ),
         ),
         ProviderPreset(
             id = "zai-coding-plan",
@@ -261,6 +266,31 @@ object ProviderPresets {
             fallbackSetupUrls = listOf(
                 "https://docs.z.ai/devpack/quick-start",
                 "https://docs.z.ai/guides/",
+            ),
+        ),
+        ProviderPreset(
+            id = "bigmodel",
+            label = "BigModel CN / 智谱",
+            baseUrl = "https://open.bigmodel.cn/api/paas/v4",
+            modelHint = "glm-4-plus",
+            apiKeyUrl = "https://open.bigmodel.cn/usercenter/apikeys",
+            fallbackSetupUrls = listOf(
+                "https://open.bigmodel.cn/usercenter/apikeys",
+                "https://open.bigmodel.cn/login",
+                "https://docs.bigmodel.cn/",
+                "https://z.ai/manage-apikey/apikey-list",
+            ),
+        ),
+        ProviderPreset(
+            id = "xai",
+            label = "xAI / Grok",
+            baseUrl = "https://api.x.ai/v1",
+            modelHint = "grok-3",
+            apiKeyUrl = "https://console.x.ai/",
+            fallbackSetupUrls = listOf(
+                "https://console.x.ai/",
+                "https://docs.x.ai/docs/overview",
+                "https://accounts.x.ai/",
             ),
         ),
         ProviderPreset(
@@ -362,7 +392,7 @@ object ProviderPresets {
                 "DASHSCOPE_API_KEY",
             )
             "qwen-oauth" -> listOf("QWEN_ACCESS_TOKEN", "QWEN_API_KEY", "DASHSCOPE_API_KEY")
-            "zai" -> listOf("GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY")
+            "zai", "bigmodel", "zhipu" -> listOf("GLM_API_KEY", "ZAI_API_KEY", "Z_AI_API_KEY", "BIGMODEL_API_KEY")
             "zai-coding-plan" -> listOf(
                 "GLM_CODING_PLAN_API_KEY",
                 "ZAI_CODING_PLAN_API_KEY",
@@ -370,6 +400,7 @@ object ProviderPresets {
                 "ZAI_API_KEY",
                 "Z_AI_API_KEY",
             )
+            "xai", "xai-oauth", "grok" -> listOf("XAI_API_KEY", "GROK_API_KEY")
             "nous" -> listOf("NOUS_API_KEY")
             else -> listOf(providerId.trim().uppercase().replace('-', '_') + "_API_KEY")
         }.distinct()

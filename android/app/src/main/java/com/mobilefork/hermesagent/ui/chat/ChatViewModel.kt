@@ -48,6 +48,9 @@ private val DIRECT_OPENAI_COMPATIBLE_PROVIDERS = setOf(
     "qwen-oauth",
     "zai",
     "zai-coding-plan",
+    "bigmodel",
+    "xai",
+    "xai-oauth",
     "groq",
     "mistral",
     "perplexity",
@@ -57,11 +60,40 @@ private val DIRECT_OPENAI_COMPATIBLE_PROVIDERS = setOf(
     "deepinfra",
 )
 private val RESPONSES_API_PROVIDERS = setOf("openai", "codex")
+private const val STREAM_PERSIST_INTERVAL_MS = 400L
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val conversationStore = ConversationStore(application)
-    private val _uiState = MutableStateFlow(buildState())
+    private val _uiState = MutableStateFlow(
+        ChatUiState(
+            activeConversationId = "",
+            activeConversationTitle = "Chat",
+            status = "Loading…",
+        ),
+    )
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
+
+    @Volatile
+    private var streamPersistBuffer: StringBuilder? = null
+    @Volatile
+    private var streamPersistSessionId: String = ""
+    @Volatile
+    private var streamPersistMessageId: String = ""
+    @Volatile
+    private var lastStreamPersistMs: Long = 0L
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            val next = buildState()
+            _uiState.update {
+                next.copy(
+                    input = it.input,
+                    attachments = it.attachments,
+                    isSending = it.isSending,
+                )
+            }
+        }
+    }
 
     fun updateInput(value: String) {
         _uiState.update { it.copy(input = value) }
@@ -454,20 +486,32 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             )
             runCatching {
                 val onDelta: (String) -> Unit = { delta ->
-                    val persistedPrefix = conversationStore.loadConversation(sessionId)
-                        ?.messages
-                        ?.firstOrNull { it.id == assistantMessageId }
-                        ?.content
-                        .orEmpty()
-                    conversationStore.updateMessageContent(
-                        sessionId = sessionId,
-                        messageId = assistantMessageId,
-                        newContent = persistedPrefix + delta,
-                    )
+                    // Keep stream buffer in memory; throttle disk writes to avoid jank.
+                    if (streamPersistSessionId != sessionId || streamPersistMessageId != assistantMessageId) {
+                        streamPersistSessionId = sessionId
+                        streamPersistMessageId = assistantMessageId
+                        streamPersistBuffer = StringBuilder(
+                            conversationStore.loadConversation(sessionId)
+                                ?.messages
+                                ?.firstOrNull { it.id == assistantMessageId }
+                                ?.content
+                                .orEmpty(),
+                        )
+                    }
+                    streamPersistBuffer?.append(delta)
+                    val now = System.currentTimeMillis()
+                    if (now - lastStreamPersistMs >= STREAM_PERSIST_INTERVAL_MS) {
+                        lastStreamPersistMs = now
+                        val snapshot = streamPersistBuffer?.toString().orEmpty()
+                        conversationStore.updateMessageContentInMemory(
+                            sessionId = sessionId,
+                            messageId = assistantMessageId,
+                            newContent = snapshot,
+                        )
+                        conversationStore.flushCacheToDisk()
+                    }
                     _uiState.update { state ->
                         state.copy(
-                            activeConversationTitle = conversationStore.currentConversation().title,
-                            conversationSummaries = loadSummaries(),
                             messages = state.messages.map { message ->
                                 if (message.id == assistantMessageId) {
                                     message.copy(content = message.content + delta)
@@ -479,17 +523,27 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 val onComplete: () -> Unit = {
-                    val assistantContent = conversationStore.loadConversation(sessionId)
-                        ?.messages
-                        ?.firstOrNull { it.id == assistantMessageId }
-                        ?.content
-                        .orEmpty()
+                    val assistantContent = streamPersistBuffer?.toString()
+                        ?: conversationStore.loadConversation(sessionId)
+                            ?.messages
+                            ?.firstOrNull { it.id == assistantMessageId }
+                            ?.content
+                            .orEmpty()
+                    if (assistantContent.isNotEmpty()) {
+                        conversationStore.updateMessageContent(
+                            sessionId = sessionId,
+                            messageId = assistantMessageId,
+                            newContent = assistantContent,
+                        )
+                    }
+                    streamPersistBuffer = null
                     retainConversationMemory(sessionId, text, assistantContent)
                     _uiState.update {
                         it.copy(
+                            activeConversationTitle = conversationStore.currentConversation().title,
+                            conversationSummaries = loadSummaries(),
                             isSending = false,
                             status = "",
-                            conversationSummaries = loadSummaries(),
                         )
                     }
                 }

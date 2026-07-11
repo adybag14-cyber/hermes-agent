@@ -130,7 +130,12 @@ class HermesProviderSetupWebActivity : Activity() {
             cacheMode = WebSettings.LOAD_DEFAULT
             loadsImagesAutomatically = true
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-            setSupportMultipleWindows(false)
+            // OAuth IdPs (Google/OpenAI/xAI/Zhipu) often use popup or multi-step redirects.
+            setSupportMultipleWindows(true)
+            javaScriptCanOpenWindowsAutomatically = true
+            // Keep third-party cookies available for OAuth sessions inside WebView.
+            @Suppress("DEPRECATION")
+            setAcceptThirdPartyCookiesCompat(view)
         }
         view.webChromeClient = object : WebChromeClient() {
             override fun onProgressChanged(view: WebView?, newProgress: Int) {
@@ -185,13 +190,24 @@ class HermesProviderSetupWebActivity : Activity() {
     }
 
     private fun shouldOpenOutside(uri: Uri): Boolean {
-        if (canOpen(uri)) {
+        // Capture Hermes OAuth deep links before they leave the WebView.
+        if (openHermesAuthCallback(uri)) {
+            return true
+        }
+        val scheme = uri.scheme?.lowercase().orEmpty()
+        if (scheme in setOf("http", "https")) {
             return false
         }
-        if (!openHermesAuthCallback(uri)) {
-            openExternal(uri.toString())
-        }
+        // Other app schemes (intent://, market://, etc.) — try external, then copy.
+        openExternal(uri.toString())
         return true
+    }
+
+    private fun setAcceptThirdPartyCookiesCompat(view: WebView) {
+        runCatching {
+            android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+            android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(view, true)
+        }
     }
 
     private fun showFallback(pageTitle: String, url: String, message: String) {
@@ -319,10 +335,12 @@ class HermesProviderSetupWebActivity : Activity() {
             return false
         }
         return runCatching {
+            // Deliver callback into MainActivity in this task so OAuth exchange runs immediately.
             startActivity(
                 Intent(Intent.ACTION_VIEW, uri).apply {
+                    setClassName(packageName, "com.mobilefork.hermesagent.MainActivity")
                     addCategory(Intent.CATEGORY_BROWSABLE)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                 },
             )
             finish()
