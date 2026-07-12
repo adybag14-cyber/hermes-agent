@@ -20,7 +20,7 @@ object HermesLinuxSubsystemBridge {
     private const val SYSTEM_SHELL_PATH = "/system/bin/sh"
     private const val RUNTIME_LAYOUT_VERSION = 6
     private const val NATIVE_EXEC_ROOT_NAME = "native-exec"
-    private const val PYTHON_BINARY_NAME = "python3.13"
+    private const val PYTHON_BINARY_NAME = "python"
     private val NATIVE_EXECUTABLE_NAMES = mapOf(
         "bin/bash" to "libhermes_android_bash.so",
         "bin/llama-server" to "libhermes_android_llama_server.so",
@@ -90,6 +90,9 @@ object HermesLinuxSubsystemBridge {
             val bashFile = File(state.optString("bash_path", shellPath))
             val prefixDirPath = state.optString("prefix_path").ifBlank {
                 bashFile.parentFile?.parentFile?.absolutePath.orEmpty()
+            }
+            if (prefixDirPath.isNotBlank() && refreshPythonRuntimePaths(File(prefixDirPath), state)) {
+                stateChanged = true
             }
             // Fast path: binaries still present and executable — skip full markExecutable walk + shell probe.
             val shellReady = shellPath.startsWith("/system/") ||
@@ -184,6 +187,7 @@ object HermesLinuxSubsystemBridge {
                 put("native_bin_path", nativeBinDir.absolutePath)
                 put("native_libexec_path", nativeLibexecDir.absolutePath)
                 put("python_path", File(nativeBinDir, PYTHON_BINARY_NAME).absolutePath)
+                put("python_lib_path", resolvePythonLibPath(prefixDir).absolutePath)
                 put("bin_path", binPath.ifBlank { File(prefixDir, "bin").absolutePath })
                 put("lib_path", File(prefixDir, "lib").absolutePath)
                 put("home_path", File(prefixDir, "home").absolutePath)
@@ -378,12 +382,30 @@ object HermesLinuxSubsystemBridge {
             .put("native_bin_path", nativeBinDir.absolutePath)
             .put("native_libexec_path", nativeLibexecDir.absolutePath)
             .put("python_path", File(nativeBinDir, PYTHON_BINARY_NAME).absolutePath)
+            .put("python_lib_path", resolvePythonLibPath(prefixDir).absolutePath)
             .put("bin_path", binPath.ifBlank { File(prefixDir, "bin").absolutePath })
             .put("lib_path", File(prefixDir, "lib").absolutePath)
             .put("home_path", File(prefixDir, "home").absolutePath)
             .put("tmp_path", File(prefixDir, "tmp").absolutePath)
             .put("root_packages", manifest.optJSONArray("root_packages"))
             .put("packages", manifest.optJSONArray("packages"))
+    }
+
+    private fun refreshPythonRuntimePaths(prefixDir: File, state: JSONObject): Boolean {
+        val installRoot = prefixDir.parentFile ?: return false
+        val pythonPath = File(File(installRoot, NATIVE_EXEC_ROOT_NAME), "bin/$PYTHON_BINARY_NAME")
+        if (!pythonPath.isFile || !pythonPath.canExecute()) return false
+        val pythonLibPath = resolvePythonLibPath(prefixDir)
+        var changed = false
+        if (state.optString("python_path") != pythonPath.absolutePath) {
+            state.put("python_path", pythonPath.absolutePath)
+            changed = true
+        }
+        if (state.optString("python_lib_path") != pythonLibPath.absolutePath) {
+            state.put("python_lib_path", pythonLibPath.absolutePath)
+            changed = true
+        }
+        return changed
     }
 
     fun buildRunEnvironment(state: JSONObject): Map<String, String> {
@@ -399,7 +421,9 @@ object HermesLinuxSubsystemBridge {
             .orEmpty()
         val homePath = state.optString("home_path").ifBlank { prefixPath }
         val tmpPath = state.optString("tmp_path").ifBlank { homePath.ifBlank { prefixPath } }
-        val pythonLibPath = File(prefixPath, "lib/python3.13").absolutePath
+        val pythonLibPath = state.optString("python_lib_path").ifBlank {
+            resolvePythonLibPath(File(prefixPath)).absolutePath
+        }
         val prootLoaderPath = shellPathUnder(prefixPath, "libexec/proot/loader")
         val prootLoader32Path = shellPathUnder(prefixPath, "libexec/proot/loader32")
         return mapOf(
@@ -514,7 +538,9 @@ object HermesLinuxSubsystemBridge {
         val homePath = state.optString("home_path").ifBlank { File(prefixPath, "home").absolutePath }
         val tmpPath = state.optString("tmp_path").ifBlank { File(prefixPath, "tmp").absolutePath }
         val appPackageName = state.optString("app_package_name").ifBlank { "com.nousresearch.hermesagent" }
-        val pythonPath = state.optString("python_path").ifBlank { PYTHON_BINARY_NAME }
+        val pythonPath = state.optString("python_path").ifBlank {
+            File(prefixPath, "bin/$PYTHON_BINARY_NAME").absolutePath
+        }
         val prootLoaderPath = shellPathUnder(prefixPath, "libexec/proot/loader")
         val prootLoader32Path = shellPathUnder(prefixPath, "libexec/proot/loader32")
         val prootDistroScript = File(prefixPath, "bin/proot-distro").absolutePath
@@ -558,6 +584,26 @@ object HermesLinuxSubsystemBridge {
         }
         return "'" + value.replace("'", "'\"'\"'") + "'"
     }
+
+    private fun resolvePythonLibPath(prefixDir: File): File {
+        val pythonLibs = File(prefixDir, "lib").listFiles()
+            .orEmpty()
+            .filter { candidate ->
+                candidate.isDirectory && PYTHON_LIB_VERSION.matches(candidate.name)
+            }
+        return pythonLibs.maxWithOrNull(
+            compareBy<File> { pythonLibVersion(it.name).first }
+                .thenBy { pythonLibVersion(it.name).second },
+        ) ?: File(prefixDir, "lib")
+    }
+
+    private fun pythonLibVersion(name: String): Pair<Int, Int> {
+        val match = PYTHON_LIB_VERSION.matchEntire(name) ?: return 0 to 0
+        return (match.groupValues[1].toIntOrNull() ?: 0) to
+            (match.groupValues[2].toIntOrNull() ?: 0)
+    }
+
+    private val PYTHON_LIB_VERSION = Regex("""python(\d+)\.(\d+)""")
 
     private fun shellPathUnder(basePath: String, relativePath: String): String {
         return basePath.trimEnd('/') + "/" + relativePath.trimStart('/')

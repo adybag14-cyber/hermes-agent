@@ -261,6 +261,7 @@ class TestHandleUpdateCommand:
         mock_popen = MagicMock()
         with patch("gateway.run._hermes_home", hermes_home), \
              patch("gateway.run.__file__", fake_file), \
+             patch("gateway.run.sys.platform", "linux"), \
              patch("shutil.which", side_effect=lambda x: f"/usr/bin/{x}"), \
              patch("subprocess.Popen", mock_popen):
             result = await runner._handle_update_command(event)
@@ -298,6 +299,7 @@ class TestHandleUpdateCommand:
 
         with patch("gateway.run._hermes_home", hermes_home), \
              patch("gateway.run.__file__", fake_file), \
+             patch("gateway.run.sys.platform", "linux"), \
              patch("shutil.which", side_effect=which_no_setsid), \
              patch("subprocess.Popen", mock_popen):
             result = await runner._handle_update_command(event)
@@ -442,9 +444,10 @@ class TestSendUpdateNotification:
             "user_id": "12345",
             "timestamp": "2026-03-04T21:00:00",
         }
-        (hermes_home / ".update_pending.json").write_text(json.dumps(pending))
+        (hermes_home / ".update_pending.json").write_text(json.dumps(pending), encoding="utf-8")
         (hermes_home / ".update_output.txt").write_text(
-            "→ Found 3 new commit(s)\n✓ Code updated!\n✓ Update complete!"
+            "→ Found 3 new commit(s)\n✓ Code updated!\n✓ Update complete!",
+            encoding="utf-8",
         )
         (hermes_home / ".update_exit_code").write_text("0")
 
@@ -496,7 +499,8 @@ class TestSendUpdateNotification:
         pending = {"platform": "telegram", "chat_id": "111", "user_id": "222"}
         (hermes_home / ".update_pending.json").write_text(json.dumps(pending))
         (hermes_home / ".update_output.txt").write_text(
-            "\x1b[32m✓ Code updated!\x1b[0m\n\x1b[1mDone\x1b[0m"
+            "\x1b[32m✓ Code updated!\x1b[0m\n\x1b[1mDone\x1b[0m",
+            encoding="utf-8",
         )
         (hermes_home / ".update_exit_code").write_text("0")
 
@@ -591,7 +595,7 @@ class TestSendUpdateNotification:
         pending_path.write_text(json.dumps({
             "platform": "telegram", "chat_id": "111", "user_id": "222",
         }))
-        output_path.write_text("✓ Done")
+        output_path.write_text("✓ Done", encoding="utf-8")
         exit_code_path.write_text("0")
 
         mock_adapter = AsyncMock()
@@ -617,7 +621,7 @@ class TestSendUpdateNotification:
         pending_path.write_text(json.dumps({
             "platform": "telegram", "chat_id": "111", "user_id": "222",
         }))
-        output_path.write_text("✓ Done")
+        output_path.write_text("✓ Done", encoding="utf-8")
         exit_code_path.write_text("0")
 
         # Adapter send raises

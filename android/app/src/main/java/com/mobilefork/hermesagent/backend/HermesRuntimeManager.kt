@@ -34,6 +34,11 @@ object HermesRuntimeManager {
         val appContext = context.applicationContext
         synchronized(pythonStartLock) {
             if (!Python.isStarted()) {
+                // Every public Python entry point must honor the same startup
+                // order as ensureStarted: unpack/repair Linux before Chaquopy.
+                // Several callers intentionally start only Python, so keeping
+                // this invariant here prevents them from racing extraction.
+                HermesLinuxSubsystemBridge.ensureInstalled(appContext)
                 Python.start(AndroidPlatform(appContext))
             }
         }

@@ -92,7 +92,9 @@ def test_android_chat_ui_and_native_tool_prompt_stay_compact_on_large_font_phone
     assert 'compactToolSpecsFor(userText)' in native_tool_client
     assert '.ifEmpty { inferredToolNames(userText) }' in native_tool_client
     assert 'return JSONArray()' in native_tool_client
-    assert 'toolsEnabled = activeToolSpecs.length() > 0' in native_tool_client
+    assert 'systemMessage(\n                toolSpecs = activeToolSpecs,' in native_tool_client
+    assert 'buildFocusedSystemPromptContent(' in native_tool_client
+    assert 'if (toolNames.isEmpty()) {' in native_tool_client
     assert 'relevantMemoryContext = relevantMemoryContext' in native_tool_client
     assert 'compactCustomSystemPrompt' in native_tool_client
     assert 'Keep replies brief and direct.' in native_tool_client

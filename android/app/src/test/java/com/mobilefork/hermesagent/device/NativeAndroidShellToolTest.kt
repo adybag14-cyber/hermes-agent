@@ -80,11 +80,40 @@ class NativeAndroidShellToolTest {
     }
 
     @Test
+    fun linuxSandboxInstallRetriesOnlyTransientTlsRecordFailuresWithAndroidHttp() {
+        assertTrue(
+            HermesLinuxSandboxBridge.shouldRetryInstallWithAndroidHttp(
+                JSONObject().put("exit_code", 1).put("error", "SSL: RECORD_LAYER_FAILURE"),
+            ),
+        )
+        assertTrue(
+            HermesLinuxSandboxBridge.shouldRetryInstallWithAndroidHttp(
+                JSONObject().put("exit_code", 1).put("error", "UNEXPECTED_EOF_WHILE_READING"),
+            ),
+        )
+        assertTrue(
+            HermesLinuxSandboxBridge.shouldRetryInstallWithAndroidHttp(
+                JSONObject().put("exit_code", 1).put("error", "certificate verify failed"),
+            ).not(),
+        )
+        assertEquals(
+            "aca76fef1f67058b",
+            HermesLinuxSandboxBridge.dockerManifestCacheKey("alpine:3.21", "x86_64"),
+        )
+        assertEquals(
+            "b632145ecd134a4c",
+            HermesLinuxSandboxBridge.dockerManifestCacheKey("alpine:3.21", "aarch64"),
+        )
+    }
+
+    @Test
     fun linuxSandboxBridgeBuildsQuotedInstallAndRunCommands() {
         assertEquals(
-            "proot-distro install --name 'hermes-alpine' 'alpine:3.21'",
-            HermesLinuxSandboxBridge.installCommandFor("hermes-alpine", "alpine:3.21"),
+            "proot-distro install --name 'hermes-alpine' --architecture 'aarch64' 'alpine:3.21'",
+            HermesLinuxSandboxBridge.installCommandFor("hermes-alpine", "alpine:3.21", "aarch64"),
         )
+        assertEquals("aarch64", HermesLinuxSandboxBridge.preferredGuestArchitecture("x86_64"))
+        assertEquals("x86_64", HermesLinuxSandboxBridge.preferredGuestArchitecture("arm64-v8a"))
         val runCommand = HermesLinuxSandboxBridge.runCommandFor(
             prefixPath = "/data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/x86_64/prefix",
             sandboxName = "hermes-alpine",
@@ -92,27 +121,15 @@ class NativeAndroidShellToolTest {
             qemuPath = "/data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/x86_64/native-exec/bin/qemu-x86_64",
         )
 
-        assertTrue(runCommand.startsWith("ROOTFS="))
+        assertTrue(runCommand.startsWith("HERMES_SANDBOX_ROOTFS="))
         assertTrue(runCommand.contains("qemu-x86_64"))
-        assertTrue(runCommand.contains("qemu_user_direct").not())
-        assertTrue(runCommand.contains("QEMU_LD_PREFIX"))
-        assertTrue(runCommand.contains("GUEST_SCRIPT="))
-        assertTrue(runCommand.contains("busybox"))
-        assertTrue(runCommand.contains("alias uname"))
+        assertTrue(runCommand.contains("proot-distro run 'hermes-alpine'"))
+        assertTrue(runCommand.contains("--emulator"))
+        assertTrue(runCommand.contains("/bin/sh -lc"))
         assertTrue(runCommand.contains("hermes-alpine/rootfs"))
         assertTrue(runCommand.contains("printf"))
         assertTrue(runCommand.contains("hello world"))
 
-        val fallbackCommand = HermesLinuxSandboxBridge.nativePrefixWorkspaceCommandFor(
-            prefixPath = "/data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/x86_64/prefix",
-            sandboxName = "hermes-alpine",
-            command = "uname -m",
-        )
-
-        assertTrue(fallbackCommand.startsWith("SANDBOX_ROOTFS="))
-        assertTrue(fallbackCommand.contains("HERMES_SANDBOX_ROOTFS"))
-        assertTrue(fallbackCommand.contains("cd \"\$SANDBOX_ROOTFS\""))
-        assertTrue(fallbackCommand.endsWith("uname -m"))
     }
 
     @Test
@@ -141,7 +158,8 @@ class NativeAndroidShellToolTest {
             .put("app_package_name", "com.nousresearch.hermesagent")
             .put("native_library_dir", "/data/app/example/lib/x86_64")
             .put("lib_path", "/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/lib")
-            .put("python_path", "/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/native-exec/bin/python3.13")
+            .put("python_path", "/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/native-exec/bin/python")
+            .put("python_lib_path", "/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/lib/python3.14")
 
         val command = HermesLinuxSubsystemBridge.commandWithEmbeddedToolAliases(state, "proot-distro list")
 
@@ -152,6 +170,8 @@ class NativeAndroidShellToolTest {
         assertTrue(command.contains("PROOT_LOADER_32='/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/libexec/proot/loader32'"))
         assertTrue(command.contains("PROOT_NO_SECCOMP='1'"))
         assertTrue(command.contains("LD_LIBRARY_PATH='/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/lib:/data/app/example/lib/x86_64'"))
+        assertTrue(command.contains("native-exec/bin/python'"))
+        assertTrue(command.contains("python3.13").not())
         assertTrue(command.contains("proot-distro() { case \"\${1:-}\" in login|sh|run)"))
         assertTrue(command.contains("\"${'$'}_pd_cmd\" -e \"LD_LIBRARY_PATH=${'$'}LD_LIBRARY_PATH\" -e \"PROOT_TMP_DIR=${'$'}PROOT_TMP_DIR\" -e \"PROOT_LOADER=${'$'}PROOT_LOADER\" -e \"PROOT_LOADER_32=${'$'}PROOT_LOADER_32\" -e \"PROOT_NO_SECCOMP=${'$'}PROOT_NO_SECCOMP\""))
         assertTrue(command.endsWith("; proot-distro list"))

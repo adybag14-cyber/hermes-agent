@@ -1,11 +1,14 @@
+#Requires -Version 7.0
 # Provision a local LiteRT-LM model into Hermes Android app storage for emulator/device testing.
-# Works with debuggable builds via run-as; for release builds uses external app files path.
+# Streams directly into debuggable app storage via run-as; release builds use the
+# app-specific external files directory scanned by HermesModelDownloadManager.
 param(
     [Parameter(Mandatory = $true)]
     [string]$ModelPath,
     [string]$Serial = "",
     [string]$PackageId = "com.mobilefork.hermesagent",
-    [string]$DestinationFileName = ""
+    [string]$DestinationFileName = "",
+    [switch]$ForceExternal
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,6 +17,9 @@ if (-not (Test-Path $ModelPath)) {
 }
 if ([string]::IsNullOrWhiteSpace($DestinationFileName)) {
     $DestinationFileName = Split-Path $ModelPath -Leaf
+}
+if ([IO.Path]::GetFileName($DestinationFileName) -ne $DestinationFileName) {
+    throw "DestinationFileName must be a file name, not a path: $DestinationFileName"
 }
 
 $adb = if ($env:ANDROID_HOME) {
@@ -24,32 +30,126 @@ $adb = if ($env:ANDROID_HOME) {
 $serialArgs = @()
 if ($Serial) { $serialArgs = @("-s", $Serial) }
 
-function Adb([string[]]$Args) {
-    & $adb @serialArgs @Args
-    if ($LASTEXITCODE -ne 0) { throw "adb failed: $($Args -join ' ')" }
+function Adb([string[]]$CommandArgs) {
+    & $adb @serialArgs @CommandArgs
+    if ($LASTEXITCODE -ne 0) { throw "adb failed: $($CommandArgs -join ' ')" }
 }
 
-$tmp = "/data/local/tmp/$DestinationFileName"
-Write-Host "Pushing $ModelPath -> $tmp"
-Adb @("push", $ModelPath, $tmp)
-
-# Prefer private app files (requires debuggable package).
-$runAsOk = $true
-try {
-    Adb @("shell", "run-as", $PackageId, "mkdir", "-p", "files/hermes-home/downloads/models")
-    Adb @("shell", "run-as", $PackageId, "cp", $tmp, "files/hermes-home/downloads/models/$DestinationFileName")
-    Adb @("shell", "run-as", $PackageId, "ls", "-la", "files/hermes-home/downloads/models/$DestinationFileName")
-    Write-Host "Provisioned via run-as into files/hermes-home/downloads/models/"
-} catch {
-    $runAsOk = $false
-    Write-Host "run-as failed (likely release build). Falling back to external files path..."
-    $ext = "/sdcard/Android/data/$PackageId/files/Download/models"
-    Adb @("shell", "mkdir", "-p", $ext)
-    Adb @("shell", "cp", $tmp, "$ext/$DestinationFileName")
-    Adb @("shell", "ls", "-la", "$ext/$DestinationFileName")
-    Write-Host "Provisioned external model at $ext/$DestinationFileName"
-    Write-Host "Import it in Settings → Local model downloads if it is not auto-detected."
+function AdbCapture([string[]]$CommandArgs) {
+    $output = & $adb @serialArgs @CommandArgs 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "adb failed: $($CommandArgs -join ' ')`n$($output -join "`n")"
+    }
+    return ($output -join "`n").Trim()
 }
 
-Adb @("shell", "rm", "-f", $tmp)
-Write-Host "Done. runAsOk=$runAsOk"
+function Send-RunAsStream([string]$SourcePath, [string]$DestinationPath) {
+    $startInfo = [Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $adb
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardInput = $true
+    $startInfo.RedirectStandardError = $true
+    foreach ($arg in $serialArgs) { [void]$startInfo.ArgumentList.Add($arg) }
+    foreach ($arg in @(
+        "exec-in", "run-as", $PackageId, "sh", "-c",
+        'exec cat > "$1"', "hermes-model-stream", $DestinationPath
+    )) {
+        [void]$startInfo.ArgumentList.Add($arg)
+    }
+
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $startInfo
+    try {
+        if (-not $process.Start()) { throw "Unable to start adb model stream" }
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $source = [IO.File]::OpenRead((Resolve-Path -LiteralPath $SourcePath).Path)
+        try {
+            $source.CopyTo($process.StandardInput.BaseStream, 1MB)
+        } finally {
+            $source.Dispose()
+            $process.StandardInput.Close()
+        }
+        $process.WaitForExit()
+        $stderr = $stderrTask.GetAwaiter().GetResult().Trim()
+        if ($process.ExitCode -ne 0) {
+            throw "adb run-as stream failed with exit $($process.ExitCode): $stderr"
+        }
+    } finally {
+        $process.Dispose()
+    }
+}
+
+$sourceItem = Get-Item -LiteralPath $ModelPath
+$expectedBytes = $sourceItem.Length
+$expectedSha256 = (Get-FileHash -LiteralPath $sourceItem.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+
+function Assert-RemoteArtifact([string]$StorageMode, [string]$RemotePath) {
+    if ($StorageMode -eq "private") {
+        $sizeCommand = @("shell", "run-as", $PackageId, "wc", "-c", $RemotePath)
+        $hashCommand = @("shell", "run-as", $PackageId, "sha256sum", $RemotePath)
+    } else {
+        $sizeCommand = @("shell", "wc", "-c", $RemotePath)
+        $hashCommand = @("shell", "sha256sum", $RemotePath)
+    }
+    $sizeOutput = AdbCapture $sizeCommand
+    $remoteBytes = [long](($sizeOutput -split '\s+')[0])
+    if ($remoteBytes -ne $expectedBytes) {
+        throw "Remote size mismatch for ${RemotePath}: expected $expectedBytes, got $remoteBytes"
+    }
+    $hashOutput = AdbCapture $hashCommand
+    $remoteSha256 = (($hashOutput -split '\s+')[0]).ToLowerInvariant()
+    if ($remoteSha256 -ne $expectedSha256) {
+        throw "Remote SHA-256 mismatch for ${RemotePath}: expected $expectedSha256, got $remoteSha256"
+    }
+}
+
+# Probe run-as before transferring bytes so a release APK never needs a
+# multi-gigabyte /data/local/tmp staging copy.
+$runAsOk = $false
+if (-not $ForceExternal) {
+    try {
+        [void](AdbCapture @("shell", "run-as", $PackageId, "pwd"))
+        $runAsOk = $true
+    } catch {
+        Write-Host "run-as unavailable (expected for a release build); using app-specific external storage."
+    }
+} else {
+    Write-Host "ForceExternal selected; using the release-visible app-specific directory."
+}
+
+if ($runAsOk) {
+    $directory = "files/hermes-home/downloads/models"
+    $destination = "$directory/$DestinationFileName"
+    $partial = "$destination.partial"
+    Adb @("shell", "run-as", $PackageId, "mkdir", "-p", $directory)
+    try {
+        Write-Host "Streaming $($sourceItem.FullName) -> private app storage"
+        Send-RunAsStream $sourceItem.FullName $partial
+        Assert-RemoteArtifact "private" $partial
+        Adb @("shell", "run-as", $PackageId, "mv", "-f", $partial, $destination)
+        Assert-RemoteArtifact "private" $destination
+    } catch {
+        & $adb @serialArgs shell run-as $PackageId rm -f $partial 2>$null
+        throw
+    }
+    Write-Host "Provisioned and verified private model: $destination"
+} else {
+    $directory = "/sdcard/Android/data/$PackageId/files/Download/models"
+    $destination = "$directory/$DestinationFileName"
+    $partial = "$destination.partial"
+    Adb @("shell", "mkdir", "-p", $directory)
+    try {
+        Write-Host "Pushing $($sourceItem.FullName) -> app-specific external storage"
+        Adb @("push", $sourceItem.FullName, $partial)
+        Assert-RemoteArtifact "external" $partial
+        Adb @("shell", "mv", "-f", $partial, $destination)
+        Assert-RemoteArtifact "external" $destination
+    } catch {
+        & $adb @serialArgs shell rm -f $partial 2>$null
+        throw
+    }
+    Write-Host "Provisioned and verified release-visible model: $destination"
+}
+
+Write-Host "Done. bytes=$expectedBytes sha256=$expectedSha256 runAsOk=$runAsOk"

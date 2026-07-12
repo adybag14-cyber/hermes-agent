@@ -118,6 +118,17 @@ object HermesModelDownloadManager {
         return File(context.filesDir, "downloads/models").apply { mkdirs() }
     }
 
+    internal fun modelDiscoveryDirectories(context: Context): List<File> {
+        return listOfNotNull(
+            context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.resolve("models"),
+            context.getExternalFilesDir(null)?.resolve("hermes-home/downloads/models"),
+            File(context.filesDir, "hermes-home/downloads/models"),
+            File(context.filesDir, "downloads/models"),
+        ).distinctBy { directory ->
+            runCatching { directory.canonicalPath }.getOrDefault(directory.absolutePath)
+        }
+    }
+
     private fun ensureWritableDirectory(directory: File): Boolean {
         return runCatching {
             directory.mkdirs()
@@ -398,9 +409,9 @@ object HermesModelDownloadManager {
         val knownPaths = current
             .mapNotNull { record -> record.destinationPath.canonicalPathOrNull() }
             .toMutableSet()
-        modelsDirectory(context)
-            .listFiles()
-            .orEmpty()
+        modelDiscoveryDirectories(context)
+            .asSequence()
+            .flatMap { directory -> directory.listFiles().orEmpty().asSequence() }
             .filter { it.isImportableModelFile() }
             .sortedBy { it.name.lowercase(Locale.US) }
             .forEach { file ->

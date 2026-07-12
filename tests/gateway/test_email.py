@@ -25,6 +25,17 @@ from unittest.mock import patch, MagicMock, AsyncMock
 from gateway.platforms.base import SendResult
 
 
+def _clean_env(values=None):
+    """Clear app config while retaining Windows process essentials."""
+    keep = (
+        "HERMES_HOME", "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
+        "SystemRoot", "WINDIR", "COMSPEC", "PATH", "PATHEXT", "TEMP", "TMP",
+    )
+    isolated = {name: os.environ[name] for name in keep if name in os.environ}
+    isolated.update(values or {})
+    return patch.dict(os.environ, isolated, clear=True)
+
+
 class TestConfigEnvOverrides(unittest.TestCase):
     """Verify email config is loaded from environment variables."""
 
@@ -57,7 +68,7 @@ class TestConfigEnvOverrides(unittest.TestCase):
         self.assertIsNotNone(home)
         self.assertEqual(home.chat_id, "user@test.com")
 
-    @patch.dict(os.environ, {}, clear=True)
+    @_clean_env()
     def test_email_not_loaded_without_env(self):
         from gateway.config import GatewayConfig, Platform, _apply_env_overrides
         config = GatewayConfig()
@@ -77,14 +88,14 @@ class TestCheckRequirements(unittest.TestCase):
         from gateway.platforms.email import check_email_requirements
         self.assertTrue(check_email_requirements())
 
-    @patch.dict(os.environ, {
+    @_clean_env({
         "EMAIL_ADDRESS": "a@b.com",
-    }, clear=True)
+    })
     def test_requirements_not_met(self):
         from gateway.platforms.email import check_email_requirements
         self.assertFalse(check_email_requirements())
 
-    @patch.dict(os.environ, {}, clear=True)
+    @_clean_env()
     def test_requirements_empty_env(self):
         from gateway.platforms.email import check_email_requirements
         self.assertFalse(check_email_requirements())
@@ -267,7 +278,7 @@ class TestSendMessageToolRouting(unittest.TestCase):
         import tools.send_message_tool as smt
         import inspect
         source = inspect.getsource(smt._handle_send)
-        self.assertIn('"email"', source)
+        self.assertIn("Platform(platform_name)", source)
 
     def test_send_to_platform_has_email_branch(self):
         import tools.send_message_tool as smt
@@ -320,7 +331,9 @@ class TestChannelDirectory(unittest.TestCase):
         email_values = [p.value for p in Platform]
         self.assertIn("email", email_values)
 
-        directory = build_channel_directory({})
+        import asyncio
+        with patch("gateway.channel_directory.atomic_json_write"):
+            directory = asyncio.run(build_channel_directory({}))
         self.assertIn("email", directory["platforms"])
 
 
@@ -1117,7 +1130,7 @@ class TestSendEmailStandalone(unittest.TestCase):
             self.assertIn("error", result)
             self.assertIn("SMTP error", result["error"])
 
-    @patch.dict(os.environ, {}, clear=True)
+    @_clean_env()
     def test_send_email_tool_not_configured(self):
         """Missing config should return error."""
         import asyncio

@@ -516,7 +516,9 @@ class TestSegmentBreakOnToolBoundary:
             SimpleNamespace(success=True, message_id="msg_2"),
         ]
         adapter.send = AsyncMock(side_effect=send_results)
-        adapter.edit_message = AsyncMock(return_value=SimpleNamespace(success=False, error="flood_control:6"))
+        # Use a deterministic non-rate-limit failure. Flood-control failures
+        # now use adaptive backoff and intentionally need several strikes.
+        adapter.edit_message = AsyncMock(return_value=SimpleNamespace(success=False, error="edit rejected"))
         adapter.MAX_MESSAGE_LENGTH = 4096
 
         config = StreamConsumerConfig(edit_interval=0.01, buffer_threshold=5, cursor=" ▉")
@@ -1780,4 +1782,3 @@ class TestUtf16OverflowDetection:
         # auto-attr mock. Verified indirectly by all the other tests in
         # this file passing — they all use MagicMock adapters.
         assert consumer is not None
-

@@ -231,7 +231,8 @@ def test_native_tool_loop_allows_long_file_generation_prompts():
     assert '.put("chat_template_kwargs", JSONObject().put("enable_thinking", false))' in native_client
     assert 'private const val NATIVE_TOOL_GENERATION_TIMEOUT_MS = 300_000L' in native_client
     assert 'private const val HTML_GENERATION_TIMEOUT_MS = 45_000L' in native_client
-    assert 'private const val NATIVE_TOOL_MAX_TOKENS = 1024' in native_client
+    assert 'private const val NATIVE_TOOL_MAX_TOKENS = 256' in native_client
+    assert 'buildFocusedSystemPromptContent(' in native_client
     assert 'Native tool chat requires a local HTTP base URL' in native_client
     assert 'toolCompletionReply(latestToolResult)' in native_client
     assert 'executeExplicitDirectToolRequest(userText)' in native_client
@@ -266,6 +267,8 @@ def test_release_build_recovers_existing_model_files_without_run_as_access():
     backend_manager = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/OnDeviceBackendManager.kt").read_text(encoding="utf-8")
 
     assert 'importExistingModelFiles(' in download_manager
+    assert 'hermes-home/downloads/models' in download_manager
+    assert 'modelDiscoveryDirectories(context)' in download_manager
     assert 'repairPreferredDownload(store, refreshed)' in download_manager
     assert 'downloadManagerId = -1L' in download_manager
     assert 'Imported existing model file from disk' in download_manager
