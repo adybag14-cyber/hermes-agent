@@ -87,6 +87,7 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .widthIn(max = 920.dp)
                         .imePadding()
+                        .testTag("HermesSettingsContentList")
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     contentPadding = PaddingValues(bottom = extraBottomSpacing),
                     verticalArrangement = Arrangement.spacedBy(12.dp),

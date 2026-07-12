@@ -108,6 +108,11 @@ class TestSecureWrite:
     def test_sets_file_permissions(self, tmp_path):
         target = tmp_path / "secret.json"
         _secure_write(target, "data")
+        if os.name == "nt":
+            # NTFS ACLs are not represented by POSIX mode bits; Python reports
+            # writable files as 0666 even after chmod(0600).
+            assert target.read_text(encoding="utf-8") == "data"
+            return
         mode = oct(target.stat().st_mode & 0o777)
         assert mode == "0o600"
 

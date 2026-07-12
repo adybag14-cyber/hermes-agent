@@ -248,6 +248,8 @@ class Platform(Enum):
         pseudo._name_ = value.upper().replace("-", "_").replace(" ", "_")
         cls._value2member_map_[value] = pseudo
         cls._member_map_[pseudo._name_] = pseudo
+        # Python 3.13+ attribute lookup no longer consults only _member_map_.
+        type.__setattr__(cls, pseudo._name_, pseudo)
         return pseudo
 
     @classmethod

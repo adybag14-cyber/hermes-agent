@@ -326,7 +326,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         if (external.success) {
             _uiState.update {
                 it.copy(
-                    globalStatus = "Opened OpenRouter sign-in in an external browser (WebView unavailable). Approve Hermes; the local callback will save the API key.",
+                    globalStatus = "Opened OpenRouter sign-in in an external browser (WebView unavailable). Approve Hermes; the local callback will save the API key securely.",
                     pendingMethodLabel = option.label,
                     hasPendingRequest = true,
                     pendingStartUrl = loopbackStart.pendingRequest.startUrl,

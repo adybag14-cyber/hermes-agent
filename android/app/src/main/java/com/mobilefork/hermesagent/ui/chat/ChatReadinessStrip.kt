@@ -38,6 +38,17 @@ data class ChatReadinessUiState(
     val ready: Boolean = false,
 )
 
+internal fun pythonReadinessLabel(
+    pythonReady: Boolean,
+    remoteReadyWithoutPython: Boolean,
+): String = when {
+    pythonReady -> "up"
+    remoteReadyWithoutPython -> "optional"
+    // This strip is a passive observer and never starts Python, so a stopped
+    // interpreter is idle rather than "booting".
+    else -> "idle"
+}
+
 class ChatReadinessViewModel(application: Application) : AndroidViewModel(application) {
     private val _uiState = MutableStateFlow(ChatReadinessUiState())
     val uiState: StateFlow<ChatReadinessUiState> = _uiState.asStateFlow()
@@ -94,13 +105,7 @@ class ChatReadinessViewModel(application: Application) : AndroidViewModel(applic
                     append(" · ")
                     append(backendLabel)
                     append(" · Python ")
-                    append(
-                        when {
-                            pythonReady -> "up"
-                            remoteReadyWithoutPython -> "optional"
-                            else -> "booting"
-                        },
-                    )
+                    append(pythonReadinessLabel(pythonReady, remoteReadyWithoutPython))
                     append(" · memory ")
                     append(memoryCountCache.coerceAtLeast(0))
                 }

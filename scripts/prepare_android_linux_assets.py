@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import json
 import os
 import posixpath
 import shutil
+import socket
 import sys
 import tarfile
 import urllib.request
@@ -52,6 +54,41 @@ TERMUX_MAIN_FALLBACK_BASE_URLS = (
 )
 
 
+def force_ipv4_downloads() -> bool:
+    configured = os.environ.get("HERMES_FORCE_IPV4")
+    if configured is None:
+        # Several Termux mirrors publish IPv6 records even when the Windows
+        # host has no working IPv6 route. urllib can then spend minutes per
+        # mirror in connect timeouts, so prefer the reliable family by default
+        # on Windows while retaining an explicit opt-out.
+        return os.name == "nt"
+    return configured.strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+@contextmanager
+def ipv4_only_dns(enabled: bool):
+    """Scope urllib DNS resolution to IPv4 for hosts with broken IPv6 routes."""
+    if not enabled:
+        yield
+        return
+
+    original_getaddrinfo = socket.getaddrinfo
+
+    def getaddrinfo_ipv4(host, port, family=0, type=0, proto=0, flags=0):
+        return original_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+
+    socket.getaddrinfo = getaddrinfo_ipv4
+    try:
+        yield
+    finally:
+        socket.getaddrinfo = original_getaddrinfo
+
+
 def download_bytes(url: str, attempts: int = 3) -> bytes:
     import time
 
@@ -68,13 +105,14 @@ def download_bytes(url: str, attempts: int = 3) -> bytes:
     for attempt in range(attempts):
         try:
             request = urllib.request.Request(url, headers=headers)
-            with urllib.request.urlopen(request, timeout=120) as response:
-                payload = response.read()
-                if not payload:
-                    last_error = RuntimeError("empty response body")
-                    time.sleep(0.5 * (attempt + 1))
-                    continue
-                return payload
+            with ipv4_only_dns(force_ipv4_downloads()):
+                with urllib.request.urlopen(request, timeout=120) as response:
+                    payload = response.read()
+                    if not payload:
+                        last_error = RuntimeError("empty response body")
+                        time.sleep(0.5 * (attempt + 1))
+                        continue
+                    return payload
         except Exception as exc:  # pragma: no cover - exercised by live smoke checks
             last_error = exc
             time.sleep(0.5 * (attempt + 1))

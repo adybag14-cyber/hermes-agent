@@ -216,7 +216,7 @@ class Gemma4LocalInferenceInstrumentedTest {
     }
 
     private fun shouldRequireGemma4MtpEnabled(): Boolean {
-        return Build.SUPPORTED_ABIS.any { it.equals("arm64-v8a", ignoreCase = true) } &&
+        return Build.SUPPORTED_ABIS.firstOrNull().equals("arm64-v8a", ignoreCase = true) &&
             totalRamBytes() >= GEMMA4_E2B_MTP_MIN_RAM_BYTES
     }
 

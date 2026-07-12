@@ -72,11 +72,17 @@ def _run_gateway_import(hermes_home: Path, initial_env: dict[str, str]) -> dict[
         "LOCALAPPDATA",
         "APPDATA",
         "SYSTEMROOT",
+        "SystemRoot",
+        "WINDIR",
+        "COMSPEC",
+        "PATHEXT",
         "TEMP",
         "TMP",
     ):
         if k in os.environ and k not in env:
             env[k] = os.environ[k]
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.setdefault("PYTHONUTF8", "1")
 
     result = subprocess.run(
         [sys.executable, "-c", script],

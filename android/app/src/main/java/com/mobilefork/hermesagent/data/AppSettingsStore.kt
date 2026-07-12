@@ -221,7 +221,17 @@ class AppSettingsStore(context: Context) {
 
     fun save(settings: AppSettings) {
         synchronized(cacheLock) {
-            processCache = settings
+            // Keep the process-wide view byte-for-byte equivalent to what we persist.
+            // Caching the caller's raw values made another AppSettingsStore observe
+            // out-of-range generation knobs until the process restarted.
+            processCache = settings.copy(
+                localModelMaxTokens = AppSettings.normalizeLocalModelMaxTokens(settings.localModelMaxTokens),
+                localModelTopK = AppSettings.normalizeLocalModelTopK(settings.localModelTopK),
+                localModelTopP = AppSettings.normalizeLocalModelTopP(settings.localModelTopP),
+                localModelTemperature = AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
+                localModelAccelerator = AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator),
+                customSystemPrompt = AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt),
+            )
             preferences.edit()
                 .putString(KEY_PROVIDER, settings.provider)
                 .putString(KEY_BASE_URL, settings.baseUrl)

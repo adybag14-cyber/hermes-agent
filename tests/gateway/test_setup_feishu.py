@@ -225,4 +225,3 @@ class TestSetupFeishuAdapterIntegration:
             assert adapter._domain_name == "feishu"
             assert adapter._connection_mode == "websocket"
 
-

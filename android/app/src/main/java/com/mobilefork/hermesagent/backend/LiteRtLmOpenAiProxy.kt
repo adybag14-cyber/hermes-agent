@@ -1277,13 +1277,17 @@ object LiteRtLmOpenAiProxy {
         modelBytes: Long,
         isX86Device: Boolean,
     ): EngineTokenBudget {
-        val x86Limit = if (isX86Device) X86_LITERT_LM_TOKEN_BUDGET else Int.MAX_VALUE
+        val x86Limit = if (isX86Device) {
+            x86LiteRtLmTokenBudget(totalRamBytes = totalRamBytes, modelBytes = modelBytes)
+        } else {
+            Int.MAX_VALUE
+        }
         val requested = when {
             requestedMaxContextLength > 0 -> requestedMaxContextLength
             requestedMaxTokens > 0 -> requestedMaxTokens
             isX86Device -> return EngineTokenBudget(
-                value = X86_LITERT_LM_TOKEN_BUDGET,
-                policy = "using x86 emulator/device LiteRT-LM token budget $X86_LITERT_LM_TOKEN_BUDGET",
+                value = x86Limit,
+                policy = "using RAM-aware x86 emulator/device LiteRT-LM token budget $x86Limit",
             )
             else -> return EngineTokenBudget(null, "backend default")
         }
@@ -1330,6 +1334,17 @@ object LiteRtLmOpenAiProxy {
         }
     }
 
+    private fun x86LiteRtLmTokenBudget(totalRamBytes: Long, modelBytes: Long): Int {
+        if (totalRamBytes <= 0L) return X86_LITERT_LM_DEFAULT_TOKEN_BUDGET
+        return when {
+            totalRamBytes < 4_000_000_000L -> X86_LITERT_LM_LOW_RAM_TOKEN_BUDGET
+            totalRamBytes < 7_000_000_000L -> X86_LITERT_LM_DEFAULT_TOKEN_BUDGET
+            modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES && totalRamBytes < 12_000_000_000L ->
+                X86_LITERT_LM_DEFAULT_TOKEN_BUDGET
+            else -> X86_LITERT_LM_HIGH_RAM_TOKEN_BUDGET
+        }
+    }
+
     private fun minimumRamForLargeModelExtras(modelBytes: Long): Long {
         return when {
             modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES -> 12_000_000_000L
@@ -1346,5 +1361,7 @@ object LiteRtLmOpenAiProxy {
     private const val GEMMA4_E4B_SIZE_FLOOR_BYTES = 3_000_000_000L
     private const val LARGE_MULTIMODAL_MODEL_SIZE_FLOOR_BYTES = 2_000_000_000L
     private const val MEDIUM_MULTIMODAL_MODEL_SIZE_FLOOR_BYTES = 1_500_000_000L
-    private const val X86_LITERT_LM_TOKEN_BUDGET = 1_024
+    private const val X86_LITERT_LM_LOW_RAM_TOKEN_BUDGET = 512
+    private const val X86_LITERT_LM_DEFAULT_TOKEN_BUDGET = 1_024
+    private const val X86_LITERT_LM_HIGH_RAM_TOKEN_BUDGET = 2_048
 }

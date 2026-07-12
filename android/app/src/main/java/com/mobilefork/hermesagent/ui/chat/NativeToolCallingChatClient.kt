@@ -50,6 +50,7 @@ class NativeToolCallingChatClient(
         val content: String,
         val executedToolCalls: Int,
         val lastToolResult: String = "",
+        val modelRequestCount: Int = 0,
     )
 
     fun send(
@@ -76,6 +77,7 @@ class NativeToolCallingChatClient(
         )?.let { return it }
 
         var executedToolCalls = 0
+        var modelRequestCount = 0
         var latestToolResult = ""
         var activeToolSpecs = compactToolSpecsFor(userText)
         val cacheResendEnabled = McpPromptCacheResendPolicy.shouldResendCachedContext(
@@ -84,7 +86,7 @@ class NativeToolCallingChatClient(
         )
         var messages = buildInitialNativeMessages(
             systemMessage = systemMessage(
-                toolsEnabled = activeToolSpecs.length() > 0,
+                toolSpecs = activeToolSpecs,
                 relevantMemoryContext = relevantMemoryContext,
             ),
             priorMessages = priorMessages,
@@ -92,6 +94,7 @@ class NativeToolCallingChatClient(
             userContentParts = userContentParts,
             cacheResendEnabled = cacheResendEnabled,
         )
+        modelRequestCount += 1
         val initialResponse = postChatCompletionWithContextRecovery(
             normalizedBaseUrl = normalizedBaseUrl,
             modelName = modelName,
@@ -115,6 +118,7 @@ class NativeToolCallingChatClient(
                     content = content,
                     executedToolCalls = executedToolCalls,
                     lastToolResult = latestToolResult,
+                    modelRequestCount = modelRequestCount,
                 )
             }
 
@@ -142,6 +146,7 @@ class NativeToolCallingChatClient(
                 NativeToolContextCompressor.compactMessages(messages)
             }
             val followUp = try {
+                modelRequestCount += 1
                 val response = postChatCompletionWithContextRecovery(
                     normalizedBaseUrl = normalizedBaseUrl,
                     modelName = modelName,
@@ -159,6 +164,7 @@ class NativeToolCallingChatClient(
                         content = toolCompletionReply(latestToolResult),
                         executedToolCalls = executedToolCalls,
                         lastToolResult = latestToolResult,
+                        modelRequestCount = modelRequestCount,
                     )
                 }
                 throw error
@@ -169,6 +175,7 @@ class NativeToolCallingChatClient(
                     content = nativeVisibleReplyContent(rawContent, latestToolResult),
                     executedToolCalls = executedToolCalls,
                     lastToolResult = latestToolResult,
+                    modelRequestCount = modelRequestCount,
                 )
             }
             assistant = followUp
@@ -177,6 +184,7 @@ class NativeToolCallingChatClient(
             content = toolCompletionReply(latestToolResult),
             executedToolCalls = executedToolCalls,
             lastToolResult = latestToolResult,
+            modelRequestCount = modelRequestCount,
         )
     }
 
@@ -828,12 +836,13 @@ class NativeToolCallingChatClient(
             val root = JSONObject(body)
             val error = root.optJSONObject("error")
             error?.optString("message")?.takeIf { it.isNotBlank() }
+                ?: root.optString("error").takeIf { it.isNotBlank() }
                 ?: root.optString("message").takeIf { it.isNotBlank() }
         }.getOrNull().orEmpty()
         val diagnostic = parsedMessage.ifBlank { body }.trim()
         val lower = diagnostic.lowercase()
         if (isContextWindowErrorMessage(lower)) {
-            return "The local model ran out of context. Hermes retried with a compressed system prompt, custom instructions, messages, and tool schema, but this model still could not fit the request. Start a new chat, shorten the prompt, or choose a model with a larger context window."
+            return "The local model ran out of context. Hermes retried with a compressed system prompt, custom instructions, messages, and tool schema, but this model still could not fit the request. Detail: ${diagnostic.take(MAX_NATIVE_ERROR_CHARS)}"
         }
         return if (diagnostic.isNotBlank()) {
             "Native chat request failed ($statusCode): ${diagnostic.take(MAX_NATIVE_ERROR_CHARS)}"
@@ -1624,7 +1633,7 @@ class NativeToolCallingChatClient(
             Regex("""^[A-Za-z_][A-Za-z0-9_]*\s*\(""").containsMatchIn(trim())
     }
 
-    private fun systemMessage(toolsEnabled: Boolean, relevantMemoryContext: String = ""): JSONObject {
+    private fun systemMessage(toolSpecs: JSONArray, relevantMemoryContext: String = ""): JSONObject {
         val customSystemPrompt = AppSettingsStore(appContext).load().customSystemPrompt
         // Always inject promoted memories — durable recall must not depend on tool selection.
         val promotedMemoryContext = runCatching {
@@ -1632,8 +1641,17 @@ class NativeToolCallingChatClient(
                 .optString("system_prompt_context")
                 .takeIf { it.isNotBlank() }
         }.getOrNull()
-        val content = buildSystemPromptContent(
-            toolsEnabled = toolsEnabled,
+        val toolNames = buildSet {
+            for (index in 0 until toolSpecs.length()) {
+                toolSpecs.optJSONObject(index)
+                    ?.optJSONObject("function")
+                    ?.optString("name")
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let(::add)
+            }
+        }
+        val content = buildFocusedSystemPromptContent(
+            toolNames = toolNames,
             customSystemPrompt = customSystemPrompt,
             promotedMemoryContext = promotedMemoryContext.orEmpty(),
             relevantMemoryContext = relevantMemoryContext,
@@ -1978,9 +1996,6 @@ class NativeToolCallingChatClient(
         val selectedNames = explicitlyRequestedToolNames(userText)
             .ifEmpty { inferredToolNames(userText) }
             .toMutableSet()
-        // Always expose local memory management so the agent can retain/recall without
-        // waiting for memory-related keywords (hy-memory companion integration).
-        selectedNames.add("hy_memory_tool")
         if (selectedNames.isEmpty()) {
             return JSONArray()
         }
@@ -2016,18 +2031,12 @@ class NativeToolCallingChatClient(
             ) {
                 add("file_write_tool")
             }
-            if (
-                listOf(
+            val terminalIntent = listOf(
                     "shell command",
                     "terminal command",
                     "run command",
                     "execute command",
                     "command output",
-                    "mkdir",
-                    "rm -",
-                    "ls ",
-                    "cat ",
-                    "python ",
                     "linux sandbox",
                     "downloadable linux",
                     "proot-distro",
@@ -2036,12 +2045,11 @@ class NativeToolCallingChatClient(
                     "debian sandbox",
                     "ubuntu sandbox",
                     "alpine sandbox",
-                ).any { it in lower }
-            ) {
+                ).any { it in lower } || TERMINAL_COMMAND_WORD_REGEX.containsMatchIn(lower)
+            if (terminalIntent) {
                 add("terminal_tool")
             }
-            if (
-                listOf(
+            val sandboxIntent = listOf(
                     "linux sandbox",
                     "downloadable linux",
                     "download linux",
@@ -2063,8 +2071,30 @@ class NativeToolCallingChatClient(
                     "sandbox command",
                     "uname -a",
                 ).any { it in lower }
-            ) {
-                add("linux_sandbox_tool")
+            if (sandboxIntent) {
+                // Absolute paths and package tools in a downloaded distro must not be
+                // offered to the host terminal route for the same request.
+                remove("terminal_tool")
+                val needsSandboxManagement = listOf(
+                    "install",
+                    "download",
+                    "deploy",
+                    "update",
+                    "upgrade",
+                    "start sandbox",
+                    "stop sandbox",
+                    "close sandbox",
+                    "uninstall",
+                    "remove sandbox",
+                    "sandbox status",
+                    "catalog",
+                    "list sandbox",
+                    "set mirror",
+                    "switch mirror",
+                ).any { it in lower }
+                if (needsSandboxManagement) {
+                    add("linux_sandbox_tool")
+                }
                 add("mcp_run_in_proot")
             }
             if (
@@ -2290,7 +2320,6 @@ class NativeToolCallingChatClient(
                     "mediatek",
                     "snapdragon",
                     "soc",
-                    "available tools",
                     "tool catalog",
                     "list tools",
                     "phone preflight",
@@ -3944,6 +3973,72 @@ class NativeToolCallingChatClient(
             return messages
         }
 
+        internal fun buildFocusedSystemPromptContent(
+            toolNames: Set<String>,
+            customSystemPrompt: String = "",
+            promotedMemoryContext: String = "",
+            relevantMemoryContext: String = "",
+        ): String {
+            if (toolNames.isEmpty()) {
+                return buildSystemPromptContent(
+                    toolsEnabled = false,
+                    customSystemPrompt = customSystemPrompt,
+                    promotedMemoryContext = promotedMemoryContext,
+                    relevantMemoryContext = relevantMemoryContext,
+                )
+            }
+            val guidance = buildList {
+                add("You are Hermes in the native Android app. Use the provided tools for real actions, never invent tool output, and keep replies brief.")
+                if ("mcp_run_in_proot" in toolNames || "linux_sandbox_tool" in toolNames) {
+                    add("For a command inside an installed Linux guest, call mcp_run_in_proot with command. Use linux_sandbox_tool for lifecycle actions such as install, start, update, status, or remove.")
+                }
+                if ("terminal_tool" in toolNames || "mcp_send_terminal_input" in toolNames) {
+                    add("Use terminal_tool only for the Hermes host workspace, not for absolute paths inside a downloaded distro.")
+                }
+                if ("linux_host_pkg_tool" in toolNames) {
+                    add("Use linux_host_pkg_tool only for the embedded host package suite; guest apt/apk belongs to linux_sandbox_tool.")
+                }
+                if ("file_write_tool" in toolNames) {
+                    add("Use file_write_tool for exact UTF-8 workspace content.")
+                }
+                if ("android_system_tool" in toolNames || "android_device_diagnostics_tool" in toolNames) {
+                    add("Report Android permissions and hardware evidence honestly.")
+                }
+                if ("android_automation_tool" in toolNames || "android_ui_tool" in toolNames) {
+                    add("Only report UI or automation effects returned by the tool.")
+                }
+                if ("hy_memory_tool" in toolNames || toolNames.any { it.startsWith("memory_") }) {
+                    add("Use memory tools only for the requested retain, recall, list, or delete operation.")
+                }
+            }
+            val persona = NativeToolContextCompressor.compactCustomSystemPrompt(customSystemPrompt)
+                .take(FOCUSED_PERSONA_CHARS)
+            val relevantMemory = NativeToolContextCompressor.compactPromotedMemoryContext(relevantMemoryContext)
+                .take(FOCUSED_MEMORY_CHARS)
+            val promotedMemory = if ("hy_memory_tool" in toolNames || toolNames.any { it.startsWith("memory_") }) {
+                NativeToolContextCompressor.compactPromotedMemoryContext(promotedMemoryContext)
+                    .take(FOCUSED_MEMORY_CHARS)
+            } else {
+                ""
+            }
+            return buildString {
+                if (persona.isNotBlank()) {
+                    append("Persona: ")
+                    append(persona)
+                    append('\n')
+                }
+                append(guidance.joinToString(" "))
+                if (relevantMemory.isNotBlank()) {
+                    append("\nRelevant context: ")
+                    append(relevantMemory)
+                }
+                if (promotedMemory.isNotBlank()) {
+                    append("\nPromoted memory: ")
+                    append(promotedMemory)
+                }
+            }
+        }
+
         fun buildSystemPromptContent(
             toolsEnabled: Boolean,
             customSystemPrompt: String = "",
@@ -4646,9 +4741,11 @@ class NativeToolCallingChatClient(
         private const val TOOL_TIMEOUT_SECONDS = 60
         private const val NATIVE_TOOL_GENERATION_TIMEOUT_MS = 300_000L
         private const val HTML_GENERATION_TIMEOUT_MS = 45_000L
-        private const val NATIVE_TOOL_MAX_TOKENS = 1024
-        private const val CONTEXT_RECOVERY_MAX_TOKENS = 512
+        private const val NATIVE_TOOL_MAX_TOKENS = 256
+        private const val CONTEXT_RECOVERY_MAX_TOKENS = 128
         private const val HTML_GENERATION_MAX_TOKENS = 768
+        private const val FOCUSED_PERSONA_CHARS = 320
+        private const val FOCUSED_MEMORY_CHARS = 320
         private const val MAX_NATIVE_TOOL_ROUNDS = 6
         private const val PRIVILEGED_TOOL_TIMEOUT_SECONDS = 30
         private const val MAX_TOOL_RESULT_CHARS = 12_000
@@ -5082,6 +5179,7 @@ class NativeToolCallingChatClient(
         )
         private val HTML_PATH_REGEX = Regex("""[A-Za-z0-9._/-]+\.html?""", RegexOption.IGNORE_CASE)
         private val MARKER_REGEX = Regex("""\b[A-Z][A-Z0-9_]{5,}\b""")
+        private val TERMINAL_COMMAND_WORD_REGEX = Regex("""\b(?:mkdir|rm|ls|cat|python)\s+""")
         private val FILE_WRITE_WITH_CONTENT_REGEX = Regex(
             pattern = """(?is)\b(?:write|create|save)\s+(?:"(?<double>[^"]+)"|'(?<single>[^']+)'|(?<bare>[A-Za-z0-9._/-]+))\s+with\s+content\s+(?<content>.+?)(?:\.\s+(?:after|then)\b|$)""",
         )

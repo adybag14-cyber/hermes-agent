@@ -972,7 +972,9 @@ private fun EmptyChatHint(
             ) {
                 Button(
                     onClick = onNewChat,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("HermesEmptyChatNewChatButton"),
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                 ) {
                     Text(
@@ -984,7 +986,9 @@ private fun EmptyChatHint(
                 }
                 Button(
                     onClick = onOpenAccounts,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("HermesEmptyChatAccountsButton"),
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                 ) {
                     Text(
@@ -996,7 +1000,9 @@ private fun EmptyChatHint(
                 }
                 Button(
                     onClick = onOpenSettings,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("HermesEmptyChatSettingsButton"),
                     contentPadding = PaddingValues(horizontal = 6.dp, vertical = 8.dp),
                 ) {
                     Text(

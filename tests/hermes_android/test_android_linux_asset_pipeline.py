@@ -1,4 +1,5 @@
 import subprocess
+import socket
 import sys
 import tarfile
 from io import BytesIO
@@ -82,6 +83,33 @@ def test_prepare_android_linux_assets_uses_mirror_fallback(monkeypatch):
         ("https://packages.termux.dev/apt/termux-main/pool/main/bash.deb", 3),
         ("https://mirror.example/termux/termux-main/pool/main/bash.deb", 3),
     ]
+
+
+def test_prepare_android_linux_assets_can_scope_downloads_to_ipv4(monkeypatch):
+    families = []
+
+    def fake_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        families.append(family)
+        return []
+
+    monkeypatch.setenv("HERMES_FORCE_IPV4", "true")
+    monkeypatch.setattr(linux_asset_script.socket, "getaddrinfo", fake_getaddrinfo)
+
+    assert linux_asset_script.force_ipv4_downloads() is True
+    with linux_asset_script.ipv4_only_dns(enabled=True):
+        linux_asset_script.socket.getaddrinfo("mirror.example", 443)
+    linux_asset_script.socket.getaddrinfo("mirror.example", 443)
+
+    assert families == [socket.AF_INET, 0]
+
+
+def test_prepare_android_linux_assets_defaults_to_ipv4_on_windows_with_opt_out(monkeypatch):
+    monkeypatch.delenv("HERMES_FORCE_IPV4", raising=False)
+    monkeypatch.setattr(linux_asset_script.os, "name", "nt")
+    assert linux_asset_script.force_ipv4_downloads() is True
+
+    monkeypatch.setenv("HERMES_FORCE_IPV4", "false")
+    assert linux_asset_script.force_ipv4_downloads() is False
 
 
 def test_prepare_android_linux_asset_lock_round_trips_packages(tmp_path):

@@ -21,10 +21,15 @@ def _home_relative_cwd(cwd: str) -> str:
     if not cwd:
         return ""
     try:
-        home = os.path.expanduser("~")
+        # HOME is the portable gateway contract even on Windows, where
+        # expanduser otherwise prefers USERPROFILE. Preserve POSIX guest paths
+        # rather than rewriting /tmp to the current Windows drive.
+        if os.name == "nt" and cwd.startswith("/"):
+            return cwd.replace("\\", "/")
+        home = os.environ.get("HOME", "").strip() or os.path.expanduser("~")
         p = os.path.abspath(cwd)
         if home and (p == home or p.startswith(home + os.sep)):
-            return "~" + p[len(home):]
+            return ("~" + p[len(home):]).replace("\\", "/")
         return p
     except Exception:
         return cwd

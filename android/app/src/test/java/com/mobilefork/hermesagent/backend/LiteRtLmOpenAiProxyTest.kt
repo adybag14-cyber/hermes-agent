@@ -258,7 +258,7 @@ class LiteRtLmOpenAiProxyTest {
             isX86Device = true,
         )
 
-        assertEquals(1_024, budget.value)
+        assertEquals(2_048, budget.value)
         assertTrue(budget.policy, budget.policy.contains("x86 emulator/device"))
     }
 
@@ -286,7 +286,21 @@ class LiteRtLmOpenAiProxyTest {
             isX86Device = true,
         )
 
-        assertEquals(1_024, budget.value)
+        assertEquals(2_048, budget.value)
+        assertTrue(budget.policy, budget.policy.contains("x86 emulator/device"))
+    }
+
+    @Test
+    fun engineTokenBudget_keepsLowRamX86EmulatorConservative() {
+        val budget = LiteRtLmOpenAiProxy.decideEngineTokenBudget(
+            requestedMaxTokens = 4_000,
+            requestedMaxContextLength = 32_000,
+            totalRamBytes = 3_000_000_000L,
+            modelBytes = 2_583_085_056L,
+            isX86Device = true,
+        )
+
+        assertEquals(512, budget.value)
         assertTrue(budget.policy, budget.policy.contains("x86 emulator/device"))
     }
 

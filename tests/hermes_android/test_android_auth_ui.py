@@ -125,6 +125,8 @@ def test_auth_callback_hardening_strings_and_base_url_validation_exist():
     auth_session_store = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/data/AuthSessionStore.kt").read_text(encoding="utf-8")
     auth_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/auth/AuthViewModel.kt").read_text(encoding="utf-8")
     browser_launcher = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesExternalBrowserLauncher.kt").read_text(encoding="utf-8")
+    in_app_browser = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt").read_text(encoding="utf-8")
+    manifest = (REPO_ROOT / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
     corr3xt_auth_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/auth/Corr3xtAuthClient.kt").read_text(encoding="utf-8")
     strings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
 
@@ -150,9 +152,15 @@ def test_auth_callback_hardening_strings_and_base_url_validation_exist():
     assert 'currentStrings().authOpenedCorr3xt(option.label)' in auth_view_model
     assert 'HermesExternalBrowserLauncher.open' in auth_view_model
     open_auth_start_page = auth_view_model.split("private fun openAuthStartPage", 1)[1].split("fun copyPendingSignInUrl", 1)[0]
-    assert "preferInApp" not in open_auth_start_page
-    assert "HermesProviderSetupWebActivity.openInApp" not in open_auth_start_page
-    assert "HermesExternalBrowserLauncher.open" in open_auth_start_page
+    assert "HermesProviderSetupWebActivity.openInApp" in open_auth_start_page
+    assert "return HermesExternalBrowserLauncher.open" in open_auth_start_page
+    assert open_auth_start_page.index("HermesProviderSetupWebActivity.openInApp") < open_auth_start_page.index("HermesExternalBrowserLauncher.open")
+    assert 'android:name=".device.HermesProviderSetupWebActivity"' in manifest
+    assert 'android:exported="false"' in manifest.split('android:name=".device.HermesProviderSetupWebActivity"', 1)[1].split("/>", 1)[0]
+    assert "if (openHermesAuthCallback(uri))" in in_app_browser
+    assert "AuthSessionStore.isAuthCallback(uri)" in in_app_browser
+    assert 'setClassName(packageName, "com.mobilefork.hermesagent.MainActivity")' in in_app_browser
+    assert 'private val SUPPORTED_URI_SCHEMES = setOf("http", "https")' in in_app_browser
     assert 'Intent.createChooser' in browser_launcher
     assert 'putExtra(Browser.EXTRA_APPLICATION_ID' in browser_launcher
     assert 'copyAuthStartUrl(pendingRequest.startUrl, updateStatus = false)' in auth_view_model
@@ -205,9 +213,16 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
 
     openrouter_block = auth_models.split('id = "openrouter"', 1)[1].split("AuthOption(", 1)[0]
     assert "browserSignInSupported = true" in openrouter_block
-    for provider in ["openai", "chatgpt", "claude", "gemini", "qwen", "qwen-coding-plan", "qwen-oauth", "zai", "zai-coding-plan"]:
+    for provider in ["openai", "claude", "gemini", "qwen", "qwen-coding-plan", "qwen-oauth", "zai", "zai-coding-plan"]:
         block = auth_models.split(f'id = "{provider}"', 1)[1].split("AuthOption(", 1)[0]
         assert "browserSignInSupported = false" in block
+
+    chatgpt_block = auth_models.split('id = "chatgpt"', 1)[1].split("AuthOption(", 1)[0]
+    assert "browserSignInSupported = true" in chatgpt_block
+    assert 'runtimeProvider = "chatgpt-web"' in chatgpt_block
+    assert 'https://chatgpt.com/backend-api/f' in chatgpt_block
+    assert 'return startCodexBrowserOAuth(option)' in auth_view_model
+    assert 'return startCodexDeviceCodeInternal(option)' not in auth_view_model
 
     openai_block = auth_models.split('id = "openai"', 1)[1].split("AuthOption(", 1)[0]
     assert 'runtimeProvider = "openai"' in openai_block

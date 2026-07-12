@@ -1487,4 +1487,3 @@ class TestFlushPendingSync:
 
         consumer.finish()
         await task
-

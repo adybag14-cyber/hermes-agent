@@ -1,14 +1,32 @@
 package com.mobilefork.hermesagent.device
 
 import android.content.Context
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.FileOutputStream
+import java.security.MessageDigest
+import java.util.concurrent.TimeUnit
 
 object HermesLinuxSandboxBridge {
     private const val DEFAULT_TIMEOUT_SECONDS = 900L
     private const val RUN_TIMEOUT_SECONDS = 120L
     private const val AGENT_CONTROL_FILE_NAME = "hermes-agent-shell-control.json"
+    private val layerHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.MINUTES)
+        .callTimeout(10, TimeUnit.MINUTES)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
+
+    private data class DockerHubImage(
+        val repo: String,
+        val tag: String,
+    )
 
     fun performAction(
         context: Context,
@@ -93,7 +111,8 @@ object HermesLinuxSandboxBridge {
     }
 
     fun status(state: JSONObject, context: Context? = null): JSONObject {
-        val qemuUserPath = qemuPathForState(state)
+        val preferredGuestArch = preferredGuestArchitecture(hostArchitectureForState(state))
+        val qemuUserPath = qemuPathForGuestArchitecture(state, preferredGuestArch)
         val control = context?.let { readAgentControl(it) } ?: defaultAgentControl()
         val installed = installedSandboxes(state)
         // With zero installed sandboxes, do not report AI shell as enabled — it misleads the Device UI.
@@ -110,6 +129,7 @@ object HermesLinuxSandboxBridge {
             .put("proot_distro_available", hasPackage(state, "proot-distro"))
             .put("qemu_user_available", qemuUserPath.isNotBlank())
             .put("qemu_user_path", qemuUserPath)
+            .put("preferred_guest_architecture", preferredGuestArch)
             .put("python_available", hasPackage(state, "python"))
             .put("app_private_storage_root", context?.let { appPrivateStorageRoot(it).absolutePath }.orEmpty())
             .put("agent_control_file", context?.let { agentControlFile(it).absolutePath }.orEmpty())
@@ -168,15 +188,45 @@ object HermesLinuxSandboxBridge {
                 .put("exit_code", 2)
                 .put("error", "install requires a known distro_id, image, or name.")
         }
-        val command = installCommandFor(sandboxName = sandboxName, imageRef = imageRef)
-        return runProotDistroCommand(
+        val guestArchitecture = preferredGuestArchitecture(hostArchitectureForState(state))
+        val command = installCommandFor(
+            sandboxName = sandboxName,
+            imageRef = imageRef,
+            architecture = guestArchitecture,
+        )
+        val primaryResult = runProotDistroCommand(
             context = context,
             state = state,
             action = "install",
             command = command,
             timeoutSeconds = timeoutSeconds.coerceIn(60, DEFAULT_TIMEOUT_SECONDS),
-        ).put("sandbox_name", sandboxName)
+        )
+        val result = if (shouldRetryInstallWithAndroidHttp(primaryResult)) {
+            val cacheResult = cacheDockerLayersWithAndroidHttp(
+                state = state,
+                imageRef = imageRef,
+                architecture = guestArchitecture,
+            )
+            if (cacheResult.optInt("exit_code", -1) == 0) {
+                runProotDistroCommand(
+                    context = context,
+                    state = state,
+                    action = "install",
+                    command = command,
+                    timeoutSeconds = timeoutSeconds.coerceIn(60, DEFAULT_TIMEOUT_SECONDS),
+                ).put("network_retry", "android_https_verified_layer_cache")
+                    .put("android_layer_cache", cacheResult)
+                    .put("initial_network_error", primaryResult.optString("error").take(2000))
+            } else {
+                primaryResult.put("network_retry", "android_https_layer_cache_failed")
+                    .put("android_layer_cache", cacheResult)
+            }
+        } else {
+            primaryResult
+        }
+        return result.put("sandbox_name", sandboxName)
             .put("image", imageRef)
+            .put("sandbox_architecture", guestArchitecture)
             .put("distro_id", selected.optString("id"))
             .put("app_private_storage_root", appPrivateStorageRoot(context).absolutePath)
             .put("next_actions", JSONArray().put("start").put("run").put("update").put("uninstall"))
@@ -443,7 +493,22 @@ object HermesLinuxSandboxBridge {
                 .put("exit_code", 2)
                 .put("error", "container '$sandboxName' is not installed.")
         }
-        val qemuUserPath = qemuPathForState(state)
+        val guestArchitecture = sandboxArchitecture(File(containersDir(state), sandboxName))
+        val hostArchitecture = hostArchitectureForState(state)
+        if (guestArchitecture.isBlank()) {
+            return runErrorResult(state = state, sandboxName = sandboxName, selected = selected, command = command, exitCode = 126)
+                .put("error", "container '$sandboxName' has no readable architecture metadata; reinstall it before running commands.")
+        }
+        if (guestArchitecture == hostArchitecture) {
+            return runErrorResult(state = state, sandboxName = sandboxName, selected = selected, command = command, exitCode = 126)
+                .put("sandbox_architecture", guestArchitecture)
+                .put("required_sandbox_architecture", preferredGuestArchitecture(hostArchitecture))
+                .put(
+                    "error",
+                    "container '$sandboxName' uses the device architecture ($guestArchitecture). Android 10+ blocks executing downloaded app-data binaries; preserve any data, uninstall this sandbox, and deploy it again so Hermes can install the emulated architecture.",
+                )
+        }
+        val qemuUserPath = qemuPathForGuestArchitecture(state, guestArchitecture)
         if (qemuUserPath.isBlank()) {
             return runErrorResult(state = state, sandboxName = sandboxName, selected = selected, command = command, exitCode = 127)
                 .put("exit_code", 127)
@@ -464,40 +529,19 @@ object HermesLinuxSandboxBridge {
                 ?: RUN_TIMEOUT_SECONDS,
             includeStatus = false,
         )
-        val result = if (qemuResult.optInt("exit_code", -1) == 0) {
-            qemuResult
-        } else {
-            runProotDistroCommand(
-                context = context,
-                state = state,
-                action = "run",
-                command = nativePrefixWorkspaceCommandFor(
-                    prefixPath = state.optString("prefix_path"),
-                    sandboxName = sandboxName,
-                    command = command,
-                    binPath = state.optString("bin_path"),
-                ),
-                timeoutSeconds = timeoutSeconds.coerceIn(5, DEFAULT_TIMEOUT_SECONDS).takeIf { timeoutSeconds != DEFAULT_TIMEOUT_SECONDS }
-                    ?: RUN_TIMEOUT_SECONDS,
-                includeStatus = false,
-            )
-        }
         return compactRunResult(
             state = state,
-            result = result,
+            result = qemuResult,
             selected = selected,
             sandboxName = sandboxName,
             command = command,
             rootfsDir = rootfsDir,
             qemuUserPath = qemuUserPath,
-            sandboxExecutionMode = if (qemuResult.optInt("exit_code", -1) == 0) {
-                "qemu_user_direct"
-            } else {
-                "native_prefix_workspace"
-            },
+            sandboxExecutionMode = "proot_distro_qemu",
             qemuExitCode = qemuResult.optInt("exit_code", -1),
             qemuError = qemuResult.optString("error"),
-        )
+        ).put("sandbox_architecture", guestArchitecture)
+            .put("host_architecture", hostArchitecture)
     }
 
     private fun remove(
@@ -592,15 +636,10 @@ object HermesLinuxSandboxBridge {
             .put("shell", result.optString("shell"))
             .put("execution_mode", result.optString("execution_mode"))
             .put("uses_termux", result.optBoolean("uses_termux", state.optBoolean("uses_termux", false)))
-        if (sandboxExecutionMode != "qemu_user_direct") {
+        if (result.optInt("exit_code", -1) != 0) {
             output
-                .put("fallback_from", "qemu_user_direct")
                 .put("qemu_exit_code", qemuExitCode)
                 .put("qemu_error", qemuError)
-                .put(
-                    "sandbox_execution_note",
-                    "Android app-process seccomp blocked downloaded rootfs guest execution, so Hermes ran the command with packaged native Linux tools in the sandbox rootfs working directory.",
-                )
         }
         return output
     }
@@ -612,14 +651,17 @@ object HermesLinuxSandboxBridge {
         command: String,
         exitCode: Int,
     ): JSONObject {
-        val qemuUserPath = qemuPathForState(state)
+        val qemuUserPath = qemuPathForGuestArchitecture(
+            state,
+            preferredGuestArchitecture(hostArchitectureForState(state)),
+        )
         return JSONObject()
             .put("exit_code", exitCode)
             .put("action", "run")
             .put("sandbox_name", sandboxName)
             .put("distro_id", selected.optString("id"))
             .put("sandbox_command", command)
-            .put("sandbox_execution_mode", "qemu_user_direct")
+            .put("sandbox_execution_mode", "proot_distro_qemu")
             .put("qemu_user_available", qemuUserPath.isNotBlank())
             .put("qemu_user_path", qemuUserPath)
             .put("execution_mode", state.optString("execution_mode"))
@@ -634,110 +676,226 @@ object HermesLinuxSandboxBridge {
         return value.trim().trim('.', ',', ':', ';')
     }
 
-    internal fun installCommandFor(sandboxName: String, imageRef: String): String {
-        return "proot-distro install --name ${HermesLinuxSubsystemBridge.shellQuote(sandboxName)} ${HermesLinuxSubsystemBridge.shellQuote(imageRef)}"
+    internal fun installCommandFor(sandboxName: String, imageRef: String, architecture: String = ""): String {
+        val architectureArg = architecture.trim().takeIf { it.isNotBlank() }
+            ?.let { " --architecture ${HermesLinuxSubsystemBridge.shellQuote(it)}" }
+            .orEmpty()
+        return "proot-distro install --name ${HermesLinuxSubsystemBridge.shellQuote(sandboxName)}$architectureArg ${HermesLinuxSubsystemBridge.shellQuote(imageRef)}"
     }
+
+    internal fun shouldRetryInstallWithAndroidHttp(result: JSONObject): Boolean {
+        if (result.optInt("exit_code", 0) == 0) return false
+        val detail = (result.optString("error") + "\n" + result.optString("output")).uppercase()
+        return detail.contains("RECORD_LAYER_FAILURE") ||
+            detail.contains("UNEXPECTED_EOF_WHILE_READING")
+    }
+
+    internal fun dockerManifestCacheKey(imageRef: String, arch: String): String? {
+        val image = parseDockerHubImage(imageRef) ?: return null
+        return sha256Hex("${image.repo}:${image.tag}_${arch}".toByteArray(Charsets.UTF_8)).take(16)
+    }
+
+    private fun cacheDockerLayersWithAndroidHttp(
+        state: JSONObject,
+        imageRef: String,
+        architecture: String,
+    ): JSONObject {
+        return try {
+            val image = parseDockerHubImage(imageRef)
+                ?: return JSONObject()
+                    .put("exit_code", 2)
+                    .put("error", "Android HTTPS layer fallback currently supports Docker Hub image references only.")
+            val prefixPath = state.optString("prefix_path")
+            val arch = architecture
+            val cacheKey = dockerManifestCacheKey(imageRef, arch)
+                ?: return JSONObject().put("exit_code", 2).put("error", "Invalid Docker Hub image reference.")
+            val cacheRoot = File(prefixPath, "var/lib/proot-distro/cache")
+            val manifestFile = File(File(cacheRoot, "oci_manifests"), "$cacheKey.json")
+            if (!manifestFile.isFile) {
+                return JSONObject()
+                    .put("exit_code", 2)
+                    .put("error", "proot-distro did not leave a verified manifest cache for $imageRef ($arch).")
+            }
+            val cachedManifest = JSONObject(manifestFile.readText(Charsets.UTF_8))
+            if (cachedManifest.optString("repo") != image.repo) {
+                return JSONObject()
+                    .put("exit_code", 2)
+                    .put("error", "Cached manifest repository does not match ${image.repo}.")
+            }
+            val layers = cachedManifest.optJSONObject("manifest")?.optJSONArray("layers")
+                ?: return JSONObject().put("exit_code", 2).put("error", "Cached manifest has no layer list.")
+            val layerDir = File(cacheRoot, "oci_layers").apply { mkdirs() }
+            val missing = mutableListOf<JSONObject>()
+            for (index in 0 until layers.length()) {
+                val layer = layers.optJSONObject(index) ?: continue
+                val digest = layer.optString("digest")
+                val expectedHex = validatedSha256Digest(digest)
+                    ?: return JSONObject().put("exit_code", 2).put("error", "Manifest contains an invalid layer digest.")
+                val target = File(layerDir, digest.replace(':', '_'))
+                if (!target.isFile || target.length() != layer.optLong("size", -1L) || sha256File(target) != expectedHex) {
+                    target.delete()
+                    missing += layer
+                }
+            }
+            if (missing.isEmpty()) {
+                return JSONObject()
+                    .put("exit_code", 0)
+                    .put("transport", "android_okhttp")
+                    .put("downloaded_layer_count", 0)
+                    .put("verified_layer_count", layers.length())
+            }
+
+            val tokenUrl = "https://auth.docker.io/token".toHttpUrl().newBuilder()
+                .addQueryParameter("service", "registry.docker.io")
+                .addQueryParameter("scope", "repository:${image.repo}:pull")
+                .build()
+            val token = executeTextRequest(Request.Builder().url(tokenUrl).get().build())
+                .let { JSONObject(it).optString("token").ifBlank { JSONObject(it).optString("access_token") } }
+            if (token.isBlank()) {
+                return JSONObject().put("exit_code", 1).put("error", "Docker Hub did not return an anonymous pull token.")
+            }
+
+            var downloadedCount = 0
+            missing.forEach { layer ->
+                val digest = layer.getString("digest")
+                val expectedHex = validatedSha256Digest(digest)
+                    ?: error("Manifest contains an invalid layer digest.")
+                val expectedSize = layer.optLong("size", -1L)
+                val target = File(layerDir, digest.replace(':', '_'))
+                downloadVerifiedLayer(
+                    request = Request.Builder()
+                        .url("https://registry-1.docker.io/v2/${image.repo}/blobs/$digest")
+                        .header("Authorization", "Bearer $token")
+                        .get()
+                        .build(),
+                    target = target,
+                    expectedHex = expectedHex,
+                    expectedSize = expectedSize,
+                )
+                downloadedCount += 1
+            }
+            JSONObject()
+                .put("exit_code", 0)
+                .put("transport", "android_okhttp")
+                .put("downloaded_layer_count", downloadedCount)
+                .put("verified_layer_count", layers.length())
+                .put("manifest_cache", manifestFile.absolutePath)
+        } catch (error: Exception) {
+            JSONObject()
+                .put("exit_code", 1)
+                .put("transport", "android_okhttp")
+                .put("error", error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    private fun executeTextRequest(request: Request): String {
+        return layerHttpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                error("HTTP ${response.code} ${response.message} for ${request.url.host}")
+            }
+            response.body?.string() ?: error("Empty HTTP response from ${request.url.host}")
+        }
+    }
+
+    private fun downloadVerifiedLayer(
+        request: Request,
+        target: File,
+        expectedHex: String,
+        expectedSize: Long,
+    ) {
+        target.parentFile?.mkdirs()
+        val temporary = File(target.parentFile, ".${target.name}.${System.nanoTime()}.tmp")
+        try {
+            val digest = MessageDigest.getInstance("SHA-256")
+            var byteCount = 0L
+            layerHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    error("HTTP ${response.code} ${response.message} while downloading ${target.name}")
+                }
+                val body = response.body ?: error("Docker layer response body is empty.")
+                body.byteStream().use { input ->
+                    FileOutputStream(temporary).buffered().use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            val read = input.read(buffer)
+                            if (read < 0) break
+                            if (read == 0) continue
+                            output.write(buffer, 0, read)
+                            digest.update(buffer, 0, read)
+                            byteCount += read
+                        }
+                    }
+                }
+            }
+            if (expectedSize >= 0 && byteCount != expectedSize) {
+                error("Docker layer size mismatch: expected $expectedSize bytes, received $byteCount.")
+            }
+            val actualHex = digest.digest().joinToString("") { "%02x".format(it) }
+            if (actualHex != expectedHex) {
+                error("Docker layer SHA-256 mismatch: expected $expectedHex, received $actualHex.")
+            }
+            if (target.exists() && !target.delete()) {
+                error("Unable to replace stale Docker layer cache ${target.name}.")
+            }
+            if (!temporary.renameTo(target)) {
+                error("Unable to atomically promote Docker layer cache ${target.name}.")
+            }
+        } finally {
+            temporary.delete()
+        }
+    }
+
+    private fun parseDockerHubImage(imageRef: String): DockerHubImage? {
+        val value = imageRef.trim().lowercase()
+        if (value.isBlank() || value.contains('@')) return null
+        val firstSegment = value.substringBefore('/')
+        if ('/' in value && ('.' in firstSegment || ':' in firstSegment || firstSegment == "localhost")) return null
+        val lastSlash = value.lastIndexOf('/')
+        val lastColon = value.lastIndexOf(':')
+        val name = if (lastColon > lastSlash) value.substring(0, lastColon) else value
+        val tag = if (lastColon > lastSlash) value.substring(lastColon + 1) else "latest"
+        if (name.isBlank() || tag.isBlank() || !DOCKER_REPO.matches(name) || !DOCKER_TAG.matches(tag)) return null
+        return DockerHubImage(repo = if ('/' in name) name else "library/$name", tag = tag)
+    }
+
+    private fun validatedSha256Digest(digest: String): String? {
+        val match = SHA256_DIGEST.matchEntire(digest.lowercase()) ?: return null
+        return match.groupValues[1]
+    }
+
+    private fun sha256File(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                if (read > 0) digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun sha256Hex(bytes: ByteArray): String {
+        return MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    private val SHA256_DIGEST = Regex("""sha256:([0-9a-f]{64})""")
+    private val DOCKER_REPO = Regex("""[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*""")
+    private val DOCKER_TAG = Regex("""[a-z0-9_][a-z0-9_.-]{0,127}""")
 
     internal fun runCommandFor(prefixPath: String, sandboxName: String, command: String, qemuPath: String = ""): String {
         val normalizedPrefixPath = prefixPath.trimEnd('/')
         val rootfsPath = "$normalizedPrefixPath/var/lib/proot-distro/containers/$sandboxName/rootfs"
-        if (qemuPath.isNotBlank()) {
-            return qemuDirectCommandFor(rootfsPath = rootfsPath, command = command, qemuPath = qemuPath)
-        }
-        val guestPath = "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; export PATH; $command"
-        return "proot -w / -r ${HermesLinuxSubsystemBridge.shellQuote(rootfsPath)} " +
-            "-b /dev -b /proc -b /sys " +
-            "/bin/sh -lc ${HermesLinuxSubsystemBridge.shellQuote(guestPath)}"
-    }
-
-    internal fun qemuDirectCommandFor(rootfsPath: String, command: String, qemuPath: String): String {
-        val normalizedRootfsPath = rootfsPath.trimEnd('/')
-        val guestPath = listOf(
-            "$normalizedRootfsPath/usr/local/sbin",
-            "$normalizedRootfsPath/usr/local/bin",
-            "$normalizedRootfsPath/usr/sbin",
-            "$normalizedRootfsPath/usr/bin",
-            "$normalizedRootfsPath/sbin",
-            "$normalizedRootfsPath/bin",
-        ).joinToString(":")
-        val guestScript = "ROOTFS=${HermesLinuxSubsystemBridge.shellQuote(normalizedRootfsPath)}; " +
-            "PATH=${HermesLinuxSubsystemBridge.shellQuote(guestPath)}; " +
-            "HOME=${HermesLinuxSubsystemBridge.shellQuote("$normalizedRootfsPath/root")}; " +
-            "TMPDIR=${HermesLinuxSubsystemBridge.shellQuote("$normalizedRootfsPath/tmp")}; " +
-            "BUSYBOX=${HermesLinuxSubsystemBridge.shellQuote("$normalizedRootfsPath/bin/busybox")}; " +
-            "export PATH HOME TMPDIR; " +
-            busyboxAliasPrelude() +
-            command
-        return "ROOTFS=${HermesLinuxSubsystemBridge.shellQuote(normalizedRootfsPath)}; " +
-            "QEMU=${HermesLinuxSubsystemBridge.shellQuote(qemuPath)}; " +
-            "GUEST_SCRIPT=${HermesLinuxSubsystemBridge.shellQuote(guestScript)}; " +
-            "cd \"\$ROOTFS\" && " +
-            "if [ -f \"\$ROOTFS/bin/busybox\" ]; then " +
-            "QEMU_LD_PREFIX=\"\$ROOTFS\" \"\$QEMU\" -L \"\$ROOTFS\" \"\$ROOTFS/bin/busybox\" sh -lc \"\$GUEST_SCRIPT\"; " +
-            "else " +
-            "QEMU_LD_PREFIX=\"\$ROOTFS\" \"\$QEMU\" -L \"\$ROOTFS\" \"\$ROOTFS/bin/sh\" -lc \"\$GUEST_SCRIPT\"; " +
-            "fi"
-    }
-
-    internal fun nativePrefixWorkspaceCommandFor(
-        prefixPath: String,
-        sandboxName: String,
-        command: String,
-        binPath: String = "",
-    ): String {
-        val normalizedPrefixPath = prefixPath.trimEnd('/')
-        val rootfsPath = "$normalizedPrefixPath/var/lib/proot-distro/containers/$sandboxName/rootfs"
-        val sandboxPath = listOf(
-            binPath,
-            "$normalizedPrefixPath/bin",
-            "/system/bin",
-            "/system/xbin",
-        )
-            .filter { it.isNotBlank() }
-            .distinct()
-            .joinToString(":")
-        return "SANDBOX_ROOTFS=${HermesLinuxSubsystemBridge.shellQuote(rootfsPath)}; " +
-            "export SANDBOX_ROOTFS HERMES_SANDBOX_ROOTFS=\"\$SANDBOX_ROOTFS\"; " +
-            "export HOME=\"\$SANDBOX_ROOTFS/root\" TMPDIR=${HermesLinuxSubsystemBridge.shellQuote("$normalizedPrefixPath/tmp")}; " +
-            "export PATH=${HermesLinuxSubsystemBridge.shellQuote(sandboxPath)}; " +
-            "cd \"\$SANDBOX_ROOTFS\" && " +
-            command
-    }
-
-    private fun busyboxAliasPrelude(): String {
-        val applets = listOf(
-            "awk",
-            "cat",
-            "chmod",
-            "cp",
-            "date",
-            "df",
-            "du",
-            "echo",
-            "env",
-            "grep",
-            "head",
-            "id",
-            "ln",
-            "ls",
-            "mkdir",
-            "mv",
-            "ps",
-            "pwd",
-            "rm",
-            "rmdir",
-            "sed",
-            "sh",
-            "sleep",
-            "tail",
-            "tar",
-            "touch",
-            "uname",
-            "whoami",
-        )
-        return "if [ -f \"\$BUSYBOX\" ]; then " +
-            applets.joinToString("; ") { "alias $it=\"\$BUSYBOX $it\"" } +
-            "; fi; "
+        val emulatorArg = qemuPath.trim().takeIf { it.isNotBlank() }
+            ?.let { " --emulator ${HermesLinuxSubsystemBridge.shellQuote(it)}" }
+            .orEmpty()
+        return "HERMES_SANDBOX_ROOTFS=${HermesLinuxSubsystemBridge.shellQuote(rootfsPath)}; " +
+            "export HERMES_SANDBOX_ROOTFS; " +
+            "proot-distro run ${HermesLinuxSubsystemBridge.shellQuote(sandboxName)}$emulatorArg -- " +
+            "/bin/sh -lc ${HermesLinuxSubsystemBridge.shellQuote(command)}"
     }
 
     internal fun removeCommandFor(sandboxName: String): String {
@@ -776,12 +934,19 @@ object HermesLinuxSandboxBridge {
             ?.filter { File(it, "rootfs").isDirectory }
             ?.sortedBy { it.name.lowercase() }
             ?.forEach { container ->
+                val architecture = sandboxArchitecture(container)
+                val hostArchitecture = hostArchitectureForState(state)
                 result.put(
                     JSONObject()
                         .put("name", container.name)
                         .put("path", container.absolutePath)
                         .put("rootfs_path", File(container, "rootfs").absolutePath)
-                        .put("manifest_available", File(container, "manifest.json").isFile),
+                        .put("manifest_available", File(container, "manifest.json").isFile)
+                        .put("architecture", architecture)
+                        .put(
+                            "android_execution_supported",
+                            architecture.isNotBlank() && architecture != hostArchitecture,
+                        ),
                 )
             }
         return result
@@ -806,9 +971,39 @@ object HermesLinuxSandboxBridge {
         return false
     }
 
-    private fun qemuPathForState(state: JSONObject): String {
-        val qemuName = when (state.optString("android_abi")) {
-            "arm64-v8a" -> "qemu-aarch64"
+    internal fun preferredGuestArchitecture(hostArchitecture: String): String {
+        return when (normalizeArchitecture(hostArchitecture)) {
+            "aarch64" -> "x86_64"
+            "x86_64" -> "aarch64"
+            else -> ""
+        }
+    }
+
+    private fun hostArchitectureForState(state: JSONObject): String {
+        return normalizeArchitecture(
+            state.optString("termux_arch").ifBlank { state.optString("android_abi") },
+        )
+    }
+
+    private fun normalizeArchitecture(architecture: String): String {
+        return when (architecture.trim().lowercase()) {
+            "arm64", "arm64-v8a", "aarch64" -> "aarch64"
+            "amd64", "x86_64" -> "x86_64"
+            else -> architecture.trim().lowercase()
+        }
+    }
+
+    private fun sandboxArchitecture(containerDir: File): String {
+        val manifest = File(containerDir, "manifest.json")
+        if (!manifest.isFile) return ""
+        return runCatching {
+            normalizeArchitecture(JSONObject(manifest.readText(Charsets.UTF_8)).optString("arch"))
+        }.getOrDefault("")
+    }
+
+    private fun qemuPathForGuestArchitecture(state: JSONObject, guestArchitecture: String): String {
+        val qemuName = when (normalizeArchitecture(guestArchitecture)) {
+            "aarch64" -> "qemu-aarch64"
             "x86_64" -> "qemu-x86_64"
             else -> ""
         }

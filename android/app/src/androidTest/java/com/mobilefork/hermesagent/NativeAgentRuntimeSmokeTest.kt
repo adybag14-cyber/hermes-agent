@@ -171,8 +171,8 @@ class NativeAgentRuntimeSmokeTest {
             assertFalse("Local backend must remain stopped when no model is preferred", backendStatus.started)
             assertTrue(
                 state.probeResult.orEmpty(),
-                state.probeResult.orEmpty()
-                    .contains("Local llama.cpp backend unavailable: No preferred local model is ready for llama.cpp yet"),
+                state.probeResult.orEmpty().contains("Local llama.cpp backend unavailable:") &&
+                    state.probeResult.orEmpty().contains("Using saved remote provider"),
             )
         }
     }
