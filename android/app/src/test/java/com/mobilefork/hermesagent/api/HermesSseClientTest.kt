@@ -89,6 +89,49 @@ class HermesSseClientTest {
     }
 
     @Test
+    fun streamChatCompletion_reports_doneOnlyStreamSoCallerCanFallback() {
+        val client = HermesSseClient(
+            baseUrl = "http://127.0.0.1:15436",
+            httpClient = singleResponseClient("data: [DONE]\n\n"),
+        )
+
+        var completed = false
+        var error: String? = null
+        client.streamChatCompletion(
+            request = sampleRequest(),
+            onDelta = {},
+            onComplete = { completed = true },
+            onError = { error = it },
+        )
+
+        assertFalse(completed)
+        assertNotNull(error)
+        assertTrue(error!!.contains("without assistant text"))
+    }
+
+    @Test
+    fun streamChatCompletion_reports_finishReasonWithoutTextSoCallerCanFallback() {
+        val body = "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+        val client = HermesSseClient(
+            baseUrl = "http://127.0.0.1:15436",
+            httpClient = singleResponseClient(body),
+        )
+
+        var completed = false
+        var error: String? = null
+        client.streamChatCompletion(
+            request = sampleRequest(),
+            onDelta = {},
+            onComplete = { completed = true },
+            onError = { error = it },
+        )
+
+        assertFalse(completed)
+        assertNotNull(error)
+        assertTrue(error!!.contains("without assistant text"))
+    }
+
+    @Test
     fun streamChatCompletion_reports_endpoint_status_steps() {
         val body = """
             data: {"choices":[{"delta":{"content":"hello"}}]}

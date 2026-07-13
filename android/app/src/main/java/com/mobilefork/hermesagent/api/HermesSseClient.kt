@@ -123,6 +123,7 @@ class HermesSseClient(
     ) {
         var sawDataFrame = false
         var sawFinishReason = false
+        var sawAssistantText = false
         while (!source.exhausted()) {
             val line = source.readUtf8Line() ?: break
             val payload = sseDataPayload(line) ?: continue
@@ -134,7 +135,11 @@ class HermesSseClient(
                 onStatus("Endpoint stream is live; waiting for assistant text")
             }
             if (payload == "[DONE]") {
-                onComplete()
+                if (sawAssistantText) {
+                    onComplete()
+                } else {
+                    onError(NO_ASSISTANT_TEXT_ERROR)
+                }
                 return
             }
             val event = runCatching { extractStreamEvent(payload) }.getOrElse { error ->
@@ -145,11 +150,16 @@ class HermesSseClient(
                 sawFinishReason = true
             }
             if (!event.delta.isNullOrEmpty()) {
+                sawAssistantText = true
                 onDelta(event.delta)
             }
         }
         if (sawFinishReason) {
-            onComplete()
+            if (sawAssistantText) {
+                onComplete()
+            } else {
+                onError(NO_ASSISTANT_TEXT_ERROR)
+            }
         } else {
             onError(
                 if (sawDataFrame) {
@@ -243,6 +253,8 @@ class HermesSseClient(
             "Check the Base URL, exact model name, mobile network, server timeout, and that the OpenAI-compatible endpoint keeps SSE open until [DONE]."
         private val EARLY_CLOSE_ERROR =
             "Custom endpoint stream closed before the endpoint sent [DONE]. $CUSTOM_ENDPOINT_HINT"
+        private val NO_ASSISTANT_TEXT_ERROR =
+            "Custom endpoint stream completed without assistant text. $CUSTOM_ENDPOINT_HINT"
         private val DEFAULT_HTTP_CLIENT = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
