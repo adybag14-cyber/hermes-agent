@@ -1209,7 +1209,7 @@ private fun LanguagePickerCard(
                             modifier = Modifier
                                 .testTag("SettingsLanguage-${language.tag}")
                                 .semantics {
-                                    contentDescription = "Selected language ${language.nativeLabel}"
+                                    contentDescription = strings.selectedLanguageDescription(language.nativeLabel)
                                 },
                         ) {
                             Text("✓ ${language.flag} ${language.nativeLabel}")
@@ -1220,7 +1220,7 @@ private fun LanguagePickerCard(
                             modifier = Modifier
                                 .testTag("SettingsLanguage-${language.tag}")
                                 .semantics {
-                                    contentDescription = "Switch language to ${language.nativeLabel}"
+                                    contentDescription = strings.switchLanguageDescription(language.nativeLabel)
                                 },
                         ) {
                             Text("${language.flag} ${language.nativeLabel}")

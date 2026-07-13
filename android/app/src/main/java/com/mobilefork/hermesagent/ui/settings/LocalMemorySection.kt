@@ -23,6 +23,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.device.HermesHyMemoryBridge
+import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -133,6 +134,7 @@ fun LocalMemorySection(
     modifier: Modifier = Modifier,
     viewModel: LocalMemoryViewModel = viewModel(),
 ) {
+    val strings = LocalHermesStrings.current
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -145,28 +147,28 @@ fun LocalMemorySection(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Local memory (hy-memory)", style = MaterialTheme.typography.titleMedium)
+            Text(strings.localMemoryTitle(), style = MaterialTheme.typography.titleMedium)
             Text(
-                "On-device retain/recall used by the agent (`hy_memory_tool`). Facts stay on this phone.",
+                strings.localMemoryDescription(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                uiState.statusLine.ifBlank { if (uiState.loading) "Loading…" else "No status" },
+                strings.localMemoryStatusText(uiState.statusLine).ifBlank { if (uiState.loading) strings.loadingLabel() else strings.noStatusLabel() },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier.testTag("HermesLocalMemoryStatus"),
             )
             Text(
-                "Reinforced ${uiState.reinforced} · Promoted ${uiState.promoted}",
+                strings.reinforcedAndPromoted(uiState.reinforced, uiState.promoted),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = viewModel::refresh, enabled = !uiState.loading) {
-                    Text("Refresh")
+                    Text(strings.refresh)
                 }
                 TextButton(onClick = viewModel::clearAll, enabled = !uiState.loading && uiState.memoryCount > 0) {
-                    Text("Clear all")
+                    Text(strings.clearAllLabel())
                 }
             }
             if (uiState.error.isNotBlank()) {
@@ -174,7 +176,7 @@ fun LocalMemorySection(
             }
             if (uiState.entries.isEmpty() && !uiState.loading) {
                 Text(
-                    "No retained memories yet. Chat facts the agent stores will appear here.",
+                    strings.localMemoryEmpty(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -189,12 +191,12 @@ fun LocalMemorySection(
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            "hits ${entry.hitCount}${if (entry.promoted) " · promoted" else ""}",
+                            strings.memoryHits(entry.hitCount, entry.promoted),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         TextButton(onClick = { viewModel.delete(entry.id) }, enabled = entry.id.isNotBlank()) {
-                            Text("Delete")
+                            Text(strings.deleteLabel())
                         }
                     }
                 }

@@ -29,6 +29,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.data.HermesSkill
 import com.mobilefork.hermesagent.data.SkillsBridge
 import com.mobilefork.hermesagent.data.SkillsSnapshot
+import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -118,6 +119,7 @@ fun SkillsSection(
     modifier: Modifier = Modifier,
     viewModel: SkillsViewModel = viewModel(),
 ) {
+    val strings = LocalHermesStrings.current
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -135,9 +137,9 @@ fun SkillsSection(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Skills", style = MaterialTheme.typography.titleMedium)
+            Text(strings.skillsTitle(), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Installed Hermes skills from hermes-home and bundled skill directories.",
+                strings.skillsDescription(),
                 style = MaterialTheme.typography.bodySmall,
             )
             Row(
@@ -152,7 +154,7 @@ fun SkillsSection(
                     onClick = viewModel::refresh,
                     enabled = !uiState.loading,
                 ) {
-                    Text(if (uiState.loading) "Loading…" else "Refresh")
+                    Text(if (uiState.loading) strings.loadingLabel() else strings.refresh)
                 }
             }
             if (uiState.note.isNotBlank()) {
@@ -173,14 +175,14 @@ fun SkillsSection(
             }
             if (uiState.statusMessage.isNotBlank() && uiState.error.isBlank()) {
                 Text(
-                    uiState.statusMessage,
+                    strings.skillsStatusText(uiState.statusMessage),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.testTag("SkillsStatus"),
                 )
             }
             if (uiState.skills.isEmpty() && !uiState.loading) {
                 Text(
-                    "No skills found yet. They appear after Hermes boot syncs bundled skills.",
+                    strings.skillsEmpty(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

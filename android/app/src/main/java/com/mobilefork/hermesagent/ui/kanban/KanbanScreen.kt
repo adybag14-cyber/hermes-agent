@@ -40,6 +40,7 @@ import com.mobilefork.hermesagent.data.KanbanBoardSnapshot
 import com.mobilefork.hermesagent.data.KanbanBridge
 import com.mobilefork.hermesagent.data.KanbanTask
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
+import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -189,18 +190,19 @@ fun KanbanScreen(
     viewModel: KanbanViewModel = viewModel(),
     onContextActionsChanged: (List<ShellActionItem>) -> Unit = {},
 ) {
+    val strings = LocalHermesStrings.current
     val uiState by viewModel.uiState.collectAsState()
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
     }
 
-    LaunchedEffect(uiState.tasks.size, uiState.error) {
+    LaunchedEffect(uiState.tasks.size, uiState.error, strings.language) {
         onContextActionsChanged(
             listOf(
                 ShellActionItem(
-                    label = "Refresh board",
-                    description = "Reload tasks from the shared SQLite kanban DB",
+                    label = strings.kanbanRefresh(),
+                    description = strings.kanbanRefreshDescription(),
                     iconRes = com.mobilefork.hermesagent.R.drawable.ic_action_refresh,
                     onClick = viewModel::refresh,
                 ),
@@ -215,19 +217,17 @@ fun KanbanScreen(
             .testTag("HermesKanbanScreen"),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Kanban", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        Text(strings.kanbanTitle(), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
         Text(
-            text = uiState.note.ifBlank {
-                "Human board control for the shared Hermes kanban DB. Workers still need the gateway dispatcher."
-            },
+            text = strings.kanbanRuntimeText(uiState.note).ifBlank { strings.kanbanDescription() },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (uiState.statusMessage.isNotBlank()) {
-            Text(uiState.statusMessage, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Text(strings.kanbanRuntimeText(uiState.statusMessage), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         }
         if (uiState.error.isNotBlank()) {
-            Text(uiState.error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            Text(strings.kanbanRuntimeText(uiState.error), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
 
         Row(
@@ -241,7 +241,7 @@ fun KanbanScreen(
                 FilterChip(
                     selected = uiState.statusFilter == status,
                     onClick = { viewModel.setStatusFilter(status) },
-                    label = { Text("$status ($count)") },
+                    label = { Text("${strings.kanbanFilter(status)} ($count)") },
                     modifier = Modifier.testTag("HermesKanbanFilter_$status"),
                 )
             }
@@ -256,7 +256,7 @@ fun KanbanScreen(
                 modifier = Modifier.padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text("New task", style = MaterialTheme.typography.titleSmall)
+                Text(strings.kanbanNewTask(), style = MaterialTheme.typography.titleSmall)
                 OutlinedTextField(
                     value = uiState.draftTitle,
                     onValueChange = viewModel::updateDraftTitle,
@@ -264,7 +264,7 @@ fun KanbanScreen(
                         .fillMaxWidth()
                         .testTag("HermesKanbanTitleInput"),
                     singleLine = true,
-                    label = { Text("Title") },
+                    label = { Text(strings.kanbanTaskTitle()) },
                 )
                 OutlinedTextField(
                     value = uiState.draftBody,
@@ -274,14 +274,14 @@ fun KanbanScreen(
                         .testTag("HermesKanbanBodyInput"),
                     minLines = 2,
                     maxLines = 4,
-                    label = { Text("Details (optional)") },
+                    label = { Text(strings.kanbanTaskDetails()) },
                 )
                 Button(
                     onClick = viewModel::createTask,
                     modifier = Modifier.testTag("HermesKanbanCreateButton"),
                     enabled = !uiState.loading && uiState.draftTitle.isNotBlank(),
                 ) {
-                    Text("Create task")
+                    Text(strings.kanbanCreateTask())
                 }
             }
         }
@@ -297,7 +297,7 @@ fun KanbanScreen(
             if (uiState.tasks.isEmpty() && !uiState.loading) {
                 item {
                     Text(
-                        "No tasks yet. Create one above, or complete agent work that writes to the shared board.",
+                        strings.kanbanNoTasks(),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -325,6 +325,7 @@ private fun KanbanTaskCard(
     onUnblock: () -> Unit,
     onComment: (String) -> Unit,
 ) {
+    val strings = LocalHermesStrings.current
     var commentDraft by rememberSaveable(task.id) { mutableStateOf("") }
     Surface(
         modifier = Modifier
@@ -375,10 +376,10 @@ private fun KanbanTaskCard(
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (task.status == "blocked") {
-                    TextButton(onClick = onUnblock, enabled = enabled) { Text("Unblock") }
+                    TextButton(onClick = onUnblock, enabled = enabled) { Text(strings.kanbanUnblock()) }
                 }
                 if (task.status != "done" && task.status != "archived") {
-                    TextButton(onClick = onComplete, enabled = enabled) { Text("Complete") }
+                    TextButton(onClick = onComplete, enabled = enabled) { Text(strings.kanbanComplete()) }
                 }
             }
             OutlinedTextField(
@@ -386,7 +387,7 @@ private fun KanbanTaskCard(
                 onValueChange = { commentDraft = it },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                label = { Text("Comment") },
+                label = { Text(strings.kanbanComment()) },
                 trailingIcon = {
                     TextButton(
                         onClick = {
@@ -395,7 +396,7 @@ private fun KanbanTaskCard(
                         },
                         enabled = enabled && commentDraft.isNotBlank(),
                     ) {
-                        Text("Add")
+                        Text(strings.kanbanAdd())
                     }
                 },
             )

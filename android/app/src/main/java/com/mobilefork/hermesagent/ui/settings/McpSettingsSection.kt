@@ -529,24 +529,24 @@ private fun SimpleMcpOnboardingControls(
     if (streamableDialogVisible) {
         AlertDialog(
             onDismissRequest = { streamableDialogVisible = false },
-            title = { Text("Streamable HTTP MCP") },
+            title = { Text(strings.streamableHttpMcpTitle()) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        "Edge Gallery-style remote MCP: HTTPS URL that speaks Streamable HTTP. Optional API token is sent as Authorization.",
+                        strings.streamableHttpMcpDescription(),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedTextField(
                         value = streamableUrl,
                         onValueChange = { streamableUrl = it },
-                        label = { Text("MCP server URL") },
+                        label = { Text(strings.mcpServerUrlLabel()) },
                         singleLine = true,
                         modifier = Modifier.testTag("McpStreamableHttpUrlInput"),
                     )
                     OutlinedTextField(
                         value = streamableAuth,
                         onValueChange = { streamableAuth = it },
-                        label = { Text("API token (optional)") },
+                        label = { Text(strings.optionalApiTokenLabel()) },
                         singleLine = true,
                         modifier = Modifier.testTag("McpStreamableHttpAuthInput"),
                     )
