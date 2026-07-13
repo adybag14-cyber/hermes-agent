@@ -62,6 +62,9 @@ jobs:
             tests/run_agent/test_run_agent_chatgpt_web.py \
             -q
 
+      - name: Verify latest LiteRT-LM Android SDK
+        run: python scripts/check_android_litertlm_version.py
+
       - name: Ensure Gradle wrapper is executable
         run: chmod +x android/gradlew
 

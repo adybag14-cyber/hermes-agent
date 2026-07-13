@@ -444,7 +444,7 @@ dependencies {
     implementation("org.tukaani:xz:1.9")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("org.json:json:20240303")
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.13.1")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.14.0")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
 
     testImplementation("junit:junit:4.13.2")

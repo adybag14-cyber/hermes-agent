@@ -1,7 +1,9 @@
-import subprocess
+import hashlib
 import socket
+import subprocess
 import sys
 import tarfile
+import zipfile
 from io import BytesIO
 from pathlib import Path
 
@@ -57,6 +59,20 @@ def test_prepare_android_linux_assets_script_imports_from_android_workdir():
     assert "Prepare Android Linux CLI assets" in result.stdout
     assert "--lock-file" in result.stdout
     assert "--check-mirrors" in result.stdout
+    assert "--build-package-archive" in result.stdout
+
+
+def test_committed_termux_lock_pins_immutable_package_archive():
+    lock = linux_asset_script.load_lock_file(
+        REPO_ROOT / "hermes_android/termux_linux_assets.lock.json"
+    )
+    archive = lock["package_archive"]
+
+    assert archive["url"].startswith(
+        "https://github.com/adybag14-cyber/hermes-agent/releases/download/v"
+    )
+    assert len(archive["sha256"]) == 64
+    int(archive["sha256"], 16)
 
 
 def test_prepare_android_linux_assets_uses_mirror_fallback(monkeypatch):
@@ -110,6 +126,76 @@ def test_prepare_android_linux_assets_defaults_to_ipv4_on_windows_with_opt_out(m
 
     monkeypatch.setenv("HERMES_FORCE_IPV4", "false")
     assert linux_asset_script.force_ipv4_downloads() is False
+
+
+def test_prepare_android_linux_assets_prefers_verified_locked_archive(monkeypatch):
+    package_payload = b"locked-deb-payload"
+    archive_buffer = BytesIO()
+    with zipfile.ZipFile(archive_buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("pool/main/p/proot/proot.deb", package_payload)
+    archive_payload = archive_buffer.getvalue()
+    lock_payload = {
+        "package_archive": {
+            "url": "https://example.invalid/termux-packages.zip",
+            "sha256": hashlib.sha256(archive_payload).hexdigest(),
+        }
+    }
+    package = TermuxPackageRecord(
+        name="proot",
+        version="1",
+        filename="pool/main/p/proot/proot.deb",
+        sha256=hashlib.sha256(package_payload).hexdigest(),
+        depends=(),
+    )
+
+    monkeypatch.setattr(linux_asset_script, "download_bytes", lambda _url: archive_payload)
+    monkeypatch.setattr(
+        linux_asset_script,
+        "download_termux_main_path",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("mirror fallback used")),
+    )
+
+    with linux_asset_script.locked_package_archive(lock_payload) as archive:
+        assert linux_asset_script.download_locked_package(package, archive) == package_payload
+
+
+def test_prepare_android_linux_asset_package_archive_is_deterministic(tmp_path, monkeypatch):
+    package_payload = b"locked-deb-payload"
+    package_sha256 = hashlib.sha256(package_payload).hexdigest()
+    lock_payload = {
+        "version": 1,
+        "architectures": {
+            "test-abi": {
+                "termux_arch": "test-arch",
+                "packages": [
+                    {
+                        "name": "proot",
+                        "version": "1",
+                        "filename": "pool/main/p/proot/proot.deb",
+                        "sha256": package_sha256,
+                        "depends": [],
+                    }
+                ],
+            }
+        },
+    }
+    monkeypatch.setattr(linux_asset_script, "ANDROID_TO_TERMUX_ARCH", {"test-abi": "test-arch"})
+    monkeypatch.setattr(
+        linux_asset_script,
+        "download_termux_main_path",
+        lambda filename, expected_sha256=None: package_payload,
+    )
+    first = tmp_path / "first.zip"
+    second = tmp_path / "second.zip"
+
+    first_sha256 = linux_asset_script.build_package_archive(lock_payload, first)
+    second_sha256 = linux_asset_script.build_package_archive(lock_payload, second)
+
+    assert first.read_bytes() == second.read_bytes()
+    assert first_sha256 == second_sha256 == hashlib.sha256(first.read_bytes()).hexdigest()
+    with zipfile.ZipFile(first) as archive:
+        assert archive.namelist() == ["pool/main/p/proot/proot.deb"]
+        assert archive.read("pool/main/p/proot/proot.deb") == package_payload
 
 
 def test_prepare_android_linux_asset_lock_round_trips_packages(tmp_path):
