@@ -4,6 +4,7 @@ import importlib.util
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LIFECYCLE_PATH = REPO_ROOT / "scripts" / "emulator_lifecycle.py"
@@ -56,7 +57,10 @@ def test_launch_emulator_detached_uses_detached_flags_on_windows(monkeypatch):
             captured["kwargs"] = kwargs
 
     monkeypatch.setattr(lifecycle.subprocess, "Popen", FakePopen)
-    monkeypatch.setattr(lifecycle.os, "name", "nt", raising=False)
+    # Replacing the process-global ``os.name`` makes pathlib try to construct
+    # WindowsPath objects on Linux while pytest is formatting the test report.
+    # Give the loaded lifecycle module a scoped Windows view instead.
+    monkeypatch.setattr(lifecycle, "os", SimpleNamespace(name="nt"))
     lifecycle.launch_emulator_detached(avd="HermesX86Api35")
     assert "6144" in captured["command"]
     flags = captured["kwargs"]["creationflags"]
