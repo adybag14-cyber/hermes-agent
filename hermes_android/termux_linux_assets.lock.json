@@ -1373,6 +1373,10 @@
       "termux_arch": "x86_64"
     }
   },
+  "package_archive": {
+    "sha256": "cb61a40fddf294bd2f246b9077e6ffa2fc9cc54febac4f3e936223320e93a681",
+    "url": "https://github.com/adybag14-cyber/hermes-agent/releases/download/v0.13.141/hermes-termux-packages-v1.zip"
+  },
   "root_packages": [
     "bash",
     "busybox",

@@ -34,6 +34,9 @@ jobs:
         with:
           python-version: '3.13'
 
+      - name: Verify latest LiteRT-LM Android SDK
+        run: python scripts/check_android_litertlm_version.py
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
