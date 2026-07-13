@@ -3,7 +3,7 @@
 import os
 import sys
 
-__version__ = "0.13.143"
+__version__ = "0.13.144"
 __release_date__ = "2026.7.13"
 
 

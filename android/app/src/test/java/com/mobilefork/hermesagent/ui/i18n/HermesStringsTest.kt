@@ -144,4 +144,29 @@ class HermesStringsTest {
                 }
             }
     }
+
+    @Test
+    fun cardsKanbanAndLanguageAccessibilityLocalizeForEveryNonEnglishLanguage() {
+        AppLanguage.entries.filterNot { it == AppLanguage.ENGLISH }.forEach { language ->
+            val strings = hermesStringsFor(language)
+            val localized = listOf(
+                strings.selectedLanguageDescription("Español") to "Selected language Español",
+                strings.switchLanguageDescription("Deutsch") to "Switch language to Deutsch",
+                strings.kanbanDescription() to "Human board control for the shared Hermes kanban DB. Workers still need the gateway dispatcher.",
+                strings.kanbanNewTask() to "New task",
+                strings.localMemoryTitle() to "Local memory (hy-memory)",
+                strings.automationsTitle() to "Phone automations",
+                strings.skillsDescription() to "Installed Hermes skills from hermes-home and bundled skill directories.",
+                strings.streamableHttpMcpDescription() to "Edge Gallery-style remote MCP: HTTPS URL that speaks Streamable HTTP. Optional API token is sent as Authorization.",
+            )
+            localized.forEach { (actual, english) ->
+                assertFalse("$language should localize $english", actual == english)
+                assertFalse("$language localization should not be blank", actual.isBlank())
+            }
+            assertFalse(strings.kanbanRuntimeText("Waiting for Hermes Python runtime…") == "Waiting for Hermes Python runtime…")
+            assertFalse(strings.automationsStatusText("2 automation(s) on device") == "2 automation(s) on device")
+            assertFalse(strings.localMemoryStatusText("hy-memory local companion · 3 facts") == "hy-memory local companion · 3 facts")
+            assertFalse(strings.skillsStatusText("Skills refreshed (4)") == "Skills refreshed (4)")
+        }
+    }
 }

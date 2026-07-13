@@ -3494,6 +3494,165 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "Language switched to $label"
     }
 
+    fun selectedLanguageDescription(label: String): String = tr(
+        "Selected language $label", "已选择语言 $label", "Idioma seleccionado: $label",
+        "Ausgewählte Sprache: $label", "Idioma selecionado: $label", "Langue sélectionnée : $label",
+    )
+
+    fun switchLanguageDescription(label: String): String = tr(
+        "Switch language to $label", "切换语言为 $label", "Cambiar idioma a $label",
+        "Sprache auf $label umstellen", "Alterar idioma para $label", "Passer la langue à $label",
+    )
+
+    fun kanbanTitle(): String = "Kanban"
+    fun kanbanDescription(): String = tr(
+        "Human board control for the shared Hermes kanban DB. Workers still need the gateway dispatcher.",
+        "管理共享 Hermes 看板数据库。工作代理仍需网关调度器。",
+        "Control humano del tablero compartido de Hermes. Los agentes aún necesitan el despachador de la pasarela.",
+        "Manuelle Steuerung des gemeinsamen Hermes-Kanban-Boards. Worker benötigen weiterhin den Gateway-Dispatcher.",
+        "Controle humano do quadro Hermes compartilhado. Os agentes ainda precisam do despachante do gateway.",
+        "Contrôle humain du tableau Hermes partagé. Les agents ont encore besoin du répartiteur de passerelle.",
+    )
+    fun kanbanRefresh(): String = tr("Refresh board", "刷新看板", "Actualizar tablero", "Board aktualisieren", "Atualizar quadro", "Actualiser le tableau")
+    fun kanbanRefreshDescription(): String = tr(
+        "Reload tasks from the shared SQLite kanban DB", "从共享 SQLite 看板数据库重新加载任务",
+        "Volver a cargar las tareas de la base SQLite compartida", "Aufgaben aus der gemeinsamen SQLite-Kanban-Datenbank neu laden",
+        "Recarregar tarefas do banco SQLite compartilhado", "Recharger les tâches depuis la base SQLite partagée",
+    )
+    fun kanbanFilter(status: String): String = when (status.lowercase()) {
+        "all" -> tr("all", "全部", "todas", "alle", "todas", "toutes")
+        "ready" -> tr("ready", "就绪", "listas", "bereit", "prontas", "prêtes")
+        "running" -> tr("running", "运行中", "en curso", "laufend", "em execução", "en cours")
+        "blocked" -> tr("blocked", "已阻止", "bloqueadas", "blockiert", "bloqueadas", "bloquées")
+        "todo" -> tr("todo", "待办", "pendientes", "offen", "a fazer", "à faire")
+        "triage" -> tr("triage", "分类", "clasificación", "Triage", "triagem", "triage")
+        "done" -> tr("done", "已完成", "hechas", "erledigt", "concluídas", "terminées")
+        else -> status
+    }
+    fun kanbanNewTask(): String = tr("New task", "新任务", "Nueva tarea", "Neue Aufgabe", "Nova tarefa", "Nouvelle tâche")
+    fun kanbanTaskTitle(): String = tr("Title", "标题", "Título", "Titel", "Título", "Titre")
+    fun kanbanTaskDetails(): String = tr("Details (optional)", "详情（可选）", "Detalles (opcional)", "Details (optional)", "Detalhes (opcional)", "Détails (facultatif)")
+    fun kanbanCreateTask(): String = tr("Create task", "创建任务", "Crear tarea", "Aufgabe erstellen", "Criar tarefa", "Créer la tâche")
+    fun kanbanNoTasks(): String = tr(
+        "No tasks yet. Create one above, or complete agent work that writes to the shared board.",
+        "暂无任务。可在上方创建，或完成会写入共享看板的代理工作。",
+        "Aún no hay tareas. Crea una arriba o completa trabajo del agente que escriba en el tablero compartido.",
+        "Noch keine Aufgaben. Erstelle oben eine oder schließe Agentenarbeit ab, die in das gemeinsame Board schreibt.",
+        "Ainda não há tarefas. Crie uma acima ou conclua trabalho do agente que grave no quadro compartilhado.",
+        "Aucune tâche pour le moment. Créez-en une ci-dessus ou terminez un travail d’agent qui alimente le tableau partagé.",
+    )
+    fun kanbanUnblock(): String = tr("Unblock", "解除阻止", "Desbloquear", "Entsperren", "Desbloquear", "Débloquer")
+    fun kanbanComplete(): String = tr("Complete", "完成", "Completar", "Abschließen", "Concluir", "Terminer")
+    fun kanbanComment(): String = tr("Comment", "评论", "Comentario", "Kommentar", "Comentário", "Commentaire")
+    fun kanbanAdd(): String = tr("Add", "添加", "Añadir", "Hinzufügen", "Adicionar", "Ajouter")
+    fun kanbanRuntimeText(text: String): String = when (text.trim()) {
+        "Waiting for Hermes runtime…" -> tr("Waiting for Hermes runtime…", "正在等待 Hermes 运行时…", "Esperando el runtime de Hermes…", "Warten auf die Hermes-Laufzeit…", "Aguardando o runtime do Hermes…", "En attente du runtime Hermes…")
+        "Waiting for Hermes Python runtime…" -> tr("Waiting for Hermes Python runtime…", "正在等待 Hermes Python 运行时…", "Esperando el runtime Python de Hermes…", "Warten auf die Hermes-Python-Laufzeit…", "Aguardando o runtime Python do Hermes…", "En attente du runtime Python Hermes…")
+        "Board refreshed" -> tr("Board refreshed", "看板已刷新", "Tablero actualizado", "Board aktualisiert", "Quadro atualizado", "Tableau actualisé")
+        "Task created" -> tr("Task created", "任务已创建", "Tarea creada", "Aufgabe erstellt", "Tarefa criada", "Tâche créée")
+        "Updated" -> tr("Updated", "已更新", "Actualizado", "Aktualisiert", "Atualizado", "Mis à jour")
+        "Title is required" -> tr("Title is required", "标题为必填项", "El título es obligatorio", "Titel ist erforderlich", "O título é obrigatório", "Le titre est obligatoire")
+        "Shared SQLite board. Multi-agent workers still need gateway dispatch." -> kanbanDescription()
+        else -> text
+    }
+
+    fun localMemoryTitle(): String = tr("Local memory (hy-memory)", "本地记忆（hy-memory）", "Memoria local (hy-memory)", "Lokaler Speicher (hy-memory)", "Memória local (hy-memory)", "Mémoire locale (hy-memory)")
+    fun localMemoryDescription(): String = tr(
+        "On-device retain/recall used by the agent (`hy_memory_tool`). Facts stay on this phone.",
+        "代理使用的设备端记忆与回忆（`hy_memory_tool`）。事实仅保留在此手机上。",
+        "Memoria y recuperación en el dispositivo que usa el agente (`hy_memory_tool`). Los datos permanecen en este teléfono.",
+        "Lokales Speichern und Abrufen durch den Agenten (`hy_memory_tool`). Fakten bleiben auf diesem Gerät.",
+        "Memória e recuperação no dispositivo usadas pelo agente (`hy_memory_tool`). Os fatos ficam neste telefone.",
+        "Mémorisation et rappel sur l’appareil utilisés par l’agent (`hy_memory_tool`). Les faits restent sur ce téléphone.",
+    )
+    fun loadingLabel(): String = tr("Loading…", "正在加载…", "Cargando…", "Wird geladen…", "Carregando…", "Chargement…")
+    fun noStatusLabel(): String = tr("No status", "无状态", "Sin estado", "Kein Status", "Sem status", "Aucun état")
+    fun reinforcedAndPromoted(reinforced: Int, promoted: Int): String = tr(
+        "Reinforced $reinforced · Promoted $promoted", "已强化 $reinforced · 已提升 $promoted", "Reforzados $reinforced · Promovidos $promoted",
+        "Verstärkt $reinforced · Hochgestuft $promoted", "Reforçados $reinforced · Promovidos $promoted", "Renforcés $reinforced · Promus $promoted",
+    )
+    fun clearAllLabel(): String = tr("Clear all", "全部清除", "Borrar todo", "Alle löschen", "Limpar tudo", "Tout effacer")
+    fun localMemoryEmpty(): String = tr(
+        "No retained memories yet. Chat facts the agent stores will appear here.", "尚无保留的记忆。代理在聊天中保存的事实将显示在此处。",
+        "Aún no hay recuerdos guardados. Aquí aparecerán los datos que guarde el agente durante el chat.", "Noch keine gespeicherten Erinnerungen. Vom Agenten im Chat gespeicherte Fakten erscheinen hier.",
+        "Ainda não há memórias salvas. Os fatos guardados pelo agente no chat aparecerão aqui.", "Aucun souvenir conservé. Les faits enregistrés par l’agent pendant le chat apparaîtront ici.",
+    )
+    fun memoryHits(count: Int, promoted: Boolean): String = tr(
+        "hits $count${if (promoted) " · promoted" else ""}", "命中 $count${if (promoted) " · 已提升" else ""}",
+        "usos $count${if (promoted) " · promovido" else ""}", "Treffer $count${if (promoted) " · hochgestuft" else ""}",
+        "usos $count${if (promoted) " · promovido" else ""}", "rappels $count${if (promoted) " · promu" else ""}",
+    )
+    fun deleteLabel(): String = tr("Delete", "删除", "Eliminar", "Löschen", "Excluir", "Supprimer")
+    fun localMemoryStatusText(text: String): String {
+        val count = Regex("hy-memory local companion · (\\d+) facts").matchEntire(text.trim())?.groupValues?.get(1)
+            ?: return text
+        return tr("hy-memory local companion · $count facts", "hy-memory 本地助手 · $count 条事实", "Compañero local hy-memory · $count datos", "Lokaler hy-memory-Begleiter · $count Fakten", "Companheiro local hy-memory · $count fatos", "Compagnon local hy-memory · $count faits")
+    }
+
+    fun automationsTitle(): String = tr("Phone automations", "手机自动化", "Automatizaciones del teléfono", "Telefon-Automatisierungen", "Automações do telefone", "Automatisations du téléphone")
+    fun automationsDescription(): String = tr(
+        "Scheduled and event-driven tasks on this device (not gateway cron). Enable, run, or delete here.",
+        "此设备上的定时和事件驱动任务（不是网关 cron）。可在此启用、运行或删除。",
+        "Tareas programadas y activadas por eventos en este dispositivo (no el cron de la pasarela). Actívalas, ejecútalas o elimínalas aquí.",
+        "Geplante und ereignisgesteuerte Aufgaben auf diesem Gerät (nicht Gateway-Cron). Hier aktivieren, ausführen oder löschen.",
+        "Tarefas agendadas e acionadas por eventos neste dispositivo (não o cron do gateway). Ative, execute ou exclua aqui.",
+        "Tâches planifiées et déclenchées par des événements sur cet appareil (pas le cron de la passerelle). Activez-les, exécutez-les ou supprimez-les ici.",
+    )
+    fun noAutomations(): String = tr("No automations", "无自动化", "Sin automatizaciones", "Keine Automatisierungen", "Sem automações", "Aucune automatisation")
+    fun automationsEmpty(): String = tr(
+        "No automations yet. Ask Hermes to schedule a task or create one via agent tools.", "暂无自动化。请让 Hermes 安排任务，或通过代理工具创建一个。",
+        "Aún no hay automatizaciones. Pide a Hermes que programe una tarea o crea una con las herramientas del agente.", "Noch keine Automatisierungen. Bitte Hermes, eine Aufgabe zu planen, oder erstelle sie mit Agentenwerkzeugen.",
+        "Ainda não há automações. Peça ao Hermes para agendar uma tarefa ou crie uma pelas ferramentas do agente.", "Aucune automatisation. Demandez à Hermes de planifier une tâche ou créez-en une avec les outils de l’agent.",
+    )
+    fun onLabel(): String = tr("On", "开", "Activado", "Ein", "Ligado", "Activé")
+    fun offLabel(): String = tr("Off", "关", "Desactivado", "Aus", "Desligado", "Désactivé")
+    fun runLabel(): String = tr("Run", "运行", "Ejecutar", "Ausführen", "Executar", "Exécuter")
+    fun automationsStatusText(text: String): String {
+        val count = Regex("(\\d+) automation\\(s\\) on device").matchEntire(text.trim())?.groupValues?.get(1)
+            ?: return text
+        return tr("$count automation(s) on device", "设备上有 $count 个自动化", "$count automatizaciones en el dispositivo", "$count Automatisierungen auf dem Gerät", "$count automações no dispositivo", "$count automatisations sur l’appareil")
+    }
+
+    fun skillsTitle(): String = tr("Skills", "技能", "Habilidades", "Skills", "Habilidades", "Compétences")
+    fun skillsDescription(): String = tr(
+        "Installed Hermes skills from hermes-home and bundled skill directories.", "来自 hermes-home 和内置技能目录的已安装 Hermes 技能。",
+        "Habilidades de Hermes instaladas desde hermes-home y los directorios incluidos.", "Installierte Hermes-Skills aus hermes-home und den mitgelieferten Skill-Verzeichnissen.",
+        "Habilidades do Hermes instaladas do hermes-home e dos diretórios incluídos.", "Compétences Hermes installées depuis hermes-home et les répertoires intégrés.",
+    )
+    fun skillsEmpty(): String = tr(
+        "No skills found yet. They appear after Hermes boot syncs bundled skills.", "尚未找到技能。Hermes 启动并同步内置技能后会显示在此处。",
+        "Aún no se encontraron habilidades. Aparecerán después de que Hermes sincronice las incluidas al arrancar.", "Noch keine Skills gefunden. Sie erscheinen, nachdem Hermes beim Start die mitgelieferten Skills synchronisiert hat.",
+        "Nenhuma habilidade encontrada. Elas aparecem depois que o Hermes sincroniza as habilidades incluídas ao iniciar.", "Aucune compétence trouvée. Elles apparaîtront après la synchronisation au démarrage de Hermes.",
+    )
+    fun skillsStatusText(text: String): String {
+        val refreshed = Regex("Skills refreshed \\((\\d+)\\)").matchEntire(text.trim())?.groupValues?.get(1)
+        if (refreshed != null) return tr("Skills refreshed ($refreshed)", "技能已刷新（$refreshed）", "Habilidades actualizadas ($refreshed)", "Skills aktualisiert ($refreshed)", "Habilidades atualizadas ($refreshed)", "Compétences actualisées ($refreshed)")
+        return when (text.trim()) {
+            "Waiting for Hermes Python runtime…" -> kanbanRuntimeText(text)
+            else -> text
+        }
+    }
+    fun streamableHttpMcpTitle(): String = "Streamable HTTP MCP"
+    fun streamableHttpMcpDescription(): String = tr(
+        "Edge Gallery-style remote MCP: HTTPS URL that speaks Streamable HTTP. Optional API token is sent as Authorization.",
+        "Edge Gallery 风格的远程 MCP：使用 Streamable HTTP 的 HTTPS URL。可选 API 令牌将作为 Authorization 发送。",
+        "MCP remoto al estilo Edge Gallery: URL HTTPS con Streamable HTTP. El token API opcional se envía como Authorization.",
+        "Remote-MCP im Edge-Gallery-Stil: HTTPS-URL mit Streamable HTTP. Ein optionales API-Token wird als Authorization gesendet.",
+        "MCP remoto no estilo Edge Gallery: URL HTTPS com Streamable HTTP. O token de API opcional é enviado como Authorization.",
+        "MCP distant de type Edge Gallery : URL HTTPS en Streamable HTTP. Le jeton API facultatif est envoyé comme Authorization.",
+    )
+    fun mcpServerUrlLabel(): String = tr("MCP server URL", "MCP 服务器 URL", "URL del servidor MCP", "MCP-Server-URL", "URL do servidor MCP", "URL du serveur MCP")
+    fun optionalApiTokenLabel(): String = tr("API token (optional)", "API 令牌（可选）", "Token API (opcional)", "API-Token (optional)", "Token de API (opcional)", "Jeton API (facultatif)")
+
+    private fun tr(en: String, zh: String, es: String, de: String, pt: String, fr: String): String = when (language) {
+        AppLanguage.CHINESE -> zh
+        AppLanguage.SPANISH -> es
+        AppLanguage.GERMAN -> de
+        AppLanguage.PORTUGUESE -> pt
+        AppLanguage.FRENCH -> fr
+        AppLanguage.ENGLISH -> en
+    }
+
     fun authSignedInWith(label: String): String = when (language) {
         AppLanguage.CHINESE -> "已通过 $label 登录"
         AppLanguage.SPANISH -> "Sesión iniciada con $label"

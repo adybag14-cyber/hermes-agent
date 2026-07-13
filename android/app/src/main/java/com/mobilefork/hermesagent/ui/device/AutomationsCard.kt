@@ -25,6 +25,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.device.HermesAutomationBridge
+import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -137,6 +138,7 @@ fun AutomationsCard(
     modifier: Modifier = Modifier,
     viewModel: AutomationsViewModel = viewModel(),
 ) {
+    val strings = LocalHermesStrings.current
     val uiState by viewModel.uiState.collectAsState()
     LaunchedEffect(Unit) { viewModel.refresh() }
 
@@ -149,25 +151,25 @@ fun AutomationsCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("Phone automations", style = MaterialTheme.typography.titleMedium)
+            Text(strings.automationsTitle(), style = MaterialTheme.typography.titleMedium)
             Text(
-                "Scheduled and event-driven tasks on this device (not gateway cron). Enable, run, or delete here.",
+                strings.automationsDescription(),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                uiState.status.ifBlank { if (uiState.loading) "Loading…" else "No automations" },
+                strings.automationsStatusText(uiState.status).ifBlank { if (uiState.loading) strings.loadingLabel() else strings.noAutomations() },
                 style = MaterialTheme.typography.bodyMedium,
             )
             Button(onClick = viewModel::refresh, enabled = !uiState.loading) {
-                Text("Refresh")
+                Text(strings.refresh)
             }
             if (uiState.error.isNotBlank()) {
                 Text(uiState.error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             if (uiState.items.isEmpty() && !uiState.loading) {
                 Text(
-                    "No automations yet. Ask Hermes to schedule a task or create one via agent tools.",
+                    strings.automationsEmpty(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -204,9 +206,9 @@ fun AutomationsCard(
                             checked = item.enabled,
                             onCheckedChange = { viewModel.setEnabled(item.id, it) },
                         )
-                        Text(if (item.enabled) "On" else "Off", style = MaterialTheme.typography.labelMedium)
-                        TextButton(onClick = { viewModel.runNow(item.id) }) { Text("Run") }
-                        TextButton(onClick = { viewModel.delete(item.id) }) { Text("Delete") }
+                        Text(if (item.enabled) strings.onLabel() else strings.offLabel(), style = MaterialTheme.typography.labelMedium)
+                        TextButton(onClick = { viewModel.runNow(item.id) }) { Text(strings.runLabel()) }
+                        TextButton(onClick = { viewModel.delete(item.id) }) { Text(strings.deleteLabel()) }
                     }
                 }
             }

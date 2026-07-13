@@ -1,0 +1,2735 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.9.3" type="baseline" client="gradle" dependencies="false" name="AGP (8.9.3)" variant="all" version="8.9.3">
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        val scanResults = runCatching { wifiManager.scanResults.orEmpty() }.getOrElse { error ->"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="420"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            runCatching { wifiManager?.scanResults.orEmpty() }"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="1011"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                adapter.bondedDevices.orEmpty().forEach { device ->"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="1074"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                    scanner.startScan(null, settings, callback)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="1108"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                    scanner.stopScan(callback)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="1110"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                    runCatching { scanner.stopScan(callback) }"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="1114"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        val bluetoothClass = runCatching { device.bluetoothClass }.getOrNull()"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24278"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            device.uuids"
+        errorLine2="            ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24280"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            .put(&quot;device_type&quot;, bluetoothDeviceTypeLabel(runCatching { device.type }.getOrDefault(BluetoothDevice.DEVICE_TYPE_UNKNOWN)))"
+        errorLine2="                                                                       ~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24290"
+            column="72"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            .put(&quot;bond_state&quot;, bluetoothBondStateLabel(runCatching { device.bondState }.getOrDefault(BluetoothDevice.BOND_NONE)))"
+        errorLine2="                                                                     ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24291"
+            column="70"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            .put(&quot;paired&quot;, runCatching { device.bondState == BluetoothDevice.BOND_BONDED }.getOrDefault(false))"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24292"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        return runCatching { device.name?.takeIf { it.isNotBlank() } }.getOrNull() ?: &quot;&lt;unnamed>&quot;"
+        errorLine2="                             ~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24342"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            val location = runCatching { manager.getLastKnownLocation(provider) }.getOrNull() ?: return@mapNotNull null"
+        errorLine2="                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLocationWatcherBridge.kt"
+            line="301"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                manager.requestLocationUpdates("
+        errorLine2="                ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLocationWatcherService.kt"
+            line="83"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ApplySharedPref"
+        message="Consider using `apply()` instead; `commit` writes its data to persistent storage immediately, whereas `apply` will handle it in the background"
+        errorLine1="            .commit()"
+        errorLine2="             ~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/SecureSecretsStore.kt"
+            line="164"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="ImplicitSamInstance"
+        message="This argument is a new instance so `stopService` will not remove anything"
+        errorLine1="            context.applicationContext.stopService(Intent(context.applicationContext, HermesCalendarWatcherService::class.java))"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesCalendarWatcherService.kt"
+            line="153"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="ImplicitSamInstance"
+        message="This argument is a new instance so `stopService` will not remove anything"
+        errorLine1="            context.applicationContext.stopService(Intent(context.applicationContext, HermesFloatingButtonService::class.java))"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesFloatingButtonService.kt"
+            line="294"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="ImplicitSamInstance"
+        message="This argument is a new instance so `stopService` will not remove anything"
+        errorLine1="            context.applicationContext.stopService(Intent(context.applicationContext, HermesLocationWatcherService::class.java))"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLocationWatcherService.kt"
+            line="202"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="ImplicitSamInstance"
+        message="This argument is a new instance so `stopService` will not remove anything"
+        errorLine1="            context.applicationContext.stopService(Intent(context.applicationContext, HermesLogcatWatcherService::class.java))"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLogcatWatcherService.kt"
+            line="143"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="ImplicitSamInstance"
+        message="This argument is a new instance so `stopService` will not remove anything"
+        errorLine1="            context.stopService(Intent(context, HermesRuntimeService::class.java))"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/backend/HermesRuntimeService.kt"
+            line="142"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="ImplicitSamInstance"
+        message="This argument is a new instance so `stopService` will not remove anything"
+        errorLine1="            context.applicationContext.stopService(Intent(context.applicationContext, HermesSensorWatcherService::class.java))"
+        errorLine2="                                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSensorWatcherService.kt"
+            line="186"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 24): `android.os.PowerManager#THERMAL_STATUS_SEVERE`"
+        errorLine1="        val thermalBlocked = thermalStatus >= PowerManager.THERMAL_STATUS_SEVERE"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="21223"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 24): `android.os.PowerManager#THERMAL_STATUS_SEVERE`"
+        errorLine1="        val thermalBlocked = thermalStatus >= PowerManager.THERMAL_STATUS_SEVERE"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="21446"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 24): `android.os.PowerManager#THERMAL_STATUS_SEVERE`"
+        errorLine1="        val thermalBlocked = thermalStatus >= PowerManager.THERMAL_STATUS_SEVERE"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="21655"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 24): `android.os.PowerManager#THERMAL_STATUS_SEVERE`"
+        errorLine1="        val thermalBlocked = thermalStatus >= PowerManager.THERMAL_STATUS_SEVERE"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="21866"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 24): `android.os.PowerManager#THERMAL_STATUS_SEVERE`"
+        errorLine1="                    ready = thermalStatus &lt; PowerManager.THERMAL_STATUS_SEVERE,"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="22085"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 29 (current min is 24): `android.os.PowerManager#THERMAL_STATUS_SEVERE`"
+        errorLine1="        val thermalBlocked = thermalStatus >= PowerManager.THERMAL_STATUS_SEVERE"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="22661"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 28 (current min is 24): `android.net.NetworkCapabilities#NET_CAPABILITY_NOT_ROAMING`"
+        errorLine1="            !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_ROAMING)"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/models/HermesModelDownloadManager.kt"
+            line="1052"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="InlinedApi"
+        message="Field requires API level 28 (current min is 24): `android.provider.Settings#ACTION_DATA_USAGE_SETTINGS`"
+        errorLine1="            &quot;open_data_usage_settings&quot; -> launchIntent(appContext, action, Intent(Settings.ACTION_DATA_USAGE_SETTINGS), &quot;Opened data usage settings&quot;)"
+        errorLine2="                                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSystemControlBridge.kt"
+            line="195"
+            column="83"/>
+    </issue>
+
+    <issue
+        id="InternalInsetResource"
+        message="Using internal inset dimension resource `status_bar_height` is not supported"
+        errorLine1="        val resourceId = resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;)"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt"
+            line="275"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64#getUrlEncoder`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)"
+        errorLine2="                                ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexOAuthClient.kt"
+            line="178"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Encoder#encodeToString`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)"
+        errorLine2="                                                                 ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexOAuthClient.kt"
+            line="178"
+            column="66"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Encoder#withoutPadding`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)"
+        errorLine2="                                                ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexOAuthClient.kt"
+            line="178"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64#getUrlEncoder`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)"
+        errorLine2="                                ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexOAuthClient.kt"
+            line="184"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Encoder#encodeToString`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)"
+        errorLine2="                                                                 ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexOAuthClient.kt"
+            line="184"
+            column="66"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Encoder#withoutPadding`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)"
+        errorLine2="                                                ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexOAuthClient.kt"
+            line="184"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 24): `android.accessibilityservice.AccessibilityService.ScreenshotResult#getHardwareBuffer`"
+        errorLine1="        val buffer = screenshot.hardwareBuffer"
+        errorLine2="                                ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAccessibilityUiBridge.kt"
+            line="529"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 29 (current min is 24): `android.graphics.Bitmap#wrapHardwareBuffer`"
+        errorLine1="            val source = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAccessibilityUiBridge.kt"
+            line="531"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 24): `android.accessibilityservice.AccessibilityService.ScreenshotResult#getColorSpace`"
+        errorLine1="            val source = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)"
+        errorLine2="                                                                      ~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAccessibilityUiBridge.kt"
+            line="531"
+            column="71"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `android.hardware.HardwareBuffer#close`"
+        errorLine1="            buffer.close()"
+        errorLine2="                   ~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAccessibilityUiBridge.kt"
+            line="599"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo.Builder()`"
+        errorLine1="        return ShortcutInfo.Builder(context, shortcutId)"
+        errorLine2="                            ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="175"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo.Builder#setShortLabel`"
+        errorLine1="            .setShortLabel(label.take(MAX_SHORTCUT_LABEL_CHARS).ifBlank { &quot;Hermes task&quot; })"
+        errorLine2="             ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="176"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo.Builder#setLongLabel`"
+        errorLine1="            .setLongLabel(longLabel.take(MAX_SHORTCUT_LONG_LABEL_CHARS).ifBlank { label.take(MAX_SHORTCUT_LONG_LABEL_CHARS) })"
+        errorLine2="             ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="177"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo.Builder#setIcon`"
+        errorLine1="            .setIcon(Icon.createWithResource(context, R.drawable.ic_nav_hermes))"
+        errorLine2="             ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="178"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo.Builder#setIntent`"
+        errorLine1="            .setIntent(shortcutIntent(context, automationId))"
+        errorLine2="             ~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="179"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo.Builder#build`"
+        errorLine1="            .build()"
+        errorLine2="             ~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="180"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo#getId`"
+        errorLine1="                        .put(&quot;shortcut_id&quot;, shortcut.id)"
+        errorLine2="                                                     ~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="188"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo#getShortLabel`"
+        errorLine1="                        .put(&quot;short_label&quot;, shortcut.shortLabel.toString())"
+        errorLine2="                                                     ~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="189"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo#getLongLabel`"
+        errorLine1="                        .put(&quot;long_label&quot;, shortcut.longLabel?.toString().orEmpty())"
+        errorLine2="                                                    ~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="190"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo#isEnabled`"
+        errorLine1="                        .put(&quot;enabled&quot;, shortcut.isEnabled)"
+        errorLine2="                                                 ~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="191"
+            column="50"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 25 (current min is 24): `android.content.pm.ShortcutInfo#getIntent`"
+        errorLine1="                        .put(&quot;automation_id&quot;, shortcut.intent?.getStringExtra(EXTRA_AUTOMATION_ID).orEmpty()),"
+        errorLine2="                                                       ~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="192"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#waitFor`"
+        errorLine1="            if (!process.waitFor(5, TimeUnit.SECONDS)) {"
+        errorLine2="                         ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLinuxSubsystemBridge.kt"
+            line="630"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#waitFor`"
+        errorLine1="                if (!process.waitFor(1, TimeUnit.SECONDS)) {"
+        errorLine2="                             ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLinuxSubsystemBridge.kt"
+            line="632"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#destroyForcibly`"
+        errorLine1="                    process.destroyForcibly()"
+        errorLine2="                            ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLinuxSubsystemBridge.kt"
+            line="633"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#waitFor`"
+        errorLine1="            val finished = process.waitFor(timeout.toLong(), TimeUnit.SECONDS)"
+        errorLine2="                                   ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesPrivilegedShellUserService.kt"
+            line="67"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64#getDecoder`"
+        errorLine1="        return String(Base64.getDecoder().decode(value.trim()), StandardCharsets.UTF_8)"
+        errorLine2="                             ~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTaskerImportBridge.kt"
+            line="734"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Decoder#decode`"
+        errorLine1="        return String(Base64.getDecoder().decode(value.trim()), StandardCharsets.UTF_8)"
+        errorLine2="                                          ~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTaskerImportBridge.kt"
+            line="734"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 33 (current min is 24): `java.io.InputStream#readNBytes`"
+        errorLine1="            val filePayload = stream.readNBytes(size)"
+        errorLine2="                                     ~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTermuxDebExtractor.kt"
+            line="62"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.nio.file.Path#normalize`"
+        errorLine1="            java.nio.file.Paths.get(it).normalize().toString().replace(&apos;\\&apos;, &apos;/&apos;)"
+        errorLine2="                                        ~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTermuxDebExtractor.kt"
+            line="171"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.nio.file.Paths#get`"
+        errorLine1="            java.nio.file.Paths.get(it).normalize().toString().replace(&apos;\\&apos;, &apos;/&apos;)"
+        errorLine2="                                ~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTermuxDebExtractor.kt"
+            line="171"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.nio.file.Path#normalize`"
+        errorLine1="        val resolved = java.nio.file.Paths.get(joined).normalize().toString().replace(&apos;\\&apos;, &apos;/&apos;)"
+        errorLine2="                                                       ~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTermuxDebExtractor.kt"
+            line="207"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.nio.file.Paths#get`"
+        errorLine1="        val resolved = java.nio.file.Paths.get(joined).normalize().toString().replace(&apos;\\&apos;, &apos;/&apos;)"
+        errorLine2="                                           ~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTermuxDebExtractor.kt"
+            line="207"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#isAlive`"
+        errorLine1="        if (currentProcess != null &amp;&amp; currentProcess.isAlive &amp;&amp; activeModelPath == modelPath &amp;&amp; checkReady(port)) {"
+        errorLine2="                                                     ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/backend/LlamaCppServerController.kt"
+            line="36"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#waitFor`"
+        errorLine1="                if (!current.waitFor(1200, TimeUnit.MILLISECONDS)) {"
+        errorLine2="                             ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/backend/LlamaCppServerController.kt"
+            line="145"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#destroyForcibly`"
+        errorLine1="                    current.destroyForcibly()"
+        errorLine2="                            ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/backend/LlamaCppServerController.kt"
+            line="146"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#waitFor`"
+        errorLine1="                    current.waitFor(1200, TimeUnit.MILLISECONDS)"
+        errorLine2="                            ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/backend/LlamaCppServerController.kt"
+            line="147"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.lang.Process#waitFor`"
+        errorLine1="        val completed = process.waitFor(timeoutSeconds, TimeUnit.SECONDS)"
+        errorLine2="                                ~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/NativeAndroidShellTool.kt"
+            line="87"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.util.regex.Matcher#start` (called from `kotlin.text.MatchGroupCollection#get(String)`)"
+        errorLine1="        val path = listOfNotNull(match.groups[&quot;double&quot;]?.value, match.groups[&quot;single&quot;]?.value, match.groups[&quot;bare&quot;]?.value)"
+        errorLine2="                                             ~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+            line="436"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.util.regex.Matcher#start` (called from `kotlin.text.MatchGroupCollection#get(String)`)"
+        errorLine1="        val path = listOfNotNull(match.groups[&quot;double&quot;]?.value, match.groups[&quot;single&quot;]?.value, match.groups[&quot;bare&quot;]?.value)"
+        errorLine2="                                                                            ~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+            line="436"
+            column="77"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.util.regex.Matcher#start` (called from `kotlin.text.MatchGroupCollection#get(String)`)"
+        errorLine1="        val path = listOfNotNull(match.groups[&quot;double&quot;]?.value, match.groups[&quot;single&quot;]?.value, match.groups[&quot;bare&quot;]?.value)"
+        errorLine2="                                                                                                           ~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+            line="436"
+            column="108"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26 (current min is 24): `java.util.regex.Matcher#start` (called from `kotlin.text.MatchGroupCollection#get(String)`)"
+        errorLine1="        val content = match.groups[&quot;content&quot;]?.value"
+        errorLine2="                                  ~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+            line="440"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64#getUrlEncoder`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)"
+        errorLine2="                                ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiOAuthClient.kt"
+            line="182"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Encoder#encodeToString`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)"
+        errorLine2="                                                                 ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiOAuthClient.kt"
+            line="182"
+            column="66"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Encoder#withoutPadding`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)"
+        errorLine2="                                                ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiOAuthClient.kt"
+            line="182"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64#getUrlEncoder`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)"
+        errorLine2="                                ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiOAuthClient.kt"
+            line="188"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Encoder#encodeToString`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)"
+        errorLine2="                                                                 ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiOAuthClient.kt"
+            line="188"
+            column="66"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 26, or core library desugaring (current min is 24): `java.util.Base64.Encoder#withoutPadding`"
+        errorLine1="        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)"
+        errorLine2="                                                ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiOAuthClient.kt"
+            line="188"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="`android:windowLightNavigationBar` requires API level 27 (current min is 24)"
+        errorLine1="        &lt;item name=&quot;android:windowLightNavigationBar&quot;>false&lt;/item>"
+        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/themes.xml"
+            line="8"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="OldTargetApi"
+        message="Not targeting the latest versions of Android; compatibility modes apply. Consider testing and updating this version. Consult the `android.os.Build.VERSION_CODES` javadoc for details."
+        errorLine1="        targetSdk = 35"
+        errorLine2="        ~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="100"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="SdCardPath"
+        message="Do not hardcode &quot;`/data/`&quot;; use `Context.getFilesDir().getPath()` instead"
+        errorLine1="    private const val TERMUX_PREFIX = &quot;/data/data/com.termux/files/usr&quot;"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTermuxDebExtractor.kt"
+            line="19"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `usesPermissionFlags` is only used in API level 31 and higher (current min is 24)"
+        errorLine1="        android:usesPermissionFlags=&quot;neverForLocation&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="12"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `usesPermissionFlags` is only used in API level 31 and higher (current min is 24)"
+        errorLine1="        android:usesPermissionFlags=&quot;neverForLocation&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="25"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnusedAttribute"
+        message="Attribute `canTakeScreenshot` is only used in API level 30 and higher (current min is 24)"
+        errorLine1="    android:canTakeScreenshot=&quot;true&quot;"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/xml/hermes_accessibility_service.xml"
+            line="8"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.core:core-ktx than 1.13.1 is available: 1.19.0"
+        errorLine1="    implementation(&quot;androidx.core:core-ktx:1.13.1&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="431"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.8.1 is available: 1.10.1"
+        errorLine1="    implementation(&quot;org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="434"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.8.7 is available: 2.11.0"
+        errorLine1="    implementation(&quot;androidx.lifecycle:lifecycle-runtime-ktx:2.8.7&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="435"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-ktx than 2.8.7 is available: 2.11.0"
+        errorLine1="    implementation(&quot;androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="436"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.8.7 is available: 2.11.0"
+        errorLine1="    implementation(&quot;androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="437"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.activity:activity-compose than 1.9.3 is available: 1.13.0"
+        errorLine1="    implementation(&quot;androidx.activity:activity-compose:1.9.3&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="438"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.documentfile:documentfile than 1.0.1 is available: 1.1.0"
+        errorLine1="    implementation(&quot;androidx.documentfile:documentfile:1.0.1&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="445"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of org.apache.commons:commons-compress than 1.26.2 is available: 1.27.1"
+        errorLine1="    implementation(&quot;org.apache.commons:commons-compress:1.26.2&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="448"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.security:security-crypto than 1.1.0-alpha06 is available: 1.1.0"
+        errorLine1="    implementation(&quot;androidx.security:security-crypto:1.1.0-alpha06&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="450"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test:core-ktx than 1.6.1 is available: 1.7.0"
+        errorLine1="    androidTestImplementation(&quot;androidx.test:core-ktx:1.6.1&quot;)"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="459"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Optional Modifier parameter should have a default value of `Modifier`"
+        errorLine1="    modifier: Modifier = Modifier.widthIn(min = 64.dp, max = 88.dp),"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/ChatScreen.kt"
+            line="2416"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/settings/McpSettingsSection.kt"
+            line="244"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UnusedBoxWithConstraintsScope"
+        message="BoxWithConstraints scope is not used"
+        errorLine1="    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {"
+        errorLine2="                                                           ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/ChatScreen.kt"
+            line="1575"
+            column="60"/>
+    </issue>
+
+    <issue
+        id="DiscouragedApi"
+        message="Use of this function is discouraged because resource reflection makes it harder to perform build optimizations and compile-time verification of code. It is much more efficient to retrieve resources by identifier (e.g. `R.foo.bar`) than by name (e.g. `getIdentifier(&quot;bar&quot;, &quot;foo&quot;, null)`)."
+        errorLine1="        val resourceId = resources.getIdentifier(&quot;status_bar_height&quot;, &quot;dimen&quot;, &quot;android&quot;)"
+        errorLine2="                                   ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt"
+            line="275"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="HardwareIds"
+        message="Using `getString` to get device identifiers is not recommended"
+        errorLine1="            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationBridge.kt"
+            line="4453"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="SetJavaScriptEnabled"
+        message="Using `setJavaScriptEnabled` can introduce XSS vulnerabilities into your application, review carefully"
+        errorLine1="            javaScriptEnabled = true"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt"
+            line="127"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="SetJavaScriptEnabled"
+        message="Using `setJavaScriptEnabled` can introduce XSS vulnerabilities into your application, review carefully"
+        errorLine1="                                            settings.javaScriptEnabled = true"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/portal/NousPortalScreen.kt"
+            line="261"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="ExportedReceiver"
+        message="Exported receiver does not require permission"
+        errorLine1="        &lt;receiver"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="234"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ExportedReceiver"
+        message="Exported receiver does not require permission"
+        errorLine1="        &lt;receiver"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="243"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ExportedReceiver"
+        message="Exported receiver does not require permission"
+        errorLine1="        &lt;receiver"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="252"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="UnsafeDynamicallyLoadedCode"
+        message="Dynamically loading code using `load` is risky, please use `loadLibrary` instead when possible"
+        errorLine1="                file.isFile &amp;&amp; runCatching { System.load(file.absolutePath) }.isSuccess"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/backend/LiteRtLmOpenAiProxy.kt"
+            line="571"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is never &lt; 24"
+        errorLine1="        if (Build.VERSION.SDK_INT &lt; Build.VERSION_CODES.M) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAudioActionBridge.kt"
+            line="143"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationWidgetBridge.kt"
+            line="266"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="            .put(&quot;total_bytes&quot;, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) info.totalMem else 0L)"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="23152"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="            .put(&quot;total_label&quot;, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) formatBytes(context, info.totalMem) else &quot;unknown&quot;)"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="23153"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="23268"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="            .put(&quot;max_delay_us&quot;, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) sensor.maxDelay else 0)"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="23330"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="            .put(&quot;wake_up&quot;, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) sensor.isWakeUpSensor else false)"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="23334"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="            .put(&quot;dynamic_sensor&quot;, if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) sensor.isDynamicSensor else false)"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="23335"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24262"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is never &lt; 24"
+        errorLine1="        if (Build.VERSION.SDK_INT &lt; Build.VERSION_CODES.LOLLIPOP) return &quot;unknown&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="26972"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesQuickSettingsTileBridge.kt"
+            line="119"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 24"
+        errorLine1="        val dataSaverEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSystemControlBridge.kt"
+            line="154"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="Do not place Android context classes in static fields (static reference to `HermesOverlaySceneBridge` which has field `currentView` pointing to `View`); this is a memory leak"
+        errorLine1="object HermesOverlaySceneBridge {"
+        errorLine2="^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesOverlaySceneBridge.kt"
+            line="29"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="Do not place Android context classes in static fields; this is a memory leak"
+        errorLine1="    @Volatile"
+        errorLine2="    ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesOverlaySceneBridge.kt"
+            line="597"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.hermes_primary_dark` appears to be unused"
+        errorLine1="    &lt;color name=&quot;hermes_primary_dark&quot;>#0B0D12&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="4"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.hermes_primary_container` appears to be unused"
+        errorLine1="    &lt;color name=&quot;hermes_primary_container&quot;>#1A1D29&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="5"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.hermes_surface` appears to be unused"
+        errorLine1="    &lt;color name=&quot;hermes_surface&quot;>#11141C&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="8"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.hermes_surface_variant` appears to be unused"
+        errorLine1="    &lt;color name=&quot;hermes_surface_variant&quot;>#1B202B&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="10"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.color.hermes_error` appears to be unused"
+        errorLine1="    &lt;color name=&quot;hermes_error&quot;>#FF6B6B&lt;/color>"
+        errorLine2="           ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/colors.xml"
+            line="14"
+            column="12"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_hermes_floating_mark` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_hermes_floating_mark.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_hermes_logo` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_hermes_logo.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.nous_hermes_logo` appears to be unused">
+        <location
+            file="src/main/res/drawable/nous_hermes_logo.png"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.hermes_notification_listener_service_description` appears to be unused"
+        errorLine1="    &lt;string name=&quot;hermes_notification_listener_service_description&quot;>Lets Hermes run saved automations when selected apps post notifications after you enable notification access.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="7"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/nous_hermes_logo.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/nous_hermes_logo.png"/>
+    </issue>
+
+    <issue
+        id="ReportShortcutUsage"
+        message="Calling this method indicates use of dynamic shortcuts, but there are no calls to methods that track shortcut usage, such as `pushDynamicShortcut` or `reportShortcutUsed`. Calling these methods is recommended, as they track shortcut usage and allow launchers to adjust which shortcuts appear based on activation history. Please see https://developer.android.com/develop/ui/views/launch/shortcuts/managing-shortcuts#track-usage"
+        errorLine1="                    manager.addDynamicShortcuts(listOf(shortcut))"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLauncherShortcutBridge.kt"
+            line="52"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="            preferences.edit()"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/AppSettingsStore.kt"
+            line="235"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(sessionKey(session.methodId), json.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/AuthSessionStore.kt"
+            line="100"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().remove(sessionKey(methodId)).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/AuthSessionStore.kt"
+            line="105"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_PENDING_REQUEST, json.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/AuthSessionStore.kt"
+            line="117"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().remove(KEY_PENDING_REQUEST).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/AuthSessionStore.kt"
+            line="137"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            val parsed = runCatching { Uri.parse(candidate) }.getOrNull() ?: return &quot;&quot;"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/AuthSessionStore.kt"
+            line="371"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val startUri = Uri.parse(pendingRequest.startUrl)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/auth/AuthViewModel.kt"
+            line="196"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                Corr3xtAuthClient.probeStartUri(android.net.Uri.parse(pendingRequest.startUrl))"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/auth/AuthViewModel.kt"
+            line="201"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                Uri.parse(start.verificationUrl),"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/auth/AuthViewModel.kt"
+            line="511"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                Uri.parse(start.verificationUriComplete),"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/auth/AuthViewModel.kt"
+            line="585"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val uri = Uri.parse(target.url)"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/auth/AuthViewModel.kt"
+            line="742"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            context.contentResolver.openInputStream(Uri.parse(attachment.uri))?.use { stream ->"
+        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/ChatScreen.kt"
+            line="1668"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val uri = Uri.parse(uriString)"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/ChatViewModel.kt"
+            line="107"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val uri = Uri.parse(attachment.uri)"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/ChatViewModel.kt"
+            line="941"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            Uri.parse(target)"
+        errorLine2="            ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexLoopbackOAuthServer.kt"
+            line="104"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            Uri.parse(&quot;http://localhost:${handle.actualPort}${target.ifBlank { &quot;/&quot; }}&quot;)"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexLoopbackOAuthServer.kt"
+            line="106"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val authorizeUri = Uri.parse(&quot;$ISSUER$AUTHORIZE_PATH&quot;).buildUpon()"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/CodexOAuthClient.kt"
+            line="63"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_SESSION_ID, sessionId).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="69"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_SESSION_ID, conversation.sessionId).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="83"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_SESSION_ID, sessionId).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="109"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="            preferences.edit().putString(KEY_SESSION_ID, it.sessionId).apply()"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="138"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().remove(KEY_CONVERSATIONS).remove(KEY_SESSION_ID).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="146"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().remove(KEY_SESSION_ID).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="150"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="            preferences.edit().putString(KEY_SESSION_ID, latest.sessionId).apply()"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="184"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_SESSION_ID, updatedConversation.sessionId).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="199"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_CONVERSATIONS, array.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/ConversationStore.kt"
+            line="235"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val parsed = runCatching { Uri.parse(candidate) }.getOrNull() ?: return null"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/Corr3xtAuthClient.kt"
+            line="26"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        return Uri.parse(&quot;$normalizedBaseUrl/oauth/start&quot;).buildUpon()"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/Corr3xtAuthClient.kt"
+            line="64"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/DeviceCapabilityStore.kt"
+            line="25"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/DeviceCapabilityStore.kt"
+            line="32"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/DeviceCapabilityStore.kt"
+            line="39"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/DeviceCapabilityStore.kt"
+            line="45"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                    Uri.parse(stored.sharedFolderUri),"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/device/DeviceViewModel.kt"
+            line="257"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.scale` instead?"
+        errorLine1="        return Bitmap.createScaledBitmap(bitmap, width, height, true)"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAccessibilityUiBridge.kt"
+            line="611"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `Bitmap.scale` instead?"
+        errorLine1="        val sample = Bitmap.createScaledBitmap(bitmap, 8, 8, true)"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAccessibilityUiBridge.kt"
+            line="615"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_STANDBY_HEARTBEAT, heartbeat.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationStore.kt"
+            line="251"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_RECORDS, array.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationStore.kt"
+            line="307"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_VARIABLES, variables.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationStore.kt"
+            line="311"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_RUN_EVENTS, array.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationStore.kt"
+            line="321"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences(appContext)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationWidgetBridge.kt"
+            line="33"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        val editor = preferences(appContext).edit()"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationWidgetBridge.kt"
+            line="98"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        val editor = preferences(context.applicationContext).edit()"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesAutomationWidgetBridge.kt"
+            line="173"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesCalendarWatcherBridge.kt"
+            line="387"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesCalendarWatcherBridge.kt"
+            line="397"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesCalendarWatcherBridge.kt"
+            line="408"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit().putLong(PREF_DISPATCH_COUNT, next).apply()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesCalendarWatcherBridge.kt"
+            line="427"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesCalendarWatcherBridge.kt"
+            line="448"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesCalendarWatcherBridge.kt"
+            line="455"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension property `SparseArray.size` instead?"
+        errorLine1="            .put(&quot;manufacturer_data_count&quot;, scanRecord?.manufacturerSpecificData?.size() ?: 0)"
+        errorLine2="                                                                                  ~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24328"
+            column="83"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension property `SparseArray.size` instead?"
+        errorLine1="            for (index in 0 until data.size()) {"
+        errorLine2="                                  ~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24446"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension property `SparseArray.size` instead?"
+        errorLine1="        for (index in 0 until data.size()) {"
+        errorLine2="                              ~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="24465"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse(&quot;package:${context.packageName}&quot;))"
+        errorLine2="                                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="25875"
+            column="75"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit().putString(WIFI_SIGNAL_HISTORY_KEY, updated.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="27576"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit().putString(BLUETOOTH_SIGNAL_HISTORY_KEY, updated.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="27593"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit().putString(MOTION_SENSOR_HISTORY_KEY, updated.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesDeviceDiagnosticsBridge.kt"
+            line="27610"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs(context).edit().remove(ENTRIES_KEY).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesHindsightMemoryBridge.kt"
+            line="274"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs(context).edit().putString(ENTRIES_KEY, JSONArray(entries).toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesHindsightMemoryBridge.kt"
+            line="443"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            return ResolvedOpenUri(Uri.parse(rawUri))"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesIntentBridge.kt"
+            line="151"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val parsed = Uri.parse(rawUri)"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesIntentBridge.kt"
+            line="153"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;https://example.com&quot;)).apply {"
+        errorLine2="                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesIntentBridge.kt"
+            line="209"
+            column="56"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        return Uri.parse(&quot;http://$HOST:${running.port}/files/$token/$encodedName&quot;)"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLocalFileHttpServer.kt"
+            line="35"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLocationWatcherBridge.kt"
+            line="340"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLocationWatcherBridge.kt"
+            line="351"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLocationWatcherBridge.kt"
+            line="360"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLogcatWatcherBridge.kt"
+            line="441"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLogcatWatcherBridge.kt"
+            line="454"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLogcatWatcherBridge.kt"
+            line="462"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesLogcatWatcherBridge.kt"
+            line="488"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val request = DownloadManager.Request(Uri.parse(inspection.sourceUrl)).apply {"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/models/HermesModelDownloadManager.kt"
+            line="295"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val uri = Uri.parse(trimmed)"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/models/HermesModelDownloadManager.kt"
+            line="579"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            repoOrUrl.startsWith(&quot;http://&quot;) || repoOrUrl.startsWith(&quot;https://&quot;) -> Uri.parse(repoOrUrl).lastPathSegment"
+        errorLine2="                                                                                   ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/models/HermesModelDownloadManager.kt"
+            line="999"
+            column="84"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            else -> Uri.parse(sourceUrl).lastPathSegment"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/models/HermesModelDownloadManager.kt"
+            line="1000"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val parsed = runCatching { Uri.parse(target) }.getOrNull() ?: return false"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/HermesNetworkPolicy.kt"
+            line="34"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                Intent(Intent.ACTION_VIEW, Uri.parse(SHIZUKU_DOWNLOAD_URL)),"
+        errorLine2="                                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesPrivilegedAccessBridge.kt"
+            line="150"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        setupUri = Uri.parse(requestedUrl)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt"
+            line="45"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                return shouldOpenOutside(Uri.parse(url))"
+        errorLine2="                                         ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt"
+            line="161"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                return shouldOpenOutside(Uri.parse(url))"
+        errorLine2="                                         ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt"
+            line="161"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val targetUri = Uri.parse(url.trim())"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt"
+            line="309"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences(appContext)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesQuickSettingsTileBridge.kt"
+            line="21"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences(appContext)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesQuickSettingsTileBridge.kt"
+            line="54"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSensorWatcherBridge.kt"
+            line="409"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.applicationContext"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSensorWatcherBridge.kt"
+            line="418"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSensorWatcherBridge.kt"
+            line="427"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        return DocumentFile.fromTreeUri(appContext(), Uri.parse(sharedUri))"
+        errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSharedFolderBridge.kt"
+            line="152"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse(&quot;package:${appContext.packageName}&quot;)),"
+        errorLine2="                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSystemControlBridge.kt"
+            line="236"
+            column="67"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse(&quot;package:${context.packageName}&quot;))"
+        errorLine2="                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesSystemControlBridge.kt"
+            line="346"
+            column="66"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTaskerConditionBridge.kt"
+            line="226"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        val editor = prefs.edit().putString(messageKey(messageId), payload.toString())"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTaskerEventBridge.kt"
+            line="283"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="            prefs.edit().remove(messageKey(messageId)).apply()"
+        errorLine2="            ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTaskerEventBridge.kt"
+            line="302"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTaskerEventBridge.kt"
+            line="314"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        prefs.edit()"
+        errorLine2="        ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTaskerPluginBridge.kt"
+            line="77"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)"
+        errorLine2="        ^">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesTermuxMirrorConfig.kt"
+            line="45"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toColorInt` instead?"
+        errorLine1="    return runCatching { Color(android.graphics.Color.parseColor(normalized)) }.getOrDefault(fallback)"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/theme/HermesTheme.kt"
+            line="91"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_DOWNLOADS_JSON, array.toString()).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/LocalModelDownloadStore.kt"
+            line="52"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit().putString(KEY_PREFERRED_DOWNLOAD_ID, recordId).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/LocalModelDownloadStore.kt"
+            line="79"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="146"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="159"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="208"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="263"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="284"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="381"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="403"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="425"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/McpSettingsStore.kt"
+            line="490"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        openGuiWorkingMemoryPrefs.edit().putString(key, next).apply()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt"
+            line="1452"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(uiState.portalUrl))"
+        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/portal/NousPortalScreen.kt"
+            line="203"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            Uri.parse(normalizedTarget)"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/OpenRouterLoopbackOAuthServer.kt"
+            line="191"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            Uri.parse(&quot;http://$CALLBACK_HOST:$port$normalizedTarget&quot;)"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/OpenRouterLoopbackOAuthServer.kt"
+            line="193"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val startUri = Uri.parse(AUTH_URL).buildUpon()"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/OpenRouterOAuthClient.kt"
+            line="43"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        return Uri.parse(AuthSessionStore.CALLBACK_URI).buildUpon()"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/OpenRouterOAuthClient.kt"
+            line="60"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val parsed = runCatching { Uri.parse(target) }.getOrNull()"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/ProviderSetupUrlProbe.kt"
+            line="31"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/SecureSecretsStore.kt"
+            line="90"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/SecureSecretsStore.kt"
+            line="108"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/SecureSecretsStore.kt"
+            line="130"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `SharedPreferences.edit` instead?"
+        errorLine1="        preferences.edit()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/data/SecureSecretsStore.kt"
+            line="162"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val uri = Uri.parse(targetUrl)"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsViewModel.kt"
+            line="452"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            Uri.parse(target)"
+        errorLine2="            ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiLoopbackOAuthServer.kt"
+            line="107"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="            Uri.parse(&quot;http://${XaiOAuthClient.REDIRECT_HOST}${target.ifBlank { &quot;/&quot; }}&quot;)"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiLoopbackOAuthServer.kt"
+            line="109"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseKtx"
+        message="Use the KTX extension function `String.toUri` instead?"
+        errorLine1="        val authorizeUri = Uri.parse(discovery.authorizationEndpoint).buildUpon()"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/auth/XaiOAuthClient.kt"
+            line="81"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            text = &quot;$message\n\n$url&quot;"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt"
+            line="229"
+            column="20"/>
+    </issue>
+
+</issues>

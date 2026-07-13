@@ -40,10 +40,12 @@ class SmallLocalModelsInstrumentedTest {
         .writeTimeout(30, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.MINUTES)
         .build()
+    private var originalSettings: AppSettings? = null
 
     @After
     fun tearDown() {
         OnDeviceBackendManager.stopAll()
+        originalSettings?.let { AppSettingsStore(context).save(it) }
     }
 
     @Test
@@ -68,9 +70,12 @@ class SmallLocalModelsInstrumentedTest {
 
     @Test
     fun miniCpm1bLiteRtAnswersWhenProvisioned() {
+        val fileName = listOf("MiniCPM5-1B-web.litertlm", "MiniCPM5-1B.litertlm")
+            .firstOrNull { File(context.filesDir, "hermes-home/downloads/models/$it").isFile }
+            ?: "MiniCPM5-1B-web.litertlm"
         runLiteRtModel(
             modelId = "MiniCPM5-1B",
-            fileName = "MiniCPM5-1B.litertlm",
+            fileName = fileName,
             expectedBytes = null,
             repo = "Tdamre/MiniCPM5-1B-litert-lm",
         )
@@ -88,21 +93,37 @@ class SmallLocalModelsInstrumentedTest {
 
     @Test
     fun qwen35_0_8bGgufAnswersWhenProvisioned() {
-        val candidates = listOf(
-            "Qwen3.5-0.8B-Q4_K_M.gguf",
-            "Qwen_Qwen3.5-0.8B-Q4_K_M.gguf",
+        runGgufModel(
+            modelId = "Qwen3.5-0.8B-Q4_K_M",
+            candidates = listOf(
+                "Qwen3.5-0.8B-Q4_K_M.gguf",
+                "Qwen_Qwen3.5-0.8B-Q4_K_M.gguf",
+            ),
+            repo = "unsloth/Qwen3.5-0.8B-GGUF",
         )
+    }
+
+    @Test
+    fun miniCpm1bFable5GgufAnswersWhenProvisioned() {
+        runGgufModel(
+            modelId = "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M",
+            candidates = listOf("MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf"),
+            repo = "GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF",
+        )
+    }
+
+    private fun runGgufModel(modelId: String, candidates: List<String>, repo: String) {
         val modelFile = candidates
             .map { File(context.filesDir, "hermes-home/downloads/models/$it") }
             .firstOrNull { it.isFile }
-        assumeTrue("Qwen 0.8B GGUF not provisioned", modelFile != null)
+        assumeTrue("$modelId GGUF not provisioned", modelFile != null)
         val file = modelFile!!
         seedPreferred(
-            modelId = "Qwen3.5-0.8B-Q4_K_M",
+            modelId = modelId,
             fileName = file.name,
             modelFile = file,
             backend = BackendKind.LLAMA_CPP,
-            repo = "unsloth/Qwen3.5-0.8B-GGUF",
+            repo = repo,
         )
         val status = OnDeviceBackendManager.ensureConfigured(
             context = context,
@@ -110,7 +131,7 @@ class SmallLocalModelsInstrumentedTest {
         )
         assertTrue(status.statusMessage, status.started)
         assertEquals(BackendKind.LLAMA_CPP, status.backendKind)
-        val content = chatOnce(status.baseUrl, "Qwen3.5-0.8B-Q4_K_M")
+        val content = chatOnce(status.baseUrl, modelId)
         assertFalse(content, content.isBlank())
     }
 
@@ -151,6 +172,9 @@ class SmallLocalModelsInstrumentedTest {
         backend: BackendKind,
         repo: String,
     ) {
+        if (originalSettings == null) {
+            originalSettings = AppSettingsStore(context).load()
+        }
         val record = LocalModelDownloadRecord(
             id = "small-local-$modelId",
             title = modelId,

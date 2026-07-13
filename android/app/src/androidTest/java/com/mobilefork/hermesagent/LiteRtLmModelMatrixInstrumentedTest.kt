@@ -48,7 +48,7 @@ class LiteRtLmModelMatrixInstrumentedTest {
         val modelId = args.getString("model_id", DEFAULT_MODEL_ID)
         val modelFileName = args.getString("model_file_name", DEFAULT_MODEL_FILE_NAME)
         val expectedBytes = args.getString("model_bytes", DEFAULT_MODEL_BYTES.toString()).toLong()
-        val modelFile = File(context.filesDir, "hermes-home/downloads/models/$modelFileName")
+        val modelFile = provisionedModelFile(args.getString("model_path", ""), modelFileName)
 
         assumeTrue("LiteRT-LM model is not provisioned at ${modelFile.absolutePath}", modelFile.isFile)
         if (expectedBytes > 0L) {
@@ -198,6 +198,11 @@ class LiteRtLmModelMatrixInstrumentedTest {
             assertTrue(body, response.isSuccessful)
             return JSONObject(body)
         }
+    }
+
+    private fun provisionedModelFile(explicitPath: String, fileName: String): File {
+        return explicitPath.trim().takeIf { it.isNotEmpty() }?.let(::File)
+            ?: File(context.filesDir, "hermes-home/downloads/models/$fileName")
     }
 
     private fun bluePixelDataUrl(): String {
