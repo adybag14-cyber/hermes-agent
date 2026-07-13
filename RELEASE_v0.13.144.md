@@ -23,5 +23,5 @@ Each model test required runtime startup and a non-empty OpenAI-compatible local
 
 - Six-language headed-emulator screenshot and accessibility-tree matrix.
 - Android unit, lint, debug/release assembly, and targeted instrumentation gates.
-- Canonical Python regression suite through `scripts/run_tests.sh`.
+- Android-related Python regression suite used by the Android CI workflow.
 - F-Droid pinned-toolchain and reproducibility gates remain part of release certification.
