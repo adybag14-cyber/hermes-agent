@@ -47,6 +47,11 @@ run_fdroid() {
 }
 
 cd /home/vagrant
+if [ -d "build/${APP_ID}/.git" ]; then
+  sudo --preserve-env --user vagrant env \
+    HOME=/home/vagrant \
+    git -C "build/${APP_ID}" fetch --prune --tags --force origin
+fi
 run_fdroid fetchsrclibs "${APP_ID}:${VERSION_CODE}" --verbose
 run_fdroid build \
   --verbose \
