@@ -351,6 +351,15 @@ tasks.matching { it.name.endsWith("PythonRequirements") }.configureEach {
     }
 }
 
+// Chaquopy's Windows installer marks packaged Python directories execute-only.
+// Gradle 8.11 cannot fingerprint those generated proxy inputs even though the
+// Chaquopy task itself can consume them. Linux/F-Droid builds are unaffected.
+tasks.matching {
+    it.name.endsWith("PythonProxies") || it.name.endsWith("PythonRequirementsAssets")
+}.configureEach {
+    doNotTrackState("Chaquopy proxy inputs use execute-only package directories on Windows")
+}
+
 fun normalizeChaquopyBuildJson(variant: String) {
     if (variant.isBlank()) {
         return

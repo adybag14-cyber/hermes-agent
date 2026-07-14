@@ -49,6 +49,7 @@ class AppSettingsStorePersistenceTest {
                 themeSurfaceHex = "#101014",
                 themeSurfaceVariantHex = "#20242C",
                 themeCardShape = "square",
+                uiFontScale = 0.85f,
             )
         )
 
@@ -61,6 +62,7 @@ class AppSettingsStorePersistenceTest {
         assertEquals("#101014", reloaded.themeSurfaceHex)
         assertEquals("#20242C", reloaded.themeSurfaceVariantHex)
         assertEquals("square", reloaded.themeCardShape)
+        assertEquals(0.85f, reloaded.uiFontScale, 0.0001f)
     }
 
     @Test

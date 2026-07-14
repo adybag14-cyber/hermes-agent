@@ -191,9 +191,9 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'focusManager.clearFocus(force = true)' in chat
     assert '!imeVisible &&' not in chat
     assert 'val showFloatingActionIcon' not in chat
-    assert 'val messageListBottomPadding = if (imeVisible) 12.dp else 8.dp' in chat
+    assert 'val messageListBottomPadding = if (imeVisible) 8.dp else 4.dp' in chat
     assert 'PaddingValues(bottom = messageListBottomPadding)' in chat
-    assert 'PaddingValues(top = 24.dp, bottom = messageListBottomPadding)' in chat
+    assert 'PaddingValues(top = 12.dp, bottom = messageListBottomPadding)' in chat
     assert 'sanitizeChatDisplayText(text)' in chat
     assert 'markdownTableCells.joinToString("  ")' in chat
     assert 'Regex("""\\*\\*([^*\\n]+)\\*\\*""")' in chat
@@ -2065,7 +2065,7 @@ def test_chat_endpoint_url_normalization_and_floating_icon_are_guarded():
     assert 'onActionMenuExpandedChange = { composerActionMenuOpen = it }' in chat
     assert '!composerActionMenuOpen &&' not in chat
     assert '!imeVisible &&' not in chat
-    assert 'val messageListBottomPadding = if (imeVisible) 12.dp else 8.dp' in chat
+    assert 'val messageListBottomPadding = if (imeVisible) 8.dp else 4.dp' in chat
     assert 'PaddingValues(bottom = messageListBottomPadding)' in chat
     assert 'containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)' in chat
     assert 'val narrowHeader = maxWidth < 360.dp' in chat

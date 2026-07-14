@@ -3,6 +3,7 @@ package com.mobilefork.hermesagent
 import android.app.Application
 import android.content.Context
 import android.os.SystemClock
+import androidx.security.crypto.MasterKey
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -22,6 +23,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.security.KeyStore
 
 @RunWith(AndroidJUnit4::class)
 class AuthSecureStorageInstrumentedTest {
@@ -30,6 +32,21 @@ class AuthSecureStorageInstrumentedTest {
 
     private val app: Application
         get() = ApplicationProvider.getApplicationContext()
+
+    @Test
+    fun restoredEncryptedPreferencesRecoverWhenKeystoreKeyIsMissing() {
+        context.deleteSharedPreferences("hermes_android_secrets")
+        SecureSecretsStore(context).saveApiKey("recovery-probe", "secret-before-key-loss")
+
+        val keyStore = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
+        keyStore.deleteEntry(MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+
+        val recovered = SecureSecretsStore(context)
+        assertEquals("Unrecoverable restored secrets must be discarded", "", recovered.loadApiKey("recovery-probe"))
+        recovered.saveApiKey("recovery-probe", "secret-after-recovery")
+        assertEquals("secret-after-recovery", SecureSecretsStore(context).loadApiKey("recovery-probe"))
+        context.deleteSharedPreferences("hermes_android_secrets")
+    }
 
     @Test
     fun qwenOAuthCallbackCredentialsStayOutOfPlainSessionPreferences() {

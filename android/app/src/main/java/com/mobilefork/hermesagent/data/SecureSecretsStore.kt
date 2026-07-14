@@ -1,6 +1,7 @@
 package com.mobilefork.hermesagent.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.util.Base64
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -27,6 +28,27 @@ class SecureSecretsStore(context: Context) : AuthSessionSecretStore {
     }
 
     private val preferences by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        createEncryptedPreferencesWithRecovery()
+    }
+
+    private fun createEncryptedPreferencesWithRecovery(): SharedPreferences {
+        return try {
+            createEncryptedPreferences()
+        } catch (firstFailure: Exception) {
+            // Android Auto Backup can restore the encrypted keyset without the matching
+            // hardware-backed Keystore key. The secrets are then unrecoverable, but the
+            // app must remain usable: discard only this encrypted store and recreate it.
+            appContext.deleteSharedPreferences(PREFS_NAME)
+            try {
+                createEncryptedPreferences()
+            } catch (retryFailure: Exception) {
+                retryFailure.addSuppressed(firstFailure)
+                throw retryFailure
+            }
+        }
+    }
+
+    private fun createEncryptedPreferences(): SharedPreferences =
         EncryptedSharedPreferences.create(
             appContext,
             PREFS_NAME,
@@ -34,7 +56,6 @@ class SecureSecretsStore(context: Context) : AuthSessionSecretStore {
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
-    }
 
     fun loadApiKey(provider: String): String {
         val key = providerKey(provider)

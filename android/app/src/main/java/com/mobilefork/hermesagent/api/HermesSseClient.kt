@@ -1,6 +1,7 @@
 package com.mobilefork.hermesagent.api
 
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -16,6 +17,12 @@ class HermesSseClient(
     private val networkGuard: (String) -> Unit = {},
 ) {
     private val normalizedBaseUrl = HermesEndpointUrl.normalizeBaseUrl(baseUrl)
+    @Volatile
+    private var activeCall: Call? = null
+
+    fun cancel() {
+        activeCall?.cancel()
+    }
 
     fun streamChatCompletion(
         request: ChatCompletionRequest,
@@ -52,7 +59,9 @@ class HermesSseClient(
                 builder.header(HermesApiClient.SESSION_HEADER, request.sessionId)
             }
 
-            httpClient.newCall(builder.build()).execute().use { response ->
+            val call = httpClient.newCall(builder.build())
+            activeCall = call
+            call.execute().use { response ->
                 onStatus("Endpoint responded HTTP ${response.code}; reading SSE frames")
                 val body = response.body
                 if (!response.isSuccessful) {
@@ -66,6 +75,7 @@ class HermesSseClient(
                 }
                 parseStream(source, onDelta, onComplete, onError, onStatus)
             }
+            if (activeCall === call) activeCall = null
         } catch (error: Exception) {
             onError(endpointTransportErrorMessage(error))
         }
@@ -95,7 +105,9 @@ class HermesSseClient(
                 builder.header(HermesApiClient.SESSION_HEADER, request.sessionId)
             }
 
-            httpClient.newCall(builder.build()).execute().use { response ->
+            val call = httpClient.newCall(builder.build())
+            activeCall = call
+            call.execute().use { response ->
                 onStatus("Responses endpoint returned HTTP ${response.code}; reading SSE frames")
                 val body = response.body
                 if (!response.isSuccessful) {
@@ -109,6 +121,7 @@ class HermesSseClient(
                 }
                 parseStream(source, onDelta, onComplete, onError, onStatus)
             }
+            if (activeCall === call) activeCall = null
         } catch (error: Exception) {
             onError(endpointTransportErrorMessage(error))
         }

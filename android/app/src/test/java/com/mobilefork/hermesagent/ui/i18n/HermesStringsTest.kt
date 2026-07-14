@@ -2,6 +2,7 @@ package com.mobilefork.hermesagent.ui.i18n
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HermesStringsTest {
@@ -167,6 +168,42 @@ class HermesStringsTest {
             assertFalse(strings.automationsStatusText("2 automation(s) on device") == "2 automation(s) on device")
             assertFalse(strings.localMemoryStatusText("hy-memory local companion · 3 facts") == "hy-memory local companion · 3 facts")
             assertFalse(strings.skillsStatusText("Skills refreshed (4)") == "Skills refreshed (4)")
+        }
+    }
+
+    @Test
+    fun agentTimelineSettingsAndTerminalLabelsLocalizeForEveryLanguage() {
+        AppLanguage.entries.forEach { language ->
+            val strings = hermesStringsFor(language)
+            val values = listOf(
+                strings.settingsPageLabel("Models"),
+                strings.settingsBreadcrumb("Tools"),
+                strings.showStepsLabel(),
+                strings.hideStepsLabel(),
+                strings.stopLabel(),
+                strings.eventTypeLabel("thought"),
+                strings.eventTypeLabel("tool_call"),
+                strings.eventTypeLabel("file_access"),
+                strings.terminalTitle(),
+                strings.terminalDescription(),
+                strings.commandLabel(),
+                strings.signalToolsToggleLabel(false),
+                strings.signalToolsToggleLabel(true),
+                strings.noCommandOutputLabel(),
+                strings.commandFailedLabel(),
+                strings.exitCodeLabel(0),
+                strings.chatStatusText("Stopped by user"),
+                strings.uiFontSizeLabel(0.9f),
+            )
+            assertTrue(values.all { it.isNotBlank() })
+            if (language != AppLanguage.ENGLISH) {
+                assertFalse(strings.showStepsLabel() == "Show steps")
+                assertFalse(strings.eventTypeLabel("thought") == "Think")
+                assertFalse(strings.terminalTitle() == "Manual Linux terminal")
+                assertFalse(strings.signalToolsToggleLabel(false) == "Show signal tools")
+                assertFalse(strings.exitCodeLabel(0) == "Exit code 0")
+                assertFalse(strings.chatStatusText("Stopped by user") == "Stopped by user")
+            }
         }
     }
 }

@@ -113,6 +113,7 @@ internal fun chatDrawerNavigationSections(): List<AppSection> = listOf(
     AppSection.NousPortal,
     AppSection.Device,
     AppSection.Kanban,
+    AppSection.Terminal,
     AppSection.Settings,
 )
 
@@ -133,6 +134,13 @@ fun ChatScreen(
     onApplyModel: (String) -> Boolean,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val visibleMessages = remember(uiState.messages, uiState.showIntermediateSteps) {
+        if (uiState.showIntermediateSteps) {
+            uiState.messages
+        } else {
+            uiState.messages.filter { it.role == "user" || it.eventType == AgentEventType.FinalAnswer }
+        }
+    }
     val strings = LocalHermesStrings.current
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -413,13 +421,13 @@ fun ChatScreen(
                 val contentPadding = if (tinyRuntimeViewport) {
                     PaddingValues(horizontal = 4.dp, vertical = 4.dp)
                 } else if (imeVisible) {
-                    PaddingValues(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 0.dp)
+                    PaddingValues(start = 8.dp, top = 4.dp, end = 8.dp, bottom = 0.dp)
                 } else {
-                    PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    PaddingValues(horizontal = 8.dp, vertical = 4.dp)
                 }
-                val contentSpacing = if (tinyRuntimeViewport || imeVisible) 4.dp else 8.dp
+                val contentSpacing = 4.dp
                 // Keep list content clear of the composer so bottom bubbles are not under the IME edge.
-                val messageListBottomPadding = if (imeVisible) 12.dp else 8.dp
+                val messageListBottomPadding = if (imeVisible) 8.dp else 4.dp
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -492,8 +500,8 @@ fun ChatScreen(
                             .pointerInput(Unit) {
                                 detectTapGestures(onTap = { dismissKeyboard() })
                             },
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(top = 24.dp, bottom = messageListBottomPadding),
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                        contentPadding = PaddingValues(top = 12.dp, bottom = messageListBottomPadding),
                     ) {
                         item {
                             EmptyChatHint(
@@ -528,25 +536,29 @@ fun ChatScreen(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
                             contentPadding = PaddingValues(bottom = messageListBottomPadding),
                         ) {
                             if (chatDisplayMode == "expanded") {
-                                itemsIndexed(uiState.messages, key = { _, message -> message.id }) { index, message ->
-                                    val previous = uiState.messages.getOrNull(index - 1)
-                                    ChatBubble(
-                                        message = message,
-                                        showTimestamp = previous == null ||
-                                            minuteBucket(previous.createdAtEpochMs) != minuteBucket(message.createdAtEpochMs),
-                                        keywordHighlightingEnabled = keywordHighlightingEnabled,
-                                        onSpeak = { speak(message.content) },
-                                        onCopy = { copyMessage(message) },
-                                        onEdit = { viewModel.stageMessageEdit(message.id) },
-                                        onResend = { viewModel.resendMessage(message.id) },
-                                    )
+                                itemsIndexed(visibleMessages, key = { _, message -> message.id }) { index, message ->
+                                    val previous = visibleMessages.getOrNull(index - 1)
+                                    if (message.role != "user" && message.eventType != AgentEventType.FinalAnswer) {
+                                        AgentEventCard(message = message)
+                                    } else {
+                                        ChatBubble(
+                                            message = message,
+                                            showTimestamp = previous == null ||
+                                                minuteBucket(previous.createdAtEpochMs) != minuteBucket(message.createdAtEpochMs),
+                                            keywordHighlightingEnabled = keywordHighlightingEnabled,
+                                            onSpeak = { speak(message.content) },
+                                            onCopy = { copyMessage(message) },
+                                            onEdit = { viewModel.stageMessageEdit(message.id) },
+                                            onResend = { viewModel.resendMessage(message.id) },
+                                        )
+                                    }
                                 }
                             } else {
-                                val turns = buildChatTurns(uiState.messages)
+                                val turns = buildChatTurns(visibleMessages)
                                 items(turns, key = { it.id }) { turn ->
                                     CompactChatTurn(
                                         turn = turn,
@@ -587,6 +599,31 @@ fun ChatScreen(
                                     Text("↓", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleMedium)
                                 }
                             }
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = viewModel::toggleIntermediateSteps,
+                        modifier = Modifier
+                            .heightIn(min = 32.dp)
+                            .testTag("HermesToggleIntermediateSteps"),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                    ) {
+                        Text(if (uiState.showIntermediateSteps) strings.hideStepsLabel() else strings.showStepsLabel())
+                    }
+                    if (uiState.isSending) {
+                        Button(
+                            onClick = viewModel::stopCurrentTask,
+                            modifier = Modifier.testTag("HermesStopAgentButton"),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                        ) {
+                            Text(strings.stopLabel())
                         }
                     }
                 }
@@ -938,8 +975,8 @@ private fun EmptyChatHint(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(
                 text = strings.welcomeToHermes.ifBlank { "Welcome to Hermes" },
@@ -958,7 +995,7 @@ private fun EmptyChatHint(
                 onClick = { showSignalTools = !showSignalTools },
                 modifier = Modifier.testTag("HermesSignalToolsToggle"),
             ) {
-                Text(if (showSignalTools) "Hide signal tools" else "Show signal tools")
+                Text(strings.signalToolsToggleLabel(showSignalTools))
             }
             if (showSignalTools) {
                 SignalIntelligenceQuickActionGrid(
@@ -1179,8 +1216,8 @@ private fun CompactChatTurn(
         tonalElevation = 1.dp,
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             if (userMessage != null) {
                 CompactPromptHeader(
@@ -1197,6 +1234,10 @@ private fun CompactChatTurn(
                 QuietMetaText(text = strings.hermesPreparingReply(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 turn.assistantMessages.forEachIndexed { index, assistantMessage ->
+                    if (assistantMessage.eventType != AgentEventType.FinalAnswer) {
+                        AgentEventCard(message = assistantMessage)
+                        return@forEachIndexed
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1266,6 +1307,57 @@ private fun CompactChatTurn(
 }
 
 @Composable
+private fun AgentEventCard(message: ChatUiMessage) {
+    val type = message.eventType ?: return
+    val strings = LocalHermesStrings.current
+    var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
+    val title = message.content.substringBefore('\n').ifBlank { type.name }
+    val details = message.content.substringAfter('\n', "").trim()
+    val typeLabel = strings.eventTypeLabel(type.persistedRole)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = (message.timelineDepth * 12).dp)
+            .testTag("HermesAgentEvent_${type.persistedRole}"),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 0.dp,
+    ) {
+        Column(
+            modifier = Modifier
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 9.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "$typeLabel · $title",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(if (expanded) "−" else "+", style = MaterialTheme.typography.labelMedium)
+            }
+            if (expanded && details.isNotBlank()) {
+                SelectionContainer {
+                    Text(
+                        text = details,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CompactPromptHeader(
     message: ChatUiMessage,
     expanded: Boolean,
@@ -1287,8 +1379,8 @@ private fun CompactPromptHeader(
         tonalElevation = 0.dp,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -27,6 +27,7 @@ import com.mobilefork.hermesagent.data.SecureSecretsStore
 import com.mobilefork.hermesagent.data.StoredConversationAttachment
 import com.mobilefork.hermesagent.data.StoredConversationMessage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -85,6 +86,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private var streamPersistMessageId: String = ""
     @Volatile
     private var lastStreamPersistMs: Long = 0L
+    @Volatile
+    private var activeSendJob: Job? = null
+    @Volatile
+    private var activeSseClient: HermesSseClient? = null
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -147,6 +152,26 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearStatus() {
         _uiState.update { it.copy(status = "") }
+    }
+
+    fun toggleIntermediateSteps() {
+        _uiState.update { it.copy(showIntermediateSteps = !it.showIntermediateSteps) }
+    }
+
+    fun stopCurrentTask() {
+        val snapshot = _uiState.value
+        if (!snapshot.isSending) return
+        NativeToolChatSender.cancelActive()
+        activeSseClient?.cancel()
+        activeSendJob?.cancel()
+        streamPersistBuffer = null
+        _uiState.update {
+            it.copy(
+                isSending = false,
+                status = "Stopped by user",
+                error = "",
+            )
+        }
     }
 
     fun startNewConversation() {
@@ -286,7 +311,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val assistantMessageId = UUID.randomUUID().toString()
         val assistantPlaceholder = ChatUiMessage(assistantMessageId, "assistant", "", now + 1)
 
-        viewModelScope.launch(Dispatchers.IO) {
+        val sendJob = viewModelScope.launch(Dispatchers.IO) {
             val directDiagnosticArguments = if (attachments.isEmpty()) directNativeDiagnosticArgumentsForPrompt(text) else null
             if (directDiagnosticArguments != null) {
                 persistMessages(sessionId, userMessage, assistantPlaceholder)
@@ -406,6 +431,32 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         userContentParts = userContentParts,
                         priorMessages = priorConversationMessages,
                         relevantMemoryContext = memoryContext,
+                        onEvent = { event ->
+                            val eventMessage = ChatUiMessage(
+                                id = UUID.randomUUID().toString(),
+                                role = event.type.persistedRole,
+                                content = buildString {
+                                    append(event.title)
+                                    if (event.content.isNotBlank()) {
+                                        append('\n')
+                                        append(event.content)
+                                    }
+                                },
+                                createdAtEpochMs = System.currentTimeMillis(),
+                            )
+                            conversationStore.insertMessageBefore(
+                                sessionId = sessionId,
+                                beforeMessageId = assistantMessageId,
+                                message = eventMessage.toStoredMessage(),
+                            )
+                            _uiState.update { state ->
+                                val finalIndex = state.messages.indexOfFirst { it.id == assistantMessageId }
+                                val updated = state.messages.toMutableList().apply {
+                                    if (finalIndex >= 0) add(finalIndex, eventMessage) else add(eventMessage)
+                                }
+                                state.copy(messages = updated)
+                            }
+                        },
                     )
                     conversationStore.updateMessageContent(
                         sessionId = sessionId,
@@ -429,8 +480,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }.onFailure { error ->
-                    _uiState.update {
-                        it.copy(
+                    _uiState.update { state ->
+                        if (!state.isSending) state else state.copy(
                             isSending = false,
                             error = endpoint.failureMessage(error.message ?: error.javaClass.simpleName),
                             status = "",
@@ -451,6 +502,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 },
             )
+            activeSseClient = client
             val appSettings = AppSettingsStore(getApplication<Application>()).load()
             val customSystemPrompt = appSettings.customSystemPrompt
             val cacheResendEnabled = McpPromptCacheResendPolicy.shouldResendCachedContext(
@@ -552,13 +604,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 val onError: (String) -> Unit = { error ->
-                    tryNonStreamingEndpointFallback(
-                        endpoint = endpoint,
-                        request = request,
-                        sessionId = sessionId,
-                        assistantMessageId = assistantMessageId,
-                        streamError = error,
-                    )
+                    if (_uiState.value.isSending) {
+                        tryNonStreamingEndpointFallback(
+                            endpoint = endpoint,
+                            request = request,
+                            sessionId = sessionId,
+                            assistantMessageId = assistantMessageId,
+                            streamError = error,
+                        )
+                    }
                 }
                 val onStatus: (String) -> Unit = { status ->
                     _uiState.update {
@@ -584,14 +638,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }.onFailure { error ->
                 val message = error.message ?: error.javaClass.simpleName
-                tryNonStreamingEndpointFallback(
-                    endpoint = endpoint,
-                    request = request,
-                    sessionId = sessionId,
-                    assistantMessageId = assistantMessageId,
-                    streamError = message,
-                )
+                if (_uiState.value.isSending) {
+                    tryNonStreamingEndpointFallback(
+                        endpoint = endpoint,
+                        request = request,
+                        sessionId = sessionId,
+                        assistantMessageId = assistantMessageId,
+                        streamError = message,
+                    )
+                }
             }
+        }
+        activeSendJob = sendJob
+        sendJob.invokeOnCompletion {
+            if (activeSendJob === sendJob) activeSendJob = null
+            activeSseClient = null
         }
     }
 
@@ -862,23 +923,25 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         messages.forEach { message ->
             conversationStore.upsertMessage(
                 sessionId = sessionId,
-                message = StoredConversationMessage(
-                    id = message.id,
-                    role = message.role,
-                    content = message.content,
-                    createdAtEpochMs = message.createdAtEpochMs,
-                    attachments = message.attachments.map { attachment ->
-                        StoredConversationAttachment(
-                            uri = attachment.uri,
-                            displayName = attachment.displayName,
-                            mimeType = attachment.mimeType,
-                            sizeBytes = attachment.sizeBytes,
-                        )
-                    },
-                ),
+                message = message.toStoredMessage(),
             )
         }
     }
+
+    private fun ChatUiMessage.toStoredMessage(): StoredConversationMessage = StoredConversationMessage(
+        id = id,
+        role = role,
+        content = content,
+        createdAtEpochMs = createdAtEpochMs,
+        attachments = attachments.map { attachment ->
+            StoredConversationAttachment(
+                uri = attachment.uri,
+                displayName = attachment.displayName,
+                mimeType = attachment.mimeType,
+                sizeBytes = attachment.sizeBytes,
+            )
+        },
+    )
 
     private data class AttachmentDetails(
         val displayName: String,

@@ -116,10 +116,13 @@ class DeepAppUiVisualInstrumentedTest {
         navigateToShellSection("HermesNavSettings")
         composeRule.onAllNodesWithText("Settings")[0].assertIsDisplayed()
         capture("03-settings")
+        composeRule.onNodeWithTag("HermesSettingsPage_Theme").performClick()
         scrollSettingsToText("Theme and chat layout")
         scrollSettingsToTag("ChatDisplayExpanded")
         scrollSettingsToTag("CardShape-square")
         scrollSettingsToTag("SaveAppearanceButton")
+        scrollSettingsToTag("HermesSettingsPage_Models")
+        composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
         scrollSettingsToText("Check setup")
         scrollSettingsToTag("LiteRtLmMtpMode-auto")
         scrollSettingsToTag("LiteRtLmMtpMode-enabled")
@@ -129,9 +132,13 @@ class DeepAppUiVisualInstrumentedTest {
         scrollSettingsToText("Gemma 4 E2B (LiteRT-LM)")
         capture("04-one-tap-models")
 
+        scrollSettingsToTag("HermesSettingsPage_Overview")
+        composeRule.onNodeWithTag("HermesSettingsPage_Overview").performClick()
         scrollSettingsToText("🇪🇸 Español")
         composeRule.onNodeWithText("🇪🇸 Español").performClick()
         assertTrue(composeRule.onAllNodesWithText("Idioma de la app").fetchSemanticsNodes().isNotEmpty())
+        scrollSettingsToTag("HermesSettingsPage_Models")
+        composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
         scrollSettingsToText("Modelos locales con un toque")
         assertTrue(composeRule.onAllNodesWithText("Descargar e iniciar").fetchSemanticsNodes().isNotEmpty())
         capture("05-settings-spanish")
@@ -739,9 +746,11 @@ class DeepAppUiVisualInstrumentedTest {
     }
 
     private fun navigateToShellSection(testTag: String) {
+        val chatDrawerTag = "HermesChatDrawerButton"
         if (
             composeRule.onAllNodesWithTag(testTag).fetchSemanticsNodes().isEmpty() &&
-            composeRule.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isEmpty()
+            composeRule.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isEmpty() &&
+            composeRule.onAllNodesWithTag(chatDrawerTag).fetchSemanticsNodes().isEmpty()
         ) {
             val responsiveShortcutTag = when (testTag) {
                 "HermesNavAccounts" -> "HermesEmptyChatAccountsButton"
@@ -759,11 +768,19 @@ class DeepAppUiVisualInstrumentedTest {
             closeSoftKeyboard()
             composeRule.waitUntil(timeoutMillis = 5_000L) {
                 composeRule.onAllNodesWithTag(testTag).fetchSemanticsNodes().isNotEmpty() ||
-                    composeRule.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isNotEmpty()
+                    composeRule.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isNotEmpty() ||
+                    composeRule.onAllNodesWithTag(chatDrawerTag).fetchSemanticsNodes().isNotEmpty()
             }
         }
         if (composeRule.onAllNodesWithTag(testTag).fetchSemanticsNodes().isEmpty()) {
-            composeRule.onNodeWithTag("HermesShellDrawerButton").performClick()
+            val drawerTag = if (
+                composeRule.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isNotEmpty()
+            ) {
+                "HermesShellDrawerButton"
+            } else {
+                chatDrawerTag
+            }
+            composeRule.onNodeWithTag(drawerTag).performClick()
             composeRule.waitUntil(timeoutMillis = 5_000L) {
                 composeRule.onAllNodesWithTag(testTag).fetchSemanticsNodes().isNotEmpty()
             }

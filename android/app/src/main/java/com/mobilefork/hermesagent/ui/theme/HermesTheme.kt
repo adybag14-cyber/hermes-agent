@@ -2,12 +2,14 @@ package com.mobilefork.hermesagent.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.TextStyle
 
 data class HermesThemeConfig(
     val primaryHex: String = "#8C7BFF",
@@ -16,6 +18,7 @@ data class HermesThemeConfig(
     val surfaceHex: String = "#11141C",
     val surfaceVariantHex: String = "#1B202B",
     val cardShape: String = "rounded",
+    val fontScale: Float = 1.0f,
 )
 
 private val HermesDarkColors = darkColorScheme(
@@ -72,7 +75,31 @@ fun HermesTheme(
     MaterialTheme(
         colorScheme = colors,
         shapes = hermesShapes(config.cardShape),
+        typography = scaledTypography(config.fontScale),
         content = content,
+    )
+}
+
+private fun scaledTypography(rawScale: Float): Typography {
+    val scale = rawScale.coerceIn(0.8f, 1.3f)
+    val base = Typography()
+    fun TextStyle.scaled() = copy(fontSize = fontSize * scale)
+    return base.copy(
+        displayLarge = base.displayLarge.scaled(),
+        displayMedium = base.displayMedium.scaled(),
+        displaySmall = base.displaySmall.scaled(),
+        headlineLarge = base.headlineLarge.scaled(),
+        headlineMedium = base.headlineMedium.scaled(),
+        headlineSmall = base.headlineSmall.scaled(),
+        titleLarge = base.titleLarge.scaled(),
+        titleMedium = base.titleMedium.scaled(),
+        titleSmall = base.titleSmall.scaled(),
+        bodyLarge = base.bodyLarge.scaled(),
+        bodyMedium = base.bodyMedium.scaled(),
+        bodySmall = base.bodySmall.scaled(),
+        labelLarge = base.labelLarge.scaled(),
+        labelMedium = base.labelMedium.scaled(),
+        labelSmall = base.labelSmall.scaled(),
     )
 }
 

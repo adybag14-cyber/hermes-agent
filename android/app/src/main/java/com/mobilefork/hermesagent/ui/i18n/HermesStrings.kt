@@ -1060,6 +1060,9 @@ data class HermesStrings(
             AppLanguage.FRENCH -> "Démarrage du runtime Hermes…"
             AppLanguage.ENGLISH -> text
         }
+        "Stopped by user" -> tr(
+            "Stopped by user", "已由用户停止", "Detenido por el usuario", "Vom Benutzer gestoppt", "Parado pelo usuário", "Arrêté par l’utilisateur",
+        )
         "Hermes is replying…" -> when (language) {
             AppLanguage.CHINESE -> "Hermes 正在回复…"
             AppLanguage.SPANISH -> "Hermes está respondiendo…"
@@ -3643,6 +3646,48 @@ data class HermesStrings(
     )
     fun mcpServerUrlLabel(): String = tr("MCP server URL", "MCP 服务器 URL", "URL del servidor MCP", "MCP-Server-URL", "URL do servidor MCP", "URL du serveur MCP")
     fun optionalApiTokenLabel(): String = tr("API token (optional)", "API 令牌（可选）", "Token API (opcional)", "API-Token (optional)", "Token de API (opcional)", "Jeton API (facultatif)")
+
+    fun settingsPageLabel(page: String): String = when (page) {
+        "Models" -> tr("Models", "模型", "Modelos", "Modelle", "Modelos", "Modèles")
+        "Theme" -> tr("Theme", "主题", "Tema", "Design", "Tema", "Thème")
+        "Tools" -> tr("Tools", "工具", "Herramientas", "Werkzeuge", "Ferramentas", "Outils")
+        else -> tr("General", "常规", "General", "Allgemein", "Geral", "Général")
+    }
+    fun settingsBreadcrumb(page: String): String = "${sectionSettings}  ›  ${settingsPageLabel(page)}"
+    fun showStepsLabel(): String = tr("Show steps", "显示步骤", "Mostrar pasos", "Schritte anzeigen", "Mostrar etapas", "Afficher les étapes")
+    fun hideStepsLabel(): String = tr("Hide steps", "隐藏步骤", "Ocultar pasos", "Schritte ausblenden", "Ocultar etapas", "Masquer les étapes")
+    fun stopLabel(): String = tr("Stop", "停止", "Detener", "Stopp", "Parar", "Arrêter")
+    fun eventTypeLabel(type: String): String = when (type) {
+        "thought" -> tr("Think", "思考", "Pensamiento", "Denken", "Pensamento", "Réflexion")
+        "tool_call" -> tr("Tool call", "工具调用", "Llamada de herramienta", "Werkzeugaufruf", "Chamada de ferramenta", "Appel d’outil")
+        "tool_result" -> tr("Tool result", "工具结果", "Resultado de herramienta", "Werkzeugergebnis", "Resultado da ferramenta", "Résultat de l’outil")
+        "file_access" -> tr("File access", "文件访问", "Acceso a archivo", "Dateizugriff", "Acesso a arquivo", "Accès au fichier")
+        "process_log" -> tr("Process log", "进程日志", "Registro del proceso", "Prozessprotokoll", "Log do processo", "Journal du processus")
+        else -> tr("Answer", "回答", "Respuesta", "Antwort", "Resposta", "Réponse")
+    }
+    fun terminalTitle(): String = tr("Manual Linux terminal", "手动 Linux 终端", "Terminal Linux manual", "Manuelles Linux-Terminal", "Terminal Linux manual", "Terminal Linux manuel")
+    fun terminalDescription(): String = tr(
+        "Run host commands directly. For PRoot, use proot-distro list or proot-distro login <name> -- /bin/sh -lc 'uname -a'.",
+        "直接运行主机命令。PRoot 可使用 proot-distro list 或 proot-distro login <名称> -- /bin/sh -lc 'uname -a'。",
+        "Ejecuta comandos del host directamente. Para PRoot usa proot-distro list o proot-distro login <nombre> -- /bin/sh -lc 'uname -a'.",
+        "Führe Host-Befehle direkt aus. Für PRoot: proot-distro list oder proot-distro login <Name> -- /bin/sh -lc 'uname -a'.",
+        "Execute comandos do host diretamente. Para PRoot use proot-distro list ou proot-distro login <nome> -- /bin/sh -lc 'uname -a'.",
+        "Exécutez directement des commandes hôte. Pour PRoot : proot-distro list ou proot-distro login <nom> -- /bin/sh -lc 'uname -a'.",
+    )
+    fun signalToolsToggleLabel(showing: Boolean): String = if (showing) {
+        tr("Hide signal tools", "隐藏信号工具", "Ocultar herramientas de señal", "Signalwerkzeuge ausblenden", "Ocultar ferramentas de sinal", "Masquer les outils de signal")
+    } else {
+        tr("Show signal tools", "显示信号工具", "Mostrar herramientas de señal", "Signalwerkzeuge anzeigen", "Mostrar ferramentas de sinal", "Afficher les outils de signal")
+    }
+    fun commandLabel(): String = tr("Command", "命令", "Comando", "Befehl", "Comando", "Commande")
+    fun runningLabel(): String = tr("Running…", "正在运行…", "Ejecutando…", "Läuft…", "Executando…", "Exécution…")
+    fun noCommandOutputLabel(): String = tr("(no output)", "（无输出）", "(sin salida)", "(keine Ausgabe)", "(sem saída)", "(aucune sortie)")
+    fun commandFailedLabel(): String = tr("Command failed", "命令失败", "El comando falló", "Befehl fehlgeschlagen", "Falha no comando", "Échec de la commande")
+    fun exitCodeLabel(code: Int): String = tr("Exit code $code", "退出码 $code", "Código de salida $code", "Exit-Code $code", "Código de saída $code", "Code de sortie $code")
+    fun uiFontSizeLabel(scale: Float): String {
+        val percent = (scale * 100).toInt()
+        return tr("UI font size: $percent%", "界面字体大小：$percent%", "Tamaño de fuente: $percent%", "UI-Schriftgröße: $percent%", "Tamanho da fonte: $percent%", "Taille de police : $percent%")
+    }
 
     private fun tr(en: String, zh: String, es: String, de: String, pt: String, fr: String): String = when (language) {
         AppLanguage.CHINESE -> zh

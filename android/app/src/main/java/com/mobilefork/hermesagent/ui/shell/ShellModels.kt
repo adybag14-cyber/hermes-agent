@@ -14,6 +14,7 @@ enum class AppSection(
     NousPortal(iconRes = R.drawable.ic_nav_portal),
     Device(iconRes = R.drawable.ic_nav_device),
     Kanban(iconRes = R.drawable.ic_nav_kanban),
+    Terminal(iconRes = R.drawable.ic_nav_device),
     Settings(iconRes = R.drawable.ic_nav_settings);
 
     fun label(strings: HermesStrings): String {
@@ -23,6 +24,14 @@ enum class AppSection(
             NousPortal -> strings.sectionPortal
             Device -> strings.sectionDevice
             Kanban -> "Kanban"
+            Terminal -> when (strings.language) {
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.CHINESE -> "终端"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.SPANISH -> "Terminal"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.GERMAN -> "Terminal"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.FRENCH -> "Terminal"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.PORTUGUESE -> "Terminal"
+                else -> "Terminal"
+            }
             Settings -> strings.sectionSettings
         }
     }
@@ -42,6 +51,7 @@ enum class AppSection(
                 com.mobilefork.hermesagent.ui.i18n.AppLanguage.FRENCH -> "Kanban"
                 else -> "Kanban"
             }
+            Terminal -> label(strings)
             else -> label(strings)
         }
     }
@@ -53,6 +63,7 @@ enum class AppSection(
             NousPortal -> strings.portalTitle
             Device -> strings.sectionDevice
             Kanban -> navigationLabel(strings)
+            Terminal -> navigationLabel(strings)
             Settings -> strings.sectionSettings
         }
     }
@@ -66,6 +77,14 @@ enum class AppSection(
             Kanban -> when (strings.language) {
                 com.mobilefork.hermesagent.ui.i18n.AppLanguage.CHINESE -> "共享任务板与人工处置"
                 else -> "Shared task board and human task control"
+            }
+            Terminal -> when (strings.language) {
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.CHINESE -> "手动运行 PRoot Linux 命令"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.SPANISH -> "Ejecuta comandos PRoot Linux manualmente"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.GERMAN -> "PRoot-Linux-Befehle manuell ausführen"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.FRENCH -> "Exécuter manuellement des commandes PRoot Linux"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.PORTUGUESE -> "Execute comandos PRoot Linux manualmente"
+                else -> "Run PRoot Linux commands manually"
             }
             Settings -> strings.subtitleSettings
         }

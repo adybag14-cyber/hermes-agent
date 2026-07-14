@@ -22,6 +22,7 @@ import com.mobilefork.hermesagent.device.HermesSystemControlBridge
 import com.mobilefork.hermesagent.device.HermesTermuxPackageManager
 import com.mobilefork.hermesagent.device.HermesWorkspaceFileBridge
 import com.mobilefork.hermesagent.device.NativeAndroidShellTool
+import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -45,6 +46,15 @@ class NativeToolCallingChatClient(
     private val openGuiWorkingMemoryPrefs = appContext.getSharedPreferences("hermes_opengui_working_memory", Context.MODE_PRIVATE)
     private var activeOpenGuiMemorySessionId: String = ""
     private val openGuiActionHistory = OpenGuiActionHistory()
+    @Volatile
+    private var activeCall: Call? = null
+    @Volatile
+    private var cancelled: Boolean = false
+
+    fun cancel() {
+        cancelled = true
+        activeCall?.cancel()
+    }
 
     data class Result(
         val content: String,
@@ -62,19 +72,35 @@ class NativeToolCallingChatClient(
         priorMessages: List<ChatMessage> = emptyList(),
         relevantMemoryContext: String = "",
         providerId: String = "",
+        onEvent: (NativeAgentEvent) -> Unit = {},
     ): Result {
+        cancelled = false
         val normalizedBaseUrl = baseUrl.trimEnd('/')
         require(normalizedBaseUrl.startsWith("http://") || normalizedBaseUrl.startsWith("https://")) {
             "Native tool chat requires a local HTTP base URL; got '${baseUrl.ifBlank { "<blank>" }}'."
         }
         activeOpenGuiMemorySessionId = sessionId
-        executeExplicitDirectToolRequest(userText)?.let { return it }
+        executeExplicitDirectToolRequest(userText)?.let { result ->
+            onEvent(NativeAgentEvent(AgentEventType.ToolCall, "Native action", userText))
+            val inferredTools = inferredToolNames(userText)
+            val resultType = when {
+                "terminal_tool" in inferredTools -> AgentEventType.ProcessLog
+                "file_write_tool" in inferredTools -> AgentEventType.FileAccess
+                else -> AgentEventType.ToolResult
+            }
+            onEvent(NativeAgentEvent(resultType, "Native action result", result.content))
+            return result
+        }
         executeExplicitHtmlBrowserToolRequest(
             normalizedBaseUrl = normalizedBaseUrl,
             modelName = modelName,
             sessionId = sessionId,
             userText = userText,
-        )?.let { return it }
+        )?.let { result ->
+            onEvent(NativeAgentEvent(AgentEventType.ToolCall, "File and browser action", userText))
+            onEvent(NativeAgentEvent(AgentEventType.FileAccess, "File and browser result", result.content))
+            return result
+        }
 
         var executedToolCalls = 0
         var modelRequestCount = 0
@@ -108,7 +134,11 @@ class NativeToolCallingChatClient(
         var assistant = initialResponse.assistant
 
         repeat(MAX_NATIVE_TOOL_ROUNDS) {
+            check(!cancelled) { "Agent task stopped by user." }
             if (assistant.toolCalls.isEmpty()) {
+                if (assistant.reasoning.isNotBlank()) {
+                    onEvent(NativeAgentEvent(AgentEventType.Thought, "Reasoning", assistant.reasoning))
+                }
                 val content = nativeVisibleReplyContent(
                     assistantContent = assistant.content,
                     latestToolResult = latestToolResult,
@@ -122,12 +152,34 @@ class NativeToolCallingChatClient(
                 )
             }
 
+            val intermediateThought = listOf(assistant.reasoning, assistant.content)
+                .filter { it.isNotBlank() }
+                .joinToString("\n")
+            if (intermediateThought.isNotBlank()) {
+                onEvent(NativeAgentEvent(AgentEventType.Thought, "Reasoning", intermediateThought))
+            }
             messages.put(assistant.toJsonMessage())
             var externalActivityHandoff = false
             for (toolCall in assistant.toolCalls) {
+                check(!cancelled) { "Agent task stopped by user." }
+                onEvent(
+                    NativeAgentEvent(
+                        AgentEventType.ToolCall,
+                        toolCall.name,
+                        toolCall.arguments.toString(2),
+                    ),
+                )
                 val toolResult = executeToolCall(toolCall)
                 executedToolCalls += 1
                 latestToolResult = toolResult
+                val activityType = when (toolCall.name) {
+                    "file_write_tool", "write_file", "file_tool" -> AgentEventType.FileAccess
+                    "terminal_tool", "terminal", "shell", "mcp_send_terminal_input",
+                    "mcp_run_in_proot", "linux_sandbox_tool", "linux_sandbox",
+                    "proot_distro_tool", "proot-distro", "proot_distro" -> AgentEventType.ProcessLog
+                    else -> AgentEventType.ToolResult
+                }
+                onEvent(NativeAgentEvent(activityType, "${toolCall.name} result", toolResult))
                 messages.put(
                     JSONObject()
                         .put("role", "tool")
@@ -170,6 +222,9 @@ class NativeToolCallingChatClient(
                 throw error
             }
             if (followUp.toolCalls.isEmpty()) {
+                if (followUp.reasoning.isNotBlank()) {
+                    onEvent(NativeAgentEvent(AgentEventType.Thought, "Reasoning", followUp.reasoning))
+                }
                 val rawContent = followUp.content.ifBlank { toolCompletionReply(latestToolResult) }
                 return Result(
                     content = nativeVisibleReplyContent(rawContent, latestToolResult),
@@ -817,17 +872,23 @@ class NativeToolCallingChatClient(
             .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        httpClient.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                throw IllegalStateException(formatNativeChatError(response.code, body))
+        val call = httpClient.newCall(request)
+        activeCall = call
+        try {
+            call.execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) {
+                    throw IllegalStateException(formatNativeChatError(response.code, body))
+                }
+                val root = JSONObject(body)
+                val message = root
+                    .getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                return AssistantMessage.fromJson(message)
             }
-            val root = JSONObject(body)
-            val message = root
-                .getJSONArray("choices")
-                .getJSONObject(0)
-                .getJSONObject("message")
-            return AssistantMessage.fromJson(message)
+        } finally {
+            if (activeCall === call) activeCall = null
         }
     }
 
@@ -2037,6 +2098,10 @@ class NativeToolCallingChatClient(
                     "run command",
                     "execute command",
                     "command output",
+                    "list files",
+                    "show files",
+                    "current directory",
+                    "working directory",
                     "linux sandbox",
                     "downloadable linux",
                     "proot-distro",
@@ -3754,6 +3819,7 @@ class NativeToolCallingChatClient(
     private data class AssistantMessage(
         val content: String,
         val toolCalls: List<ToolCall>,
+        val reasoning: String = "",
     ) {
         fun toJsonMessage(): JSONObject {
             val json = JSONObject()
@@ -3787,6 +3853,11 @@ class NativeToolCallingChatClient(
                 pattern = """([A-Za-z_][A-Za-z0-9_-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s]+)""",
             )
             private val xmlToolNameKeys = setOf("name", "tool", "function")
+            private val taggedToolCallBlockRegex = Regex(
+                pattern = """(?is)(?:<\|tool_call_start\|>|<｜tool▁call▁begin｜>)(.*?)(?:<\|tool_call_end\|>|<｜tool▁call▁end｜>)""",
+            )
+            private val fencedJsonRegex = Regex("""(?is)```(?:json)?\s*(.+?)\s*```""")
+            private val thinkBlockRegex = Regex("""(?is)<think>(.*?)</think>""")
 
             fun fromJson(json: JSONObject): AssistantMessage {
                 val toolCalls = mutableListOf<ToolCall>()
@@ -3805,19 +3876,65 @@ class NativeToolCallingChatClient(
                     )
                 }
                 val rawContent = json.optString("content").takeUnless { json.isNull("content") }.orEmpty()
-                val xmlToolCalls = if (toolCalls.isEmpty()) {
-                    parseXmlToolCallsFromContent(rawContent)
+                val reasoning = listOf(
+                    json.optString("reasoning_content"),
+                    json.optString("reasoning"),
+                    thinkBlockRegex.findAll(rawContent).joinToString("\n") { it.groups[1]?.value.orEmpty().trim() },
+                ).filter { it.isNotBlank() }.joinToString("\n")
+                val visibleContent = thinkBlockRegex.replace(rawContent, "").trim()
+                val contentToolCalls = if (toolCalls.isEmpty()) {
+                    parseToolCallsFromContent(visibleContent)
                 } else {
                     emptyList()
                 }
-                toolCalls += xmlToolCalls
+                toolCalls += contentToolCalls
                 return AssistantMessage(
-                    content = if (xmlToolCalls.isNotEmpty()) {
-                        removeXmlToolCallsFromContent(rawContent).trim()
+                    content = if (contentToolCalls.isNotEmpty()) {
+                        removeToolCallsFromContent(visibleContent).trim()
                     } else {
-                        rawContent
+                        visibleContent
                     },
                     toolCalls = toolCalls,
+                    reasoning = reasoning,
+                )
+            }
+
+            private fun parseToolCallsFromContent(content: String): List<ToolCall> {
+                val xmlCalls = parseXmlToolCallsFromContent(content)
+                if (xmlCalls.isNotEmpty()) return xmlCalls
+
+                val taggedCalls = taggedToolCallBlockRegex.findAll(content).mapIndexedNotNull { index, match ->
+                    parseJsonToolCall(match.groups[1]?.value.orEmpty(), "tagged", index)
+                }.toList()
+                if (taggedCalls.isNotEmpty()) return taggedCalls
+
+                return fencedJsonRegex.findAll(content).mapIndexedNotNull { index, match ->
+                    parseJsonToolCall(match.groups[1]?.value.orEmpty(), "fenced", index)
+                }.toList()
+            }
+
+            private fun parseJsonToolCall(raw: String, prefix: String, index: Int): ToolCall? {
+                val normalized = raw.trim()
+                val parsed = runCatching { JSONObject(normalized) }.getOrNull()
+                    ?: runCatching { JSONArray(normalized).optJSONObject(0) }.getOrNull()
+                    ?: return null
+                val function = parsed.optJSONObject("function") ?: parsed
+                val name = function.optString("name")
+                    .ifBlank { function.optString("tool") }
+                    .ifBlank { function.optString("function") }
+                    .trim()
+                if (name.isBlank()) return null
+                val rawArguments = function.opt("arguments") ?: function.opt("parameters") ?: JSONObject()
+                val arguments = when (rawArguments) {
+                    is JSONObject -> rawArguments
+                    is String -> runCatching { JSONObject(rawArguments) }.getOrNull()
+                        ?: JSONObject().put(defaultXmlToolArgumentName(name), rawArguments)
+                    else -> JSONObject()
+                }
+                return ToolCall(
+                    id = parsed.optString("id").ifBlank { "${prefix}_call_${UUID.randomUUID()}_$index" },
+                    name = name,
+                    arguments = arguments,
                 )
             }
 
@@ -3858,9 +3975,12 @@ class NativeToolCallingChatClient(
                 return calls
             }
 
-            private fun removeXmlToolCallsFromContent(content: String): String {
+            private fun removeToolCallsFromContent(content: String): String {
                 return xmlNamedToolCallBlockRegex.replace(
-                    xmlToolCallBlockRegex.replace(content, ""),
+                    taggedToolCallBlockRegex.replace(
+                        fencedJsonRegex.replace(xmlToolCallBlockRegex.replace(content, ""), ""),
+                        "",
+                    ),
                     "",
                 )
             }
@@ -3947,6 +4067,16 @@ class NativeToolCallingChatClient(
     }
 
     internal companion object {
+        internal fun parseToolCallContentForTest(content: String): List<Pair<String, String>> {
+            val parsed = AssistantMessage.fromJson(JSONObject().put("content", content))
+            return parsed.toolCalls.map { it.name to it.arguments.toString() }
+        }
+
+        internal fun parseReasoningContentForTest(content: String): Pair<String, String> {
+            val parsed = AssistantMessage.fromJson(JSONObject().put("content", content))
+            return parsed.reasoning to parsed.content
+        }
+
         fun buildInitialNativeMessages(
             systemMessage: JSONObject,
             priorMessages: List<ChatMessage>,
@@ -3988,7 +4118,7 @@ class NativeToolCallingChatClient(
                 )
             }
             val guidance = buildList {
-                add("You are Hermes in the native Android app. Use the provided tools for real actions, never invent tool output, and keep replies brief.")
+                add("You are Hermes in the native Android app. Tools are available in this request. When the user asks for an action, call the matching provided tool instead of saying you cannot execute commands or do not have tools. Never invent tool output, and keep replies brief. If native function calling is unavailable, emit exactly <tool_call>{\"name\":\"tool_name\",\"arguments\":{}}</tool_call>.")
                 if ("mcp_run_in_proot" in toolNames || "linux_sandbox_tool" in toolNames) {
                     add("For a command inside an installed Linux guest, call mcp_run_in_proot with command. Use linux_sandbox_tool for lifecycle actions such as install, start, update, status, or remove.")
                 }
@@ -4171,7 +4301,46 @@ class NativeToolCallingChatClient(
         }
 
         internal fun extractExactTerminalCommand(userText: String): String? =
-            extractDirectTerminalCommand(userText)
+            extractDirectTerminalCommand(userText) ?: inferSafeNaturalTerminalCommand(userText)
+
+        /**
+         * Deterministically routes a small allowlist of read-only shell intents.
+         * Some compact local models describe tools correctly but decline to emit a
+         * function call. Keeping this mapping fixed avoids executing arbitrary prose.
+         */
+        internal fun inferSafeNaturalTerminalCommand(userText: String): String? {
+            val lower = userText.lowercase()
+            val requestsAction = listOf(
+                "run ",
+                "execute ",
+                "show ",
+                "tell me",
+                "what is",
+                "what's",
+                "which ",
+                "list ",
+                "print ",
+            ).any { it in lower }
+            if (!requestsAction) return null
+
+            return when {
+                Regex("""\bpwd\b""").containsMatchIn(lower) ||
+                    "current directory" in lower ||
+                    "working directory" in lower -> "pwd"
+                Regex("""\bwhoami\b""").containsMatchIn(lower) ||
+                    "current user" in lower ||
+                    "which user" in lower -> "whoami"
+                "list files" in lower ||
+                    "show files" in lower ||
+                    "directory contents" in lower -> "ls -la"
+                Regex("""\buname\b""").containsMatchIn(lower) ||
+                    "system information" in lower ||
+                    "kernel version" in lower -> "uname -a"
+                Regex("""\bdate\b""").containsMatchIn(lower) ||
+                    "current time" in lower -> "date"
+                else -> null
+            }
+        }
 
         fun shouldSkipNativeFollowUpAfterToolResult(toolResult: String): Boolean {
             val parsed = runCatching { JSONObject(toolResult) }.getOrNull() ?: return false
@@ -5179,7 +5348,9 @@ class NativeToolCallingChatClient(
         )
         private val HTML_PATH_REGEX = Regex("""[A-Za-z0-9._/-]+\.html?""", RegexOption.IGNORE_CASE)
         private val MARKER_REGEX = Regex("""\b[A-Z][A-Z0-9_]{5,}\b""")
-        private val TERMINAL_COMMAND_WORD_REGEX = Regex("""\b(?:mkdir|rm|ls|cat|python)\s+""")
+        private val TERMINAL_COMMAND_WORD_REGEX = Regex(
+            """\b(?:(?:pwd|whoami|date|id)(?:\s|$)|(?:mkdir|rm|ls|cat|python|uname)\s+)""",
+        )
         private val FILE_WRITE_WITH_CONTENT_REGEX = Regex(
             pattern = """(?is)\b(?:write|create|save)\s+(?:"(?<double>[^"]+)"|'(?<single>[^']+)'|(?<bare>[A-Za-z0-9._/-]+))\s+with\s+content\s+(?<content>.+?)(?:\.\s+(?:after|then)\b|$)""",
         )

@@ -46,7 +46,7 @@ object LlamaCppServerController {
 
         stop()
         val linuxState = HermesLinuxSubsystemBridge.ensureInstalled(context)
-        val shellPath = linuxState.optString("shell_path").ifBlank { linuxState.optString("bash_path") }
+        val shellPath = shellPathForState(linuxState)
         val prefixPath = linuxState.optString("prefix_path")
         val homePath = linuxState.optString("home_path")
         val llamaServerPath = selectLlamaServerPath(context, linuxState)
@@ -104,7 +104,7 @@ object LlamaCppServerController {
             activeModelPath = modelPath
             activeModelName = requestedModelName
             drainLogs(startedProcess)
-            if (!waitUntilReady(port)) {
+            if (!waitUntilReady(port, startedProcess)) {
                 val errorTail = recentLog.takeLast(600)
                 stop()
                 return LocalBackendStatus(
@@ -156,6 +156,14 @@ object LlamaCppServerController {
 
     private fun shellQuote(value: String): String {
         return "'" + value.replace("'", "'\\''") + "'"
+    }
+
+    internal fun shellPathForState(linuxState: JSONObject): String {
+        return if (linuxState.optString("execution_mode") == "android_system_shell") {
+            ANDROID_SYSTEM_SHELL_PATH
+        } else {
+            linuxState.optString("shell_path").ifBlank { linuxState.optString("bash_path") }
+        }
     }
 
     private fun selectLlamaServerPath(context: Context, linuxState: JSONObject): String {
@@ -212,14 +220,27 @@ object LlamaCppServerController {
         }.start()
     }
 
-    private fun waitUntilReady(port: Int): Boolean {
+    private fun waitUntilReady(port: Int, candidate: Process): Boolean {
         repeat(LLAMA_CPP_READY_CHECKS) {
+            if (!isProcessAlive(candidate)) {
+                return false
+            }
             if (checkReady(port)) {
                 return true
+            }
+            if (!isProcessAlive(candidate)) {
+                return false
             }
             Thread.sleep(250)
         }
         return false
+    }
+
+    private fun isProcessAlive(candidate: Process): Boolean = try {
+        candidate.exitValue()
+        false
+    } catch (_: IllegalThreadStateException) {
+        true
     }
 
     private fun checkReady(port: Int): Boolean {
@@ -267,4 +288,5 @@ object LlamaCppServerController {
     private const val LLAMA_CPP_READY_CHECKS = 720
     private const val BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
     private const val LEGACY_BIONIC_SPAWN_LLAMA_SERVER_LIBRARY_NAME = "libhermes_android_llama_server_bionic_spawn.so"
+    private const val ANDROID_SYSTEM_SHELL_PATH = "/system/bin/sh"
 }

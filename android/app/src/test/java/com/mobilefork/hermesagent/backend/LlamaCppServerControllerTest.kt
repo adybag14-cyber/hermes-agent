@@ -1,9 +1,20 @@
 package com.mobilefork.hermesagent.backend
 
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LlamaCppServerControllerTest {
+    @Test
+    fun androidSystemFallbackDoesNotLaunchLlamaThroughTermuxBash() {
+        val state = JSONObject()
+            .put("execution_mode", "android_system_shell")
+            .put("shell_path", "/data/app/example/libhermes_android_bash.so")
+
+        assertEquals("/system/bin/sh", LlamaCppServerController.shellPathForState(state))
+    }
+
     @Test
     fun launchOptionsUseCompactContextForTinyQwenGguf() {
         val options = LlamaCppServerController.launchOptionsForModel(

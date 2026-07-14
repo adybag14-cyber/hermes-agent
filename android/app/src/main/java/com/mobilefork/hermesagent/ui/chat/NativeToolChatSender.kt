@@ -9,7 +9,20 @@ internal data class NativeToolChatSendResult(
     val content: String,
 )
 
+data class NativeAgentEvent(
+    val type: AgentEventType,
+    val title: String,
+    val content: String,
+)
+
 internal object NativeToolChatSender {
+    @Volatile
+    private var activeClient: NativeToolCallingChatClient? = null
+
+    fun cancelActive() {
+        activeClient?.cancel()
+    }
+
     fun extractDirectDiagnosticsArguments(prompt: String): JSONObject? {
         return NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(prompt)
             ?: NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments(prompt)
@@ -24,16 +37,24 @@ internal object NativeToolChatSender {
         userContentParts: List<ChatContentPart>,
         priorMessages: List<ChatMessage>,
         relevantMemoryContext: String,
+        onEvent: (NativeAgentEvent) -> Unit = {},
     ): NativeToolChatSendResult {
-        val result = NativeToolCallingChatClient(context.applicationContext).send(
-            baseUrl = baseUrl,
-            modelName = modelName,
-            sessionId = sessionId,
-            userText = userText,
-            userContentParts = userContentParts,
-            priorMessages = priorMessages,
-            relevantMemoryContext = relevantMemoryContext,
-        )
-        return NativeToolChatSendResult(content = result.content)
+        val client = NativeToolCallingChatClient(context.applicationContext)
+        activeClient = client
+        return try {
+            val result = client.send(
+                baseUrl = baseUrl,
+                modelName = modelName,
+                sessionId = sessionId,
+                userText = userText,
+                userContentParts = userContentParts,
+                priorMessages = priorMessages,
+                relevantMemoryContext = relevantMemoryContext,
+                onEvent = onEvent,
+            )
+            NativeToolChatSendResult(content = result.content)
+        } finally {
+            if (activeClient === client) activeClient = null
+        }
     }
 }
