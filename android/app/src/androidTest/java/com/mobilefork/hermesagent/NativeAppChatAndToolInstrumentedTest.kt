@@ -41,6 +41,25 @@ class NativeAppChatAndToolInstrumentedTest {
     }
 
     @Test
+    fun stopCurrentTaskReturnsToIdleImmediately() {
+        val viewModel = ChatViewModel(app)
+        viewModel.startNewConversation()
+        viewModel.updateInput("Write a long response so I can cancel it.")
+        viewModel.sendMessage()
+        assertTrue("Expected the send to enter the running state", viewModel.uiState.value.isSending)
+
+        val startedAt = SystemClock.elapsedRealtime()
+        viewModel.stopCurrentTask()
+        val elapsedMs = SystemClock.elapsedRealtime() - startedAt
+
+        assertFalse("Stop must clear the running state immediately", viewModel.uiState.value.isSending)
+        assertEquals("Stopped by user", viewModel.uiState.value.status)
+        assertTrue("Stop took ${elapsedMs}ms", elapsedMs < 500L)
+        Thread.sleep(500L)
+        assertFalse("Cancelled work must not restart the send state", viewModel.uiState.value.isSending)
+    }
+
+    @Test
     fun nativeAppChatUsesGemma4AndEmbeddedToolsCanWriteWorkspaceFiles() {
         val modelFile = File(app.filesDir, MODEL_RELATIVE_PATH)
         assumeTrue("Gemma 4 LiteRT-LM model is not provisioned at ${modelFile.absolutePath}", modelFile.isFile)

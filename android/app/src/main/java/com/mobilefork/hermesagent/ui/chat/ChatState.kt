@@ -1,12 +1,35 @@
 package com.mobilefork.hermesagent.ui.chat
 
+enum class AgentEventType(val persistedRole: String) {
+    Thought("thought"),
+    ToolCall("tool_call"),
+    ToolResult("tool_result"),
+    FileAccess("file_access"),
+    ProcessLog("process_log"),
+    FinalAnswer("assistant");
+
+    companion object {
+        fun fromRole(role: String): AgentEventType? = entries.firstOrNull { it.persistedRole == role }
+    }
+}
+
 data class ChatUiMessage(
     val id: String,
     val role: String,
     val content: String,
     val createdAtEpochMs: Long,
     val attachments: List<ChatAttachment> = emptyList(),
-)
+) {
+    val eventType: AgentEventType?
+        get() = if (role == "user") null else AgentEventType.fromRole(role) ?: AgentEventType.FinalAnswer
+
+    val timelineDepth: Int
+        get() = when (eventType) {
+            AgentEventType.ToolResult, AgentEventType.FileAccess, AgentEventType.ProcessLog -> 2
+            AgentEventType.ToolCall -> 1
+            else -> 0
+        }
+}
 
 data class ChatTurn(
     val id: String,
@@ -39,6 +62,7 @@ data class ChatUiState(
     val attachments: List<ChatAttachment> = emptyList(),
     val isSending: Boolean = false,
     val isListening: Boolean = false,
+    val showIntermediateSteps: Boolean = true,
     val status: String = "",
     val error: String = "",
 )

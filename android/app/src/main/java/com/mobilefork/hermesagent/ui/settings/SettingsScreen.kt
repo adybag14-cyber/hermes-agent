@@ -30,6 +30,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +53,13 @@ import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
 import java.util.Locale
 
+enum class SettingsPage(val route: String, val label: String) {
+    Overview("/settings", "General"),
+    Models("/settings/models", "Models"),
+    Theme("/settings/theme", "Theme"),
+    Tools("/settings/tools", "Tools"),
+}
+
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
@@ -59,6 +67,7 @@ fun SettingsScreen(
     extraBottomSpacing: Dp = 0.dp,
     onContextActionsChanged: (List<ShellActionItem>) -> Unit = {},
     onSettingsChanged: () -> Unit = {},
+    initialPage: SettingsPage = SettingsPage.Overview,
 ) {
     val uiState by viewModel.uiState.collectAsState()
     // Settings content follows the selected language immediately (source of truth = uiState),
@@ -69,6 +78,8 @@ fun SettingsScreen(
         uiState.provider,
         selectedPreset?.label ?: uiState.provider,
     )
+    var selectedPageName by rememberSaveable { mutableStateOf(initialPage.name) }
+    val selectedPage = SettingsPage.entries.firstOrNull { it.name == selectedPageName } ?: SettingsPage.Overview
 
     SideEffect {
         onContextActionsChanged(emptyList())
@@ -93,10 +104,15 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {
-                        SettingsHelpCard(
-                            providerLabel = selectedProviderLabel,
+                        SettingsPageNavigation(
+                            selectedPage = selectedPage,
+                            onSelectPage = { selectedPageName = it.name },
                             strings = strings,
                         )
+                    }
+                    if (selectedPage == SettingsPage.Overview) {
+                    item {
+                        SettingsHelpCard(providerLabel = selectedProviderLabel, strings = strings)
                     }
                     item {
                         LanguagePickerCard(
@@ -117,6 +133,8 @@ fun SettingsScreen(
                             strings = strings,
                         )
                     }
+                    }
+                    if (selectedPage == SettingsPage.Theme) {
                     item {
                         AppearanceCard(
                             chatDisplayMode = uiState.chatDisplayMode,
@@ -127,6 +145,7 @@ fun SettingsScreen(
                             themeSurfaceHex = uiState.themeSurfaceHex,
                             themeSurfaceVariantHex = uiState.themeSurfaceVariantHex,
                             themeCardShape = uiState.themeCardShape,
+                            uiFontScale = uiState.uiFontScale,
                             onChatDisplayModeChange = viewModel::updateChatDisplayMode,
                             onKeywordHighlightingChange = viewModel::updateKeywordHighlighting,
                             onPrimaryHexChange = viewModel::updateThemePrimaryHex,
@@ -135,11 +154,17 @@ fun SettingsScreen(
                             onSurfaceHexChange = viewModel::updateThemeSurfaceHex,
                             onSurfaceVariantHexChange = viewModel::updateThemeSurfaceVariantHex,
                             onCardShapeChange = viewModel::updateThemeCardShape,
+                            onUiFontScaleChange = viewModel::updateUiFontScale,
                             onApplyPreset = viewModel::applyThemePreset,
-                            onSaveAppearance = viewModel::saveAppearance,
+                            onSaveAppearance = {
+                                viewModel.saveAppearance()
+                                onSettingsChanged()
+                            },
                             strings = strings,
                         )
                     }
+                    }
+                    if (selectedPage == SettingsPage.Models) {
                     item {
                         OnDeviceInferenceCard(
                             onDeviceBackend = uiState.onDeviceBackend,
@@ -172,13 +197,6 @@ fun SettingsScreen(
                         )
                     }
                     item {
-                        OfflineAirplaneCard(
-                            enabled = uiState.offlineAirplaneMode,
-                            onChange = viewModel::updateOfflineAirplaneMode,
-                            strings = strings,
-                        )
-                    }
-                    item {
                         LocalModelDownloadsSection(
                             dataSaverMode = uiState.dataSaverMode,
                             offlineAirplaneMode = uiState.offlineAirplaneMode,
@@ -188,6 +206,17 @@ fun SettingsScreen(
                             onCompletedDownloadReady = viewModel::startLocalRuntimeForFlavor,
                         )
                     }
+                    }
+                    if (selectedPage == SettingsPage.Overview) {
+                    item {
+                        OfflineAirplaneCard(
+                            enabled = uiState.offlineAirplaneMode,
+                            onChange = viewModel::updateOfflineAirplaneMode,
+                            strings = strings,
+                        )
+                    }
+                    }
+                    if (selectedPage == SettingsPage.Models) {
                     item {
                         RemoteFallbackCard(
                             providerId = uiState.provider,
@@ -219,6 +248,8 @@ fun SettingsScreen(
                             strings = strings,
                         )
                     }
+                    }
+                    if (selectedPage == SettingsPage.Tools) {
                     item {
                         McpSettingsSection(selectedProviderId = uiState.provider)
                     }
@@ -231,6 +262,7 @@ fun SettingsScreen(
                     item {
                         ToolProfileCard()
                     }
+                    }
                     if (uiState.status.isNotBlank()) {
                         item {
                             Text(uiState.status)
@@ -238,6 +270,46 @@ fun SettingsScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SettingsPageNavigation(
+    selectedPage: SettingsPage,
+    onSelectPage: (SettingsPage) -> Unit,
+    strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().testTag("HermesSettingsPageNavigation"),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = strings.settingsBreadcrumb(selectedPage.name),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                SettingsPage.entries.forEach { page ->
+                    Button(
+                        onClick = { onSelectPage(page) },
+                        modifier = Modifier.testTag("HermesSettingsPage_${page.name}"),
+                        enabled = page != selectedPage,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text(strings.settingsPageLabel(page.name), style = MaterialTheme.typography.labelSmall)
+                    }
+                }
+            }
+            Text(selectedPage.route, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -721,6 +793,7 @@ private fun AppearanceCard(
     themeSurfaceHex: String,
     themeSurfaceVariantHex: String,
     themeCardShape: String,
+    uiFontScale: Float,
     onChatDisplayModeChange: (String) -> Unit,
     onKeywordHighlightingChange: (Boolean) -> Unit,
     onPrimaryHexChange: (String) -> Unit,
@@ -729,6 +802,7 @@ private fun AppearanceCard(
     onSurfaceHexChange: (String) -> Unit,
     onSurfaceVariantHexChange: (String) -> Unit,
     onCardShapeChange: (String) -> Unit,
+    onUiFontScaleChange: (Float) -> Unit,
     onApplyPreset: (AppearanceThemePreset) -> Unit,
     onSaveAppearance: () -> Unit,
     strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings,
@@ -782,6 +856,13 @@ private fun AppearanceCard(
                 }
                 Switch(checked = keywordHighlightingEnabled, onCheckedChange = onKeywordHighlightingChange)
             }
+            Text(strings.uiFontSizeLabel(uiFontScale), style = MaterialTheme.typography.titleSmall)
+            Slider(
+                value = uiFontScale,
+                onValueChange = onUiFontScaleChange,
+                valueRange = AppSettings.MIN_UI_FONT_SCALE..AppSettings.MAX_UI_FONT_SCALE,
+                modifier = Modifier.fillMaxWidth().testTag("UiFontScaleSlider"),
+            )
             Text(strings.colourPresetsTitle(), style = MaterialTheme.typography.titleSmall)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),

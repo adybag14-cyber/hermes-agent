@@ -67,6 +67,8 @@ import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.settings.SettingsScreen
 import com.mobilefork.hermesagent.ui.settings.SettingsViewModel
+import com.mobilefork.hermesagent.ui.terminal.TerminalScreen
+import com.mobilefork.hermesagent.ui.terminal.TerminalViewModel
 import com.mobilefork.hermesagent.ui.theme.HermesThemeConfig
 import com.mobilefork.hermesagent.ui.theme.HermesTheme
 import com.mobilefork.hermesagent.ui.theme.normalizeThemeHex
@@ -83,6 +85,7 @@ private data class ShellSettingsState(
     val themeSurfaceHex: String = "#11141C",
     val themeSurfaceVariantHex: String = "#1B202B",
     val themeCardShape: String = "rounded",
+    val uiFontScale: Float = 1.0f,
 )
 
 private fun loadShellSettingsState(settingsStore: AppSettingsStore): ShellSettingsState {
@@ -97,6 +100,7 @@ private fun loadShellSettingsState(settingsStore: AppSettingsStore): ShellSettin
         themeSurfaceHex = normalizeThemeHex(stored.themeSurfaceHex, "#11141C"),
         themeSurfaceVariantHex = normalizeThemeHex(stored.themeSurfaceVariantHex, "#1B202B"),
         themeCardShape = normalizeShellThemeCardShape(stored.themeCardShape),
+        uiFontScale = com.mobilefork.hermesagent.data.AppSettings.normalizeUiFontScale(stored.uiFontScale),
     )
 }
 
@@ -202,6 +206,7 @@ fun AppShellScreen(
             surfaceHex = shellSettings.themeSurfaceHex,
             surfaceVariantHex = shellSettings.themeSurfaceVariantHex,
             cardShape = shellSettings.themeCardShape,
+            fontScale = shellSettings.uiFontScale,
         ),
     ) {
         CompositionLocalProvider(LocalHermesStrings provides strings) {
@@ -293,6 +298,15 @@ fun AppShellScreen(
                                     viewModel = kanbanViewModel,
                                     extraBottomSpacing = pageBottomClearance,
                                     onContextActionsChanged = ::setActions,
+                                )
+                            }
+
+                            AppSection.Terminal -> {
+                                val terminalViewModel: TerminalViewModel = viewModel()
+                                TerminalScreen(
+                                    modifier = Modifier.fillMaxSize(),
+                                    viewModel = terminalViewModel,
+                                    extraBottomSpacing = pageBottomClearance,
                                 )
                             }
 

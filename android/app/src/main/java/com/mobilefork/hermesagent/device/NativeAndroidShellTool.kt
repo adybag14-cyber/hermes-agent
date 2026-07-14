@@ -128,6 +128,9 @@ object NativeAndroidShellTool {
     }
 
     internal fun resolveShellPath(state: JSONObject): String {
+        if (state.optString("execution_mode") == "android_system_shell") {
+            return "/system/bin/sh"
+        }
         val configured = state.optString("shell_path", state.optString("bash_path")).trim()
         if (configured.startsWith("/system/")) {
             return configured

@@ -9,6 +9,9 @@ import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
+import com.mobilefork.hermesagent.ui.chat.AgentEventType
+import com.mobilefork.hermesagent.ui.chat.NativeAgentEvent
+import com.mobilefork.hermesagent.ui.chat.NativeToolCallingChatClient
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -78,6 +81,45 @@ class SmallLocalModelsInstrumentedTest {
             fileName = fileName,
             expectedBytes = null,
             repo = "Tdamre/MiniCPM5-1B-litert-lm",
+        )
+    }
+
+    @Test
+    fun miniCpm1bLiteRtNaturalEnglishTerminalRequestEmitsToolTimeline() {
+        val fileName = listOf("MiniCPM5-1B-web.litertlm", "MiniCPM5-1B.litertlm")
+            .firstOrNull { File(context.filesDir, "hermes-home/downloads/models/$it").isFile }
+            ?: "MiniCPM5-1B-web.litertlm"
+        val modelFile = File(context.filesDir, "hermes-home/downloads/models/$fileName")
+        assumeTrue("$fileName not provisioned at ${modelFile.absolutePath}", modelFile.isFile)
+        seedPreferred(
+            modelId = "MiniCPM5-1B",
+            fileName = fileName,
+            modelFile = modelFile,
+            backend = BackendKind.LITERT_LM,
+            repo = "Tdamre/MiniCPM5-1B-litert-lm",
+        )
+        val status = OnDeviceBackendManager.ensureConfigured(
+            context = context,
+            backendValue = BackendKind.LITERT_LM.persistedValue,
+        )
+        assertTrue(status.statusMessage, status.started)
+
+        val events = mutableListOf<NativeAgentEvent>()
+        val result = NativeToolCallingChatClient(context).send(
+            baseUrl = status.baseUrl.removeSuffix("/v1"),
+            modelName = status.modelName,
+            sessionId = "minicpm-natural-terminal-device-regression",
+            userText = "Could you please run pwd and tell me the current working directory?",
+            onEvent = events::add,
+        )
+
+        assertTrue("Expected MiniCPM natural-English request to execute terminal_tool", result.executedToolCalls > 0)
+        assertFalse("Expected a nonblank reply after terminal execution", result.content.isBlank())
+        assertFalse(result.content, result.content.contains("no tools", ignoreCase = true))
+        assertTrue(events.toString(), events.any { it.type == AgentEventType.ToolCall })
+        assertTrue(
+            events.toString(),
+            events.any { it.type == AgentEventType.ProcessLog || it.type == AgentEventType.ToolResult },
         )
     }
 

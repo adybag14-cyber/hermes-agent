@@ -30,6 +30,7 @@ data class AppSettings(
     val themeSurfaceHex: String = "#11141C",
     val themeSurfaceVariantHex: String = "#1B202B",
     val themeCardShape: String = "rounded",
+    val uiFontScale: Float = DEFAULT_UI_FONT_SCALE,
 ) {
     fun toJson(): JSONObject {
         return JSONObject()
@@ -58,6 +59,7 @@ data class AppSettings(
             .put("theme_surface_hex", themeSurfaceHex)
             .put("theme_surface_variant_hex", themeSurfaceVariantHex)
             .put("theme_card_shape", themeCardShape)
+            .put("ui_font_scale", normalizeUiFontScale(uiFontScale).toDouble())
     }
 
     companion object {
@@ -76,6 +78,9 @@ data class AppSettings(
         const val MIN_LOCAL_MODEL_TEMPERATURE = 0.0f
         const val MAX_LOCAL_MODEL_TEMPERATURE = 2.0f
         const val DEFAULT_LOCAL_MODEL_ACCELERATOR = "auto"
+        const val DEFAULT_UI_FONT_SCALE = 1.0f
+        const val MIN_UI_FONT_SCALE = 0.8f
+        const val MAX_UI_FONT_SCALE = 1.3f
 
         val REDACTED_SECRET_FIELDS: JSONArray
             get() = JSONArray()
@@ -139,6 +144,9 @@ data class AppSettings(
                     fallback.themeSurfaceVariantHex,
                 ).ifBlank { fallback.themeSurfaceVariantHex },
                 themeCardShape = json.optString("theme_card_shape", fallback.themeCardShape).ifBlank { fallback.themeCardShape },
+                uiFontScale = normalizeUiFontScale(
+                    json.optDouble("ui_font_scale", fallback.uiFontScale.toDouble()).toFloat(),
+                ),
             )
         }
 
@@ -166,6 +174,8 @@ data class AppSettings(
                 .trim()
                 .take(MAX_CUSTOM_SYSTEM_PROMPT_CHARS)
         }
+
+        fun normalizeUiFontScale(value: Float): Float = value.coerceIn(MIN_UI_FONT_SCALE, MAX_UI_FONT_SCALE)
 
         fun normalizeLocalModelMaxTokens(value: Int): Int {
             return when {
@@ -231,6 +241,7 @@ class AppSettingsStore(context: Context) {
                 localModelTemperature = AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
                 localModelAccelerator = AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator),
                 customSystemPrompt = AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt),
+                uiFontScale = AppSettings.normalizeUiFontScale(settings.uiFontScale),
             )
             preferences.edit()
                 .putString(KEY_PROVIDER, settings.provider)
@@ -261,6 +272,7 @@ class AppSettingsStore(context: Context) {
                 .putString(KEY_THEME_SURFACE_HEX, settings.themeSurfaceHex)
                 .putString(KEY_THEME_SURFACE_VARIANT_HEX, settings.themeSurfaceVariantHex)
                 .putString(KEY_THEME_CARD_SHAPE, settings.themeCardShape)
+                .putFloat(KEY_UI_FONT_SCALE, AppSettings.normalizeUiFontScale(settings.uiFontScale))
                 // commit() so a subsequent load() from another store never races past apply().
                 .commit()
         }
@@ -315,6 +327,9 @@ class AppSettingsStore(context: Context) {
             themeSurfaceHex = preferences.getString(KEY_THEME_SURFACE_HEX, "#11141C").orEmpty(),
             themeSurfaceVariantHex = preferences.getString(KEY_THEME_SURFACE_VARIANT_HEX, "#1B202B").orEmpty(),
             themeCardShape = preferences.getString(KEY_THEME_CARD_SHAPE, "rounded").orEmpty(),
+            uiFontScale = AppSettings.normalizeUiFontScale(
+                preferences.getFloat(KEY_UI_FONT_SCALE, AppSettings.DEFAULT_UI_FONT_SCALE),
+            ),
         )
     }
 
@@ -358,5 +373,6 @@ class AppSettingsStore(context: Context) {
         private const val KEY_THEME_SURFACE_HEX = "theme_surface_hex"
         private const val KEY_THEME_SURFACE_VARIANT_HEX = "theme_surface_variant_hex"
         private const val KEY_THEME_CARD_SHAPE = "theme_card_shape"
+        private const val KEY_UI_FONT_SCALE = "ui_font_scale"
     }
 }

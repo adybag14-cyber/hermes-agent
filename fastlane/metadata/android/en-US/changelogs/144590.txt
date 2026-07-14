@@ -1,0 +1,5 @@
+Unified, collapsible agent timelines now separate thinking, tool calls, results, file access, process logs, and final answers.
+
+Adds immediate task cancellation, compact adjustable chat UI, split Settings pages with breadcrumbs, and a manual Linux/PRoot terminal.
+
+Fixes natural-language local-model tool use, Android system-shell fallback, GGUF startup failures, and restored encrypted-settings crashes.

@@ -109,6 +109,22 @@ class ConversationStore(context: Context) {
         preferences.edit().putString(KEY_SESSION_ID, sessionId).apply()
     }
 
+    fun insertMessageBefore(sessionId: String, beforeMessageId: String, message: StoredConversationMessage) {
+        val conversation = loadConversation(sessionId) ?: return upsertMessage(sessionId, message)
+        if (conversation.messages.any { it.id == message.id }) return
+        val beforeIndex = conversation.messages.indexOfFirst { it.id == beforeMessageId }
+        val updatedMessages = conversation.messages.toMutableList().apply {
+            if (beforeIndex >= 0) add(beforeIndex, message) else add(message)
+        }
+        replaceConversation(
+            conversation.copy(
+                title = deriveTitle(conversation.title, updatedMessages),
+                updatedAtEpochMs = System.currentTimeMillis(),
+                messages = updatedMessages,
+            ),
+        )
+    }
+
     fun updateMessageContent(sessionId: String, messageId: String, newContent: String) {
         val conversation = loadConversation(sessionId) ?: return
         val updatedMessages = conversation.messages.map { message ->

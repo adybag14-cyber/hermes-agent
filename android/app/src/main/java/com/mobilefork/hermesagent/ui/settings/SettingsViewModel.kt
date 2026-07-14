@@ -57,6 +57,7 @@ data class SettingsUiState(
     val themeSurfaceHex: String = "#11141C",
     val themeSurfaceVariantHex: String = "#1B202B",
     val themeCardShape: String = "rounded",
+    val uiFontScale: Float = AppSettings.DEFAULT_UI_FONT_SCALE,
     val onDeviceSummary: String = "Remote provider mode",
     val agentEndpointStarted: Boolean = false,
     val agentLoopbackUrl: String = "",
@@ -112,6 +113,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             themeSurfaceHex = normalizeThemeHex(stored.themeSurfaceHex, "#11141C"),
             themeSurfaceVariantHex = normalizeThemeHex(stored.themeSurfaceVariantHex, "#1B202B"),
             themeCardShape = normalizeThemeCardShape(stored.themeCardShape),
+            uiFontScale = AppSettings.normalizeUiFontScale(stored.uiFontScale),
             onDeviceSummary = defaultOnDeviceSummary(stored.onDeviceBackend),
         )
     }
@@ -300,6 +302,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateThemeBackgroundHex(value: String) = _uiState.update { it.copy(themeBackgroundHex = value) }
     fun updateThemeSurfaceHex(value: String) = _uiState.update { it.copy(themeSurfaceHex = value) }
     fun updateThemeSurfaceVariantHex(value: String) = _uiState.update { it.copy(themeSurfaceVariantHex = value) }
+    fun updateUiFontScale(value: Float) = _uiState.update { it.copy(uiFontScale = AppSettings.normalizeUiFontScale(value)) }
     fun updateThemeCardShape(value: String) {
         val normalized = normalizeThemeCardShape(value)
         settingsStore.save(settingsStore.load().copy(themeCardShape = normalized))
@@ -336,6 +339,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             themeSurfaceHex = normalizeThemeHex(snapshot.themeSurfaceHex, "#11141C"),
             themeSurfaceVariantHex = normalizeThemeHex(snapshot.themeSurfaceVariantHex, "#1B202B"),
             themeCardShape = normalizeThemeCardShape(snapshot.themeCardShape),
+            uiFontScale = AppSettings.normalizeUiFontScale(snapshot.uiFontScale),
         )
         settingsStore.save(updated)
         _uiState.update {
@@ -348,6 +352,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 themeSurfaceHex = updated.themeSurfaceHex,
                 themeSurfaceVariantHex = updated.themeSurfaceVariantHex,
                 themeCardShape = updated.themeCardShape,
+                uiFontScale = updated.uiFontScale,
                 status = currentStrings().appearanceSaved(),
             )
         }
@@ -359,7 +364,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
         viewModelScope.launch {
             val storedKey = withContext(Dispatchers.IO) {
-                secretsStore.loadApiKey(provider)
+                try {
+                    secretsStore.loadApiKey(provider)
+                } catch (_: Exception) {
+                    ""
+                }
             }
             if (storedKey.isBlank()) {
                 return@launch
@@ -727,6 +736,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         themeSurfaceHex = normalizeThemeHex(snapshot.themeSurfaceHex, "#11141C"),
                         themeSurfaceVariantHex = normalizeThemeHex(snapshot.themeSurfaceVariantHex, "#1B202B"),
                         themeCardShape = normalizeThemeCardShape(snapshot.themeCardShape),
+                        uiFontScale = AppSettings.normalizeUiFontScale(snapshot.uiFontScale),
                     )
                     settingsStore.save(updatedSettings)
 

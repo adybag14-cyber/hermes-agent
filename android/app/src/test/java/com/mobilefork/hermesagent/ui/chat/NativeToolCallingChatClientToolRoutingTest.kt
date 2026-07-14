@@ -30,6 +30,27 @@ class NativeToolCallingChatClientToolRoutingTest {
     }
 
     @Test
+    fun naturalEnglishPwdRequestExposesTerminalTool() {
+        val specs = client.compactToolSpecsFor("Could you please run pwd and tell me the current directory?")
+
+        assertTrue(toolNames(specs).contains("terminal_tool"))
+        assertEquals(
+            "pwd",
+            NativeToolCallingChatClient.extractExactTerminalCommand(
+                "Could you please run pwd and tell me the current directory?",
+            ),
+        )
+    }
+
+    @Test
+    fun naturalTerminalFallbackOnlyMapsFixedReadOnlyIntents() {
+        assertEquals("whoami", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Tell me the current user"))
+        assertEquals("ls -la", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Please list files here"))
+        assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Delete every file here"))
+        assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("I like the current directory layout"))
+    }
+
+    @Test
     fun compactToolSpecsIncludeMemoryAliasesForRecallPrompt() {
         val specs = client.compactToolSpecsFor(
             "Use memory_search to recall what we stored about the alpine sandbox.",
@@ -65,6 +86,46 @@ class NativeToolCallingChatClientToolRoutingTest {
         )
         assertTrue(prompt.length < 600)
         assertTrue(prompt.contains("installed Linux guest"))
+    }
+
+    @Test
+    fun focusedPromptTellsSmallModelsToolsAreActuallyAvailable() {
+        val prompt = NativeToolCallingChatClient.buildFocusedSystemPromptContent(setOf("terminal_tool"))
+
+        assertTrue(prompt.contains("Tools are available"))
+        assertTrue(prompt.contains("instead of saying you cannot execute commands"))
+        assertTrue(prompt.contains("<tool_call>"))
+    }
+
+    @Test
+    fun parsesMiniCpmTaggedJsonToolCallFallback() {
+        val calls = NativeToolCallingChatClient.parseToolCallContentForTest(
+            "<|tool_call_start|>[{\"name\":\"terminal_tool\",\"arguments\":{\"command\":\"pwd\"}}]<|tool_call_end|>",
+        )
+
+        assertEquals(1, calls.size)
+        assertEquals("terminal_tool", calls.single().first)
+        assertTrue(calls.single().second.contains("pwd"))
+    }
+
+    @Test
+    fun parsesFencedFunctionJsonFallback() {
+        val calls = NativeToolCallingChatClient.parseToolCallContentForTest(
+            "```json\n{\"function\":{\"name\":\"mcp_run_in_proot\",\"arguments\":\"{\\\"command\\\":\\\"uname -a\\\"}\"}}\n```",
+        )
+
+        assertEquals("mcp_run_in_proot", calls.single().first)
+        assertTrue(calls.single().second.contains("uname -a"))
+    }
+
+    @Test
+    fun thinkBlockIsSeparatedFromVisibleAnswer() {
+        val (reasoning, answer) = NativeToolCallingChatClient.parseReasoningContentForTest(
+            "<think>I should inspect the directory.</think>There are three files.",
+        )
+
+        assertEquals("I should inspect the directory.", reasoning)
+        assertEquals("There are three files.", answer)
     }
 
     private fun toolNames(specs: org.json.JSONArray): List<String> = buildList {

@@ -27,6 +27,15 @@ class NativeAndroidShellToolTest {
     }
 
     @Test
+    fun resolveShellPathHonorsPersistedAndroidSystemFallback() {
+        val state = JSONObject()
+            .put("execution_mode", "android_system_shell")
+            .put("shell_path", "/data/app/example/lib/x86_64/libhermes_android_bash.so")
+
+        assertEquals("/system/bin/sh", NativeAndroidShellTool.resolveShellPath(state))
+    }
+
+    @Test
     fun linuxSandboxCatalogIncludesRecommendedMobileDistros() {
         val catalog = HermesLinuxSandboxCatalog.distroCatalog()
         val ids = buildSet {
