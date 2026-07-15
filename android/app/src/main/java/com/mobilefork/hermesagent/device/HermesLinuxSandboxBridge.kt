@@ -110,6 +110,25 @@ object HermesLinuxSandboxBridge {
         }
     }
 
+    /** Run a command explicitly entered by the user without enabling AI sandbox access. */
+    fun runUserCommand(
+        context: Context,
+        name: String,
+        command: String,
+        timeoutSeconds: Long = RUN_TIMEOUT_SECONDS,
+    ): JSONObject {
+        val state = HermesLinuxSubsystemBridge.ensureInstalled(context.applicationContext)
+        return runCommand(
+            context = context.applicationContext,
+            state = state,
+            distroId = "",
+            name = normalizeArgumentValue(name),
+            command = command,
+            timeoutSeconds = timeoutSeconds,
+            respectAgentControl = false,
+        ).put("manual_terminal_session", true)
+    }
+
     fun status(state: JSONObject, context: Context? = null): JSONObject {
         val preferredGuestArch = preferredGuestArchitecture(hostArchitectureForState(state))
         val qemuUserPath = qemuPathForGuestArchitecture(state, preferredGuestArch)

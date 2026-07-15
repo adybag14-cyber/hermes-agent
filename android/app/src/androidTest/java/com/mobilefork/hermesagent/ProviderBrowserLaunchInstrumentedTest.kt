@@ -12,6 +12,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mobilefork.hermesagent.auth.OpenRouterLoopbackOAuthServer
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.AuthSessionStore
+import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.device.HermesExternalBrowserLauncher
 import com.mobilefork.hermesagent.device.HermesProviderSetupWebActivity
 import com.mobilefork.hermesagent.ui.auth.AuthViewModel
@@ -37,17 +38,10 @@ class ProviderBrowserLaunchInstrumentedTest {
     }
 
     @Test
-    fun openRouterOAuthLaunchesExternalBrowserWithLoopbackCallback() {
+    fun openRouterOAuthLaunchesInAppBrowserWithCustomSchemeCallback() {
         val expectedHost = "openrouter.ai"
-        assumeTrue(
-            "No browser is installed on this test device",
-            HermesExternalBrowserLauncher.createBrowserIntent(
-                app,
-                Uri.parse("https://$expectedHost/auth"),
-            ).resolveActivity(app.packageManager) != null,
-        )
         val opened = AtomicBoolean(false)
-        val matcher = externalBrowserIntentFor(
+        val matcher = providerSetupWebIntentFor(
             onMatch = { opened.set(true) },
         ) { uri ->
             val callbackUrl = Uri.parse(uri.getQueryParameter("callback_url").orEmpty())
@@ -55,10 +49,12 @@ class ProviderBrowserLaunchInstrumentedTest {
                 uri.host == expectedHost &&
                 uri.path == "/auth" &&
                 uri.getQueryParameter("code_challenge_method") == "S256" &&
-                callbackUrl.scheme == "http" &&
-                callbackUrl.host == "localhost" &&
-                callbackUrl.port == OpenRouterLoopbackOAuthServer.DEFAULT_PORT &&
-                callbackUrl.path == "/hermes/openrouter/callback"
+                callbackUrl.scheme == "hermesagent" &&
+                callbackUrl.host == "auth" &&
+                callbackUrl.path == "/callback" &&
+                callbackUrl.getQueryParameter("method") == "openrouter" &&
+                callbackUrl.getQueryParameter("provider") == "openrouter" &&
+                callbackUrl.getQueryParameter("state").orEmpty().isNotBlank()
         }
 
         Intents.init()
@@ -79,19 +75,14 @@ class ProviderBrowserLaunchInstrumentedTest {
     }
 
     @Test
-    fun accountsRuntimeProviderSetupLaunchesExternalBrowser() {
-        val setupUri = Uri.parse("https://docs.qwencloud.com/api-reference/preparation/api-key")
-        assumeTrue(
-            "No browser is installed on this test device",
-            HermesExternalBrowserLauncher.createBrowserIntent(app, setupUri)
-                .resolveActivity(app.packageManager) != null,
-        )
+    fun accountsRuntimeProviderSetupLaunchesInAppBrowser() {
+        val setupUri = Uri.parse(requireNotNull(ProviderPresets.setupTarget("alibaba", 0)).url)
         val opened = AtomicBoolean(false)
 
         Intents.init()
         try {
             intending(
-                externalBrowserIntentFor(onMatch = { opened.set(true) }) { it == setupUri },
+                providerSetupWebIntentFor(onMatch = { opened.set(true) }) { it == setupUri },
             ).respondWith(
                 Instrumentation.ActivityResult(Activity.RESULT_OK, null),
             )
@@ -147,6 +138,29 @@ class ProviderBrowserLaunchInstrumentedTest {
                 val chooserTarget = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
                 val uri = intent.data ?: chooserTarget?.data ?: return false
                 val matches = intent.action in setOf(Intent.ACTION_VIEW, Intent.ACTION_CHOOSER) &&
+                    matchesUri(uri)
+                if (matches) {
+                    onMatch()
+                }
+                return matches
+            }
+        }
+    }
+
+    private fun providerSetupWebIntentFor(
+        onMatch: () -> Unit,
+        matchesUri: (Uri) -> Boolean,
+    ): TypeSafeMatcher<Intent> {
+        return object : TypeSafeMatcher<Intent>() {
+            override fun describeTo(description: Description) {
+                description.appendText("Hermes provider setup WebView intent")
+            }
+
+            override fun matchesSafely(intent: Intent): Boolean {
+                val uri = Uri.parse(
+                    intent.getStringExtra(HermesProviderSetupWebActivity.EXTRA_URL).orEmpty(),
+                )
+                val matches = intent.component?.className == HermesProviderSetupWebActivity::class.java.name &&
                     matchesUri(uri)
                 if (matches) {
                     onMatch()

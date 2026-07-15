@@ -45,7 +45,7 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     assert "postChatCompletionWithContextRecovery(" in native_tool_client
     assert "toolSpecs = activeToolSpecs" in native_tool_client
     assert "recoverMessagesAfterContextOverflow(messages)" in native_tool_client
-    assert "recoverToolSpecsAfterContextOverflow(toolSpecs)" in native_tool_client
+    assert "recoverToolSpecsAfterContextOverflow(retryToolSpecs)" in native_tool_client
     assert "followUp.content.ifBlank { toolCompletionReply(latestToolResult) }" in native_tool_client
     assert "nativeVisibleReplyContent(rawContent, latestToolResult)" in native_tool_client
     assert "isCompressionOnlyToolEcho(content: String)" in native_tool_client
@@ -89,7 +89,7 @@ def test_android_chat_ui_and_native_tool_prompt_stay_compact_on_large_font_phone
     assert 'TextOverflow.Ellipsis' in chat_screen
     assert 'modifier = Modifier.size(22.dp)' in app_shell
     assert 'style = MaterialTheme.typography.bodyLarge' in app_shell
-    assert 'compactToolSpecsFor(userText)' in native_tool_client
+    assert 'toolSpecsFor(userText, localModelToolMode)' in native_tool_client
     assert '.ifEmpty { inferredToolNames(userText) }' in native_tool_client
     assert 'return JSONArray()' in native_tool_client
     assert 'systemMessage(\n                toolSpecs = activeToolSpecs,' in native_tool_client

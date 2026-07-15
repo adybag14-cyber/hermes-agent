@@ -19,16 +19,17 @@ data class AppSettings(
     val localModelTopP: Float = DEFAULT_LOCAL_MODEL_TOP_P,
     val localModelTemperature: Float = DEFAULT_LOCAL_MODEL_TEMPERATURE,
     val localModelAccelerator: String = DEFAULT_LOCAL_MODEL_ACCELERATOR,
+    val localModelToolMode: String = DEFAULT_LOCAL_MODEL_TOOL_MODE,
     val apiGenerationKnobsEnabled: Boolean = false,
     val languageTag: String = "en",
     val customSystemPrompt: String = "",
     val chatDisplayMode: String = "compact",
     val keywordHighlightingEnabled: Boolean = true,
-    val themePrimaryHex: String = "#8C7BFF",
-    val themeSecondaryHex: String = "#C6A15B",
-    val themeBackgroundHex: String = "#090B10",
-    val themeSurfaceHex: String = "#11141C",
-    val themeSurfaceVariantHex: String = "#1B202B",
+    val themePrimaryHex: String = DEFAULT_THEME_PRIMARY_HEX,
+    val themeSecondaryHex: String = DEFAULT_THEME_SECONDARY_HEX,
+    val themeBackgroundHex: String = DEFAULT_THEME_BACKGROUND_HEX,
+    val themeSurfaceHex: String = DEFAULT_THEME_SURFACE_HEX,
+    val themeSurfaceVariantHex: String = DEFAULT_THEME_SURFACE_VARIANT_HEX,
     val themeCardShape: String = "rounded",
     val uiFontScale: Float = DEFAULT_UI_FONT_SCALE,
 ) {
@@ -48,6 +49,7 @@ data class AppSettings(
             .put("local_model_top_p", normalizeLocalModelTopP(localModelTopP).toDouble())
             .put("local_model_temperature", normalizeLocalModelTemperature(localModelTemperature).toDouble())
             .put("local_model_accelerator", normalizeLocalModelAccelerator(localModelAccelerator))
+            .put("local_model_tool_mode", normalizeLocalModelToolMode(localModelToolMode))
             .put("api_generation_knobs_enabled", apiGenerationKnobsEnabled)
             .put("language_tag", languageTag)
             .put("custom_system_prompt", normalizeCustomSystemPrompt(customSystemPrompt))
@@ -78,6 +80,12 @@ data class AppSettings(
         const val MIN_LOCAL_MODEL_TEMPERATURE = 0.0f
         const val MAX_LOCAL_MODEL_TEMPERATURE = 2.0f
         const val DEFAULT_LOCAL_MODEL_ACCELERATOR = "auto"
+        const val DEFAULT_LOCAL_MODEL_TOOL_MODE = "general"
+        const val DEFAULT_THEME_PRIMARY_HEX = "#24D6A3"
+        const val DEFAULT_THEME_SECONDARY_HEX = "#F1B84B"
+        const val DEFAULT_THEME_BACKGROUND_HEX = "#03090C"
+        const val DEFAULT_THEME_SURFACE_HEX = "#0A1418"
+        const val DEFAULT_THEME_SURFACE_VARIANT_HEX = "#111E22"
         const val DEFAULT_UI_FONT_SCALE = 1.0f
         const val MIN_UI_FONT_SCALE = 0.8f
         const val MAX_UI_FONT_SCALE = 1.3f
@@ -119,6 +127,9 @@ data class AppSettings(
                 ),
                 localModelAccelerator = normalizeLocalModelAccelerator(
                     json.optString("local_model_accelerator", fallback.localModelAccelerator),
+                ),
+                localModelToolMode = normalizeLocalModelToolMode(
+                    json.optString("local_model_tool_mode", fallback.localModelToolMode),
                 ),
                 apiGenerationKnobsEnabled = optBoolean(
                     json,
@@ -211,6 +222,13 @@ data class AppSettings(
                 else -> DEFAULT_LOCAL_MODEL_ACCELERATOR
             }
         }
+
+        fun normalizeLocalModelToolMode(value: String): String {
+            return when (value.trim().lowercase()) {
+                "small", "general", "large" -> value.trim().lowercase()
+                else -> DEFAULT_LOCAL_MODEL_TOOL_MODE
+            }
+        }
     }
 }
 
@@ -240,6 +258,7 @@ class AppSettingsStore(context: Context) {
                 localModelTopP = AppSettings.normalizeLocalModelTopP(settings.localModelTopP),
                 localModelTemperature = AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
                 localModelAccelerator = AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator),
+                localModelToolMode = AppSettings.normalizeLocalModelToolMode(settings.localModelToolMode),
                 customSystemPrompt = AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt),
                 uiFontScale = AppSettings.normalizeUiFontScale(settings.uiFontScale),
             )
@@ -261,6 +280,7 @@ class AppSettingsStore(context: Context) {
                     AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
                 )
                 .putString(KEY_LOCAL_MODEL_ACCELERATOR, AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator))
+                .putString(KEY_LOCAL_MODEL_TOOL_MODE, AppSettings.normalizeLocalModelToolMode(settings.localModelToolMode))
                 .putBoolean(KEY_API_GENERATION_KNOBS_ENABLED, settings.apiGenerationKnobsEnabled)
                 .putString(KEY_LANGUAGE_TAG, settings.languageTag)
                 .putString(KEY_CUSTOM_SYSTEM_PROMPT, AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt))
@@ -286,6 +306,20 @@ class AppSettingsStore(context: Context) {
     }
 
     private fun readFromPreferences(): AppSettings {
+        val storedPrimary = preferences.getString(KEY_THEME_PRIMARY_HEX, AppSettings.DEFAULT_THEME_PRIMARY_HEX).orEmpty()
+        val storedSecondary = preferences.getString(KEY_THEME_SECONDARY_HEX, AppSettings.DEFAULT_THEME_SECONDARY_HEX).orEmpty()
+        val storedBackground = preferences.getString(KEY_THEME_BACKGROUND_HEX, AppSettings.DEFAULT_THEME_BACKGROUND_HEX).orEmpty()
+        val storedSurface = preferences.getString(KEY_THEME_SURFACE_HEX, AppSettings.DEFAULT_THEME_SURFACE_HEX).orEmpty()
+        val storedSurfaceVariant = preferences.getString(KEY_THEME_SURFACE_VARIANT_HEX, AppSettings.DEFAULT_THEME_SURFACE_VARIANT_HEX).orEmpty()
+        val migrateLegacyDefaults = !preferences.getBoolean(KEY_EMERALD_THEME_MIGRATION_COMPLETE, false) &&
+            storedPrimary.equals("#8C7BFF", ignoreCase = true) &&
+            storedSecondary.equals("#C6A15B", ignoreCase = true) &&
+            storedBackground.equals("#090B10", ignoreCase = true) &&
+            storedSurface.equals("#11141C", ignoreCase = true) &&
+            storedSurfaceVariant.equals("#1B202B", ignoreCase = true)
+        if (!preferences.getBoolean(KEY_EMERALD_THEME_MIGRATION_COMPLETE, false)) {
+            preferences.edit().putBoolean(KEY_EMERALD_THEME_MIGRATION_COMPLETE, true).commit()
+        }
         return AppSettings(
             provider = preferences.getString(KEY_PROVIDER, "openrouter").orEmpty(),
             baseUrl = preferences.getString(KEY_BASE_URL, "").orEmpty(),
@@ -314,6 +348,9 @@ class AppSettingsStore(context: Context) {
             localModelAccelerator = AppSettings.normalizeLocalModelAccelerator(
                 preferences.getString(KEY_LOCAL_MODEL_ACCELERATOR, AppSettings.DEFAULT_LOCAL_MODEL_ACCELERATOR).orEmpty(),
             ),
+            localModelToolMode = AppSettings.normalizeLocalModelToolMode(
+                preferences.getString(KEY_LOCAL_MODEL_TOOL_MODE, AppSettings.DEFAULT_LOCAL_MODEL_TOOL_MODE).orEmpty(),
+            ),
             apiGenerationKnobsEnabled = preferences.getBoolean(KEY_API_GENERATION_KNOBS_ENABLED, false),
             languageTag = preferences.getString(KEY_LANGUAGE_TAG, "en").orEmpty(),
             customSystemPrompt = AppSettings.normalizeCustomSystemPrompt(
@@ -321,11 +358,11 @@ class AppSettingsStore(context: Context) {
             ),
             chatDisplayMode = preferences.getString(KEY_CHAT_DISPLAY_MODE, "compact").orEmpty(),
             keywordHighlightingEnabled = preferences.getBoolean(KEY_KEYWORD_HIGHLIGHTING_ENABLED, true),
-            themePrimaryHex = preferences.getString(KEY_THEME_PRIMARY_HEX, "#8C7BFF").orEmpty(),
-            themeSecondaryHex = preferences.getString(KEY_THEME_SECONDARY_HEX, "#C6A15B").orEmpty(),
-            themeBackgroundHex = preferences.getString(KEY_THEME_BACKGROUND_HEX, "#090B10").orEmpty(),
-            themeSurfaceHex = preferences.getString(KEY_THEME_SURFACE_HEX, "#11141C").orEmpty(),
-            themeSurfaceVariantHex = preferences.getString(KEY_THEME_SURFACE_VARIANT_HEX, "#1B202B").orEmpty(),
+            themePrimaryHex = if (migrateLegacyDefaults) AppSettings.DEFAULT_THEME_PRIMARY_HEX else storedPrimary,
+            themeSecondaryHex = if (migrateLegacyDefaults) AppSettings.DEFAULT_THEME_SECONDARY_HEX else storedSecondary,
+            themeBackgroundHex = if (migrateLegacyDefaults) AppSettings.DEFAULT_THEME_BACKGROUND_HEX else storedBackground,
+            themeSurfaceHex = if (migrateLegacyDefaults) AppSettings.DEFAULT_THEME_SURFACE_HEX else storedSurface,
+            themeSurfaceVariantHex = if (migrateLegacyDefaults) AppSettings.DEFAULT_THEME_SURFACE_VARIANT_HEX else storedSurfaceVariant,
             themeCardShape = preferences.getString(KEY_THEME_CARD_SHAPE, "rounded").orEmpty(),
             uiFontScale = AppSettings.normalizeUiFontScale(
                 preferences.getFloat(KEY_UI_FONT_SCALE, AppSettings.DEFAULT_UI_FONT_SCALE),
@@ -362,6 +399,7 @@ class AppSettingsStore(context: Context) {
         private const val KEY_LOCAL_MODEL_TOP_P = "local_model_top_p"
         private const val KEY_LOCAL_MODEL_TEMPERATURE = "local_model_temperature"
         private const val KEY_LOCAL_MODEL_ACCELERATOR = "local_model_accelerator"
+        private const val KEY_LOCAL_MODEL_TOOL_MODE = "local_model_tool_mode"
         private const val KEY_API_GENERATION_KNOBS_ENABLED = "api_generation_knobs_enabled"
         private const val KEY_LANGUAGE_TAG = "language_tag"
         private const val KEY_CUSTOM_SYSTEM_PROMPT = "custom_system_prompt"
@@ -374,5 +412,6 @@ class AppSettingsStore(context: Context) {
         private const val KEY_THEME_SURFACE_VARIANT_HEX = "theme_surface_variant_hex"
         private const val KEY_THEME_CARD_SHAPE = "theme_card_shape"
         private const val KEY_UI_FONT_SCALE = "ui_font_scale"
+        private const val KEY_EMERALD_THEME_MIGRATION_COMPLETE = "emerald_theme_migration_complete"
     }
 }

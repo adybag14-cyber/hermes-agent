@@ -4,7 +4,7 @@ set -euxo pipefail
 # Run inside the official F-Droid buildserver-trixie container with this
 # repository (or a fdroiddata checkout containing its metadata) at /workspace.
 APP_ID="${APP_ID:-com.mobilefork.hermesagent}"
-VERSION_CODE="${VERSION_CODE:-144290}"
+VERSION_CODE="${VERSION_CODE:-144690}"
 FDROIDSERVER_COMMIT="${FDROIDSERVER_COMMIT:-00932d0a715b43b3ecf8da44826abf2ba65dd8b4}"
 FDROIDSERVER_DIR=/home/vagrant/fdroidserver
 

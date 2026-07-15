@@ -76,7 +76,11 @@ enum class AppSection(
             Device -> strings.subtitleDevice
             Kanban -> when (strings.language) {
                 com.mobilefork.hermesagent.ui.i18n.AppLanguage.CHINESE -> "共享任务板与人工处置"
-                else -> "Shared task board and human task control"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.SPANISH -> "Tablero compartido y control humano de tareas"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.GERMAN -> "Gemeinsames Aufgabenboard und manuelle Steuerung"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.PORTUGUESE -> "Quadro compartilhado e controle humano de tarefas"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.FRENCH -> "Tableau partagé et contrôle humain des tâches"
+                com.mobilefork.hermesagent.ui.i18n.AppLanguage.ENGLISH -> "Shared task board and human task control"
             }
             Terminal -> when (strings.language) {
                 com.mobilefork.hermesagent.ui.i18n.AppLanguage.CHINESE -> "手动运行 PRoot Linux 命令"

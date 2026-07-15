@@ -3,6 +3,7 @@ package com.mobilefork.hermesagent.ui.kanban
 import android.app.Application
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -249,8 +250,9 @@ fun KanbanScreen(
 
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.surfaceVariant,
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
             shape = MaterialTheme.shapes.medium,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Column(
                 modifier = Modifier.padding(12.dp),
@@ -352,7 +354,7 @@ private fun KanbanTaskCard(
                     modifier = Modifier.weight(1f),
                 )
                 Text(
-                    task.status,
+                    strings.kanbanFilter(task.status),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )

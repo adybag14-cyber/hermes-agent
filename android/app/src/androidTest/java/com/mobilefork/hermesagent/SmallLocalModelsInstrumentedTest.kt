@@ -79,8 +79,18 @@ class SmallLocalModelsInstrumentedTest {
         runLiteRtModel(
             modelId = "MiniCPM5-1B",
             fileName = fileName,
-            expectedBytes = null,
+            expectedBytes = if (fileName == "MiniCPM5-1B-web.litertlm") 1_103_486_896L else null,
             repo = "Tdamre/MiniCPM5-1B-litert-lm",
+        )
+    }
+
+    @Test
+    fun vibeThinker3bLiteRtAnswersWhenProvisioned() {
+        runLiteRtModel(
+            modelId = "VibeThinker-3B",
+            fileName = "VibeThinker-3B.litertlm",
+            expectedBytes = 3_446_780_848L,
+            repo = "Tdamre/VibeThinker-3B-litert-lm",
         )
     }
 
@@ -141,6 +151,7 @@ class SmallLocalModelsInstrumentedTest {
                 "Qwen3.5-0.8B-Q4_K_M.gguf",
                 "Qwen_Qwen3.5-0.8B-Q4_K_M.gguf",
             ),
+            expectedBytes = 532_517_120L,
             repo = "unsloth/Qwen3.5-0.8B-GGUF",
         )
     }
@@ -150,16 +161,23 @@ class SmallLocalModelsInstrumentedTest {
         runGgufModel(
             modelId = "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M",
             candidates = listOf("MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf"),
+            expectedBytes = 688_066_496L,
             repo = "GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF",
         )
     }
 
-    private fun runGgufModel(modelId: String, candidates: List<String>, repo: String) {
+    private fun runGgufModel(
+        modelId: String,
+        candidates: List<String>,
+        expectedBytes: Long,
+        repo: String,
+    ) {
         val modelFile = candidates
             .map { File(context.filesDir, "hermes-home/downloads/models/$it") }
             .firstOrNull { it.isFile }
         assumeTrue("$modelId GGUF not provisioned", modelFile != null)
         val file = modelFile!!
+        assertEquals("${file.name} size", expectedBytes, file.length())
         seedPreferred(
             modelId = modelId,
             fileName = file.name,
