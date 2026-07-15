@@ -94,24 +94,31 @@ object HermesLinuxSubsystemBridge {
             if (prefixDirPath.isNotBlank() && refreshPythonRuntimePaths(File(prefixDirPath), state)) {
                 stateChanged = true
             }
-            // Fast path: binaries still present and executable — skip full markExecutable walk + shell probe.
+            // A restored or OTA-updated prefix can leave an executable bit intact while
+            // required shared libraries are missing. Probe once before caching the state
+            // for this process so upgrades fall back or reinstall instead of selecting a
+            // dynamically broken Termux shell.
             val shellReady = shellPath.startsWith("/system/") ||
                 (File(shellPath).isFile && File(shellPath).canExecute())
             if (shellReady && prefixDirPath.isNotBlank()) {
                 File(prefixDirPath, "home").mkdirs()
                 File(prefixDirPath, "tmp").mkdirs()
-                val refreshedState = attachSandboxCatalog(state)
-                if (stateChanged) {
-                    stateFile(context).writeText(refreshedState.toString(), Charsets.UTF_8)
+                val homeDir = File(state.optString("home_path").ifBlank { prefixDirPath })
+                val launchProbe = launchShellProbe(shellPath, homeDir, buildRunEnvironment(state))
+                if (launchProbe.ready) {
+                    val refreshedState = attachSandboxCatalog(state)
+                    if (stateChanged) {
+                        stateFile(context).writeText(refreshedState.toString(), Charsets.UTF_8)
+                    }
+                    installedRuntimeCache = InstalledRuntimeCache(
+                        androidAbi = androidAbi,
+                        assetFingerprint = currentAssetFingerprint,
+                        nativeLibraryDir = currentNativeLibraryDir,
+                        layoutVersion = RUNTIME_LAYOUT_VERSION,
+                        state = refreshedState,
+                    )
+                    return refreshedState
                 }
-                installedRuntimeCache = InstalledRuntimeCache(
-                    androidAbi = androidAbi,
-                    assetFingerprint = currentAssetFingerprint,
-                    nativeLibraryDir = currentNativeLibraryDir,
-                    layoutVersion = RUNTIME_LAYOUT_VERSION,
-                    state = refreshedState,
-                )
-                return refreshedState
             }
             if (prefixDirPath.isNotBlank()) {
                 val prefixDir = File(prefixDirPath)

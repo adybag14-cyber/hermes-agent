@@ -30,6 +30,40 @@ class NativeToolCallingChatClientToolRoutingTest {
     }
 
     @Test
+    fun generalLocalModelModeAlwaysPublishesCuratedToolArgumentShapes() {
+        val specs = client.toolSpecsFor("Tell me a short joke.", "general")
+        val names = toolNames(specs)
+
+        assertEquals(
+            listOf(
+                "terminal_tool",
+                "linux_sandbox_tool",
+                "file_write_tool",
+                "android_ui_tool",
+                "android_system_tool",
+                "android_automation_tool",
+                "android_device_diagnostics_tool",
+                "hy_memory_tool",
+            ),
+            names,
+        )
+        val terminal = specs.getJSONObject(0).getJSONObject("function")
+        assertTrue(terminal.getJSONObject("parameters").getJSONObject("properties").has("command"))
+    }
+
+    @Test
+    fun smallAndLargeLocalModelModesScalePublishedCatalog() {
+        val small = toolNames(client.toolSpecsFor("Hello", "small"))
+        val general = toolNames(client.toolSpecsFor("Hello", "general"))
+        val large = toolNames(client.toolSpecsFor("Hello", "large"))
+
+        assertEquals(4, small.size)
+        assertTrue(general.size > small.size)
+        assertTrue(large.size > general.size)
+        assertTrue(small.contains("linux_sandbox_tool"))
+    }
+
+    @Test
     fun naturalEnglishPwdRequestExposesTerminalTool() {
         val specs = client.compactToolSpecsFor("Could you please run pwd and tell me the current directory?")
 

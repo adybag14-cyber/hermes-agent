@@ -22,7 +22,8 @@ def test_android_brand_resources_exist_and_define_hermes_palette():
     assert 'name="hermes_primary"' in colors
     assert 'name="hermes_background"' in colors
     assert 'name="hermes_surface_dark"' in colors
-    assert '#090B10' in colors
+    assert '#03090C' in colors
+    assert '#24D6A3' in colors
     assert 'Theme.HermesAgent' in themes
     assert '@color/hermes_background' in themes
     assert '@color/hermes_surface_dark' in themes
@@ -52,7 +53,8 @@ def test_app_shell_has_compact_brand_bar_drawer_navigation_and_custom_icons():
     assert 'R.drawable.ic_nav_device' in shell_models
     assert 'R.drawable.ic_nav_settings' in shell_models
     assert 'darkColorScheme(' in theme_file
-    assert 'Color(0xFF090B10)' in theme_file
+    assert 'Color(0xFF03090C)' in theme_file
+    assert 'Color(0xFF24D6A3)' in theme_file
     assert 'enableEdgeToEdge' in main_activity
     for name in [
         'ic_nav_hermes.xml',

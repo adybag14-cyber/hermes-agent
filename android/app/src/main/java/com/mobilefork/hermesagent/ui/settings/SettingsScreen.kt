@@ -34,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -91,7 +92,11 @@ fun SettingsScreen(
     }
 
     MaterialTheme {
-        Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(
+            modifier = modifier.fillMaxSize(),
+            color = Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+        ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 LazyColumn(
                     modifier = Modifier
@@ -183,6 +188,7 @@ fun SettingsScreen(
                             topP = uiState.localModelTopP,
                             temperature = uiState.localModelTemperature,
                             accelerator = uiState.localModelAccelerator,
+                            toolMode = uiState.localModelToolMode,
                             apiGenerationKnobsEnabled = uiState.apiGenerationKnobsEnabled,
                             customSystemPrompt = uiState.customSystemPrompt,
                             onMaxTokensChange = viewModel::updateLocalModelMaxTokens,
@@ -190,6 +196,7 @@ fun SettingsScreen(
                             onTopPChange = viewModel::updateLocalModelTopP,
                             onTemperatureChange = viewModel::updateLocalModelTemperature,
                             onAcceleratorChange = viewModel::updateLocalModelAccelerator,
+                            onToolModeChange = viewModel::updateLocalModelToolMode,
                             onApiGenerationKnobsEnabledChange = viewModel::updateApiGenerationKnobsEnabled,
                             onPromptChange = viewModel::updateCustomSystemPrompt,
                             onSave = viewModel::saveModelGenerationConfig,
@@ -317,6 +324,7 @@ private fun SettingsPageNavigation(
 private enum class ModelConfigTab {
     ModelConfigs,
     SystemPrompt,
+    ToolGuidance,
 }
 
 @Composable
@@ -326,6 +334,7 @@ private fun ModelGenerationConfigCard(
     topP: Float,
     temperature: Float,
     accelerator: String,
+    toolMode: String,
     apiGenerationKnobsEnabled: Boolean,
     customSystemPrompt: String,
     onMaxTokensChange: (Int) -> Unit,
@@ -333,6 +342,7 @@ private fun ModelGenerationConfigCard(
     onTopPChange: (Float) -> Unit,
     onTemperatureChange: (Float) -> Unit,
     onAcceleratorChange: (String) -> Unit,
+    onToolModeChange: (String) -> Unit,
     onApiGenerationKnobsEnabledChange: (Boolean) -> Unit,
     onPromptChange: (String) -> Unit,
     onSave: () -> Unit,
@@ -357,6 +367,7 @@ private fun ModelGenerationConfigCard(
             TabRow(selectedTabIndex = selectedTab.ordinal) {
                 ModelConfigTab.entries.forEach { tab ->
                     Tab(
+                        modifier = Modifier.testTag("LocalModelConfigTab-${tab.name}"),
                         selected = selectedTab == tab,
                         onClick = { selectedTab = tab },
                         text = { Text(modelConfigTabLabel(language, tab)) },
@@ -453,6 +464,35 @@ private fun ModelGenerationConfigCard(
                     ) {
                         Text(settingsGenerationText(language, "clear_prompt"))
                     }
+                }
+                ModelConfigTab.ToolGuidance -> {
+                    Text(
+                        settingsGenerationText(language, "tool_guidance_description"),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        toolGuidanceChoices(language).forEach { choice ->
+                            Button(
+                                modifier = Modifier.testTag("LocalModelToolMode-${choice.value}"),
+                                onClick = { onToolModeChange(choice.value) },
+                                enabled = toolMode != choice.value,
+                            ) {
+                                Text(choice.label)
+                            }
+                        }
+                    }
+                    Text(
+                        toolGuidanceChoices(language)
+                            .firstOrNull { it.value == toolMode }
+                            ?.description
+                            .orEmpty(),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
             Button(
@@ -597,10 +637,31 @@ private fun modelConfigTabLabel(language: AppLanguage, tab: ModelConfigTab): Str
     return when (tab) {
         ModelConfigTab.ModelConfigs -> settingsGenerationText(language, "model_configs")
         ModelConfigTab.SystemPrompt -> settingsGenerationText(language, "system_prompt")
+        ModelConfigTab.ToolGuidance -> settingsGenerationText(language, "tool_guidance")
     }
 }
 
-private fun settingsGenerationText(language: AppLanguage, key: String): String {
+private data class ToolGuidanceChoice(val value: String, val label: String, val description: String)
+
+private fun toolGuidanceChoices(language: AppLanguage): List<ToolGuidanceChoice> = listOf(
+    ToolGuidanceChoice(
+        "small",
+        settingsGenerationText(language, "tool_mode_small"),
+        settingsGenerationText(language, "tool_mode_small_description"),
+    ),
+    ToolGuidanceChoice(
+        "general",
+        settingsGenerationText(language, "tool_mode_general"),
+        settingsGenerationText(language, "tool_mode_general_description"),
+    ),
+    ToolGuidanceChoice(
+        "large",
+        settingsGenerationText(language, "tool_mode_large"),
+        settingsGenerationText(language, "tool_mode_large_description"),
+    ),
+)
+
+internal fun settingsGenerationText(language: AppLanguage, key: String): String {
     return when (key) {
         "configurations" -> when (language) {
             AppLanguage.CHINESE -> "配置"
@@ -625,6 +686,70 @@ private fun settingsGenerationText(language: AppLanguage, key: String): String {
             AppLanguage.PORTUGUESE -> "Prompt do sistema"
             AppLanguage.FRENCH -> "Prompt système"
             AppLanguage.ENGLISH -> "System prompt"
+        }
+        "tool_guidance" -> when (language) {
+            AppLanguage.CHINESE -> "工具指导"
+            AppLanguage.SPANISH -> "Guía de herramientas"
+            AppLanguage.GERMAN -> "Werkzeugführung"
+            AppLanguage.PORTUGUESE -> "Guia de ferramentas"
+            AppLanguage.FRENCH -> "Guide des outils"
+            AppLanguage.ENGLISH -> "Tool guidance"
+        }
+        "tool_guidance_description" -> when (language) {
+            AppLanguage.CHINESE -> "选择本地模型在每次请求前接收多少经过整理的工具名称和参数结构。"
+            AppLanguage.SPANISH -> "Elige cuántos nombres y esquemas de herramientas seleccionados recibe el modelo local antes de cada solicitud."
+            AppLanguage.GERMAN -> "Wähle, wie viele kuratierte Werkzeugnamen und Schemas das lokale Modell vor jeder Anfrage erhält."
+            AppLanguage.PORTUGUESE -> "Escolha quantos nomes e formatos de ferramentas selecionados o modelo local recebe antes de cada solicitação."
+            AppLanguage.FRENCH -> "Choisissez combien de noms et schémas d’outils sélectionnés le modèle local reçoit avant chaque requête."
+            AppLanguage.ENGLISH -> "Choose how many curated tool names and argument shapes the local model receives before every request."
+        }
+        "tool_mode_small" -> when (language) {
+            AppLanguage.CHINESE -> "小型模型"
+            AppLanguage.SPANISH -> "Modelo pequeño"
+            AppLanguage.GERMAN -> "Kleines Modell"
+            AppLanguage.PORTUGUESE -> "Modelo pequeno"
+            AppLanguage.FRENCH -> "Petit modèle"
+            AppLanguage.ENGLISH -> "Small model"
+        }
+        "tool_mode_general" -> when (language) {
+            AppLanguage.CHINESE -> "通用模型"
+            AppLanguage.SPANISH -> "Modelo general"
+            AppLanguage.GERMAN -> "Allgemeines Modell"
+            AppLanguage.PORTUGUESE -> "Modelo geral"
+            AppLanguage.FRENCH -> "Modèle général"
+            AppLanguage.ENGLISH -> "General model"
+        }
+        "tool_mode_large" -> when (language) {
+            AppLanguage.CHINESE -> "大型模型"
+            AppLanguage.SPANISH -> "Modelo grande"
+            AppLanguage.GERMAN -> "Großes Modell"
+            AppLanguage.PORTUGUESE -> "Modelo grande"
+            AppLanguage.FRENCH -> "Grand modèle"
+            AppLanguage.ENGLISH -> "Large model"
+        }
+        "tool_mode_small_description" -> when (language) {
+            AppLanguage.CHINESE -> "发送四个核心工具结构，并加入请求明确需要的专用工具。上下文最小。"
+            AppLanguage.SPANISH -> "Envía cuatro esquemas básicos y añade herramientas especializadas inferidas de la solicitud. Contexto mínimo."
+            AppLanguage.GERMAN -> "Sendet vier Kernschemas plus aus der Anfrage abgeleitete Spezialwerkzeuge. Kleinster Kontext."
+            AppLanguage.PORTUGUESE -> "Envia quatro formatos principais e adiciona ferramentas especializadas inferidas do pedido. Contexto mínimo."
+            AppLanguage.FRENCH -> "Envoie quatre schémas essentiels et les outils spécialisés déduits de la demande. Contexte minimal."
+            AppLanguage.ENGLISH -> "Sends four core schemas plus specialized tools inferred from the request. Smallest context."
+        }
+        "tool_mode_general_description" -> when (language) {
+            AppLanguage.CHINESE -> "推荐。始终发送常用文件、终端、Linux、Android、自动化、诊断和记忆工具的精简结构。"
+            AppLanguage.SPANISH -> "Recomendado. Siempre envía esquemas compactos para archivos, terminal, Linux, Android, automatización, diagnóstico y memoria."
+            AppLanguage.GERMAN -> "Empfohlen. Sendet immer kompakte Schemas für Dateien, Terminal, Linux, Android, Automatisierung, Diagnose und Speicher."
+            AppLanguage.PORTUGUESE -> "Recomendado. Sempre envia formatos compactos para arquivos, terminal, Linux, Android, automação, diagnóstico e memória."
+            AppLanguage.FRENCH -> "Recommandé. Envoie toujours des schémas compacts pour fichiers, terminal, Linux, Android, automatisation, diagnostic et mémoire."
+            AppLanguage.ENGLISH -> "Recommended. Always sends compact file, terminal, Linux, Android, automation, diagnostics, and memory schemas."
+        }
+        "tool_mode_large_description" -> when (language) {
+            AppLanguage.CHINESE -> "发送完整的紧凑工具目录。适合上下文较大的模型，但占用更多 token。"
+            AppLanguage.SPANISH -> "Envía el catálogo compacto completo. Adecuado para modelos con más contexto, pero usa más tokens."
+            AppLanguage.GERMAN -> "Sendet den vollständigen kompakten Werkzeugkatalog. Für größere Kontexte, benötigt aber mehr Tokens."
+            AppLanguage.PORTUGUESE -> "Envia o catálogo compacto completo. Para modelos com contexto maior, mas usa mais tokens."
+            AppLanguage.FRENCH -> "Envoie le catalogue compact complet. Pour les modèles à grand contexte, avec davantage de jetons."
+            AppLanguage.ENGLISH -> "Sends the complete compact catalog. Best for larger-context models, but uses more tokens."
         }
         "api_knobs_title" -> when (language) {
             AppLanguage.CHINESE -> "对 API 模型使用生成参数"

@@ -1,6 +1,8 @@
 package com.mobilefork.hermesagent.ui.shell
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.data.AppSettingsStore
+import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.ui.auth.AuthScreen
 import com.mobilefork.hermesagent.ui.auth.AuthViewModel
@@ -71,6 +74,7 @@ import com.mobilefork.hermesagent.ui.terminal.TerminalScreen
 import com.mobilefork.hermesagent.ui.terminal.TerminalViewModel
 import com.mobilefork.hermesagent.ui.theme.HermesThemeConfig
 import com.mobilefork.hermesagent.ui.theme.HermesTheme
+import com.mobilefork.hermesagent.ui.theme.HermesBackdrop
 import com.mobilefork.hermesagent.ui.theme.normalizeThemeHex
 
 internal fun shellDrawerNavigationSections(): List<AppSection> = AppSection.values().toList()
@@ -79,11 +83,11 @@ private data class ShellSettingsState(
     val languageTag: String = AppLanguage.ENGLISH.tag,
     val chatDisplayMode: String = "compact",
     val keywordHighlightingEnabled: Boolean = true,
-    val themePrimaryHex: String = "#8C7BFF",
-    val themeSecondaryHex: String = "#C6A15B",
-    val themeBackgroundHex: String = "#090B10",
-    val themeSurfaceHex: String = "#11141C",
-    val themeSurfaceVariantHex: String = "#1B202B",
+    val themePrimaryHex: String = AppSettings.DEFAULT_THEME_PRIMARY_HEX,
+    val themeSecondaryHex: String = AppSettings.DEFAULT_THEME_SECONDARY_HEX,
+    val themeBackgroundHex: String = AppSettings.DEFAULT_THEME_BACKGROUND_HEX,
+    val themeSurfaceHex: String = AppSettings.DEFAULT_THEME_SURFACE_HEX,
+    val themeSurfaceVariantHex: String = AppSettings.DEFAULT_THEME_SURFACE_VARIANT_HEX,
     val themeCardShape: String = "rounded",
     val uiFontScale: Float = 1.0f,
 )
@@ -94,11 +98,11 @@ private fun loadShellSettingsState(settingsStore: AppSettingsStore): ShellSettin
         languageTag = AppLanguage.fromTag(stored.languageTag).tag,
         chatDisplayMode = normalizeShellChatDisplayMode(stored.chatDisplayMode),
         keywordHighlightingEnabled = stored.keywordHighlightingEnabled,
-        themePrimaryHex = normalizeThemeHex(stored.themePrimaryHex, "#8C7BFF"),
-        themeSecondaryHex = normalizeThemeHex(stored.themeSecondaryHex, "#C6A15B"),
-        themeBackgroundHex = normalizeThemeHex(stored.themeBackgroundHex, "#090B10"),
-        themeSurfaceHex = normalizeThemeHex(stored.themeSurfaceHex, "#11141C"),
-        themeSurfaceVariantHex = normalizeThemeHex(stored.themeSurfaceVariantHex, "#1B202B"),
+        themePrimaryHex = normalizeThemeHex(stored.themePrimaryHex, AppSettings.DEFAULT_THEME_PRIMARY_HEX),
+        themeSecondaryHex = normalizeThemeHex(stored.themeSecondaryHex, AppSettings.DEFAULT_THEME_SECONDARY_HEX),
+        themeBackgroundHex = normalizeThemeHex(stored.themeBackgroundHex, AppSettings.DEFAULT_THEME_BACKGROUND_HEX),
+        themeSurfaceHex = normalizeThemeHex(stored.themeSurfaceHex, AppSettings.DEFAULT_THEME_SURFACE_HEX),
+        themeSurfaceVariantHex = normalizeThemeHex(stored.themeSurfaceVariantHex, AppSettings.DEFAULT_THEME_SURFACE_VARIANT_HEX),
         themeCardShape = normalizeShellThemeCardShape(stored.themeCardShape),
         uiFontScale = com.mobilefork.hermesagent.data.AppSettings.normalizeUiFontScale(stored.uiFontScale),
     )
@@ -210,11 +214,11 @@ fun AppShellScreen(
         ),
     ) {
         CompositionLocalProvider(LocalHermesStrings provides strings) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            HermesBackdrop(modifier = Modifier.fillMaxSize()) {
                 val showShellNavigation = currentSection != AppSection.Hermes
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
                     topBar = {
                         if (showShellNavigation) {
                             HermesTopBar(
@@ -229,7 +233,8 @@ fun AppShellScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding),
-                        color = MaterialTheme.colorScheme.background,
+                        color = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onBackground,
                     ) {
                         if (!sectionContentReady) {
                             SectionWarmupPane(
@@ -365,9 +370,16 @@ private fun HermesTopBar(
         section.subtitle(strings)
     }
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        tonalElevation = 2.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp),
+            ),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp),
+        tonalElevation = 0.dp,
     ) {
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Row(
@@ -375,8 +387,8 @@ private fun HermesTopBar(
                     .fillMaxWidth()
                     .widthIn(max = 960.dp)
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 ShellTopBarDrawerButton(
@@ -385,24 +397,24 @@ private fun HermesTopBar(
                 Image(
                     painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
                     contentDescription = strings.hermesLogoDescription,
-                    modifier = Modifier.size(34.dp),
+                    modifier = Modifier.size(30.dp),
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = section.title(strings),
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        maxLines = 2,
+                        maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TopBarStatusBadge(
@@ -429,13 +441,14 @@ private fun TopBarStatusBadge(
 ) {
     Surface(
         color = containerColor,
-        shape = MaterialTheme.shapes.small,
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(1.dp, contentColor.copy(alpha = 0.45f)),
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
             color = contentColor,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -509,6 +522,7 @@ private fun ShellNavigationDrawerOverlay(
                 .testTag("HermesShellDrawerMenu"),
             color = MaterialTheme.colorScheme.surface,
             shape = MaterialTheme.shapes.medium,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             tonalElevation = 8.dp,
             shadowElevation = 8.dp,
         ) {

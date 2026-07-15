@@ -30,7 +30,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.HermesRuntimeManager
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
-import com.mobilefork.hermesagent.auth.OpenRouterLoopbackOAuthServer
 import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.AuthSessionStore
@@ -41,8 +40,12 @@ import com.mobilefork.hermesagent.data.StoredConversationMessage
 import com.mobilefork.hermesagent.device.HermesProviderSetupWebActivity
 import com.mobilefork.hermesagent.models.HermesModelDownloadManager
 import com.mobilefork.hermesagent.ui.boot.BootUiState
+import com.mobilefork.hermesagent.ui.i18n.AppLanguage
+import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsSection
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsViewModel
+import com.mobilefork.hermesagent.ui.settings.settingsGenerationText
+import com.mobilefork.hermesagent.ui.shell.AppSection
 import com.mobilefork.hermesagent.ui.shell.AppShellScreen
 import com.mobilefork.hermesagent.ui.theme.HermesTheme
 import org.junit.After
@@ -149,11 +152,114 @@ class DeepAppUiVisualInstrumentedTest {
 
         navigateToShellSection("HermesNavDevice")
         composeRule.onAllNodesWithText("Dispositivo")[0].assertIsDisplayed()
+        composeRule.onNodeWithTag("HermesDevicePageNavigation").assertIsDisplayed()
+        composeRule.onNodeWithTag("HermesDevicePage_Linux").performClick()
+        composeRule.onNodeWithText("/device/linux").assertIsDisplayed()
+        composeRule.onNodeWithTag("HermesDevicePage_Connectivity").performClick()
+        composeRule.onNodeWithText("/device/connectivity").assertIsDisplayed()
+        composeRule.onNodeWithTag("HermesDevicePage_Files").performClick()
+        composeRule.onNodeWithText("/device/files").assertIsDisplayed()
+        composeRule.onNodeWithTag("HermesDevicePage_Controls").performClick()
+        composeRule.onNodeWithText("/device/controls").assertIsDisplayed()
+        composeRule.onNodeWithTag("HermesDevicePage_Automations").performClick()
+        composeRule.onNodeWithText("/device/automations").assertIsDisplayed()
         capture("07-device-spanish")
 
         navigateToShellSection("HermesNavNousPortal")
         assertTrue(composeRule.onAllNodesWithText("Portal del proveedor").fetchSemanticsNodes().isNotEmpty())
         capture("08-portal-spanish")
+    }
+
+    @Test
+    fun manualTerminalProotLoginOpensNonBlockingVirtualSessionAndExitReturnsToHost() {
+        AppSettingsStore(app).save(AppSettings(languageTag = "en"))
+        composeRule.setContent {
+            AppShellScreen(
+                bootUiState = BootUiState(
+                    status = "Hermes backend is ready",
+                    ready = true,
+                    probeResult = "terminal-session-test",
+                    baseUrl = "http://127.0.0.1:15436/v1",
+                ),
+                onRetryHermes = {},
+            )
+        }
+
+        navigateToShellSection("HermesNavTerminal")
+        composeRule.onNodeWithTag("HermesManualTerminalInput")
+            .performTextInput("proot-distro login hermes-alpine")
+        composeRule.onNodeWithTag("HermesManualTerminalRunButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Linux session · hermes-alpine")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithText("Linux session · hermes-alpine").fetchSemanticsNode()
+        composeRule.onNodeWithText("Session opened. Following commands run inside this sandbox; type exit to return to the host.")
+            .fetchSemanticsNode()
+        capture("terminal-sandbox-session-open")
+
+        composeRule.onNodeWithTag("HermesManualTerminalInput")
+            .performTextInput("printf HERMES_SANDBOX_OK")
+        composeRule.onNodeWithTag("HermesManualTerminalRunButton").performClick()
+        composeRule.waitUntil(timeoutMillis = 30_000) {
+            composeRule.onAllNodesWithText("HERMES_SANDBOX_OK", substring = true)
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onAllNodesWithText("HERMES_SANDBOX_OK", substring = true)[0].fetchSemanticsNode()
+
+        composeRule.onNodeWithTag("HermesManualTerminalInput").performTextInput("exit")
+        composeRule.onNodeWithTag("HermesManualTerminalRunButton").performClick()
+        composeRule.onNodeWithText("Returned to the Hermes host shell.").fetchSemanticsNode()
+    }
+
+    @Test
+    fun allSixLanguagesSwitchAcrossModelToolsKanbanAndDeviceCards() {
+        AppSettingsStore(app).save(AppSettings(languageTag = "en"))
+        composeRule.setContent {
+            AppShellScreen(
+                bootUiState = BootUiState(
+                    status = "Hermes backend is ready",
+                    ready = true,
+                    probeResult = "six-language-ui-test",
+                    baseUrl = "http://127.0.0.1:15436/v1",
+                ),
+                onRetryHermes = {},
+            )
+        }
+
+        AppLanguage.entries.forEach { language ->
+            val expected = hermesStringsFor(language)
+            navigateToShellSection("HermesNavSettings")
+            composeRule.onNodeWithTag("HermesSettingsPage_Overview").performClick()
+            scrollSettingsToTag("SettingsLanguage-${language.tag}")
+            composeRule.onNodeWithTag("SettingsLanguage-${language.tag}").performClick()
+            composeRule.waitUntil(timeoutMillis = 5_000) {
+                composeRule.onAllNodesWithText(expected.appLanguageTitle).fetchSemanticsNodes().isNotEmpty()
+            }
+
+            composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
+            scrollSettingsToTag("LocalModelConfigTab-ToolGuidance")
+            composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").performClick()
+            composeRule.onNodeWithText(settingsGenerationText(language, "tool_guidance")).fetchSemanticsNode()
+            composeRule.onNodeWithText(settingsGenerationText(language, "tool_mode_small")).fetchSemanticsNode()
+            composeRule.onNodeWithText(settingsGenerationText(language, "tool_mode_general")).fetchSemanticsNode()
+            composeRule.onNodeWithText(settingsGenerationText(language, "tool_mode_large")).fetchSemanticsNode()
+
+            navigateToShellSection("HermesNavKanban")
+            composeRule.waitUntil(timeoutMillis = 10_000) {
+                composeRule.onAllNodesWithText(expected.kanbanDescription()).fetchSemanticsNodes().isNotEmpty()
+            }
+            composeRule.onAllNodesWithText(expected.kanbanTitle())[0].fetchSemanticsNode()
+            composeRule.onNodeWithText(AppSection.Kanban.subtitle(expected)).fetchSemanticsNode()
+            capture("language-${language.tag}-kanban")
+
+            navigateToShellSection("HermesNavDevice")
+            composeRule.onAllNodesWithText(AppSection.Device.title(expected))[0].fetchSemanticsNode()
+            composeRule.onNodeWithTag("HermesDevicePageNavigation").fetchSemanticsNode()
+            composeRule.onNodeWithText("/device").fetchSemanticsNode()
+            composeRule.onNodeWithText(expected.deviceGuideTitle()).fetchSemanticsNode()
+            capture("language-${language.tag}-device")
+        }
     }
 
     @Test
@@ -488,6 +594,8 @@ class DeepAppUiVisualInstrumentedTest {
         }
 
         navigateToShellSection("HermesNavSettings")
+        composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
+        scrollSettingsToTag("HermesEndpointDebugPreview")
         composeRule.onNodeWithTag("HermesEndpointDebugPreview").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(
             "Hermes will try: http://localhost:11434/v1/chat/completions",
@@ -526,20 +634,18 @@ class DeepAppUiVisualInstrumentedTest {
             }
 
             override fun matchesSafely(intent: Intent): Boolean {
-                val chooserTarget = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
-                val uri = chooserTarget?.data ?: return false
+                if (intent.component?.className != HermesProviderSetupWebActivity::class.java.name) {
+                    return false
+                }
+                val uri = Uri.parse(intent.getStringExtra(PROVIDER_SETUP_URL_EXTRA).orEmpty())
                 val callbackUrl = Uri.parse(uri.getQueryParameter("callback_url").orEmpty())
-                val matches = intent.action == Intent.ACTION_CHOOSER &&
-                    chooserTarget.action == Intent.ACTION_VIEW &&
-                    chooserTarget.`package` == null &&
-                    uri.scheme == "https" &&
+                val matches = uri.scheme == "https" &&
                     uri.host == "openrouter.ai" &&
                     uri.path == "/auth" &&
                     uri.getQueryParameter("code_challenge_method") == "S256" &&
-                    callbackUrl.scheme == "http" &&
-                    callbackUrl.host == "localhost" &&
-                    callbackUrl.port == OpenRouterLoopbackOAuthServer.DEFAULT_PORT &&
-                    callbackUrl.path == "/hermes/openrouter/callback" &&
+                    callbackUrl.scheme == "hermesagent" &&
+                    callbackUrl.host == "auth" &&
+                    callbackUrl.path == "/callback" &&
                     callbackUrl.getQueryParameter("method") == "openrouter"
                 if (matches) {
                     openRouterOAuthOpened.set(true)
@@ -803,6 +909,11 @@ class DeepAppUiVisualInstrumentedTest {
     }
 
     private fun capture(name: String) {
+        composeRule.mainClock.advanceTimeBy(1_000L)
+        composeRule.waitForIdle()
+        // The platform screenshot API can still observe the previous SurfaceFlinger
+        // buffer for a fraction of a second after Compose reports idle.
+        android.os.SystemClock.sleep(350L)
         val outputDir = File(app.filesDir, "hermes-ui-visuals").apply { mkdirs() }
         val outputFile = File(outputDir, "$name.png")
         val instrumentation = InstrumentationRegistry.getInstrumentation()

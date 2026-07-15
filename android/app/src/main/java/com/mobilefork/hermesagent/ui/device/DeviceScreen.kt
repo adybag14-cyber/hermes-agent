@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
@@ -29,8 +30,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -40,6 +43,15 @@ import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.HermesStrings
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
+
+enum class DevicePage(val route: String) {
+    Overview("/device"),
+    Linux("/device/linux"),
+    Connectivity("/device/connectivity"),
+    Files("/device/files"),
+    Controls("/device/controls"),
+    Automations("/device/automations"),
+}
 
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -52,6 +64,8 @@ fun DeviceScreen(
     val uiState by viewModel.uiState.collectAsState()
     val strings = LocalHermesStrings.current
     var pendingExportFile by remember { mutableStateOf<String?>(null) }
+    var selectedPageName by rememberSaveable { mutableStateOf(DevicePage.Overview.name) }
+    val selectedPage = DevicePage.entries.firstOrNull { it.name == selectedPageName } ?: DevicePage.Overview
 
     val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -130,7 +144,11 @@ fun DeviceScreen(
     }
 
     MaterialTheme {
-        Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(
+            modifier = modifier.fillMaxSize(),
+            color = androidx.compose.ui.graphics.Color.Transparent,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+        ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 Column(
                     modifier = Modifier
@@ -141,12 +159,21 @@ fun DeviceScreen(
                         .padding(bottom = extraBottomSpacing),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                DeviceGuideCard(workspacePath = uiState.workspacePath)
-                LinuxSuiteCard(
+                DevicePageNavigation(
+                    selectedPage = selectedPage,
+                    onSelectPage = { selectedPageName = it.name },
+                    strings = strings,
+                )
+                if (selectedPage == DevicePage.Overview) {
+                    DeviceGuideCard(workspacePath = uiState.workspacePath)
+                    DeviceOverviewCard(uiState = uiState)
+                }
+                if (selectedPage == DevicePage.Linux) {
+                    LinuxSuiteCard(
                     uiState = uiState,
                     onInstallSuite = viewModel::installLinuxSuite,
                 )
-                HostLinuxPkgCard(
+                    HostLinuxPkgCard(
                     uiState = uiState,
                     onRefreshIndex = { viewModel.performHostPkgAction("update") },
                     onUpgradeSuite = { viewModel.performHostPkgAction("upgrade") },
@@ -157,7 +184,7 @@ fun DeviceScreen(
                         viewModel.performHostPkgAction("set_mirror", listOf("china"))
                     },
                 )
-                LinuxSandboxCard(
+                    LinuxSandboxCard(
                     uiState = uiState,
                     // Default mirrors (not China): China profile is opt-in via Set China mirrors.
                     // Forcing china mirrors on deploy broke Alpine/Debian installs outside CN networks.
@@ -174,39 +201,48 @@ fun DeviceScreen(
                     onSetMirror = { viewModel.performSandboxAction("set_mirror", mirrorProfile = "china") },
                     onUninstall = { viewModel.performSandboxAction("uninstall") },
                 )
-                OperatorStandbyCard(uiState = uiState)
-                AutomationsCard()
-                ConnectivityCard(
+                }
+                if (selectedPage == DevicePage.Connectivity) {
+                    ConnectivityCard(
                     uiState = uiState,
                     onOpenWifi = { viewModel.performSystemAction("open_wifi_panel") },
                     onOpenBluetooth = ::handleBluetoothAction,
                     onOpenConnectedDevices = { viewModel.performSystemAction("open_connected_devices_settings") },
                 )
-                RadioControlCard(
+                    RadioControlCard(
                     uiState = uiState,
                     onOpenMobileNetwork = { viewModel.performSystemAction("open_mobile_network_settings") },
                     onOpenDataUsage = { viewModel.performSystemAction("open_data_usage_settings") },
                     onOpenHotspot = { viewModel.performSystemAction("open_hotspot_settings") },
                     onOpenAirplaneMode = { viewModel.performSystemAction("open_airplane_mode_settings") },
                 )
-                InterfaceCard(
+                    InterfaceCard(
                     uiState = uiState,
                     onOpenNfc = { viewModel.performSystemAction("open_nfc_settings") },
                     onOpenConnectedDevices = { viewModel.performSystemAction("open_connected_devices_settings") },
                 )
-                PermissionsAndRuntimeCard(
+                }
+                if (selectedPage == DevicePage.Controls) {
+                    PermissionsAndRuntimeCard(
                     uiState = uiState,
                     onNotifications = ::handleNotificationAction,
                     onOverlaySettings = { viewModel.performSystemAction("open_overlay_settings") },
                     onToggleRuntime = { enabled -> viewModel.setBackgroundPersistence(enabled) },
                     onToggleFloatingButton = { enabled -> viewModel.setFloatingButtonEnabled(enabled) },
                 )
-                DiagnosticsLogCard(
+                    DiagnosticsLogCard(
                     uiState = uiState,
                     onExport = { diagnosticsLogExportLauncher.launch(uiState.diagnosticsLogExportFileName) },
                     onClearLastCrash = viewModel::clearLastCrashDiagnostics,
                 )
-                WorkspaceAccessCard(
+                    AccessibilityCard(
+                        uiState = uiState,
+                        onOpenSettings = { viewModel.performSystemAction("open_accessibility_settings") },
+                        onAction = viewModel::performGlobalAction,
+                    )
+                }
+                if (selectedPage == DevicePage.Files) {
+                    WorkspaceAccessCard(
                     uiState = uiState,
                     onImportFile = { importLauncher.launch(arrayOf("*/*")) },
                     onGrantFolder = { sharedFolderLauncher.launch(null) },
@@ -217,17 +253,102 @@ fun DeviceScreen(
                         exportLauncher.launch(fileName)
                     },
                 )
-                AccessibilityCard(
-                    uiState = uiState,
-                    onOpenSettings = { viewModel.performSystemAction("open_accessibility_settings") },
-                    onAction = viewModel::performGlobalAction,
-                )
+                }
+                if (selectedPage == DevicePage.Automations) {
+                    OperatorStandbyCard(uiState = uiState)
+                    AutomationsCard()
+                }
                 if (uiState.status.isNotBlank()) {
                     Text(uiState.status, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
     }
+    }
+}
+
+@Composable
+private fun DevicePageNavigation(
+    selectedPage: DevicePage,
+    onSelectPage: (DevicePage) -> Unit,
+    strings: HermesStrings,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("HermesDevicePageNavigation"),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                strings.deviceBreadcrumb(selectedPage),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                DevicePage.entries.forEach { page ->
+                    FilterChip(
+                        modifier = Modifier.testTag("HermesDevicePage_${page.name}"),
+                        onClick = { onSelectPage(page) },
+                        selected = page == selectedPage,
+                        label = { Text(strings.devicePageLabel(page), style = MaterialTheme.typography.labelSmall) },
+                    )
+                }
+            }
+            Text(selectedPage.route, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun DeviceOverviewCard(uiState: DeviceUiState) {
+    val strings = LocalHermesStrings.current
+    OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(strings.deviceOverviewTitle(), style = MaterialTheme.typography.titleMedium)
+            Text(
+                strings.deviceOverviewDescription(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                DeviceStatusPill(strings.deviceOverviewLinuxStatus(uiState.linuxEnabled, uiState.installedSandboxCount), uiState.linuxEnabled)
+                DeviceStatusPill(strings.deviceOverviewNetworkStatus(uiState.activeNetworkLabel), uiState.activeNetworkLabel.isNotBlank() && uiState.activeNetworkLabel != "Offline")
+                DeviceStatusPill(strings.deviceOverviewFilesStatus(uiState.workspaceFiles.size), uiState.sharedFolderUri.isNotBlank())
+                DeviceStatusPill(strings.deviceOverviewAutomationStatus(uiState.enabledAutomationCount), uiState.enabledAutomationCount > 0)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceStatusPill(text: String, active: Boolean) {
+    Surface(
+        color = if (active) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.large,
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+            style = MaterialTheme.typography.labelMedium,
+            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -922,6 +1043,78 @@ private fun AccessibilityCard(
             }
         }
     }
+}
+
+private fun HermesStrings.devicePageLabel(page: DevicePage): String = when (page) {
+    DevicePage.Overview -> when (language) {
+        AppLanguage.CHINESE -> "概览"; AppLanguage.SPANISH -> "Resumen"; AppLanguage.GERMAN -> "Übersicht"
+        AppLanguage.PORTUGUESE -> "Visão geral"; AppLanguage.FRENCH -> "Aperçu"; AppLanguage.ENGLISH -> "Overview"
+    }
+    DevicePage.Linux -> "Linux"
+    DevicePage.Connectivity -> when (language) {
+        AppLanguage.CHINESE -> "连接"; AppLanguage.SPANISH -> "Conectividad"; AppLanguage.GERMAN -> "Verbindungen"
+        AppLanguage.PORTUGUESE -> "Conectividade"; AppLanguage.FRENCH -> "Connectivité"; AppLanguage.ENGLISH -> "Connectivity"
+    }
+    DevicePage.Files -> when (language) {
+        AppLanguage.CHINESE -> "文件"; AppLanguage.SPANISH -> "Archivos"; AppLanguage.GERMAN -> "Dateien"
+        AppLanguage.PORTUGUESE -> "Arquivos"; AppLanguage.FRENCH -> "Fichiers"; AppLanguage.ENGLISH -> "Files"
+    }
+    DevicePage.Controls -> when (language) {
+        AppLanguage.CHINESE -> "控制"; AppLanguage.SPANISH -> "Controles"; AppLanguage.GERMAN -> "Steuerung"
+        AppLanguage.PORTUGUESE -> "Controles"; AppLanguage.FRENCH -> "Contrôles"; AppLanguage.ENGLISH -> "Controls"
+    }
+    DevicePage.Automations -> when (language) {
+        AppLanguage.CHINESE -> "自动化"; AppLanguage.SPANISH -> "Automatizaciones"; AppLanguage.GERMAN -> "Automationen"
+        AppLanguage.PORTUGUESE -> "Automações"; AppLanguage.FRENCH -> "Automatisations"; AppLanguage.ENGLISH -> "Automations"
+    }
+}
+
+private fun HermesStrings.deviceBreadcrumb(page: DevicePage): String = when (language) {
+    AppLanguage.CHINESE -> "设备 / ${devicePageLabel(page)}"
+    AppLanguage.SPANISH -> "Dispositivo / ${devicePageLabel(page)}"
+    AppLanguage.GERMAN -> "Gerät / ${devicePageLabel(page)}"
+    AppLanguage.PORTUGUESE -> "Dispositivo / ${devicePageLabel(page)}"
+    AppLanguage.FRENCH -> "Appareil / ${devicePageLabel(page)}"
+    AppLanguage.ENGLISH -> "Device / ${devicePageLabel(page)}"
+}
+
+private fun HermesStrings.deviceOverviewTitle(): String = when (language) {
+    AppLanguage.CHINESE -> "设备控制中心"; AppLanguage.SPANISH -> "Centro de control del dispositivo"
+    AppLanguage.GERMAN -> "Geräte-Kontrollzentrum"; AppLanguage.PORTUGUESE -> "Central de controle do dispositivo"
+    AppLanguage.FRENCH -> "Centre de contrôle de l’appareil"; AppLanguage.ENGLISH -> "Device control center"
+}
+
+private fun HermesStrings.deviceOverviewDescription(): String = when (language) {
+    AppLanguage.CHINESE -> "每个页面只显示一个领域：Linux、连接、文件、系统控制或自动化。"
+    AppLanguage.SPANISH -> "Cada página se centra en un área: Linux, conectividad, archivos, controles del sistema o automatizaciones."
+    AppLanguage.GERMAN -> "Jede Seite konzentriert sich auf einen Bereich: Linux, Verbindungen, Dateien, Systemsteuerung oder Automationen."
+    AppLanguage.PORTUGUESE -> "Cada página foca em uma área: Linux, conectividade, arquivos, controles do sistema ou automações."
+    AppLanguage.FRENCH -> "Chaque page se concentre sur un domaine : Linux, connectivité, fichiers, contrôles système ou automatisations."
+    AppLanguage.ENGLISH -> "Each page focuses on one area: Linux, connectivity, files, system controls, or automations."
+}
+
+private fun HermesStrings.deviceOverviewLinuxStatus(enabled: Boolean, count: Int): String = when (language) {
+    AppLanguage.CHINESE -> if (enabled) "Linux 就绪 · $count 个沙箱" else "Linux 需要设置"
+    AppLanguage.SPANISH -> if (enabled) "Linux listo · $count sandboxes" else "Linux requiere configuración"
+    AppLanguage.GERMAN -> if (enabled) "Linux bereit · $count Sandboxes" else "Linux muss eingerichtet werden"
+    AppLanguage.PORTUGUESE -> if (enabled) "Linux pronto · $count sandboxes" else "Linux precisa de configuração"
+    AppLanguage.FRENCH -> if (enabled) "Linux prêt · $count bacs à sable" else "Linux doit être configuré"
+    AppLanguage.ENGLISH -> if (enabled) "Linux ready · $count sandboxes" else "Linux needs setup"
+}
+
+private fun HermesStrings.deviceOverviewNetworkStatus(network: String): String = when (language) {
+    AppLanguage.CHINESE -> "网络 · $network"; AppLanguage.SPANISH -> "Red · $network"; AppLanguage.GERMAN -> "Netzwerk · $network"
+    AppLanguage.PORTUGUESE -> "Rede · $network"; AppLanguage.FRENCH -> "Réseau · $network"; AppLanguage.ENGLISH -> "Network · $network"
+}
+
+private fun HermesStrings.deviceOverviewFilesStatus(count: Int): String = when (language) {
+    AppLanguage.CHINESE -> "工作区 · $count 个文件"; AppLanguage.SPANISH -> "Espacio · $count archivos"; AppLanguage.GERMAN -> "Arbeitsbereich · $count Dateien"
+    AppLanguage.PORTUGUESE -> "Espaço · $count arquivos"; AppLanguage.FRENCH -> "Espace · $count fichiers"; AppLanguage.ENGLISH -> "Workspace · $count files"
+}
+
+private fun HermesStrings.deviceOverviewAutomationStatus(count: Int): String = when (language) {
+    AppLanguage.CHINESE -> "自动化 · $count 个已启用"; AppLanguage.SPANISH -> "Automatización · $count activas"; AppLanguage.GERMAN -> "Automation · $count aktiv"
+    AppLanguage.PORTUGUESE -> "Automação · $count ativas"; AppLanguage.FRENCH -> "Automatisation · $count actives"; AppLanguage.ENGLISH -> "Automation · $count enabled"
 }
 
 private fun HermesStrings.deviceNotificationPermissionStatus(granted: Boolean): String = when (language) {

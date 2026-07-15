@@ -105,7 +105,13 @@ class NativeToolCallingChatClient(
         var executedToolCalls = 0
         var modelRequestCount = 0
         var latestToolResult = ""
-        var activeToolSpecs = compactToolSpecsFor(userText)
+        val localModelToolMode = AppSettingsStore(appContext).load().localModelToolMode
+        var activeToolSpecs = toolSpecsFor(userText, localModelToolMode)
+        val contextRecoveryToolSpecs = compactToolSpecsFor(userText)
+        val contextRecoverySystemMessage = systemMessage(
+            toolSpecs = contextRecoveryToolSpecs,
+            relevantMemoryContext = relevantMemoryContext,
+        )
         val cacheResendEnabled = McpPromptCacheResendPolicy.shouldResendCachedContext(
             providerId = providerId.ifBlank { "local" },
             settings = McpSettingsStore(appContext).load(),
@@ -127,6 +133,8 @@ class NativeToolCallingChatClient(
             sessionId = sessionId,
             messages = messages,
             toolSpecs = activeToolSpecs,
+            contextRecoveryToolSpecs = contextRecoveryToolSpecs,
+            contextRecoverySystemMessage = contextRecoverySystemMessage,
             maxTokens = NATIVE_TOOL_MAX_TOKENS,
         )
         messages = initialResponse.messages
@@ -205,6 +213,8 @@ class NativeToolCallingChatClient(
                     sessionId = sessionId,
                     messages = messages,
                     toolSpecs = activeToolSpecs,
+                    contextRecoveryToolSpecs = contextRecoveryToolSpecs,
+                    contextRecoverySystemMessage = contextRecoverySystemMessage,
                     maxTokens = NATIVE_TOOL_MAX_TOKENS,
                 )
                 messages = response.messages
@@ -809,6 +819,8 @@ class NativeToolCallingChatClient(
         sessionId: String,
         messages: JSONArray,
         toolSpecs: JSONArray?,
+        contextRecoveryToolSpecs: JSONArray? = null,
+        contextRecoverySystemMessage: JSONObject? = null,
         maxTokens: Int,
     ): NativeChatCompletionResponse {
         return try {
@@ -829,7 +841,16 @@ class NativeToolCallingChatClient(
                 throw error
             }
             val recoveredMessages = NativeToolContextCompressor.recoverMessagesAfterContextOverflow(messages)
-            val recoveredToolSpecs = NativeToolContextCompressor.recoverToolSpecsAfterContextOverflow(toolSpecs)
+            contextRecoverySystemMessage?.let { recoveredSystem ->
+                if (recoveredMessages.length() > 0) {
+                    recoveredMessages.put(0, JSONObject(recoveredSystem.toString()))
+                }
+            }
+            // A 1K-context local model cannot necessarily fit even the compact general catalog.
+            // Retry with only tools inferred or named by this request; an empty catalog is valid
+            // for ordinary chat and frees the most context without hiding tools on the first pass.
+            val retryToolSpecs = contextRecoveryToolSpecs ?: toolSpecs
+            val recoveredToolSpecs = NativeToolContextCompressor.recoverToolSpecsAfterContextOverflow(retryToolSpecs)
             NativeChatCompletionResponse(
                 assistant = postChatCompletion(
                     normalizedBaseUrl = normalizedBaseUrl,
@@ -2070,6 +2091,144 @@ class NativeToolCallingChatClient(
                 }
             }
         }
+    }
+
+    /**
+     * Select the stable tool contract sent to local models before generation.
+     *
+     * Small/general modes always include curated argument shapes so ordinary natural language
+     * never produces an empty tool list. Large mode preserves the complete compact catalog.
+     */
+    internal fun toolSpecsFor(userText: String, mode: String): JSONArray {
+        val normalizedMode = AppSettings.normalizeLocalModelToolMode(mode)
+        if (normalizedMode == "large") return compactToolSpecs()
+
+        val selectedNames = when (normalizedMode) {
+            "small" -> SMALL_MODEL_CORE_TOOL_NAMES
+            else -> GENERAL_MODEL_CORE_TOOL_NAMES
+        }.toMutableSet().apply {
+            addAll(explicitlyRequestedToolNames(userText))
+            addAll(inferredToolNames(userText))
+        }
+        val result = JSONArray()
+        val seen = mutableSetOf<String>()
+        appendSelectedToolSpecs(result, curatedGeneralToolSpecs(), selectedNames, seen)
+        appendSelectedToolSpecs(result, compactToolSpecs(), selectedNames, seen)
+        return result
+    }
+
+    private fun appendSelectedToolSpecs(
+        target: JSONArray,
+        source: JSONArray,
+        selectedNames: Set<String>,
+        seen: MutableSet<String>,
+    ) {
+        for (index in 0 until source.length()) {
+            val spec = source.optJSONObject(index) ?: continue
+            val name = spec.optJSONObject("function")?.optString("name").orEmpty()
+            if (name in selectedNames && seen.add(name)) target.put(spec)
+        }
+    }
+
+    private fun curatedGeneralToolSpecs(): JSONArray {
+        return JSONArray()
+            .put(
+                functionSpec(
+                    name = "terminal_tool",
+                    description = "Run one command in the Hermes host workspace and return stdout, stderr, cwd, and exit code.",
+                    properties = JSONObject()
+                        .put("command", stringProp("Required shell command."))
+                        .put("timeout_seconds", intProp("Optional timeout in seconds.")),
+                    required = JSONArray().put("command"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "linux_sandbox_tool",
+                    description = "Manage or run commands in an app-private proot Linux sandbox such as hermes-alpine.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, list, deploy, start, stop, run, update, or uninstall."))
+                        .put("distro_id", stringProp("Optional catalog id, for example alpine-3-21."))
+                        .put("name", stringProp("Optional installed name, for example hermes-alpine."))
+                        .put("command", stringProp("Required when action=run."))
+                        .put("timeout_seconds", intProp("Optional timeout in seconds.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "file_write_tool",
+                    description = "Create, replace, or append UTF-8 text inside the Hermes workspace.",
+                    properties = JSONObject()
+                        .put("path", stringProp("Workspace-relative file path."))
+                        .put("content", stringProp("Exact UTF-8 content."))
+                        .put("append", boolProp("Append instead of replacing.")),
+                    required = JSONArray().put("path").put("content"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_ui_tool",
+                    description = "Read or control the visible Android UI through screenshots, accessibility selectors, gestures, or global navigation.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, snapshot, screenshot, click, type, scroll, back, home, recents, notifications, quick_settings, or open_app."))
+                        .put("text", stringProp("Text to type or selector text."))
+                        .put("text_contains", stringProp("Optional visible-text selector."))
+                        .put("content_description_contains", stringProp("Optional accessibility-label selector."))
+                        .put("package_name", stringProp("Optional Android package name."))
+                        .put("direction", stringProp("Optional scroll direction.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_system_tool",
+                    description = "Inspect Android state, open a safe settings panel, or perform an explicitly requested privileged action.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, open_*_settings, run_privileged_shell, grant_permission, revoke_permission, or force_stop_app."))
+                        .put("command", stringProp("Command for run_privileged_shell."))
+                        .put("package_name", stringProp("Target Android package."))
+                        .put("permission", stringProp("Target Android permission.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_automation_tool",
+                    description = "List, create, run, enable, disable, or delete saved Android automations and reminders.",
+                    properties = JSONObject()
+                        .put("action", stringProp("list, run, enable, disable, delete, create_shell_task, create_file_write_task, create_notification_task, or create_app_launch_task."))
+                        .put("automation_id", stringProp("Saved automation id for run, enable, disable, or delete."))
+                        .put("title", stringProp("Task or notification title."))
+                        .put("command", stringProp("Shell command for create_shell_task."))
+                        .put("path", stringProp("Workspace path for file tasks."))
+                        .put("content", stringProp("Content for file or notification tasks.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "android_device_diagnostics_tool",
+                    description = "Inspect phone resources, connectivity, sensors, local inference health, and capability evidence.",
+                    properties = JSONObject()
+                        .put("action", stringProp("status, top_apps, wifi_scan, bluetooth_scan, sensor_snapshot, camera_status, local_backend_runtime_report, device_performance_report, or tool_catalog."))
+                        .put("limit", intProp("Optional maximum result rows.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
+            .put(
+                functionSpec(
+                    name = "hy_memory_tool",
+                    description = "Retain, recall, list, or delete durable local Hermes memories.",
+                    properties = JSONObject()
+                        .put("action", stringProp("retain, recall, list, delete, reflect, or promoted_context."))
+                        .put("content", stringProp("Memory content for retain."))
+                        .put("query", stringProp("Search query for recall."))
+                        .put("memory_id", stringProp("Memory id for delete."))
+                        .put("tags", stringProp("Optional comma-separated tags.")),
+                    required = JSONArray().put("action"),
+                ),
+            )
     }
 
     private fun inferredToolNames(userText: String): Set<String> {
@@ -4921,6 +5080,18 @@ class NativeToolCallingChatClient(
         private const val MAX_NATIVE_ERROR_CHARS = 360
         private const val DEFAULT_UI_SNAPSHOT_LIMIT = 80
         private const val MAX_OPEN_GUI_WORKING_MEMORY_CHARS = 16_000
+        private val SMALL_MODEL_CORE_TOOL_NAMES = setOf(
+            "terminal_tool",
+            "linux_sandbox_tool",
+            "file_write_tool",
+            "android_ui_tool",
+        )
+        private val GENERAL_MODEL_CORE_TOOL_NAMES = SMALL_MODEL_CORE_TOOL_NAMES + setOf(
+            "android_system_tool",
+            "android_automation_tool",
+            "android_device_diagnostics_tool",
+            "hy_memory_tool",
+        )
         private val DIRECT_ANDROID_DEVICE_DIAGNOSTIC_ACTIONS = setOf(
             "status",
             "top_apps",

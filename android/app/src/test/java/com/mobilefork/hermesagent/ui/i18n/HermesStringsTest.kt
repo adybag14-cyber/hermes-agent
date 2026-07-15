@@ -165,6 +165,12 @@ class HermesStringsTest {
                 assertFalse("$language localization should not be blank", actual.isBlank())
             }
             assertFalse(strings.kanbanRuntimeText("Waiting for Hermes Python runtime…") == "Waiting for Hermes Python runtime…")
+            assertEquals(
+                strings.kanbanDescription(),
+                strings.kanbanRuntimeText(
+                    "Mobile Kanban controls the shared SQLite board. Worker spawn still requires gateway/dispatcher.",
+                ),
+            )
             assertFalse(strings.automationsStatusText("2 automation(s) on device") == "2 automation(s) on device")
             assertFalse(strings.localMemoryStatusText("hy-memory local companion · 3 facts") == "hy-memory local companion · 3 facts")
             assertFalse(strings.skillsStatusText("Skills refreshed (4)") == "Skills refreshed (4)")
@@ -192,6 +198,9 @@ class HermesStringsTest {
                 strings.noCommandOutputLabel(),
                 strings.commandFailedLabel(),
                 strings.exitCodeLabel(0),
+                strings.terminalSandboxSessionLabel("hermes-alpine"),
+                strings.terminalSandboxSessionOpened(),
+                strings.terminalSandboxSessionClosed(),
                 strings.chatStatusText("Stopped by user"),
                 strings.uiFontSizeLabel(0.9f),
             )

@@ -14,6 +14,7 @@ import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.FileInputStream
@@ -38,7 +39,12 @@ class HermesGoalAppLaunchInstrumentedTest {
             "com.instagram.android",
         )
 
-        targets.forEach { packageName ->
+        val installedTargets = targets.filter { packageName ->
+            app.packageManager.getLaunchIntentForPackage(packageName) != null
+        }
+        assumeTrue("No provisioned goal app has a launcher activity", installedTargets.isNotEmpty())
+
+        installedTargets.forEach { packageName ->
             executeShell("input keyevent HOME")
             SystemClock.sleep(500)
 

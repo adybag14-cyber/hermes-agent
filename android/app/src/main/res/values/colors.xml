@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="hermes_primary">#8C7BFF</color>
-    <color name="hermes_primary_dark">#0B0D12</color>
-    <color name="hermes_primary_container">#1A1D29</color>
-    <color name="hermes_secondary">#C6A15B</color>
-    <color name="hermes_background">#090B10</color>
-    <color name="hermes_surface">#11141C</color>
-    <color name="hermes_surface_dark">#151923</color>
-    <color name="hermes_surface_variant">#1B202B</color>
+    <color name="hermes_primary">#24D6A3</color>
+    <color name="hermes_primary_dark">#02100F</color>
+    <color name="hermes_primary_container">#0C2A25</color>
+    <color name="hermes_secondary">#F1B84B</color>
+    <color name="hermes_background">#03090C</color>
+    <color name="hermes_surface">#0A1418</color>
+    <color name="hermes_surface_dark">#071014</color>
+    <color name="hermes_surface_variant">#111E22</color>
     <color name="hermes_on_background">#F2F3F5</color>
     <color name="hermes_on_surface">#F2F3F5</color>
-    <color name="hermes_on_primary">#FFFFFF</color>
+    <color name="hermes_on_primary">#001F17</color>
     <color name="hermes_error">#FF6B6B</color>
 </resources>

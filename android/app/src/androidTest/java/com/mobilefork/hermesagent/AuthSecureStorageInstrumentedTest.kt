@@ -271,12 +271,12 @@ class AuthSecureStorageInstrumentedTest {
             var status = ""
             while (SystemClock.elapsedRealtime() < deadline) {
                 status = viewModel.uiState.value.globalStatus
-                if (status.contains("Saved Z.AI credential") || status.contains("Unable to save")) {
+                if (status.contains("Saved Z.AI / Zhipu credential") || status.contains("Unable to save")) {
                     break
                 }
                 Thread.sleep(250L)
             }
-            assertTrue(status, status.contains("Saved Z.AI credential from Bearer"))
+            assertTrue(status, status.contains("Saved Z.AI / Zhipu credential from Bearer"))
             assertEquals(
                 "zai-secure-token-test",
                 SecureSecretsStore(app).loadAuthSessionSecrets("zai").apiKey,

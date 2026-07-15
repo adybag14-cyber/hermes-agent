@@ -626,11 +626,19 @@ data class HermesStrings(
 
     fun appearancePresetLabel(presetId: String, fallbackLabel: String): String = when (presetId) {
         "hermes" -> when (language) {
-            AppLanguage.CHINESE -> "Hermes 紫"
-            AppLanguage.SPANISH -> "Hermes morado"
-            AppLanguage.GERMAN -> "Hermes-Violett"
-            AppLanguage.PORTUGUESE -> "Hermes roxo"
-            AppLanguage.FRENCH -> "Violet Hermes"
+            AppLanguage.CHINESE -> "Hermes 翡翠绿"
+            AppLanguage.SPANISH -> "Esmeralda Hermes"
+            AppLanguage.GERMAN -> "Hermes-Smaragd"
+            AppLanguage.PORTUGUESE -> "Esmeralda Hermes"
+            AppLanguage.FRENCH -> "Émeraude Hermes"
+            AppLanguage.ENGLISH -> fallbackLabel
+        }
+        "legacy" -> when (language) {
+            AppLanguage.CHINESE -> "经典紫色"
+            AppLanguage.SPANISH -> "Morado clásico"
+            AppLanguage.GERMAN -> "Klassisches Violett"
+            AppLanguage.PORTUGUESE -> "Roxo clássico"
+            AppLanguage.FRENCH -> "Violet classique"
             AppLanguage.ENGLISH -> fallbackLabel
         }
         "gold" -> when (language) {
@@ -2278,11 +2286,11 @@ data class HermesStrings(
     }
 
     fun deviceGuideTitle(): String = when (language) {
-        AppLanguage.CHINESE -> "如何使用这个 alpha 版本"
-        AppLanguage.SPANISH -> "Cómo usar esta alpha"
-        AppLanguage.GERMAN -> "So verwendest du diese Alpha"
-        AppLanguage.PORTUGUESE -> "Como usar esta alpha"
-        AppLanguage.FRENCH -> "Comment utiliser cette alpha"
+        AppLanguage.CHINESE -> "如何使用此预览版"
+        AppLanguage.SPANISH -> "Cómo usar esta versión alfa"
+        AppLanguage.GERMAN -> "So verwendest du diese Alpha-Version"
+        AppLanguage.PORTUGUESE -> "Como usar esta versão alfa"
+        AppLanguage.FRENCH -> "Comment utiliser cette version alpha"
         AppLanguage.ENGLISH -> "How to use this alpha"
     }
 
@@ -3507,7 +3515,7 @@ data class HermesStrings(
         "Sprache auf $label umstellen", "Alterar idioma para $label", "Passer la langue à $label",
     )
 
-    fun kanbanTitle(): String = "Kanban"
+    fun kanbanTitle(): String = tr("Kanban", "看板", "Kanban", "Kanban", "Kanban", "Kanban")
     fun kanbanDescription(): String = tr(
         "Human board control for the shared Hermes kanban DB. Workers still need the gateway dispatcher.",
         "管理共享 Hermes 看板数据库。工作代理仍需网关调度器。",
@@ -3556,6 +3564,7 @@ data class HermesStrings(
         "Updated" -> tr("Updated", "已更新", "Actualizado", "Aktualisiert", "Atualizado", "Mis à jour")
         "Title is required" -> tr("Title is required", "标题为必填项", "El título es obligatorio", "Titel ist erforderlich", "O título é obrigatório", "Le titre est obligatoire")
         "Shared SQLite board. Multi-agent workers still need gateway dispatch." -> kanbanDescription()
+        "Mobile Kanban controls the shared SQLite board. Worker spawn still requires gateway/dispatcher." -> kanbanDescription()
         else -> text
     }
 
@@ -3684,6 +3693,25 @@ data class HermesStrings(
     fun noCommandOutputLabel(): String = tr("(no output)", "（无输出）", "(sin salida)", "(keine Ausgabe)", "(sem saída)", "(aucune sortie)")
     fun commandFailedLabel(): String = tr("Command failed", "命令失败", "El comando falló", "Befehl fehlgeschlagen", "Falha no comando", "Échec de la commande")
     fun exitCodeLabel(code: Int): String = tr("Exit code $code", "退出码 $code", "Código de salida $code", "Exit-Code $code", "Código de saída $code", "Code de sortie $code")
+    fun terminalSandboxSessionLabel(name: String): String = tr(
+        "Linux session · $name", "Linux 会话 · $name", "Sesión Linux · $name",
+        "Linux-Sitzung · $name", "Sessão Linux · $name", "Session Linux · $name",
+    )
+    fun terminalSandboxSessionOpened(): String = tr(
+        "Session opened. Following commands run inside this sandbox; type exit to return to the host.",
+        "会话已打开。后续命令将在此沙箱中运行；输入 exit 返回主机。",
+        "Sesión abierta. Los comandos siguientes se ejecutan en este sandbox; escribe exit para volver al host.",
+        "Sitzung geöffnet. Folgende Befehle laufen in dieser Sandbox; mit exit geht es zum Host zurück.",
+        "Sessão aberta. Os próximos comandos são executados neste sandbox; digite exit para voltar ao host.",
+        "Session ouverte. Les commandes suivantes s’exécutent dans ce bac à sable ; saisissez exit pour revenir à l’hôte.",
+    )
+    fun terminalSandboxSessionClosed(): String = tr(
+        "Returned to the Hermes host shell.", "已返回 Hermes 主机 shell。", "Se volvió al shell anfitrión de Hermes.",
+        "Zur Hermes-Host-Shell zurückgekehrt.", "Retornou ao shell host do Hermes.", "Retour au shell hôte Hermes.",
+    )
+    fun terminalSandboxCommandLabel(name: String): String = tr(
+        "Command in $name", "$name 中的命令", "Comando en $name", "Befehl in $name", "Comando em $name", "Commande dans $name",
+    )
     fun uiFontSizeLabel(scale: Float): String {
         val percent = (scale * 100).toInt()
         return tr("UI font size: $percent%", "界面字体大小：$percent%", "Tamaño de fuente: $percent%", "UI-Schriftgröße: $percent%", "Tamanho da fonte: $percent%", "Taille de police : $percent%")

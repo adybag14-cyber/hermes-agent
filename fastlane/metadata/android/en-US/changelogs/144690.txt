@@ -1,0 +1,7 @@
+Introduces an emerald/noir interface with clearer outlined cards, compact status badges, and focused Device pages.
+
+Adds small, general, and large local-model tool profiles; the default curated schema makes MiniCPM and Qwen tool use more reliable.
+
+Fixes blocking PRoot terminal sessions and completes six-language coverage for model tools, Kanban, Device cards, routes, and accessibility labels.
+
+Validated real Qwen, MiniCPM, and VibeThinker inference across GGUF and LiteRT-LM.

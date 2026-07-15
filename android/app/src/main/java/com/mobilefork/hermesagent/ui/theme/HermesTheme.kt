@@ -10,34 +10,35 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.TextStyle
+import com.mobilefork.hermesagent.data.AppSettings
 
 data class HermesThemeConfig(
-    val primaryHex: String = "#8C7BFF",
-    val secondaryHex: String = "#C6A15B",
-    val backgroundHex: String = "#090B10",
-    val surfaceHex: String = "#11141C",
-    val surfaceVariantHex: String = "#1B202B",
+    val primaryHex: String = AppSettings.DEFAULT_THEME_PRIMARY_HEX,
+    val secondaryHex: String = AppSettings.DEFAULT_THEME_SECONDARY_HEX,
+    val backgroundHex: String = AppSettings.DEFAULT_THEME_BACKGROUND_HEX,
+    val surfaceHex: String = AppSettings.DEFAULT_THEME_SURFACE_HEX,
+    val surfaceVariantHex: String = AppSettings.DEFAULT_THEME_SURFACE_VARIANT_HEX,
     val cardShape: String = "rounded",
     val fontScale: Float = 1.0f,
 )
 
 private val HermesDarkColors = darkColorScheme(
-    primary = Color(0xFF8C7BFF),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFF1A1D29),
-    onPrimaryContainer = Color(0xFFE9E4FF),
-    secondary = Color(0xFFC6A15B),
-    onSecondary = Color(0xFF1D1407),
-    secondaryContainer = Color(0xFF2B2214),
-    onSecondaryContainer = Color(0xFFF5E5C6),
-    background = Color(0xFF090B10),
+    primary = Color(0xFF24D6A3),
+    onPrimary = Color(0xFF001F17),
+    primaryContainer = Color(0xFF0C2A25),
+    onPrimaryContainer = Color(0xFFB9FFE9),
+    secondary = Color(0xFFF1B84B),
+    onSecondary = Color(0xFF291900),
+    secondaryContainer = Color(0xFF332817),
+    onSecondaryContainer = Color(0xFFFFE0A3),
+    background = Color(0xFF03090C),
     onBackground = Color(0xFFF2F3F5),
-    surface = Color(0xFF11141C),
+    surface = Color(0xFF0A1418),
     onSurface = Color(0xFFF2F3F5),
-    surfaceVariant = Color(0xFF1B202B),
-    onSurfaceVariant = Color(0xFFD7DBE4),
-    outline = Color(0xFF394150),
-    outlineVariant = Color(0xFF232A36),
+    surfaceVariant = Color(0xFF111E22),
+    onSurfaceVariant = Color(0xFFC3CFD1),
+    outline = Color(0xFF355057),
+    outlineVariant = Color(0xFF20353A),
     error = Color(0xFFFF6B6B),
     onError = Color(0xFF2A0C0C),
 )

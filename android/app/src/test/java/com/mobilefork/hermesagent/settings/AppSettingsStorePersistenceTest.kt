@@ -15,6 +15,28 @@ import org.robolectric.annotation.Config
 @Config(application = android.app.Application::class)
 class AppSettingsStorePersistenceTest {
     @Test
+    fun exactLegacyBuiltInPaletteMigratesOnceButCustomPaletteDoesNot() {
+        val app: android.app.Application = RuntimeEnvironment.getApplication()
+        val preferences = app.getSharedPreferences("hermes_android_settings", android.content.Context.MODE_PRIVATE)
+        preferences.edit().clear()
+            .putString("theme_primary_hex", "#8C7BFF")
+            .putString("theme_secondary_hex", "#C6A15B")
+            .putString("theme_background_hex", "#090B10")
+            .putString("theme_surface_hex", "#11141C")
+            .putString("theme_surface_variant_hex", "#1B202B")
+            .commit()
+        val store = AppSettingsStore(app)
+        store.invalidateCache()
+
+        assertEquals(AppSettings.DEFAULT_THEME_PRIMARY_HEX, store.load().themePrimaryHex)
+        assertEquals(AppSettings.DEFAULT_THEME_BACKGROUND_HEX, store.load().themeBackgroundHex)
+
+        store.save(store.load().copy(themePrimaryHex = "#123456"))
+        store.invalidateCache()
+        assertEquals("#123456", store.load().themePrimaryHex)
+    }
+
+    @Test
     fun offlineAirplaneModeAndPortalEnabledPersist() {
         val store = AppSettingsStore(RuntimeEnvironment.getApplication())
         store.save(AppSettings())
@@ -152,6 +174,7 @@ class AppSettingsStorePersistenceTest {
                 localModelTopP = 9.5f,
                 localModelTemperature = -1.0f,
                 localModelAccelerator = "tpu",
+                localModelToolMode = "large",
                 apiGenerationKnobsEnabled = true,
             )
         )
@@ -162,6 +185,15 @@ class AppSettingsStorePersistenceTest {
         assertEquals(AppSettings.MAX_LOCAL_MODEL_TOP_P, reloaded.localModelTopP, 0.0001f)
         assertEquals(AppSettings.MIN_LOCAL_MODEL_TEMPERATURE, reloaded.localModelTemperature, 0.0001f)
         assertEquals(AppSettings.DEFAULT_LOCAL_MODEL_ACCELERATOR, reloaded.localModelAccelerator)
+        assertEquals("large", reloaded.localModelToolMode)
         assertTrue(reloaded.apiGenerationKnobsEnabled)
+    }
+
+    @Test
+    fun localModelToolModeRejectsUnknownValues() {
+        val store = AppSettingsStore(RuntimeEnvironment.getApplication())
+        store.save(AppSettings(localModelToolMode = "unbounded"))
+
+        assertEquals(AppSettings.DEFAULT_LOCAL_MODEL_TOOL_MODE, store.load().localModelToolMode)
     }
 }

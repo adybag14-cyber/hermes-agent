@@ -26,6 +26,7 @@ import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.data.SecureSecretsStore
 import com.mobilefork.hermesagent.data.StoredConversationAttachment
 import com.mobilefork.hermesagent.data.StoredConversationMessage
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -311,7 +312,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val assistantMessageId = UUID.randomUUID().toString()
         val assistantPlaceholder = ChatUiMessage(assistantMessageId, "assistant", "", now + 1)
 
-        val sendJob = viewModelScope.launch(Dispatchers.IO) {
+        // Register the job before it can run. Without LAZY start, a stop tap immediately after
+        // send could arrive before activeSendJob was assigned, leaving the just-launched work
+        // alive and able to re-enter the sending state.
+        val sendJob = viewModelScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
             val directDiagnosticArguments = if (attachments.isEmpty()) directNativeDiagnosticArgumentsForPrompt(text) else null
             if (directDiagnosticArguments != null) {
                 persistMessages(sessionId, userMessage, assistantPlaceholder)
@@ -654,6 +658,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             if (activeSendJob === sendJob) activeSendJob = null
             activeSseClient = null
         }
+        sendJob.start()
     }
 
     private fun tryNonStreamingEndpointFallback(
