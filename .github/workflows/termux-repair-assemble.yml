@@ -3,9 +3,9 @@ name: Assemble verified Termux repair
 on:
   push:
     branches:
-      - fix/termux-native-install-chain
+      - codex/termux-five-goals
     paths:
-      - .termux-repair/READY
+      - .github/workflows/termux-repair-assemble.yml
 
 permissions:
   contents: write
@@ -18,6 +18,8 @@ jobs:
       - name: Check out repair branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
+          repository: adybag14-cyber/hermes-agent
+          ref: fix/termux-native-install-chain
           fetch-depth: 0
 
       - name: Restore installer and apply minimal native-Termux dispatch
