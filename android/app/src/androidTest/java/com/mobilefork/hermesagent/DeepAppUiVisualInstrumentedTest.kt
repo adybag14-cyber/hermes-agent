@@ -9,6 +9,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -47,7 +48,6 @@ import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsSection
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsViewModel
-import com.mobilefork.hermesagent.ui.settings.SettingsPage
 import com.mobilefork.hermesagent.ui.settings.settingsGenerationText
 import com.mobilefork.hermesagent.ui.shell.AppSection
 import com.mobilefork.hermesagent.ui.shell.AppShellScreen
@@ -241,13 +241,13 @@ class DeepAppUiVisualInstrumentedTest {
                 composeRule.onAllNodesWithText(expected.appLanguageTitle).fetchSemanticsNodes().isNotEmpty()
             }
 
-            composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
             // The same LazyColumn survives the Overview -> Models page swap and retains its
-            // prior offset. At compact widths, the descendant search can skip an uncomposed
-            // model-config card, so materialize the fixed Models-page config item directly.
-            composeRule.waitUntil(timeoutMillis = 5_000) {
-                composeRule.onAllNodesWithText(SettingsPage.Models.route).fetchSemanticsNodes().isNotEmpty()
-            }
+            // prior offset. Recompose the visible page navigation first, confirm Models is
+            // selected, then materialize the fixed Models-page config item directly.
+            composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(0)
+            composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
+            composeRule.waitForIdle()
+            composeRule.onNodeWithTag("HermesSettingsPage_Models").assertIsNotEnabled()
             composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(2)
             composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").fetchSemanticsNode()
             composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").performClick()
