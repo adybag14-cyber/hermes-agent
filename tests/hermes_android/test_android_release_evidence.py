@@ -533,14 +533,13 @@ def _raw_performance(profile: str, performance: dict) -> dict:
                 ],
             ),
             _command(
-                "measure.gfx.framestats.01",
+                "measure.gfx.summary.01",
                 [
                     *targeted,
                     "shell",
                     "dumpsys",
                     "gfxinfo",
                     "com.mobilefork.hermesagent",
-                    "framestats",
                 ],
                 "** Graphics info for pid 8123 [com.mobilefork.hermesagent] **\n"
                 "Total frames rendered: 120\n"
@@ -1729,7 +1728,7 @@ def test_raw_fixture_binds_gfx_memory_and_final_pid_to_warm_process():
         "topResumedActivity="
     )
     assert "Graphics info for pid 8123 [com.mobilefork.hermesagent]" in by_id[
-        "measure.gfx.framestats.01"
+        "measure.gfx.summary.01"
     ]["stdout"]
     assert "MEMINFO in pid 8123 [com.mobilefork.hermesagent]" in by_id[
         "measure.memory.meminfo"
@@ -1748,13 +1747,13 @@ def test_raw_fixture_binds_gfx_memory_and_final_pid_to_warm_process():
     ("record_id", "old", "new", "message"),
     [
         (
-            "measure.gfx.framestats.01",
+            "measure.gfx.summary.01",
             "** Graphics info for pid 8123 [com.mobilefork.hermesagent] **\n",
             "",
             "process header",
         ),
         (
-            "measure.gfx.framestats.01",
+            "measure.gfx.summary.01",
             "Graphics info for pid 8123",
             "Graphics info for pid 8124",
             "process header",
@@ -1798,17 +1797,17 @@ def test_raw_measurement_rejects_missing_or_mismatched_process_identity(
     ("record_id", "duplicate", "message"),
     [
         (
-            "measure.gfx.framestats.01",
+            "measure.gfx.summary.01",
             "** Graphics info for pid 8123 [com.mobilefork.hermesagent] **\n",
             "process header",
         ),
         (
-            "measure.gfx.framestats.01",
+            "measure.gfx.summary.01",
             "Total frames rendered: 121\n",
             "one unambiguous Total frames rendered",
         ),
         (
-            "measure.gfx.framestats.01",
+            "measure.gfx.summary.01",
             "Janky frames: 7 (5.83%)\n",
             "one unambiguous janky-frame summary",
         ),
@@ -1838,7 +1837,7 @@ def test_raw_measurement_rejects_duplicate_headers_or_metrics(
         evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
 
 
-def test_raw_measurement_accepts_android_framestats_duplicate_summary(
+def test_raw_measurement_accepts_android_duplicate_summary(
     evidence_root, evidence_module, artifacts
 ):
     _write_fixture(evidence_root, evidence_module, artifacts)
@@ -1853,7 +1852,7 @@ def test_raw_measurement_accepts_android_framestats_duplicate_summary(
 
     def mutate(raw):
         record = next(
-            item for item in raw["records"] if item["id"] == "measure.gfx.framestats.01"
+            item for item in raw["records"] if item["id"] == "measure.gfx.summary.01"
         )
         record["stdout"] += summary
 

@@ -1624,7 +1624,7 @@ def _validate_raw_performance(
         raise EvidenceError(f"{context} contains no gfxinfo exercise records")
     swipe_index = 1
     round_index = 1
-    framestats_ids: list[str] = []
+    summary_ids: list[str] = []
     swipe_ordinal_in_round: dict[str, int] = {}
     cursor = 0
     while cursor < len(dynamic):
@@ -1639,10 +1639,10 @@ def _validate_raw_performance(
             cursor += 1
         if swipes_this_round == 0:
             raise EvidenceError(f"{context} each gfxinfo round must exercise the UI")
-        expected_framestats = f"measure.gfx.framestats.{round_index:02d}"
-        if cursor >= len(dynamic) or dynamic[cursor] != expected_framestats:
-            raise EvidenceError(f"{context} each exercise round must end in one framestats dump")
-        framestats_ids.append(expected_framestats)
+        expected_summary = f"measure.gfx.summary.{round_index:02d}"
+        if cursor >= len(dynamic) or dynamic[cursor] != expected_summary:
+            raise EvidenceError(f"{context} each exercise round must end in one gfxinfo summary")
+        summary_ids.append(expected_summary)
         round_index += 1
         cursor += 1
 
@@ -2061,10 +2061,8 @@ def _validate_raw_performance(
             raise EvidenceError(f"{context}.{record_id} has an invalid swipe duration")
 
     observed_frames: list[dict[str, int | float]] = []
-    for record_id in framestats_ids:
-        record = adb_command(
-            record_id, "shell", "dumpsys", "gfxinfo", PACKAGE_ID, "framestats"
-        )
+    for record_id in summary_ids:
+        record = adb_command(record_id, "shell", "dumpsys", "gfxinfo", PACKAGE_ID)
         raw_gfxinfo = _raw_stdout(record, context)
         _raw_require_process_header(
             raw_gfxinfo,
@@ -2075,12 +2073,12 @@ def _validate_raw_performance(
         observed_frames.append(_raw_parse_gfxinfo(raw_gfxinfo, f"{context}.{record_id}"))
     totals = [record["total_rendered"] for record in observed_frames]
     if totals != sorted(totals) or any(total >= 100 for total in totals[:-1]) or totals[-1] < 100:
-        raise EvidenceError(f"{context} framestats rounds do not stop at the first >=100-frame dump")
-    if collector.get("gfxinfo_exercise_rounds") != len(framestats_ids):
+        raise EvidenceError(f"{context} gfxinfo rounds do not stop at the first >=100-frame dump")
+    if collector.get("gfxinfo_exercise_rounds") != len(summary_ids):
         raise EvidenceError(f"{context} gfxinfo round count disagrees with normalized collector data")
     normalized_frames = _nested_object(normalized, "frames", f"performance[{profile}]")
     if any(normalized_frames.get(field) != value for field, value in observed_frames[-1].items()):
-        raise EvidenceError(f"{context} raw framestats disagree with normalized frame metrics")
+        raise EvidenceError(f"{context} raw gfxinfo summary disagrees with normalized frame metrics")
 
     foreground_after = adb_command(
         "measure.activity.after_gfx",
