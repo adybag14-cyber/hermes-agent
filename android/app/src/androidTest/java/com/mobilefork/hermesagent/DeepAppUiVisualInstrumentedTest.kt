@@ -47,6 +47,7 @@ import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsSection
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsViewModel
+import com.mobilefork.hermesagent.ui.settings.SettingsPage
 import com.mobilefork.hermesagent.ui.settings.settingsGenerationText
 import com.mobilefork.hermesagent.ui.shell.AppSection
 import com.mobilefork.hermesagent.ui.shell.AppShellScreen
@@ -244,6 +245,9 @@ class DeepAppUiVisualInstrumentedTest {
             // The same LazyColumn survives the Overview -> Models page swap and retains its
             // prior offset. At compact widths, the descendant search can skip an uncomposed
             // model-config card, so materialize the fixed Models-page config item directly.
+            composeRule.waitUntil(timeoutMillis = 5_000) {
+                composeRule.onAllNodesWithText(SettingsPage.Models.route).fetchSemanticsNodes().isNotEmpty()
+            }
             composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(2)
             composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").fetchSemanticsNode()
             composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").performClick()
