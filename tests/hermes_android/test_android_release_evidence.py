@@ -697,7 +697,7 @@ def _write_fixture(root: Path, evidence_module, artifacts) -> None:
                         (
                             "Tag: 'HermesPersistentNavigation'\n"
                             if profile == "tablet"
-                            else "Tag: 'HermesChatDrawerButton'\n"
+                            else "Tag: 'HermesShellDrawerButton'\n"
                         )
                         + "Tag: 'HermesDevicePageNavigation'\n"
                         + f"Text = '[{evidence_module.LOCALIZED_DEVICE_OVERVIEW[language]}]'\n"
@@ -1920,14 +1920,16 @@ def test_reused_untranslated_ui_capture_is_rejected(evidence_root, evidence_modu
         evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
 
 
-def test_phone_ui_requires_the_live_chat_drawer_tag(evidence_root, evidence_module, artifacts):
+def test_phone_ui_requires_the_live_device_shell_drawer_tag(
+    evidence_root, evidence_module, artifacts
+):
     _write_fixture(evidence_root, evidence_module, artifacts)
     for language in evidence_module.LANGUAGES:
         semantics = evidence_root / "ui" / "phone-compact" / language / "semantics.txt"
         semantics.write_text(
             semantics.read_text(encoding="utf-8").replace(
-                "Tag: 'HermesChatDrawerButton'",
                 "Tag: 'HermesShellDrawerButton'",
+                "Tag: 'HermesChatDrawerButton'",
             ),
             encoding="utf-8",
         )
