@@ -17,12 +17,18 @@ import java.security.MessageDigest
  */
 object HermesTermuxDebExtractor {
     private const val TERMUX_PREFIX = "/data/data/com.termux/files/usr"
+    private val ELF_MAGIC = byteArrayOf(0x7f, 0x45, 0x4c, 0x46)
     private val SHEBANG_PREFIX_RE =
         Regex("^#!" + Regex.escape(TERMUX_PREFIX) + "/bin/([^\\n\\r/]+)")
 
     data class ExtractResult(
         val files: List<String>,
         val links: List<Pair<String, String>>,
+    )
+
+    data class PackageInspection(
+        val files: List<String>,
+        val nativeCodeFiles: List<String>,
     )
 
     fun sha256Hex(payload: ByteArray): String {
@@ -40,6 +46,37 @@ object HermesTermuxDebExtractor {
     fun extractDebToPrefix(debBytes: ByteArray, prefixDir: File): ExtractResult {
         val (dataBytes, memberName) = loadDataTarBytesFromDeb(debBytes)
         return extractDataTarToPrefix(dataBytes, memberName, prefixDir)
+    }
+
+    /** Inspect a .deb without writing any package payload into the live prefix. */
+    fun inspectDeb(debBytes: ByteArray): PackageInspection {
+        val (dataBytes, memberName) = loadDataTarBytesFromDeb(debBytes)
+        val files = mutableListOf<String>()
+        val nativeCodeFiles = mutableListOf<String>()
+        openDataTar(dataBytes, memberName).use { tar ->
+            var entry: TarArchiveEntry? = tar.nextEntry
+            while (entry != null) {
+                val relative = archiveTermuxRelative(entry.name)
+                if (relative != null && relative.isNotEmpty() && entry.isFile) {
+                    files.add(relative)
+                    if (streamStartsWithElfMagic(tar)) {
+                        nativeCodeFiles.add(relative)
+                    }
+                }
+                entry = tar.nextEntry
+            }
+        }
+        return PackageInspection(
+            files = files.distinct().sorted(),
+            nativeCodeFiles = nativeCodeFiles.distinct().sorted(),
+        )
+    }
+
+    fun isElfFile(file: File): Boolean {
+        if (!file.isFile || file.length() < ELF_MAGIC.size) return false
+        return runCatching {
+            file.inputStream().use(::streamStartsWithElfMagic)
+        }.getOrDefault(false)
     }
 
     fun loadDataTarBytesFromDeb(payload: ByteArray): Pair<ByteArray, String> {
@@ -152,6 +189,18 @@ object HermesTermuxDebExtractor {
             else -> raw
         }
         return TarArchiveInputStream(decompressed)
+    }
+
+    private fun streamStartsWithElfMagic(input: InputStream): Boolean {
+        val header = ByteArray(ELF_MAGIC.size)
+        var offset = 0
+        while (offset < header.size) {
+            val read = input.read(header, offset, header.size - offset)
+            if (read < 0) break
+            if (read == 0) continue
+            offset += read
+        }
+        return offset == header.size && header.contentEquals(ELF_MAGIC)
     }
 
     private fun normalizeTextShebang(content: ByteArray): ByteArray {

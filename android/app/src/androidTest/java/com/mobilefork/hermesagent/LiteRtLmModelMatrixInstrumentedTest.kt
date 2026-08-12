@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mobilefork.hermesagent.backend.LiteRtLmOpenAiProxy
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
+import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -19,6 +20,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,14 +49,36 @@ class LiteRtLmModelMatrixInstrumentedTest {
         val args = InstrumentationRegistry.getArguments()
         val modelId = args.getString("model_id", DEFAULT_MODEL_ID)
         val modelFileName = args.getString("model_file_name", DEFAULT_MODEL_FILE_NAME)
-        val expectedBytes = args.getString("model_bytes", DEFAULT_MODEL_BYTES.toString()).toLong()
+        val matrixArtifact = VerifiedLocalModelArtifacts.findByFileName(modelFileName)
+        val expectedBytes = args.getString(
+            "model_bytes",
+            (matrixArtifact?.expectedBytes ?: DEFAULT_MODEL_BYTES).toString(),
+        ).toLong()
+        val expectedSha256 = args.getString("model_sha256", matrixArtifact?.sha256.orEmpty())
+        val requireModel = args.getString("require_model", "false").toBoolean()
         val modelFile = provisionedModelFile(args.getString("model_path", ""), modelFileName)
 
+        if (!modelFile.isFile && requireModel) {
+            fail("Required LiteRT-LM model is not provisioned at ${modelFile.absolutePath}")
+        }
         assumeTrue("LiteRT-LM model is not provisioned at ${modelFile.absolutePath}", modelFile.isFile)
         if (expectedBytes > 0L) {
             assertEquals("$modelId LiteRT-LM model size", expectedBytes, modelFile.length())
         }
+        val actualSha256 = if (expectedSha256.isNotBlank()) {
+            VerifiedLocalModelArtifacts.sha256(modelFile)
+        } else {
+            ""
+        }
+        if (actualSha256.isNotBlank()) {
+            assertEquals(
+                "$modelId LiteRT-LM SHA-256",
+                expectedSha256.lowercase(),
+                actualSha256,
+            )
+        }
 
+        val startedAt = System.nanoTime()
         val status = LiteRtLmOpenAiProxy.ensureRunning(
             context = context,
             modelPath = modelFile.absolutePath,
@@ -62,6 +86,8 @@ class LiteRtLmModelMatrixInstrumentedTest {
             port = OnDeviceBackendManager.LITERT_LM_PORT,
         )
         assertTrue(status.statusMessage, status.started)
+        assertTrue("LiteRT-LM must not report ready before a nonblank startup completion", status.completionVerified)
+        assertTrue("Expected measured startup completion latency", status.completionLatencyMs > 0L)
 
         val health = executeJson(
             Request.Builder()
@@ -71,6 +97,10 @@ class LiteRtLmModelMatrixInstrumentedTest {
         )
         assertEquals(health.toString(), "ok", health.optString("status"))
         assertEquals(health.toString(), "litert-lm", health.optString("backend"))
+        assertTrue(health.toString(), health.optString("accelerator") in setOf("cpu", "gpu"))
+        assertTrue(health.toString(), (health.optJSONArray("accelerator_attempts")?.length() ?: 0) > 0)
+        assertTrue(health.toString(), health.optBoolean("completion_verified", false))
+        assertTrue(health.toString(), health.optLong("completion_latency_ms", 0L) > 0L)
 
         val completion = executeJson(
             Request.Builder()
@@ -84,6 +114,47 @@ class LiteRtLmModelMatrixInstrumentedTest {
             .getJSONObject("message")
             .optString("content")
         assertFalse(completion.toString(), content.isBlank())
+        val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
+        assertTrue("Expected positive runtime elapsed time", elapsedMs > 0L)
+        val evidenceFile = ModelMatrixEvidence.emit(
+            context,
+            ModelMatrixEvidence.Record(
+                backend = "litert-lm",
+                instrumentationMethod =
+                    "LiteRtLmModelMatrixInstrumentedTest#provisionedLiteRtLmModelLoadsAndAnswersLocally",
+                modelId = modelId,
+                publisherRepository = args.getString("model_repo", matrixArtifact?.repoId.orEmpty()),
+                publisherRevision = args.getString("model_revision", matrixArtifact?.revision.orEmpty()),
+                fileName = modelFileName,
+                devicePath = modelFile.absolutePath,
+                publisherExpectedBytes = expectedBytes,
+                deviceVisibleBytes = modelFile.length(),
+                expectedSha256 = expectedSha256,
+                deviceSha256 = actualSha256,
+                runtimeStarted = status.started,
+                healthOk = health.optString("status") == "ok",
+                completionNonEmpty = content.isNotBlank(),
+                elapsedMs = elapsedMs,
+                accelerator = health.optString("accelerator"),
+                statusMessage = status.statusMessage,
+                details = JSONObject()
+                    .put("health_backend", health.optString("backend"))
+                    .put("accelerator_attempts", health.optJSONArray("accelerator_attempts") ?: JSONArray())
+                    .put("completion_characters", content.length)
+                    .put("artifact_summary", status.artifactSummary),
+            ),
+        )
+        assertTrue("Expected durable LiteRT-LM evidence at ${evidenceFile.absolutePath}", evidenceFile.isFile)
+    }
+
+    @Test
+    fun releaseMatrixContainsContentAddressedLiteRtArtifacts() {
+        val liteRt = VerifiedLocalModelArtifacts.releaseMatrix.filter { it.runtime == "litert-lm" }
+
+        assertTrue("Expected at least one content-addressed LiteRT-LM artifact", liteRt.isNotEmpty())
+        assertTrue(liteRt.all { it.expectedBytes > 1_000_000_000L })
+        assertTrue(liteRt.all { it.sha256.matches(Regex("[0-9a-f]{64}")) })
+        assertTrue(liteRt.all { it.remoteManifestMatches })
     }
 
     @Test

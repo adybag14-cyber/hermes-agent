@@ -201,7 +201,10 @@ class HermesSseClient(
         val type = root.optString("type")
         when (type) {
             "response.output_text.delta", "response.refusal.delta" -> {
-                return StreamEvent(delta = root.optString("delta").ifBlank { null }, finishReason = null)
+                return StreamEvent(
+                    delta = root.optString("delta").takeIf { it.isNotEmpty() },
+                    finishReason = null,
+                )
             }
             "response.completed" -> {
                 return StreamEvent(delta = null, finishReason = "stop")
@@ -225,7 +228,9 @@ class HermesSseClient(
         val choice = choices.optJSONObject(0) ?: return StreamEvent(delta = null, finishReason = null)
         val delta = choice.optJSONObject("delta")
         return StreamEvent(
-            delta = delta?.optString("content")?.ifBlank { null },
+            // Whitespace-only chunks are meaningful in streamed prose: providers
+            // commonly emit paragraph separators as their own "\n\n" delta.
+            delta = delta?.optString("content")?.takeIf { it.isNotEmpty() },
             finishReason = choice.optString("finish_reason").ifBlank { null },
         )
     }

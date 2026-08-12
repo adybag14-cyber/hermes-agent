@@ -26,6 +26,7 @@ import android.widget.Toast
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.data.AuthSessionStore
 import com.mobilefork.hermesagent.data.HermesNetworkPolicy
+import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
 
 @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 class HermesProviderSetupWebActivity : Activity() {
@@ -34,17 +35,20 @@ class HermesProviderSetupWebActivity : Activity() {
     private lateinit var titleText: TextView
     private lateinit var progressBar: ProgressBar
     private var fallbackShown = false
-    private var setupPageTitle = "Provider setup"
+    private var setupPageTitle = ""
+    private val palette by lazy { hermesViewPalette(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val requestedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
-        val requestedTitle = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "Provider setup" }
+        val requestedTitle = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank {
+            getString(R.string.hermes_provider_setup_title)
+        }
         setupPageTitle = requestedTitle
         setupUri = Uri.parse(requestedUrl)
         if (!canOpen(setupUri)) {
-            showFallback(requestedTitle, requestedUrl, "Provider setup URL must start with https:// or http://")
+            showFallback(requestedTitle, requestedUrl, getString(R.string.hermes_provider_setup_invalid_url))
             return
         }
         if (HermesNetworkPolicy.isExternalNetworkBlocked(this, requestedUrl)) {
@@ -72,14 +76,14 @@ class HermesProviderSetupWebActivity : Activity() {
     private fun buildViewer(pageTitle: String, url: String) {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(getColor(R.color.hermes_background))
+            setBackgroundColor(palette.background)
             setPadding(0, statusBarInsetPx(), 0, 0)
         }
 
         titleText = TextView(this).apply {
             text = pageTitle
             textSize = 18f
-            setTextColor(getColor(R.color.hermes_on_background))
+            setTextColor(palette.onBackground)
             setSingleLine(true)
             ellipsize = TextUtils.TruncateAt.END
             setPadding(20, 16, 20, 4)
@@ -90,10 +94,10 @@ class HermesProviderSetupWebActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             setPadding(12, 4, 12, 12)
         }
-        toolbar.addView(toolbarButton("Back") { webView?.takeIf { it.canGoBack() }?.goBack() ?: finish() })
-        toolbar.addView(toolbarButton("Browser") { openExternal(currentUrl()) })
-        toolbar.addView(toolbarButton("Copy") { copyToClipboard(currentUrl()) })
-        toolbar.addView(toolbarButton("Close") { finish() })
+        toolbar.addView(toolbarButton(getString(R.string.hermes_provider_setup_back)) { webView?.takeIf { it.canGoBack() }?.goBack() ?: finish() })
+        toolbar.addView(toolbarButton(getString(R.string.hermes_provider_setup_browser)) { openExternal(currentUrl()) })
+        toolbar.addView(toolbarButton(getString(R.string.hermes_provider_setup_copy)) { copyToClipboard(currentUrl()) })
+        toolbar.addView(toolbarButton(getString(R.string.hermes_provider_setup_close)) { finish() })
         root.addView(toolbar, fullWidthWrapParams())
 
         progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
@@ -218,22 +222,22 @@ class HermesProviderSetupWebActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(28, 28 + statusBarInsetPx(), 28, 28)
-            setBackgroundColor(getColor(R.color.hermes_background))
+            setBackgroundColor(palette.background)
         }
         root.addView(TextView(this).apply {
             text = pageTitle
             textSize = 22f
-            setTextColor(getColor(R.color.hermes_on_background))
+            setTextColor(palette.onBackground)
         }, fullWidthWrapParams())
         root.addView(TextView(this).apply {
             text = "$message\n\n$url"
             textSize = 16f
-            setTextColor(getColor(R.color.hermes_on_surface))
+            setTextColor(palette.onSurface)
             setPadding(0, 20, 0, 20)
         }, fullWidthWrapParams())
-        root.addView(toolbarButton("Open in browser") { openExternal(url) }, fullWidthWrapParams())
-        root.addView(toolbarButton("Copy URL") { copyToClipboard(url) }, fullWidthWrapParams())
-        root.addView(toolbarButton("Close") { finish() }, fullWidthWrapParams())
+        root.addView(toolbarButton(getString(R.string.hermes_provider_setup_open_browser)) { openExternal(url) }, fullWidthWrapParams())
+        root.addView(toolbarButton(getString(R.string.hermes_provider_setup_copy_url)) { copyToClipboard(url) }, fullWidthWrapParams())
+        root.addView(toolbarButton(getString(R.string.hermes_provider_setup_close)) { finish() }, fullWidthWrapParams())
         setContentView(root)
         if (url.isNotBlank()) {
             copyToClipboard(url, showToast = false)
@@ -249,7 +253,7 @@ class HermesProviderSetupWebActivity : Activity() {
         copyToClipboard(targetUrl, showToast = false)
         Toast.makeText(
             this,
-            "Setup page failed to load; URL copied.",
+            getString(R.string.hermes_provider_setup_load_failed_copied),
             Toast.LENGTH_LONG,
         ).show()
         showFallback(setupPageTitle, targetUrl, message)
@@ -258,8 +262,8 @@ class HermesProviderSetupWebActivity : Activity() {
     private fun toolbarButton(label: String, onClick: () -> Unit): Button {
         return Button(this).apply {
             text = label
-            setTextColor(getColor(R.color.hermes_on_primary))
-            setBackgroundColor(getColor(R.color.hermes_primary))
+            setTextColor(palette.onPrimary)
+            setBackgroundColor(palette.primary)
             setOnClickListener { onClick() }
         }
     }
@@ -304,9 +308,9 @@ class HermesProviderSetupWebActivity : Activity() {
             return
         }
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        clipboard?.setPrimaryClip(ClipData.newPlainText("Hermes provider setup URL", target))
+        clipboard?.setPrimaryClip(ClipData.newPlainText(getString(R.string.hermes_provider_setup_clipboard_label), target))
         if (showToast) {
-            Toast.makeText(this, "Provider setup URL copied.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.hermes_provider_setup_url_copied), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -321,12 +325,12 @@ class HermesProviderSetupWebActivity : Activity() {
         val result = HermesExternalBrowserLauncher.open(
             context = this,
             uri = targetUri,
-            title = "Open provider setup page",
+            title = getString(R.string.hermes_provider_setup_open_page),
             forceChooser = true,
         )
         if (!result.success) {
             copyToClipboard(url)
-            Toast.makeText(this, "No external browser opened; URL copied.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.hermes_provider_setup_no_browser_copied), Toast.LENGTH_LONG).show()
         }
     }
 
@@ -355,7 +359,7 @@ class HermesProviderSetupWebActivity : Activity() {
             return Intent(context, HermesProviderSetupWebActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 putExtra(EXTRA_URL, uri.toString())
-                putExtra(EXTRA_TITLE, title.ifBlank { "Provider setup" })
+                putExtra(EXTRA_TITLE, title.ifBlank { context.getString(R.string.hermes_provider_setup_title) })
             }
         }
 

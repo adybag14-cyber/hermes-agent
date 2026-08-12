@@ -103,30 +103,35 @@ data class DeviceUiState(
     val lastCrashPresent: Boolean = false,
     val resizableWindowSupport: Boolean = true,
     val freeformWindowSupported: Boolean = false,
-    val status: String = "",
+    val status: DeviceOperationStatus? = null,
 )
 
 class DeviceViewModel(application: Application) : AndroidViewModel(application) {
     private val capabilityStore = DeviceCapabilityStore(application)
 
-    private val _uiState = MutableStateFlow(buildState())
+    private val _uiState = MutableStateFlow(
+        buildState(DeviceOperationStatus.LinuxSuiteProvisioning),
+    )
     val uiState: StateFlow<DeviceUiState> = _uiState.asStateFlow()
 
     init {
         DeviceStateWriter.write(application)
         viewModelScope.launch(Dispatchers.IO) {
-            val status = runCatching {
+            val status: DeviceOperationStatus = runCatching {
                 HermesLinuxSubsystemBridge.ensureInstalled(application)
-                "Linux command suite ready for terminal/process"
+                DeviceOperationStatus.LinuxSuiteReady
             }.getOrElse { error ->
-                "Linux command suite provisioning failed: ${error.message ?: error.javaClass.simpleName}"
+                DeviceOperationStatus.LinuxSuiteFailed(
+                    stage = LinuxSuiteFailureStage.Provisioning,
+                    diagnosticDetail = deviceDiagnosticDetail(error),
+                )
             }
             DeviceStateWriter.write(application)
             _uiState.value = buildState(status)
         }
     }
 
-    fun refresh(status: String = _uiState.value.status) {
+    fun refresh(status: DeviceOperationStatus? = _uiState.value.status) {
         val context = getApplication<Application>()
         DeviceStateWriter.write(context)
         _uiState.value = buildState(status)
@@ -140,10 +145,13 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         val (resolvedDistroId, sandboxName) = resolveSandboxTarget(distroId)
         val context = getApplication<Application>()
         _uiState.value = _uiState.value.copy(
-            status = "Running Linux sandbox action: $action ($resolvedDistroId)…",
+            status = DeviceOperationStatus.SandboxRunning(
+                action = action,
+                distroId = resolvedDistroId,
+            ),
         )
         viewModelScope.launch(Dispatchers.IO) {
-            val status = runCatching {
+            val status: DeviceOperationStatus = runCatching {
                 HermesLinuxSubsystemBridge.ensureInstalled(context)
                 val result = HermesLinuxSandboxBridge.performAction(
                     context = context,
@@ -153,14 +161,18 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
                     mirrorProfile = mirrorProfile,
                     timeoutSeconds = 900,
                 )
-                formatSandboxActionMessage(
+                sandboxStatusFromResult(
                     action = action,
                     distroId = resolvedDistroId,
                     sandboxName = sandboxName,
                     result = result,
                 )
             }.getOrElse { error ->
-                "Linux sandbox action failed: ${error.message ?: error.javaClass.simpleName}"
+                DeviceOperationStatus.SandboxFailed(
+                    action = action,
+                    distroId = resolvedDistroId,
+                    diagnosticDetail = deviceDiagnosticDetail(error),
+                )
             }
             DeviceStateWriter.write(context)
             _uiState.value = buildState(status)
@@ -169,15 +181,21 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
 
     fun installLinuxSuite() {
         val context = getApplication<Application>()
-        _uiState.value = _uiState.value.copy(status = "Installing Linux command suite…")
+        _uiState.value = _uiState.value.copy(status = DeviceOperationStatus.LinuxSuiteInstalling)
         viewModelScope.launch(Dispatchers.IO) {
-            val status = runCatching {
+            val status: DeviceOperationStatus = runCatching {
                 val state = HermesLinuxSubsystemBridge.ensureInstalled(context)
                 val packageCount = state.optJSONArray("packages")?.length() ?: 0
                 val arch = state.optString("termux_arch").ifBlank { state.optString("android_abi") }
-                "Linux command suite ready ($arch, $packageCount packages)"
+                DeviceOperationStatus.LinuxSuiteInstalled(
+                    architecture = arch,
+                    packageCount = packageCount,
+                )
             }.getOrElse { error ->
-                "Linux command suite install failed: ${error.message ?: error.javaClass.simpleName}"
+                DeviceOperationStatus.LinuxSuiteFailed(
+                    stage = LinuxSuiteFailureStage.Installation,
+                    diagnosticDetail = deviceDiagnosticDetail(error),
+                )
             }
             DeviceStateWriter.write(context)
             _uiState.value = buildState(status)
@@ -186,26 +204,22 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
 
     fun performHostPkgAction(action: String, packages: List<String> = emptyList()) {
         val context = getApplication<Application>()
-        _uiState.value = _uiState.value.copy(status = "Host pkg: $action…")
+        _uiState.value = _uiState.value.copy(
+            status = DeviceOperationStatus.HostPackageRunning(action),
+        )
         viewModelScope.launch(Dispatchers.IO) {
-            val status = runCatching {
+            val status: DeviceOperationStatus = runCatching {
                 val result = HermesTermuxPackageManager.performAction(
                     context = context,
                     action = action,
                     packages = packages,
                 )
-                val message = result.optString("message")
-                    .ifBlank { result.optString("error") }
-                    .ifBlank { result.toString() }
-                val proot = result.optString("proot_version")
-                val pd = result.optString("proot_distro_version")
-                buildString {
-                    append(message)
-                    if (proot.isNotBlank()) append(" · proot $proot")
-                    if (pd.isNotBlank()) append(" · proot-distro $pd")
-                }
+                hostPackageStatusFromResult(action, result)
             }.getOrElse { error ->
-                "Host pkg failed: ${error.message ?: error.javaClass.simpleName}"
+                DeviceOperationStatus.HostPackageFailed(
+                    action = action,
+                    diagnosticDetail = deviceDiagnosticDetail(error),
+                )
             }
             DeviceStateWriter.write(context)
             _uiState.value = buildState(status)
@@ -226,9 +240,9 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
                         input.copyTo(output)
                     }
                 } ?: throw IOException("Unable to open the selected document")
-                refresh("Imported ${target.name} into the Hermes workspace")
+                refresh(DeviceOperationStatus.DocumentImported(target.name))
             }.getOrElse { error ->
-                refresh("Import failed: ${error.message ?: error.javaClass.simpleName}")
+                refresh(DeviceOperationStatus.ImportFailed(deviceDiagnosticDetail(error)))
             }
         }
     }
@@ -245,7 +259,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
             ?: uri.lastPathSegment?.takeIf { it.isNotBlank() }
             ?: "Granted folder"
         capabilityStore.saveSharedFolder(uri.toString(), label)
-        refresh("Saved shared folder access for $label")
+        refresh(DeviceOperationStatus.SharedFolderSaved(label))
     }
 
     fun clearSharedFolder() {
@@ -260,7 +274,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
         capabilityStore.clearSharedFolder()
-        refresh("Cleared shared folder permission")
+        refresh(DeviceOperationStatus.SharedFolderCleared)
     }
 
     fun exportWorkspaceFile(fileName: String, destinationUri: Uri) {
@@ -276,9 +290,9 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
                         input.copyTo(output)
                     }
                 } ?: throw IOException("Unable to open export destination")
-                refresh("Exported $fileName")
+                refresh(DeviceOperationStatus.WorkspaceFileExported(fileName))
             }.getOrElse { error ->
-                refresh("Export failed: ${error.message ?: error.javaClass.simpleName}")
+                refresh(DeviceOperationStatus.WorkspaceExportFailed(deviceDiagnosticDetail(error)))
             }
         }
     }
@@ -291,9 +305,9 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
                 context.contentResolver.openOutputStream(destinationUri)?.use { output ->
                     output.write(exportText.toByteArray(Charsets.UTF_8))
                 } ?: throw IOException("Unable to open diagnostics log export destination")
-                refresh("Exported diagnostics logs")
+                refresh(DeviceOperationStatus.DiagnosticsExported)
             }.getOrElse { error ->
-                refresh("Diagnostics log export failed: ${error.message ?: error.javaClass.simpleName}")
+                refresh(DeviceOperationStatus.DiagnosticsExportFailed(deviceDiagnosticDetail(error)))
             }
         }
     }
@@ -301,19 +315,17 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
     fun clearLastCrashDiagnostics() {
         val context = getApplication<Application>()
         HermesCrashLogStore.clearLastCrash(context)
-        refresh("Cleared last crash diagnostics")
+        refresh(DeviceOperationStatus.DiagnosticsCleared)
     }
 
     fun performGlobalAction(action: HermesGlobalAction) {
         val context = getApplication<Application>()
         val succeeded = HermesAccessibilityController.performAction(action)
         refresh(
-            if (succeeded) {
-                "Ran ${action.label.lowercase()}"
-            } else if (!HermesAccessibilityController.isServiceEnabled(context)) {
-                "Enable Hermes accessibility in Android settings first"
-            } else {
-                "Hermes accessibility is enabled but not connected yet"
+            when {
+                succeeded -> DeviceOperationStatus.AccessibilityActionCompleted(action)
+                !HermesAccessibilityController.isServiceEnabled(context) -> DeviceOperationStatus.AccessibilityEnableRequired
+                else -> DeviceOperationStatus.AccessibilityNotConnected
             },
         )
     }
@@ -321,7 +333,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
     fun performSystemAction(action: String) {
         val context = getApplication<Application>()
         val result = HermesSystemControlBridge.performAction(context, action)
-        refresh(result.message)
+        refresh(systemControlStatusFromResult(result))
     }
 
     fun setBackgroundPersistence(enabled: Boolean) {
@@ -332,7 +344,7 @@ class DeviceViewModel(application: Application) : AndroidViewModel(application) 
         performSystemAction(if (enabled) "start_floating_button" else "stop_floating_button")
     }
 
-    private fun buildState(status: String = ""): DeviceUiState {
+    private fun buildState(status: DeviceOperationStatus? = null): DeviceUiState {
         val context = getApplication<Application>()
         val sharedFolder = capabilityStore.load()
         val linuxState = HermesLinuxSubsystemBridge.readState(context)
@@ -504,37 +516,4 @@ internal fun resolveSandboxTarget(distroId: String): Pair<String, String> {
     val resolvedDistroId = distro?.optString("id")?.ifBlank { null } ?: distroId
     val sandboxName = distro?.optString("name")?.ifBlank { null } ?: "hermes-debian"
     return resolvedDistroId to sandboxName
-}
-
-internal fun formatSandboxActionMessage(
-    action: String,
-    distroId: String,
-    sandboxName: String,
-    result: JSONObject,
-): String {
-    val exitCode = result.optInt("exit_code", -1)
-    val base = result.optString("message")
-        .ifBlank { result.optString("error") }
-        .ifBlank { "Linux sandbox action '$action' finished" }
-    val detailParts = mutableListOf<String>()
-    detailParts += "exit_code=$exitCode"
-    detailParts += "distro=$distroId"
-    if (sandboxName.isNotBlank()) {
-        detailParts += "name=$sandboxName"
-    }
-    val install = result.optJSONObject("install_result")
-    if (install != null) {
-        val installErr = install.optString("error")
-            .ifBlank { install.optString("stderr") }
-            .ifBlank { install.optString("stdout") }
-            .trim()
-        if (installErr.isNotBlank()) {
-            detailParts += "install=${installErr.take(240)}"
-        }
-    }
-    val stderr = result.optString("stderr").trim()
-    if (stderr.isNotBlank() && detailParts.none { it.startsWith("install=") }) {
-        detailParts += "stderr=${stderr.take(240)}"
-    }
-    return "$base (${detailParts.joinToString(", ")})"
 }

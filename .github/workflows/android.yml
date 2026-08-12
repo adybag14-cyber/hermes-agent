@@ -5,6 +5,7 @@ on:
     branches:
       - feat/termux-install-path
       - codex/termux-five-goals
+      - 'codex/android-v*'
   pull_request:
   workflow_dispatch:
     inputs:
@@ -25,21 +26,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Python 3.13 for Chaquopy
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.13'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
           # Skip emulator meta-package; debug assemble/unit tests only need
           # platform-tools, platforms, and build-tools.
@@ -47,14 +48,14 @@ jobs:
 
       - name: Install Python test dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[android,dev]' -c constraints-android.txt
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e '.[android,dev]' -c constraints-android.txt
 
       - name: Run Android-related Python tests
         run: |
-          python -m pytest \
+          bash scripts/run_tests.sh \
             tests/hermes_android \
-            tests/hermes_android/test_android_packaging.py \
             tests/gateway/test_api_server_toolset.py \
             tests/gateway/test_api_server_android_toolset.py \
             tests/tools/test_skills_sync.py \
@@ -80,7 +81,7 @@ jobs:
           ./gradlew :app:assembleDebug
 
       - name: Upload debug APK artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: hermes-agent-android-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
@@ -95,21 +96,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Set up Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Python 3.13 for Chaquopy
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.13'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
           packages: platform-tools platforms;android-35 build-tools;35.0.0
 
@@ -220,11 +221,12 @@ jobs:
           test -n "$apk"
           test "$(stat -c%s "$apk")" -le 167772160
           unzip -p "$apk" assets/adi-registration.properties | grep -Fx "$PLAY_REGISTRATION_SNIPPET"
-          apksigner="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
+          apksigner="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          test -x "$apksigner"
           "$apksigner" verify --print-certs "$apk"
 
       - name: Upload signed Play verification APK
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: hermes-agent-play-verification-apk
           path: dist/play-verification/hermes-agent-play-verification.apk

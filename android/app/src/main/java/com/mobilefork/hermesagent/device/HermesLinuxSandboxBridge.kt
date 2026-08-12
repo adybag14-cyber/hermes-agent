@@ -654,11 +654,14 @@ object HermesLinuxSandboxBridge {
             .put("cwd", result.optString("cwd"))
             .put("shell", result.optString("shell"))
             .put("execution_mode", result.optString("execution_mode"))
+            .put("native_execution_route", result.optString("native_execution_route"))
             .put("uses_termux", result.optBoolean("uses_termux", state.optBoolean("uses_termux", false)))
         if (result.optInt("exit_code", -1) != 0) {
             output
                 .put("qemu_exit_code", qemuExitCode)
                 .put("qemu_error", qemuError)
+                .put("execution_denial_hint", result.optString("execution_denial_hint"))
+                .put("android_exec_policy", result.optString("android_exec_policy"))
         }
         return output
     }
@@ -1020,7 +1023,7 @@ object HermesLinuxSandboxBridge {
         }.getOrDefault("")
     }
 
-    private fun qemuPathForGuestArchitecture(state: JSONObject, guestArchitecture: String): String {
+    internal fun qemuPathForGuestArchitecture(state: JSONObject, guestArchitecture: String): String {
         val qemuName = when (normalizeArchitecture(guestArchitecture)) {
             "aarch64" -> "qemu-aarch64"
             "x86_64" -> "qemu-x86_64"
@@ -1029,9 +1032,26 @@ object HermesLinuxSandboxBridge {
         if (qemuName.isBlank()) {
             return ""
         }
+        val directQemu = File(state.optString("native_${qemuName.replace('-', '_')}_path"))
+        if (directQemu.isFile && directQemu.canExecute()) {
+            return directQemu.absolutePath
+        }
         val nativeBinPath = state.optString("native_bin_path")
         val nativeQemu = File(nativeBinPath, qemuName)
-        return nativeQemu.absolutePath.takeIf { nativeQemu.canExecute() }.orEmpty()
+        // Legacy state may not have direct fields yet. Accept only a shim which resolves
+        // outside the writable prefix; a downloaded app-data ELF would fail with 126.
+        val writablePrefix = File(state.optString("prefix_path"))
+        return nativeQemu.absolutePath.takeIf {
+            nativeQemu.canExecute() && runCatching {
+                !isInsideDirectory(nativeQemu.canonicalFile, writablePrefix.canonicalFile)
+            }.getOrDefault(false)
+        }.orEmpty()
+    }
+
+    internal fun isInsideDirectory(candidate: File, directory: File): Boolean {
+        val candidatePath = candidate.canonicalFile.path
+        val directoryPath = directory.canonicalFile.path.trimEnd(File.separatorChar)
+        return candidatePath == directoryPath || candidatePath.startsWith("$directoryPath${File.separator}")
     }
 
     private fun defaultAgentControl(): JSONObject {

@@ -21,6 +21,7 @@ import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ToolCall
 import com.google.ai.edge.litertlm.tool
 import com.mobilefork.hermesagent.device.HermesAndroidHardwareProfile
+import com.mobilefork.hermesagent.device.LocalModelRuntimeDiagnostics
 import fi.iki.elonen.NanoHTTPD
 import org.json.JSONArray
 import org.json.JSONObject
@@ -84,11 +85,98 @@ object LiteRtLmOpenAiProxy {
         val description: String,
     )
 
+    internal data class StartupCompletionCanary(
+        val content: String,
+        val elapsedMs: Long,
+    )
+
+    /**
+     * Testable boundary around LiteRT-LM's final Engine class. Engine
+     * initialization alone is not readiness: every candidate must also produce
+     * nonblank model text before it can be selected or exposed over HTTP.
+     */
+    internal interface StartupEngineCandidate {
+        fun initialize()
+        fun completionCanary(timeoutMs: Long): StartupCompletionCanary
+        fun cancelCompletion()
+        fun close()
+    }
+
+    internal data class StartupEngineAttempt(
+        val label: String,
+        val create: () -> StartupEngineCandidate,
+    )
+
+    internal data class StartupEngineSelection(
+        val candidate: StartupEngineCandidate?,
+        val selectedLabel: String,
+        val completionLatencyMs: Long,
+        val attempts: List<String>,
+        val failure: Throwable?,
+    ) {
+        val verified: Boolean
+            get() = candidate != null && selectedLabel.isNotBlank() && completionLatencyMs > 0L
+    }
+
     private const val DEFAULT_GENERATION_TIMEOUT_MS = 300_000L
     private const val MIN_GENERATION_TIMEOUT_MS = 5_000L
     private const val MAX_GENERATION_TIMEOUT_MS = 300_000L
     private const val MAX_DATA_URI_IMAGE_BYTES = 12 * 1024 * 1024
     private const val MAX_NORMALIZED_IMAGE_EDGE = 1024
+    private const val STARTUP_CANARY_TIMEOUT_MS = 150_000L
+
+    internal fun selectCompletionVerifiedEngine(
+        candidateAttempts: List<StartupEngineAttempt>,
+        timeoutMs: Long = STARTUP_CANARY_TIMEOUT_MS,
+    ): StartupEngineSelection {
+        require(timeoutMs > 0L) { "Startup completion timeout must be positive" }
+        val attemptLog = mutableListOf<String>()
+        var lastFailure: Throwable? = null
+        for (attempt in candidateAttempts) {
+            var candidate: StartupEngineCandidate? = null
+            try {
+                attemptLog += "${attempt.label}: starting"
+                candidate = attempt.create()
+                candidate.initialize()
+                val canary = candidate.completionCanary(timeoutMs)
+                require(canary.content.isNotBlank()) {
+                    "completion canary returned blank model content"
+                }
+                val elapsedMs = canary.elapsedMs.coerceAtLeast(1L)
+                attemptLog += "${attempt.label}: completion canary passed ($elapsedMs ms)"
+                return StartupEngineSelection(
+                    candidate = candidate,
+                    selectedLabel = attempt.label,
+                    completionLatencyMs = elapsedMs,
+                    attempts = attemptLog.toList(),
+                    failure = null,
+                )
+            } catch (error: Throwable) {
+                lastFailure = error
+                if (error is TimeoutException || error.cause is TimeoutException) {
+                    runCatching { candidate?.cancelCompletion() }
+                }
+                runCatching { candidate?.close() }
+                attemptLog += "${attempt.label}: failed (${startupFailureSummary(error)})"
+            }
+        }
+        return StartupEngineSelection(
+            candidate = null,
+            selectedLabel = "",
+            completionLatencyMs = 0L,
+            attempts = attemptLog.toList(),
+            failure = lastFailure ?: IllegalStateException("No LiteRT-LM engine candidates were available"),
+        )
+    }
+
+    private fun startupFailureSummary(error: Throwable): String {
+        return error.message
+            ?.lineSequence()
+            ?.firstOrNull { it.isNotBlank() }
+            ?.trim()
+            ?.take(180)
+            ?: error.javaClass.simpleName
+    }
 
     @Synchronized
     fun ensureRunning(
@@ -98,27 +186,9 @@ object LiteRtLmOpenAiProxy {
         port: Int,
         inferenceConfig: InferenceConfig = InferenceConfig(),
     ): LocalBackendStatus {
-        val current = server
-        val requestedRuntimeConfigKey = inferenceConfig.runtimeConfigKey()
-        if (
-            current != null &&
-            current.isAlive() &&
-            activeModelPath == modelPath &&
-            activeRuntimeConfigKey == requestedRuntimeConfigKey
-        ) {
-            return LocalBackendStatus(
-                backendKind = BackendKind.LITERT_LM,
-                started = true,
-                baseUrl = "http://127.0.0.1:$port/v1",
-                modelName = current.modelName,
-                sourceModelPath = modelPath,
-                statusMessage = "LiteRT-LM is serving locally through the in-app proxy",
-            )
-        }
-
-        stop()
         val artifactError = validateModelArtifact(modelPath)
         if (artifactError != null) {
+            stop()
             return LocalBackendStatus(
                 backendKind = BackendKind.LITERT_LM,
                 started = false,
@@ -126,33 +196,116 @@ object LiteRtLmOpenAiProxy {
                 statusMessage = artifactError,
             )
         }
+        val modelFile = File(modelPath)
+        val requestedRuntimeConfigKey = inferenceConfig.runtimeConfigKey()
+        val current = server
+        if (
+            current != null &&
+            current.isAlive() &&
+            activeModelPath == modelPath &&
+            activeRuntimeConfigKey == requestedRuntimeConfigKey
+        ) {
+            return statusFromHealth(
+                server = current,
+                modelPath = modelPath,
+                port = port,
+                preflightDetail = "Existing initialized runtime reused; no new native model allocation was requested.",
+            )
+        }
+        val memory = LocalModelRuntimeDiagnostics.captureMemory(context)
+        val requestedContext = inferenceConfig.maxContextLength
+        val preflight = LocalModelRuntimeDiagnostics.evaluatePreflight(
+            backend = "litert-lm",
+            modelBytes = modelFile.length(),
+            requestedContextTokens = requestedContext,
+            memory = memory,
+        )
+        val effectiveInferenceConfig = inferenceConfig.copy(
+            maxTokens = inferenceConfig.maxTokens
+                .takeIf { it > 0 }
+                ?.coerceAtMost(preflight.effectiveContextTokens)
+                ?: inferenceConfig.maxTokens,
+            maxContextLength = preflight.effectiveContextTokens,
+        )
+        stop()
+        val attemptId = LocalModelRuntimeDiagnostics.beginAttempt(
+            context = context,
+            backend = "litert-lm",
+            modelFile = modelFile,
+            requestedAccelerator = inferenceConfig.preferredAccelerator,
+            requestedContextTokens = requestedContext,
+            effectiveContextTokens = preflight.effectiveContextTokens,
+            memory = memory,
+            preflight = preflight,
+        )
+        if (!preflight.allowed) {
+            LocalModelRuntimeDiagnostics.finishAttempt(
+                context = context,
+                attemptId = attemptId,
+                status = "blocked",
+                stage = "memory_preflight",
+                detail = preflight.detail,
+            )
+            return LocalBackendStatus(
+                backendKind = BackendKind.LITERT_LM,
+                started = false,
+                sourceModelPath = modelPath,
+                artifactSummary = "${modelFile.name} (${modelFile.length()} bytes, LiteRT-LM header verified)",
+                statusMessage = "LiteRT-LM memory preflight blocked this model: ${preflight.detail}",
+            )
+        }
+        var candidateServer: LiteRtLmServer? = null
         return try {
             val newServer = LiteRtLmServer(
                 context = context.applicationContext,
                 modelPath = modelPath,
                 requestedModelName = requestedModelName,
                 port = port,
-                inferenceConfig = inferenceConfig,
+                inferenceConfig = effectiveInferenceConfig,
             )
+            candidateServer = newServer
             newServer.start(SOCKET_READ_TIMEOUT, false)
+            val status = statusFromHealth(
+                server = newServer,
+                modelPath = modelPath,
+                port = port,
+                preflightDetail = preflight.detail,
+            )
+            check(status.started && status.completionVerified) {
+                "LiteRT-LM startup did not retain a verified nonblank completion proof"
+            }
             server = newServer
             activeModelPath = modelPath
             activeRuntimeConfigKey = requestedRuntimeConfigKey
-            LocalBackendStatus(
-                backendKind = BackendKind.LITERT_LM,
-                started = true,
-                baseUrl = "http://127.0.0.1:$port/v1",
-                modelName = newServer.modelName,
-                sourceModelPath = modelPath,
-                statusMessage = "LiteRT-LM is serving locally through the in-app proxy",
+            LocalModelRuntimeDiagnostics.finishAttempt(
+                context = context,
+                attemptId = attemptId,
+                status = "ready",
+                stage = "completion_verified",
+                detail = status.statusMessage,
+                accelerator = status.accelerator,
+                acceleratorFallback = status.acceleratorFallback,
+                completionVerified = status.completionVerified,
+                completionLatencyMs = status.completionLatencyMs,
             )
+            status
         } catch (error: Throwable) {
+            runCatching { candidateServer?.shutdown() }
             stop()
+            val failure = actionableRuntimeFailure(error, "LiteRT-LM")
+            LocalModelRuntimeDiagnostics.finishAttempt(
+                context = context,
+                attemptId = attemptId,
+                status = "failed",
+                stage = "engine_initialization",
+                detail = failure,
+            )
             LocalBackendStatus(
                 backendKind = BackendKind.LITERT_LM,
                 started = false,
                 sourceModelPath = modelPath,
-                statusMessage = error.message ?: error.javaClass.simpleName,
+                artifactSummary = "${modelFile.name} (${modelFile.length()} bytes, LiteRT-LM header verified)",
+                statusMessage = failure,
             )
         }
     }
@@ -183,6 +336,54 @@ object LiteRtLmOpenAiProxy {
             preferredAccelerator,
             speculativeDecodingMode,
         ).joinToString("|")
+    }
+
+    private fun statusFromHealth(
+        server: LiteRtLmServer,
+        modelPath: String,
+        port: Int,
+        preflightDetail: String,
+    ): LocalBackendStatus {
+        val health = server.healthJson()
+        val accelerator = health.optString("accelerator")
+        val fallback = health.optString("accelerator_fallback_reason")
+        val completionVerified = health.optBoolean("completion_verified", false)
+        val fallbackLabel = fallback.takeIf { it.isNotBlank() }?.let { " CPU fallback: $it" }.orEmpty()
+        return LocalBackendStatus(
+            backendKind = BackendKind.LITERT_LM,
+            started = completionVerified,
+            baseUrl = "http://127.0.0.1:$port/v1",
+            modelName = server.modelName,
+            sourceModelPath = modelPath,
+            statusMessage = "LiteRT-LM engine initialized and completion-verified with ${accelerator.ifBlank { "unknown" }} acceleration. $preflightDetail$fallbackLabel",
+            accelerator = accelerator,
+            acceleratorFallback = fallback,
+            artifactSummary = "${File(modelPath).name} (${File(modelPath).length()} bytes, LiteRT-LM header verified)",
+            completionVerified = completionVerified,
+            completionLatencyMs = health.optLong("completion_latency_ms", 0L),
+        )
+    }
+
+    internal fun actionableRuntimeFailure(error: Throwable, runtimeLabel: String): String {
+        val chain = generateSequence(error as Throwable?) { it.cause }.take(12).toList()
+        val outOfMemory = chain.any { item ->
+            item is OutOfMemoryError || item.message.orEmpty().contains("out of memory", ignoreCase = true) ||
+                item.message.orEmpty().contains("allocate memory", ignoreCase = true)
+        }
+        val nativeFailure = chain.any { item ->
+            item.message.orEmpty().contains("native", ignoreCase = true) ||
+                item.message.orEmpty().contains("delegate", ignoreCase = true) ||
+                item.message.orEmpty().contains("context creation", ignoreCase = true)
+        }
+        val detail = chain.firstNotNullOfOrNull { item -> item.message?.lineSequence()?.firstOrNull { it.isNotBlank() } }
+            ?.trim()
+            ?.take(400)
+            ?: error.javaClass.simpleName
+        return when {
+            outOfMemory -> "$runtimeLabel could not start because native model allocation exhausted available memory: $detail. Close memory-heavy apps, reduce the context window, or choose a smaller model artifact. Android may record the process exit as low memory on the next launch."
+            nativeFailure -> "$runtimeLabel native runtime initialization failed: $detail. The requested accelerator may be unsupported for this artifact/device; review accelerator fallback diagnostics or choose CPU."
+            else -> "$runtimeLabel failed to start: $detail"
+        }
     }
 
     private fun validateModelArtifact(modelPath: String): String? {
@@ -230,6 +431,11 @@ object LiteRtLmOpenAiProxy {
         }
     }
 
+    internal fun responseText(message: Message): String = message.contents.contents
+        .filterIsInstance<Content.Text>()
+        .joinToString(separator = "") { it.text }
+        .trim()
+
     private class LiteRtLmServer(
         context: Context,
         modelPath: String,
@@ -252,6 +458,10 @@ object LiteRtLmOpenAiProxy {
             val gpuPolicy: GpuBackendPolicy,
             val maxNumTokens: Int?,
             val contextWindowPolicy: String,
+            val backendAttempts: List<String>,
+            val acceleratorFallbackReason: String,
+            val completionVerified: Boolean,
+            val completionLatencyMs: Long,
         )
 
         private val engineMaxNumTokens = resolveEngineMaxNumTokens(
@@ -331,6 +541,10 @@ object LiteRtLmOpenAiProxy {
                 put("soc_family", engineInitResult.gpuPolicy.socFamily)
                 put("gpu_family", engineInitResult.gpuPolicy.gpuFamily)
                 put("litert_backend_order", JSONArray(engineInitResult.gpuPolicy.backendOrder))
+                put("accelerator_attempts", JSONArray(engineInitResult.backendAttempts))
+                put("accelerator_fallback_reason", engineInitResult.acceleratorFallbackReason)
+                put("completion_verified", engineInitResult.completionVerified)
+                put("completion_latency_ms", engineInitResult.completionLatencyMs)
                 put("native_abi_strategy", engineInitResult.gpuPolicy.nativeAbiStrategy)
                 put("max_num_tokens", engineInitResult.maxNumTokens ?: JSONObject.NULL)
                 put("context_window_policy", engineInitResult.contextWindowPolicy)
@@ -360,6 +574,7 @@ object LiteRtLmOpenAiProxy {
             contextWindowPolicy: String,
         ): EngineInitResult {
             var lastError: Throwable? = null
+            val backendAttempts = mutableListOf<String>()
             val openClAvailable = hasLoadableOpenClLibrary()
             val gpuPolicy = gpuBackendPolicy(context, openClAvailable, preferredAccelerator)
             val speculativeDecoding = speculativeDecodingDecision(context, modelPath, speculativeDecodingMode)
@@ -378,11 +593,92 @@ object LiteRtLmOpenAiProxy {
                 listOf(Backend.CPU() to "cpu")
             }
 
+            data class CandidateMetadata(
+                val backendLabel: String,
+                val visionBackendLabel: String,
+                val mtpEnabled: Boolean,
+                val mtpPolicy: String,
+            )
+
+            class GoogleEngineCandidate(
+                private val mtpEnabled: Boolean,
+                private val engineConfig: EngineConfig,
+            ) : StartupEngineCandidate {
+                private var candidate: Engine? = null
+                private var activeConversation: Conversation? = null
+
+                override fun initialize() {
+                    ExperimentalFlags.enableSpeculativeDecoding = mtpEnabled
+                    try {
+                        candidate = Engine(engineConfig).also { it.initialize() }
+                    } finally {
+                        ExperimentalFlags.enableSpeculativeDecoding = false
+                    }
+                }
+
+                override fun completionCanary(timeoutMs: Long): StartupCompletionCanary {
+                    val engine = checkNotNull(candidate) { "LiteRT-LM engine was not initialized" }
+                    val conversation = engine.createConversation(
+                        ConversationConfig(
+                            samplerConfig = SamplerConfig(topK = 1, topP = 1.0, temperature = 0.0),
+                            maxOutputToken = 16,
+                        )
+                    )
+                    activeConversation = conversation
+                    val executor = Executors.newSingleThreadExecutor()
+                    val startedAt = System.nanoTime()
+                    return try {
+                        val future = executor.submit<Message> {
+                            conversation.sendMessage(Message.user("Reply with exactly one word: OK"))
+                        }
+                        val response = try {
+                            future.get(timeoutMs, TimeUnit.MILLISECONDS)
+                        } catch (timeout: TimeoutException) {
+                            future.cancel(true)
+                            cancelCompletion()
+                            throw TimeoutException(
+                                "completion canary timed out after ${timeoutMs / 1000.0} seconds"
+                            ).apply { initCause(timeout) }
+                        }
+                        StartupCompletionCanary(
+                            content = responseText(response),
+                            elapsedMs = TimeUnit.NANOSECONDS
+                                .toMillis(System.nanoTime() - startedAt)
+                                .coerceAtLeast(1L),
+                        )
+                    } finally {
+                        runCatching { conversation.cancelProcess() }
+                        runCatching { conversation.close() }
+                        activeConversation = null
+                        executor.shutdownNow()
+                    }
+                }
+
+                override fun cancelCompletion() {
+                    runCatching { activeConversation?.cancelProcess() }
+                }
+
+                override fun close() {
+                    cancelCompletion()
+                    runCatching { activeConversation?.close() }
+                    activeConversation = null
+                    runCatching { candidate?.close() }
+                    candidate = null
+                    ExperimentalFlags.enableSpeculativeDecoding = false
+                }
+
+                fun takeEngine(): Engine = checkNotNull(candidate) {
+                    "Completion-verified LiteRT-LM engine was unexpectedly absent"
+                }
+            }
+
             fun tryInitialize(
                 requestedSupportImage: Boolean,
                 requestedSupportAudio: Boolean,
                 modalityPolicy: String,
             ): EngineInitResult? {
+                val candidateMetadata = linkedMapOf<String, CandidateMetadata>()
+                val candidateAttempts = mutableListOf<StartupEngineAttempt>()
                 for ((backend, label) in backends) {
                     val visionBackend = when {
                         !requestedSupportImage -> null
@@ -397,17 +693,23 @@ object LiteRtLmOpenAiProxy {
                     val attempts = if (speculativeDecoding.enabled) {
                         listOf(
                             true to speculativeDecoding.policy,
-                            false to "disabled: Gemma 4 MTP failed during $label engine initialization; retried without MTP",
+                            false to "disabled: Gemma 4 MTP failed during $label startup completion proof; retried without MTP",
                         )
                     } else {
                         listOf(false to speculativeDecoding.policy)
                     }
                     for ((enableMtp, mtpPolicy) in attempts) {
-                        var candidate: Engine? = null
-                        try {
-                            ExperimentalFlags.enableSpeculativeDecoding = enableMtp
-                            candidate = Engine(
-                                EngineConfig(
+                        val attemptLabel = "$label/${if (enableMtp) "mtp" else "standard"}"
+                        candidateMetadata[attemptLabel] = CandidateMetadata(
+                            backendLabel = label,
+                            visionBackendLabel = visionBackendLabel,
+                            mtpEnabled = enableMtp,
+                            mtpPolicy = mtpPolicy,
+                        )
+                        candidateAttempts += StartupEngineAttempt(attemptLabel) {
+                            GoogleEngineCandidate(
+                                mtpEnabled = enableMtp,
+                                engineConfig = EngineConfig(
                                     modelPath = modelPath,
                                     backend = backend,
                                     visionBackend = visionBackend,
@@ -415,33 +717,44 @@ object LiteRtLmOpenAiProxy {
                                     maxNumImages = if (requestedSupportImage) 1 else null,
                                     maxNumTokens = maxNumTokens,
                                     cacheDir = context.cacheDir.absolutePath,
-                                )
+                                ),
                             )
-                            candidate.initialize()
-                            ExperimentalFlags.enableSpeculativeDecoding = false
-                            return EngineInitResult(
-                                engine = candidate,
-                                backend = label,
-                                visionBackend = visionBackendLabel,
-                                audioBackend = if (requestedSupportAudio) "cpu" else "none",
-                                supportsImageInput = requestedSupportImage,
-                                supportsAudioInput = requestedSupportAudio,
-                                modalityPolicy = modalityPolicy,
-                                speculativeDecoding = enableMtp,
-                                speculativeDecodingSupported = speculativeDecoding.supported,
-                                speculativeDecodingPolicy = mtpPolicy,
-                                gpuPolicy = gpuPolicy,
-                                maxNumTokens = maxNumTokens,
-                                contextWindowPolicy = contextWindowPolicy,
-                            )
-                        } catch (error: Throwable) {
-                            lastError = error
-                            ExperimentalFlags.enableSpeculativeDecoding = false
-                            kotlin.runCatching { candidate?.close() }
                         }
                     }
                 }
-                return null
+                val selection = selectCompletionVerifiedEngine(candidateAttempts)
+                backendAttempts += selection.attempts
+                lastError = selection.failure
+                if (!selection.verified) return null
+
+                val metadata = checkNotNull(candidateMetadata[selection.selectedLabel])
+                val selected = selection.candidate as GoogleEngineCandidate
+                val fallbackReason = if (metadata.backendLabel == "cpu") {
+                    backendAttempts
+                        .filter { it.startsWith("gpu/") && it.contains(": failed") }
+                        .joinToString("; ")
+                } else {
+                    ""
+                }
+                return EngineInitResult(
+                    engine = selected.takeEngine(),
+                    backend = metadata.backendLabel,
+                    visionBackend = metadata.visionBackendLabel,
+                    audioBackend = if (requestedSupportAudio) "cpu" else "none",
+                    supportsImageInput = requestedSupportImage,
+                    supportsAudioInput = requestedSupportAudio,
+                    modalityPolicy = modalityPolicy,
+                    speculativeDecoding = metadata.mtpEnabled,
+                    speculativeDecodingSupported = speculativeDecoding.supported,
+                    speculativeDecodingPolicy = metadata.mtpPolicy,
+                    gpuPolicy = gpuPolicy,
+                    maxNumTokens = maxNumTokens,
+                    contextWindowPolicy = contextWindowPolicy,
+                    backendAttempts = backendAttempts.toList(),
+                    acceleratorFallbackReason = fallbackReason,
+                    completionVerified = true,
+                    completionLatencyMs = selection.completionLatencyMs,
+                )
             }
 
             tryInitialize(
@@ -484,12 +797,16 @@ object LiteRtLmOpenAiProxy {
             requestedMaxTokens: Int,
             requestedMaxContextLength: Int,
         ): EngineTokenBudget {
+            val memory = LocalModelRuntimeDiagnostics.captureMemory(context)
             return decideEngineTokenBudget(
                 requestedMaxTokens = requestedMaxTokens,
                 requestedMaxContextLength = requestedMaxContextLength,
-                totalRamBytes = totalDeviceRamBytes(context),
+                totalRamBytes = memory.totalBytes,
                 modelBytes = runCatching { File(modelPath).length() }.getOrDefault(0L),
                 isX86Device = Build.SUPPORTED_ABIS.any { it.startsWith("x86") },
+                availableRamBytes = memory.availableBytes,
+                memoryThresholdBytes = memory.thresholdBytes,
+                lowMemory = memory.lowMemory,
             )
         }
 
@@ -785,7 +1102,7 @@ object LiteRtLmOpenAiProxy {
                     }
                 )
             }
-            val content = responseMessage.toString()
+            val content = responseText(responseMessage)
             val finishReason = finishReasonOverride ?: if (responseMessage.toolCalls.isNotEmpty()) "tool_calls" else "stop"
             return JSONObject().apply {
                 put("id", "chatcmpl-${UUID.randomUUID()}")
@@ -1276,6 +1593,9 @@ object LiteRtLmOpenAiProxy {
         totalRamBytes: Long,
         modelBytes: Long,
         isX86Device: Boolean,
+        availableRamBytes: Long = 0L,
+        memoryThresholdBytes: Long = 0L,
+        lowMemory: Boolean = false,
     ): EngineTokenBudget {
         val x86Limit = if (isX86Device) {
             x86LiteRtLmTokenBudget(totalRamBytes = totalRamBytes, modelBytes = modelBytes)
@@ -1304,7 +1624,13 @@ object LiteRtLmOpenAiProxy {
             )
         }
 
-        val safeLimit = memorySafeContextWindowLimit(totalRamBytes, modelBytes).coerceAtMost(x86Limit)
+        val safeLimit = memorySafeContextWindowLimit(
+            totalRamBytes = totalRamBytes,
+            modelBytes = modelBytes,
+            availableRamBytes = availableRamBytes,
+            memoryThresholdBytes = memoryThresholdBytes,
+            lowMemory = lowMemory,
+        ).coerceAtMost(x86Limit)
         val selected = requested.coerceAtMost(safeLimit)
         val totalRamGb = if (totalRamBytes > 0L) "${formatRamGb(totalRamBytes)}GB RAM" else "unknown RAM"
         return EngineTokenBudget(
@@ -1320,17 +1646,38 @@ object LiteRtLmOpenAiProxy {
         )
     }
 
-    private fun memorySafeContextWindowLimit(totalRamBytes: Long, modelBytes: Long): Int {
+    private fun memorySafeContextWindowLimit(
+        totalRamBytes: Long,
+        modelBytes: Long,
+        availableRamBytes: Long,
+        memoryThresholdBytes: Long,
+        lowMemory: Boolean,
+    ): Int {
+        if (lowMemory) return 512
+        val usableAvailableBytes = (availableRamBytes - memoryThresholdBytes).coerceAtLeast(0L)
+        if (availableRamBytes > 0L) {
+            return when {
+                modelBytes >= 6_000_000_000L && usableAvailableBytes < 14_000_000_000L -> 2_048
+                modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES && usableAvailableBytes < 4_000_000_000L -> 2_048
+                modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES && usableAvailableBytes < 8_000_000_000L -> 4_096
+                modelBytes >= LARGE_MULTIMODAL_MODEL_SIZE_FLOOR_BYTES && usableAvailableBytes < 5_000_000_000L -> 4_096
+                usableAvailableBytes < 2_000_000_000L -> 2_048
+                usableAvailableBytes < 5_000_000_000L -> 4_096
+                usableAvailableBytes < 10_000_000_000L -> 8_192
+                else -> 16_384
+            }
+        }
         if (totalRamBytes <= 0L) {
-            return if (modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES) 8_192 else 16_384
+            return if (modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES) 2_048 else 4_096
         }
         return when {
-            modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES && totalRamBytes < 12_000_000_000L -> 4_096
-            modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES && totalRamBytes < 16_000_000_000L -> 8_192
-            totalRamBytes < 6_000_000_000L -> 4_096
-            totalRamBytes < 10_000_000_000L -> 8_192
-            totalRamBytes < 14_000_000_000L -> 16_384
-            else -> 32_000
+            modelBytes >= 6_000_000_000L -> 2_048
+            modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES && totalRamBytes < 12_000_000_000L -> 2_048
+            modelBytes >= GEMMA4_E4B_SIZE_FLOOR_BYTES && totalRamBytes < 16_000_000_000L -> 4_096
+            totalRamBytes < 6_000_000_000L -> 2_048
+            totalRamBytes < 10_000_000_000L -> 4_096
+            totalRamBytes < 14_000_000_000L -> 8_192
+            else -> 16_384
         }
     }
 

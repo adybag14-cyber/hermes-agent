@@ -1,6 +1,5 @@
 package com.mobilefork.hermesagent.models
 
-import android.app.ActivityManager
 import android.app.DownloadManager
 import android.content.Context
 import android.net.ConnectivityManager
@@ -14,6 +13,7 @@ import com.mobilefork.hermesagent.data.HermesNetworkPolicy
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.device.HermesAndroidHardwareProfile
+import com.mobilefork.hermesagent.device.LocalModelRuntimeDiagnostics
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -33,6 +33,7 @@ data class ModelDownloadInspection(
     val supportsResume: Boolean,
     val abiSummary: String,
     val compatibilityHint: String,
+    val resolvedRevision: String = "",
 )
 
 data class ModelDownloadDraft(
@@ -94,6 +95,8 @@ object HermesModelDownloadManager {
     private data class ResolvedDownloadSource(
         val sourceUrl: String,
         val resolvedFilePath: String,
+        val resolvedRepoId: String = "",
+        val resolvedRevision: String = "",
         val compatibilityHint: String = "",
     )
 
@@ -193,18 +196,39 @@ object HermesModelDownloadManager {
         )
         val head = headProbe(resolvedSource.sourceUrl, hfToken)
         val totalBytes = head.contentLength.coerceAtLeast(0L)
-        val memoryInfo = ActivityManager.MemoryInfo()
-        (context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager).getMemoryInfo(memoryInfo)
-        val estimatedRuntimeBytes = if (draft.runtimeFlavor.equals("LiteRT-LM", ignoreCase = true) && totalBytes > 0L) {
-            totalBytes.saturatingMultiply(2L)
+        val verifiedArtifact = VerifiedLocalModelArtifacts.find(
+            repoOrUrl = resolvedSource.resolvedRepoId.ifBlank { draft.repoOrUrl },
+            filePathOrName = resolvedSource.resolvedFilePath,
+        )
+        if (
+            verifiedArtifact != null &&
+            totalBytes > 0L &&
+            totalBytes != verifiedArtifact.expectedBytes
+        ) {
+            throw IllegalArgumentException(
+                "Published artifact size changed for ${verifiedArtifact.repoId}/${verifiedArtifact.fileName}: " +
+                    "expected ${verifiedArtifact.expectedBytes} bytes, HEAD reported $totalBytes. " +
+                    "Refusing an unreviewed replacement; choose an exact revision or refresh the release matrix.",
+            )
+        }
+        val memory = LocalModelRuntimeDiagnostics.captureMemory(context)
+        val runtimeBackend = if (draft.runtimeFlavor.equals("LiteRT-LM", ignoreCase = true)) {
+            "litert-lm"
         } else {
-            totalBytes
+            "llama.cpp"
+        }
+        val preflight = totalBytes.takeIf { it > 0L }?.let { bytes ->
+            LocalModelRuntimeDiagnostics.evaluatePreflight(
+                backend = runtimeBackend,
+                modelBytes = bytes,
+                requestedContextTokens = -1,
+                memory = memory,
+            )
         }
         val ramWarning = when {
-            totalBytes > 0L && totalBytes > memoryInfo.totalMem ->
-                "Warning: this download is larger than your phone RAM. Downloading is allowed, but local inference may require a smaller quant or an external runtime."
-            estimatedRuntimeBytes > 0L && estimatedRuntimeBytes > memoryInfo.totalMem ->
-                "Warning: this LiteRT-LM file may need extra RAM and cache space while the native engine initializes. Downloading is allowed, but local inference may require a smaller quant or a higher-RAM device."
+            preflight != null && !preflight.allowed ->
+                "Not recommended on this device: ${preflight.detail} Downloading remains available, but Hermes will block unsafe runtime initialization."
+            preflight?.level == "warning" -> "Memory warning: ${preflight.detail}"
             else -> ""
         }
         val destinationName = destinationFileName(
@@ -218,12 +242,18 @@ object HermesModelDownloadManager {
             destinationFileName = destinationName,
             totalBytes = totalBytes,
             totalBytesLabel = if (totalBytes > 0) Formatter.formatShortFileSize(context, totalBytes) else "unknown size",
-            deviceRamBytes = memoryInfo.totalMem,
-            deviceRamLabel = Formatter.formatShortFileSize(context, memoryInfo.totalMem),
+            deviceRamBytes = memory.totalBytes,
+            deviceRamLabel = Formatter.formatShortFileSize(context, memory.totalBytes),
             ramWarning = ramWarning,
             supportsResume = head.acceptRanges,
             abiSummary = Build.SUPPORTED_ABIS.joinToString(),
-            compatibilityHint = resolvedSource.compatibilityHint,
+            compatibilityHint = listOf(
+                resolvedSource.compatibilityHint,
+                verifiedArtifact?.let {
+                    "Release-matrix artifact: ${it.expectedBytes} bytes, SHA-256 ${it.sha256}; runtime tests must verify the digest before certification."
+                }.orEmpty(),
+            ).filter { it.isNotBlank() }.joinToString(" · "),
+            resolvedRevision = resolvedSource.resolvedRevision,
         )
     }
 
@@ -314,7 +344,7 @@ object HermesModelDownloadManager {
             sourceUrl = inspection.sourceUrl,
             repoOrUrl = draft.repoOrUrl,
             filePath = draft.filePath,
-            revision = draft.revision,
+            revision = inspection.resolvedRevision.ifBlank { draft.revision },
             runtimeFlavor = draft.runtimeFlavor,
             destinationFileName = inspection.destinationFileName,
             destinationPath = targetFile.absolutePath,
@@ -536,9 +566,17 @@ object HermesModelDownloadManager {
                 explicitFilePath = explicitOrReferencedPath,
                 liteRtArtifactPreference = liteRtArtifactPreference,
             )
+            val pinnedRevision = pinnedArtifactRevision(
+                repoId = selection.repoId,
+                filePath = selection.filePath,
+                selectedRevision = selection.revision,
+                requestedRevision = resolvedRevision,
+            )
             return ResolvedDownloadSource(
-                sourceUrl = "$HUGGING_FACE_BASE/${selection.repoId}/resolve/${selection.revision}/${selection.filePath}?download=true",
+                sourceUrl = "$HUGGING_FACE_BASE/${selection.repoId}/resolve/$pinnedRevision/${selection.filePath}?download=true",
                 resolvedFilePath = selection.filePath,
+                resolvedRepoId = selection.repoId,
+                resolvedRevision = pinnedRevision,
                 compatibilityHint = selection.compatibilityHint,
             )
         }
@@ -546,6 +584,8 @@ object HermesModelDownloadManager {
             return ResolvedDownloadSource(
                 sourceUrl = trimmed,
                 resolvedFilePath = explicitFilePath,
+                resolvedRepoId = parseHuggingFaceReference(trimmed)?.repoId.orEmpty(),
+                resolvedRevision = parseHuggingFaceReference(trimmed)?.revision.orEmpty(),
                 compatibilityHint = compatibilityHintForFile(explicitFilePath.ifBlank { trimmed }, draft.runtimeFlavor, explicitSelection = true),
             )
         }
@@ -560,9 +600,17 @@ object HermesModelDownloadManager {
             explicitFilePath = explicitFilePath,
             liteRtArtifactPreference = liteRtArtifactPreference,
         )
+        val pinnedRevision = pinnedArtifactRevision(
+            repoId = selection.repoId,
+            filePath = selection.filePath,
+            selectedRevision = selection.revision,
+            requestedRevision = requestedRevision,
+        )
         return ResolvedDownloadSource(
-            sourceUrl = "$HUGGING_FACE_BASE/${selection.repoId}/resolve/${selection.revision}/${selection.filePath}?download=true",
+            sourceUrl = "$HUGGING_FACE_BASE/${selection.repoId}/resolve/$pinnedRevision/${selection.filePath}?download=true",
             resolvedFilePath = selection.filePath,
+            resolvedRepoId = selection.repoId,
+            resolvedRevision = pinnedRevision,
             compatibilityHint = selection.compatibilityHint,
         )
     }
@@ -595,6 +643,18 @@ object HermesModelDownloadManager {
             )
         }
         return HuggingFaceReference(repoId = repoId)
+    }
+
+    private fun pinnedArtifactRevision(
+        repoId: String,
+        filePath: String,
+        selectedRevision: String,
+        requestedRevision: String,
+    ): String {
+        if (!requestedRevision.equals("main", ignoreCase = true)) {
+            return selectedRevision
+        }
+        return VerifiedLocalModelArtifacts.find(repoId, filePath)?.revision ?: selectedRevision
     }
 
     private fun selectRepoFileForDownload(

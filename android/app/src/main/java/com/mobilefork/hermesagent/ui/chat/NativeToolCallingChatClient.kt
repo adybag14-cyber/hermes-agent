@@ -4469,6 +4469,16 @@ class NativeToolCallingChatClient(
          */
         internal fun inferSafeNaturalTerminalCommand(userText: String): String? {
             val lower = userText.lowercase()
+            val normalized = lower
+                .replace(Regex("""[^\p{L}\p{N}']+"""), " ")
+                .trim()
+            val currentTimeIntent = listOf(
+                Regex("""^(?:please )?(?:run (?:a )?command to )?tell me what time it is$"""),
+                Regex("""^(?:please )?what time is it(?: now| please)?$"""),
+                Regex("""^(?:please )?what(?:'s| is) the time(?: now| please)?$"""),
+                Regex("""^(?:please )?tell me (?:the )?time(?: now| please)?$"""),
+                Regex("""^(?:please )?(?:show|tell me) (?:the )?current time$"""),
+            ).any { it.matches(normalized) }
             val requestsAction = listOf(
                 "run ",
                 "execute ",
@@ -4479,7 +4489,7 @@ class NativeToolCallingChatClient(
                 "which ",
                 "list ",
                 "print ",
-            ).any { it in lower }
+            ).any { it in lower } || currentTimeIntent
             if (!requestsAction) return null
 
             return when {
@@ -4496,7 +4506,7 @@ class NativeToolCallingChatClient(
                     "system information" in lower ||
                     "kernel version" in lower -> "uname -a"
                 Regex("""\bdate\b""").containsMatchIn(lower) ||
-                    "current time" in lower -> "date"
+                    currentTimeIntent -> "date"
                 else -> null
             }
         }

@@ -7,6 +7,8 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 
+import pytest
+
 import scripts.prepare_android_linux_assets as linux_asset_script
 from hermes_android.linux_assets import TermuxPackageRecord
 from hermes_android.linux_assets import serializable_manifest
@@ -15,6 +17,7 @@ from scripts.prepare_android_linux_assets import (
     create_bionic_llama_server_launcher,
     locked_packages,
     mirror_data_tar,
+    patch_proot_distro_direct_execution,
     write_lock_file,
 )
 
@@ -326,6 +329,58 @@ def test_prepare_android_linux_assets_creates_bionic_llama_server_copy(tmp_path)
     payload = bionic.read_bytes()
     assert b"libandroid-spawn.so\0" not in payload
     assert b"libc.so\0" in payload
+
+
+def test_proot_distro_direct_exec_patch_is_exact_guarded_and_idempotent(tmp_path, monkeypatch):
+    relative = "lib/python3.14/site-packages/proot_distro/commands/login/__init__.py"
+    module = tmp_path / "prefix" / relative
+    module.parent.mkdir(parents=True)
+    source = (
+        b"import os\nimport shutil\n"
+        b"def command():\n"
+        b'    proot_bin = shutil.which("proot") or "proot"\n'
+    )
+    updated = source.replace(
+        linux_asset_script.PROOT_LOOKUP_EXPRESSION,
+        linux_asset_script.PROOT_DIRECT_EXEC_REPLACEMENT,
+    )
+    module.write_bytes(source)
+    monkeypatch.setattr(
+        linux_asset_script,
+        "PROOT_DISTRO_DIRECT_EXEC_PATCHES",
+        {
+            relative: {
+                "source_sha256": hashlib.sha256(source).hexdigest(),
+                "patched_sha256": hashlib.sha256(updated).hexdigest(),
+            }
+        },
+    )
+
+    assert patch_proot_distro_direct_execution(tmp_path / "prefix") == [relative]
+    assert module.read_bytes() == updated
+    assert updated.count(linux_asset_script.PROOT_DIRECT_EXEC_REPLACEMENT) == 1
+    assert patch_proot_distro_direct_execution(tmp_path / "prefix") == [relative]
+    assert module.read_bytes() == updated
+
+
+def test_proot_distro_direct_exec_patch_rejects_unpinned_source(tmp_path, monkeypatch):
+    relative = "lib/python3.14/site-packages/proot_distro/commands/login/__init__.py"
+    module = tmp_path / "prefix" / relative
+    module.parent.mkdir(parents=True)
+    module.write_bytes(b"import os\n# unexpected upstream source\n")
+    monkeypatch.setattr(
+        linux_asset_script,
+        "PROOT_DISTRO_DIRECT_EXEC_PATCHES",
+        {
+            relative: {
+                "source_sha256": "0" * 64,
+                "patched_sha256": "1" * 64,
+            }
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="source hash changed"):
+        patch_proot_distro_direct_execution(tmp_path / "prefix")
 
 
 def test_android_linux_subsystem_recreates_windows_manifest_links():

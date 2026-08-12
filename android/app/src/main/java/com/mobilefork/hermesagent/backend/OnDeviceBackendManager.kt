@@ -8,6 +8,7 @@ import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.models.HermesModelDownloadManager
+import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
 import java.io.File
 import java.util.Locale
 
@@ -32,6 +33,11 @@ data class LocalBackendStatus(
     val modelName: String = "",
     val sourceModelPath: String = "",
     val statusMessage: String = "",
+    val accelerator: String = "",
+    val acceleratorFallback: String = "",
+    val artifactSummary: String = "",
+    val completionVerified: Boolean = false,
+    val completionLatencyMs: Long = 0L,
 )
 
 object OnDeviceBackendManager {
@@ -113,13 +119,18 @@ object OnDeviceBackendManager {
             LlamaCppServerController.stop()
             return incompatiblePreferredDownloadStatus(preferred, BackendKind.LLAMA_CPP)
         }
+        val artifactProof = verifyKnownArtifact(context, preferred, modelFile, BackendKind.LLAMA_CPP)
+        if (artifactProof.error != null) {
+            LlamaCppServerController.stop()
+            return artifactVerificationFailure(preferred, BackendKind.LLAMA_CPP, artifactProof.error)
+        }
 
         val status = LlamaCppServerController.ensureRunning(
             context = context,
             modelPath = modelFile.absolutePath,
             requestedModelName = preferred.title,
             port = LLAMA_CPP_PORT,
-        )
+        ).withArtifactProof(artifactProof.summary)
         currentStatus = status
         return status
     }
@@ -150,6 +161,11 @@ object OnDeviceBackendManager {
             LiteRtLmOpenAiProxy.stop()
             return incompatiblePreferredDownloadStatus(preferred, BackendKind.LITERT_LM)
         }
+        val artifactProof = verifyKnownArtifact(context, preferred, modelFile, BackendKind.LITERT_LM)
+        if (artifactProof.error != null) {
+            LiteRtLmOpenAiProxy.stop()
+            return artifactVerificationFailure(preferred, BackendKind.LITERT_LM, artifactProof.error)
+        }
 
         val status = LiteRtLmOpenAiProxy.ensureRunning(
             context = context,
@@ -157,7 +173,7 @@ object OnDeviceBackendManager {
             requestedModelName = preferred.title,
             port = LITERT_LM_PORT,
             inferenceConfig = inferenceConfigFor(preferred, AppSettingsStore(context).load()),
-        )
+        ).withArtifactProof(artifactProof.summary)
         currentStatus = status
         return status
     }
@@ -192,6 +208,11 @@ object OnDeviceBackendManager {
             LiteRtLmOpenAiProxy.stop()
             return incompatiblePreferredDownloadStatus(preferred, BackendKind.AICORE)
         }
+        val artifactProof = verifyKnownArtifact(context, preferred, modelFile, BackendKind.AICORE)
+        if (artifactProof.error != null) {
+            LiteRtLmOpenAiProxy.stop()
+            return artifactVerificationFailure(preferred, BackendKind.AICORE, artifactProof.error)
+        }
 
         // AICore uses same port as LiteRT-LM but with AICore-appropriate inference config
         val inferenceConfig = AICoreBackendController.createAICoreInferenceConfig()
@@ -205,7 +226,7 @@ object OnDeviceBackendManager {
             requestedModelName = preferred.title,
             port = AICoreBackendController.AICORE_PORT,
             inferenceConfig = inferenceConfig,
-        )
+        ).withArtifactProof(artifactProof.summary)
 
         // Update status message to reflect actual backend used
         val actualBackend = AICoreBackendController.getBackendDescription()
@@ -255,13 +276,14 @@ object OnDeviceBackendManager {
         settings: AppSettings,
     ): LiteRtLmOpenAiProxy.InferenceConfig {
         val lower = preferred.modelIdentityText()
+        val modelBytes = runCatching { File(preferred.destinationPath).length() }.getOrDefault(0L)
         val modelDefaults = when {
             "gemma-4" in lower || "gemma4" in lower -> LiteRtLmOpenAiProxy.InferenceConfig(
                 topK = 64,
                 topP = 0.95f,
                 temperature = 1.0f,
-                maxTokens = 4000,
-                maxContextLength = 32000,
+                maxTokens = 1024,
+                maxContextLength = gemma4DefaultContextTokens(modelBytes),
             )
             "qwen3-0.6b" in lower || "qwen3-0-6b" in lower -> LiteRtLmOpenAiProxy.InferenceConfig(
                 topK = 64,
@@ -321,6 +343,14 @@ object OnDeviceBackendManager {
         }
     }
 
+    internal fun gemma4DefaultContextTokens(modelBytes: Long): Int {
+        return when {
+            modelBytes >= 6_000_000_000L -> 2_048
+            modelBytes >= 3_000_000_000L -> 2_048
+            else -> 4_096
+        }
+    }
+
     private fun LocalModelDownloadRecord.supportsImageInput(): Boolean {
         val lower = modelIdentityText()
         return "gemma-4" in lower ||
@@ -341,6 +371,63 @@ object OnDeviceBackendManager {
         return listOf(title, repoOrUrl, filePath, destinationFileName, destinationPath)
             .joinToString(" ")
             .lowercase(Locale.US)
+    }
+
+    private data class ArtifactProof(
+        val summary: String = "",
+        val error: String? = null,
+    )
+
+    private fun verifyKnownArtifact(
+        context: Context,
+        preferred: LocalModelDownloadRecord,
+        modelFile: File,
+        backendKind: BackendKind,
+    ): ArtifactProof {
+        val artifact = VerifiedLocalModelArtifacts.find(preferred.repoOrUrl, preferred.filePath)
+            ?: VerifiedLocalModelArtifacts.findByFileName(modelFile.name)
+            ?: return ArtifactProof()
+        val expectedRuntime = when (backendKind) {
+            BackendKind.LLAMA_CPP -> "llama.cpp"
+            BackendKind.LITERT_LM, BackendKind.AICORE -> "litert-lm"
+            BackendKind.NONE -> ""
+        }
+        if (expectedRuntime.isNotBlank() && artifact.runtime != expectedRuntime) {
+            return ArtifactProof(
+                error = "Release-matrix artifact ${artifact.fileName} targets ${artifact.runtime}, not ${backendKind.persistedValue}.",
+            )
+        }
+        val verification = VerifiedLocalModelArtifacts.verifyCached(modelFile, artifact)
+        if (!verification.valid) {
+            return ArtifactProof(error = verification.detail)
+        }
+        return ArtifactProof(
+            summary = "${artifact.repoId}@${artifact.revision}/${artifact.fileName}; " +
+                "${artifact.expectedBytes} bytes; SHA-256 ${artifact.sha256}; ${verification.detail}",
+        )
+    }
+
+    private fun LocalBackendStatus.withArtifactProof(proof: String): LocalBackendStatus {
+        if (proof.isBlank()) return this
+        return copy(
+            artifactSummary = listOf(artifactSummary, proof)
+                .filter { it.isNotBlank() }
+                .joinToString(" · "),
+        )
+    }
+
+    private fun artifactVerificationFailure(
+        preferred: LocalModelDownloadRecord,
+        backendKind: BackendKind,
+        error: String,
+    ): LocalBackendStatus {
+        return LocalBackendStatus(
+            backendKind = backendKind,
+            started = false,
+            sourceModelPath = preferred.destinationPath,
+            statusMessage = "Content-addressed artifact verification failed: $error. Delete this file and download the pinned release-matrix revision again.",
+            artifactSummary = error,
+        ).also { currentStatus = it }
     }
 
     private inline fun <T> withBackgroundPriorityIfNeeded(block: () -> T): T {

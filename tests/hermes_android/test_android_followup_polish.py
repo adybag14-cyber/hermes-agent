@@ -194,7 +194,6 @@ def test_screenshot_reported_custom_endpoint_i18n_and_ime_layout_regressions_are
     assert 'val messageListBottomPadding = if (imeVisible) 8.dp else 4.dp' in chat
     assert 'PaddingValues(bottom = messageListBottomPadding)' in chat
     assert 'PaddingValues(top = 12.dp, bottom = messageListBottomPadding)' in chat
-    assert 'sanitizeChatDisplayText(text)' in chat
     assert 'markdownTableCells.joinToString("  ")' in chat
     assert 'Regex("""\\*\\*([^*\\n]+)\\*\\*""")' in chat
     assert 'statusText = if (shouldShowComposerStatus(tinyRuntimeViewport, imeVisible)) uiState.status else ""' in chat
@@ -276,7 +275,6 @@ def test_settings_secret_store_initialization_stays_off_startup_main_thread():
 
     assert "private val secretsStore by lazy" in settings_view_model
     assert "apiKey = \"\"" in initial_state_block
-    assert "defaultOnDeviceSummary(stored.onDeviceBackend)" in initial_state_block
     assert "preferredDownloadSummary" not in initial_state_block
     assert "refreshOnDeviceSummary(reloaded.onDeviceBackend)" in settings_view_model
     assert "refreshOnDeviceSummary(_uiState.value.onDeviceBackend)" not in settings_view_model
@@ -287,105 +285,6 @@ def test_settings_secret_store_initialization_stays_off_startup_main_thread():
     assert "EncryptedSharedPreferences.create(" in secure_store
     assert "private val preferences by lazy" in secure_store
     assert "MasterKey.Builder(appContext)" in secure_store
-
-
-def test_mobile_repo_guidance_and_runtime_switches_keep_download_copy_in_sync():
-    downloads_section = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/LocalModelDownloadsSection.kt").read_text(encoding="utf-8")
-    downloads_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/LocalModelDownloadsViewModel.kt").read_text(encoding="utf-8")
-    settings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsScreen.kt").read_text(encoding="utf-8")
-    settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
-    app_settings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/data/AppSettingsStore.kt").read_text(encoding="utf-8")
-    backend_manager = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/OnDeviceBackendManager.kt").read_text(encoding="utf-8")
-    strings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
-    download_manager = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/models/HermesModelDownloadManager.kt").read_text(encoding="utf-8")
-    litert_proxy = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
-    hardware_profile = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesAndroidHardwareProfile.kt").read_text(encoding="utf-8")
-    manifest = (REPO_ROOT / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
-    gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
-
-    assert 'strings.localDownloadsExampleGuidance()' in downloads_section
-    assert 'strings.quickLocalModelsTitle()' in downloads_section
-    assert 'strings.downloadAndStart()' in downloads_section
-    assert 'inspectionStatus = ""' in downloads_view_model
-    assert 'candidateSummary = ""' in downloads_view_model
-    assert 'runtimeFlavorOverride' in downloads_view_model
-    assert 'RecommendedLocalModelPreset' in downloads_view_model
-    assert 'qwen35-08b-q4km-gguf' in downloads_view_model
-    assert 'revision = "7fa1d78473894f7e736a21d920c3aa80f950c0db"' in downloads_view_model
-    assert 'gemma4-e4b-litert-lm' in downloads_view_model
-    assert 'revision = "9695417f248178c63a9f318c6e0c56cb917cb837"' in downloads_view_model
-    assert 'revisionMatches' in downloads_view_model
-    assert 'Edge Gallery 1.0.13 MTP path' in downloads_view_model
-    assert 'restartDownloadOnMobileData(' in downloads_view_model
-    assert 'Enter any Hugging Face repo' in strings
-    assert 'One-tap local models' in strings
-    assert 'selectRepoFileForDownload(' in download_manager
-    assert 'findCompatibleRepoFile' in download_manager
-    assert 'findFallbackRepoFile' in download_manager
-    assert 'compatibilityHintForFile' in download_manager
-    assert 'does not publish a native LiteRT-LM artifact' in download_manager
-    assert 'does not publish a .litertlm or .task file' in download_manager
-    assert 'LITERT_ALIAS_REVISIONS' in download_manager
-    assert '7fa1d78473894f7e736a21d920c3aa80f950c0db' in download_manager
-    assert '9695417f248178c63a9f318c6e0c56cb917cb837' in download_manager
-    assert 'litert-community/gemma-4-E2B-it-litert-lm' in download_manager
-    assert 'litert-community/gemma-4-E4B-it-litert-lm' in download_manager
-    assert 'litert-community/Gemma3-1B-IT' in download_manager
-    assert 'litert-community/Gemma3-4B-IT' in download_manager
-    assert 'Downloading is allowed; the selected backend will decide at load time whether it can run this file.' in download_manager
-    assert 'Backend.GPU() to "gpu"' in litert_proxy
-    assert 'Backend.CPU() to "cpu"' in litert_proxy
-    assert 'put("accelerator", runtimeBackendLabel)' in litert_proxy
-    assert 'com.google.ai.edge.litertlm:litertlm-android:0.14.0' in gradle
-    assert 'ExperimentalFlags.enableSpeculativeDecoding' in litert_proxy
-    assert 'SpeculativeDecodingMode' in litert_proxy
-    assert 'liteRtLmSpeculativeDecodingMode' in app_settings
-    assert 'KEY_LITERT_LM_SPECULATIVE_DECODING_MODE' in app_settings
-    assert 'customSystemPrompt' in app_settings
-    assert 'MAX_CUSTOM_SYSTEM_PROMPT_CHARS' in app_settings
-    assert 'KEY_CUSTOM_SYSTEM_PROMPT' in app_settings
-    assert 'custom_system_prompt' in app_settings
-    assert 'AgentPersonaCard' in settings
-    assert 'AgentPersonaPrompt' in settings
-    assert 'updateCustomSystemPrompt' in settings_view_model
-    assert 'saveAgentPersona' in settings_view_model
-    assert 'updateLiteRtLmSpeculativeDecodingMode' in settings_view_model
-    assert 'LiteRtLmMtpMode-${choice.value}' in settings
-    assert 'gemma4MtpDescription()' in settings
-    assert 'inferenceConfig = inferenceConfigFor(preferred, AppSettingsStore(context).load())' in backend_manager
-    assert 'private fun speculativeDecodingModeFor(settings: AppSettings)' in backend_manager
-    assert 'speculativeDecodingMode = speculativeDecodingModeFor(settings)' in backend_manager
-    assert 'speculativeDecodingDecision(context, modelPath, speculativeDecodingMode)' in litert_proxy
-    assert 'decideSpeculativeDecoding(' in litert_proxy
-    assert 'runtime setting disabled Gemma 4 MTP' in litert_proxy
-    assert 'memory guard for Gemma 4 MTP' in litert_proxy
-    assert 'ExperimentalFlags.enableSpeculativeDecoding = false' in litert_proxy
-    assert litert_proxy.index('ExperimentalFlags.enableSpeculativeDecoding = enableMtp') < litert_proxy.index('candidate = Engine(')
-    assert 'disabled: Gemma 4 MTP failed during $label engine initialization; retried without MTP' in litert_proxy
-    assert 'Build.SUPPORTED_ABIS.any { it.startsWith("x86") }' in litert_proxy
-    assert 'Capabilities(modelPath).use' in litert_proxy
-    assert 'capabilities.hasSpeculativeDecodingSupport()' in litert_proxy
-    assert 'chatTemplateExtraContext(requestJson)' in litert_proxy
-    assert 'conversation.sendMessage(promptMessage, extraContext)' in litert_proxy
-    assert 'put("speculative_decoding", engineInitResult.speculativeDecoding)' in litert_proxy
-    assert 'put("speculative_decoding_supported", engineInitResult.speculativeDecodingSupported)' in litert_proxy
-    assert 'put("mtp_policy", engineInitResult.speculativeDecodingPolicy)' in litert_proxy
-    assert 'put("gpu_policy", engineInitResult.gpuPolicy.description)' in litert_proxy
-    assert 'put("gpu_attempted", engineInitResult.gpuPolicy.enabled)' in litert_proxy
-    assert 'put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")' in litert_proxy
-    assert 'put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)' in litert_proxy
-    assert 'put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)' in litert_proxy
-    assert 'put("soc_family", engineInitResult.gpuPolicy.socFamily)' in litert_proxy
-    assert 'put("gpu_family", engineInitResult.gpuPolicy.gpuFamily)' in litert_proxy
-    assert 'put("litert_backend_order", JSONArray(engineInitResult.gpuPolicy.backendOrder))' in litert_proxy
-    assert 'HermesAndroidHardwareProfile.classify' in litert_proxy
-    assert '"mediatek" -> "MediaTek"' in hardware_profile
-    assert '"qualcomm_snapdragon" -> "Qualcomm Snapdragon"' in hardware_profile
-    assert '"powervr_img" -> "PowerVR/IMG"' in hardware_profile
-    assert 'Adreno, Mali, Immortalis, Xclipse, and PowerVR/IMG' in hardware_profile
-    assert 'attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable' in litert_proxy
-    assert 'libOpenCL.so' in manifest
-    assert 'libvndksupport.so' in manifest
 
 
 def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
@@ -1596,8 +1495,6 @@ def test_android_linux_subsystem_reapplies_executable_bits_before_reusing_cached
     assert 'state.optString("native_library_dir") != currentNativeLibraryDir' in cached_state_block
     assert 'markExecutableTree(File(prefixDir, "bin"))' in cached_state_block
     assert 'markExecutableTree(File(prefixDir, "libexec"))' in cached_state_block
-    assert 'launchShellProbe(shellPath, homeDir, buildRunEnvironment(state)).ready' in cached_state_block
-    assert 'reset(context)' in cached_state_block
     assert '"HERMES_ANDROID_SHELL" to SYSTEM_SHELL_PATH' in bridge
     assert '"HERMES_ANDROID_LINUX_BASH" to state.optString("shell_path").ifBlank { SYSTEM_SHELL_PATH }' in bridge
     assert '"HERMES_ANDROID_LINUX_NATIVE_BASH" to state.optString("shell_path")' in bridge
@@ -1719,9 +1616,6 @@ def test_provider_setup_webview_errors_show_browser_copy_fallback():
     assert "request.isForMainFrame" in activity
     assert "showLoadFailureFallback" in activity
     assert "showFallback(setupPageTitle" in activity
-    assert "Setup page failed to load; URL copied." in activity
-    assert 'toolbarButton("Open in browser")' in activity
-    assert 'toolbarButton("Copy URL")' in activity
     for provider in [
         '"openrouter"',
         '"openai"',

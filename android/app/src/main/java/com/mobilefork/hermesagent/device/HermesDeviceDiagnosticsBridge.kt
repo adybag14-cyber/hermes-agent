@@ -20865,6 +20865,11 @@ object HermesDeviceDiagnosticsBridge {
             .put("model_name", status.modelName.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
             .put("source_model_path", status.sourceModelPath.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
             .put("status_message", status.statusMessage.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("accelerator", status.accelerator.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("accelerator_fallback", status.acceleratorFallback.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("artifact_summary", status.artifactSummary.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+            .put("completion_verified", status.completionVerified)
+            .put("completion_latency_ms", status.completionLatencyMs)
             .put("health_url", status.baseUrl.takeIf { it.isNotBlank() }?.removeSuffix("/v1")?.plus("/health") ?: JSONObject.NULL)
     }
 

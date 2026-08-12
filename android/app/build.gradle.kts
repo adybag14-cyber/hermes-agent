@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.ByteArrayOutputStream
 
 plugins {
     id("com.android.application")
@@ -10,6 +11,15 @@ plugins {
 val repoRoot = rootDir.parentFile
 val hermesVersionFile = repoRoot.resolve("hermes_cli/__init__.py")
 val releaseTag = System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()
+val hermesSourceDigest = System.getenv("HERMES_SOURCE_DIGEST")
+    .orEmpty()
+    .trim()
+    .lowercase()
+    .also { digest ->
+        require(digest.isBlank() || Regex("[0-9a-f]{64}").matches(digest)) {
+            "HERMES_SOURCE_DIGEST must be one lowercase SHA-256 digest, got '$digest'"
+        }
+    }
 val generatedPythonBuildLibDir = repoRoot.resolve("build/lib")
 val hermesWheelDir = layout.buildDirectory.dir("hermes-wheel")
 val generatedHermesLinuxAssetsDir = layout.buildDirectory.dir("generated/hermes-linux-assets")
@@ -25,6 +35,26 @@ val keystoreProperties = Properties().apply {
     }
 }
 val hasReleaseKeystore = keystoreProperties.isNotEmpty()
+val liteRtLmStableVersion = "0.16.0"
+val liteRtLmVersion = providers.gradleProperty("hermesLiteRtLmVersion")
+    .getOrElse(liteRtLmStableVersion)
+    .trim()
+    .also { version ->
+        require(Regex("""\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.]+)?""").matches(version)) {
+            "hermesLiteRtLmVersion must be one exact LiteRT-LM version, got '$version'"
+        }
+    }
+val liteRtLmLocalAar = providers.gradleProperty("hermesLiteRtLmLocalAar")
+    .orNull
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
+    ?.let { path ->
+        val candidate = file(path)
+        require(candidate.isFile && candidate.extension.equals("aar", ignoreCase = true)) {
+            "hermesLiteRtLmLocalAar must point to an existing .aar file, got '$path'"
+        }
+        candidate
+    }
 
 fun hermesVersionName(): String {
     val text = hermesVersionFile.readText()
@@ -90,6 +120,38 @@ fun resolvedBuildPython(): String {
 
 fun hermesWheelName(): String = "hermes_agent-${hermesVersionName()}-py3-none-any.whl"
 
+if (hermesSourceDigest.isNotBlank()) {
+    require(liteRtLmLocalAar == null) {
+        "A source-bound release-evidence build cannot use hermesLiteRtLmLocalAar"
+    }
+    require(liteRtLmVersion == liteRtLmStableVersion) {
+        "A source-bound release-evidence build must use the release LiteRT-LM version " +
+            "$liteRtLmStableVersion, got $liteRtLmVersion"
+    }
+    val identityOutput = ByteArrayOutputStream()
+    exec {
+        commandLine(
+            resolvedBuildPython(),
+            repoRoot.resolve("scripts/android_release_evidence.py").absolutePath,
+            "source-identity",
+            "--repo-root",
+            repoRoot.absolutePath,
+            "--require-clean",
+        )
+        standardOutput = identityOutput
+    }.assertNormalExitValue()
+    val actualSourceDigest = identityOutput
+        .toString(Charsets.UTF_8)
+        .lineSequence()
+        .singleOrNull { it.startsWith("sourceDigest=") }
+        ?.substringAfter('=')
+        .orEmpty()
+    require(actualSourceDigest == hermesSourceDigest) {
+        "HERMES_SOURCE_DIGEST does not match the clean committed source: " +
+            "expected $actualSourceDigest, got $hermesSourceDigest"
+    }
+}
+
 android {
     namespace = "com.mobilefork.hermesagent"
     compileSdk = 35
@@ -100,6 +162,21 @@ android {
         targetSdk = 35
         versionCode = hermesVersionCode()
         versionName = androidVersionName()
+        buildConfigField(
+            "String",
+            "HERMES_SOURCE_DIGEST",
+            "\"unbound\"",
+        )
+        buildConfigField(
+            "String",
+            "HERMES_LITERTLM_COORDINATE",
+            "\"com.google.ai.edge.litertlm:litertlm-android:$liteRtLmVersion\"",
+        )
+        buildConfigField(
+            "boolean",
+            "HERMES_LITERTLM_LOCAL_AAR",
+            (liteRtLmLocalAar != null).toString(),
+        )
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -135,6 +212,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField(
+                "String",
+                "HERMES_SOURCE_DIGEST",
+                "\"${hermesSourceDigest.ifBlank { "unbound" }}\"",
+            )
+        }
         release {
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
@@ -188,6 +272,7 @@ android {
 
     buildFeatures {
         aidl = true
+        buildConfig = true
         compose = true
     }
 
@@ -459,7 +544,14 @@ dependencies {
     implementation("org.tukaani:xz:1.9")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("org.json:json:20240303")
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.14.0")
+    // Release/F-Droid builds use the exact stable default (0.16.0). Developers can compile
+    // an upstream preview version or a locally built LiteRT-LM main-branch AAR
+    // without weakening the reproducible release pin.
+    if (liteRtLmLocalAar != null) {
+        implementation(files(liteRtLmLocalAar))
+    } else {
+        implementation("com.google.ai.edge.litertlm:litertlm-android:$liteRtLmVersion")
+    }
     implementation("org.nanohttpd:nanohttpd:2.3.1")
 
     testImplementation("junit:junit:4.13.2")

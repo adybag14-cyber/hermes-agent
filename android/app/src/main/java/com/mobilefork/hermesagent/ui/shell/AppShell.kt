@@ -8,8 +8,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,6 +28,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +52,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -75,7 +81,9 @@ import com.mobilefork.hermesagent.ui.terminal.TerminalViewModel
 import com.mobilefork.hermesagent.ui.theme.HermesThemeConfig
 import com.mobilefork.hermesagent.ui.theme.HermesTheme
 import com.mobilefork.hermesagent.ui.theme.HermesBackdrop
+import com.mobilefork.hermesagent.ui.theme.LocalHermesGlassTokens
 import com.mobilefork.hermesagent.ui.theme.normalizeThemeHex
+import com.mobilefork.hermesagent.ui.theme.normalizeThemeCardShape
 
 internal fun shellDrawerNavigationSections(): List<AppSection> = AppSection.values().toList()
 
@@ -110,11 +118,9 @@ private fun loadShellSettingsState(settingsStore: AppSettingsStore): ShellSettin
 
 private fun normalizeShellChatDisplayMode(value: String): String = if (value == "expanded") "expanded" else "compact"
 
-private fun normalizeShellThemeCardShape(value: String): String = when (value) {
-    "cut", "rounded", "soft" -> value
-    else -> "rounded"
-}
+internal fun normalizeShellThemeCardShape(value: String): String = normalizeThemeCardShape(value)
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun AppShellScreen(
     bootUiState: BootUiState,
@@ -215,33 +221,54 @@ fun AppShellScreen(
     ) {
         CompositionLocalProvider(LocalHermesStrings provides strings) {
             HermesBackdrop(modifier = Modifier.fillMaxSize()) {
-                val showShellNavigation = currentSection != AppSection.Hermes
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    containerColor = Color.Transparent,
-                    topBar = {
-                        if (showShellNavigation) {
-                            HermesTopBar(
-                                section = currentSection,
-                                bootUiState = bootUiState,
-                                onOpenNavigationMenu = { showNavigationDrawer = true },
-                            )
-                        }
-                    },
-                ) { innerPadding ->
-                    Surface(
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .semantics { testTagsAsResourceId = true },
+                ) {
+                    val usePersistentNavigation = maxWidth >= 600.dp
+                    val showShellTopBar = currentSection != AppSection.Hermes
+                    Scaffold(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        color = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.onBackground,
-                    ) {
-                        if (!sectionContentReady) {
-                            SectionWarmupPane(
-                                modifier = Modifier.fillMaxSize(),
-                                section = currentSection,
-                            )
-                        } else when (currentSection) {
+                            .fillMaxSize(),
+                        containerColor = Color.Transparent,
+                        topBar = {
+                            if (showShellTopBar) {
+                                HermesTopBar(
+                                    section = currentSection,
+                                    bootUiState = bootUiState,
+                                    showNavigationButton = !usePersistentNavigation,
+                                    onOpenNavigationMenu = { showNavigationDrawer = true },
+                                )
+                            }
+                        },
+                    ) { innerPadding ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding),
+                        ) {
+                            if (usePersistentNavigation) {
+                                ShellNavigationRail(
+                                    currentSection = currentSection,
+                                    navigationSections = shellDrawerNavigationSections(),
+                                    actions = currentActions,
+                                    onSelectSection = ::navigateToSection,
+                                )
+                            }
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                color = Color.Transparent,
+                                contentColor = MaterialTheme.colorScheme.onBackground,
+                            ) {
+                                if (!sectionContentReady) {
+                                    SectionWarmupPane(
+                                        modifier = Modifier.fillMaxSize(),
+                                        section = currentSection,
+                                    )
+                                } else when (currentSection) {
                             AppSection.Hermes -> {
                                 val authViewModel: AuthViewModel = viewModel()
                                 val chatViewModel: ChatViewModel = viewModel()
@@ -253,7 +280,10 @@ fun AppShellScreen(
                                     authViewModel = authViewModel,
                                     onNavigateToSection = ::navigateToSection,
                                     onContextActionsChanged = ::setActions,
-                                    onOpenNavigationMenu = { showNavigationDrawer = true },
+                                    showNavigationButton = !usePersistentNavigation,
+                                    onOpenNavigationMenu = {
+                                        if (!usePersistentNavigation) showNavigationDrawer = true
+                                    },
                                     onOpenContextActions = { showActionSheet = true },
                                     onToggleChatDisplayMode = {
                                         updateChatDisplayMode(
@@ -328,21 +358,23 @@ fun AppShellScreen(
                                     onSettingsChanged = ::refreshShellSettings,
                                 )
                             }
+                                }
+                            }
                         }
                     }
-                }
-                if (showNavigationDrawer) {
-                    ShellNavigationDrawerOverlay(
-                        currentSection = currentSection,
-                        navigationSections = shellDrawerNavigationSections(),
-                        actions = currentActions,
-                        onDismiss = { showNavigationDrawer = false },
-                        onSelectSection = ::navigateToSection,
-                        onSelectAction = { action ->
-                            showNavigationDrawer = false
-                            action.onClick()
-                        },
-                    )
+                    if (showNavigationDrawer && !usePersistentNavigation) {
+                        ShellNavigationDrawerOverlay(
+                            currentSection = currentSection,
+                            navigationSections = shellDrawerNavigationSections(),
+                            actions = currentActions,
+                            onDismiss = { showNavigationDrawer = false },
+                            onSelectSection = ::navigateToSection,
+                            onSelectAction = { action ->
+                                showNavigationDrawer = false
+                                action.onClick()
+                            },
+                        )
+                    }
                 }
             }
 
@@ -361,6 +393,7 @@ fun AppShellScreen(
 private fun HermesTopBar(
     section: AppSection,
     bootUiState: BootUiState,
+    showNavigationButton: Boolean,
     onOpenNavigationMenu: () -> Unit,
 ) {
     val strings = LocalHermesStrings.current
@@ -369,19 +402,23 @@ private fun HermesTopBar(
     } else {
         section.subtitle(strings)
     }
+    val glass = LocalHermesGlassTokens.current
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .border(
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp),
+                BorderStroke(1.dp, glass.border),
+                MaterialTheme.shapes.large,
             ),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+        color = glass.elevatedPanel,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp),
+        shape = MaterialTheme.shapes.large,
         tonalElevation = 0.dp,
     ) {
-        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val showLogo = maxWidth >= 300.dp
+            val showSubtitle = maxWidth >= 340.dp
+            val showBadges = maxWidth >= 390.dp
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -391,14 +428,16 @@ private fun HermesTopBar(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ShellTopBarDrawerButton(
-                    onOpenNavigationMenu = onOpenNavigationMenu,
-                )
-                Image(
-                    painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
-                    contentDescription = strings.hermesLogoDescription,
-                    modifier = Modifier.size(30.dp),
-                )
+                if (showNavigationButton) {
+                    ShellTopBarDrawerButton(onOpenNavigationMenu = onOpenNavigationMenu)
+                }
+                if (showLogo) {
+                    Image(
+                        painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
+                        contentDescription = strings.hermesLogoDescription,
+                        modifier = Modifier.size(30.dp),
+                    )
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = section.title(strings),
@@ -406,27 +445,31 @@ private fun HermesTopBar(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    if (showSubtitle) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TopBarStatusBadge(
-                        text = strings.alphaBadge,
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary,
-                    )
-                    TopBarStatusBadge(
-                        text = strings.forkBadge(),
-                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
+                if (showBadges) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TopBarStatusBadge(
+                            text = strings.alphaBadge,
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary,
+                        )
+                        TopBarStatusBadge(
+                            text = strings.forkBadge(),
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                    }
                 }
             }
         }
@@ -463,7 +506,7 @@ private fun ShellTopBarDrawerButton(
     IconButton(
         onClick = onOpenNavigationMenu,
         modifier = Modifier
-            .size(40.dp)
+            .size(48.dp)
             .semantics { contentDescription = strings.openNavigationMenu() }
             .testTag("HermesShellDrawerButton"),
     ) {
@@ -491,6 +534,94 @@ private fun ShellHamburgerMenuIcon() {
 }
 
 @Composable
+private fun ShellNavigationRail(
+    currentSection: AppSection,
+    navigationSections: List<AppSection>,
+    actions: List<ShellActionItem>,
+    onSelectSection: (AppSection) -> Unit,
+) {
+    val strings = LocalHermesStrings.current
+    val glass = LocalHermesGlassTokens.current
+    NavigationRail(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(112.dp)
+            .border(BorderStroke(1.dp, glass.border), MaterialTheme.shapes.medium)
+            .testTag("HermesPersistentNavigation"),
+        containerColor = glass.panel,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        header = {
+            Image(
+                painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
+                contentDescription = strings.hermesLogoDescription,
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(34.dp),
+            )
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            navigationSections.forEach { section ->
+                val label = section.navigationLabel(strings)
+                NavigationRailItem(
+                    selected = section == currentSection,
+                    onClick = { onSelectSection(section) },
+                    icon = {
+                        Icon(
+                            painter = painterResource(id = section.iconRes),
+                            contentDescription = label,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = label,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    },
+                    alwaysShowLabel = true,
+                    modifier = Modifier.testTag("HermesRail${section.name}"),
+                )
+            }
+            if (actions.isNotEmpty()) {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                actions.forEachIndexed { index, action ->
+                    NavigationRailItem(
+                        selected = false,
+                        onClick = action.onClick,
+                        icon = {
+                            Icon(
+                                painter = painterResource(id = action.iconRes),
+                                contentDescription = action.description.ifBlank { action.label },
+                                modifier = Modifier.size(22.dp),
+                            )
+                        },
+                        label = {
+                            Text(
+                                text = action.label,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        },
+                        alwaysShowLabel = true,
+                        modifier = Modifier.testTag("HermesRailAction$index"),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ShellNavigationDrawerOverlay(
     currentSection: AppSection,
     navigationSections: List<AppSection>,
@@ -500,6 +631,7 @@ private fun ShellNavigationDrawerOverlay(
     onSelectAction: (ShellActionItem) -> Unit,
 ) {
     val strings = LocalHermesStrings.current
+    val glass = LocalHermesGlassTokens.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -517,12 +649,13 @@ private fun ShellNavigationDrawerOverlay(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .statusBarsPadding()
-                .padding(start = 16.dp, top = 64.dp, end = 16.dp)
-                .widthIn(min = 260.dp, max = 340.dp)
+                .padding(start = 8.dp, top = 56.dp, end = 8.dp)
+                .widthIn(max = 340.dp)
+                .fillMaxWidth()
                 .testTag("HermesShellDrawerMenu"),
-            color = MaterialTheme.colorScheme.surface,
+            color = glass.elevatedPanel,
             shape = MaterialTheme.shapes.medium,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            border = BorderStroke(1.dp, glass.border),
             tonalElevation = 8.dp,
             shadowElevation = 8.dp,
         ) {
@@ -546,7 +679,7 @@ private fun ShellNavigationDrawerOverlay(
                         modifier = Modifier.size(30.dp),
                     )
                     Text(
-                        text = "Hermes Fork",
+                        text = strings.sectionHermes,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,

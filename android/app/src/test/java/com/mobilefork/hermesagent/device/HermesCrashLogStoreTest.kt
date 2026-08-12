@@ -1,6 +1,7 @@
 package com.mobilefork.hermesagent.device
 
 import android.content.Context
+import android.app.ApplicationExitInfo
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -88,5 +89,14 @@ class HermesCrashLogStoreTest {
         assertTrue(export.contains("Recent diagnostic events"))
         assertFalse(export.contains("sk-clear-test123456"))
         assertTrue(export.contains("[REDACTED_SECRET]"))
+    }
+
+    @Test
+    fun classifiesLowMemoryAndNativeCrashAsDiagnosticProcessExits() {
+        assertEquals("low_memory", HermesCrashLogStore.processExitReasonLabel(ApplicationExitInfo.REASON_LOW_MEMORY))
+        assertEquals("crash_native", HermesCrashLogStore.processExitReasonLabel(ApplicationExitInfo.REASON_CRASH_NATIVE))
+        assertTrue(HermesCrashLogStore.isDiagnosticExitReason(ApplicationExitInfo.REASON_LOW_MEMORY))
+        assertTrue(HermesCrashLogStore.isDiagnosticExitReason(ApplicationExitInfo.REASON_CRASH_NATIVE))
+        assertFalse(HermesCrashLogStore.isDiagnosticExitReason(ApplicationExitInfo.REASON_USER_REQUESTED))
     }
 }

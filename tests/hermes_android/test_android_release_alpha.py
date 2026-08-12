@@ -1,6 +1,8 @@
 from pathlib import Path
 import importlib.util
 import os
+import re
+import sys
 
 import pytest
 
@@ -14,6 +16,18 @@ def _load_android_release_manifest_module():
     assert spec is not None
     assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_android_release_identity_module():
+    script = REPO_ROOT / "scripts/check_android_release_identity.py"
+    spec = importlib.util.spec_from_file_location("check_android_release_identity", script)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 
@@ -28,17 +42,47 @@ def test_android_build_gradle_supports_semver_alpha_release_tags():
     assert 'versionName = androidVersionName()' in gradle
 
 
+def test_android_release_identity_matches_fdroid_metadata_and_rejects_a_wrong_tag():
+    identity_module = _load_android_release_identity_module()
+    version_fields = dict(
+        line.split("=", 1)
+        for line in (REPO_ROOT / "fdroid/com.mobilefork.hermesagent.version")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if "=" in line
+    )
+    version_name = version_fields["versionName"]
+    major, minor, patch = (int(part) for part in version_name.split("."))
+
+    identity = identity_module.validate_release_identity(REPO_ROOT, f"v{version_name}")
+    assert identity.version_name == version_name
+    assert identity.version_code == int(version_fields["versionCode"])
+    with pytest.raises(ValueError, match="identity mismatch"):
+        identity_module.validate_release_identity(REPO_ROOT, f"v{major}.{minor}.{patch + 1}")
+
+
+def _assert_external_actions_are_commit_pinned(workflow: str) -> None:
+    action_refs = re.findall(r"^\s*-?\s*uses:\s*([^\s#]+)", workflow, flags=re.MULTILINE)
+    assert action_refs
+    for action_ref in action_refs:
+        _action, separator, revision = action_ref.partition("@")
+        assert separator and re.fullmatch(r"[0-9a-f]{40}", revision), action_ref
+
+
 def test_android_release_workflow_restores_signing_material_and_builds_release_artifacts():
     workflow = (REPO_ROOT / ".github/workflows/android-release.yml").read_text(encoding="utf-8")
+    fdroid_template = (REPO_ROOT / "fdroid/com.mobilefork.hermesagent.yml.template").read_text(
+        encoding="utf-8",
+    )
 
-    assert 'actions/checkout@v5' in workflow
-    assert 'actions/setup-java@v5' in workflow
-    assert 'actions/setup-python@v6' in workflow
-    assert 'android-actions/setup-android@v4' in workflow
+    _assert_external_actions_are_commit_pinned(workflow)
     assert 'ANDROID_KEYSTORE_BASE64' in workflow
     assert 'ANDROID_KEYSTORE_PASSWORD' in workflow
     assert 'ANDROID_KEY_ALIAS' in workflow
     assert 'ANDROID_KEY_PASSWORD' in workflow
+    assert 'scripts/check_android_release_identity.py --tag "$GITHUB_REF_NAME"' in workflow
+    assert 'bash scripts/run_tests.sh' in workflow
+    assert ':app:compileDebugAndroidTestKotlin' in workflow
     assert './gradlew :app:assembleRelease' in workflow
     assert './gradlew :app:bundleRelease' in workflow
     assert 'app-release-unsigned.apk' in workflow
@@ -46,23 +90,46 @@ def test_android_release_workflow_restores_signing_material_and_builds_release_a
     assert '--alignment-preserved true' in workflow
     assert '--v2-signing-enabled true' in workflow
     assert '--ks-pass env:ANDROID_KEYSTORE_PASSWORD' in workflow
+    configured_build_tools = re.findall(r"packages:.*build-tools;([0-9.]+)", workflow)
+    selected_build_tools = re.findall(
+        r'build_tools_dir="\$sdk_root/build-tools/([0-9.]+)"',
+        workflow,
+    )
+    assert configured_build_tools == selected_build_tools
+    assert len(configured_build_tools) == 1
+    workflow_signer = re.search(r"EXPECTED_SIGNER_SHA256:\s*([0-9a-f]{64})", workflow)
+    fdroid_signer = re.search(r"^AllowedAPKSigningKeys:\s*([0-9a-f]{64})$", fdroid_template, re.MULTILINE)
+    assert workflow_signer is not None
+    assert fdroid_signer is not None
+    assert workflow_signer.group(1) == fdroid_signer.group(1)
+    assert 'aapt2" dump badging' in workflow
+    assert 'jarsigner -verify "$aab"' in workflow
     assert 'cp -f "$signed_apk" "$universal_apk"' in workflow
     assert 'rm -f "$unsigned_apk"' in workflow
-    assert 'edit_args=(--target "$GITHUB_SHA" --title "$title")' in workflow
     assert 'scripts/android_release_manifest.py --tag' in workflow
-    assert 'HERMES_RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}' in workflow
+    assert "tags:\n      - 'v0.*'" in workflow
+    assert "- 'v*'" not in workflow
+    assert "release:\n    types:" not in workflow
+    assert 'group: android-release-${{ github.ref_name }}' in workflow
+    assert 'HERMES_RELEASE_TAG: ${{ github.ref_name }}' in workflow
     assert 'gh release upload "$HERMES_RELEASE_TAG"' in workflow
+    assert 'gh release create "$HERMES_RELEASE_TAG"' in workflow
+    assert '--draft' in workflow
+    assert re.search(
+        r'gh release view\s+"\$HERMES_RELEASE_TAG"\s+\\?\s*\n?\s*--json assets',
+        workflow,
+    )
+    assert 'gh release edit "$HERMES_RELEASE_TAG" --draft=false --latest' in workflow
     assert 'GH_TOKEN: ${{ github.token }}' in workflow
 
 
 def test_android_push_workflow_uses_node24_ready_action_versions():
     workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
 
-    assert 'actions/checkout@v5' in workflow
-    assert 'actions/setup-java@v5' in workflow
-    assert 'actions/setup-python@v6' in workflow
-    assert 'android-actions/setup-android@v4' in workflow
-    assert 'actions/upload-artifact@v7' in workflow
+    _assert_external_actions_are_commit_pinned(workflow)
+    assert 'python -m venv .venv' in workflow
+    assert 'bash scripts/run_tests.sh' in workflow
+    assert 'python -m pytest' not in workflow
 
 
 def test_android_push_workflow_compiles_android_test_sources():

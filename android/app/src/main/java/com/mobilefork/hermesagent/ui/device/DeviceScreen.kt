@@ -90,10 +90,14 @@ fun DeviceScreen(
         }
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        viewModel.refresh(strings.deviceNotificationPermissionStatus(granted))
+        viewModel.refresh(
+            DeviceOperationStatus.PermissionResult(DevicePermission.Notifications, granted),
+        )
     }
     val bluetoothPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        viewModel.refresh(strings.deviceBluetoothPermissionStatus(granted))
+        viewModel.refresh(
+            DeviceOperationStatus.PermissionResult(DevicePermission.Bluetooth, granted),
+        )
     }
 
     SideEffect {
@@ -258,8 +262,21 @@ fun DeviceScreen(
                     OperatorStandbyCard(uiState = uiState)
                     AutomationsCard()
                 }
-                if (uiState.status.isNotBlank()) {
-                    Text(uiState.status, style = MaterialTheme.typography.bodySmall)
+                uiState.status?.let { status ->
+                    Text(
+                        text = strings.deviceStatusText(status),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    status.diagnosticDetail
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { diagnosticDetail ->
+                            Text(
+                                text = strings.deviceStatusDiagnosticDetail(diagnosticDetail),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                 }
             }
         }
@@ -943,28 +960,30 @@ private fun WorkspaceAccessCard(
             if (uiState.sharedFolderUri.isNotBlank()) {
                 Text(uiState.sharedFolderUri, style = MaterialTheme.typography.bodySmall)
             }
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Button(onClick = onImportFile, modifier = Modifier.weight(1f)) {
+                Button(onClick = onImportFile, modifier = Modifier.widthIn(min = 144.dp)) {
                     Text(strings.deviceImportFileLabel())
                 }
-                Button(onClick = onGrantFolder, modifier = Modifier.weight(1f)) {
+                Button(onClick = onGrantFolder, modifier = Modifier.widthIn(min = 144.dp)) {
                     Text(strings.deviceGrantFolderLabel())
                 }
             }
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Button(onClick = onRefresh, modifier = Modifier.weight(1f)) {
+                Button(onClick = onRefresh, modifier = Modifier.widthIn(min = 144.dp)) {
                     Text(strings.refresh.ifBlank { "Refresh" })
                 }
                 Button(
                     onClick = onClearFolder,
                     enabled = uiState.sharedFolderUri.isNotBlank(),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.widthIn(min = 144.dp),
                 ) {
                     Text(strings.deviceClearFolderLabel())
                 }
@@ -1117,24 +1136,6 @@ private fun HermesStrings.deviceOverviewAutomationStatus(count: Int): String = w
     AppLanguage.PORTUGUESE -> "Automação · $count ativas"; AppLanguage.FRENCH -> "Automatisation · $count actives"; AppLanguage.ENGLISH -> "Automation · $count enabled"
 }
 
-private fun HermesStrings.deviceNotificationPermissionStatus(granted: Boolean): String = when (language) {
-    AppLanguage.CHINESE -> if (granted) "已为 Hermes 运行时提醒启用通知" else "通知权限被拒绝"
-    AppLanguage.SPANISH -> if (granted) "Notificaciones activadas para las alertas del runtime de Hermes" else "Se denegó el permiso de notificaciones"
-    AppLanguage.GERMAN -> if (granted) "Benachrichtigungen für Hermes-Laufzeitwarnungen aktiviert" else "Benachrichtigungsberechtigung wurde verweigert"
-    AppLanguage.PORTUGUESE -> if (granted) "Notificações ativadas para alertas do runtime Hermes" else "A permissão de notificação foi negada"
-    AppLanguage.FRENCH -> if (granted) "Notifications activées pour les alertes du runtime Hermes" else "L’autorisation de notification a été refusée"
-    AppLanguage.ENGLISH -> if (granted) "Notifications enabled for Hermes runtime alerts" else "Notification permission was denied"
-}
-
-private fun HermesStrings.deviceBluetoothPermissionStatus(granted: Boolean): String = when (language) {
-    AppLanguage.CHINESE -> if (granted) "已授予蓝牙访问权限" else "蓝牙访问被拒绝"
-    AppLanguage.SPANISH -> if (granted) "Acceso Bluetooth concedido" else "Se denegó el acceso Bluetooth"
-    AppLanguage.GERMAN -> if (granted) "Bluetooth-Zugriff gewährt" else "Bluetooth-Zugriff wurde verweigert"
-    AppLanguage.PORTUGUESE -> if (granted) "Acesso Bluetooth concedido" else "O acesso Bluetooth foi negado"
-    AppLanguage.FRENCH -> if (granted) "Accès Bluetooth accordé" else "L’accès Bluetooth a été refusé"
-    AppLanguage.ENGLISH -> if (granted) "Bluetooth access granted" else "Bluetooth access was denied"
-}
-
 private fun HermesStrings.deviceRefreshDescription(): String = when (language) {
     AppLanguage.CHINESE -> "重新加载共享文件夹、Linux 套件和手机控制状态。"
     AppLanguage.SPANISH -> "Recarga el estado de carpeta compartida, suite Linux y controles del teléfono."
@@ -1227,12 +1228,12 @@ private fun HermesStrings.deviceLinuxSuiteTitle(): String = when (language) {
 }
 
 private fun HermesStrings.deviceLinuxSuiteReady(): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 可以使用已解压的 Linux 套件，通过 terminal/process 在本机执行完整 CLI 命令。"
-    AppLanguage.SPANISH -> "Hermes puede ejecutar comandos CLI completos localmente con terminal/process usando la suite Linux extraída."
-    AppLanguage.GERMAN -> "Hermes kann vollständige CLI-Befehle lokal mit terminal/process über die extrahierte Linux-Suite ausführen."
-    AppLanguage.PORTUGUESE -> "O Hermes pode executar comandos CLI completos localmente com terminal/process usando a suíte Linux extraída."
-    AppLanguage.FRENCH -> "Hermes peut exécuter localement des commandes CLI complètes avec terminal/process via la suite Linux extraite."
-    AppLanguage.ENGLISH -> "Hermes can execute full CLI commands locally with terminal/process using the extracted Linux suite."
+    AppLanguage.CHINESE -> "Hermes 可通过 terminal_tool 使用已解压的 Linux 套件，在本机执行完整 CLI 命令。"
+    AppLanguage.SPANISH -> "Hermes puede usar la suite Linux extraída mediante terminal_tool para ejecutar comandos CLI completos en el dispositivo."
+    AppLanguage.GERMAN -> "Hermes kann die extrahierte Linux-Suite über terminal_tool für vollständige lokale CLI-Befehle nutzen."
+    AppLanguage.PORTUGUESE -> "O Hermes pode usar a suíte Linux extraída por meio de terminal_tool para executar comandos CLI completos no dispositivo."
+    AppLanguage.FRENCH -> "Hermes peut utiliser la suite Linux extraite via terminal_tool pour exécuter des commandes CLI complètes sur l’appareil."
+    AppLanguage.ENGLISH -> "Hermes can use the extracted Linux suite through terminal_tool to run full CLI commands on the device."
 }
 
 private fun HermesStrings.deviceLinuxSuiteProvisioning(): String = when (language) {
@@ -1299,12 +1300,12 @@ private fun HermesStrings.deviceLinuxPackageCount(count: Int): String = when (la
 }
 
 private fun HermesStrings.deviceLinuxTerminalGuidance(): String = when (language) {
-    AppLanguage.CHINESE -> "可以让 Hermes 使用 terminal 在此套件中直接运行 git status、ls、curl、grep 或更长的 shell 管道。"
-    AppLanguage.SPANISH -> "Pide a Hermes usar terminal para comandos como git status, ls, curl, grep o pipelines de shell más largos directamente en esta suite."
-    AppLanguage.GERMAN -> "Bitte Hermes, terminal für Befehle wie git status, ls, curl, grep oder längere Shell-Pipelines direkt in dieser Suite zu nutzen."
-    AppLanguage.PORTUGUESE -> "Peça ao Hermes para usar terminal em comandos como git status, ls, curl, grep ou pipelines de shell maiores diretamente nesta suíte."
-    AppLanguage.FRENCH -> "Demandez à Hermes d’utiliser terminal pour git status, ls, curl, grep ou des pipelines shell plus longs directement dans cette suite."
-    AppLanguage.ENGLISH -> "Ask Hermes to use terminal for commands like 'git status', 'ls', 'curl', 'grep', or longer shell pipelines directly in this suite."
+    AppLanguage.CHINESE -> "请直接说“运行 git status”或“列出工作区文件”。支持工具调用的模型会自动选择 terminal_tool；无需手动输入工具名称。"
+    AppLanguage.SPANISH -> "Pide directamente «Ejecuta git status» o «Lista los archivos del espacio de trabajo». Un modelo compatible elegirá terminal_tool automáticamente."
+    AppLanguage.GERMAN -> "Bitte direkt um „git status ausführen“ oder „Dateien im Arbeitsbereich auflisten“. Ein kompatibles Modell wählt terminal_tool automatisch."
+    AppLanguage.PORTUGUESE -> "Peça diretamente “Execute git status” ou “Liste os arquivos do workspace”. Um modelo compatível escolherá terminal_tool automaticamente."
+    AppLanguage.FRENCH -> "Demandez directement « Exécute git status » ou « Liste les fichiers de l’espace de travail ». Un modèle compatible choisira automatiquement terminal_tool."
+    AppLanguage.ENGLISH -> "Ask directly, “Run git status” or “List the files in the workspace.” A tool-capable model selects terminal_tool automatically."
 }
 
 private fun HermesStrings.deviceLinuxInstallSuiteLabel(): String = when (language) {
@@ -1850,12 +1851,12 @@ private fun HermesStrings.deviceWorkspaceAccessTitle(): String = when (language)
 }
 
 private fun HermesStrings.deviceWorkspaceAccessDescription(): String = when (language) {
-    AppLanguage.CHINESE -> "授权共享文件夹，让 Hermes 可直接读取和写入真实文件。需要副本时，导入的文件仍会进入 Hermes 工作区；terminal/process 现在覆盖通用 CLI 工作。"
-    AppLanguage.SPANISH -> "Concede una carpeta compartida para que Hermes lea y escriba archivos reales directamente. Los archivos importados siguen en el espacio de trabajo de Hermes cuando quieras copias, mientras terminal/process cubre trabajo CLI general."
-    AppLanguage.GERMAN -> "Gewähre einen freigegebenen Ordner, damit Hermes echte Dateien direkt lesen und schreiben kann. Importierte Dateien landen weiterhin im Hermes-Arbeitsbereich, wenn Kopien gewünscht sind; terminal/process deckt allgemeine CLI-Arbeit ab."
-    AppLanguage.PORTUGUESE -> "Conceda uma pasta compartilhada para o Hermes ler e escrever arquivos reais diretamente. Arquivos importados ainda ficam no workspace Hermes quando você quiser cópias, enquanto terminal/process cobre trabalho CLI geral."
-    AppLanguage.FRENCH -> "Autorisez un dossier partagé pour que Hermes lise et écrive directement les vrais fichiers. Les fichiers importés restent dans l’espace de travail Hermes lorsque vous voulez des copies, tandis que terminal/process couvre le travail CLI général."
-    AppLanguage.ENGLISH -> "Grant a shared folder to let Hermes read and write the real files directly. Imported files still land in the Hermes workspace when you want copies instead, while terminal/process now cover general CLI work."
+    AppLanguage.CHINESE -> "授权共享文件夹，让 Hermes 可直接读取和写入真实文件。需要副本时，导入的文件仍会进入 Hermes 工作区；通用命令则由兼容模型自动路由到 terminal_tool。"
+    AppLanguage.SPANISH -> "Concede una carpeta compartida para que Hermes lea y escriba archivos reales. Los archivos importados siguen en el espacio de trabajo cuando quieras copias; los comandos generales se enrutan automáticamente a terminal_tool."
+    AppLanguage.GERMAN -> "Gewähre einen freigegebenen Ordner, damit Hermes echte Dateien direkt lesen und schreiben kann. Importierte Dateien bleiben für Kopien im Arbeitsbereich; allgemeine Befehle werden automatisch an terminal_tool geleitet."
+    AppLanguage.PORTUGUESE -> "Conceda uma pasta compartilhada para o Hermes ler e escrever arquivos reais. Arquivos importados continuam no workspace quando você quiser cópias; comandos gerais são roteados automaticamente para terminal_tool."
+    AppLanguage.FRENCH -> "Autorisez un dossier partagé pour que Hermes lise et écrive les vrais fichiers. Les fichiers importés restent dans l’espace de travail pour les copies ; les commandes générales sont routées automatiquement vers terminal_tool."
+    AppLanguage.ENGLISH -> "Grant a shared folder so Hermes can read and write the real files. Imports still create workspace copies when wanted; compatible models route general commands to terminal_tool automatically."
 }
 
 private fun HermesStrings.deviceSharedFolderLabel(label: String): String = when (language) {
@@ -1922,12 +1923,12 @@ private fun HermesStrings.deviceAccessibilityTitle(): String = when (language) {
 }
 
 private fun HermesStrings.deviceAccessibilityConnected(): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 无障碍已启用并已连接。Hermes 可使用 android_ui_snapshot 检查可见界面，并使用 android_ui_action 定位控件。"
-    AppLanguage.SPANISH -> "La accesibilidad de Hermes está activada y conectada. Hermes puede inspeccionar la UI visible con android_ui_snapshot y apuntar controles con android_ui_action."
-    AppLanguage.GERMAN -> "Hermes-Bedienungshilfe ist aktiviert und verbunden. Hermes kann die sichtbare UI mit android_ui_snapshot prüfen und Steuerelemente mit android_ui_action ansteuern."
-    AppLanguage.PORTUGUESE -> "A acessibilidade do Hermes está ativada e conectada. O Hermes pode inspecionar a UI visível com android_ui_snapshot e mirar controles com android_ui_action."
-    AppLanguage.FRENCH -> "L’accessibilité Hermes est activée et connectée. Hermes peut inspecter l’UI visible avec android_ui_snapshot et cibler les contrôles avec android_ui_action."
-    AppLanguage.ENGLISH -> "Hermes accessibility is enabled and connected. Hermes can inspect the visible UI with android_ui_snapshot and target controls with android_ui_action."
+    AppLanguage.CHINESE -> "Hermes 无障碍已启用并已连接。兼容模型可通过 android_ui_tool 检查可见界面并执行获准的界面操作。"
+    AppLanguage.SPANISH -> "La accesibilidad de Hermes está activada y conectada. Un modelo compatible puede usar android_ui_tool para inspeccionar la interfaz y realizar acciones autorizadas."
+    AppLanguage.GERMAN -> "Die Hermes-Bedienungshilfe ist aktiviert und verbunden. Ein kompatibles Modell kann mit android_ui_tool die sichtbare Oberfläche prüfen und erlaubte Aktionen ausführen."
+    AppLanguage.PORTUGUESE -> "A acessibilidade do Hermes está ativada e conectada. Um modelo compatível pode usar android_ui_tool para inspecionar a interface e executar ações autorizadas."
+    AppLanguage.FRENCH -> "L’accessibilité Hermes est activée et connectée. Un modèle compatible peut utiliser android_ui_tool pour inspecter l’interface et effectuer les actions autorisées."
+    AppLanguage.ENGLISH -> "Hermes accessibility is enabled and connected. A tool-capable model can use android_ui_tool to inspect the visible interface and perform approved actions."
 }
 
 private fun HermesStrings.deviceAccessibilityEnabledWaiting(): String = when (language) {

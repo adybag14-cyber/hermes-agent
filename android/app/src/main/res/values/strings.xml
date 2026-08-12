@@ -40,4 +40,22 @@
     <string name="hermes_tasker_event_blurb_label">Tasker event label</string>
     <string name="hermes_tasker_event_label_hint">Optional label shown in Tasker</string>
     <string name="hermes_tasker_event_invalid">Choose a valid Hermes event.</string>
+    <string name="hermes_provider_setup_title">Provider setup</string>
+    <string name="hermes_provider_setup_back">Back</string>
+    <string name="hermes_provider_setup_browser">Browser</string>
+    <string name="hermes_provider_setup_copy">Copy</string>
+    <string name="hermes_provider_setup_close">Close</string>
+    <string name="hermes_provider_setup_open_browser">Open in browser</string>
+    <string name="hermes_provider_setup_copy_url">Copy URL</string>
+    <string name="hermes_provider_setup_clipboard_label">Hermes provider setup URL</string>
+    <string name="hermes_provider_setup_url_copied">Provider setup URL copied.</string>
+    <string name="hermes_provider_setup_load_failed_copied">Setup page failed to load; URL copied.</string>
+    <string name="hermes_provider_setup_no_browser_copied">No external browser opened; URL copied.</string>
+    <string name="hermes_provider_setup_open_page">Open provider setup page</string>
+    <string name="hermes_provider_setup_invalid_url">Provider setup URL must start with https:// or http://</string>
+    <string name="hermes_floating_button_title">Hermes floating button</string>
+    <string name="hermes_floating_button_notification">Hermes stays available from Home and other apps</string>
+    <string name="hermes_floating_button_channel_description">Keeps a floating Hermes launcher button above other apps</string>
+    <string name="hermes_floating_button_open">Open Hermes</string>
+    <string name="hermes_overlay_permission_required">Android overlay permission is not granted</string>
 </resources>

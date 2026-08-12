@@ -1,31 +1,31 @@
 package com.mobilefork.hermesagent.ui.settings
 
+import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecommendedLocalModelsTest {
     @Test
-    fun requestedSmallModelCompatibilityTargetsStayInCatalog() {
-        val presets = LocalModelDownloadsViewModel.recommendedModelPresets.associateBy { it.id }
+    fun everyVerifiedArtifactIsExposedAsAnExactlyPinnedRecommendedPreset() {
+        val presetsByArtifact = LocalModelDownloadsViewModel.recommendedModelPresets
+            .mapNotNull { preset ->
+                VerifiedLocalModelArtifacts.find(preset.repoOrUrl, preset.filePath)?.let { it to preset }
+            }
+            .associateBy { (artifact, _) -> artifact.modelId }
 
         assertEquals(
-            "Qwen3.5-0.8B-Q4_K_M.gguf",
-            presets.getValue("qwen35-08b-q4km-gguf").filePath,
+            VerifiedLocalModelArtifacts.releaseMatrix.map { it.modelId }.toSet(),
+            presetsByArtifact.keys,
         )
-        assertEquals(
-            "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf",
-            presets.getValue("minicpm5-1b-fable5-q4km-gguf").filePath,
-        )
-        assertEquals(
-            "MiniCPM5-1B-web.litertlm",
-            presets.getValue("minicpm5-1b-web-litert-lm").filePath,
-        )
-        assertEquals(
-            "VibeThinker-3B.litertlm",
-            presets.getValue("vibethinker-3b-litert-lm").filePath,
-        )
-        assertTrue(presets.values.count { it.runtimeFlavor == "GGUF" } >= 2)
-        assertTrue(presets.values.count { it.runtimeFlavor == "LiteRT-LM" } >= 4)
+        presetsByArtifact.values.forEach { (artifact, preset) ->
+            assertEquals(artifact.revision, preset.revision)
+            assertEquals(artifact.fileName, preset.filePath.substringAfterLast('/'))
+            assertEquals(
+                if (artifact.runtime == "litert-lm") "LiteRT-LM" else "GGUF",
+                preset.runtimeFlavor,
+            )
+            assertTrue(preset.revision != "main")
+        }
     }
 }

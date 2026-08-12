@@ -5,9 +5,11 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.os.Build
 import android.widget.RemoteViews
 import com.mobilefork.hermesagent.R
+import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -154,7 +156,8 @@ object HermesAutomationWidgetBridge {
         val appContext = context.applicationContext
         val config = configuredAutomation(appContext, appWidgetId)
         val views = RemoteViews(appContext.packageName, R.layout.hermes_automation_widget)
-        val label = config?.label?.ifBlank { DEFAULT_WIDGET_LABEL } ?: DEFAULT_WIDGET_LABEL
+        val defaultLabel = appContext.getString(R.string.hermes_automation_widget_default_title)
+        val label = config?.label?.ifBlank { defaultLabel } ?: defaultLabel
         val status = if (config == null) {
             appContext.getString(R.string.hermes_automation_widget_empty_status)
         } else {
@@ -162,6 +165,23 @@ object HermesAutomationWidgetBridge {
         }
         views.setTextViewText(R.id.hermes_widget_title, label)
         views.setTextViewText(R.id.hermes_widget_status, status)
+        val palette = hermesViewPalette(appContext)
+        views.setTextColor(R.id.hermes_widget_title, palette.onSurface)
+        views.setTextColor(R.id.hermes_widget_status, palette.secondary)
+        views.setTextColor(R.id.hermes_widget_button, palette.onPrimary)
+        views.setInt(R.id.hermes_widget_icon, "setColorFilter", palette.primary)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            views.setColorStateList(
+                R.id.hermes_widget_root,
+                "setBackgroundTintList",
+                ColorStateList.valueOf(palette.surface),
+            )
+            views.setColorStateList(
+                R.id.hermes_widget_button,
+                "setBackgroundTintList",
+                ColorStateList.valueOf(palette.primary),
+            )
+        }
         views.setImageViewResource(R.id.hermes_widget_icon, R.drawable.ic_nav_hermes)
         val pendingIntent = runPendingIntent(appContext, appWidgetId)
         views.setOnClickPendingIntent(R.id.hermes_widget_root, pendingIntent)
@@ -225,9 +245,10 @@ object HermesAutomationWidgetBridge {
         if (automationId.isBlank() || automationId.indexOf('\u0000') >= 0) {
             return null
         }
-        val label = prefs.getString(labelKey, DEFAULT_WIDGET_LABEL).orEmpty()
+        val defaultLabel = context.getString(R.string.hermes_automation_widget_default_title)
+        val label = prefs.getString(labelKey, defaultLabel).orEmpty()
             .replace("\u0000", "")
-            .ifBlank { DEFAULT_WIDGET_LABEL }
+            .ifBlank { defaultLabel }
             .take(MAX_WIDGET_LABEL_CHARS)
         return WidgetConfig(automationId, label, usesDefault)
     }
@@ -331,6 +352,5 @@ object HermesAutomationWidgetBridge {
     private const val KEY_DEFAULT_LABEL = "default_label"
     private const val KEY_WIDGET_AUTOMATION_ID_PREFIX = "widget_automation_id_"
     private const val KEY_WIDGET_LABEL_PREFIX = "widget_label_"
-    private const val DEFAULT_WIDGET_LABEL = "Hermes task"
     private const val MAX_WIDGET_LABEL_CHARS = 40
 }

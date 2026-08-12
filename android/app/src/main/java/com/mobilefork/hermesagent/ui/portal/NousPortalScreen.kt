@@ -55,6 +55,7 @@ import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
+import com.mobilefork.hermesagent.ui.theme.hermesPanelColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -210,7 +211,7 @@ fun NousPortalScreen(
     }
 
     MaterialTheme {
-        Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = modifier.fillMaxSize(), color = hermesPanelColor()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 Column(
                     modifier = Modifier
@@ -387,7 +388,13 @@ private fun PortalGuidanceCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(strings.portalEnabledLabel(), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    strings.portalEnabledLabel(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                )
                 Switch(
                     checked = portalEnabled,
                     onCheckedChange = onPortalEnabledChange,

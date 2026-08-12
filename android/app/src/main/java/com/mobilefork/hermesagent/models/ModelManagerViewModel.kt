@@ -542,8 +542,8 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
      * Build the default model catalog with known models for on-device inference.
      * Includes Gemma 4 variants, Qwen models, and other LiteRT-LM compatible models.
      */
-    private fun buildDefaultCatalog(): List<ModelCatalogEntry> {
-        return listOf(
+    companion object {
+        internal fun buildDefaultCatalog(): List<ModelCatalogEntry> = listOf(
             // Gemma 4 and small LiteRT-LM models verified for mobile-sized downloads.
             ModelCatalogEntry(
                 id = "gemma-4-e2b-litert-lm",
@@ -671,7 +671,10 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                 displayName = "MiniCPM 5 1B (LiteRT-LM)",
                 description = "MiniCPM 5 1B LiteRT-LM package for compact on-device chat and agent smoke tests (~1.1 GB).",
                 repoId = "Tdamre/MiniCPM5-1B-litert-lm",
-                revision = "main",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "Tdamre/MiniCPM5-1B-litert-lm",
+                    "MiniCPM5-1B-web.litertlm",
+                ).revision,
                 supportedBackends = listOf(ModelRuntimeBackend.LITERT_LM),
                 approximateSizeBytes = 1_103_486_896,
                 recommendedRamBytes = 3_000_000_000,
@@ -680,19 +683,56 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                 license = "Apache-2.0",
                 isMobileRecommended = true,
             ),
+            ModelCatalogEntry(
+                id = "vibethinker-3b-litert-lm",
+                displayName = "VibeThinker 3B (LiteRT-LM)",
+                description = "VibeThinker 3B packaged for the native LiteRT-LM runtime on high-memory phones and emulators.",
+                repoId = "Tdamre/VibeThinker-3B-litert-lm",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "Tdamre/VibeThinker-3B-litert-lm",
+                    "VibeThinker-3B.litertlm",
+                ).revision,
+                supportedBackends = listOf(ModelRuntimeBackend.LITERT_LM),
+                approximateSizeBytes = 3_446_780_848,
+                recommendedRamBytes = 8_000_000_000,
+                tags = listOf("vibethinker", "litert-lm", "reasoning", "3b"),
+                author = "Community",
+                license = "Other",
+                isMobileRecommended = true,
+            ),
             // Small GGUF models (llama.cpp)
             ModelCatalogEntry(
                 id = "qwen35-0-8b-gguf",
                 displayName = "Qwen3.5 0.8B Q4_K_M (GGUF)",
                 description = "Very small Qwen3.5 0.8B GGUF (~0.5 GB) for fast llama.cpp on-device smoke tests and low-RAM devices.",
                 repoId = "unsloth/Qwen3.5-0.8B-GGUF",
-                revision = "main",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "unsloth/Qwen3.5-0.8B-GGUF",
+                    "Qwen3.5-0.8B-Q4_K_M.gguf",
+                ).revision,
                 supportedBackends = listOf(ModelRuntimeBackend.LLAMA_CPP),
                 approximateSizeBytes = 532_517_120,
                 recommendedRamBytes = 2_000_000_000,
                 tags = listOf("qwen", "alibaba", "gguf", "small", "0.8b"),
                 author = "Qwen/Unsloth",
                 license = "Apache-2.0",
+                isMobileRecommended = true,
+            ),
+            ModelCatalogEntry(
+                id = "minicpm5-1b-fable5-q4-k-m-gguf",
+                displayName = "MiniCPM5 1B Fable5 Q4_K_M (GGUF)",
+                description = "Compact MiniCPM5 thinking model pinned to the Q4_K_M GGUF artifact for the embedded llama.cpp runtime.",
+                repoId = "GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF",
+                    "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf",
+                ).revision,
+                supportedBackends = listOf(ModelRuntimeBackend.LLAMA_CPP),
+                approximateSizeBytes = 688_066_496,
+                recommendedRamBytes = 2_000_000_000,
+                tags = listOf("minicpm", "gguf", "thinking", "small", "1b"),
+                author = "OpenBMB/community",
+                license = "Other",
                 isMobileRecommended = true,
             ),
             ModelCatalogEntry(

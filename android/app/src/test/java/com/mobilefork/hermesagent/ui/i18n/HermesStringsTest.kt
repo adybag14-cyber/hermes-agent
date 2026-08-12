@@ -215,4 +215,17 @@ class HermesStringsTest {
             }
         }
     }
+
+    @Test
+    fun customEndpointHintIsPresentAndLocalizedForEveryLanguage() {
+        val english = hermesStringsFor(AppLanguage.ENGLISH).customEndpointConnectionHint()
+        assertTrue(english.isNotBlank())
+
+        AppLanguage.entries.filterNot { it == AppLanguage.ENGLISH }.forEach { language ->
+            val localized = hermesStringsFor(language).customEndpointConnectionHint()
+            assertTrue("$language hint should not be blank", localized.isNotBlank())
+            assertFalse("$language hint should not fall back to English", localized == english)
+        }
+    }
+
 }

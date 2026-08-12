@@ -1,5 +1,7 @@
 package com.mobilefork.hermesagent.device
 
+import android.app.ActivityManager
+import android.app.ApplicationExitInfo
 import android.content.Context
 import android.os.Build
 import android.os.Process
@@ -35,7 +37,10 @@ object HermesCrashLogStore {
             installed = true
         }
         Thread(
-            { appendDiagnosticEvent(appContext, "info", "crash_capture_armed") },
+            {
+                captureHistoricalProcessExit(appContext)
+                appendDiagnosticEvent(appContext, "info", "crash_capture_armed")
+            },
             "HermesCrashDiagnosticsInit",
         ).apply { isDaemon = true }.start()
     }
@@ -88,6 +93,7 @@ object HermesCrashLogStore {
             .put("display_preview", JSONArray(snapshot.previewLines))
             .put("diagnostics_log_bytes", snapshot.logBytes)
             .put("last_crash_bytes", snapshot.lastCrashBytes)
+            .put("local_model_runtime", LocalModelRuntimeDiagnostics.readSnapshot(context) ?: JSONObject.NULL)
             .put("export_action", "diagnostics_log_export")
             .put("suggested_export_file_name", snapshot.exportFileName)
             .put("pii_filter", redactionPolicyJson())
@@ -121,6 +127,13 @@ object HermesCrashLogStore {
                 .appendLine()
                 .appendLine("Last crash")
                 .appendLine(crash.toString(2))
+        }
+
+        LocalModelRuntimeDiagnostics.readSnapshot(appContext)?.let { runtime ->
+            builder
+                .appendLine()
+                .appendLine("Last local-model runtime attempt")
+                .appendLine(runtime.toString(2))
         }
 
         val logFile = diagnosticsLogFile(appContext)
@@ -183,6 +196,122 @@ object HermesCrashLogStore {
         lastCrashFile(context).writeText(crash.toString(2), Charsets.UTF_8)
         appendDiagnosticEvent(context, "error", "uncaught_exception", crash)
         return crash
+    }
+
+    private fun captureHistoricalProcessExit(context: Context) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        runCatching {
+            val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+                ?: return@runCatching
+            val preferences = context.getSharedPreferences(PROCESS_EXIT_PREFS, Context.MODE_PRIVATE)
+            val lastSeenTimestamp = preferences.getLong(KEY_LAST_EXIT_TIMESTAMP, 0L)
+            val exits = activityManager.getHistoricalProcessExitReasons(context.packageName, 0, MAX_EXIT_REASONS)
+            val newestTimestamp = exits.maxOfOrNull { it.timestamp } ?: lastSeenTimestamp
+            val concerning = exits
+                .asSequence()
+                .filter { it.timestamp > lastSeenTimestamp }
+                .filter { isDiagnosticExitReason(it.reason) }
+                .maxByOrNull { it.timestamp }
+            if (newestTimestamp > lastSeenTimestamp) {
+                preferences.edit().putLong(KEY_LAST_EXIT_TIMESTAMP, newestTimestamp).apply()
+            }
+            if (concerning != null) {
+                recordHistoricalProcessExit(context, concerning)
+            }
+        }.onFailure { error ->
+            appendDiagnosticEvent(
+                context,
+                "warning",
+                "historical_process_exit_capture_failed: ${error.message ?: error.javaClass.simpleName}",
+            )
+        }
+    }
+
+    private fun recordHistoricalProcessExit(context: Context, exit: ApplicationExitInfo) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        val existingTimestamp = readLastCrashJson(context)?.optLong("captured_at_ms", 0L) ?: 0L
+        if (existingTimestamp > exit.timestamp) return
+        val trace = runCatching {
+            exit.traceInputStream?.bufferedReader()?.use { reader ->
+                val buffer = CharArray(MAX_EXIT_TRACE_CHARS)
+                val count = reader.read(buffer)
+                if (count > 0) String(buffer, 0, count) else ""
+            }.orEmpty()
+        }.getOrDefault("")
+        val reasonLabel = processExitReasonLabel(exit.reason)
+        val runtimeAttempt = LocalModelRuntimeDiagnostics.readSnapshot(context)
+        val payload = JSONObject()
+            .put("kind", "android_process_exit")
+            .put("captured_at_ms", exit.timestamp)
+            .put("captured_at", formatTimestamp(exit.timestamp))
+            .put("exception_type", "android.process_exit.$reasonLabel")
+            .put("message", processExitMessage(exit.reason, exit.description.orEmpty()))
+            .put("reason", exit.reason)
+            .put("reason_label", reasonLabel)
+            .put("status", exit.status)
+            .put("importance", exit.importance)
+            .put("pss_kb", exit.pss)
+            .put("rss_kb", exit.rss)
+            .put("process_name", redactForDiagnostics(exit.processName.orEmpty()).text)
+            .put("description", redactForDiagnostics(exit.description.orEmpty()).text)
+            .put("trace", redactForDiagnostics(trace).text)
+            .put("local_model_runtime", runtimeAttempt ?: JSONObject.NULL)
+            .put(
+                "android",
+                JSONObject()
+                    .put("sdk_int", Build.VERSION.SDK_INT)
+                    .put("release", Build.VERSION.RELEASE.orEmpty())
+                    .put("manufacturer", Build.MANUFACTURER.orEmpty())
+                    .put("model", Build.MODEL.orEmpty())
+                    .put("abis", JSONArray(Build.SUPPORTED_ABIS.toList())),
+            )
+            .put("pii_filter", redactionPolicyJson())
+        diagnosticsDir(context).mkdirs()
+        lastCrashFile(context).writeText(payload.toString(2), Charsets.UTF_8)
+        appendDiagnosticEvent(context, "error", "android_process_exit_$reasonLabel", payload, exit.timestamp)
+    }
+
+    internal fun processExitReasonLabel(reason: Int): String = when (reason) {
+        ApplicationExitInfo.REASON_EXIT_SELF -> "exit_self"
+        ApplicationExitInfo.REASON_SIGNALED -> "signaled"
+        ApplicationExitInfo.REASON_LOW_MEMORY -> "low_memory"
+        ApplicationExitInfo.REASON_CRASH -> "crash"
+        ApplicationExitInfo.REASON_CRASH_NATIVE -> "crash_native"
+        ApplicationExitInfo.REASON_ANR -> "anr"
+        ApplicationExitInfo.REASON_INITIALIZATION_FAILURE -> "initialization_failure"
+        ApplicationExitInfo.REASON_PERMISSION_CHANGE -> "permission_change"
+        ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE -> "excessive_resource_usage"
+        ApplicationExitInfo.REASON_USER_REQUESTED -> "user_requested"
+        ApplicationExitInfo.REASON_USER_STOPPED -> "user_stopped"
+        ApplicationExitInfo.REASON_DEPENDENCY_DIED -> "dependency_died"
+        ApplicationExitInfo.REASON_OTHER -> "other"
+        else -> "unknown"
+    }
+
+    internal fun isDiagnosticExitReason(reason: Int): Boolean {
+        return reason == ApplicationExitInfo.REASON_LOW_MEMORY ||
+            reason == ApplicationExitInfo.REASON_CRASH ||
+            reason == ApplicationExitInfo.REASON_CRASH_NATIVE ||
+            reason == ApplicationExitInfo.REASON_ANR ||
+            reason == ApplicationExitInfo.REASON_INITIALIZATION_FAILURE ||
+            reason == ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE
+    }
+
+    private fun processExitMessage(reason: Int, description: String): String {
+        val explanation = when (reason) {
+            ApplicationExitInfo.REASON_LOW_MEMORY ->
+                "Android terminated Hermes under memory pressure; Java crash capture cannot run after an LMKD kill."
+            ApplicationExitInfo.REASON_CRASH_NATIVE ->
+                "Hermes exited in native code; inspect the local-model runtime attempt and bounded process trace."
+            ApplicationExitInfo.REASON_ANR ->
+                "Android recorded an application-not-responding exit."
+            ApplicationExitInfo.REASON_INITIALIZATION_FAILURE ->
+                "Android recorded a process initialization failure."
+            ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE ->
+                "Android terminated Hermes for excessive resource usage."
+            else -> "Android recorded a ${processExitReasonLabel(reason)} process exit."
+        }
+        return if (description.isBlank()) explanation else "$explanation ${description.take(400)}"
     }
 
     private fun appendDiagnosticEvent(
@@ -348,6 +477,10 @@ object HermesCrashLogStore {
     private const val MAX_LOG_BYTES = 128 * 1024
     private const val MAX_EXPORT_LOG_CHARS = 96 * 1024
     private const val MAX_PREVIEW_LINES = 4
+    private const val MAX_EXIT_REASONS = 12
+    private const val MAX_EXIT_TRACE_CHARS = 32_000
+    private const val PROCESS_EXIT_PREFS = "hermes_android_process_exit_diagnostics"
+    private const val KEY_LAST_EXIT_TIMESTAMP = "last_exit_timestamp"
 
     private val EMAIL_REGEX = Regex("""(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b""")
     private val AUTHORIZATION_BEARER_REGEX = Regex("""(?i)\b(authorization\s*[:=]\s*bearer\s+)([^\s"',;\\]+)""")

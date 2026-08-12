@@ -1,6 +1,7 @@
 import importlib.util
 import marshal
 from pathlib import Path
+import re
 import tomllib
 import zipfile
 
@@ -103,10 +104,6 @@ def test_android_wheel_includes_iteration_limits_module():
 
 
 def test_fdroid_updatecheck_data_uses_literal_version_code_for_future_tags():
-    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    version_name = pyproject["project"]["version"]
-    major, minor, patch = (int(part) for part in version_name.split("."))
-    expected_code = major * 1_000_000 + minor * 10_000 + patch * 100 + 90
     version_file = dict(
         line.split("=", 1)
         for line in (REPO_ROOT / "fdroid/com.mobilefork.hermesagent.version")
@@ -114,14 +111,24 @@ def test_fdroid_updatecheck_data_uses_literal_version_code_for_future_tags():
         .splitlines()
         if line.strip()
     )
+    version_name = version_file["versionName"]
+    major, minor, patch = (int(part) for part in version_name.split("."))
+    expected_code = major * 1_000_000 + minor * 10_000 + patch * 100 + 90
     template = (REPO_ROOT / "fdroid/com.mobilefork.hermesagent.yml.template").read_text(encoding="utf-8")
 
     assert version_file == {
         "versionName": version_name,
         "versionCode": str(expected_code),
     }
-    assert "UpdateCheckMode: Tags" in template
+    update_pattern_match = re.search(r"^UpdateCheckMode:\s+Tags\s+(.+)$", template, re.MULTILINE)
+    assert update_pattern_match is not None
+    update_pattern = update_pattern_match.group(1)
+    assert re.match(update_pattern, f"v{version_name}")
+    assert re.match(update_pattern, version_name) is None
     assert "UpdateCheckData: fdroid/com.mobilefork.hermesagent.version|versionCode=(\\d+)|.|versionName=(.*)" in template
+    changelog = REPO_ROOT / f"fastlane/metadata/android/en-US/changelogs/{expected_code}.txt"
+    assert changelog.is_file()
+    assert len(changelog.read_text(encoding="utf-8")) <= 500
 
 
 def test_android_anthropic_stub_matches_project_requirement_pin():
@@ -309,19 +316,26 @@ def test_android_declares_shizuku_privileged_access_support():
     assert "privileged_access" in system_bridge
 
 
-def test_android_debug_version_code_tracks_project_semver():
+def test_android_release_tag_version_code_tracks_fdroid_semver():
     gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
-    version_file = (REPO_ROOT / "fdroid/com.mobilefork.hermesagent.version").read_text(encoding="utf-8")
-    project_metadata = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    project_version = project_metadata["project"]["version"]
-    major, minor, patch = (int(part) for part in project_version.split("."))
+    version_file = dict(
+        line.split("=", 1)
+        for line in (REPO_ROOT / "fdroid/com.mobilefork.hermesagent.version")
+        .read_text(encoding="utf-8")
+        .splitlines()
+        if line.strip()
+    )
+    android_version = version_file["versionName"]
+    major, minor, patch = (int(part) for part in android_version.split("."))
     expected_version_code = (major * 1_000_000) + (minor * 10_000) + (patch * 100) + 90
 
     assert "fun semverVersionCode(versionText: String): Int?" in gradle
     assert "return semverVersionCode(hermesVersionName()) ?: 1" in gradle
     assert "semverVersionCode(releaseTag)?.let { return it }" in gradle
-    assert f"versionName={project_version}" in version_file
-    assert f"versionCode={expected_version_code}" in version_file
+    assert version_file == {
+        "versionName": android_version,
+        "versionCode": str(expected_version_code),
+    }
 
 
 def test_android_wheel_build_clears_stale_python_build_output():

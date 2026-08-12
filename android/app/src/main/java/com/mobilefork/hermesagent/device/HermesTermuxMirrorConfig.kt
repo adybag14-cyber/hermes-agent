@@ -3,7 +3,8 @@ package com.mobilefork.hermesagent.device
 import android.content.Context
 
 /**
- * Termux main-repo mirror list for in-app host package updates.
+ * Termux main-repo mirror list for read-only package discovery.
+ * Host package activation is restricted to the signed APK baseline.
  * Mirrors match the build-time prepare_android_linux_assets fallthrough order.
  */
 object HermesTermuxMirrorConfig {

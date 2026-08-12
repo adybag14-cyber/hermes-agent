@@ -3,42 +3,84 @@ name: Android Release
 on:
   push:
     tags:
-      - 'v*'
-  release:
-    types:
-      - published
+      - 'v0.*'
+
+# A tag push is the single release authority. The job creates/updates the
+# matching GitHub release itself; listening for `release.published` as well
+# starts a duplicate run which can cancel the tag build under this workflow's
+# concurrency policy before its signed artifacts are uploaded.
 
 concurrency:
-  group: android-release-${{ github.event.release.tag_name || github.ref_name }}
+  group: android-release-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   build-release:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 75
     permissions:
       contents: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.ref }}
 
       - name: Set up Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Python 3.13 for Chaquopy
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.13'
+
+      - name: Verify tag and source release identity
+        id: release_identity
+        run: |
+          identity="$(python scripts/check_android_release_identity.py --tag "$GITHUB_REF_NAME")"
+          printf '%s\n' "$identity"
+          version_name="$(printf '%s\n' "$identity" | sed -n 's/^versionName=//p')"
+          version_code="$(printf '%s\n' "$identity" | sed -n 's/^versionCode=//p')"
+          test -n "$version_name"
+          test -n "$version_code"
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+
+      - name: Verify committed headed-device release evidence
+        run: |
+          # This verifies evidence captured by the local hardware-accelerated
+          # AVD lane. It does not turn the compile-only CI runner into device
+          # certification and fails before signing or release publication.
+          python scripts/android_release_evidence.py verify \
+            --tag "$GITHUB_REF_NAME" \
+            --require-tag-ref
+
+      - name: Install Python test dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/python -m pip install -e '.[android,dev]' -c constraints-android.txt
+
+      - name: Run Android-related Python tests
+        run: |
+          bash scripts/run_tests.sh \
+            tests/hermes_android \
+            tests/gateway/test_api_server_toolset.py \
+            tests/gateway/test_api_server_android_toolset.py \
+            tests/tools/test_skills_sync.py \
+            tests/tools/test_web_tools_firecrawl_fallback.py \
+            tests/run_agent/test_run_agent_chatgpt_web.py \
+            -q
 
       - name: Verify latest LiteRT-LM Android SDK
         run: python scripts/check_android_litertlm_version.py
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
           # Avoid the full "tools" meta-package (pulls emulator) — zip fetch of
           # emulator has been flaky on GitHub runners and is not needed to
@@ -49,7 +91,7 @@ jobs:
         working-directory: android
         run: |
           export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
-          ./gradlew :app:testDebugUnitTest :app:lintDebug
+          ./gradlew :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin :app:lintDebug
 
       - name: Restore signing material
         env:
@@ -70,11 +112,14 @@ jobs:
       - name: Build and sign Android artifacts
         working-directory: android
         env:
-          HERMES_RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          HERMES_RELEASE_TAG: ${{ github.ref_name }}
           SOURCE_DATE_EPOCH: "315532800"
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_VERSION_NAME: ${{ steps.release_identity.outputs.version_name }}
+          EXPECTED_VERSION_CODE: ${{ steps.release_identity.outputs.version_code }}
+          EXPECTED_SIGNER_SHA256: 2cbdb94d6081413055af1e903d4c1d6714300b4240402d1d4c8182fda777d14e
         run: |
           rm -rf ../build
           rm -f keystore.properties
@@ -88,12 +133,14 @@ jobs:
           EOF
           ./gradlew :app:bundleRelease
           sdk_root="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-          build_tools_dir="$(find "$sdk_root/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          build_tools_dir="$sdk_root/build-tools/35.0.0"
           apksigner="$build_tools_dir/apksigner"
+          aapt2="$build_tools_dir/aapt2"
           unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
           signed_apk="app/build/outputs/apk/release/app-release.apk"
           universal_apk="app/build/outputs/apk/release/app-universal-release.apk"
           test -x "$apksigner"
+          test -x "$aapt2"
           test -f "$unsigned_apk"
           "$apksigner" sign \
             --alignment-preserved true \
@@ -108,35 +155,41 @@ jobs:
             --out "$signed_apk" \
             "$unsigned_apk"
           "$apksigner" verify --verbose "$signed_apk"
+          cert_digest="$("$apksigner" verify --print-certs "$signed_apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]')"
+          test "$cert_digest" = "$EXPECTED_SIGNER_SHA256"
+          badging="$("$aapt2" dump badging "$signed_apk" | head -n 1)"
+          printf '%s\n' "$badging"
+          printf '%s\n' "$badging" | grep -F "package: name='com.mobilefork.hermesagent'"
+          printf '%s\n' "$badging" | grep -F "versionCode='$EXPECTED_VERSION_CODE'"
+          printf '%s\n' "$badging" | grep -F "versionName='$EXPECTED_VERSION_NAME'"
+          aab="app/build/outputs/bundle/release/app-release.aab"
+          test -f "$aab"
+          jarsigner -verify "$aab"
+          aab_digest="$(keytool -printcert -jarfile "$aab" -rfc | openssl x509 -inform PEM -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+          test "$aab_digest" = "$EXPECTED_SIGNER_SHA256"
           cp -f "$signed_apk" "$universal_apk"
           rm -f "$unsigned_apk"
 
       - name: Rename artifacts and write checksums
         env:
-          HERMES_RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          HERMES_RELEASE_TAG: ${{ github.ref_name }}
         run: |
           python scripts/android_release_manifest.py --tag "$HERMES_RELEASE_TAG"
 
-      - name: Ensure GitHub CLI is available
+      - name: Verify GitHub CLI is available
         run: |
-          if ! command -v gh >/dev/null 2>&1; then
-            sudo mkdir -p -m 755 /etc/apt/keyrings
-            wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg >/dev/null
-            sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
-            sudo apt-get update
-            sudo apt-get install -y gh
-          fi
+          command -v gh
+          gh --version
 
-      - name: Ensure release exists
+      - name: Create or update draft release
         env:
           GH_TOKEN: ${{ github.token }}
-          HERMES_RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          HERMES_RELEASE_TAG: ${{ github.ref_name }}
         run: |
           title="Hermes Agent Fork ${HERMES_RELEASE_TAG}"
           notes_file="RELEASE_${HERMES_RELEASE_TAG}.md"
           if gh release view "$HERMES_RELEASE_TAG" >/dev/null 2>&1; then
-            edit_args=(--target "$GITHUB_SHA" --title "$title")
+            edit_args=(--draft --target "$GITHUB_SHA" --title "$title")
             if [ -f "$notes_file" ]; then
               edit_args+=(--notes-file "$notes_file")
             fi
@@ -147,6 +200,7 @@ jobs:
               create_args=(--notes-file "$notes_file")
             fi
             gh release create "$HERMES_RELEASE_TAG" \
+              --draft \
               --target "$GITHUB_SHA" \
               --title "$title" \
               "${create_args[@]}"
@@ -155,10 +209,36 @@ jobs:
       - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
-          HERMES_RELEASE_TAG: ${{ github.event.release.tag_name || github.ref_name }}
+          HERMES_RELEASE_TAG: ${{ github.ref_name }}
         run: |
           gh release upload "$HERMES_RELEASE_TAG" \
             dist/android-release/*.apk \
             dist/android-release/*.aab \
             dist/android-release/*.sha256 \
             --clobber
+
+      - name: Verify complete release asset manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HERMES_RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          mapfile -t expected < <(find dist/android-release -maxdepth 1 -type f \
+            \( -name '*.apk' -o -name '*.aab' -o -name '*.sha256' \) \
+            -printf '%f\n' | sort)
+          mapfile -t published < <(gh release view "$HERMES_RELEASE_TAG" \
+            --json assets --jq '.assets[].name' | sort)
+          test "${#expected[@]}" -gt 0
+          test "${#expected[@]}" -eq "${#published[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${published[@]}")
+          for checksum_file in dist/android-release/*.sha256; do
+            (cd dist/android-release && sha256sum --check "$(basename "$checksum_file")")
+          done
+          test "$(gh release view "$HERMES_RELEASE_TAG" --json isDraft --jq .isDraft)" = true
+
+      - name: Publish verified release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HERMES_RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release edit "$HERMES_RELEASE_TAG" --draft=false --latest
+          test "$(gh release view "$HERMES_RELEASE_TAG" --json isDraft --jq .isDraft)" = false

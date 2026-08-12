@@ -56,7 +56,7 @@ If you already have Git installed, the installer detects it and uses that instea
 
 > **Android / Termux:** The tested manual path is documented in the [Termux guide](https://hermes-agent.nousresearch.com/docs/getting-started/termux). On Termux, Hermes installs a curated `.[termux]` extra because the full `.[all]` extra currently pulls Android-incompatible voice dependencies.
 >
-> **Android app:** Hermes also has an in-repo Android APK workstream under `android/`, with GitHub Actions workflows for debug and release artifact builds. This app path is separate from the Termux CLI path.
+> **Android app:** The native app is published on [F-Droid](https://f-droid.org/packages/com.mobilefork.hermesagent/) and in [GitHub releases](https://github.com/adybag14-cyber/hermes-agent/releases). It supports remote providers plus release-tested on-device LiteRT-LM models and single-file, chat-ready llama.cpp/GGUF v2/v3 models with embedded chat templates, six in-app languages, phone/tablet layouts, terminal tools, and reproducible tag-driven releases. Exact model certification is release-specific; see the [Android install, model, tool, build, and troubleshooting guide](android/README.md). This app path is separate from the Termux CLI path.
 >
 > **Windows:** Native Windows is fully supported — the PowerShell one-liner above installs everything. If you'd rather use WSL2, the Linux command works there too. Native Windows install lives under `%LOCALAPPDATA%\hermes`; WSL2 installs under `~/.hermes` as on Linux.
 
