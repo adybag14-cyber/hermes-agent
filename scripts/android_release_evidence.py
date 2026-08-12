@@ -54,6 +54,7 @@ TEST_PACKAGE_ID = f"{PACKAGE_ID}.test"
 MAIN_ACTIVITY = f"{PACKAGE_ID}/.MainActivity"
 UI_DUMP_PATH_PREFIX = "/data/local/tmp/hermes-performance-ui-"
 PHONE_DRAWER_TAG = "HermesChatDrawerButton"
+PHONE_UI_DRAWER_TAG = "HermesShellDrawerButton"
 PHONE_SETTINGS_TAG = "HermesNavSettings"
 TABLET_SETTINGS_TAG = "HermesRailSettings"
 SETTINGS_CONTENT_TAG = "HermesSettingsContentList"
@@ -2584,7 +2585,7 @@ def validate_evidence_directory(
                     f"ui[{profile}/{language}] lacks the expected localized Device/Overview sentinel"
                 )
             has_rail = "Tag: 'HermesPersistentNavigation'" in semantics_body
-            has_drawer = f"Tag: '{PHONE_DRAWER_TAG}'" in semantics_body
+            has_drawer = f"Tag: '{PHONE_UI_DRAWER_TAG}'" in semantics_body
             if profile == "tablet" and (not has_rail or has_drawer):
                 raise EvidenceError(f"ui[{profile}/{language}] does not prove the tablet navigation rail")
             if profile == "phone-compact" and (has_rail or not has_drawer):
