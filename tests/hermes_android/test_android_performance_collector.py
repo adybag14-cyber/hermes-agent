@@ -326,7 +326,6 @@ class FixtureExecutor:
             "dumpsys",
             "gfxinfo",
             "com.mobilefork.hermesagent",
-            "framestats",
         ):
             janky = 6
             header = (
@@ -621,8 +620,8 @@ def test_live_fixture_collects_current_validator_compatible_payload(
     ]
     gfx_reset_index = record_ids.index("measure.gfx.reset")
     assert record_ids[gfx_reset_index - 1] == "measure.activity.before_gfx"
-    framestats_index = record_ids.index("measure.gfx.framestats.01")
-    assert record_ids[framestats_index + 1] == "measure.activity.after_gfx"
+    summary_index = record_ids.index("measure.gfx.summary.01")
+    assert record_ids[summary_index + 1] == "measure.activity.after_gfx"
 
     path, _ = _write_collected_pair(tmp_path, "phone-compact", payload, raw_transcript)
     assert release_module._validate_performance(
@@ -844,7 +843,6 @@ def test_measurement_rejects_duplicate_headers_or_metrics(collector_module, kind
             "dumpsys",
             "gfxinfo",
             "com.mobilefork.hermesagent",
-            "framestats",
         ):
             if kind == "gfx_header":
                 stdout += "** Graphics info for pid 8123 [com.mobilefork.hermesagent] **\n"
@@ -869,7 +867,7 @@ def test_measurement_rejects_duplicate_headers_or_metrics(collector_module, kind
         _collect(collector_module, executor=executor)
 
 
-def test_gfx_parser_accepts_android_framestats_duplicate_summary(collector_module):
+def test_gfx_parser_accepts_android_duplicate_summary(collector_module):
     summary = (
         "Total frames rendered: 120\n"
         "Janky frames: 6 (5.00%)\n"

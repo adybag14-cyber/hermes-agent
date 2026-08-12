@@ -1019,12 +1019,11 @@ class PerformanceCollector:
                     timeout_seconds=10,
                 )
             raw = self._adb_text(
-                f"measure.gfx.framestats.{round_number:02d}",
+                f"measure.gfx.summary.{round_number:02d}",
                 "shell",
                 "dumpsys",
                 "gfxinfo",
                 PACKAGE_ID,
-                "framestats",
                 timeout_seconds=60,
             )
             _require_process_header(raw, "Graphics info for pid", expected_pid, "gfxinfo")
