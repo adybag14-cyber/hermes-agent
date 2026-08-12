@@ -165,7 +165,6 @@ def test_auth_callback_hardening_strings_and_base_url_validation_exist():
     assert 'putExtra(Browser.EXTRA_APPLICATION_ID' in browser_launcher
     assert 'copyAuthStartUrl(pendingRequest.startUrl, updateStatus = false)' in auth_view_model
     assert 'fun copyPendingSignInUrl()' in auth_view_model
-    assert 'ClipData.newPlainText("Hermes Corr3xt sign-in URL", target)' in auth_view_model
     assert 'currentStrings().authNoBrowser()' in auth_view_model
     assert 'addCategory(Intent.CATEGORY_BROWSABLE)' in browser_launcher
     assert 'pendingStartUrl = pending?.startUrl.orEmpty()' in auth_view_model
@@ -254,9 +253,6 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert "ProviderSetupUrlProbe::probe" in auth_view_model
     assert "data class ProviderSetupProbeResult" in provider_setup_probe
     assert "object ProviderSetupUrlProbe" in provider_setup_probe
-    assert "Checking ${option.label} setup pages from this device" in auth_view_model
-    assert "setup is reachable from Hermes" in auth_view_model
-    assert "No ${option.label} setup page responded from Hermes" in auth_view_model
     assert "const val DEFAULT_TIMEOUT_MS = 6_000" in provider_setup_probe
     assert "const val MAX_STATUS_LENGTH = 900" in provider_setup_probe
     assert "mobileUnsupportedPhrases" in provider_setup_probe
@@ -273,16 +269,12 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert "AuthRuntimeApplier.apply(getApplication(), session)" in auth_view_model
     assert "authSessionStore.saveSession(session)" in auth_view_model
     assert "ProviderPresets.credentialInputHelp(option.runtimeProvider)" in auth_view_model
-    assert "Saved ${option.label} credential$sourceSuffix and queued Hermes runtime restart." in auth_view_model
-    assert "Tap Open again for the next fallback" in auth_view_model
-    assert "Qwen OAuth is legacy" in auth_view_model
     assert "prepareApiKeySetup(methodId)\n            openProviderSetupPage(methodId)" in auth_view_model
     assert "HermesProviderSetupWebActivity.open" in auth_view_model
     assert "forceChooser = true" in auth_view_model
     assert "OpenRouterLoopbackOAuthServer.callbackUrlForState(state)" in auth_view_model
     assert "OpenRouterLoopbackOAuthServer.start" in auth_view_model
     assert "callbackUrl = callbackUrl" in auth_view_model
-    assert "the local callback will save the API key securely" in auth_view_model
     openrouter_oauth = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/auth/OpenRouterOAuthClient.kt").read_text(encoding="utf-8")
     openrouter_loopback = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/auth/OpenRouterLoopbackOAuthServer.kt").read_text(encoding="utf-8")
     assert "https://openrouter.ai/auth" in openrouter_oauth
@@ -303,9 +295,6 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert "DeviceStateWriter.write(context)" in openrouter_loopback
     assert "fun copyProviderSetupUrl(methodId: String)" in auth_view_model
     assert "ProviderPresets.setupClipboardText(option.runtimeProvider)" in auth_view_model
-    assert 'ClipData.newPlainText("Hermes ${option.label} setup URLs", setupText)' in auth_view_model
-    assert '" and 1 alternate official page"' in auth_view_model
-    assert '" and $fallbackCount alternate official pages"' in auth_view_model
     assert "strings.setUpApiKeyFor(option.label)" in auth_screen
     assert "prepareApiKeySetup(methodId)" in auth_view_model
     assert "providers use secure API keys or tokens in Settings" in strings
@@ -331,9 +320,6 @@ def test_settings_opens_official_provider_key_pages():
     assert "fun checkProviderKeyPage(url: String)" in settings_view_model
     assert "ProviderSetupUrlProbe::probe" in settings_view_model
     assert "ProviderSetupUrlProbe.MAX_STATUS_LENGTH" in settings_view_model
-    assert "Checking $providerLabel setup pages from this device" in settings_view_model
-    assert "setup is reachable from Hermes" in settings_view_model
-    assert "No $providerLabel setup page responded from Hermes" in settings_view_model
     assert "class HermesProviderSetupWebActivity" in provider_setup_web_activity
     assert "WebView(this)" in provider_setup_web_activity
     assert "HermesExternalBrowserLauncher.open" in provider_setup_web_activity
@@ -347,9 +333,6 @@ def test_settings_opens_official_provider_key_pages():
     assert "private val providerSetupOpenIndexes = mutableMapOf<String, Int>()" in settings_view_model
     assert "ProviderPresets.setupTarget(providerId, nextIndex)" in settings_view_model
     assert "providerSetupOpenIndexes[providerId] = target.nextIndex" in settings_view_model
-    assert "Tap Open again for the next fallback" in settings_view_model
-    assert "Qwen OAuth is legacy" in settings_view_model
-    assert 'ClipData.newPlainText("Hermes provider setup URLs", setupText)' in settings_view_model
     assert "addCategory(Intent.CATEGORY_BROWSABLE)" in browser_launcher
     assert "openProviderKeyPage(providerLabel)" in settings_screen
     assert "copyProviderSetupUrl()" in settings_screen
@@ -390,8 +373,6 @@ def test_settings_can_import_saved_python_provider_credentials_without_blank_ove
     assert "Blank API key field left existing Hermes credentials untouched" in strings
     assert "write_provider_auth_bundle" in settings_view_model
     assert "write_runtime_config" in settings_view_model
-    assert "No saved Hermes credential found for $providerLabel" in settings_view_model
-    assert "Imported saved Hermes credential for $providerLabel" in settings_view_model
     assert "def read_provider_auth_bundle_json(provider: str) -> str:" in auth_bridge
     assert '"reason": "blank_api_key_preserved"' in auth_bridge
     assert '"zai": {' in auth_bridge
@@ -403,7 +384,6 @@ def test_settings_can_import_saved_python_provider_credentials_without_blank_ove
 def test_settings_provider_switch_applies_selected_provider_defaults():
     settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
     auth_runtime_applier = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/auth/AuthRuntimeApplier.kt").read_text(encoding="utf-8")
-    runtime_manager = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/HermesRuntimeManager.kt").read_text(encoding="utf-8")
 
     assert "val providerChanged = provider != it.provider" in settings_view_model
     assert 'baseUrl = if (providerChanged && provider != "custom") preset?.baseUrl.orEmpty() else it.baseUrl' in settings_view_model
@@ -414,8 +394,6 @@ def test_settings_provider_switch_applies_selected_provider_defaults():
     assert "private val restartScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)" in auth_runtime_applier
     assert "restartRuntimeAsync(appContext)" in auth_runtime_applier
     assert "restartScope.launch {" in auth_runtime_applier
-    assert 'import com.mobilefork.hermesagent.data.ProviderPresets' in runtime_manager
-    assert 'ProviderPresets.runtimeConfigBaseUrl(settings.provider, settings.baseUrl)' in runtime_manager
 
 
 def test_android_wheel_task_tracks_python_auth_sources():

@@ -1,6 +1,10 @@
 package com.mobilefork.hermesagent.ui.i18n
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.mobilefork.hermesagent.device.HermesGlobalAction
+import com.mobilefork.hermesagent.ui.device.DevicePermission
+import com.mobilefork.hermesagent.ui.device.DeviceOperationStatus
+import com.mobilefork.hermesagent.ui.device.LinuxSuiteFailureStage
 
 data class HermesStrings(
     val language: AppLanguage,
@@ -77,6 +81,71 @@ data class HermesStrings(
     val setPreferred: String,
     val remove: String,
 ) {
+    fun sectionKanban(): String = kanbanTitle()
+
+    fun sectionTerminal(): String = when (language) {
+        AppLanguage.CHINESE -> "终端"
+        AppLanguage.SPANISH -> "Terminal"
+        AppLanguage.GERMAN -> "Terminal"
+        AppLanguage.PORTUGUESE -> "Terminal"
+        AppLanguage.FRENCH -> "Terminal"
+        AppLanguage.ENGLISH -> "Terminal"
+    }
+
+    fun subtitleKanban(): String = when (language) {
+        AppLanguage.CHINESE -> "共享任务板与人工处置"
+        AppLanguage.SPANISH -> "Tablero compartido y control humano de tareas"
+        AppLanguage.GERMAN -> "Gemeinsames Aufgabenboard und manuelle Steuerung"
+        AppLanguage.PORTUGUESE -> "Quadro compartilhado e controle humano de tarefas"
+        AppLanguage.FRENCH -> "Tableau partagé et contrôle humain des tâches"
+        AppLanguage.ENGLISH -> "Shared task board and human task control"
+    }
+
+    fun subtitleTerminal(): String = when (language) {
+        AppLanguage.CHINESE -> "手动运行 PRoot Linux 命令"
+        AppLanguage.SPANISH -> "Ejecuta comandos PRoot Linux manualmente"
+        AppLanguage.GERMAN -> "PRoot-Linux-Befehle manuell ausführen"
+        AppLanguage.PORTUGUESE -> "Execute comandos PRoot Linux manualmente"
+        AppLanguage.FRENCH -> "Exécuter manuellement des commandes PRoot Linux"
+        AppLanguage.ENGLISH -> "Run PRoot Linux commands manually"
+    }
+
+    fun attachmentFallback(): String = when (language) {
+        AppLanguage.CHINESE -> "附件"
+        AppLanguage.SPANISH -> "archivo adjunto"
+        AppLanguage.GERMAN -> "Anhang"
+        AppLanguage.PORTUGUESE -> "anexo"
+        AppLanguage.FRENCH -> "pièce jointe"
+        AppLanguage.ENGLISH -> "attachment"
+    }
+
+    fun messageClipboardLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "Hermes 消息"
+        AppLanguage.SPANISH -> "Mensaje de Hermes"
+        AppLanguage.GERMAN -> "Hermes-Nachricht"
+        AppLanguage.PORTUGUESE -> "Mensagem do Hermes"
+        AppLanguage.FRENCH -> "Message Hermes"
+        AppLanguage.ENGLISH -> "Hermes message"
+    }
+
+    fun toolCallLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "工具调用"
+        AppLanguage.SPANISH -> "Llamada de herramienta"
+        AppLanguage.GERMAN -> "Werkzeugaufruf"
+        AppLanguage.PORTUGUESE -> "Chamada de ferramenta"
+        AppLanguage.FRENCH -> "Appel d’outil"
+        AppLanguage.ENGLISH -> "Tool call"
+    }
+
+    fun argumentsLabel(): String = when (language) {
+        AppLanguage.CHINESE -> "参数"
+        AppLanguage.SPANISH -> "Argumentos"
+        AppLanguage.GERMAN -> "Argumente"
+        AppLanguage.PORTUGUESE -> "Argumentos"
+        AppLanguage.FRENCH -> "Arguments"
+        AppLanguage.ENGLISH -> "Arguments"
+    }
+
     fun forkBadge(): String = when (language) {
         AppLanguage.CHINESE -> "分支"
         AppLanguage.SPANISH -> "Fork"
@@ -155,11 +224,11 @@ data class HermesStrings(
     }
 
     fun customEndpointConnectionHint(): String = when (language) {
-        AppLanguage.CHINESE -> "自定义 OpenAI 兼容端点可以是裸主机、/v1 URL 或完整 /v1/chat/completions URL；Hermes 会规范化它，并使用服务器上完全匹配的模型名称。"
-        AppLanguage.SPANISH -> "Los endpoints personalizados compatibles con OpenAI pueden ser un host sin esquema, una URL /v1 o una URL completa /v1/chat/completions; Hermes los normaliza y usa el nombre exacto del modelo del servidor."
-        AppLanguage.GERMAN -> "Benutzerdefinierte OpenAI-kompatible Endpunkte koennen ein Roh-Host, eine /v1-URL oder eine vollstaendige /v1/chat/completions-URL sein; Hermes normalisiert sie und nutzt den exakten Modellnamen des Servers."
-        AppLanguage.PORTUGUESE -> "Endpoints personalizados compativeis com OpenAI podem ser um host sem esquema, uma URL /v1 ou uma URL completa /v1/chat/completions; o Hermes normaliza e usa o nome exato do modelo do servidor."
-        AppLanguage.FRENCH -> "Les endpoints personnalises compatibles OpenAI peuvent etre un hote brut, une URL /v1 ou une URL complete /v1/chat/completions; Hermes les normalise et utilise le nom exact du modele cote serveur."
+        AppLanguage.CHINESE -> "自定义 OpenAI 兼容端点可以是裸主机、/v1 URL 或完整 /v1/chat/completions URL；Hermes 会规范化它，并使用服务器上完全匹配的模型名称。如果流提前关闭，Hermes 会在聊天中显示连接诊断。"
+        AppLanguage.SPANISH -> "Los endpoints personalizados compatibles con OpenAI pueden ser un host sin esquema, una URL /v1 o una URL completa /v1/chat/completions; Hermes los normaliza y usa el nombre exacto del modelo del servidor. Si el flujo se cierra antes de tiempo, Hermes muestra diagnósticos de conexión en el chat."
+        AppLanguage.GERMAN -> "Benutzerdefinierte OpenAI-kompatible Endpunkte können ein Roh-Host, eine /v1-URL oder eine vollständige /v1/chat/completions-URL sein; Hermes normalisiert sie und nutzt den exakten Modellnamen des Servers. Wenn der Stream vorzeitig endet, zeigt Hermes im Chat Verbindungsdiagnosen an."
+        AppLanguage.PORTUGUESE -> "Endpoints personalizados compatíveis com OpenAI podem ser um host sem esquema, uma URL /v1 ou uma URL completa /v1/chat/completions; o Hermes normaliza e usa o nome exato do modelo do servidor. Se o stream fechar antes do esperado, o Hermes mostra diagnósticos de conexão no chat."
+        AppLanguage.FRENCH -> "Les endpoints personnalisés compatibles OpenAI peuvent être un hôte brut, une URL /v1 ou une URL complète /v1/chat/completions; Hermes les normalise et utilise le nom exact du modèle côté serveur. Si le flux se ferme prématurément, Hermes affiche des diagnostics de connexion dans le chat."
         AppLanguage.ENGLISH -> "Custom OpenAI-compatible endpoints can be a raw host, a /v1 URL, or a full /v1/chat/completions URL; Hermes normalizes them and uses the exact model name from the server. If the stream closes early, Hermes shows connection diagnostics in chat."
     }
 
@@ -988,6 +1057,14 @@ data class HermesStrings(
     }
 
     fun chatStatusText(text: String): String = when (text) {
+        "Message copied" -> when (language) {
+            AppLanguage.CHINESE -> "消息已复制"
+            AppLanguage.SPANISH -> "Mensaje copiado"
+            AppLanguage.GERMAN -> "Nachricht kopiert"
+            AppLanguage.PORTUGUESE -> "Mensagem copiada"
+            AppLanguage.FRENCH -> "Message copié"
+            AppLanguage.ENGLISH -> text
+        }
         "Image attached for multimodal Gemma requests" -> when (language) {
             AppLanguage.CHINESE -> "已为多模态 Gemma 请求附加图片"
             AppLanguage.SPANISH -> "Imagen adjunta para solicitudes multimodales de Gemma"
@@ -1099,6 +1176,285 @@ data class HermesStrings(
         } else {
             text
         }
+    }
+
+    fun deviceStatusText(status: DeviceOperationStatus): String = when (status) {
+        DeviceOperationStatus.LinuxSuiteProvisioning -> tr(
+            "Preparing the Linux command suite…", "正在准备 Linux 命令套件…", "Preparando la suite de comandos Linux…",
+            "Linux-Befehlssuite wird vorbereitet…", "Preparando a suíte de comandos Linux…", "Préparation de la suite de commandes Linux…",
+        )
+        DeviceOperationStatus.LinuxSuiteReady -> tr(
+            "Linux command suite ready for on-device commands", "Linux 命令套件已就绪，可运行设备端命令",
+            "La suite de comandos Linux está lista para comandos en el dispositivo",
+            "Die Linux-Befehlssuite ist für On-Device-Befehle bereit", "A suíte de comandos Linux está pronta para comandos no dispositivo",
+            "La suite de commandes Linux est prête pour les commandes sur l’appareil",
+        )
+        DeviceOperationStatus.LinuxSuiteInstalling -> tr(
+            "Installing the Linux command suite…", "正在安装 Linux 命令套件…", "Instalando la suite de comandos Linux…",
+            "Linux-Befehlssuite wird installiert…", "Instalando a suíte de comandos Linux…", "Installation de la suite de commandes Linux…",
+        )
+        is DeviceOperationStatus.LinuxSuiteInstalled -> tr(
+            "Linux command suite ready (${status.architecture}, ${status.packageCount} packages)",
+            "Linux 命令套件已就绪（${status.architecture}，${status.packageCount} 个软件包）",
+            "Suite de comandos Linux lista (${status.architecture}, ${status.packageCount} paquetes)",
+            "Linux-Befehlssuite bereit (${status.architecture}, ${status.packageCount} Pakete)",
+            "Suíte de comandos Linux pronta (${status.architecture}, ${status.packageCount} pacotes)",
+            "Suite de commandes Linux prête (${status.architecture}, ${status.packageCount} paquets)",
+        )
+        is DeviceOperationStatus.LinuxSuiteFailed -> when (status.stage) {
+            LinuxSuiteFailureStage.Provisioning -> tr(
+                "Linux command suite preparation failed", "Linux 命令套件准备失败", "Falló la preparación de la suite de comandos Linux",
+                "Vorbereitung der Linux-Befehlssuite fehlgeschlagen", "Falha ao preparar a suíte de comandos Linux",
+                "Échec de la préparation de la suite de commandes Linux",
+            )
+            LinuxSuiteFailureStage.Installation -> tr(
+                "Linux command suite installation failed", "Linux 命令套件安装失败", "Falló la instalación de la suite de comandos Linux",
+                "Installation der Linux-Befehlssuite fehlgeschlagen", "Falha ao instalar a suíte de comandos Linux",
+                "Échec de l’installation de la suite de commandes Linux",
+            )
+        }
+        is DeviceOperationStatus.SandboxRunning -> {
+            val action = deviceSandboxActionLabel(status.action)
+            tr(
+                "Running Linux sandbox action: $action (${status.distroId})…", "正在运行 Linux 沙箱操作：$action（${status.distroId}）…",
+                "Ejecutando acción del entorno Linux: $action (${status.distroId})…",
+                "Linux-Sandbox-Aktion wird ausgeführt: $action (${status.distroId})…",
+                "Executando ação do sandbox Linux: $action (${status.distroId})…",
+                "Exécution de l’action du bac à sable Linux : $action (${status.distroId})…",
+            )
+        }
+        is DeviceOperationStatus.SandboxCompleted -> {
+            val action = deviceSandboxActionLabel(status.action)
+            val target = status.sandboxName.ifBlank { status.distroId }
+            tr(
+                "Linux sandbox $action completed for $target (exit code ${status.exitCode})",
+                "Linux 沙箱已为 $target 完成$action（退出代码 ${status.exitCode}）",
+                "La acción $action del entorno Linux terminó para $target (código de salida ${status.exitCode})",
+                "Linux-Sandbox-Aktion $action für $target abgeschlossen (Exit-Code ${status.exitCode})",
+                "A ação $action do sandbox Linux foi concluída para $target (código de saída ${status.exitCode})",
+                "L’action $action du bac à sable Linux est terminée pour $target (code de sortie ${status.exitCode})",
+            )
+        }
+        is DeviceOperationStatus.SandboxFailed -> {
+            val action = deviceSandboxActionLabel(status.action)
+            val exit = status.exitCode?.let { deviceExitCodeSuffix(it) }.orEmpty()
+            tr(
+                "Linux sandbox $action failed for ${status.distroId}$exit", "Linux 沙箱为 ${status.distroId} 执行${action}失败$exit",
+                "Falló la acción $action del entorno Linux para ${status.distroId}$exit",
+                "Linux-Sandbox-Aktion $action für ${status.distroId} fehlgeschlagen$exit",
+                "Falha na ação $action do sandbox Linux para ${status.distroId}$exit",
+                "Échec de l’action $action du bac à sable Linux pour ${status.distroId}$exit",
+            )
+        }
+        is DeviceOperationStatus.HostPackageRunning -> {
+            val action = deviceHostPackageActionLabel(status.action)
+            tr(
+                "Running host package action: $action…", "正在运行主机软件包操作：$action…", "Ejecutando acción de paquetes del host: $action…",
+                "Host-Paketaktion wird ausgeführt: $action…", "Executando ação de pacotes do host: $action…",
+                "Exécution de l’action sur les paquets hôte : $action…",
+            )
+        }
+        is DeviceOperationStatus.HostPackageCompleted -> {
+            val action = deviceHostPackageActionLabel(status.action)
+            val versions = listOfNotNull(
+                status.prootVersion.takeIf { it.isNotBlank() }?.let { "proot $it" },
+                status.prootDistroVersion.takeIf { it.isNotBlank() }?.let { "proot-distro $it" },
+            ).joinToString(" · ").let { if (it.isBlank()) "" else " · $it" }
+            tr(
+                "Host package action completed: $action$versions", "主机软件包操作已完成：$action$versions",
+                "Acción de paquetes del host completada: $action$versions", "Host-Paketaktion abgeschlossen: $action$versions",
+                "Ação de pacotes do host concluída: $action$versions", "Action sur les paquets hôte terminée : $action$versions",
+            )
+        }
+        is DeviceOperationStatus.HostPackageFailed -> {
+            val action = deviceHostPackageActionLabel(status.action)
+            tr(
+                "Host package action failed: $action", "主机软件包操作失败：$action", "Falló la acción de paquetes del host: $action",
+                "Host-Paketaktion fehlgeschlagen: $action", "Falha na ação de pacotes do host: $action",
+                "Échec de l’action sur les paquets hôte : $action",
+            )
+        }
+        is DeviceOperationStatus.DocumentImported -> tr(
+            "Imported ${status.fileName} into the Hermes workspace", "已将 ${status.fileName} 导入 Hermes 工作区",
+            "Se importó ${status.fileName} al espacio de trabajo de Hermes", "${status.fileName} wurde in den Hermes-Arbeitsbereich importiert",
+            "${status.fileName} foi importado para o espaço de trabalho do Hermes", "${status.fileName} a été importé dans l’espace de travail Hermes",
+        )
+        is DeviceOperationStatus.ImportFailed -> tr(
+            "Document import failed", "文档导入失败", "Falló la importación del documento", "Dokumentimport fehlgeschlagen",
+            "Falha ao importar o documento", "Échec de l’importation du document",
+        )
+        is DeviceOperationStatus.SharedFolderSaved -> tr(
+            "Saved shared folder access for ${status.label}", "已保存 ${status.label} 的共享文件夹访问权限",
+            "Se guardó el acceso a la carpeta compartida ${status.label}", "Freigegebener Ordnerzugriff für ${status.label} gespeichert",
+            "Acesso à pasta compartilhada ${status.label} salvo", "Accès au dossier partagé ${status.label} enregistré",
+        )
+        DeviceOperationStatus.SharedFolderCleared -> tr(
+            "Cleared shared folder permission", "已清除共享文件夹权限", "Se borró el permiso de carpeta compartida",
+            "Freigegebene Ordnerberechtigung gelöscht", "Permissão da pasta compartilhada removida",
+            "Autorisation du dossier partagé supprimée",
+        )
+        is DeviceOperationStatus.WorkspaceFileExported -> tr(
+            "Exported ${status.fileName}", "已导出 ${status.fileName}", "Se exportó ${status.fileName}",
+            "${status.fileName} exportiert", "${status.fileName} exportado", "${status.fileName} exporté",
+        )
+        is DeviceOperationStatus.WorkspaceExportFailed -> tr(
+            "Workspace export failed", "工作区导出失败", "Falló la exportación del espacio de trabajo", "Arbeitsbereichsexport fehlgeschlagen",
+            "Falha ao exportar o espaço de trabalho", "Échec de l’exportation de l’espace de travail",
+        )
+        DeviceOperationStatus.DiagnosticsExported -> tr(
+            "Exported diagnostics logs", "已导出诊断日志", "Se exportaron los registros de diagnóstico", "Diagnoseprotokolle exportiert",
+            "Logs de diagnóstico exportados", "Journaux de diagnostic exportés",
+        )
+        is DeviceOperationStatus.DiagnosticsExportFailed -> tr(
+            "Diagnostics log export failed", "诊断日志导出失败", "Falló la exportación de los registros de diagnóstico",
+            "Export der Diagnoseprotokolle fehlgeschlagen", "Falha ao exportar os logs de diagnóstico",
+            "Échec de l’exportation des journaux de diagnostic",
+        )
+        DeviceOperationStatus.DiagnosticsCleared -> tr(
+            "Cleared last crash diagnostics", "已清除上次崩溃诊断", "Se borró el último diagnóstico de fallo",
+            "Letzte Absturzdiagnose gelöscht", "Último diagnóstico de falha removido", "Dernier diagnostic de plantage supprimé",
+        )
+        is DeviceOperationStatus.AccessibilityActionCompleted -> {
+            val action = deviceAccessibilityActionLabel(status.action)
+            tr(
+                "Accessibility action completed: $action", "无障碍操作已完成：$action", "Acción de accesibilidad completada: $action",
+                "Bedienungshilfe-Aktion abgeschlossen: $action", "Ação de acessibilidade concluída: $action",
+                "Action d’accessibilité terminée : $action",
+            )
+        }
+        DeviceOperationStatus.AccessibilityEnableRequired -> tr(
+            "Enable Hermes accessibility in Android settings first", "请先在 Android 设置中启用 Hermes 无障碍服务",
+            "Activa primero la accesibilidad de Hermes en los ajustes de Android",
+            "Aktiviere zuerst Hermes-Barrierefreiheit in den Android-Einstellungen",
+            "Ative primeiro a acessibilidade do Hermes nas configurações do Android",
+            "Activez d’abord l’accessibilité Hermes dans les paramètres Android",
+        )
+        DeviceOperationStatus.AccessibilityNotConnected -> tr(
+            "Hermes accessibility is enabled but not connected yet", "Hermes 无障碍服务已启用，但尚未连接",
+            "La accesibilidad de Hermes está activada, pero aún no está conectada",
+            "Hermes-Barrierefreiheit ist aktiviert, aber noch nicht verbunden",
+            "A acessibilidade do Hermes está ativada, mas ainda não conectada",
+            "L’accessibilité Hermes est activée, mais pas encore connectée",
+        )
+        is DeviceOperationStatus.PermissionResult -> when (status.permission) {
+            DevicePermission.Notifications -> tr(
+                if (status.granted) "Notifications enabled for Hermes runtime alerts" else "Notification permission was denied",
+                if (status.granted) "已为 Hermes 运行时提醒启用通知" else "通知权限被拒绝",
+                if (status.granted) "Notificaciones activadas para las alertas del runtime de Hermes" else "Se denegó el permiso de notificaciones",
+                if (status.granted) "Benachrichtigungen für Hermes-Laufzeitwarnungen aktiviert" else "Benachrichtigungsberechtigung wurde verweigert",
+                if (status.granted) "Notificações ativadas para alertas do runtime Hermes" else "A permissão de notificação foi negada",
+                if (status.granted) "Notifications activées pour les alertes du runtime Hermes" else "L’autorisation de notification a été refusée",
+            )
+            DevicePermission.Bluetooth -> tr(
+                if (status.granted) "Bluetooth access granted" else "Bluetooth access was denied",
+                if (status.granted) "已授予蓝牙访问权限" else "蓝牙访问被拒绝",
+                if (status.granted) "Acceso Bluetooth concedido" else "Se denegó el acceso Bluetooth",
+                if (status.granted) "Bluetooth-Zugriff gewährt" else "Bluetooth-Zugriff wurde verweigert",
+                if (status.granted) "Acesso Bluetooth concedido" else "O acesso Bluetooth foi negado",
+                if (status.granted) "Accès Bluetooth accordé" else "L’accès Bluetooth a été refusé",
+            )
+        }
+        is DeviceOperationStatus.SystemControlResult -> deviceSystemControlHeadline(status.action, status.succeeded)
+    }
+
+    fun deviceStatusDiagnosticDetail(detail: String): String = tr(
+        "Diagnostic details: $detail", "诊断详情：$detail", "Detalles de diagnóstico: $detail", "Diagnosedetails: $detail",
+        "Detalhes do diagnóstico: $detail", "Détails du diagnostic : $detail",
+    )
+
+    private fun deviceSandboxActionLabel(action: String): String = when (action.trim().lowercase()) {
+        "deploy" -> tr("deploy", "部署", "desplegar", "bereitstellen", "implantar", "déployer")
+        "update" -> tr("update", "更新", "actualizar", "aktualisieren", "atualizar", "mettre à jour")
+        "start" -> tr("start", "启动", "iniciar", "starten", "iniciar", "démarrer")
+        "stop" -> tr("stop", "停止", "detener", "stoppen", "parar", "arrêter")
+        "set_mirror" -> tr("change mirror", "更改镜像", "cambiar espejo", "Mirror wechseln", "alterar espelho", "changer de miroir")
+        "uninstall", "remove" -> tr("uninstall", "卸载", "desinstalar", "deinstallieren", "desinstalar", "désinstaller")
+        "status" -> tr("check status", "检查状态", "comprobar estado", "Status prüfen", "verificar status", "vérifier l’état")
+        else -> tr("requested operation", "请求的操作", "operación solicitada", "angeforderte Aktion", "operação solicitada", "opération demandée")
+    }
+
+    private fun deviceHostPackageActionLabel(action: String): String = when (action.trim().lowercase()) {
+        "update", "refresh", "update_index" -> tr("refresh index", "刷新索引", "actualizar índice", "Index aktualisieren", "atualizar índice", "actualiser l’index")
+        "upgrade", "full-upgrade", "dist-upgrade" -> tr("upgrade suite", "升级套件", "actualizar suite", "Suite aktualisieren", "atualizar suíte", "mettre à niveau la suite")
+        "install", "add" -> tr("install packages", "安装软件包", "instalar paquetes", "Pakete installieren", "instalar pacotes", "installer des paquets")
+        "remove", "uninstall", "purge" -> tr("remove packages", "移除软件包", "eliminar paquetes", "Pakete entfernen", "remover pacotes", "supprimer des paquets")
+        "set_mirror", "mirror" -> tr("change mirror", "更改镜像", "cambiar espejo", "Mirror wechseln", "alterar espelho", "changer de miroir")
+        "status", "show" -> tr("check status", "检查状态", "comprobar estado", "Status prüfen", "verificar status", "vérifier l’état")
+        "list", "list-installed" -> tr("list packages", "列出软件包", "listar paquetes", "Pakete auflisten", "listar pacotes", "lister les paquets")
+        "search", "find" -> tr("search packages", "搜索软件包", "buscar paquetes", "Pakete suchen", "buscar pacotes", "rechercher des paquets")
+        else -> tr("requested operation", "请求的操作", "operación solicitada", "angeforderte Aktion", "operação solicitada", "opération demandée")
+    }
+
+    private fun deviceAccessibilityActionLabel(action: HermesGlobalAction): String = when (action) {
+        HermesGlobalAction.Home -> tr("Home", "主页", "Inicio", "Startbildschirm", "Início", "Accueil")
+        HermesGlobalAction.Back -> tr("Back", "返回", "Atrás", "Zurück", "Voltar", "Retour")
+        HermesGlobalAction.Recents -> tr("Recent apps", "最近使用的应用", "Aplicaciones recientes", "Letzte Apps", "Apps recentes", "Applications récentes")
+        HermesGlobalAction.Notifications -> tr("Notifications", "通知", "Notificaciones", "Benachrichtigungen", "Notificações", "Notifications")
+        HermesGlobalAction.QuickSettings -> tr("Quick settings", "快捷设置", "Ajustes rápidos", "Schnelleinstellungen", "Configurações rápidas", "Réglages rapides")
+    }
+
+    private fun deviceExitCodeSuffix(exitCode: Int): String = tr(
+        " (exit code $exitCode)", "（退出代码 $exitCode）", " (código de salida $exitCode)", " (Exit-Code $exitCode)",
+        " (código de saída $exitCode)", " (code de sortie $exitCode)",
+    )
+
+    private fun deviceSystemControlHeadline(action: String, succeeded: Boolean): String {
+        val target = deviceSystemControlTarget(action)
+        return when (action) {
+            "start_background_runtime" -> if (succeeded) tr(
+                "Hermes background runtime started", "Hermes 后台运行时已启动", "Runtime de Hermes en segundo plano iniciado",
+                "Hermes-Hintergrundlaufzeit gestartet", "Runtime do Hermes em segundo plano iniciado", "Runtime Hermes en arrière-plan démarré",
+            ) else tr(
+                "Could not start the Hermes background runtime", "无法启动 Hermes 后台运行时", "No se pudo iniciar el runtime de Hermes en segundo plano",
+                "Hermes-Hintergrundlaufzeit konnte nicht gestartet werden", "Não foi possível iniciar o runtime do Hermes em segundo plano",
+                "Impossible de démarrer le runtime Hermes en arrière-plan",
+            )
+            "stop_background_runtime" -> if (succeeded) tr(
+                "Hermes background runtime stopped", "Hermes 后台运行时已停止", "Runtime de Hermes en segundo plano detenido",
+                "Hermes-Hintergrundlaufzeit gestoppt", "Runtime do Hermes em segundo plano parado", "Runtime Hermes en arrière-plan arrêté",
+            ) else tr(
+                "Could not stop the Hermes background runtime", "无法停止 Hermes 后台运行时", "No se pudo detener el runtime de Hermes en segundo plano",
+                "Hermes-Hintergrundlaufzeit konnte nicht gestoppt werden", "Não foi possível parar o runtime do Hermes em segundo plano",
+                "Impossible d’arrêter le runtime Hermes en arrière-plan",
+            )
+            "start_floating_button" -> if (succeeded) tr(
+                "Hermes floating button started", "Hermes 浮动按钮已启动", "Botón flotante de Hermes iniciado",
+                "Schwebende Hermes-Schaltfläche gestartet", "Botão flutuante do Hermes iniciado", "Bouton flottant Hermes démarré",
+            ) else tr(
+                "Could not start the Hermes floating button", "无法启动 Hermes 浮动按钮", "No se pudo iniciar el botón flotante de Hermes",
+                "Schwebende Hermes-Schaltfläche konnte nicht gestartet werden", "Não foi possível iniciar o botão flutuante do Hermes",
+                "Impossible de démarrer le bouton flottant Hermes",
+            )
+            "stop_floating_button" -> if (succeeded) tr(
+                "Hermes floating button stopped", "Hermes 浮动按钮已停止", "Botón flotante de Hermes detenido",
+                "Schwebende Hermes-Schaltfläche gestoppt", "Botão flutuante do Hermes parado", "Bouton flottant Hermes arrêté",
+            ) else tr(
+                "Could not stop the Hermes floating button", "无法停止 Hermes 浮动按钮", "No se pudo detener el botón flotante de Hermes",
+                "Schwebende Hermes-Schaltfläche konnte nicht gestoppt werden", "Não foi possível parar o botão flutuante do Hermes",
+                "Impossible d’arrêter le bouton flottant Hermes",
+            )
+            else -> if (succeeded) tr(
+                "Opened $target", "已打开$target", "Se abrió $target", "$target geöffnet", "$target aberto", "$target ouvert",
+            ) else tr(
+                "Could not open $target", "无法打开$target", "No se pudo abrir $target", "$target konnte nicht geöffnet werden",
+                "Não foi possível abrir $target", "Impossible d’ouvrir $target",
+            )
+        }
+    }
+
+    private fun deviceSystemControlTarget(action: String): String = when (action) {
+        "open_wifi_panel" -> tr("Wi-Fi and internet controls", "Wi-Fi 和互联网控制", "los controles de Wi-Fi e internet", "WLAN- und Internetsteuerung", "os controles de Wi-Fi e internet", "les contrôles Wi-Fi et Internet")
+        "open_notification_settings" -> tr("Hermes notification settings", "Hermes 通知设置", "los ajustes de notificaciones de Hermes", "Hermes-Benachrichtigungseinstellungen", "as configurações de notificação do Hermes", "les réglages de notification Hermes")
+        "open_bluetooth_settings" -> tr("Bluetooth settings", "蓝牙设置", "los ajustes de Bluetooth", "Bluetooth-Einstellungen", "as configurações de Bluetooth", "les réglages Bluetooth")
+        "open_connected_devices_settings" -> tr("connected-device settings", "已连接设备设置", "los ajustes de dispositivos conectados", "Einstellungen für verbundene Geräte", "as configurações de dispositivos conectados", "les réglages des appareils connectés")
+        "open_mobile_network_settings" -> tr("mobile network settings", "移动网络设置", "los ajustes de red móvil", "Mobilfunkeinstellungen", "as configurações de rede móvel", "les réglages du réseau mobile")
+        "open_data_usage_settings" -> tr("data usage settings", "数据使用设置", "los ajustes de uso de datos", "Datennutzungseinstellungen", "as configurações de uso de dados", "les réglages d’utilisation des données")
+        "open_hotspot_settings" -> tr("hotspot and tethering settings", "热点和网络共享设置", "los ajustes de zona Wi-Fi y conexión compartida", "Hotspot- und Tethering-Einstellungen", "as configurações de hotspot e tethering", "les réglages de point d’accès et de partage de connexion")
+        "open_airplane_mode_settings" -> tr("airplane mode settings", "飞行模式设置", "los ajustes del modo avión", "Flugmoduseinstellungen", "as configurações do modo avião", "les réglages du mode avion")
+        "open_nfc_settings" -> tr("NFC settings", "NFC 设置", "los ajustes de NFC", "NFC-Einstellungen", "as configurações de NFC", "les réglages NFC")
+        "open_overlay_settings" -> tr("draw-over-other-apps settings", "在其他应用上层显示设置", "los ajustes para mostrar sobre otras aplicaciones", "Einstellungen zum Einblenden über anderen Apps", "as configurações de sobreposição em outros apps", "les réglages d’affichage au-dessus des autres applications")
+        "open_accessibility_settings" -> tr("accessibility settings", "无障碍设置", "los ajustes de accesibilidad", "Bedienungshilfe-Einstellungen", "as configurações de acessibilidade", "les réglages d’accessibilité")
+        else -> tr("Android system controls", "Android 系统控制", "los controles del sistema Android", "Android-Systemsteuerung", "os controles do sistema Android", "les contrôles système Android")
     }
 
     fun newChatActionDescription(): String = when (language) {
@@ -2232,48 +2588,48 @@ data class HermesStrings(
     }
 
     fun toolProfileTitle(): String = when (language) {
-        AppLanguage.CHINESE -> "Android Alpha 工具配置"
-        AppLanguage.SPANISH -> "Perfil de herramientas Android alpha"
-        AppLanguage.GERMAN -> "Android-Alpha-Werkzeugprofil"
-        AppLanguage.PORTUGUESE -> "Perfil de ferramentas Android alpha"
-        AppLanguage.FRENCH -> "Profil d’outils Android alpha"
-        AppLanguage.ENGLISH -> "Android alpha Tool Profile"
+        AppLanguage.CHINESE -> "设备端工具路由"
+        AppLanguage.SPANISH -> "Enrutamiento de herramientas en el dispositivo"
+        AppLanguage.GERMAN -> "On-Device-Werkzeugrouting"
+        AppLanguage.PORTUGUESE -> "Roteamento de ferramentas no dispositivo"
+        AppLanguage.FRENCH -> "Routage des outils sur l’appareil"
+        AppLanguage.ENGLISH -> "On-device tool routing"
     }
 
     fun toolProfileEnabledSummary(tools: String): String = when (language) {
-        AppLanguage.CHINESE -> "已启用：$tools"
-        AppLanguage.SPANISH -> "Habilitadas: $tools"
-        AppLanguage.GERMAN -> "Aktiviert: $tools"
-        AppLanguage.PORTUGUESE -> "Ativadas: $tools"
-        AppLanguage.FRENCH -> "Activés : $tools"
-        AppLanguage.ENGLISH -> "Enabled: $tools"
+        AppLanguage.CHINESE -> "兼容模型可使用的原生工具架构：$tools"
+        AppLanguage.SPANISH -> "Esquemas nativos disponibles para modelos compatibles: $tools"
+        AppLanguage.GERMAN -> "Native Schemas für kompatible Modelle: $tools"
+        AppLanguage.PORTUGUESE -> "Esquemas nativos disponíveis para modelos compatíveis: $tools"
+        AppLanguage.FRENCH -> "Schémas natifs disponibles pour les modèles compatibles : $tools"
+        AppLanguage.ENGLISH -> "Native schemas available to compatible models: $tools"
     }
 
     fun toolProfileLinuxSummary(): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 现在在 Android 应用中内置了本地 Linux 命令套件，因此 terminal/process 可以执行真实 CLI 命令，而共享文件夹工具处理文档编辑。"
-        AppLanguage.SPANISH -> "Hermes ahora incluye una suite local de comandos Linux dentro de la app Android, así que terminal/process pueden ejecutar CLI reales mientras las herramientas de carpeta compartida gestionan ediciones directas de documentos."
-        AppLanguage.GERMAN -> "Hermes enthält jetzt eine lokale Linux-Befehlssuite in der Android-App, sodass terminal/process echte CLI-Befehle ausführen können, während die Freigabeordner-Werkzeuge direkte Dokumentbearbeitungen übernehmen."
-        AppLanguage.PORTUGUESE -> "O Hermes agora inclui uma suíte local de comandos Linux dentro do app Android, então terminal/process podem executar comandos CLI reais enquanto as ferramentas de pasta compartilhada fazem edições diretas em documentos."
-        AppLanguage.FRENCH -> "Hermes inclut maintenant une suite locale de commandes Linux dans l’application Android, afin que terminal/process puissent exécuter de vraies commandes CLI tandis que les outils de dossier partagé gèrent les modifications directes des documents."
-        AppLanguage.ENGLISH -> "Hermes now has a local Linux command suite in the Android app, so terminal/process can execute real CLI commands while shared-folder tools handle direct document edits."
+        AppLanguage.CHINESE -> "请直接描述任务，例如“运行 date 命令并告诉我时间”或“检查我的设备状态”。Hermes 会为命令选择 terminal_tool，为设备检查选择 android_device_diagnostics_tool。"
+        AppLanguage.SPANISH -> "Describe la tarea directamente, por ejemplo, «Ejecuta date y dime la hora» o «Comprueba el estado de mi dispositivo». Hermes elige terminal_tool para comandos y android_device_diagnostics_tool para comprobaciones."
+        AppLanguage.GERMAN -> "Beschreibe die Aufgabe direkt, etwa „Führe date aus und nenne mir die Uhrzeit“ oder „Prüfe meinen Gerätestatus“. Hermes wählt terminal_tool für Befehle und android_device_diagnostics_tool für Geräteprüfungen."
+        AppLanguage.PORTUGUESE -> "Descreva a tarefa diretamente, por exemplo, “Execute date e diga a hora” ou “Verifique o status do meu dispositivo”. O Hermes escolhe terminal_tool para comandos e android_device_diagnostics_tool para verificações."
+        AppLanguage.FRENCH -> "Décrivez directement la tâche, par exemple « Exécute date et donne-moi l’heure » ou « Vérifie l’état de mon appareil ». Hermes choisit terminal_tool pour les commandes et android_device_diagnostics_tool pour les vérifications."
+        AppLanguage.ENGLISH -> "Describe the task directly, for example, “Run the date command and tell me the time” or “Check my device status.” Hermes selects terminal_tool for commands and android_device_diagnostics_tool for device checks."
     }
 
     fun toolProfileAccessibilitySummary(): String = when (language) {
-        AppLanguage.CHINESE -> "启用 Hermes 无障碍服务后，可通过 android_ui_snapshot + android_ui_action 使用无障碍定位。"
-        AppLanguage.SPANISH -> "La orientación por accesibilidad está disponible mediante android_ui_snapshot + android_ui_action después de activar el servicio de accesibilidad de Hermes."
-        AppLanguage.GERMAN -> "Accessibility-Targeting ist über android_ui_snapshot + android_ui_action verfügbar, nachdem du den Hermes-Barrierefreiheitsdienst aktiviert hast."
-        AppLanguage.PORTUGUESE -> "A segmentação por acessibilidade fica disponível com android_ui_snapshot + android_ui_action depois que você ativa o serviço de acessibilidade do Hermes."
-        AppLanguage.FRENCH -> "Le ciblage par accessibilité est disponible via android_ui_snapshot + android_ui_action après activation du service d’accessibilité Hermes."
-        AppLanguage.ENGLISH -> "Accessibility targeting is available through android_ui_snapshot + android_ui_action after you enable the Hermes accessibility service."
+        AppLanguage.CHINESE -> "启用 Hermes 无障碍服务后，android_ui_tool 可检查可见界面并执行获准的界面操作。"
+        AppLanguage.SPANISH -> "Tras activar el servicio de accesibilidad de Hermes, android_ui_tool puede inspeccionar la interfaz visible y realizar acciones autorizadas."
+        AppLanguage.GERMAN -> "Nach Aktivierung des Hermes-Barrierefreiheitsdienstes kann android_ui_tool die sichtbare Oberfläche prüfen und erlaubte UI-Aktionen ausführen."
+        AppLanguage.PORTUGUESE -> "Depois de ativar o serviço de acessibilidade do Hermes, android_ui_tool pode inspecionar a interface visível e executar ações autorizadas."
+        AppLanguage.FRENCH -> "Après activation du service d’accessibilité Hermes, android_ui_tool peut inspecter l’interface visible et effectuer les actions autorisées."
+        AppLanguage.ENGLISH -> "After you enable the Hermes accessibility service, android_ui_tool can inspect the visible interface and perform approved UI actions."
     }
 
     fun toolProfileCommandSuiteSummary(): String = when (language) {
-        AppLanguage.CHINESE -> "Android 命令套件会解压到应用私有前缀，并通过 terminal/process 暴露，延续 Hermes 在 Termux 中相同风格的本地 CLI 用法。"
-        AppLanguage.SPANISH -> "La suite de comandos Android se extrae a un prefijo privado de la app y se expone mediante terminal/process, manteniendo el mismo estilo de uso CLI local que Hermes ya soporta en Termux."
-        AppLanguage.GERMAN -> "Die Android-Befehlssuite wird in ein app-privates Präfix entpackt und über terminal/process bereitgestellt, im selben lokalen CLI-Stil, den Hermes bereits in Termux unterstützt."
-        AppLanguage.PORTUGUESE -> "A suíte de comandos Android é extraída para um prefixo privado do app e exposta por terminal/process, no mesmo estilo de uso CLI local que o Hermes já suporta no Termux."
-        AppLanguage.FRENCH -> "La suite de commandes Android est extraite dans un préfixe privé à l’application et exposée via terminal/process, dans le même style d’utilisation CLI locale déjà pris en charge par Hermes dans Termux."
-        AppLanguage.ENGLISH -> "The Android command suite is extracted into an app-private prefix and exposed through terminal/process for the same style of local CLI usage Hermes already supports in Termux."
+        AppLanguage.CHINESE -> "Hermes 会自动选择兼容且已启用的工具；无需输入工具名称。不支持结构化工具调用的模型可能只用文字回答，而不会实际运行工具。"
+        AppLanguage.SPANISH -> "Hermes selecciona automáticamente una herramienta compatible y habilitada; no hace falta escribir su nombre. Los modelos sin llamadas estructuradas pueden responder en texto sin ejecutar nada."
+        AppLanguage.GERMAN -> "Hermes wählt automatisch ein kompatibles, aktiviertes Werkzeug; der Werkzeugname muss nicht eingegeben werden. Modelle ohne strukturierte Werkzeugaufrufe antworten möglicherweise nur als Text."
+        AppLanguage.PORTUGUESE -> "O Hermes seleciona automaticamente uma ferramenta compatível e ativada; não é preciso digitar o nome. Modelos sem chamadas estruturadas podem responder em texto sem executar a ferramenta."
+        AppLanguage.FRENCH -> "Hermes sélectionne automatiquement un outil compatible et activé ; vous n’avez pas à saisir son nom. Les modèles sans appel d’outil structuré peuvent répondre en texte sans l’exécuter."
+        AppLanguage.ENGLISH -> "Hermes automatically selects a compatible enabled tool; you do not need to type a tool name. Models without structured tool-calling may answer in prose without running it."
     }
 
     fun toolProfileExcludedSummary(blocked: String): String = when (language) {
@@ -2296,20 +2652,20 @@ data class HermesStrings(
 
     fun deviceGuideStep(index: Int): String = when (index) {
         1 -> when (language) {
-            AppLanguage.CHINESE -> "1. Hermes 现在在 Android 应用内自带本地 Linux 命令套件。先让 Hermes 调用 android_device_status，再使用 terminal/process 执行完整 CLI。"
-            AppLanguage.SPANISH -> "1. Hermes ahora incluye una suite local de comandos Linux dentro de la app Android. Pídele a Hermes que llame primero a android_device_status y luego usa terminal/process para la ejecución CLI completa."
-            AppLanguage.GERMAN -> "1. Hermes bringt jetzt eine lokale Linux-Befehlssuite in der Android-App mit. Lass Hermes zuerst android_device_status aufrufen und nutze dann terminal/process für vollständige CLI-Ausführung."
-            AppLanguage.PORTUGUESE -> "1. O Hermes agora inclui uma suíte local de comandos Linux dentro do app Android. Peça ao Hermes para chamar primeiro android_device_status e depois use terminal/process para execução CLI completa."
-            AppLanguage.FRENCH -> "1. Hermes embarque maintenant une suite locale de commandes Linux dans l’application Android. Demandez d’abord à Hermes d’appeler android_device_status, puis utilisez terminal/process pour l’exécution CLI complète."
-            AppLanguage.ENGLISH -> "1. Hermes now ships a local Linux command suite inside the Android app. Ask Hermes to call android_device_status first, then use terminal/process for full CLI execution."
+            AppLanguage.CHINESE -> "1. 请用自然语言提问，例如“运行 date 命令并告诉我时间”或“检查我的设备状态”。Hermes 会自动选择兼容且已启用的设备端工具；不支持结构化工具调用的模型可能只用文字回答，而不会实际运行工具。"
+            AppLanguage.SPANISH -> "1. Pídelo en lenguaje natural, por ejemplo, «Ejecuta date y dime la hora» o «Comprueba el estado de mi dispositivo». Hermes elige automáticamente una herramienta compatible habilitada en el dispositivo; los modelos sin llamadas estructuradas pueden responder en texto sin ejecutarla."
+            AppLanguage.GERMAN -> "1. Frage in natürlicher Sprache, etwa „Führe date aus und nenne mir die Uhrzeit“ oder „Prüfe meinen Gerätestatus“. Hermes wählt automatisch ein kompatibles, aktiviertes On-Device-Werkzeug; Modelle ohne strukturierte Werkzeugaufrufe antworten möglicherweise nur als Text."
+            AppLanguage.PORTUGUESE -> "1. Peça em linguagem natural, por exemplo, “Execute date e diga a hora” ou “Verifique o status do meu dispositivo”. O Hermes escolhe automaticamente uma ferramenta compatível ativada no dispositivo; modelos sem chamadas estruturadas podem responder em texto sem executá-la."
+            AppLanguage.FRENCH -> "1. Demandez en langage naturel, par exemple « Exécute date et donne-moi l’heure » ou « Vérifie l’état de mon appareil ». Hermes choisit automatiquement un outil compatible activé sur l’appareil ; les modèles sans appel structuré peuvent répondre en texte sans l’exécuter."
+            AppLanguage.ENGLISH -> "1. Ask in plain language, for example, “Run the date command and tell me the time” or “Check my device status.” Hermes automatically selects a compatible enabled on-device tool; models without structured tool-calling may answer in prose without running it."
         }
         2 -> when (language) {
-            AppLanguage.CHINESE -> "2. 如果你想让 Hermes 原地编辑真实文件，请通过 Android 原生选择器授予共享文件夹访问权限。"
-            AppLanguage.SPANISH -> "2. Concede una carpeta compartida desde el selector nativo de Android si quieres que Hermes edite los archivos reales en su ubicación."
-            AppLanguage.GERMAN -> "2. Gewähre einen freigegebenen Ordner über den nativen Android-Auswahldialog, wenn Hermes echte Dateien direkt am Ort bearbeiten soll."
-            AppLanguage.PORTUGUESE -> "2. Conceda uma pasta compartilhada no seletor nativo do Android se quiser que o Hermes edite os arquivos reais no lugar."
-            AppLanguage.FRENCH -> "2. Accordez un dossier partagé via le sélecteur natif Android si vous voulez que Hermes modifie directement les vrais fichiers."
-            AppLanguage.ENGLISH -> "2. Grant a shared folder from Android's native picker if you want Hermes to edit the real files in place with android_shared_folder_list/read/write."
+            AppLanguage.CHINESE -> "2. 如果你想让 Hermes 直接读取或编辑真实文件，请通过 Android 原生选择器授予共享文件夹访问权限，然后用自然语言说明要处理的文件。"
+            AppLanguage.SPANISH -> "2. Concede una carpeta compartida desde el selector nativo de Android para que Hermes lea o edite los archivos reales y luego describe la tarea en lenguaje natural."
+            AppLanguage.GERMAN -> "2. Gewähre über den nativen Android-Auswahldialog einen freigegebenen Ordner, damit Hermes echte Dateien lesen oder bearbeiten kann, und beschreibe die Aufgabe dann in natürlicher Sprache."
+            AppLanguage.PORTUGUESE -> "2. Conceda uma pasta compartilhada no seletor nativo do Android para o Hermes ler ou editar os arquivos reais e depois descreva a tarefa em linguagem natural."
+            AppLanguage.FRENCH -> "2. Accordez un dossier partagé via le sélecteur natif Android pour que Hermes lise ou modifie les vrais fichiers, puis décrivez la tâche en langage naturel."
+            AppLanguage.ENGLISH -> "2. Grant a shared folder from Android's native picker so Hermes can read or edit the real files, then describe the file task in plain language."
         }
         3 -> when (language) {
             AppLanguage.CHINESE -> "3. 只有在需要草稿副本或暂存文件时，才把文件导入工作区。"
@@ -3716,6 +4072,413 @@ data class HermesStrings(
         val percent = (scale * 100).toInt()
         return tr("UI font size: $percent%", "界面字体大小：$percent%", "Tamaño de fuente: $percent%", "UI-Schriftgröße: $percent%", "Tamanho da fonte: $percent%", "Taille de police : $percent%")
     }
+
+    fun modelConfigurationSaved(): String = tr(
+        "Model configuration saved", "模型配置已保存", "Configuración del modelo guardada",
+        "Modellkonfiguration gespeichert", "Configuração do modelo salva", "Configuration du modèle enregistrée",
+    )
+
+    fun genericProviderLabel(): String = tr(
+        "provider", "提供商", "proveedor", "Anbieter", "provedor", "fournisseur",
+    )
+
+    fun offlineProviderSetupBlocked(checking: Boolean): String = if (checking) {
+        tr(
+            "Offline airplane mode is on; Hermes blocked this provider setup check so the app stays phone-local.",
+            "离线飞行模式已开启；Hermes 已阻止提供商设置检查，使应用保持仅在手机本地运行。",
+            "El modo avión sin conexión está activado; Hermes bloqueó la comprobación del proveedor para mantener la app en el teléfono.",
+            "Der Offline-Flugmodus ist aktiv; Hermes hat die Anbieterprüfung blockiert, damit die App auf dem Telefon bleibt.",
+            "O modo avião offline está ativado; o Hermes bloqueou a verificação do provedor para manter o app no telefone.",
+            "Le mode avion hors ligne est activé ; Hermes a bloqué la vérification du fournisseur pour garder l’application locale au téléphone.",
+        )
+    } else {
+        tr(
+            "Offline airplane mode is on; Hermes blocked this provider setup page so the app stays phone-local.",
+            "离线飞行模式已开启；Hermes 已阻止提供商设置页面，使应用保持仅在手机本地运行。",
+            "El modo avión sin conexión está activado; Hermes bloqueó la página del proveedor para mantener la app en el teléfono.",
+            "Der Offline-Flugmodus ist aktiv; Hermes hat die Anbieter-Seite blockiert, damit die App auf dem Telefon bleibt.",
+            "O modo avião offline está ativado; o Hermes bloqueou a página do provedor para manter o app no telefone.",
+            "Le mode avion hors ligne est activé ; Hermes a bloqué la page du fournisseur pour garder l’application locale au téléphone.",
+        )
+    }
+
+    fun openSignInTitle(label: String): String = tr(
+        "Open $label sign-in", "打开 $label 登录", "Abrir inicio de sesión de $label",
+        "$label-Anmeldung öffnen", "Abrir login do $label", "Ouvrir la connexion $label",
+    )
+
+    fun authSignInClipboardLabel(): String = tr(
+        "Hermes sign-in URL", "Hermes 登录链接", "URL de inicio de sesión de Hermes",
+        "Hermes-Anmelde-URL", "URL de login do Hermes", "URL de connexion Hermes",
+    )
+
+    fun authOpenedOpenRouterInApp(): String = tr(
+        "Opened OpenRouter sign-in in the in-app browser. Approve Hermes; the app will receive the secure callback and save the key.",
+        "已在应用内浏览器中打开 OpenRouter 登录。批准 Hermes 后，应用会接收安全回调并保存密钥。",
+        "Se abrió OpenRouter en el navegador integrado. Autoriza Hermes; la app recibirá el callback seguro y guardará la clave.",
+        "Die OpenRouter-Anmeldung wurde im In-App-Browser geöffnet. Autorisiere Hermes; die App empfängt den sicheren Callback und speichert den Schlüssel.",
+        "O login do OpenRouter foi aberto no navegador do app. Autorize o Hermes; o app receberá o callback seguro e salvará a chave.",
+        "La connexion OpenRouter a été ouverte dans le navigateur intégré. Autorisez Hermes ; l’application recevra le callback sécurisé et enregistrera la clé.",
+    )
+
+    fun authOpenRouterInAppFailed(errorName: String): String = tr(
+        "Unable to open OpenRouter sign-in ($errorName); copied the URL. You can paste an OpenRouter API key below.",
+        "无法打开 OpenRouter 登录（$errorName）；已复制链接。你也可以在下方粘贴 OpenRouter API 密钥。",
+        "No se pudo abrir el inicio de sesión de OpenRouter ($errorName); se copió la URL. También puedes pegar abajo una clave API de OpenRouter.",
+        "Die OpenRouter-Anmeldung konnte nicht geöffnet werden ($errorName); die URL wurde kopiert. Du kannst unten auch einen OpenRouter-API-Schlüssel einfügen.",
+        "Não foi possível abrir o login do OpenRouter ($errorName); a URL foi copiada. Você também pode colar abaixo uma chave de API do OpenRouter.",
+        "Impossible d’ouvrir la connexion OpenRouter ($errorName) ; l’URL a été copiée. Vous pouvez aussi coller une clé API OpenRouter ci-dessous.",
+    )
+
+    fun authOpenedOpenRouterExternal(): String = tr(
+        "Opened OpenRouter sign-in in an external browser because WebView is unavailable. Approve Hermes; the local callback will save the API key securely.",
+        "由于 WebView 不可用，已在外部浏览器中打开 OpenRouter 登录。批准 Hermes 后，本地回调会安全保存 API 密钥。",
+        "Se abrió OpenRouter en un navegador externo porque WebView no está disponible. Autoriza Hermes; el callback local guardará la clave API de forma segura.",
+        "Die OpenRouter-Anmeldung wurde in einem externen Browser geöffnet, da WebView nicht verfügbar ist. Autorisiere Hermes; der lokale Callback speichert den API-Schlüssel sicher.",
+        "O login do OpenRouter foi aberto em um navegador externo porque o WebView não está disponível. Autorize o Hermes; o callback local salvará a chave com segurança.",
+        "La connexion OpenRouter a été ouverte dans un navigateur externe car WebView est indisponible. Autorisez Hermes ; le callback local enregistrera la clé API de façon sécurisée.",
+    )
+
+    fun authOpenRouterExternalFailed(): String = tr(
+        "Unable to open OpenRouter sign-in; copied the URL. Paste an OpenRouter API key below if needed.",
+        "无法打开 OpenRouter 登录；已复制链接。如有需要，请在下方粘贴 OpenRouter API 密钥。",
+        "No se pudo abrir el inicio de sesión de OpenRouter; se copió la URL. Pega abajo una clave API si la necesitas.",
+        "Die OpenRouter-Anmeldung konnte nicht geöffnet werden; die URL wurde kopiert. Füge bei Bedarf unten einen API-Schlüssel ein.",
+        "Não foi possível abrir o login do OpenRouter; a URL foi copiada. Cole abaixo uma chave de API se necessário.",
+        "Impossible d’ouvrir la connexion OpenRouter ; l’URL a été copiée. Collez une clé API ci-dessous si nécessaire.",
+    )
+
+    fun authStartingXai(): String = tr(
+        "Starting xAI Grok OAuth…", "正在启动 xAI Grok OAuth…", "Iniciando OAuth de xAI Grok…",
+        "xAI-Grok-OAuth wird gestartet…", "Iniciando OAuth do xAI Grok…", "Démarrage d’OAuth xAI Grok…",
+    )
+
+    fun authXaiCallbackBindFailed(errorName: String): String = tr(
+        "Unable to bind the xAI callback on 127.0.0.1:56121 ($errorName). Close other apps using that port, or paste an xAI API key below.",
+        "无法在 127.0.0.1:56121 绑定 xAI 回调（$errorName）。请关闭占用该端口的其他应用，或在下方粘贴 xAI API 密钥。",
+        "No se pudo enlazar el callback de xAI en 127.0.0.1:56121 ($errorName). Cierra otras apps que usen el puerto o pega abajo una clave API de xAI.",
+        "Der xAI-Callback konnte nicht an 127.0.0.1:56121 gebunden werden ($errorName). Schließe andere Apps an diesem Port oder füge unten einen xAI-API-Schlüssel ein.",
+        "Não foi possível vincular o callback do xAI em 127.0.0.1:56121 ($errorName). Feche outros apps que usam a porta ou cole abaixo uma chave de API do xAI.",
+        "Impossible de lier le callback xAI sur 127.0.0.1:56121 ($errorName). Fermez les autres applications utilisant ce port ou collez une clé API xAI ci-dessous.",
+    )
+
+    fun authXaiOpenFailed(errorName: String, url: String): String = tr(
+        "Unable to open the xAI authorization page ($errorName). URL: $url",
+        "无法打开 xAI 授权页面（$errorName）。链接：$url",
+        "No se pudo abrir la página de autorización de xAI ($errorName). URL: $url",
+        "Die xAI-Autorisierungsseite konnte nicht geöffnet werden ($errorName). URL: $url",
+        "Não foi possível abrir a página de autorização do xAI ($errorName). URL: $url",
+        "Impossible d’ouvrir la page d’autorisation xAI ($errorName). URL : $url",
+    )
+
+    fun authXaiOpened(): String = tr(
+        "Opened xAI Grok OAuth in the in-app browser. Approve SuperGrok; the local callback will return to Hermes and save tokens securely.",
+        "已在应用内浏览器中打开 xAI Grok OAuth。批准 SuperGrok 后，本地回调会返回 Hermes 并安全保存令牌。",
+        "Se abrió OAuth de xAI Grok en el navegador integrado. Autoriza SuperGrok; el callback local volverá a Hermes y guardará los tokens de forma segura.",
+        "xAI-Grok-OAuth wurde im In-App-Browser geöffnet. Autorisiere SuperGrok; der lokale Callback kehrt zu Hermes zurück und speichert die Tokens sicher.",
+        "O OAuth do xAI Grok foi aberto no navegador do app. Autorize o SuperGrok; o callback local voltará ao Hermes e salvará os tokens com segurança.",
+        "OAuth xAI Grok a été ouvert dans le navigateur intégré. Autorisez SuperGrok ; le callback local reviendra dans Hermes et enregistrera les jetons de façon sécurisée.",
+    )
+
+    fun authXaiFailed(errorName: String): String = tr(
+        "xAI OAuth failed: $errorName", "xAI OAuth 失败：$errorName", "Falló OAuth de xAI: $errorName",
+        "xAI-OAuth fehlgeschlagen: $errorName", "Falha no OAuth do xAI: $errorName", "Échec d’OAuth xAI : $errorName",
+    )
+
+    fun authStartingCodex(): String = tr(
+        "Starting ChatGPT/Codex OAuth…", "正在启动 ChatGPT/Codex OAuth…", "Iniciando OAuth de ChatGPT/Codex…",
+        "ChatGPT/Codex-OAuth wird gestartet…", "Iniciando OAuth do ChatGPT/Codex…", "Démarrage d’OAuth ChatGPT/Codex…",
+    )
+
+    fun authCodexOpened(port: Int): String = tr(
+        "Opened ChatGPT/Codex OAuth in the in-app browser. Approve access; the callback returns to localhost:$port.",
+        "已在应用内浏览器中打开 ChatGPT/Codex OAuth。批准访问后，回调会返回 localhost:$port。",
+        "Se abrió OAuth de ChatGPT/Codex en el navegador integrado. Autoriza el acceso; el callback vuelve a localhost:$port.",
+        "ChatGPT/Codex-OAuth wurde im In-App-Browser geöffnet. Genehmige den Zugriff; der Callback kehrt zu localhost:$port zurück.",
+        "O OAuth do ChatGPT/Codex foi aberto no navegador do app. Autorize o acesso; o callback retorna para localhost:$port.",
+        "OAuth ChatGPT/Codex a été ouvert dans le navigateur intégré. Autorisez l’accès ; le callback revient sur localhost:$port.",
+    )
+
+    fun authBrowserOauthUnavailable(errorName: String): String = tr(
+        "Browser OAuth is unavailable ($errorName); trying a device code…",
+        "浏览器 OAuth 不可用（$errorName）；正在尝试设备代码…",
+        "OAuth en el navegador no está disponible ($errorName); probando un código de dispositivo…",
+        "Browser-OAuth ist nicht verfügbar ($errorName); Gerätecode wird versucht…",
+        "O OAuth no navegador não está disponível ($errorName); tentando um código do dispositivo…",
+        "OAuth dans le navigateur est indisponible ($errorName) ; tentative avec un code d’appareil…",
+    )
+
+    fun authRequestingOpenAiDeviceCode(): String = tr(
+        "Requesting an OpenAI device code…", "正在请求 OpenAI 设备代码…", "Solicitando un código de dispositivo de OpenAI…",
+        "OpenAI-Gerätecode wird angefordert…", "Solicitando um código de dispositivo da OpenAI…", "Demande d’un code d’appareil OpenAI…",
+    )
+
+    fun authOpenAiDeviceCodeFailed(errorName: String): String = tr(
+        "OpenAI device code failed: $errorName. You can still paste a ChatGPT/Codex token below.",
+        "OpenAI 设备代码失败：$errorName。你仍可在下方粘贴 ChatGPT/Codex 令牌。",
+        "Falló el código de dispositivo de OpenAI: $errorName. Aún puedes pegar abajo un token de ChatGPT/Codex.",
+        "OpenAI-Gerätecode fehlgeschlagen: $errorName. Du kannst unten weiterhin ein ChatGPT/Codex-Token einfügen.",
+        "Falha no código de dispositivo da OpenAI: $errorName. Você ainda pode colar abaixo um token do ChatGPT/Codex.",
+        "Échec du code d’appareil OpenAI : $errorName. Vous pouvez toujours coller un jeton ChatGPT/Codex ci-dessous.",
+    )
+
+    fun authOpenAiDeviceLoginTitle(): String = tr(
+        "OpenAI device login", "OpenAI 设备登录", "Inicio de sesión de dispositivo OpenAI",
+        "OpenAI-Geräteanmeldung", "Login de dispositivo OpenAI", "Connexion d’appareil OpenAI",
+    )
+
+    fun authOpenAiEnterCode(code: String, url: String): String = tr(
+        "Enter code $code at $url. The page opened in-app; waiting for approval…",
+        "请在 $url 输入代码 $code。页面已在应用内打开；正在等待批准…",
+        "Introduce el código $code en $url. La página se abrió en la app; esperando autorización…",
+        "Gib den Code $code unter $url ein. Die Seite wurde in der App geöffnet; warte auf Freigabe…",
+        "Digite o código $code em $url. A página foi aberta no app; aguardando autorização…",
+        "Saisissez le code $code sur $url. La page est ouverte dans l’application ; attente de l’autorisation…",
+    )
+
+    fun authOpenAiPollError(errorName: String): String = tr(
+        "OpenAI device check failed: $errorName", "OpenAI 设备检查失败：$errorName", "Falló la comprobación del dispositivo OpenAI: $errorName",
+        "OpenAI-Geräteprüfung fehlgeschlagen: $errorName", "Falha na verificação do dispositivo OpenAI: $errorName", "Échec de la vérification de l’appareil OpenAI : $errorName",
+    )
+
+    fun authOpenAiTimedOut(): String = tr(
+        "OpenAI device sign-in timed out. Tap Sign in to try again.", "OpenAI 设备登录超时。点按“登录”重试。",
+        "El inicio de sesión de dispositivo OpenAI agotó el tiempo. Toca Iniciar sesión para reintentarlo.",
+        "Zeitüberschreitung bei der OpenAI-Geräteanmeldung. Tippe zum erneuten Versuch auf Anmelden.",
+        "O login de dispositivo OpenAI expirou. Toque em Entrar para tentar novamente.",
+        "La connexion d’appareil OpenAI a expiré. Touchez Se connecter pour réessayer.",
+    )
+
+    fun authStartingNousDeviceCode(): String = tr(
+        "Starting a Nous Portal device code…", "正在启动 Nous Portal 设备代码…", "Iniciando un código de dispositivo de Nous Portal…",
+        "Nous-Portal-Gerätecode wird gestartet…", "Iniciando um código de dispositivo do Nous Portal…", "Démarrage d’un code d’appareil Nous Portal…",
+    )
+
+    fun authNousDeviceCodeFailed(errorName: String): String = tr(
+        "Nous device code failed: $errorName", "Nous 设备代码失败：$errorName", "Falló el código de dispositivo de Nous: $errorName",
+        "Nous-Gerätecode fehlgeschlagen: $errorName", "Falha no código de dispositivo do Nous: $errorName", "Échec du code d’appareil Nous : $errorName",
+    )
+
+    fun authNousSignInTitle(): String = tr(
+        "Nous Portal sign-in", "Nous Portal 登录", "Inicio de sesión de Nous Portal",
+        "Nous-Portal-Anmeldung", "Login do Nous Portal", "Connexion Nous Portal",
+    )
+
+    fun authNousEnterCode(code: String): String = tr(
+        "Nous code $code. Approve it in the in-app browser; waiting…", "Nous 代码为 $code。请在应用内浏览器中批准；正在等待…",
+        "Código de Nous: $code. Autorízalo en el navegador integrado; esperando…", "Nous-Code $code. Genehmige ihn im In-App-Browser; warte…",
+        "Código do Nous: $code. Autorize no navegador do app; aguardando…", "Code Nous $code. Autorisez-le dans le navigateur intégré ; attente…",
+    )
+
+    fun authNousPollError(errorName: String): String = tr(
+        "Nous device check failed: $errorName", "Nous 设备检查失败：$errorName", "Falló la comprobación del dispositivo Nous: $errorName",
+        "Nous-Geräteprüfung fehlgeschlagen: $errorName", "Falha na verificação do dispositivo Nous: $errorName", "Échec de la vérification de l’appareil Nous : $errorName",
+    )
+
+    fun authNousTimedOut(): String = tr(
+        "Nous sign-in timed out. Tap Sign in to try again.", "Nous 登录超时。点按“登录”重试。",
+        "El inicio de sesión de Nous agotó el tiempo. Toca Iniciar sesión para reintentarlo.",
+        "Zeitüberschreitung bei der Nous-Anmeldung. Tippe zum erneuten Versuch auf Anmelden.",
+        "O login do Nous expirou. Toque em Entrar para tentar novamente.",
+        "La connexion Nous a expiré. Touchez Se connecter pour réessayer.",
+    )
+
+    fun authCredentialRequired(label: String): String = tr(
+        "Paste an API key, token, or CLI environment line for $label first.", "请先粘贴 $label 的 API 密钥、令牌或 CLI 环境变量行。",
+        "Primero pega una clave API, un token o una línea de entorno CLI para $label.",
+        "Füge zuerst einen API-Schlüssel, ein Token oder eine CLI-Umgebungszeile für $label ein.",
+        "Primeiro cole uma chave de API, token ou linha de ambiente CLI para $label.",
+        "Collez d’abord une clé API, un jeton ou une ligne d’environnement CLI pour $label.",
+    )
+
+    fun authSavedCredential(label: String, sourceLabel: String): String {
+        val source = if (sourceLabel.isBlank()) "" else tr(
+            " from $sourceLabel", "（来源：$sourceLabel）", " desde $sourceLabel",
+            " aus $sourceLabel", " de $sourceLabel", " depuis $sourceLabel",
+        )
+        return tr(
+            "Saved $label credential$source and queued a Hermes runtime restart.", "已保存 $label 凭据$source，并已安排重启 Hermes 运行时。",
+            "Credencial de $label guardada$source; se ha programado el reinicio del runtime de Hermes.",
+            "$label-Zugangsdaten$source gespeichert; ein Neustart der Hermes-Runtime wurde eingeplant.",
+            "Credencial do $label salva$source; a reinicialização do runtime do Hermes foi agendada.",
+            "Identifiant $label enregistré$source ; le redémarrage du runtime Hermes est planifié.",
+        )
+    }
+
+    fun authSavingCredential(label: String): String = tr(
+        "Saving $label credential and restarting Hermes…", "正在保存 $label 凭据并重启 Hermes…",
+        "Guardando la credencial de $label y reiniciando Hermes…", "$label-Zugangsdaten werden gespeichert und Hermes wird neu gestartet…",
+        "Salvando a credencial do $label e reiniciando o Hermes…", "Enregistrement de l’identifiant $label et redémarrage de Hermes…",
+    )
+
+    fun authSaveCredentialFailed(label: String, errorName: String): String = tr(
+        "Unable to save $label credential ($errorName).", "无法保存 $label 凭据（$errorName）。",
+        "No se pudo guardar la credencial de $label ($errorName).", "$label-Zugangsdaten konnten nicht gespeichert werden ($errorName).",
+        "Não foi possível salvar a credencial do $label ($errorName).", "Impossible d’enregistrer l’identifiant $label ($errorName).",
+    )
+
+    fun providerSetupUrlInvalid(): String = tr(
+        "Provider setup URL must start with https:// or http://", "提供商设置链接必须以 https:// 或 http:// 开头",
+        "La URL de configuración del proveedor debe empezar por https:// o http://", "Die Anbieter-Setup-URL muss mit https:// oder http:// beginnen",
+        "A URL de configuração do provedor deve começar com https:// ou http://", "L’URL de configuration du fournisseur doit commencer par https:// ou http://",
+    )
+
+    fun providerSetupTitle(label: String): String = tr(
+        "$label setup", "$label 设置", "Configuración de $label", "$label-Einrichtung", "Configuração do $label", "Configuration de $label",
+    )
+
+    fun openProviderSetupTitle(label: String): String = tr(
+        "Open $label setup page", "打开 $label 设置页面", "Abrir la página de configuración de $label",
+        "$label-Setup-Seite öffnen", "Abrir a página de configuração do $label", "Ouvrir la page de configuration de $label",
+    )
+
+    fun providerSetupOpenFailed(label: String, errorName: String): String = tr(
+        "Unable to open the $label setup page ($errorName); copied the official setup URLs.", "无法打开 $label 设置页面（$errorName）；已复制官方设置链接。",
+        "No se pudo abrir la página de configuración de $label ($errorName); se copiaron las URL oficiales.",
+        "Die $label-Setup-Seite konnte nicht geöffnet werden ($errorName); die offiziellen URLs wurden kopiert.",
+        "Não foi possível abrir a página de configuração do $label ($errorName); as URLs oficiais foram copiadas.",
+        "Impossible d’ouvrir la page de configuration de $label ($errorName) ; les URL officielles ont été copiées.",
+    )
+
+    fun providerSetupUrlsMissing(label: String): String = tr(
+        "No setup URLs are configured for $label.", "未为 $label 配置设置链接。", "No hay URL de configuración para $label.",
+        "Für $label sind keine Setup-URLs konfiguriert.", "Não há URLs de configuração para $label.", "Aucune URL de configuration n’est définie pour $label.",
+    )
+
+    fun providerSetupChecking(label: String): String = tr(
+        "Checking $label setup pages from this device…", "正在从此设备检查 $label 设置页面…",
+        "Comprobando desde este dispositivo las páginas de configuración de $label…", "$label-Setup-Seiten werden von diesem Gerät geprüft…",
+        "Verificando neste dispositivo as páginas de configuração do $label…", "Vérification des pages de configuration de $label depuis cet appareil…",
+    )
+
+    fun providerSetupReachable(
+        label: String,
+        url: String,
+        statusLabel: String,
+        reachableCount: Int,
+        totalCount: Int,
+        failedFallbackCount: Int,
+    ): String {
+        val fallbackHint = if (failedFallbackCount > 0) tr(
+            " $failedFallbackCount fallback page(s) did not respond cleanly; tap Open again to try the next official alternative.",
+            " 有 $failedFallbackCount 个备用页面未正常响应；再次点按“打开”可尝试下一个官方备用页面。",
+            " $failedFallbackCount página(s) alternativa(s) no respondieron correctamente; toca Abrir otra vez para probar la siguiente opción oficial.",
+            " $failedFallbackCount Ausweichseite(n) antworteten nicht korrekt; tippe erneut auf Öffnen, um die nächste offizielle Alternative zu testen.",
+            " $failedFallbackCount página(s) alternativa(s) não responderam corretamente; toque em Abrir novamente para tentar a próxima opção oficial.",
+            " $failedFallbackCount page(s) de secours n’ont pas répondu correctement ; touchez de nouveau Ouvrir pour essayer l’alternative officielle suivante.",
+        ) else ""
+        return tr(
+            "$label setup is reachable from Hermes: $url ($statusLabel). $reachableCount/$totalCount official page(s) responded; copied all setup URLs.$fallbackHint",
+            "Hermes 可以访问 $label 设置页面：$url（$statusLabel）。$reachableCount/$totalCount 个官方页面已响应；已复制所有设置链接。$fallbackHint",
+            "Hermes puede acceder a la configuración de $label: $url ($statusLabel). Respondieron $reachableCount/$totalCount páginas oficiales; se copiaron todas las URL.$fallbackHint",
+            "Das $label-Setup ist von Hermes erreichbar: $url ($statusLabel). $reachableCount/$totalCount offizielle Seiten antworteten; alle Setup-URLs wurden kopiert.$fallbackHint",
+            "A configuração do $label está acessível pelo Hermes: $url ($statusLabel). $reachableCount/$totalCount páginas oficiais responderam; todas as URLs foram copiadas.$fallbackHint",
+            "La configuration de $label est accessible depuis Hermes : $url ($statusLabel). $reachableCount/$totalCount pages officielles ont répondu ; toutes les URL ont été copiées.$fallbackHint",
+        )
+    }
+
+    fun providerSetupUnreachable(label: String, failureSummary: String): String = tr(
+        "No $label setup page responded from Hermes. Copied all setup URLs. $failureSummary",
+        "Hermes 未收到任何 $label 设置页面的响应。已复制所有设置链接。$failureSummary",
+        "Ninguna página de configuración de $label respondió desde Hermes. Se copiaron todas las URL. $failureSummary",
+        "Keine $label-Setup-Seite antwortete aus Hermes. Alle Setup-URLs wurden kopiert. $failureSummary",
+        "Nenhuma página de configuração do $label respondeu pelo Hermes. Todas as URLs foram copiadas. $failureSummary",
+        "Aucune page de configuration de $label n’a répondu depuis Hermes. Toutes les URL ont été copiées. $failureSummary",
+    )
+
+    fun providerSetupOpened(label: String, providerId: String, displayIndex: Int, total: Int): String {
+        val browserHint = if (total > 1) tr(
+            " in your browser ($displayIndex/$total); copied all official setup URLs. Tap Open again for the next alternative if this page stalls.",
+            "（浏览器中第 $displayIndex/$total 个）；已复制所有官方设置链接。如果页面卡住，请再次点按“打开”尝试下一个备用页面。",
+            " en el navegador ($displayIndex/$total); se copiaron todas las URL oficiales. Toca Abrir otra vez si la página se bloquea.",
+            " im Browser ($displayIndex/$total); alle offiziellen Setup-URLs wurden kopiert. Tippe bei einem Stillstand erneut auf Öffnen.",
+            " no navegador ($displayIndex/$total); todas as URLs oficiais foram copiadas. Toque em Abrir novamente se a página travar.",
+            " dans le navigateur ($displayIndex/$total) ; toutes les URL officielles ont été copiées. Touchez de nouveau Ouvrir si la page se bloque.",
+        ) else tr(
+            " in your browser. If it stalls, copy the setup URL into another browser.", "（浏览器中）。如果页面卡住，请将设置链接复制到其他浏览器。",
+            " en el navegador. Si se bloquea, copia la URL en otro navegador.", " im Browser. Falls die Seite hängt, kopiere die Setup-URL in einen anderen Browser.",
+            " no navegador. Se travar, copie a URL para outro navegador.", " dans le navigateur. Si la page se bloque, copiez l’URL dans un autre navigateur.",
+        )
+        val legacyHint = if (providerId == "qwen-oauth") tr(
+            " Qwen OAuth is legacy; choose Qwen Cloud for new API-key setup.", " Qwen OAuth 为旧版；新的 API 密钥设置请选择 Qwen Cloud。",
+            " Qwen OAuth es heredado; elige Qwen Cloud para configurar una clave API nueva.", " Qwen OAuth ist veraltet; nutze Qwen Cloud für neue API-Schlüssel.",
+            " O Qwen OAuth é legado; escolha Qwen Cloud para configurar uma nova chave de API.", " Qwen OAuth est ancien ; choisissez Qwen Cloud pour une nouvelle clé API.",
+        ) else ""
+        return tr(
+            "Opened $label setup page$browserHint$legacyHint", "已打开 $label 设置页面$browserHint$legacyHint",
+            "Se abrió la página de configuración de $label$browserHint$legacyHint", "$label-Setup-Seite geöffnet$browserHint$legacyHint",
+            "Página de configuração do $label aberta$browserHint$legacyHint", "Page de configuration de $label ouverte$browserHint$legacyHint",
+        )
+    }
+
+    fun providerSetupClipboardLabel(label: String): String = tr(
+        "Hermes $label setup URLs", "Hermes $label 设置链接", "URL de configuración de Hermes para $label",
+        "Hermes-$label-Setup-URLs", "URLs de configuração do Hermes para $label", "URL de configuration Hermes pour $label",
+    )
+
+    fun providerSetupCopied(label: String, fallbackCount: Int): String {
+        val alternatives = when (fallbackCount) {
+            0 -> ""
+            1 -> tr(" and 1 official alternative", "及 1 个官方备用页面", " y 1 alternativa oficial", " und 1 offizielle Alternative", " e 1 alternativa oficial", " et 1 alternative officielle")
+            else -> tr(" and $fallbackCount official alternatives", "及 $fallbackCount 个官方备用页面", " y $fallbackCount alternativas oficiales", " und $fallbackCount offizielle Alternativen", " e $fallbackCount alternativas oficiais", " et $fallbackCount alternatives officielles")
+        }
+        return tr(
+            "Copied $label setup URL$alternatives.", "已复制 $label 设置链接$alternatives。", "URL de configuración de $label copiada$alternatives.",
+            "$label-Setup-URL$alternatives kopiert.", "URL de configuração do $label copiada$alternatives.", "URL de configuration de $label copiée$alternatives.",
+        )
+    }
+
+    fun chooseSavedProviderCredential(): String = tr(
+        "Choose a saved provider before importing a Hermes credential.", "导入 Hermes 凭据前，请先选择已保存的提供商。",
+        "Elige un proveedor guardado antes de importar una credencial de Hermes.", "Wähle vor dem Importieren von Hermes-Zugangsdaten einen gespeicherten Anbieter.",
+        "Escolha um provedor salvo antes de importar uma credencial do Hermes.", "Choisissez un fournisseur enregistré avant d’importer un identifiant Hermes.",
+    )
+
+    fun checkingSavedProviderCredential(label: String): String = tr(
+        "Checking the saved Hermes credential for $label…", "正在检查 $label 的已保存 Hermes 凭据…",
+        "Comprobando la credencial Hermes guardada para $label…", "Gespeicherte Hermes-Zugangsdaten für $label werden geprüft…",
+        "Verificando a credencial do Hermes salva para $label…", "Vérification de l’identifiant Hermes enregistré pour $label…",
+    )
+
+    fun unableToReadSavedProviderCredential(errorName: String): String = tr(
+        "Unable to read the saved Hermes credential ($errorName).", "无法读取已保存的 Hermes 凭据（$errorName）。",
+        "No se pudo leer la credencial Hermes guardada ($errorName).", "Gespeicherte Hermes-Zugangsdaten konnten nicht gelesen werden ($errorName).",
+        "Não foi possível ler a credencial do Hermes salva ($errorName).", "Impossible de lire l’identifiant Hermes enregistré ($errorName).",
+    )
+
+    fun savedProviderCredentialCouldNotBeDecoded(label: String): String = tr(
+        "The saved Hermes credential for $label could not be decoded.", "无法解码 $label 的已保存 Hermes 凭据。",
+        "No se pudo decodificar la credencial Hermes guardada para $label.", "Die gespeicherten Hermes-Zugangsdaten für $label konnten nicht dekodiert werden.",
+        "Não foi possível decodificar a credencial do Hermes salva para $label.", "Impossible de décoder l’identifiant Hermes enregistré pour $label.",
+    )
+
+    fun noSavedProviderCredential(label: String): String = tr(
+        "No saved Hermes credential was found for $label.", "未找到 $label 的已保存 Hermes 凭据。",
+        "No se encontró una credencial Hermes guardada para $label.", "Keine gespeicherten Hermes-Zugangsdaten für $label gefunden.",
+        "Nenhuma credencial do Hermes salva foi encontrada para $label.", "Aucun identifiant Hermes enregistré n’a été trouvé pour $label.",
+    )
+
+    fun importedSavedProviderCredential(label: String): String = tr(
+        "Imported the saved Hermes credential for $label and restarted the runtime.", "已导入 $label 的 Hermes 凭据并重启运行时。",
+        "Se importó la credencial Hermes guardada para $label y se reinició el runtime.", "Gespeicherte Hermes-Zugangsdaten für $label importiert und Runtime neu gestartet.",
+        "A credencial do Hermes salva para $label foi importada e o runtime reiniciado.", "L’identifiant Hermes enregistré pour $label a été importé et le runtime redémarré.",
+    )
+
+    fun savedProviderCredentialImportFailed(errorName: String): String = tr(
+        "Saved Hermes credential import failed ($errorName).", "导入已保存的 Hermes 凭据失败（$errorName）。",
+        "Falló la importación de la credencial Hermes guardada ($errorName).", "Import gespeicherter Hermes-Zugangsdaten fehlgeschlagen ($errorName).",
+        "Falha ao importar a credencial do Hermes salva ($errorName).", "Échec de l’importation de l’identifiant Hermes enregistré ($errorName).",
+    )
+
+    fun startingLocalHermesRuntime(): String = tr(
+        "Starting the local Hermes runtime…", "正在启动本地 Hermes 运行时…", "Iniciando el runtime local de Hermes…",
+        "Lokale Hermes-Runtime wird gestartet…", "Iniciando o runtime local do Hermes…", "Démarrage du runtime Hermes local…",
+    )
+
+    fun localBackendReady(backend: String, model: String): String = tr(
+        "$backend ready · $model", "$backend 已就绪 · $model", "$backend listo · $model",
+        "$backend bereit · $model", "$backend pronto · $model", "$backend prêt · $model",
+    )
 
     private fun tr(en: String, zh: String, es: String, de: String, pt: String, fr: String): String = when (language) {
         AppLanguage.CHINESE -> zh

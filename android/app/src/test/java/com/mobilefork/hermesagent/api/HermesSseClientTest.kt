@@ -330,6 +330,74 @@ class HermesSseClientTest {
         assertTrue(statuses.any { it.contains("Responses stream") })
     }
 
+    @Test
+    fun streamChatCompletion_preservesParagraphSeparatorDelta() {
+        val body = """
+            data: {"choices":[{"delta":{"content":"First paragraph."}}]}
+
+            data: {"choices":[{"delta":{"content":"\n\n"}}]}
+
+            data: {"choices":[{"delta":{"content":"Second paragraph."}}]}
+
+            data: [DONE]
+
+        """.trimIndent() + "\n"
+        val client = HermesSseClient(
+            baseUrl = "http://127.0.0.1:15436",
+            httpClient = singleResponseClient(body),
+        )
+
+        val deltas = mutableListOf<String>()
+        client.streamChatCompletion(
+            request = sampleRequest(),
+            onDelta = { deltas += it },
+            onComplete = {},
+            onError = { throw AssertionError(it) },
+        )
+
+        assertEquals(
+            listOf("First paragraph.", "\n\n", "Second paragraph."),
+            deltas,
+        )
+        assertEquals("First paragraph.\n\nSecond paragraph.", deltas.joinToString(""))
+    }
+
+    @Test
+    fun streamResponse_preservesParagraphSeparatorDelta() {
+        val body = """
+            event: response.output_text.delta
+            data: {"type":"response.output_text.delta","delta":"First paragraph."}
+
+            event: response.output_text.delta
+            data: {"type":"response.output_text.delta","delta":"\n\n"}
+
+            event: response.output_text.delta
+            data: {"type":"response.output_text.delta","delta":"Second paragraph."}
+
+            event: response.completed
+            data: {"type":"response.completed","response":{"id":"resp_paragraphs"}}
+
+        """.trimIndent() + "\n"
+        val client = HermesSseClient(
+            baseUrl = "https://api.openai.com/v1/responses",
+            httpClient = singleResponseClient(body),
+        )
+
+        val deltas = mutableListOf<String>()
+        client.streamResponse(
+            request = sampleRequest().copy(model = "gpt-5"),
+            onDelta = { deltas += it },
+            onComplete = {},
+            onError = { throw AssertionError(it) },
+        )
+
+        assertEquals(
+            listOf("First paragraph.", "\n\n", "Second paragraph."),
+            deltas,
+        )
+        assertEquals("First paragraph.\n\nSecond paragraph.", deltas.joinToString(""))
+    }
+
     private fun sampleRequest(): ChatCompletionRequest {
         return ChatCompletionRequest(
             model = "gemma-4-local",

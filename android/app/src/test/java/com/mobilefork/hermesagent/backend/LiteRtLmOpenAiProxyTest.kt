@@ -1,15 +1,138 @@
 package com.mobilefork.hermesagent.backend
 
+import com.google.ai.edge.litertlm.Message
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.TimeoutException
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.pathString
 
 class LiteRtLmOpenAiProxyTest {
+    private class FakeStartupCandidate(
+        private val completion: () -> LiteRtLmOpenAiProxy.StartupCompletionCanary,
+        private val initializationFailure: Throwable? = null,
+    ) : LiteRtLmOpenAiProxy.StartupEngineCandidate {
+        var initialized = false
+        var cancelled = false
+        var closed = false
+
+        override fun initialize() {
+            initialized = true
+            initializationFailure?.let { throw it }
+        }
+
+        override fun completionCanary(timeoutMs: Long): LiteRtLmOpenAiProxy.StartupCompletionCanary {
+            assertTrue("Expected a positive bounded timeout", timeoutMs > 0L)
+            return completion()
+        }
+
+        override fun cancelCompletion() {
+            cancelled = true
+        }
+
+        override fun close() {
+            closed = true
+        }
+    }
+
+    @Test
+    fun startupCanaryContentRequiresRealNonblankModelText() {
+        assertEquals("OK", LiteRtLmOpenAiProxy.responseText(Message.model("  OK  ")))
+        assertTrue(LiteRtLmOpenAiProxy.responseText(Message.model(" \n\t ")).isBlank())
+    }
+
+    @Test
+    fun verifiedEngineSelection_closesFailedGpuAndFallsBackToCpuCompletion() {
+        val gpu = FakeStartupCandidate(completion = { error("GPU generation failed") })
+        val cpu = FakeStartupCandidate(
+            completion = { LiteRtLmOpenAiProxy.StartupCompletionCanary("cpu response", 37L) },
+        )
+
+        val selection = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
+            listOf(
+                LiteRtLmOpenAiProxy.StartupEngineAttempt("gpu/standard") { gpu },
+                LiteRtLmOpenAiProxy.StartupEngineAttempt("cpu/standard") { cpu },
+            ),
+            timeoutMs = 1_000L,
+        )
+
+        assertTrue(selection.verified)
+        assertEquals("cpu/standard", selection.selectedLabel)
+        assertEquals(37L, selection.completionLatencyMs)
+        assertSame(cpu, selection.candidate)
+        assertTrue(gpu.initialized)
+        assertTrue(gpu.closed)
+        assertFalse(cpu.closed)
+        assertTrue(selection.attempts.any { it.startsWith("gpu/standard: failed") })
+        assertTrue(selection.attempts.any { it == "cpu/standard: completion canary passed (37 ms)" })
+    }
+
+    @Test
+    fun verifiedEngineSelection_rejectsBlankCompletionAndClosesCandidate() {
+        val blank = FakeStartupCandidate(
+            completion = { LiteRtLmOpenAiProxy.StartupCompletionCanary(" \n\t", 12L) },
+        )
+
+        val selection = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
+            listOf(LiteRtLmOpenAiProxy.StartupEngineAttempt("gpu/standard") { blank }),
+        )
+
+        assertFalse(selection.verified)
+        assertNull(selection.candidate)
+        assertTrue(blank.closed)
+        assertTrue(selection.attempts.any { it.contains("blank model content") })
+    }
+
+    @Test
+    fun verifiedEngineSelection_timeoutCancelsAndClosesBeforeTryingNextCandidate() {
+        val timedOut = FakeStartupCandidate(completion = { throw TimeoutException("bounded timeout") })
+        val cpu = FakeStartupCandidate(
+            completion = { LiteRtLmOpenAiProxy.StartupCompletionCanary("ready", 9L) },
+        )
+
+        val selection = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
+            listOf(
+                LiteRtLmOpenAiProxy.StartupEngineAttempt("gpu/standard") { timedOut },
+                LiteRtLmOpenAiProxy.StartupEngineAttempt("cpu/standard") { cpu },
+            ),
+        )
+
+        assertTrue(selection.verified)
+        assertTrue(timedOut.cancelled)
+        assertTrue(timedOut.closed)
+        assertSame(cpu, selection.candidate)
+    }
+
+    @Test
+    fun verifiedEngineSelection_allFailuresReturnNotReadyWithoutCandidateLeak() {
+        val first = FakeStartupCandidate(completion = { error("first failure") })
+        val second = FakeStartupCandidate(
+            completion = { LiteRtLmOpenAiProxy.StartupCompletionCanary("never reached", 1L) },
+            initializationFailure = IllegalStateException("second initialization failed"),
+        )
+
+        val selection = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
+            listOf(
+                LiteRtLmOpenAiProxy.StartupEngineAttempt("gpu/standard") { first },
+                LiteRtLmOpenAiProxy.StartupEngineAttempt("cpu/standard") { second },
+            ),
+        )
+
+        assertFalse(selection.verified)
+        assertNull(selection.candidate)
+        assertEquals("", selection.selectedLabel)
+        assertEquals(0L, selection.completionLatencyMs)
+        assertTrue(first.closed)
+        assertTrue(second.closed)
+        assertEquals(4, selection.attempts.size)
+        assertTrue(selection.failure?.message.orEmpty().contains("second initialization failed"))
+    }
+
     @Test
     fun validateModelArtifact_acceptsLiteRtLmHeader() {
         val file = tempModelFile("gemma-4-E2B-it.litertlm", "LITERTLM".toByteArray())
@@ -272,8 +395,42 @@ class LiteRtLmOpenAiProxyTest {
             isX86Device = false,
         )
 
-        assertEquals(8_192, budget.value)
+        assertEquals(4_096, budget.value)
         assertTrue(budget.policy, budget.policy.contains("clamped requested context window"))
+    }
+
+    @Test
+    fun engineTokenBudget_usesLiveHeadroomToClampVeryLargeModel() {
+        val budget = LiteRtLmOpenAiProxy.decideEngineTokenBudget(
+            requestedMaxTokens = 4_000,
+            requestedMaxContextLength = 32_000,
+            totalRamBytes = 16_000_000_000L,
+            modelBytes = 6_500_000_000L,
+            isX86Device = false,
+            availableRamBytes = 10_000_000_000L,
+            memoryThresholdBytes = 500_000_000L,
+            lowMemory = false,
+        )
+
+        assertEquals(2_048, budget.value)
+        assertTrue(budget.policy, budget.policy.contains("clamped requested context window"))
+    }
+
+    @Test
+    fun runtimeFailureExplainsNativeOutOfMemoryRecovery() {
+        val message = LiteRtLmOpenAiProxy.actionableRuntimeFailure(
+            OutOfMemoryError("Failed to allocate memory for delegate"),
+            "LiteRT-LM",
+        )
+
+        assertTrue(message, message.contains("exhausted available memory"))
+        assertTrue(message, message.contains("choose a smaller model artifact"))
+    }
+
+    @Test
+    fun gemma4DefaultsDoNotRequestThirtyTwoThousandTokensForTwelveBArtifact() {
+        assertEquals(2_048, OnDeviceBackendManager.gemma4DefaultContextTokens(6_500_000_000L))
+        assertEquals(4_096, OnDeviceBackendManager.gemma4DefaultContextTokens(2_583_085_056L))
     }
 
     @Test

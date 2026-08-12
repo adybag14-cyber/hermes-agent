@@ -69,12 +69,40 @@ object NativeAndroidShellTool {
                 .joinToString(":")
         }
 
-        val process = ProcessBuilder(shellInvocation(shellPath, effectiveCommand))
-            .directory(homeDir)
-            .apply {
-                environment().putAll(environment)
+        val process = runCatching {
+            ProcessBuilder(shellInvocation(shellPath, effectiveCommand))
+                .directory(homeDir)
+                .apply {
+                    environment().putAll(environment)
+                }
+                .start()
+        }.getOrElse { launchError ->
+            val detail = launchError.message ?: launchError.javaClass.simpleName
+            val permissionDenied = detail.contains("permission denied", ignoreCase = true) ||
+                detail.contains("EACCES", ignoreCase = true)
+            val exitCode = if (permissionDenied) 126 else 1
+            val result = JSONObject()
+                .put("exit_code", exitCode)
+                .put("output", "")
+                .put(
+                    "error",
+                    if (permissionDenied) {
+                        "$detail\n${executionDeniedHint(state, command)}"
+                    } else {
+                        detail
+                    },
+                )
+                .put("cwd", homeDir.absolutePath)
+                .put("shell", shellPath)
+                .put("execution_mode", state.optString("execution_mode"))
+                .put("uses_termux", state.optBoolean("uses_termux", false))
+                .put("native_execution_route", state.optString("native_execution_route"))
+                .put("execution_launch_failed", true)
+            if (permissionDenied) {
+                result.put("execution_denial_hint", executionDeniedHint(state, command))
             }
-            .start()
+            return result
+        }
 
         val executor = Executors.newFixedThreadPool(2)
         val stdout = executor.submit(Callable {
@@ -101,6 +129,8 @@ object NativeAndroidShellTool {
             .put("shell", shellPath)
             .put("execution_mode", state.optString("execution_mode"))
             .put("uses_termux", state.optBoolean("uses_termux", false))
+            .put("native_execution_route", state.optString("native_execution_route"))
+            .put("native_direct_command_count", state.optInt("native_direct_command_count", 0))
             .put("available_package_count", state.optJSONArray("packages")?.length() ?: 0)
             .put(
                 "package_manager_status",
@@ -109,13 +139,19 @@ object NativeAndroidShellTool {
             .put(
                 "package_management_hint",
                 if (state.optBoolean("uses_termux", false)) {
-                    "Host suite: use pkg update|upgrade|install (or linux_host_pkg_tool). " +
+                    "Host suite: use pkg list/search for discovery; package changes require a signed Hermes APK. " +
                         "Guest sandboxes: linux_sandbox_tool action=update (apt/apk). " +
                         "Packaged prefix commands are on PATH; proot-distro catalog is in downloadable_linux_sandboxes."
                 } else {
                     "Embedded package prefix is unavailable; this run used Android's system shell only."
                 },
             )
+        if (exitCode == 126) {
+            val hint = executionDeniedHint(state, command)
+            result.put("error", listOf(error.trim(), hint).filter { it.isNotBlank() }.joinToString("\n"))
+            result.put("execution_denial_hint", hint)
+            result.put("android_exec_policy", state.optString("android_exec_policy"))
+        }
         if (includeLinuxSandboxStatus) {
             result
                 .put("downloadable_linux_sandboxes", HermesLinuxSandboxCatalog.distroCatalog())
@@ -148,5 +184,20 @@ object NativeAndroidShellTool {
         val shellName = File(shellPath).name.lowercase()
         val commandFlag = if (shellName.contains("bash")) "-lc" else "-c"
         return listOf(shellPath, commandFlag, command)
+    }
+
+    internal fun executionDeniedHint(state: JSONObject, command: String): String {
+        val route = state.optString("native_execution_route").ifBlank { "unknown" }
+        val prefix = state.optString("prefix_path")
+        val mentionsWritablePrefix = prefix.isNotBlank() && command.contains(prefix)
+        val routeDetail = if (mentionsWritablePrefix) {
+            "The command names a writable prefix path directly."
+        } else {
+            "The selected executable route was $route."
+        }
+        return "Android found the command but refused to execute it. $routeDetail " +
+            "Downloaded ELF files in app data cannot be made executable with chmod on Android 10+. " +
+            "Use the packaged command name or update Hermes so it can repair the APK-native route; " +
+            "do not grant broad storage permission or retry chmod."
     }
 }

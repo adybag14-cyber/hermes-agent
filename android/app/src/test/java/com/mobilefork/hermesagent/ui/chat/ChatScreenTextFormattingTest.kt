@@ -1,5 +1,6 @@
 package com.mobilefork.hermesagent.ui.chat
 
+import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -128,9 +129,27 @@ class ChatScreenTextFormattingTest {
     }
 
     @Test
+    fun chatDisplayTextPreservesParagraphBreaksAndIntentionalLineBreaks() {
+        val rendered = sanitizeChatDisplayText(
+            "First paragraph.\n\nSecond paragraph.\nSecond line.",
+        )
+
+        assertTrue(rendered.contains("First paragraph.\n\nSecond paragraph."))
+        assertTrue(rendered.endsWith("Second paragraph.\nSecond line."))
+    }
+
+    @Test
     fun composerStatusCollapsesWhenKeyboardIsVisible() {
         assertTrue(shouldShowComposerStatus(tinyRuntimeViewport = false, imeVisible = false))
         assertFalse(shouldShowComposerStatus(tinyRuntimeViewport = true, imeVisible = false))
         assertFalse(shouldShowComposerStatus(tinyRuntimeViewport = false, imeVisible = true))
+    }
+
+    @Test
+    fun pageActionsCollapseOnlyBelowUltraNarrowThreshold() {
+        assertFalse(shouldShowChatHeaderPageActions(200.dp))
+        assertFalse(shouldShowChatHeaderPageActions(219.dp))
+        assertTrue(shouldShowChatHeaderPageActions(220.dp))
+        assertTrue(shouldShowChatHeaderPageActions(360.dp))
     }
 }

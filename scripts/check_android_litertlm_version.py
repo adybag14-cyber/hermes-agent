@@ -17,20 +17,30 @@ MAVEN_METADATA_URL = (
     "https://dl.google.com/dl/android/maven2/"
     "com/google/ai/edge/litertlm/litertlm-android/maven-metadata.xml"
 )
-DEPENDENCY_PATTERN = re.compile(
-    r'com\.google\.ai\.edge\.litertlm:litertlm-android:([^"\s]+)'
+STABLE_VERSION_PATTERN = re.compile(
+    r'val\s+liteRtLmStableVersion\s*=\s*"([^"\s]+)"'
 )
+DEPENDENCY_PATTERN = re.compile(
+    r'implementation\(\s*"com\.google\.ai\.edge\.litertlm:'
+    r'litertlm-android:\$liteRtLmVersion"\s*\)'
+)
+EXACT_VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.]+)?")
 
 
 def declared_version(gradle_file: Path) -> str:
-    versions = DEPENDENCY_PATTERN.findall(gradle_file.read_text(encoding="utf-8"))
+    gradle_text = gradle_file.read_text(encoding="utf-8")
+    versions = STABLE_VERSION_PATTERN.findall(gradle_text)
     if len(versions) != 1:
         raise ValueError(
-            f"Expected exactly one pinned litertlm-android dependency in {gradle_file}, found {versions}"
+            f"Expected exactly one liteRtLmStableVersion pin in {gradle_file}, found {versions}"
         )
     version = versions[0]
-    if version in {"+", "latest.release", "latest.integration"} or version.endswith("+"):
+    if not EXACT_VERSION_PATTERN.fullmatch(version):
         raise ValueError(f"LiteRT-LM dependency must use an exact version, got {version!r}")
+    if len(DEPENDENCY_PATTERN.findall(gradle_text)) != 1:
+        raise ValueError(
+            "Expected litertlm-android to consume the validated $liteRtLmVersion exactly once"
+        )
     return version
 
 

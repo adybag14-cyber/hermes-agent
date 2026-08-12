@@ -93,6 +93,35 @@ class HermesModelDownloadManagerTest {
         )
     }
 
+    @Test
+    fun knownReleaseMatrixArtifactRewritesMainToExactCommit() {
+        val artifact = VerifiedLocalModelArtifacts.releaseMatrix.first()
+        assertEquals(
+            artifact.revision,
+            callPrivate(
+                "pinnedArtifactRevision",
+                artifact.repoId,
+                artifact.fileName,
+                "main",
+                "main",
+            ),
+        )
+    }
+
+    @Test
+    fun explicitUserRevisionIsNeverRewrittenByReleaseMatrix() {
+        assertEquals(
+            "1111111111111111111111111111111111111111",
+            callPrivate(
+                "pinnedArtifactRevision",
+                "Tdamre/MiniCPM5-1B-litert-lm",
+                "MiniCPM5-1B-web.litertlm",
+                "1111111111111111111111111111111111111111",
+                "1111111111111111111111111111111111111111",
+            ),
+        )
+    }
+
     private fun isCompatibleRepoFile(path: String, runtimeFlavor: String): Boolean {
         return callPrivate("isCompatibleRepoFile", path, runtimeFlavor) as Boolean
     }

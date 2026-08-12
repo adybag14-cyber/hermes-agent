@@ -95,6 +95,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -128,6 +129,7 @@ fun ChatScreen(
     authViewModel: AuthViewModel,
     onNavigateToSection: (AppSection) -> Unit,
     onContextActionsChanged: (List<ShellActionItem>) -> Unit = {},
+    showNavigationButton: Boolean = true,
     onOpenNavigationMenu: () -> Unit,
     onOpenContextActions: (() -> Unit)? = null,
     onToggleChatDisplayMode: () -> Unit,
@@ -370,9 +372,9 @@ fun ChatScreen(
     }
 
     fun copyMessage(message: ChatUiMessage) {
-        val text = messageClipboardText(message)
+        val text = messageClipboardText(message, strings.attachmentFallback())
         if (text.isNotBlank()) {
-            copyTextToClipboard(context, text)
+            copyTextToClipboard(context, strings.messageClipboardLabel(), text)
             viewModel.setStatus("Message copied")
         }
     }
@@ -446,6 +448,7 @@ fun ChatScreen(
                         navigationSections = chatDrawerNavigationSections(),
                         drawerActions = shellActions,
                         denseHeader = tinyVerticalViewport,
+                        showNavigationButton = showNavigationButton,
                         onNavigateToSection = { section ->
                             dismissKeyboard()
                             onNavigateToSection(section)
@@ -663,6 +666,7 @@ private fun ChatHeaderCard(
     navigationSections: List<AppSection>,
     drawerActions: List<ShellActionItem>,
     denseHeader: Boolean,
+    showNavigationButton: Boolean,
     onNavigateToSection: (AppSection) -> Unit,
     onOpenNavigationMenu: () -> Unit,
     onOpenHistory: () -> Unit,
@@ -679,6 +683,7 @@ private fun ChatHeaderCard(
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val narrowHeader = maxWidth < 360.dp
+            val visibleOpenActions = onOpenActions?.takeIf { shouldShowChatHeaderPageActions(maxWidth) }
             if (denseHeader) {
                 Row(
                     modifier = Modifier
@@ -687,9 +692,9 @@ private fun ChatHeaderCard(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ChatHeaderDrawerButton(
-                        onOpenNavigationMenu = onOpenNavigationMenu,
-                    )
+                    if (showNavigationButton) {
+                        ChatHeaderDrawerButton(onOpenNavigationMenu = onOpenNavigationMenu)
+                    }
                     Text(
                         text = displayTitle,
                         modifier = Modifier.weight(1f),
@@ -712,9 +717,9 @@ private fun ChatHeaderCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        ChatHeaderDrawerButton(
-                            onOpenNavigationMenu = onOpenNavigationMenu,
-                        )
+                        if (showNavigationButton) {
+                            ChatHeaderDrawerButton(onOpenNavigationMenu = onOpenNavigationMenu)
+                        }
                         Icon(
                             painter = painterResource(id = R.drawable.ic_nav_hermes),
                             contentDescription = strings.sectionHermes,
@@ -737,6 +742,9 @@ private fun ChatHeaderCard(
                             )
                         }
                         ChatHeaderHistoryButton(onOpenHistory = onOpenHistory)
+                        if (visibleOpenActions != null) {
+                            ChatHeaderPageActionsButton(onOpenActions = visibleOpenActions)
+                        }
                     }
                     ChatHeaderDisplayModeButton(
                         chatDisplayMode = chatDisplayMode,
@@ -752,9 +760,9 @@ private fun ChatHeaderCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ChatHeaderDrawerButton(
-                        onOpenNavigationMenu = onOpenNavigationMenu,
-                    )
+                    if (showNavigationButton) {
+                        ChatHeaderDrawerButton(onOpenNavigationMenu = onOpenNavigationMenu)
+                    }
                     Icon(
                         painter = painterResource(id = R.drawable.ic_nav_hermes),
                         contentDescription = strings.sectionHermes,
@@ -785,8 +793,8 @@ private fun ChatHeaderCard(
                             chatDisplayMode = chatDisplayMode,
                             onToggleDisplayMode = onToggleDisplayMode,
                         )
-                        if (onOpenActions != null) {
-                            ChatHeaderPageActionsButton(onOpenActions = onOpenActions)
+                        if (visibleOpenActions != null) {
+                            ChatHeaderPageActionsButton(onOpenActions = visibleOpenActions)
                         }
                     }
                 }
@@ -794,6 +802,8 @@ private fun ChatHeaderCard(
         }
     }
 }
+
+internal fun shouldShowChatHeaderPageActions(availableWidth: Dp): Boolean = availableWidth >= 220.dp
 
 @Composable
 private fun ChatHeaderDrawerButton(
@@ -1450,7 +1460,8 @@ private fun HighlightedMessageText(
     color: androidx.compose.ui.graphics.Color,
     keywordHighlightingEnabled: Boolean,
 ) {
-    val displayText = remember(text) { sanitizeChatDisplayText(text) }
+    val strings = LocalHermesStrings.current
+    val displayText = remember(text, strings.language) { sanitizeChatDisplayText(text, strings) }
     if (!keywordHighlightingEnabled || text.isBlank()) {
         SelectionContainer {
             Text(text = displayText, color = color, style = MaterialTheme.typography.bodyMedium)
@@ -1490,10 +1501,10 @@ private fun HighlightedMessageText(
     }
 }
 
-private fun messageClipboardText(message: ChatUiMessage): String {
+private fun messageClipboardText(message: ChatUiMessage, attachmentFallback: String): String {
     val attachmentText = message.attachments
         .joinToString(separator = "\n") { attachment ->
-            attachment.displayName.ifBlank { attachment.mimeType }.ifBlank { "attachment" }
+            attachment.displayName.ifBlank { attachment.mimeType }.ifBlank { attachmentFallback }
         }
     return listOf(message.content, attachmentText)
         .map { it.trim() }
@@ -1501,17 +1512,20 @@ private fun messageClipboardText(message: ChatUiMessage): String {
         .joinToString(separator = "\n")
 }
 
-private fun copyTextToClipboard(context: Context, text: String) {
+private fun copyTextToClipboard(context: Context, label: String, text: String) {
     if (text.isBlank()) {
         return
     }
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-    clipboard.setPrimaryClip(ClipData.newPlainText("Hermes message", text))
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
 }
 
-internal fun sanitizeChatDisplayText(text: String): String {
+internal fun sanitizeChatDisplayText(
+    text: String,
+    strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings? = null,
+): String {
     if (text.isBlank()) return text
-    val normalized = formatXmlToolCallsForDisplay(text.replace("\r\n", "\n"))
+    val normalized = formatXmlToolCallsForDisplay(text.replace("\r\n", "\n"), strings)
     val cleanedLines = mutableListOf<String>()
     var insideCodeFence = false
     normalized.lines().forEach { line ->
@@ -1539,7 +1553,10 @@ internal fun sanitizeChatDisplayText(text: String): String {
     return cleanedLines.joinToString("\n").trimEnd()
 }
 
-internal fun formatXmlToolCallsForDisplay(text: String): String {
+internal fun formatXmlToolCallsForDisplay(
+    text: String,
+    strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings? = null,
+): String {
     if ('<' !in text || '>' !in text) {
         return text
     }
@@ -1558,8 +1575,9 @@ internal fun formatXmlToolCallsForDisplay(text: String): String {
                     ?.trim()
                     ?.ifBlank { null }
                 ?: "tool"
-            xmlToolCallDisplayBlock(name = name, arguments = body)
-        }
+            xmlToolCallDisplayBlock(name = name, arguments = body, strings = strings)
+        },
+        strings = strings,
     )
 }
 
@@ -1567,21 +1585,30 @@ internal fun shouldShowComposerStatus(tinyRuntimeViewport: Boolean, imeVisible: 
     return !tinyRuntimeViewport && !imeVisible
 }
 
-private fun formatNamedXmlToolCalls(text: String): String {
+private fun formatNamedXmlToolCalls(
+    text: String,
+    strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings?,
+): String {
     return XML_NAMED_TOOL_CALL_BLOCK_REGEX.replace(text) { match ->
         val name = match.groups[1]?.value.orEmpty().trim().ifBlank { "tool" }
         val body = match.groups[2]?.value.orEmpty().trim()
-        xmlToolCallDisplayBlock(name = name, arguments = body)
+        xmlToolCallDisplayBlock(name = name, arguments = body, strings = strings)
     }
 }
 
-private fun xmlToolCallDisplayBlock(name: String, arguments: String): String {
+private fun xmlToolCallDisplayBlock(
+    name: String,
+    arguments: String,
+    strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings?,
+): String {
     val cleanedName = name.trim().ifBlank { "tool" }
     val cleanedArguments = arguments.trim()
+    val toolCallLabel = strings?.toolCallLabel() ?: "Tool call"
+    val argumentsLabel = strings?.argumentsLabel() ?: "Arguments"
     return if (cleanedArguments.isBlank()) {
-        "Tool call: $cleanedName"
+        "$toolCallLabel: $cleanedName"
     } else {
-        "Tool call: $cleanedName\nArguments: $cleanedArguments"
+        "$toolCallLabel: $cleanedName\n$argumentsLabel: $cleanedArguments"
     }
 }
 

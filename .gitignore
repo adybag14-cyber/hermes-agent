@@ -5,6 +5,7 @@ build/
 *.pyc*
 __pycache__/
 .venv/
+.tmp-hermes-*.xml
 .vscode/
 .env
 .env.local
@@ -78,7 +79,9 @@ website/static/api/skills-index.json
 models-dev-upstream/
 
 # Android local build / signing state
+.artifacts/
 android/.gradle/
+android/.kotlin/
 android/build/
 android/app/build/
 android/local.properties

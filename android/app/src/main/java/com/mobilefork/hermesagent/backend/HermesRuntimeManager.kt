@@ -23,6 +23,33 @@ object HermesRuntimeManager {
         val error: String? = null,
     )
 
+    internal sealed interface BackendRouteResult<out T> {
+        data class LocalStarted(val status: LocalBackendStatus) : BackendRouteResult<Nothing>
+        data class LocalFailed(val status: LocalBackendStatus) : BackendRouteResult<Nothing>
+        data class RemoteDisabled(val status: LocalBackendStatus) : BackendRouteResult<Nothing>
+        data class Remote<T>(val value: T) : BackendRouteResult<T>
+    }
+
+    /**
+     * The remote launcher is an injected capability and is never invoked when
+     * the user explicitly selected a local backend. This makes the no-silent-
+     * fallback boundary executable in a JVM test rather than a source snapshot.
+     */
+    internal fun <T> routeConfiguredBackend(
+        selectedLocalBackend: BackendKind,
+        remoteAllowed: Boolean,
+        localLauncher: () -> LocalBackendStatus,
+        remoteLauncher: () -> T,
+    ): BackendRouteResult<T> {
+        val localStatus = localLauncher()
+        if (localStatus.started) return BackendRouteResult.LocalStarted(localStatus)
+        if (selectedLocalBackend != BackendKind.NONE) {
+            return BackendRouteResult.LocalFailed(localStatus)
+        }
+        if (!remoteAllowed) return BackendRouteResult.RemoteDisabled(localStatus)
+        return BackendRouteResult.Remote(remoteLauncher())
+    }
+
     @Volatile
     private var currentState: RuntimeState = RuntimeState(started = false)
 
@@ -62,59 +89,26 @@ object HermesRuntimeManager {
         return try {
             HermesLinuxSubsystemBridge.ensureInstalled(appContext)
             refreshPythonRuntimeEnvironment(appContext)
-            val localBackendStatus = OnDeviceBackendManager.ensureConfigured(
-                appContext,
-                settings.onDeviceBackend,
+            val route = routeConfiguredBackend(
+                selectedLocalBackend = selectedLocalBackend,
+                remoteAllowed = !settings.offlineAirplaneMode,
+                localLauncher = {
+                    OnDeviceBackendManager.ensureConfigured(appContext, settings.onDeviceBackend)
+                },
+                remoteLauncher = { startRemoteRuntime(appContext, settings.provider, settings.model, settings.baseUrl) },
             )
-            if (localBackendStatus.started) {
-                currentState = RuntimeState(
-                    started = true,
-                    baseUrl = localBackendStatus.baseUrl,
-                    hermesHome = File(appContext.filesDir, "hermes-home").absolutePath,
-                    modelName = localBackendStatus.modelName,
-                    probeResult = "native-android-litert-lm",
-                )
-                return currentState
-            }
-            if (settings.offlineAirplaneMode) {
-                currentState = RuntimeState(
+            currentState = when (route) {
+                is BackendRouteResult.LocalStarted -> localRuntimeState(appContext, route.status)
+                is BackendRouteResult.LocalFailed -> localFailureState(appContext, selectedLocalBackend, route.status)
+                is BackendRouteResult.RemoteDisabled -> RuntimeState(
                     started = false,
                     hermesHome = File(appContext.filesDir, "hermes-home").absolutePath,
-                    error = localBackendStatus.statusMessage.ifBlank {
+                    error = route.status.statusMessage.ifBlank {
                         "Offline airplane mode is on and no on-device backend is ready."
                     },
                 )
-                return currentState
+                is BackendRouteResult.Remote -> route.value
             }
-            val localBackendFallbackWarning =
-                localBackendFallbackWarning(selectedLocalBackend, localBackendStatus)
-
-            ensurePythonStarted(appContext)
-            refreshPythonRuntimeEnvironment(appContext)
-            val effectiveProvider = settings.provider
-            val effectiveModel = settings.model
-            val effectiveBaseUrl = ProviderPresets.runtimeConfigBaseUrl(settings.provider, settings.baseUrl)
-            Python.getInstance().getModule("hermes_android.config_bridge").callAttr(
-                "write_runtime_config",
-                effectiveProvider,
-                effectiveModel,
-                effectiveBaseUrl,
-            )
-            val probeResult = PythonBootProbe.readProbe(context.applicationContext)
-            val statusJson = Python.getInstance()
-                .getModule("hermes_android.server_bridge")
-                .callAttr("ensure_server", context.filesDir.absolutePath)
-                .toString()
-            val status = JSONObject(statusJson)
-            currentState = RuntimeState(
-                started = status.optBoolean("started", false),
-                baseUrl = status.optString("base_url").ifBlank { null },
-                lanBaseUrl = status.optString("lan_base_url").ifBlank { null },
-                apiKey = status.optString("api_server_key").ifBlank { null },
-                hermesHome = status.optString("hermes_home").ifBlank { null },
-                modelName = status.optString("api_server_model_name").ifBlank { null },
-                probeResult = probeResult.withLocalBackendWarning(localBackendFallbackWarning),
-            )
             currentState
         } catch (exc: Throwable) {
             currentState = RuntimeState(
@@ -123,6 +117,71 @@ object HermesRuntimeManager {
             )
             currentState
         }
+    }
+
+    private fun localRuntimeState(context: Context, status: LocalBackendStatus): RuntimeState {
+        val completionProof = if (status.completionVerified) {
+            "; completion_verified=true; completion_latency_ms=${status.completionLatencyMs}"
+        } else {
+            ""
+        }
+        return RuntimeState(
+            started = true,
+            baseUrl = status.baseUrl,
+            hermesHome = File(context.filesDir, "hermes-home").absolutePath,
+            modelName = status.modelName,
+            probeResult = "native-android-${status.backendKind.persistedValue}; " +
+                "accelerator=${status.accelerator.ifBlank { "unknown" }}$completionProof",
+        )
+    }
+
+    private fun localFailureState(
+        context: Context,
+        selectedLocalBackend: BackendKind,
+        status: LocalBackendStatus,
+    ): RuntimeState {
+        val reason = status.statusMessage.ifBlank {
+            "Selected local backend ${selectedLocalBackend.persistedValue} did not start."
+        }
+        return RuntimeState(
+            started = false,
+            hermesHome = File(context.filesDir, "hermes-home").absolutePath,
+            modelName = status.modelName.ifBlank { null },
+            probeResult = "native-android-${selectedLocalBackend.persistedValue}; started=false; remote_fallback=false",
+            error = "$reason Remote provider startup was not attempted because a local backend is explicitly selected.",
+        )
+    }
+
+    private fun startRemoteRuntime(
+        context: Context,
+        provider: String,
+        model: String,
+        baseUrl: String,
+    ): RuntimeState {
+        ensurePythonStarted(context)
+        refreshPythonRuntimeEnvironment(context)
+        val effectiveBaseUrl = ProviderPresets.runtimeConfigBaseUrl(provider, baseUrl)
+        Python.getInstance().getModule("hermes_android.config_bridge").callAttr(
+            "write_runtime_config",
+            provider,
+            model,
+            effectiveBaseUrl,
+        )
+        val probeResult = PythonBootProbe.readProbe(context.applicationContext)
+        val statusJson = Python.getInstance()
+            .getModule("hermes_android.server_bridge")
+            .callAttr("ensure_server", context.filesDir.absolutePath)
+            .toString()
+        val status = JSONObject(statusJson)
+        return RuntimeState(
+            started = status.optBoolean("started", false),
+            baseUrl = status.optString("base_url").ifBlank { null },
+            lanBaseUrl = status.optString("lan_base_url").ifBlank { null },
+            apiKey = status.optString("api_server_key").ifBlank { null },
+            hermesHome = status.optString("hermes_home").ifBlank { null },
+            modelName = status.optString("api_server_model_name").ifBlank { null },
+            probeResult = probeResult,
+        )
     }
 
     private fun refreshPythonRuntimeEnvironment(context: Context) {
@@ -165,7 +224,7 @@ object HermesRuntimeManager {
             "Selected local backend ${selectedLocalBackend.persistedValue} did not start."
         }
         return "Local ${selectedLocalBackend.persistedValue} backend unavailable: $reason. " +
-            "Using saved remote provider."
+            "Remote fallback is disabled while a local backend is explicitly selected."
     }
 
     internal fun String?.withLocalBackendWarning(warning: String?): String? {

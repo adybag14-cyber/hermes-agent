@@ -9,7 +9,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -26,6 +25,7 @@ import androidx.core.content.ContextCompat
 import com.mobilefork.hermesagent.MainActivity
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.data.DeviceCapabilityStore
+import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -42,7 +42,7 @@ class HermesFloatingButtonService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!Settings.canDrawOverlays(applicationContext)) {
-            lastStartError = "Android overlay permission is not granted"
+            lastStartError = getString(R.string.hermes_overlay_permission_required)
             stopSelf()
             return START_NOT_STICKY
         }
@@ -81,8 +81,8 @@ class HermesFloatingButtonService : Service() {
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_nav_hermes)
-            .setContentTitle("Hermes floating button")
-            .setContentText("Hermes stays available from Home and other apps")
+            .setContentTitle(getString(R.string.hermes_floating_button_title))
+            .setContentText(getString(R.string.hermes_floating_button_notification))
             .setContentIntent(openAppPendingIntent())
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -112,10 +112,10 @@ class HermesFloatingButtonService : Service() {
         }
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Hermes floating button",
+            getString(R.string.hermes_floating_button_title),
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps a floating Hermes launcher button above other apps"
+            description = getString(R.string.hermes_floating_button_channel_description)
         }
         notificationManager.createNotificationChannel(channel)
     }
@@ -148,6 +148,7 @@ class HermesFloatingButtonService : Service() {
     @SuppressLint("ClickableViewAccessibility")
     private fun buildButton(windowManager: WindowManager, layoutParams: WindowManager.LayoutParams): TextView {
         val density = resources.displayMetrics.density.takeIf { it > 0f } ?: 1f
+        val palette = hermesViewPalette(this)
         var downRawX = 0f
         var downRawY = 0f
         var startX = 0
@@ -156,17 +157,17 @@ class HermesFloatingButtonService : Service() {
             text = "H"
             textSize = 22f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.WHITE)
+            setTextColor(palette.onPrimary)
             gravity = Gravity.CENTER
-            contentDescription = "Open Hermes"
+            contentDescription = getString(R.string.hermes_floating_button_open)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
             elevation = 14f * density
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                intArrayOf(0xFF5D5FEF.toInt(), 0xFF19C6A7.toInt()),
+                intArrayOf(palette.primary, palette.secondary),
             ).apply {
                 shape = GradientDrawable.OVAL
-                setStroke(dp(2), 0xFFFFFFFF.toInt())
+                setStroke(dp(2), palette.onPrimary)
             }
             setOnClickListener {
                 openHermes()
@@ -226,7 +227,7 @@ class HermesFloatingButtonService : Service() {
             gravity = Gravity.TOP or Gravity.START
             x = max(edge, screenWidthPx() - sizePx - edge)
             y = dp(156)
-            title = "Hermes floating button"
+            title = getString(R.string.hermes_floating_button_title)
         }
     }
 
@@ -263,7 +264,7 @@ class HermesFloatingButtonService : Service() {
         fun start(context: Context): Boolean {
             val appContext = context.applicationContext
             if (!Settings.canDrawOverlays(appContext)) {
-                lastStartError = "Android overlay permission is not granted"
+                lastStartError = appContext.getString(R.string.hermes_overlay_permission_required)
                 return false
             }
             val intent = Intent(appContext, HermesFloatingButtonService::class.java)

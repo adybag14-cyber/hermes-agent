@@ -1,0 +1,5 @@
+Adds a responsive liquid-glass-inspired Material interface for compact phones and tablets, with full English, Chinese, Spanish, German, Portuguese, and French coverage.
+
+Updates LiteRT-LM to 0.16.0, adds safer memory/accelerator diagnostics, and validates model files by exact revision, size, and SHA-256.
+
+Hardens llama.cpp GGUF startup with metadata checks and a real completion canary, preserves paragraphs, improves tool routing, and repairs Android 15 terminal execution after package updates.

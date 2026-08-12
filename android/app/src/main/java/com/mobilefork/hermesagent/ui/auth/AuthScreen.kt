@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
+import com.mobilefork.hermesagent.ui.theme.hermesPanelColor
 
 @Composable
 fun AuthScreen(
@@ -76,7 +77,7 @@ fun AuthScreen(
     }
 
     MaterialTheme {
-        Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = modifier.fillMaxSize(), color = hermesPanelColor()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 Column(
                     modifier = Modifier

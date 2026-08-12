@@ -1,15 +1,18 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.mobilefork.hermesagent.ui.terminal
 
 import android.app.Application
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -243,15 +246,25 @@ fun TerminalScreen(
                 minLines = 1,
                 maxLines = 4,
             )
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Button(
                     onClick = viewModel::run,
                     enabled = !state.running && state.command.isNotBlank(),
-                    modifier = Modifier.weight(1f).testTag("HermesManualTerminalRunButton"),
+                    modifier = Modifier.widthIn(min = 144.dp).testTag("HermesManualTerminalRunButton"),
                 ) {
                     Text(if (state.running) strings.runningLabel() else strings.runLabel())
                 }
-                Button(onClick = viewModel::clear, enabled = state.entries.isNotEmpty()) { Text(strings.clearLabel()) }
+                Button(
+                    onClick = viewModel::clear,
+                    enabled = state.entries.isNotEmpty(),
+                    modifier = Modifier.widthIn(min = 112.dp),
+                ) {
+                    Text(strings.clearLabel())
+                }
             }
         }
     }

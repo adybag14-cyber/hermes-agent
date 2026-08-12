@@ -40,7 +40,6 @@ def test_local_model_download_view_model_and_store_support_resumable_download_st
     assert 'selectRepoFileForDownload(' in download_manager
     assert 'Downloading is allowed; the selected backend will decide at load time whether it can run this file.' in download_manager
     assert 'Paused because Android treats the current connection as roaming' in download_manager
-    assert 'larger than your phone RAM' in download_manager
     assert 'supportsResume' in download_store
 
 
@@ -79,7 +78,6 @@ def test_model_catalog_prefers_verified_sub_5gb_litert_lm_mobile_models():
     assert '"q4" in lower || "int4" in lower -> 0' in download_manager
     assert '"q8" in lower || "int8" in lower -> 1' in download_manager
     assert '"f32" in lower || "float32" in lower -> 20' in download_manager
-    assert 'LiteRT-LM file may need extra RAM and cache space' in download_manager
 
 
 def test_local_model_download_ui_mentions_hugging_face_progress_resume_and_mobile_restart_guidance():
@@ -105,7 +103,6 @@ def test_local_model_download_ui_mentions_hugging_face_progress_resume_and_mobil
     assert 'Qwen/Qwen2.5-1.5B-Instruct-GGUF' in strings
     assert 'litert-community/Phi-4-mini-instruct' in strings
     assert 'lets the selected backend decide whether it can load it' in strings
-    assert 'Warning: this download is larger than your phone RAM' in download_manager
 
 
 def test_on_device_backend_preflights_required_model_extensions_before_launching_runtime():
@@ -120,97 +117,6 @@ def test_on_device_backend_preflights_required_model_extensions_before_launching
     assert 'web/browser .task FlatBuffer' in backend_manager
     assert '.litertlm or .task' in backend_manager
     assert 'Download a $requiredExtension artifact and mark it as preferred first.' in backend_manager
-
-
-def test_runtime_manager_rechecks_local_backend_instead_of_returning_stale_remote_cache():
-    runtime_manager = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/HermesRuntimeManager.kt").read_text(encoding="utf-8")
-
-    assert 'val selectedLocalBackend = BackendKind.fromPersistedValue(settings.onDeviceBackend)' in runtime_manager
-    assert 'selectedLocalBackend == BackendKind.NONE' in runtime_manager
-    assert '!currentState.baseUrl.isNullOrBlank()' in runtime_manager
-    assert 'OnDeviceBackendManager.ensureConfigured(' in runtime_manager
-    assert 'localBackendFallbackWarning(selectedLocalBackend, localBackendStatus)' in runtime_manager
-    assert 'Using saved remote provider.' in runtime_manager
-    assert 'probeResult.withLocalBackendWarning(localBackendFallbackWarning)' in runtime_manager
-
-
-def test_litert_runtime_rejects_web_task_flatbuffers_before_engine_start():
-    proxy = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
-
-    assert 'validateModelArtifact(modelPath)' in proxy
-    assert "header[4] == 'T'.code.toByte()" in proxy
-    assert "header[7] == '3'.code.toByte()" in proxy
-    assert 'web/browser .task FlatBuffer' in proxy
-    assert 'download the .litertlm artifact instead' in proxy
-
-
-def test_litert_proxy_bounds_generation_with_executor_timeout_and_cancel():
-    proxy = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
-
-    assert 'Executors.newSingleThreadExecutor()' in proxy
-    assert 'conversation.sendMessage(promptMessage, extraContext)' in proxy
-    assert 'future.get(timeoutMs, TimeUnit.MILLISECONDS)' in proxy
-    assert 'chatTemplateExtraContext(requestJson)' in proxy
-    assert 'generationTimeoutMs(requestJson)' in proxy
-    assert 'private const val DEFAULT_GENERATION_TIMEOUT_MS = 300_000L' in proxy
-    assert 'conversation.cancelProcess()' in proxy
-    assert 'executor.shutdownNow()' in proxy
-    assert 'LiteRT-LM generation timed out after' in proxy
-
-
-def test_litert_proxy_attempts_gpu_on_real_arm_devices_with_cpu_fallback():
-    proxy = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/LiteRtLmOpenAiProxy.kt").read_text(encoding="utf-8")
-    hardware_profile = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesAndroidHardwareProfile.kt").read_text(encoding="utf-8")
-
-    assert 'val openClAvailable = hasLoadableOpenClLibrary()' in proxy
-    assert 'val gpuPolicy = gpuBackendPolicy(context, openClAvailable, preferredAccelerator)' in proxy
-    assert 'if (gpuPolicy.enabled)' in proxy
-    assert 'disabled: translated arm64 package on x86 emulator/device' in proxy
-    assert 'disabled: x86 emulator/device build' in proxy
-    assert 'HermesAndroidHardwareProfile.classify' in proxy
-    assert 'socFamily = hardwareProfile.socFamily' in proxy
-    assert 'gpuFamily = hardwareProfile.gpuFamily' in proxy
-    assert 'nativeAbiStrategy = nativeAbiStrategy' in proxy
-    assert 'ARM $socPart$gpuPart' in hardware_profile
-    assert '"mediatek" -> "MediaTek"' in hardware_profile
-    assert '"qualcomm_snapdragon" -> "Qualcomm Snapdragon"' in hardware_profile
-    assert '"powervr_img" -> "PowerVR/IMG"' in hardware_profile
-    assert 'Adreno, Mali, Immortalis, Xclipse, and PowerVR/IMG' in hardware_profile
-    assert 'attempting LiteRT-LM GPU with CPU fallback even though OpenCL probe was not loadable' in proxy
-    assert 'System.loadLibrary("OpenCL")' in proxy
-    assert '"/vendor/lib64/libOpenCL.so"' in proxy
-    assert '"/system/vendor/lib64/libOpenCL.so"' in proxy
-    assert 'System.load(file.absolutePath)' in proxy
-    assert 'put("gpu_policy", engineInitResult.gpuPolicy.description)' in proxy
-    assert 'put("gpu_attempted", engineInitResult.gpuPolicy.enabled)' in proxy
-    assert 'put("gpu_fallback_to_cpu", engineInitResult.gpuPolicy.enabled && engineInitResult.backend != "gpu")' in proxy
-    assert 'put("opencl_available", engineInitResult.gpuPolicy.openClAvailable)' in proxy
-    assert 'put("hardware_identity", engineInitResult.gpuPolicy.deviceIdentity)' in proxy
-    assert 'put("soc_family", engineInitResult.gpuPolicy.socFamily)' in proxy
-    assert 'put("gpu_family", engineInitResult.gpuPolicy.gpuFamily)' in proxy
-    assert 'put("litert_backend_order", JSONArray(engineInitResult.gpuPolicy.backendOrder))' in proxy
-    assert 'put("native_abi_strategy", engineInitResult.gpuPolicy.nativeAbiStrategy)' in proxy
-    assert 'visionBackend = visionBackend' in proxy
-    assert 'else -> "cpu"' in proxy
-    assert 'maxNumTokens = maxNumTokens' in proxy
-    assert 'resolveEngineMaxNumTokens(' in proxy
-    assert 'decideEngineTokenBudget(' in proxy
-    assert 'memorySafeContextWindowLimit(totalRamBytes, modelBytes)' in proxy
-    assert 'put("max_num_tokens", engineInitResult.maxNumTokens ?: JSONObject.NULL)' in proxy
-    assert 'put("context_window_policy", engineInitResult.contextWindowPolicy)' in proxy
-    assert 'clamped requested context window $requested to $selected on' in proxy
-
-
-def test_on_device_backend_applies_edge_gallery_model_defaults_for_gemma_and_qwen():
-    backend_manager = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/backend/OnDeviceBackendManager.kt").read_text(encoding="utf-8")
-
-    assert 'maxTokens = 4000' in backend_manager
-    assert 'maxContextLength = 32000' in backend_manager
-    assert 'maxTokens = 1024' in backend_manager
-    assert 'maxTokens = 4096' in backend_manager
-    assert '"gemma-4" in lower || "gemma4" in lower' in backend_manager
-    assert '"qwen3-0.6b" in lower || "qwen3-0-6b" in lower' in backend_manager
-    assert '"qwen2.5-1.5b" in lower || "qwen2-5-1-5b" in lower' in backend_manager
 
 
 def test_litert_proxy_requests_optional_opencl_native_library_for_adreno():

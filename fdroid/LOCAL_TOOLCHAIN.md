@@ -13,8 +13,14 @@ python3 -m venv ~/.venvs/fdroidserver
   'git+https://gitlab.com/fdroid/fdroidserver.git@00932d0a715b43b3ecf8da44826abf2ba65dd8b4'
 cd ~/fdroiddata-hermes
 ~/.venvs/fdroidserver/bin/fdroid lint com.mobilefork.hermesagent
-~/.venvs/fdroidserver/bin/fdroid checkupdates --allow-dirty com.mobilefork.hermesagent
+~/.venvs/fdroidserver/bin/fdroid checkupdates --auto --allow-dirty com.mobilefork.hermesagent
 ```
+
+Run that preview from a fresh clone of the live `fdroiddata` metadata after the
+GitHub tag exists. `--auto` must create the local 0.13.147/144790 build recipe
+and resolve its exact tag commit. Do not add `--commit`, `--merge-request`, or
+push the preview: this release intentionally verifies the autoupdater without
+opening a GitLab merge request.
 
 Do not use a Windows fdroiddata checkout for lint: text files in `srclibs/` which should be symlinks are otherwise parsed as invalid YAML.
 
@@ -25,6 +31,11 @@ The July 2026 F-Droid job used this immutable image:
 ```text
 registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:dc522fdce601ec80fb1ed420dd0301262a0c7747e8a769c7975629944e8b46c4
 ```
+
+The helper downloads the `fdroidserver` source archive by exact commit
+`00932d0a715b43b3ecf8da44826abf2ba65dd8b4`, checks out and verifies
+`gradlew-fdroid` at `c7227d147483979bb5c408048cee3533a8814fb0`, and never pulls a floating
+helper branch or refreshes moving scanner signatures during certification.
 
 Mount a fdroiddata checkout containing the candidate metadata at `/workspace`, mount this script as `/run-hermes-fdroid.sh`, and retain the Gradle/build caches in named volumes:
 

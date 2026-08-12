@@ -4,7 +4,11 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- One-color mask for Android 13+ themed launchers. The ring restores the
+         complete Hermes mark while keeping every opaque pixel in the adaptive
+         icon safe zone for circular, squircle, rounded-square, and OEM masks. -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M34,34h9v17h22v-17h9v41h-9v-16h-22v16h-9zM73,31h5v32h-5zM78,31h9l-3.5,6.5l3.5,6.5h-9z" />
+        android:fillType="evenOdd"
+        android:pathData="M54,21a33,33 0,1,0 0,66a33,33 0,1,0 0,-66M54,26a28,28 0,1,1 0,56a28,28 0,1,1 0,-56M34,34h9v17h22v-17h9v41h-9v-16h-22v16h-9zM73,31h5v32h-5zM78,31h9l-3.5,6.5l3.5,6.5h-9z" />
 </vector>

@@ -17,10 +17,12 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.printToString
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intending
 import androidx.test.espresso.Espresso.closeSoftKeyboard
@@ -252,6 +254,7 @@ class DeepAppUiVisualInstrumentedTest {
             composeRule.onAllNodesWithText(expected.kanbanTitle())[0].fetchSemanticsNode()
             composeRule.onNodeWithText(AppSection.Kanban.subtitle(expected)).fetchSemanticsNode()
             capture("language-${language.tag}-kanban")
+            captureSemantics("language-${language.tag}-kanban", language)
 
             navigateToShellSection("HermesNavDevice")
             composeRule.onAllNodesWithText(AppSection.Device.title(expected))[0].fetchSemanticsNode()
@@ -259,7 +262,35 @@ class DeepAppUiVisualInstrumentedTest {
             composeRule.onNodeWithText("/device").fetchSemanticsNode()
             composeRule.onNodeWithText(expected.deviceGuideTitle()).fetchSemanticsNode()
             capture("language-${language.tag}-device")
+            captureSemantics("language-${language.tag}-device", language)
         }
+    }
+
+    @Test
+    fun tabletWidthUsesPersistentNavigationRailAcrossSections() {
+        org.junit.Assume.assumeTrue(
+            "Run with a screen width of at least ${TABLET_WIDTH_DP}dp to exercise the tablet rail.",
+            app.resources.configuration.screenWidthDp >= TABLET_WIDTH_DP,
+        )
+        AppSettingsStore(app).save(AppSettings(languageTag = "en"))
+        composeRule.setContent {
+            AppShellScreen(
+                bootUiState = BootUiState(
+                    status = "Hermes backend is ready",
+                    ready = true,
+                    probeResult = "tablet-navigation-test",
+                    baseUrl = "http://127.0.0.1:15436/v1",
+                ),
+                onRetryHermes = {},
+            )
+        }
+
+        assertTabletNavigationContract()
+        navigateToShellSection("HermesNavSettings")
+        composeRule.onAllNodesWithText("Settings")[0].assertIsDisplayed()
+        assertTabletNavigationContract()
+        capture("tablet-persistent-navigation-settings")
+        captureSemantics("tablet-persistent-navigation-settings", AppLanguage.ENGLISH)
     }
 
     @Test
@@ -853,6 +884,16 @@ class DeepAppUiVisualInstrumentedTest {
 
     private fun navigateToShellSection(testTag: String) {
         val chatDrawerTag = "HermesChatDrawerButton"
+        val railTag = drawerNavigationTagToRailTag(testTag)
+        if (
+            railTag != null &&
+            composeRule.onAllNodesWithTag("HermesPersistentNavigation").fetchSemanticsNodes().isNotEmpty()
+        ) {
+            composeRule.onNodeWithTag("HermesPersistentNavigation").assertIsDisplayed()
+            composeRule.onNodeWithTag(railTag).performScrollTo().assertIsDisplayed().performClick()
+            composeRule.waitForIdle()
+            return
+        }
         if (
             composeRule.onAllNodesWithTag(testTag).fetchSemanticsNodes().isEmpty() &&
             composeRule.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isEmpty() &&
@@ -895,6 +936,26 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.waitForIdle()
     }
 
+    private fun drawerNavigationTagToRailTag(testTag: String): String? {
+        val sectionName = testTag.removePrefix(DRAWER_NAVIGATION_TAG_PREFIX)
+        return sectionName
+            .takeIf { testTag.startsWith(DRAWER_NAVIGATION_TAG_PREFIX) && it.isNotBlank() }
+            ?.let { "$RAIL_NAVIGATION_TAG_PREFIX$it" }
+    }
+
+    private fun assertTabletNavigationContract() {
+        composeRule.onNodeWithTag("HermesPersistentNavigation").assertIsDisplayed()
+        composeRule.onNodeWithTag("HermesRailHermes").performScrollTo().assertIsDisplayed()
+        assertTrue(
+            "Tablet navigation must not expose the shell drawer button",
+            composeRule.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isEmpty(),
+        )
+        assertTrue(
+            "Tablet navigation must not expose the chat drawer button",
+            composeRule.onAllNodesWithTag("HermesChatDrawerButton").fetchSemanticsNodes().isEmpty(),
+        )
+    }
+
     private fun scrollSettingsToText(text: String) {
         composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToNode(hasText(text))
         composeRule.onNodeWithText(text).fetchSemanticsNode()
@@ -933,6 +994,43 @@ class DeepAppUiVisualInstrumentedTest {
             }
         }
         assertTrue("Failed to capture Hermes UI screenshot $name", outputFile.length() > 0L)
+    }
+
+    private fun captureSemantics(name: String, language: AppLanguage) {
+        composeRule.waitForIdle()
+        val outputDir = File(app.filesDir, "hermes-ui-visuals").apply { mkdirs() }
+        val outputFile = File(outputDir, "$name-semantics.txt")
+        val screenshotFile = File(outputDir, "$name.png")
+        assertTrue("Screenshot must exist before its semantics record: $name", screenshotFile.isFile)
+        val releaseIdentity = ReleaseDeviceEvidenceIdentity.requireBound(app)
+        val semanticsTree = composeRule.onRoot(useUnmergedTree = true).printToString(maxDepth = 100)
+        assertTrue("Hermes semantics tree $name is empty", semanticsTree.isNotBlank())
+        outputFile.writeText(
+            buildString {
+                appendLine("language=${language.tag}")
+                appendLine("screen_width_dp=${app.resources.configuration.screenWidthDp}")
+                appendLine("screen_height_dp=${app.resources.configuration.screenHeightDp}")
+                appendLine("font_scale=${app.resources.configuration.fontScale}")
+                appendLine("release_source_digest=${releaseIdentity.releaseSourceDigest}")
+                appendLine("candidate_apk_sha256=${releaseIdentity.candidateApkSha256}")
+                appendLine("instrumentation_apk_sha256=${releaseIdentity.instrumentationApkSha256}")
+                appendLine("evidence_run_id=${releaseIdentity.evidenceRunId}")
+                appendLine("package_id=${releaseIdentity.packageId}")
+                appendLine("version_name=${releaseIdentity.versionName}")
+                appendLine("version_code=${releaseIdentity.versionCode}")
+                appendLine("build_variant=${releaseIdentity.buildVariant}")
+                appendLine("litertlm_coordinate=${releaseIdentity.liteRtLmCoordinate}")
+                appendLine("device_serial=${releaseIdentity.deviceSerial}")
+                appendLine("avd_name=${releaseIdentity.avdName}")
+                appendLine("device_boot_id=${releaseIdentity.deviceBootId}")
+                appendLine("build_fingerprint=${android.os.Build.FINGERPRINT}")
+                appendLine("screenshot_sha256=${ReleaseDeviceEvidenceIdentity.sha256(screenshotFile)}")
+                appendLine()
+                append(semanticsTree)
+            },
+            Charsets.UTF_8,
+        )
+        assertTrue("Failed to persist Hermes semantics tree $name", outputFile.length() > 0L)
     }
 
     private fun takeVisibleScreenshot(instrumentation: Instrumentation): Bitmap? {
@@ -998,6 +1096,9 @@ class DeepAppUiVisualInstrumentedTest {
 
     private companion object {
         private const val PROVIDER_SETUP_URL_EXTRA = "com.mobilefork.hermesagent.PROVIDER_SETUP_URL"
+        private const val TABLET_WIDTH_DP = 600
+        private const val DRAWER_NAVIGATION_TAG_PREFIX = "HermesNav"
+        private const val RAIL_NAVIGATION_TAG_PREFIX = "HermesRail"
     }
 
     private class TestHttpServer(private val responseCodeForTarget: (String) -> Int) : AutoCloseable {

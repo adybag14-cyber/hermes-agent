@@ -2,6 +2,7 @@ package com.mobilefork.hermesagent.device
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -167,8 +168,10 @@ class NativeAndroidShellToolTest {
             .put("app_package_name", "com.nousresearch.hermesagent")
             .put("native_library_dir", "/data/app/example/lib/x86_64")
             .put("lib_path", "/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/lib")
-            .put("python_path", "/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/native-exec/bin/python")
+            .put("python_path", "/data/app/example/lib/x86_64/libhermes_exec_bin_python3_14.so")
             .put("python_lib_path", "/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/lib/python3.14")
+            .put("native_proot_path", "/data/app/example/lib/x86_64/libhermes_exec_bin_proot.so")
+            .put("native_execution_route", "apk_native_library_direct")
 
         val command = HermesLinuxSubsystemBridge.commandWithEmbeddedToolAliases(state, "proot-distro list")
 
@@ -179,10 +182,102 @@ class NativeAndroidShellToolTest {
         assertTrue(command.contains("PROOT_LOADER_32='/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/libexec/proot/loader32'"))
         assertTrue(command.contains("PROOT_NO_SECCOMP='1'"))
         assertTrue(command.contains("LD_LIBRARY_PATH='/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/lib:/data/app/example/lib/x86_64'"))
-        assertTrue(command.contains("native-exec/bin/python'"))
+        assertTrue(command.contains("/data/app/example/lib/x86_64/libhermes_exec_bin_python3_14.so'"))
+        assertTrue(command.contains("HERMES_ANDROID_PROOT_EXECUTABLE='/data/app/example/lib/x86_64/libhermes_exec_bin_proot.so'"))
         assertTrue(command.contains("python3.13").not())
         assertTrue(command.contains("proot-distro() { case \"\${1:-}\" in login|sh|run)"))
         assertTrue(command.contains("\"${'$'}_pd_cmd\" -e \"LD_LIBRARY_PATH=${'$'}LD_LIBRARY_PATH\" -e \"PROOT_TMP_DIR=${'$'}PROOT_TMP_DIR\" -e \"PROOT_LOADER=${'$'}PROOT_LOADER\" -e \"PROOT_LOADER_32=${'$'}PROOT_LOADER_32\" -e \"PROOT_NO_SECCOMP=${'$'}PROOT_NO_SECCOMP\""))
         assertTrue(command.endsWith("; proot-distro list"))
+    }
+
+    @Test
+    fun embeddedEnvironmentPublishesOnlyDirectPackagedProotPath() {
+        val state = JSONObject()
+            .put("prefix_path", "/data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/arm64-v8a/prefix")
+            .put("native_proot_path", "/data/app/example/lib/arm64/libhermes_exec_bin_proot.so")
+            .put("native_command_env_path", "/data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/arm64-v8a/native-command-functions.sh")
+
+        val environment = HermesLinuxSubsystemBridge.buildRunEnvironment(state)
+
+        assertEquals(
+            "/data/app/example/lib/arm64/libhermes_exec_bin_proot.so",
+            environment["HERMES_ANDROID_PROOT_EXECUTABLE"],
+        )
+        assertEquals(
+            "/data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/arm64-v8a/native-command-functions.sh",
+            environment["HERMES_ANDROID_NATIVE_COMMAND_ENV"],
+        )
+    }
+
+    @Test
+    fun sandboxQemuPrefersDirectApkNativeLibrary() {
+        val qemu = File.createTempFile("hermes-qemu-direct-", ".so")
+        try {
+            qemu.writeBytes(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))
+            qemu.setExecutable(true, false)
+            val state = JSONObject()
+                .put("native_qemu_x86_64_path", qemu.absolutePath)
+                .put("prefix_path", File(qemu.parentFile, "prefix").absolutePath)
+
+            assertEquals(
+                qemu.absolutePath,
+                HermesLinuxSandboxBridge.qemuPathForGuestArchitecture(state, "x86_64"),
+            )
+        } finally {
+            qemu.delete()
+        }
+    }
+
+    @Test
+    fun sandboxQemuRejectsLegacyShimResolvedIntoWritablePrefix() {
+        val root = createTempDir(prefix = "hermes-qemu-prefix-")
+        try {
+            val prefix = File(root, "prefix").apply { mkdirs() }
+            val writableBin = File(prefix, "bin").apply { mkdirs() }
+            File(writableBin, "qemu-x86_64").apply {
+                parentFile?.mkdirs()
+                writeBytes(byteArrayOf(0x7f, 0x45, 0x4c, 0x46))
+                setExecutable(true, false)
+            }
+            val state = JSONObject()
+                .put("prefix_path", prefix.absolutePath)
+                .put("native_bin_path", writableBin.absolutePath)
+
+            val resolved = HermesLinuxSandboxBridge.qemuPathForGuestArchitecture(state, "x86_64")
+
+            assertTrue(resolved.isBlank())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun sandboxWritablePrefixContainmentDoesNotMatchSiblingWithSameNamePrefix() {
+        val root = kotlin.io.path.createTempDirectory("hermes-prefix-boundary-").toFile()
+        try {
+            val prefix = File(root, "prefix").apply { mkdirs() }
+            val inside = File(prefix, "bin/qemu-x86_64")
+            val sibling = File(root, "prefix-sibling/bin/qemu-x86_64")
+
+            assertTrue(HermesLinuxSandboxBridge.isInsideDirectory(inside, prefix))
+            assertFalse(HermesLinuxSandboxBridge.isInsideDirectory(sibling, prefix))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun exit126HintRejectsChmodAndBroadStorageWorkarounds() {
+        val prefix = "/data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/arm64-v8a/prefix"
+        val hint = NativeAndroidShellTool.executionDeniedHint(
+            JSONObject()
+                .put("prefix_path", prefix)
+                .put("native_execution_route", "apk_native_library_direct"),
+            "$prefix/bin/curl --version",
+        )
+
+        assertTrue(hint.contains("writable prefix path"))
+        assertTrue(hint.contains("cannot be made executable with chmod"))
+        assertTrue(hint.contains("do not grant broad storage permission"))
     }
 }

@@ -20,6 +20,7 @@ import com.mobilefork.hermesagent.data.ProviderSetupTarget
 import com.mobilefork.hermesagent.data.SecureSecretsStore
 import com.mobilefork.hermesagent.device.HermesProviderSetupWebActivity
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
+import com.mobilefork.hermesagent.ui.i18n.HermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.theme.normalizeThemeHex
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +60,7 @@ data class SettingsUiState(
     val themeSurfaceVariantHex: String = AppSettings.DEFAULT_THEME_SURFACE_VARIANT_HEX,
     val themeCardShape: String = "rounded",
     val uiFontScale: Float = AppSettings.DEFAULT_UI_FONT_SCALE,
-    val onDeviceSummary: String = "Remote provider mode",
+    val onDeviceSummary: String = "",
     val agentEndpointStarted: Boolean = false,
     val agentLoopbackUrl: String = "",
     val agentLanUrl: String = "",
@@ -87,6 +88,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadInitialState(): SettingsUiState {
         val stored = settingsStore.load()
+        val strings = hermesStringsFor(AppLanguage.fromTag(stored.languageTag))
         return SettingsUiState(
             provider = stored.provider,
             baseUrl = stored.baseUrl,
@@ -116,7 +118,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             themeSurfaceVariantHex = normalizeThemeHex(stored.themeSurfaceVariantHex, AppSettings.DEFAULT_THEME_SURFACE_VARIANT_HEX),
             themeCardShape = normalizeThemeCardShape(stored.themeCardShape),
             uiFontScale = AppSettings.normalizeUiFontScale(stored.uiFontScale),
-            onDeviceSummary = defaultOnDeviceSummary(stored.onDeviceBackend),
+            onDeviceSummary = defaultOnDeviceSummary(stored.onDeviceBackend, strings),
         )
     }
 
@@ -280,7 +282,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 localModelToolMode = updated.localModelToolMode,
                 apiGenerationKnobsEnabled = updated.apiGenerationKnobsEnabled,
                 customSystemPrompt = updated.customSystemPrompt,
-                status = "Model configuration saved",
+                status = currentStrings().modelConfigurationSaved(),
             )
         }
     }
@@ -394,7 +396,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update {
             it.copy(
                 onDeviceBackend = value,
-                onDeviceSummary = defaultOnDeviceSummary(value),
+                onDeviceSummary = defaultOnDeviceSummary(value, currentStrings()),
             )
         }
         refreshOnDeviceSummary(value)
@@ -409,11 +411,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         updateOnDeviceBackend(backendValue)
     }
 
-    private fun defaultOnDeviceSummary(backendValue: String): String {
+    private fun defaultOnDeviceSummary(backendValue: String, strings: HermesStrings): String {
         return if (BackendKind.fromPersistedValue(backendValue) == BackendKind.NONE) {
-            "Remote provider mode"
+            strings.remoteProviderMode()
         } else {
-            "Checking preferred local model…"
+            strings.checkingPreferredLocalModel()
         }
     }
 
@@ -422,7 +424,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         if (BackendKind.fromPersistedValue(backendValue) == BackendKind.NONE) {
             _uiState.update {
                 if (it.onDeviceBackend == backendValue) {
-                    it.copy(onDeviceSummary = "Remote provider mode")
+                    it.copy(onDeviceSummary = currentStrings().remoteProviderMode())
                 } else {
                     it
                 }
@@ -461,20 +463,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val targetUrl = setupTarget?.url ?: requestedUrl
         if (HermesNetworkPolicy.isExternalNetworkBlocked(getApplication(), targetUrl)) {
             _uiState.update {
-                it.copy(status = HermesNetworkPolicy.offlineBlockedMessage("provider setup page"))
+                it.copy(status = currentStrings().offlineProviderSetupBlocked(checking = false))
             }
             return
         }
         val uri = Uri.parse(targetUrl)
         if (uri.scheme !in setOf("http", "https")) {
-            _uiState.update { it.copy(status = "Provider setup URL must start with https:// or http://") }
+            _uiState.update { it.copy(status = currentStrings().providerSetupUrlInvalid()) }
             return
         }
-        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
+        val strings = currentStrings()
+        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { strings.genericProviderLabel() }
         val launch = HermesProviderSetupWebActivity.open(
             context = getApplication(),
             uri = uri,
-            title = "Open $providerLabel setup page",
+            title = strings.openProviderSetupTitle(providerLabel),
         )
         if (launch.success) {
             copyProviderKeyPage(resolvedProviderId.orEmpty(), targetUrl, updateSuccessStatus = false)
@@ -484,7 +487,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         } else {
             copyProviderKeyPage(resolvedProviderId.orEmpty(), targetUrl, updateSuccessStatus = false)
             _uiState.update {
-                it.copy(status = "Unable to open setup page (${launch.errorName.ifBlank { "setup_page_error" }}); copied the provider setup URLs.")
+                it.copy(status = strings.providerSetupOpenFailed(providerLabel, launch.errorName.ifBlank { "setup_page_error" }))
             }
         }
     }
@@ -499,18 +502,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             return
         }
         val resolvedProviderId = ProviderPresets.providerIdForSetupUrl(requestedUrl, providerId)
-        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { "provider" }
+        val strings = currentStrings()
+        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { strings.genericProviderLabel() }
         val urls = resolvedProviderId?.let { ProviderPresets.setupUrls(it) }
             .orEmpty()
             .ifEmpty { listOf(requestedUrl) }
         if (urls.any { HermesNetworkPolicy.isExternalNetworkBlocked(getApplication(), it) }) {
             _uiState.update {
-                it.copy(status = HermesNetworkPolicy.offlineBlockedMessage("provider setup check"))
+                it.copy(status = strings.offlineProviderSetupBlocked(checking = true))
             }
             return
         }
         copyProviderKeyPage(resolvedProviderId.orEmpty(), requestedUrl, updateSuccessStatus = false)
-        _uiState.update { it.copy(status = "Checking $providerLabel setup pages from this device...") }
+        _uiState.update { it.copy(status = strings.providerSetupChecking(providerLabel)) }
         viewModelScope.launch {
             val results = withContext(Dispatchers.IO) {
                 urls.map(ProviderSetupUrlProbe::probe)
@@ -518,15 +522,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val reachable = results.filter { it.reachable }
             val firstReachable = reachable.firstOrNull()
             val status = if (firstReachable != null) {
-                val fallbackHint = if (reachable.size < results.size) {
-                    " ${results.size - reachable.size} fallback page(s) did not respond cleanly; tap Open again to cycle official alternatives."
-                } else {
-                    ""
-                }
-                "$providerLabel setup is reachable from Hermes: ${firstReachable.url} (${firstReachable.statusLabel}). ${reachable.size}/${results.size} official setup page(s) responded; copied all setup URLs.$fallbackHint"
+                strings.providerSetupReachable(
+                    label = providerLabel,
+                    url = firstReachable.url,
+                    statusLabel = firstReachable.statusLabel,
+                    reachableCount = reachable.size,
+                    totalCount = results.size,
+                    failedFallbackCount = results.size - reachable.size,
+                )
             } else {
                 val failureSummary = results.joinToString(separator = "; ") { "${it.url}: ${it.statusLabel}" }
-                "No $providerLabel setup page responded from Hermes. Copied all setup URLs. $failureSummary"
+                strings.providerSetupUnreachable(providerLabel, failureSummary)
                     .take(ProviderSetupUrlProbe.MAX_STATUS_LENGTH)
             }
             _uiState.update { it.copy(status = status) }
@@ -545,17 +551,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         providerId: String,
         target: ProviderSetupTarget?,
     ): String {
-        val cycleHint = if (target != null && target.total > 1) {
-            " in your browser ${target.displayIndex}/${target.total}; copied all official setup URLs. Tap Open again for the next fallback if this page stalls."
-        } else {
-            " in your browser. If this page stalls, copy the setup URL and paste it into another browser."
-        }
-        val qwenLegacyHint = if (providerId == "qwen-oauth") {
-            " Qwen OAuth is legacy; choose Qwen Cloud for new API-key setup."
-        } else {
-            ""
-        }
-        return "Opened $providerLabel setup page$cycleHint$qwenLegacyHint"
+        return currentStrings().providerSetupOpened(
+            label = providerLabel,
+            providerId = providerId,
+            displayIndex = target?.displayIndex ?: 1,
+            total = target?.total ?: 1,
+        )
     }
 
     fun copyProviderKeyPage(url: String) {
@@ -570,12 +571,13 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val snapshot = _uiState.value
         val preset = ProviderPresets.find(snapshot.provider)
         val providerLabel = preset?.label ?: snapshot.provider
+        val strings = currentStrings()
         if (snapshot.provider.isBlank() || snapshot.provider == "custom") {
-            _uiState.update { it.copy(status = "Choose a saved provider before importing a Hermes credential.") }
+            _uiState.update { it.copy(status = strings.chooseSavedProviderCredential()) }
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(status = "Checking saved Hermes credential for $providerLabel…") }
+            _uiState.update { it.copy(status = strings.checkingSavedProviderCredential(providerLabel)) }
             val bundleResult = runCatching {
                 withContext(Dispatchers.IO) {
                     val app = getApplication<Application>()
@@ -588,12 +590,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
             val payload = bundleResult.getOrElse { error ->
                 _uiState.update {
-                    it.copy(status = "Unable to read saved Hermes credential (${error::class.java.simpleName}).")
+                    it.copy(status = strings.unableToReadSavedProviderCredential(error::class.java.simpleName))
                 }
                 return@launch
             }
             val json = runCatching { JSONObject(payload) }.getOrElse {
-                _uiState.update { it.copy(status = "Saved Hermes credential for $providerLabel could not be decoded.") }
+                _uiState.update { it.copy(status = strings.savedProviderCredentialCouldNotBeDecoded(providerLabel)) }
                 return@launch
             }
             val apiKey = listOf(
@@ -603,7 +605,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             ).firstOrNull { it.isNotBlank() }.orEmpty()
             val configured = json.optBoolean("configured", false) || apiKey.isNotBlank()
             if (!configured || apiKey.isBlank()) {
-                _uiState.update { it.copy(status = "No saved Hermes credential found for $providerLabel.") }
+                _uiState.update { it.copy(status = strings.noSavedProviderCredential(providerLabel)) }
                 return@launch
             }
 
@@ -649,12 +651,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         baseUrl = resolvedBaseUrl,
                         model = resolvedModel,
                         apiKey = apiKey,
-                        status = "Imported saved Hermes credential for $providerLabel and restarted the runtime.",
+                        status = strings.importedSavedProviderCredential(providerLabel),
                     )
                 }
             }.onFailure { error ->
                 _uiState.update {
-                    it.copy(status = "Saved Hermes credential import failed (${error::class.java.simpleName}).")
+                    it.copy(status = strings.savedProviderCredentialImportFailed(error::class.java.simpleName))
                 }
             }
         }
@@ -671,14 +673,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             .ifBlank { target }
         val fallbackCount = resolvedProviderId?.let { ProviderPresets.setupUrls(it).size - 1 } ?: 0
         val clipboard = getApplication<Application>().getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-        clipboard?.setPrimaryClip(ClipData.newPlainText("Hermes provider setup URLs", setupText))
+        val strings = currentStrings()
+        val providerLabel = resolvedProviderId?.let { ProviderPresets.find(it)?.label }.orEmpty().ifBlank { strings.genericProviderLabel() }
+        clipboard?.setPrimaryClip(ClipData.newPlainText(strings.providerSetupClipboardLabel(providerLabel), setupText))
         if (updateSuccessStatus) {
-            val suffix = when (fallbackCount) {
-                0 -> ""
-                1 -> " and 1 alternate official page"
-                else -> " and $fallbackCount alternate official pages"
-            }
-            _uiState.update { it.copy(status = "Copied provider setup URL$suffix") }
+            _uiState.update { it.copy(status = strings.providerSetupCopied(providerLabel, fallbackCount)) }
         }
     }
 
@@ -692,7 +691,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             it.copy(
                 onDeviceBackend = backendValue,
                 onDeviceSummary = OnDeviceBackendManager.preferredDownloadSummary(getApplication(), backendValue),
-                status = "Starting local Hermes runtime…",
+                status = currentStrings().startingLocalHermesRuntime(),
             )
         }
         save()
@@ -782,7 +781,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     HermesRuntimeManager.stop()
                     HermesRuntimeManager.ensureStarted(app)
                     val backendSummary = if (localBackendStatus.started) {
-                        "${localBackendStatus.backendKind.persistedValue} ready · ${localBackendStatus.modelName}"
+                        strings.localBackendReady(
+                            backend = localBackendStatus.backendKind.persistedValue,
+                            model = localBackendStatus.modelName,
+                        )
                     } else {
                         OnDeviceBackendManager.preferredDownloadSummary(app, snapshot.onDeviceBackend)
                     }
@@ -846,6 +848,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
 data class AppearanceThemePreset(
     val id: String,
+    /** Canonical English fallback; every visible label is resolved by HermesStrings from [id]. */
     val label: String,
     val primaryHex: String,
     val secondaryHex: String,

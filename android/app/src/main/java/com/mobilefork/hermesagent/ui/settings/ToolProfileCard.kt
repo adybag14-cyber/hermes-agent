@@ -11,49 +11,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 
-private val ENABLED_TOOLS = listOf(
-    "terminal",
-    "process",
-    "android_device_status",
-    "android_shared_folder_list",
-    "android_shared_folder_read",
-    "android_shared_folder_write",
-    "android_automation_task",
-    "android_automation_variable",
-    "android_automation_trigger",
-    "android_automation_time_trigger",
-    "android_automation_app_foreground_trigger",
-    "android_automation_notification_trigger",
-    "android_automation_file_action",
-    "android_automation_system_action",
-    "android_automation_ui_action",
-    "android_automation_app_launch",
-    "android_ui_snapshot",
-    "android_ui_action",
-    "read_file",
-    "search_files",
-    "write_file",
-    "patch",
-    "web_search",
-    "web_extract",
-    "vision_analyze",
-    "skills_list",
-    "skill_view",
-    "skill_manage",
-    "todo",
-    "memory",
-    "hy_memory_tool (local durable memory)",
-    "session_search",
-    "kanban (human UI board)",
-)
-
-private val BLOCKED_TOOL_CLASSES = listOf(
-    "browser automation",
-    "execute_code",
-    "delegate_task",
-    "exact cronjob",
-    "image generation (deferred)",
-    "voice / transcription",
+/** Schemas actually offered by the in-app native tool caller. */
+private val NATIVE_TOOL_SCHEMAS = listOf(
+    "terminal_tool",
+    "android_system_tool",
+    "android_device_diagnostics_tool",
+    "android_ui_tool",
+    "android_automation_tool",
 )
 
 @Composable
@@ -63,7 +27,7 @@ fun ToolProfileCard() {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(strings.toolProfileTitle(), style = MaterialTheme.typography.titleMedium)
             Text(
-                strings.toolProfileEnabledSummary(ENABLED_TOOLS.joinToString()),
+                strings.toolProfileEnabledSummary(NATIVE_TOOL_SCHEMAS.joinToString()),
                 modifier = Modifier.padding(top = 8.dp),
             )
             Text(
@@ -76,10 +40,6 @@ fun ToolProfileCard() {
             )
             Text(
                 strings.toolProfileCommandSuiteSummary(),
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            Text(
-                strings.toolProfileExcludedSummary(BLOCKED_TOOL_CLASSES.joinToString()),
                 modifier = Modifier.padding(top = 8.dp),
             )
         }

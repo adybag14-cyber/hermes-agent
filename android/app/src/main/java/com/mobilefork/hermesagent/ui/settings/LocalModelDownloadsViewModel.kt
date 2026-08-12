@@ -18,6 +18,7 @@ import com.mobilefork.hermesagent.models.HermesModelDownloadManager
 import com.mobilefork.hermesagent.models.HuggingFaceModelIndexClient
 import com.mobilefork.hermesagent.models.ModelDownloadDraft
 import com.mobilefork.hermesagent.models.ModelDownloadInspection
+import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -648,6 +649,10 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 description = "Small Unsloth GGUF model for fast visible chat replies, file creation, deletion, and native tool-calling validation on phones.",
                 repoOrUrl = "unsloth/Qwen3.5-0.8B-GGUF",
                 filePath = "Qwen3.5-0.8B-Q4_K_M.gguf",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "unsloth/Qwen3.5-0.8B-GGUF",
+                    "Qwen3.5-0.8B-Q4_K_M.gguf",
+                ).revision,
                 runtimeFlavor = "GGUF",
                 testedLabel = "Unsloth Q4_K_M phone tool-calling",
             ),
@@ -657,6 +662,10 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 description = "Compact MiniCPM5 thinking model for the embedded llama.cpp runtime, selected at Q4_K_M for practical phone memory use.",
                 repoOrUrl = "GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF",
                 filePath = "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF",
+                    "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf",
+                ).revision,
                 runtimeFlavor = "GGUF",
                 testedLabel = "MiniCPM5 llama.cpp compatibility target",
             ),
@@ -666,6 +675,10 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 description = "Mobile-oriented MiniCPM5 LiteRT-LM artifact with the shorter web cache and Android-safe chat template.",
                 repoOrUrl = "Tdamre/MiniCPM5-1B-litert-lm",
                 filePath = "MiniCPM5-1B-web.litertlm",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "Tdamre/MiniCPM5-1B-litert-lm",
+                    "MiniCPM5-1B-web.litertlm",
+                ).revision,
                 runtimeFlavor = "LiteRT-LM",
                 testedLabel = "MiniCPM5 mobile LiteRT-LM compatibility target",
             ),
@@ -675,6 +688,10 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 description = "Three-billion-parameter reasoning model converted for the native LiteRT-LM runtime; intended for high-RAM phones and emulators.",
                 repoOrUrl = "Tdamre/VibeThinker-3B-litert-lm",
                 filePath = "VibeThinker-3B.litertlm",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "Tdamre/VibeThinker-3B-litert-lm",
+                    "VibeThinker-3B.litertlm",
+                ).revision,
                 runtimeFlavor = "LiteRT-LM",
                 testedLabel = "VibeThinker LiteRT-LM compatibility target",
             ),

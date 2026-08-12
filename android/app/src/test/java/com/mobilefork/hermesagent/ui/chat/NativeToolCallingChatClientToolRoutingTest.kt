@@ -80,8 +80,20 @@ class NativeToolCallingChatClientToolRoutingTest {
     fun naturalTerminalFallbackOnlyMapsFixedReadOnlyIntents() {
         assertEquals("whoami", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Tell me the current user"))
         assertEquals("ls -la", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Please list files here"))
+        assertEquals(
+            "date",
+            NativeToolCallingChatClient.inferSafeNaturalTerminalCommand(
+                "Run a command to tell me what time it is.",
+            ),
+        )
+        assertEquals("date", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("What time is it?"))
+        assertEquals("date", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("What's the time?"))
         assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Delete every file here"))
         assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("I like the current directory layout"))
+        assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Tell me what time the meeting starts"))
+        assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Tell me the time the meeting starts"))
+        assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("What is the time signature of this song?"))
+        assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Write a poem about time"))
     }
 
     @Test
