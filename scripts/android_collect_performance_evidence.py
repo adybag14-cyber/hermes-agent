@@ -1337,26 +1337,29 @@ def _parse_start_metrics(output: str, *, expected_states: set[str]) -> dict[str,
     return {"TotalTime": total, "WaitTime": wait}
 
 
-def _unique_gfx_number(output: str, label: str, *, integer: bool) -> int | float:
+def _gfx_number(output: str, label: str, *, integer: bool) -> tuple[int | float, int]:
     pattern = rf"(?mi)^\s*{re.escape(label)}:\s*([0-9]+(?:\.[0-9]+)?)\s*(?:ms)?\s*$"
     raw_values = re.findall(pattern, output)
-    if len(raw_values) != 1:
-        raise CollectorError(f"gfxinfo did not expose one {label}: {raw_values!r}")
+    if len(raw_values) not in (1, 2) or len(set(raw_values)) != 1:
+        raise CollectorError(f"gfxinfo did not expose one unambiguous {label}: {raw_values!r}")
     raw = raw_values[0]
     if integer and not raw.isdigit():
         raise CollectorError(f"gfxinfo {label} must be an integer")
-    return int(raw) if integer else float(raw)
+    return (int(raw) if integer else float(raw)), len(raw_values)
 
 
 def _parse_gfxinfo(output: str) -> dict[str, Any]:
-    total = int(_unique_gfx_number(output, "Total frames rendered", integer=True))
+    total_value, total_count = _gfx_number(output, "Total frames rendered", integer=True)
+    total = int(total_value)
     jank_matches = re.findall(
         r"(?mi)^\s*Janky frames:\s*([0-9]+)(?:\s*\(([0-9]+(?:\.[0-9]+)?)%\))?\s*$",
         output,
     )
     unique_jank = [(int(count), percent) for count, percent in jank_matches]
-    if len(unique_jank) != 1:
-        raise CollectorError(f"gfxinfo did not expose one Janky frames summary: {unique_jank!r}")
+    if len(unique_jank) not in (1, 2) or len(set(unique_jank)) != 1:
+        raise CollectorError(
+            f"gfxinfo did not expose one unambiguous Janky frames summary: {unique_jank!r}"
+        )
     janky, printed_percent = unique_jank[0]
     if total <= 0 or not 0 <= janky <= total:
         raise CollectorError(f"gfxinfo frame counts are invalid: {janky}/{total}")
@@ -1366,12 +1369,20 @@ def _parse_gfxinfo(output: str) -> dict[str, Any]:
             "gfxinfo printed jank percentage disagrees with its counts: "
             f"{printed_percent}% vs {derived_percent:.4f}%"
         )
-    percentiles = {
-        "p50_ms": float(_unique_gfx_number(output, "50th percentile", integer=False)),
-        "p90_ms": float(_unique_gfx_number(output, "90th percentile", integer=False)),
-        "p95_ms": float(_unique_gfx_number(output, "95th percentile", integer=False)),
-        "p99_ms": float(_unique_gfx_number(output, "99th percentile", integer=False)),
+    percentile_pairs = {
+        "p50_ms": _gfx_number(output, "50th percentile", integer=False),
+        "p90_ms": _gfx_number(output, "90th percentile", integer=False),
+        "p95_ms": _gfx_number(output, "95th percentile", integer=False),
+        "p99_ms": _gfx_number(output, "99th percentile", integer=False),
     }
+    occurrence_counts = {total_count, len(unique_jank)} | {
+        count for _, count in percentile_pairs.values()
+    }
+    if len(occurrence_counts) != 1:
+        raise CollectorError(
+            f"gfxinfo summary metrics have inconsistent occurrence counts: {sorted(occurrence_counts)!r}"
+        )
+    percentiles = {field: float(value) for field, (value, _) in percentile_pairs.items()}
     ordered = list(percentiles.values())
     if any(value <= 0 for value in ordered) or ordered != sorted(ordered):
         raise CollectorError(f"gfxinfo percentile values are invalid or non-monotonic: {ordered!r}")

@@ -827,8 +827,8 @@ def test_measurement_output_must_name_the_warm_process(
     ("kind", "message"),
     [
         ("gfx_header", "process header"),
-        ("gfx_total", "one Total frames rendered"),
-        ("gfx_jank", "one Janky frames"),
+        ("gfx_total", "one unambiguous Total frames rendered"),
+        ("gfx_jank", "one unambiguous Janky frames"),
         ("mem_header", "process header"),
         ("mem_total", "one TOTAL PSS/RSS pair"),
     ],
@@ -849,9 +849,9 @@ def test_measurement_rejects_duplicate_headers_or_metrics(collector_module, kind
             if kind == "gfx_header":
                 stdout += "** Graphics info for pid 8123 [com.mobilefork.hermesagent] **\n"
             elif kind == "gfx_total":
-                stdout += "Total frames rendered: 120\n"
+                stdout += "Total frames rendered: 121\n"
             elif kind == "gfx_jank":
-                stdout += "Janky frames: 6 (5.00%)\n"
+                stdout += "Janky frames: 7 (5.83%)\n"
         elif command == (
             "shell",
             "dumpsys",
@@ -867,6 +867,27 @@ def test_measurement_rejects_duplicate_headers_or_metrics(collector_module, kind
     executor.result = duplicate_result
     with pytest.raises(collector_module.CollectorError, match=message):
         _collect(collector_module, executor=executor)
+
+
+def test_gfx_parser_accepts_android_framestats_duplicate_summary(collector_module):
+    summary = (
+        "Total frames rendered: 120\n"
+        "Janky frames: 6 (5.00%)\n"
+        "50th percentile: 8ms\n"
+        "90th percentile: 14ms\n"
+        "95th percentile: 18ms\n"
+        "99th percentile: 28ms\n"
+    )
+
+    assert collector_module._parse_gfxinfo(summary + summary) == {
+        "total_rendered": 120,
+        "janky": 6,
+        "janky_percent": 5.0,
+        "p50_ms": 8.0,
+        "p90_ms": 14.0,
+        "p95_ms": 18.0,
+        "p99_ms": 28.0,
+    }
 
 
 @pytest.mark.parametrize(
