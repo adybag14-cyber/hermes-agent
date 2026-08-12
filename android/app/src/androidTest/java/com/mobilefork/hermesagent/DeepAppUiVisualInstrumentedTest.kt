@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
@@ -240,6 +241,10 @@ class DeepAppUiVisualInstrumentedTest {
             }
 
             composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
+            // The same LazyColumn survives the Overview -> Models page swap and retains its
+            // prior offset. At compact widths, performScrollToNode only searches forward from
+            // that offset and can miss the model-config tabs above it, so start from index 0.
+            composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(0)
             scrollSettingsToTag("LocalModelConfigTab-ToolGuidance")
             composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").performClick()
             composeRule.onNodeWithText(settingsGenerationText(language, "tool_guidance")).fetchSemanticsNode()
