@@ -1804,13 +1804,13 @@ def test_raw_measurement_rejects_missing_or_mismatched_process_identity(
         ),
         (
             "measure.gfx.framestats.01",
-            "Total frames rendered: 120\n",
-            "one Total frames rendered",
+            "Total frames rendered: 121\n",
+            "one unambiguous Total frames rendered",
         ),
         (
             "measure.gfx.framestats.01",
-            "Janky frames: 6 (5.00%)\n",
-            "one janky-frame summary",
+            "Janky frames: 7 (5.83%)\n",
+            "one unambiguous janky-frame summary",
         ),
         (
             "measure.memory.meminfo",
@@ -1836,6 +1836,29 @@ def test_raw_measurement_rejects_duplicate_headers_or_metrics(
     _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
     with pytest.raises(evidence_module.EvidenceError, match=message):
         evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
+
+
+def test_raw_measurement_accepts_android_framestats_duplicate_summary(
+    evidence_root, evidence_module, artifacts
+):
+    _write_fixture(evidence_root, evidence_module, artifacts)
+    summary = (
+        "Total frames rendered: 120\n"
+        "Janky frames: 6 (5.00%)\n"
+        "50th percentile: 8ms\n"
+        "90th percentile: 14ms\n"
+        "95th percentile: 18ms\n"
+        "99th percentile: 28ms\n"
+    )
+
+    def mutate(raw):
+        record = next(
+            item for item in raw["records"] if item["id"] == "measure.gfx.framestats.01"
+        )
+        record["stdout"] += summary
+
+    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
+    evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
 
 
 @pytest.mark.parametrize("field", ("versionName", "versionCode"))

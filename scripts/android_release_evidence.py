@@ -1375,42 +1375,55 @@ def _raw_parse_gpu_renderer(output: str, context: str) -> str:
     return observed[0]
 
 
-def _raw_gfx_number(output: str, label: str, context: str, *, integer: bool) -> int | float:
+def _raw_gfx_number(
+    output: str, label: str, context: str, *, integer: bool
+) -> tuple[int | float, int]:
     values = re.findall(
         rf"(?mi)^\s*{re.escape(label)}:\s*([0-9]+(?:\.[0-9]+)?)\s*(?:ms)?\s*$",
         output,
     )
-    if len(values) != 1:
-        raise EvidenceError(f"{context} does not expose one {label}")
+    if len(values) not in (1, 2) or len(set(values)) != 1:
+        raise EvidenceError(f"{context} does not expose one unambiguous {label}")
     raw = values[0]
     if integer and not raw.isdigit():
         raise EvidenceError(f"{context} {label} is not an integer")
-    return int(raw) if integer else float(raw)
+    return (int(raw) if integer else float(raw)), len(values)
 
 
 def _raw_parse_gfxinfo(output: str, context: str) -> dict[str, int | float]:
-    total = int(_raw_gfx_number(output, "Total frames rendered", context, integer=True))
+    total_value, total_count = _raw_gfx_number(
+        output, "Total frames rendered", context, integer=True
+    )
+    total = int(total_value)
     matches = re.findall(
         r"(?mi)^\s*Janky frames:\s*([0-9]+)(?:\s*\(([0-9]+(?:\.[0-9]+)?)%\))?\s*$",
         output,
     )
     unique = [(int(count), printed) for count, printed in matches]
-    if len(unique) != 1:
-        raise EvidenceError(f"{context} does not expose one janky-frame summary")
+    if len(unique) not in (1, 2) or len(set(unique)) != 1:
+        raise EvidenceError(f"{context} does not expose one unambiguous janky-frame summary")
     janky, printed = unique[0]
     if total <= 0 or not 0 <= janky <= total:
         raise EvidenceError(f"{context} contains invalid frame counts")
     percent = janky * 100.0 / total
     if printed and abs(float(printed) - percent) > 0.25:
         raise EvidenceError(f"{context} printed jank percentage disagrees with counts")
+    percentile_pairs = {
+        "p50_ms": _raw_gfx_number(output, "50th percentile", context, integer=False),
+        "p90_ms": _raw_gfx_number(output, "90th percentile", context, integer=False),
+        "p95_ms": _raw_gfx_number(output, "95th percentile", context, integer=False),
+        "p99_ms": _raw_gfx_number(output, "99th percentile", context, integer=False),
+    }
+    occurrence_counts = {total_count, len(unique)} | {
+        count for _, count in percentile_pairs.values()
+    }
+    if len(occurrence_counts) != 1:
+        raise EvidenceError(f"{context} frame-summary occurrence counts disagree")
     result: dict[str, int | float] = {
         "total_rendered": total,
         "janky": janky,
         "janky_percent": round(percent, 4),
-        "p50_ms": float(_raw_gfx_number(output, "50th percentile", context, integer=False)),
-        "p90_ms": float(_raw_gfx_number(output, "90th percentile", context, integer=False)),
-        "p95_ms": float(_raw_gfx_number(output, "95th percentile", context, integer=False)),
-        "p99_ms": float(_raw_gfx_number(output, "99th percentile", context, integer=False)),
+        **{field: float(value) for field, (value, _) in percentile_pairs.items()},
     }
     percentiles = [result[field] for field in ("p50_ms", "p90_ms", "p95_ms", "p99_ms")]
     if any(value <= 0 for value in percentiles) or percentiles != sorted(percentiles):
