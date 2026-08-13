@@ -57,11 +57,15 @@ BUILD_VARIANT = "debug"
 PERFORMANCE_BUILD_VARIANT = "benchmark"
 LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.0"
 ANDROIDX_BENCHMARK_COORDINATE = "androidx.benchmark:benchmark-macro-junit4:1.4.1"
+REPORTING_PACKAGE_COMPILATION_MODE = "run-from-apk"
+TARGET_COMPILER_FILTER = "speed"
 BENCHMARK_CLASS = "com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark"
 BENCHMARK_METHOD = "settingsListFling"
 BENCHMARK_TEST_ID = f"{BENCHMARK_CLASS}#{BENCHMARK_METHOD}"
 MIN_BENCHMARK_ITERATIONS = 5
 MAX_BENCHMARK_ITERATIONS = 20
+MAX_FRAME_DURATION_CPU_P95_MS = 50.0
+MAX_FRAME_DURATION_CPU_P99_MS = 100.0
 RUN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{15,79}$")
 BOOT_ID_RE = re.compile(r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
 AVD_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$")
@@ -1214,6 +1218,52 @@ def _raw_parse_pidof(output: str, context: str) -> int:
     return int(value)
 
 
+def _raw_parse_target_compiler_filter(
+    output: str, base_apk_path: str, context: str
+) -> str:
+    """Independently reparse API 35 Dexopt state for the exact target base APK."""
+    if not base_apk_path.startswith("/") or any(character.isspace() for character in base_apk_path):
+        raise EvidenceError(f"{context} target base APK path is invalid")
+    lines = output.splitlines()
+    dexopt_headers = [
+        index
+        for index, line in enumerate(lines)
+        if re.fullmatch(r"[ \t]*Dexopt state:[ \t]*", line)
+    ]
+    if len(dexopt_headers) != 1:
+        raise EvidenceError(f"{context} must expose exactly one Dexopt state section")
+
+    base_path_rows: list[tuple[int, int]] = []
+    for index in range(dexopt_headers[0] + 1, len(lines)):
+        match = re.fullmatch(r"(?P<indent>[ \t]+)path:[ \t]*(?P<path>\S+)[ \t]*", lines[index])
+        if match and match.group("path") == base_apk_path:
+            base_path_rows.append((index, len(match.group("indent").expandtabs(8))))
+    if len(base_path_rows) != 1:
+        raise EvidenceError(
+            f"{context} must expose exactly one Dexopt state path for the target base APK"
+        )
+
+    path_index, path_indent = base_path_rows[0]
+    status_scope: list[str] = []
+    for line in lines[path_index + 1 :]:
+        if not line.strip():
+            continue
+        prefix = line[: len(line) - len(line.lstrip(" \t"))]
+        if len(prefix.expandtabs(8)) <= path_indent:
+            break
+        status_scope.append(line)
+    statuses = [
+        "".join(value.split())
+        for value in re.findall(r"\[status=([^]]+?)]", "\n".join(status_scope), re.DOTALL)
+    ]
+    if statuses != [TARGET_COMPILER_FILTER]:
+        raise EvidenceError(
+            f"{context} target base APK must expose exactly one status=speed compiler filter; "
+            f"observed {statuses!r}"
+        )
+    return statuses[0]
+
+
 def _raw_require_process_header(
     output: str, label: str, expected_pid: int, context: str
 ) -> None:
@@ -1473,10 +1523,12 @@ def _validate_raw_performance(
     expected_order = [
         "macrobenchmark.invocation",
         *initial_ids,
+        "measure.package.target_compiler_filter.initial",
         *measure_prefix,
         *(retry_ids if has_retry else []),
         *measure_suffix,
         *final_ids,
+        "measure.package.target_compiler_filter.final",
     ]
     if order != expected_order:
         raise EvidenceError(f"{context} command order is incomplete, unexpected, or reordered")
@@ -1656,7 +1708,35 @@ def _validate_raw_performance(
         qemu_record = _raw_record(records, f"{phase}.host.qemu_processes", context)
         _raw_qemu_match(qemu_record, device, serial, f"{context}.{phase}")
 
+    benchmark = _nested_object(normalized, "benchmark", f"performance[{profile}]")
+
+    def validate_target_compiler_filter(phase: str) -> str:
+        base_apk_path = collector.get("benchmark_target_apk_device_path")
+        if not isinstance(base_apk_path, str):
+            raise EvidenceError(f"{context} target base APK path is invalid")
+        record_id = f"measure.package.target_compiler_filter.{phase}"
+        package_dump = _raw_stdout(
+            adb_command(
+                record_id,
+                "shell",
+                "cmd",
+                "package",
+                "dump",
+                PACKAGE_ID,
+            ),
+            f"{context}.{record_id}",
+        )
+        observed = _raw_parse_target_compiler_filter(
+            package_dump, base_apk_path, f"{context}.{record_id}"
+        )
+        if benchmark.get("target_compiler_filter") != observed:
+            raise EvidenceError(
+                f"{context}.{record_id} disagrees with normalized target compiler filter"
+            )
+        return observed
+
     validate_identity("initial")
+    initial_target_compiler_filter = validate_target_compiler_filter("initial")
 
     accel = _raw_record(records, "measure.emulator.accel-check", context)
     if len(accel["argv"]) != 2 or accel["argv"][1] != "-accel-check":
@@ -1805,6 +1885,8 @@ def _validate_raw_performance(
     if final_pid != launch["warm_process_pid"]:
         raise EvidenceError(f"{context} process PID changed during memory collection")
     validate_identity("final")
+    if validate_target_compiler_filter("final") != initial_target_compiler_filter:
+        raise EvidenceError(f"{context} target compiler filter changed during collection")
 
 
 def _finite_json_number(value: Any, context: str) -> float:
@@ -1872,6 +1954,10 @@ def _androidx_sampled_metric(
             ]
         )
     pooled = sorted(value for iteration_values in runs for value in iteration_values)
+    if name == "frameDurationCpuMs" and any(value < 0 for value in pooled):
+        raise EvidenceError(
+            "macrobenchmark.sampledMetrics.frameDurationCpuMs cannot contain negative samples"
+        )
     for key, percentile in (("P50", 50), ("P90", 90), ("P95", 95), ("P99", 99)):
         expected = _linear_interpolated_percentile(pooled, percentile)
         if not math.isclose(
@@ -1920,9 +2006,10 @@ def _expected_frames_from_macrobenchmark(
     }
     if set(report_context) != expected_context_keys:
         raise EvidenceError(f"{context}.context does not match AndroidX BenchmarkData 1.4.1")
-    if report_context.get("compilationMode") != "speed":
+    if report_context.get("compilationMode") != REPORTING_PACKAGE_COMPILATION_MODE:
         raise EvidenceError(
-            f"{context}.context.compilationMode must equal speed for CompilationMode.Full"
+            f"{context}.context.compilationMode must equal run-from-apk for the "
+            "self-instrumenting reporting package"
         )
     normalized_device = _nested_object(normalized, "device", f"performance[{profile}]")
     if report_context.get("payload") != {
@@ -1992,10 +2079,14 @@ def _expected_frames_from_macrobenchmark(
     expected_metric_names = {
         "frameCount",
         "hermesFrameTotalCount",
-        "hermesFrameJankyCount",
+        "hermesFrameSelfJankTaggedCount",
         "hermesFrameAppDeadlineMissedCount",
-        "hermesFrameOtherJankCount",
-        "hermesFrameJankPercent",
+        "hermesFrameNonDeadlineSelfJankTaggedCount",
+        "hermesFrameOtherJankTaggedCount",
+        "hermesFrameDroppedCount",
+        "hermesFrameUnknownTagCount",
+        "hermesFrameOverlappingJankTagCount",
+        "hermesFrameSelfJankTaggedPercent",
         "hermesEvidenceToken",
     }
     if set(metrics) != expected_metric_names:
@@ -2006,18 +2097,38 @@ def _expected_frames_from_macrobenchmark(
 
     frame_counts = _androidx_metric_runs(metrics, "frameCount", iterations, integral=True)
     totals = _androidx_metric_runs(metrics, "hermesFrameTotalCount", iterations, integral=True)
-    janky = _androidx_metric_runs(metrics, "hermesFrameJankyCount", iterations, integral=True)
+    self_jank_tagged = _androidx_metric_runs(
+        metrics, "hermesFrameSelfJankTaggedCount", iterations, integral=True
+    )
     deadline = _androidx_metric_runs(
         metrics, "hermesFrameAppDeadlineMissedCount", iterations, integral=True
     )
-    other = _androidx_metric_runs(metrics, "hermesFrameOtherJankCount", iterations, integral=True)
-    percentages = _androidx_metric_runs(metrics, "hermesFrameJankPercent", iterations, integral=False)
+    non_deadline_self_jank_tagged = _androidx_metric_runs(
+        metrics, "hermesFrameNonDeadlineSelfJankTaggedCount", iterations, integral=True
+    )
+    other_jank_tagged = _androidx_metric_runs(
+        metrics, "hermesFrameOtherJankTaggedCount", iterations, integral=True
+    )
+    dropped = _androidx_metric_runs(metrics, "hermesFrameDroppedCount", iterations, integral=True)
+    unknown_tag = _androidx_metric_runs(
+        metrics, "hermesFrameUnknownTagCount", iterations, integral=True
+    )
+    overlapping_jank_tag = _androidx_metric_runs(
+        metrics, "hermesFrameOverlappingJankTagCount", iterations, integral=True
+    )
+    percentages = _androidx_metric_runs(
+        metrics, "hermesFrameSelfJankTaggedPercent", iterations, integral=False
+    )
     evidence_tokens = _androidx_metric_runs(metrics, "hermesEvidenceToken", iterations, integral=True)
     assert isinstance(frame_counts, list)
     assert isinstance(totals, list)
-    assert isinstance(janky, list)
+    assert isinstance(self_jank_tagged, list)
     assert isinstance(deadline, list)
-    assert isinstance(other, list)
+    assert isinstance(non_deadline_self_jank_tagged, list)
+    assert isinstance(other_jank_tagged, list)
+    assert isinstance(dropped, list)
+    assert isinstance(unknown_tag, list)
+    assert isinstance(overlapping_jank_tag, list)
     assert isinstance(percentages, list)
     assert isinstance(evidence_tokens, list)
     canonical_token_input = (
@@ -2048,45 +2159,116 @@ def _expected_frames_from_macrobenchmark(
     for index in range(iterations):
         frame_count = int(frame_counts[index])
         total = int(totals[index])
-        janky_count = int(janky[index])
+        self_jank_tagged_count = int(self_jank_tagged[index])
         deadline_count = int(deadline[index])
-        other_count = int(other[index])
-        percent = float(percentages[index])
+        non_deadline_self_jank_tagged_count = int(
+            non_deadline_self_jank_tagged[index]
+        )
+        other_jank_tagged_count = int(other_jank_tagged[index])
+        dropped_count = int(dropped[index])
+        unknown_tag_count = int(unknown_tag[index])
+        overlapping_jank_tag_count = int(overlapping_jank_tag[index])
+        self_jank_tagged_percent = float(percentages[index])
         if frame_count <= 0 or total <= 0:
             raise EvidenceError(f"{context} iteration {index + 1} contains no frames")
         if len(duration_runs[index]) != frame_count or len(overrun_runs[index]) != frame_count:
             raise EvidenceError(f"{context} FrameTiming samples disagree with iteration frameCount")
-        if janky_count > total or deadline_count + other_count != janky_count:
+        if (
+            deadline_count + non_deadline_self_jank_tagged_count
+            != self_jank_tagged_count
+            or self_jank_tagged_count + other_jank_tagged_count > total
+        ):
             raise EvidenceError(f"{context} iteration {index + 1} jank counts do not reconcile")
-        expected_percent = janky_count * 100.0 / total
-        if not 0 <= percent <= 100 or abs(percent - expected_percent) > 1e-6:
-            raise EvidenceError(f"{context} iteration {index + 1} jank percentage is inconsistent")
+        if (
+            dropped_count > total
+            or unknown_tag_count > total
+            or overlapping_jank_tag_count > total
+        ):
+            raise EvidenceError(
+                f"{context} iteration {index + 1} dropped/unknown/overlap counts exceed surface tokens"
+            )
+        if dropped_count != 0 or unknown_tag_count != 0 or overlapping_jank_tag_count != 0:
+            raise EvidenceError(
+                f"{context} iteration {index + 1} contains dropped, unknown-tag, or overlapping-tag frames"
+            )
+        expected_self_tagged_percent = self_jank_tagged_count * 100.0 / total
+        app_deadline_missed_percent = deadline_count * 100.0 / total
+        if (
+            not 0 <= self_jank_tagged_percent <= 100
+            or abs(self_jank_tagged_percent - expected_self_tagged_percent) > 1e-6
+        ):
+            raise EvidenceError(
+                f"{context} iteration {index + 1} Self Jank-tagged percentage is inconsistent"
+            )
+        positive_overruns = sum(value > 0.0 for value in overrun_runs[index])
+        positive_overrun_percent = positive_overruns * 100.0 / frame_count
         normalized_iterations.append(
             {
                 "iteration": index + 1,
                 "frame_timing_frame_count": frame_count,
-                "perfetto_total_frames": total,
-                "perfetto_janky_frames": janky_count,
+                "frame_timing_overrun_positive_frames": positive_overruns,
+                "frame_timing_overrun_positive_percent": positive_overrun_percent,
+                "perfetto_surface_frame_timeline_tokens": total,
+                "perfetto_self_jank_tagged_frames": self_jank_tagged_count,
                 "perfetto_app_deadline_missed_frames": deadline_count,
-                "perfetto_other_janky_frames": other_count,
-                "perfetto_janky_percent": percent,
+                "perfetto_app_deadline_missed_percent": app_deadline_missed_percent,
+                "perfetto_non_deadline_self_jank_tagged_frames": (
+                    non_deadline_self_jank_tagged_count
+                ),
+                "perfetto_other_jank_tagged_frames": other_jank_tagged_count,
+                "perfetto_dropped_frames": dropped_count,
+                "perfetto_unknown_tag_frames": unknown_tag_count,
+                "perfetto_overlapping_jank_tag_frames": overlapping_jank_tag_count,
+                "perfetto_self_jank_tagged_percent": self_jank_tagged_percent,
             }
         )
 
     frame_timing_total = sum(int(value) for value in frame_counts)
     total_frames = sum(int(value) for value in totals)
-    janky_frames = sum(int(value) for value in janky)
+    self_jank_tagged_frames = sum(int(value) for value in self_jank_tagged)
     deadline_frames = sum(int(value) for value in deadline)
-    other_frames = sum(int(value) for value in other)
+    non_deadline_self_jank_tagged_frames = sum(
+        int(value) for value in non_deadline_self_jank_tagged
+    )
+    other_jank_tagged_frames = sum(int(value) for value in other_jank_tagged)
+    dropped_frames = sum(int(value) for value in dropped)
+    unknown_tag_frames = sum(int(value) for value in unknown_tag)
+    overlapping_jank_tag_frames = sum(int(value) for value in overlapping_jank_tag)
     if frame_timing_total < 100 or total_frames < 100:
         raise EvidenceError(f"{context} must contain at least 100 aggregate frames")
-    janky_percent = janky_frames * 100.0 / total_frames
-    if janky_percent > 10.0:
-        raise EvidenceError(f"{context} exceeds the 10% pooled jank budget")
-    if deadline_frames + other_frames != janky_frames:
+    self_jank_tagged_percent = self_jank_tagged_frames * 100.0 / total_frames
+    app_deadline_missed_percent = deadline_frames * 100.0 / total_frames
+    if app_deadline_missed_percent > 10.0:
+        raise EvidenceError(
+            f"{context} App Deadline Missed surface tokens exceed the 10% "
+            "controlled-AVD budget"
+        )
+    if (
+        deadline_frames + non_deadline_self_jank_tagged_frames
+        != self_jank_tagged_frames
+    ):
         raise EvidenceError(f"{context} pooled jank categories do not reconcile")
-    if duration_percentiles["P95"] > 250 or duration_percentiles["P99"] > 1_000:
-        raise EvidenceError(f"{context} frame duration percentiles exceed the release budget")
+    if self_jank_tagged_frames + other_jank_tagged_frames > total_frames:
+        raise EvidenceError(f"{context} pooled Self/Other Jank tags exceed surface tokens")
+    if (
+        dropped_frames != 0
+        or unknown_tag_frames != 0
+        or overlapping_jank_tag_frames != 0
+    ):
+        raise EvidenceError(
+            f"{context} contains dropped, unknown-tag, or overlapping-tag Perfetto frames"
+        )
+    overrun_positive = sum(
+        value > 0.0 for iteration_values in overrun_runs for value in iteration_values
+    )
+    overrun_positive_percent = overrun_positive * 100.0 / frame_timing_total
+    if (
+        duration_percentiles["P95"] > MAX_FRAME_DURATION_CPU_P95_MS
+        or duration_percentiles["P99"] > MAX_FRAME_DURATION_CPU_P99_MS
+    ):
+        raise EvidenceError(
+            f"{context} frameDurationCpuMs exceeds the controlled-AVD CPU-work ceilings"
+        )
 
     profiler_outputs = result.get("profilerOutputs")
     if not isinstance(profiler_outputs, list) or len(profiler_outputs) != iterations:
@@ -2112,9 +2294,18 @@ def _expected_frames_from_macrobenchmark(
         "metric_source": "androidx.macrobenchmark.FrameTimingMetric+HermesFrameJankMetric",
         "iterations": normalized_iterations,
         "frame_timing_total_rendered": frame_timing_total,
-        "total_rendered": total_frames,
-        "janky": janky_frames,
-        "janky_percent": janky_percent,
+        "frame_timing_overrun_positive": overrun_positive,
+        "frame_timing_overrun_positive_percent": overrun_positive_percent,
+        "perfetto_surface_frame_timeline_tokens": total_frames,
+        "perfetto_self_jank_tagged": self_jank_tagged_frames,
+        "perfetto_app_deadline_missed": deadline_frames,
+        "perfetto_app_deadline_missed_percent": app_deadline_missed_percent,
+        "perfetto_non_deadline_self_jank_tagged": non_deadline_self_jank_tagged_frames,
+        "perfetto_other_jank_tagged": other_jank_tagged_frames,
+        "perfetto_dropped": dropped_frames,
+        "perfetto_unknown_tag": unknown_tag_frames,
+        "perfetto_overlapping_jank_tag": overlapping_jank_tag_frames,
+        "perfetto_self_jank_tagged_percent": self_jank_tagged_percent,
         "p50_ms": duration_percentiles["P50"],
         "p90_ms": duration_percentiles["P90"],
         "p95_ms": duration_percentiles["P95"],
@@ -2201,6 +2392,8 @@ def _validate_performance(
         "test_id": BENCHMARK_TEST_ID,
         "androidx_benchmark_coordinate": ANDROIDX_BENCHMARK_COORDINATE,
         "compilation_mode": "Full",
+        "reporting_package_compilation_mode": REPORTING_PACKAGE_COMPILATION_MODE,
+        "target_compiler_filter": TARGET_COMPILER_FILTER,
         "suppressed_errors": ["EMULATOR"],
         "profiling_mode": "None",
         "target_debuggable": False,
@@ -2827,15 +3020,24 @@ def build_manifest(
             "languages": list(LANGUAGES),
             "profiles": list(PROFILES),
             "ui_screenshot_and_semantics_per_language_and_profile": True,
-            "minimum_rendered_frames_per_profile": 100,
+            "minimum_frame_timing_samples_per_profile": 100,
+            "minimum_perfetto_surface_frame_timeline_tokens_per_profile": 100,
             "minimum_macrobenchmark_iterations_per_profile": 5,
-            "maximum_aggregate_jank_percent": 10.0,
+            "maximum_perfetto_app_deadline_missed_percent": 10.0,
+            "maximum_frame_duration_cpu_p95_ms": MAX_FRAME_DURATION_CPU_P95_MS,
+            "maximum_frame_duration_cpu_p99_ms": MAX_FRAME_DURATION_CPU_P99_MS,
+            "frame_timing_positive_overrun_is_nongating_avd_buffer_queue_diagnostic": True,
+            "requires_zero_perfetto_dropped_unknown_or_overlapping_jank_tags": True,
             "requires_hardware_accelerated_avd": True,
             "avd_metrics_are_validation_signals_not_end_user_benchmarks": True,
             "requires_host_raw_transcript": True,
             "requires_androidx_macrobenchmark_raw_json": True,
             "requires_one_perfetto_trace_per_iteration": True,
-            "requires_compilation_mode_full": True,
+            "requested_macrobenchmark_compilation_mode": "Full",
+            "required_androidx_reporting_package_compilation_mode": (
+                REPORTING_PACKAGE_COMPILATION_MODE
+            ),
+            "required_measured_target_compiler_filter": TARGET_COMPILER_FILTER,
             "requires_nondebuggable_profileable_target": True,
             "only_suppressed_macrobenchmark_error": "EMULATOR",
             "requires_runtime_health_and_nonempty_completion": True,

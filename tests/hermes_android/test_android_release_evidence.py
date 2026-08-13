@@ -49,6 +49,17 @@ QEMU_CIM_SCRIPT = (
 )
 
 
+def _dexopt_dump(*statuses: str, include_base_path: bool = True) -> str:
+    lines = ["Packages:", "Dexopt state:", "  [com.mobilefork.hermesagent]"]
+    if include_base_path:
+        lines.append("    path: /data/app/hermes/base.apk")
+        lines.extend(
+            f"      x86_64: [status={status}] [reason=cmdline]" for status in statuses
+        )
+    lines.extend(["Compiler stats:", "  [com.mobilefork.hermesagent]"])
+    return "\n".join(lines) + "\n"
+
+
 def _load_module():
     script = REPO_ROOT / "scripts/android_release_evidence.py"
     spec = importlib.util.spec_from_file_location("android_release_evidence", script)
@@ -170,7 +181,10 @@ def _macro_report(profile: str) -> dict:
     zero = [0] * iterations
     percent = [100 / frame_count] * iterations
     duration_runs = [[8.0 + sample % 4 for sample in range(frame_count)] for _ in values]
-    overrun_runs = [[-5.0 + sample % 4 for sample in range(frame_count)] for _ in values]
+    overrun_runs = [
+        [1.0 if sample < 2 else (0.0 if sample == 2 else -1.0) for sample in range(frame_count)]
+        for _ in values
+    ]
     return {
         "context": {
             "build": {
@@ -189,7 +203,7 @@ def _macro_report(profile: str) -> dict:
             "sustainedPerformanceModeEnabled": False,
             "artMainlineVersion": 1,
             "osCodenameAbbreviated": "REL",
-            "compilationMode": "speed",
+            "compilationMode": "run-from-apk",
             "payload": {
                 "sourceDigest": SOURCE_DIGEST,
                 "targetApkSha256": BENCHMARK_TARGET_SHA,
@@ -212,10 +226,14 @@ def _macro_report(profile: str) -> dict:
                 "metrics": {
                     "frameCount": _single_metric(values),
                     "hermesFrameTotalCount": _single_metric(values),
-                    "hermesFrameJankyCount": _single_metric(one),
+                    "hermesFrameSelfJankTaggedCount": _single_metric(one),
                     "hermesFrameAppDeadlineMissedCount": _single_metric(one),
-                    "hermesFrameOtherJankCount": _single_metric(zero),
-                    "hermesFrameJankPercent": _single_metric(percent),
+                    "hermesFrameNonDeadlineSelfJankTaggedCount": _single_metric(zero),
+                    "hermesFrameOtherJankTaggedCount": _single_metric([2] * iterations),
+                    "hermesFrameDroppedCount": _single_metric(zero),
+                    "hermesFrameUnknownTagCount": _single_metric(zero),
+                    "hermesFrameOverlappingJankTagCount": _single_metric(zero),
+                    "hermesFrameSelfJankTaggedPercent": _single_metric(percent),
                     "hermesEvidenceToken": _single_metric([_token(profile)] * iterations),
                 },
                 "sampledMetrics": {
@@ -396,6 +414,20 @@ def _host_raw(profile: str, performance: dict) -> dict:
         )
 
     identity("initial")
+    records.append(
+        _command(
+            "measure.package.target_compiler_filter.initial",
+            [
+                *targeted,
+                "shell",
+                "cmd",
+                "package",
+                "dump",
+                "com.mobilefork.hermesagent",
+            ],
+            _dexopt_dump("speed"),
+        )
+    )
     screen = performance["screen"]
     records.extend(
         [
@@ -416,6 +448,20 @@ def _host_raw(profile: str, performance: dict) -> dict:
         ]
     )
     identity("final")
+    records.append(
+        _command(
+            "measure.package.target_compiler_filter.final",
+            [
+                *targeted,
+                "shell",
+                "cmd",
+                "package",
+                "dump",
+                "com.mobilefork.hermesagent",
+            ],
+            _dexopt_dump("speed"),
+        )
+    )
     return {
         "schema": "hermes-android-performance-host-raw-v2",
         "profile": profile,
@@ -437,24 +483,45 @@ def _frames(profile: str) -> dict:
     sampled = _macro_report(profile)["benchmarks"][0]["sampledMetrics"]
     duration = sampled["frameDurationCpuMs"]
     overrun = sampled["frameOverrunMs"]
+    positive_by_iteration = [
+        sum(value > 0.0 for value in iteration) for iteration in overrun["runs"]
+    ]
     return {
         "metric_source": "androidx.macrobenchmark.FrameTimingMetric+HermesFrameJankMetric",
         "iterations": [
             {
                 "iteration": index,
                 "frame_timing_frame_count": 24,
-                "perfetto_total_frames": 24,
-                "perfetto_janky_frames": 1,
+                "frame_timing_overrun_positive_frames": positive_by_iteration[index - 1],
+                "frame_timing_overrun_positive_percent": (
+                    positive_by_iteration[index - 1] * 100 / 24
+                ),
+                "perfetto_surface_frame_timeline_tokens": 24,
+                "perfetto_self_jank_tagged_frames": 1,
                 "perfetto_app_deadline_missed_frames": 1,
-                "perfetto_other_janky_frames": 0,
-                "perfetto_janky_percent": 100 / 24,
+                "perfetto_app_deadline_missed_percent": 100 / 24,
+                "perfetto_non_deadline_self_jank_tagged_frames": 0,
+                "perfetto_other_jank_tagged_frames": 2,
+                "perfetto_dropped_frames": 0,
+                "perfetto_unknown_tag_frames": 0,
+                "perfetto_overlapping_jank_tag_frames": 0,
+                "perfetto_self_jank_tagged_percent": 100 / 24,
             }
             for index in range(1, 6)
         ],
         "frame_timing_total_rendered": 120,
-        "total_rendered": 120,
-        "janky": 5,
-        "janky_percent": 100 / 24,
+        "frame_timing_overrun_positive": sum(positive_by_iteration),
+        "frame_timing_overrun_positive_percent": sum(positive_by_iteration) * 100 / 120,
+        "perfetto_surface_frame_timeline_tokens": 120,
+        "perfetto_self_jank_tagged": 5,
+        "perfetto_app_deadline_missed": 5,
+        "perfetto_app_deadline_missed_percent": 100 / 24,
+        "perfetto_non_deadline_self_jank_tagged": 0,
+        "perfetto_other_jank_tagged": 10,
+        "perfetto_dropped": 0,
+        "perfetto_unknown_tag": 0,
+        "perfetto_overlapping_jank_tag": 0,
+        "perfetto_self_jank_tagged_percent": 100 / 24,
         "p50_ms": duration["P50"],
         "p90_ms": duration["P90"],
         "p95_ms": duration["P95"],
@@ -515,6 +582,8 @@ def _write_performance(root: Path, profile: str) -> dict:
             "test_id": "com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark#settingsListFling",
             "androidx_benchmark_coordinate": "androidx.benchmark:benchmark-macro-junit4:1.4.1",
             "compilation_mode": "Full",
+            "reporting_package_compilation_mode": "run-from-apk",
+            "target_compiler_filter": "speed",
             "iteration_count": 5,
             "suppressed_errors": ["EMULATOR"],
             "profiling_mode": "None",
@@ -708,6 +777,21 @@ def _rewrite_report(root: Path, profile: str, mutator) -> None:
     _rehash_reference(root, profile, "macrobenchmark")
 
 
+def _sync_normalized_frames_from_raw_report(root: Path, profile: str, module) -> dict:
+    normalized_path = root / "performance" / f"{profile}.json"
+    report_path = root / "performance" / f"{profile}.macrobenchmark.raw.json"
+    normalized = json.loads(normalized_path.read_text(encoding="utf-8"))
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    normalized["frames"] = module._expected_frames_from_macrobenchmark(
+        report,
+        normalized,
+        profile,
+        [trace["source_name"] for trace in normalized["traces"]],
+    )
+    normalized_path.write_text(json.dumps(normalized), encoding="utf-8")
+    return normalized
+
+
 def test_complete_v2_directory_validates_with_four_distinct_apk_hashes(
     evidence_root, evidence_module, artifacts
 ):
@@ -737,6 +821,18 @@ def test_complete_v2_directory_validates_with_four_distinct_apk_hashes(
     assert "performance/phone-compact.macrobenchmark.raw.json" in paths
     assert "performance/tablet.traces/iteration-005.perfetto-trace" in paths
     assert manifest["contract"]["avd_metrics_are_validation_signals_not_end_user_benchmarks"]
+    assert manifest["contract"]["maximum_perfetto_app_deadline_missed_percent"] == 10.0
+    assert manifest["contract"]["requested_macrobenchmark_compilation_mode"] == "Full"
+    assert (
+        manifest["contract"]["required_androidx_reporting_package_compilation_mode"]
+        == "run-from-apk"
+    )
+    assert manifest["contract"]["required_measured_target_compiler_filter"] == "speed"
+    assert manifest["contract"]["maximum_frame_duration_cpu_p95_ms"] == 50.0
+    assert manifest["contract"]["maximum_frame_duration_cpu_p99_ms"] == 100.0
+    assert manifest["contract"][
+        "frame_timing_positive_overrun_is_nongating_avd_buffer_queue_diagnostic"
+    ] is True
 
 
 def test_old_shell_gfxinfo_layout_is_rejected(evidence_root, evidence_module, artifacts):
@@ -752,6 +848,7 @@ def test_old_shell_gfxinfo_layout_is_rejected(evidence_root, evidence_module, ar
     "mutation",
     [
         lambda report: report["context"].__setitem__("compilationMode", "Full"),
+        lambda report: report["context"].__setitem__("compilationMode", "speed"),
         lambda report: report["context"]["payload"].__setitem__("evidenceRunId", "stale-run"),
         lambda report: report["context"]["payload"].__setitem__(
             "bootId", "87654321-4321-4abc-8def-1234567890ab"
@@ -769,6 +866,233 @@ def test_androidx_report_identity_compilation_and_iteration_tampering_fails(
     macro.write_text(json.dumps(report), encoding="utf-8")
     _rehash_reference(evidence_root, "phone-compact", "macrobenchmark")
     with pytest.raises(evidence_module.EvidenceError):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    "package_dump",
+    (
+        _dexopt_dump(),
+        _dexopt_dump("speed", "speed"),
+        _dexopt_dump("verify"),
+    ),
+)
+def test_raw_target_compiler_filter_requires_one_speed_status(
+    evidence_root, evidence_module, artifacts, package_dump
+):
+    def rewrite(raw):
+        record = next(
+            item
+            for item in raw["records"]
+            if item["id"] == "measure.package.target_compiler_filter.initial"
+        )
+        record["stdout"] = package_dump
+
+    _rewrite_host(evidence_root, "phone-compact", rewrite)
+    with pytest.raises(evidence_module.EvidenceError, match="status=speed"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "message"),
+    (
+        (
+            lambda raw: next(
+                item
+                for item in raw["records"]
+                if item["id"] == "measure.package.target_compiler_filter.initial"
+            )["argv"].__setitem__(-1, "com.mobilefork.hermesagent.stale"),
+            "required live command",
+        ),
+        (
+            lambda raw: raw["records"].append(
+                next(
+                    item
+                    for item in raw["records"]
+                    if item["id"] == "measure.package.target_compiler_filter.initial"
+                ).copy()
+            ),
+            "duplicated|order",
+        ),
+    ),
+)
+def test_target_compiler_filter_raw_argv_and_order_are_exact(
+    evidence_root, evidence_module, artifacts, mutation, message
+):
+    _rewrite_host(evidence_root, "phone-compact", mutation)
+    with pytest.raises(evidence_module.EvidenceError, match=message):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("reporting_package_compilation_mode", "speed"),
+        ("target_compiler_filter", "verify"),
+    ),
+)
+def test_normalized_compilation_provenance_is_exact(
+    evidence_root, evidence_module, artifacts, field, value
+):
+    path = evidence_root / "performance" / "phone-compact.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["benchmark"][field] = value
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(evidence_module.EvidenceError, match=field):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    ("metric_name", "runs", "message"),
+    (
+        ("hermesFrameNonDeadlineSelfJankTaggedCount", [1] * 5, "jank counts"),
+        ("hermesFrameOtherJankTaggedCount", [24] * 5, "jank counts"),
+        (
+            "hermesFrameDroppedCount",
+            [1] * 5,
+            "dropped, unknown-tag, or overlapping-tag",
+        ),
+        (
+            "hermesFrameUnknownTagCount",
+            [1] * 5,
+            "dropped, unknown-tag, or overlapping-tag",
+        ),
+        (
+            "hermesFrameOverlappingJankTagCount",
+            [1] * 5,
+            "dropped, unknown-tag, or overlapping-tag",
+        ),
+    ),
+)
+def test_perfetto_self_other_tag_dropped_unknown_and_overlap_contract_fails_closed(
+    evidence_root, evidence_module, artifacts, metric_name, runs, message
+):
+    def rewrite(report):
+        report["benchmarks"][0]["metrics"][metric_name] = _single_metric(runs)
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    with pytest.raises(evidence_module.EvidenceError, match=message):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_raw_androidx_positive_frame_overrun_above_ten_percent_remains_avd_diagnostic(
+    evidence_root, evidence_module, artifacts
+):
+    def rewrite(report):
+        runs = [
+            [1.0 if sample < 3 else (0.0 if sample == 3 else -1.0) for sample in range(24)]
+            for _ in range(5)
+        ]
+        report["benchmarks"][0]["sampledMetrics"]["frameOverrunMs"] = (
+            _sampled_distribution(runs)
+        )
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    normalized = _sync_normalized_frames_from_raw_report(
+        evidence_root, "phone-compact", evidence_module
+    )
+    validated = evidence_module.validate_evidence_directory(
+        evidence_root, artifacts, SOURCE_DIGEST, TAG
+    )
+    assert normalized["frames"]["frame_timing_overrun_positive_percent"] == 12.5
+    assert normalized["frames"]["perfetto_app_deadline_missed_percent"] == 100 / 24
+    assert normalized["evidence_classification"]["result_kind"] == "validation-signal"
+    assert validated.performance_record_count == 2
+
+
+def test_raw_app_deadline_missed_above_ten_percent_fails_avd_budget(
+    evidence_root, evidence_module, artifacts
+):
+    def rewrite(report):
+        metrics = report["benchmarks"][0]["metrics"]
+        metrics["hermesFrameSelfJankTaggedCount"] = _single_metric([3] * 5)
+        metrics["hermesFrameAppDeadlineMissedCount"] = _single_metric([3] * 5)
+        metrics["hermesFrameNonDeadlineSelfJankTaggedCount"] = _single_metric(
+            [0] * 5
+        )
+        metrics["hermesFrameSelfJankTaggedPercent"] = _single_metric(
+            [12.5] * 5
+        )
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    with pytest.raises(evidence_module.EvidenceError, match="App Deadline Missed"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_p95", "expected_p99", "rejected"),
+    (
+        ("p95-boundary", 50.0, 50.0, False),
+        ("p95-over", 51.0, 51.0, True),
+        ("p99-boundary", 50.0, 100.0, False),
+        ("p99-over", 50.0, 101.0, True),
+    ),
+)
+def test_offline_frame_duration_cpu_controlled_avd_boundaries(
+    evidence_root,
+    evidence_module,
+    artifacts,
+    case,
+    expected_p95,
+    expected_p99,
+    rejected,
+):
+    if case == "p95-boundary":
+        flattened = [50.0] * 120
+    elif case == "p95-over":
+        flattened = [51.0] * 120
+    elif case == "p99-boundary":
+        flattened = [50.0] * 117 + [100.0] * 3
+    else:
+        flattened = [50.0] * 117 + [101.0] * 3
+    runs = [flattened[index : index + 24] for index in range(0, 120, 24)]
+
+    def rewrite(report):
+        report["benchmarks"][0]["sampledMetrics"]["frameDurationCpuMs"] = (
+            _sampled_distribution(runs)
+        )
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    if rejected:
+        with pytest.raises(evidence_module.EvidenceError, match="CPU-work ceilings"):
+            evidence_module.validate_evidence_directory(
+                evidence_root, artifacts, SOURCE_DIGEST, TAG
+            )
+    else:
+        normalized = _sync_normalized_frames_from_raw_report(
+            evidence_root, "phone-compact", evidence_module
+        )
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+        assert normalized["frames"]["p95_ms"] == expected_p95
+        assert normalized["frames"]["p99_ms"] == expected_p99
+
+
+def test_offline_frame_duration_cpu_rejects_negative_samples(
+    evidence_root, evidence_module, artifacts
+):
+    runs = [[-1.0] + [5.0] * 23 for _ in range(5)]
+
+    def rewrite(report):
+        report["benchmarks"][0]["sampledMetrics"]["frameDurationCpuMs"] = (
+            _sampled_distribution(runs)
+        )
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    with pytest.raises(evidence_module.EvidenceError, match="cannot contain negative"):
         evidence_module.validate_evidence_directory(
             evidence_root, artifacts, SOURCE_DIGEST, TAG
         )
@@ -1338,7 +1662,15 @@ def test_androidx_raw_report_uses_an_exact_fail_closed_grammar(
         lambda payload: payload["evidence_classification"].__setitem__(
             "representative_end_user_benchmark", True
         ),
-        lambda payload: payload["frames"].__setitem__("total_rendered", 121),
+        lambda payload: payload["frames"].__setitem__(
+            "perfetto_surface_frame_timeline_tokens", 121
+        ),
+        lambda payload: payload["frames"].__setitem__(
+            "frame_timing_overrun_positive", 11
+        ),
+        lambda payload: payload["frames"]["iterations"][0].__setitem__(
+            "frame_timing_overrun_positive_percent", 0.0
+        ),
         lambda payload: payload["device"].__setitem__("serial", "emulator-9999"),
         lambda payload: payload["memory"].__setitem__("total_rss_kb", 1),
     ),

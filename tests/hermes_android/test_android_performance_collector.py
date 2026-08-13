@@ -30,6 +30,17 @@ PUBLIC_QEMU_COMMAND = (
 )
 
 
+def _dexopt_dump(*statuses: str, include_base_path: bool = True) -> str:
+    lines = ["Packages:", "Dexopt state:", "  [com.mobilefork.hermesagent]"]
+    if include_base_path:
+        lines.append("    path: /data/app/hermes/base.apk")
+        lines.extend(
+            f"      x86_64: [status={status}] [reason=cmdline]" for status in statuses
+        )
+    lines.extend(["Compiler stats:", "  [com.mobilefork.hermesagent]"])
+    return "\n".join(lines) + "\n"
+
+
 def _load_module(name: str, relative_path: str):
     spec = importlib.util.spec_from_file_location(name, REPO_ROOT / relative_path)
     assert spec and spec.loader
@@ -101,22 +112,36 @@ def _macro_report(
     profile: str = "phone-compact",
     iterations: int = 5,
     frames_per_iteration: int = 24,
-    janky_per_iteration: int = 1,
+    self_jank_tagged_per_iteration: int = 1,
+    other_jank_tagged_per_iteration: int = 2,
+    dropped_per_iteration: int = 0,
+    unknown_tag_per_iteration: int = 0,
+    overlapping_jank_tag_per_iteration: int = 0,
+    positive_overrun_per_iteration: int = 2,
     token_delta: int = 0,
 ) -> dict:
     frame_counts = [frames_per_iteration] * iterations
     totals = [frames_per_iteration] * iterations
-    janky = [janky_per_iteration] * iterations
-    deadline = [janky_per_iteration] * iterations
-    other = [0] * iterations
-    percentages = [janky_per_iteration * 100.0 / frames_per_iteration] * iterations
+    self_jank_tagged = [self_jank_tagged_per_iteration] * iterations
+    deadline = [self_jank_tagged_per_iteration] * iterations
+    non_deadline_self = [0] * iterations
+    other_jank_tagged = [other_jank_tagged_per_iteration] * iterations
+    dropped = [dropped_per_iteration] * iterations
+    unknown_tag = [unknown_tag_per_iteration] * iterations
+    overlapping_jank_tag = [overlapping_jank_tag_per_iteration] * iterations
+    percentages = [
+        self_jank_tagged_per_iteration * 100.0 / frames_per_iteration
+    ] * iterations
     evidence_tokens = [_token(profile) + token_delta] * iterations
     duration_runs = [
         [8.0 + (sample % 4) for sample in range(frames_per_iteration)]
         for _ in range(iterations)
     ]
     overrun_runs = [
-        [-5.0 + (sample % 4) for sample in range(frames_per_iteration)]
+        [
+            1.0 if sample < positive_overrun_per_iteration else (0.0 if sample == positive_overrun_per_iteration else -1.0)
+            for sample in range(frames_per_iteration)
+        ]
         for _ in range(iterations)
     ]
     return {
@@ -137,7 +162,7 @@ def _macro_report(
             "sustainedPerformanceModeEnabled": False,
             "artMainlineVersion": 1,
             "osCodenameAbbreviated": "REL",
-            "compilationMode": "speed",
+            "compilationMode": "run-from-apk",
             "payload": {
                 "sourceDigest": SOURCE_DIGEST,
                 "targetApkSha256": TARGET_SHA,
@@ -160,10 +185,22 @@ def _macro_report(
                 "metrics": {
                     "frameCount": _single_metric(frame_counts),
                     "hermesFrameTotalCount": _single_metric(totals),
-                    "hermesFrameJankyCount": _single_metric(janky),
+                    "hermesFrameSelfJankTaggedCount": _single_metric(
+                        self_jank_tagged
+                    ),
                     "hermesFrameAppDeadlineMissedCount": _single_metric(deadline),
-                    "hermesFrameOtherJankCount": _single_metric(other),
-                    "hermesFrameJankPercent": _single_metric(percentages),
+                    "hermesFrameNonDeadlineSelfJankTaggedCount": _single_metric(
+                        non_deadline_self
+                    ),
+                    "hermesFrameOtherJankTaggedCount": _single_metric(
+                        other_jank_tagged
+                    ),
+                    "hermesFrameDroppedCount": _single_metric(dropped),
+                    "hermesFrameUnknownTagCount": _single_metric(unknown_tag),
+                    "hermesFrameOverlappingJankTagCount": _single_metric(
+                        overlapping_jank_tag
+                    ),
+                    "hermesFrameSelfJankTaggedPercent": _single_metric(percentages),
                     "hermesEvidenceToken": _single_metric(evidence_tokens),
                 },
                 "sampledMetrics": {
@@ -240,7 +277,12 @@ def _inputs(
     profile: str = "phone-compact",
     iterations: int = 5,
     frames_per_iteration: int = 24,
-    janky_per_iteration: int = 1,
+    self_jank_tagged_per_iteration: int = 1,
+    other_jank_tagged_per_iteration: int = 2,
+    dropped_per_iteration: int = 0,
+    unknown_tag_per_iteration: int = 0,
+    overlapping_jank_tag_per_iteration: int = 0,
+    positive_overrun_per_iteration: int = 2,
     token_delta: int = 0,
 ):
     inputs = tmp_path / "macro-inputs" / profile
@@ -252,7 +294,12 @@ def _inputs(
                 profile=profile,
                 iterations=iterations,
                 frames_per_iteration=frames_per_iteration,
-                janky_per_iteration=janky_per_iteration,
+                self_jank_tagged_per_iteration=self_jank_tagged_per_iteration,
+                other_jank_tagged_per_iteration=other_jank_tagged_per_iteration,
+                dropped_per_iteration=dropped_per_iteration,
+                unknown_tag_per_iteration=unknown_tag_per_iteration,
+                overlapping_jank_tag_per_iteration=overlapping_jank_tag_per_iteration,
+                positive_overrun_per_iteration=positive_overrun_per_iteration,
                 token_delta=token_delta,
             )
         ),
@@ -297,6 +344,8 @@ class FixtureExecutor:
         self.calls: list[tuple[str, ...]] = []
         self.pid_reads = 0
         self.test_sha = BENCHMARK_SHA
+        self.compiler_dump_reads = 0
+        self.compiler_dumps = [_dexopt_dump("speed"), _dexopt_dump("speed")]
 
     def result(self, argv, stdout="", *, returncode=0, stderr=""):
         return self.module.CommandResult(tuple(argv), returncode, stdout, stderr)
@@ -350,6 +399,16 @@ class FixtureExecutor:
                 "Packages:\n  versionCode=144790 minSdk=31 targetSdk=35\n"
                 "  versionName=0.13.147\n",
             )
+        if command == (
+            "shell",
+            "cmd",
+            "package",
+            "dump",
+            "com.mobilefork.hermesagent",
+        ):
+            index = min(self.compiler_dump_reads, len(self.compiler_dumps) - 1)
+            self.compiler_dump_reads += 1
+            return self.result(argv, self.compiler_dumps[index])
         if command == ("shell", "wm", "size"):
             size = "1080x2400" if self.profile == "phone-compact" else "1600x2560"
             return self.result(argv, f"Physical size: {size}\n")
@@ -478,6 +537,8 @@ def test_collector_produces_validator_accepted_macrobenchmark_v2(
 
     assert payload["schema"] == "hermes-android-performance-evidence-v2"
     assert payload["benchmark"]["compilation_mode"] == "Full"
+    assert payload["benchmark"]["reporting_package_compilation_mode"] == "run-from-apk"
+    assert payload["benchmark"]["target_compiler_filter"] == "speed"
     assert payload["benchmark"]["suppressed_errors"] == ["EMULATOR"]
     assert payload["benchmark"]["target_debuggable"] is False
     assert payload["benchmark"]["target_profileable_by_shell"] is True
@@ -495,10 +556,43 @@ def test_collector_produces_validator_accepted_macrobenchmark_v2(
         "representative_end_user_benchmark": False,
     }
     assert len(payload["traces"]) == 5
-    assert payload["frames"]["total_rendered"] == 120
     assert payload["frames"]["frame_timing_total_rendered"] == 120
-    assert payload["frames"]["janky"] == 5
+    assert payload["frames"]["frame_timing_overrun_positive"] == 10
+    assert payload["frames"]["frame_timing_overrun_positive_percent"] == 100 / 12
+    assert payload["frames"]["perfetto_surface_frame_timeline_tokens"] == 120
+    assert payload["frames"]["perfetto_self_jank_tagged"] == 5
+    assert payload["frames"]["perfetto_app_deadline_missed"] == 5
+    assert payload["frames"]["perfetto_app_deadline_missed_percent"] == 100 / 24
+    assert payload["frames"]["perfetto_non_deadline_self_jank_tagged"] == 0
+    assert payload["frames"]["perfetto_other_jank_tagged"] == 10
+    assert payload["frames"]["perfetto_dropped"] == 0
+    assert payload["frames"]["perfetto_unknown_tag"] == 0
+    assert payload["frames"]["perfetto_overlapping_jank_tag"] == 0
+    assert payload["frames"]["perfetto_self_jank_tagged_percent"] == 100 / 24
     assert host_raw["schema"] == "hermes-android-performance-host-raw-v2"
+    compiler_records = [
+        record
+        for record in host_raw["records"]
+        if record["id"].startswith("measure.package.target_compiler_filter.")
+    ]
+    assert [record["id"] for record in compiler_records] == [
+        "measure.package.target_compiler_filter.initial",
+        "measure.package.target_compiler_filter.final",
+    ]
+    assert all(
+        record["argv"]
+        == [
+            "adb",
+            "-s",
+            SERIAL,
+            "shell",
+            "cmd",
+            "package",
+            "dump",
+            "com.mobilefork.hermesagent",
+        ]
+        for record in compiler_records
+    )
     qemu_records = [
         record
         for record in host_raw["records"]
@@ -548,6 +642,49 @@ def test_report_token_must_bind_source_both_apks_run_and_profile(collector_modul
         collector.collect()
 
 
+def test_self_instrumenting_report_requires_run_from_apk_context(
+    collector_module, tmp_path
+):
+    config = _config(collector_module, tmp_path)
+    report = json.loads(config.macrobenchmark_report.read_text(encoding="utf-8"))
+    report["context"]["compilationMode"] = "speed"
+    config.macrobenchmark_report.write_text(json.dumps(report), encoding="utf-8")
+    collector = collector_module.PerformanceCollector(
+        config,
+        FixtureExecutor(collector_module),
+        StaticProcessSource(collector_module),
+        StaticSourceVerifier(collector_module),
+    )
+    with pytest.raises(collector_module.CollectorError, match="run-from-apk"):
+        collector.collect()
+
+
+@pytest.mark.parametrize(
+    "package_dump",
+    (
+        _dexopt_dump(),
+        _dexopt_dump("speed", "speed"),
+        _dexopt_dump("verify"),
+    ),
+)
+def test_target_base_apk_requires_one_speed_dexopt_status(
+    collector_module, package_dump
+):
+    with pytest.raises(collector_module.CollectorError, match="status=speed"):
+        collector_module._parse_target_compiler_filter(
+            package_dump, "/data/app/hermes/base.apk"
+        )
+
+
+def test_target_compiler_filter_is_rechecked_after_measurement(
+    collector_module, tmp_path
+):
+    executor = FixtureExecutor(collector_module)
+    executor.compiler_dumps = [_dexopt_dump("speed"), _dexopt_dump("verify")]
+    with pytest.raises(collector_module.CollectorError, match="status=speed"):
+        _collector_with_executor(collector_module, tmp_path, executor).collect()
+
+
 def test_invocation_rejects_any_suppression_beyond_emulator(collector_module, tmp_path):
     config = _config(collector_module, tmp_path)
     invocation = json.loads(config.macrobenchmark_invocation.read_text(encoding="utf-8"))
@@ -567,11 +704,10 @@ def test_invocation_rejects_any_suppression_beyond_emulator(collector_module, tm
 
 
 @pytest.mark.parametrize(
-    ("options", "message"),
+        ("options", "message"),
     [
         ({"iterations": 4}, "5 to 20"),
         ({"frames_per_iteration": 10}, "at least 100"),
-        ({"janky_per_iteration": 3}, "10%"),
     ],
 )
 def test_iteration_frame_and_jank_gates_fail_closed(
@@ -585,6 +721,165 @@ def test_iteration_frame_and_jank_gates_fail_closed(
         StaticSourceVerifier(collector_module),
     )
     with pytest.raises(collector_module.CollectorError, match=message):
+        collector.collect()
+
+
+@pytest.mark.parametrize(
+    ("options", "message"),
+    (
+        ({"other_jank_tagged_per_iteration": 24}, "jank counts"),
+        ({"dropped_per_iteration": 1}, "dropped, unknown-tag, or overlapping-tag"),
+        ({"unknown_tag_per_iteration": 1}, "dropped, unknown-tag, or overlapping-tag"),
+        (
+            {"overlapping_jank_tag_per_iteration": 1},
+            "dropped, unknown-tag, or overlapping-tag",
+        ),
+    ),
+)
+def test_other_tag_dropped_unknown_and_overlap_perfetto_counts_fail_closed(
+    collector_module, tmp_path, options, message
+):
+    config = _config(collector_module, tmp_path, **options)
+    collector = collector_module.PerformanceCollector(
+        config,
+        FixtureExecutor(collector_module),
+        StaticProcessSource(collector_module),
+        StaticSourceVerifier(collector_module),
+    )
+    with pytest.raises(collector_module.CollectorError, match=message):
+        collector.collect()
+
+
+def test_non_deadline_self_jank_must_reconcile_with_self_jank(
+    collector_module, tmp_path
+):
+    config = _config(collector_module, tmp_path)
+    report = json.loads(config.macrobenchmark_report.read_text(encoding="utf-8"))
+    metric = report["benchmarks"][0]["metrics"][
+        "hermesFrameNonDeadlineSelfJankTaggedCount"
+    ]
+    metric["runs"][0] = 1
+    metric["maximum"] = 1
+    config.macrobenchmark_report.write_text(json.dumps(report), encoding="utf-8")
+    collector = collector_module.PerformanceCollector(
+        config,
+        FixtureExecutor(collector_module),
+        StaticProcessSource(collector_module),
+        StaticSourceVerifier(collector_module),
+    )
+    with pytest.raises(collector_module.CollectorError, match="jank counts"):
+        collector.collect()
+
+
+def test_positive_frame_overrun_is_a_nongating_avd_diagnostic(
+    collector_module, tmp_path
+):
+    _, zero_payload, _, _, _ = _collect(
+        collector_module,
+        tmp_path / "zero",
+        frames_per_iteration=20,
+        positive_overrun_per_iteration=0,
+    )
+    assert zero_payload["frames"]["frame_timing_overrun_positive"] == 0
+    assert zero_payload["frames"]["frame_timing_overrun_positive_percent"] == 0.0
+
+    _, high_overrun_payload, _, _, _ = _collect(
+        collector_module,
+        tmp_path / "high-overrun",
+        frames_per_iteration=20,
+        positive_overrun_per_iteration=3,
+    )
+    assert high_overrun_payload["frames"]["frame_timing_overrun_positive"] == 15
+    assert high_overrun_payload["frames"]["frame_timing_overrun_positive_percent"] == 15.0
+    assert high_overrun_payload["frames"]["perfetto_app_deadline_missed_percent"] == 5.0
+    assert high_overrun_payload["evidence_classification"]["result_kind"] == (
+        "validation-signal"
+    )
+    assert all(
+        iteration["frame_timing_overrun_positive_frames"] == 3
+        and iteration["frame_timing_overrun_positive_percent"] == 15.0
+        for iteration in high_overrun_payload["frames"]["iterations"]
+    )
+
+
+def test_app_deadline_missed_surface_tokens_enforce_ten_percent_avd_budget(
+    collector_module, tmp_path
+):
+    config = _config(
+        collector_module,
+        tmp_path,
+        frames_per_iteration=20,
+        self_jank_tagged_per_iteration=3,
+        positive_overrun_per_iteration=0,
+    )
+    collector = collector_module.PerformanceCollector(
+        config,
+        FixtureExecutor(collector_module),
+        StaticProcessSource(collector_module),
+        StaticSourceVerifier(collector_module),
+    )
+    with pytest.raises(collector_module.CollectorError, match="App Deadline Missed"):
+        collector.collect()
+
+
+@pytest.mark.parametrize(
+    ("case", "expected_p95", "expected_p99", "rejected"),
+    (
+        ("p95-boundary", 50.0, 50.0, False),
+        ("p95-over", 51.0, 51.0, True),
+        ("p99-boundary", 50.0, 100.0, False),
+        ("p99-over", 50.0, 101.0, True),
+    ),
+)
+def test_frame_duration_cpu_controlled_avd_boundaries(
+    collector_module, tmp_path, case, expected_p95, expected_p99, rejected
+):
+    config = _config(collector_module, tmp_path)
+    if case == "p95-boundary":
+        flattened = [50.0] * 120
+    elif case == "p95-over":
+        flattened = [51.0] * 120
+    elif case == "p99-boundary":
+        flattened = [50.0] * 117 + [100.0] * 3
+    else:
+        flattened = [50.0] * 117 + [101.0] * 3
+    runs = [flattened[index : index + 24] for index in range(0, 120, 24)]
+    report = json.loads(config.macrobenchmark_report.read_text(encoding="utf-8"))
+    report["benchmarks"][0]["sampledMetrics"]["frameDurationCpuMs"] = (
+        _sampled_metric(runs)
+    )
+    config.macrobenchmark_report.write_text(json.dumps(report), encoding="utf-8")
+    collector = collector_module.PerformanceCollector(
+        config,
+        FixtureExecutor(collector_module),
+        StaticProcessSource(collector_module),
+        StaticSourceVerifier(collector_module),
+    )
+    if rejected:
+        with pytest.raises(collector_module.CollectorError, match="CPU-work ceilings"):
+            collector.collect()
+    else:
+        frames = collector.collect()["frames"]
+        assert frames["p95_ms"] == expected_p95
+        assert frames["p99_ms"] == expected_p99
+
+
+def test_frame_duration_cpu_rejects_negative_samples(collector_module, tmp_path):
+    config = _config(collector_module, tmp_path)
+    runs = [[-1.0] + [5.0] * 23 for _ in range(5)]
+    report = json.loads(config.macrobenchmark_report.read_text(encoding="utf-8"))
+    report["benchmarks"][0]["sampledMetrics"]["frameDurationCpuMs"] = (
+        _sampled_metric(runs)
+    )
+    config.macrobenchmark_report.write_text(json.dumps(report), encoding="utf-8")
+    collector = collector_module.PerformanceCollector(
+        config,
+        FixtureExecutor(collector_module),
+        StaticProcessSource(collector_module),
+        StaticSourceVerifier(collector_module),
+    )
+
+    with pytest.raises(collector_module.CollectorError, match="cannot contain negative"):
         collector.collect()
 
 
@@ -645,7 +940,7 @@ def test_macrobenchmark_payload_must_bind_exact_avd_boot_identity(
 
 @pytest.mark.parametrize(
     ("metric", "percentile", "replacement"),
-    (("frameDurationCpuMs", "P50", 9.6), ("frameOverrunMs", "P99", -1.5)),
+    (("frameDurationCpuMs", "P50", 9.6), ("frameOverrunMs", "P99", 1.5)),
 )
 def test_sampled_percentiles_must_reproduce_pooled_androidx_runs(
     collector_module, tmp_path, metric, percentile, replacement
