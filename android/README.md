@@ -245,7 +245,8 @@ basename, AVD/port/GPU/acceleration identity, and command hashes. The validator
 requires a positive accelerator result, one effective `-gpu host`, one
 effective `-accel on`, a headed window, at least five Macrobenchmark iterations
 and 100 pooled frames in both FrameTiming and Hermes Perfetto counts, no more
-than 10 percent pooled jank, bounded launch/frame results, `PSS <= RSS`, and
+than 10 percent pooled App Deadline Missed surface tokens, bounded
+launch/frame results, `PSS <= RSS`, and
 compact/tablet PSS/RSS ceilings of
 512/768 MiB and 768/1024 MiB respectively. It fully decodes screenshot pixels,
 rejects blank/reused captures, and requires localized Device/Overview plus the
@@ -311,13 +312,45 @@ flings for five measured iterations. `FrameTimingMetric` writes the standard
 Macrobenchmark JSON distributions and one Perfetto trace per iteration. A
 custom `TraceMetric` queries Hermes-only `actual_frame_timeline_slice` rows and
 emits the single-value metrics `hermesFrameTotalCount`,
-`hermesFrameJankyCount`, `hermesFrameAppDeadlineMissedCount`,
-`hermesFrameOtherJankCount`, `hermesFrameJankPercent`, and
-`hermesEvidenceToken` for every iteration.
+`hermesFrameSelfJankTaggedCount`, `hermesFrameAppDeadlineMissedCount`,
+`hermesFrameNonDeadlineSelfJankTaggedCount`, `hermesFrameOtherJankTaggedCount`,
+`hermesFrameDroppedCount`, `hermesFrameUnknownTagCount`,
+`hermesFrameOverlappingJankTagCount`, `hermesFrameSelfJankTaggedPercent`, and
+`hermesEvidenceToken` for every iteration. `hermesFrameSelfJankTaggedCount` is
+the Perfetto visualization tag `Self Jank`, not proof of causal ownership. It
+is a non-headline visualization-tag diagnostic and must equal
+app-deadline-missed plus non-deadline Self Jank-tagged tokens.
+`hermesFrameOtherJankTaggedCount` only records the Perfetto visualization tag
+`Other Jank`; it is a non-gating diagnostic and makes no causal claim about
+SurfaceFlinger, the emulator, or the system. Dropped, unknown-tag, or
+overlapping Self/Other-tag tokens invalidate the evidence instead of
+disappearing from the surface-token denominator.
 The metric always returns structurally valid counts, even when the performance
 budget fails, so the complete JSON and traces remain available for diagnosis.
 The host evidence validator sums all five iterations, requires at least 100
-measured Hermes frames, and rejects aggregate jank above 10 percent. Preserve
+FrameTiming samples and at least 100 distinct Hermes surface-frame tokens. Its
+controlled AVD gate is the share of exact `App Deadline Missed` surface tokens,
+using distinct Hermes surface-frame tokens as its denominator; it rejects an
+aggregate share above 10 percent. Perfetto Self Jank-tagged percentage is
+separately recomputed over the same surface-token population as a non-gating
+visualization-tag diagnostic. Positive raw AndroidX `frameOverrunMs` sample
+count and percentage are preserved with the separate FrameTiming sample
+denominator, but are non-gating AVD buffer-queue diagnostics. Trace inspection
+showed emulator Buffer Stuffing and sleeping EGL swap/dequeue waits dominate
+those positive samples, so this lane does not present them as a physical-device
+or user-visible late-frame claim. Zero is not counted as a positive overrun.
+The controlled AVD still has an app-work gate over AndroidX
+`frameDurationCpuMs`: pooled P95 must be at most 50 ms and pooled P99 at most
+100 ms. The preserved run is comfortably inside those ceilings; these bounds
+measure CPU frame work rather than promoting emulator buffer-queue delay to a
+physical-device performance claim.
+The normalized record calls the raw FrameTiming denominator
+`frame_timing_total_rendered`, its diagnostic numerator and percentage
+`frame_timing_overrun_positive` and
+`frame_timing_overrun_positive_percent`, and the distinct Perfetto denominator
+`perfetto_surface_frame_timeline_tokens`. All pooled tag/timeline values use a
+`perfetto_` prefix; the schema never
+implies that those populations reconcile or have the same size. Preserve
 the JSON report and every `.perfetto-trace` from
 `macrobenchmark/build/outputs/connected_android_test_additional_output/benchmark/`.
 
@@ -326,9 +359,17 @@ devices. This hardware-accelerated AVD lane therefore suppresses only the
 `EMULATOR` configuration error and is suitable for this release's controlled
 AVD comparison, not a claim about physical-device latency. Never suppress
 `DEBUGGABLE` or `NOT-PROFILEABLE`; either condition invalidates the run.
-AndroidX serializes `CompilationMode.Full()` as the package-manager compiler
-filter `context.compilationMode = "speed"`; the normalized v2 record calls the
-same mode `Full` and the validator requires that exact mapping.
+AndroidX BenchmarkData 1.4.1 derives `context.compilationMode` from the
+instrumentation `targetContext`. Hermes' benchmark APK is self-instrumenting,
+so its exact reporting-package value is `run-from-apk`; that field does not
+describe the measured Hermes application. The normalized v2 record therefore
+keeps the requested `compilation_mode = "Full"`, records
+`reporting_package_compilation_mode = "run-from-apk"`, and independently
+records `target_compiler_filter = "speed"`. The latter comes from exact raw
+`adb -s <serial> shell cmd package dump com.mobilefork.hermesagent` captures
+before host launch measurement and after final identity verification. Both
+captures must contain one unambiguous API 35 `Dexopt state` status for the
+installed target base APK, and that status must be `speed`.
 
 #### Live performance collector
 
@@ -546,8 +587,10 @@ ABIs, boot UUID, installed app/test APK hashes, and installed version. On the
 host it resolves exactly one matching live `qemu-system-*` process through
 Windows CIM and verifies its actual PID and raw command in memory. It persists
 only a deterministic public-safe canonical command plus public/raw SHA-256
-digests. It also requires a
-successful `emulator -accel-check`, a hardware SurfaceFlinger renderer, and a
+digests. Before launching Hermes it captures the target base APK's exact
+package-manager Dexopt status and requires `speed`; after all measurement and
+identity checks it repeats the same raw command and rejects any drift. It also
+requires a successful `emulator -accel-check`, a hardware SurfaceFlinger renderer, and a
 headed command containing exactly one effective `-gpu host` and `-accel on`.
 
 For the host measurements it records effective `wm` size/density and cold/warm
@@ -575,8 +618,16 @@ The collector never creates a frame claim from host gestures or shell renderer
 counters. It strictly parses the already completed AndroidX report, requires
 five to twenty iterations and one nonempty trace per iteration, recomputes the
 pooled AndroidX percentiles from the raw sample arrays, and enforces at least
-100 pooled FrameTiming frames, at least 100 pooled Hermes Perfetto frames, and
-the 10 percent jank budget. It atomically commits the normalized JSON, host raw
+100 pooled FrameTiming samples, at least 100 pooled Hermes Perfetto surface
+tokens, and the 10 percent `App Deadline Missed` controlled-AVD budget.
+Positive `frameOverrunMs` count and percentage remain bound diagnostics without
+a threshold in this AVD-only lane. Pooled `frameDurationCpuMs` P95 and P99 must
+remain at or below 50 ms and 100 ms respectively. FrameTiming samples and Perfetto
+surface-frame tokens keep distinct, explicitly named denominators.
+App-deadline-missed plus non-deadline Self Jank-tagged tokens must reproduce the Perfetto Self
+Jank-tagged total. The `Other Jank`-tagged count is diagnostic only and carries no
+causal attribution; dropped, unknown-tag, and overlapping-tag counts must all
+be zero. It atomically commits the normalized JSON, host raw
 JSON, untouched Macrobenchmark raw JSON, and canonical iteration traces; raw
 diagnostics go first and the normalized claim last. The source identity is
 rechecked between replacements, and any failure restores every prior artifact.

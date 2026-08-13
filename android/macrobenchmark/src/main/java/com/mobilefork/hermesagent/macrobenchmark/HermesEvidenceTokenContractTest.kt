@@ -3,12 +3,27 @@ package com.mobilefork.hermesagent.macrobenchmark
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class HermesEvidenceTokenContractTest {
+    @Test
+    fun frameMetricRequiresExactlyOneTargetProcessPlaceholder() {
+        val placeholder = "__HERMES_TARGET_PROCESS_SQL_PREDICATE__"
+        val valid = "SELECT * FROM process WHERE $placeholder"
+
+        assertEquals(valid, requireSingleTargetProcessPlaceholder(valid))
+        assertThrows(IllegalStateException::class.java) {
+            requireSingleTargetProcessPlaceholder("SELECT * FROM process")
+        }
+        assertThrows(IllegalStateException::class.java) {
+            requireSingleTargetProcessPlaceholder("$placeholder OR $placeholder")
+        }
+    }
+
     @Test
     fun canonicalIdentityProducesStable52BitToken() {
         val token = hermesEvidenceToken(
