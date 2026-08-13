@@ -1,14 +1,107 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -euo pipefail
 
 # Run inside the official F-Droid buildserver-trixie container with this
 # repository (or a fdroiddata checkout containing its metadata) at /workspace.
 APP_ID="${APP_ID:-com.mobilefork.hermesagent}"
 VERSION_CODE="${VERSION_CODE:-144790}"
-FDROIDSERVER_COMMIT="${FDROIDSERVER_COMMIT:-00932d0a715b43b3ecf8da44826abf2ba65dd8b4}"
-GRADLEW_FDROID_COMMIT="${GRADLEW_FDROID_COMMIT:-c7227d147483979bb5c408048cee3533a8814fb0}"
+readonly BUILDSERVER_IMAGE="registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9bae53bb4ddbf8fa5bb7385bf2e62e7c6318f99ab0d25b2a551ad38abb528068"
+readonly BUILDSERVER_REVISION="4a8821a58659901c63315cb000b0e98525653bc5"
+readonly FDROIDSERVER_COMMIT="$BUILDSERVER_REVISION"
+readonly FDROIDSERVER_ARCHIVE_URL="https://gitlab.com/fdroid/fdroidserver/-/archive/${FDROIDSERVER_COMMIT}/fdroidserver-${FDROIDSERVER_COMMIT}.tar.gz"
+readonly FDROIDSERVER_ARCHIVE_SHA256="8b2f87ef6e278a49f70b98fe0ff007465524f41c15ba212f686f4239a7323909"
+readonly FDROIDSERVER_ARCHIVE_SIZE_BYTES="8336107"
+readonly GRADLEW_FDROID_COMMIT="c7227d147483979bb5c408048cee3533a8814fb0"
+readonly GRADLE_MAX_WORKERS="12"
+readonly GRADLE_OPTS="-Dorg.gradle.workers.max=${GRADLE_MAX_WORKERS} -Dorg.gradle.parallel=true"
+readonly BUILDSERVER_ID_FILE=/home/vagrant/buildserverid
+readonly VAGRANT_ENV_MODE="env-i"
+readonly VAGRANT_ENV_REQUIRED_NAMES="PATH,PYTHONPATH,PYTHONUNBUFFERED,HOME,GRADLE_USER_HOME,GRADLE_OPTS,TERM,LC_ALL,LANG,ANDROID_HOME"
+readonly VAGRANT_ENV_OPTIONAL_NAMES="ANDROID_SDK,ANDROID_SDK_ROOT,JAVA_HOME"
 FDROIDSERVER_DIR=/home/vagrant/fdroidserver
 GRADLEW_FDROID_DIR=/home/vagrant/gradlew-fdroid
+
+export GRADLE_OPTS
+
+fail() {
+  printf 'Hermes F-Droid toolchain error: %s\n' "$*" >&2
+  return 1
+}
+
+validate_toolchain_contract() {
+  [[ "$BUILDSERVER_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]] \
+    || fail "buildserver image is not pinned by a full SHA-256 digest"
+  [[ "$BUILDSERVER_REVISION" =~ ^[0-9a-f]{40}$ ]] \
+    || fail "buildserver revision is not a full Git commit"
+  [[ "$FDROIDSERVER_COMMIT" =~ ^[0-9a-f]{40}$ ]] \
+    || fail "fdroidserver revision is not a full Git commit"
+  [[ "$FDROIDSERVER_ARCHIVE_URL" == "https://gitlab.com/fdroid/fdroidserver/-/archive/${FDROIDSERVER_COMMIT}/fdroidserver-${FDROIDSERVER_COMMIT}.tar.gz" ]] \
+    || fail "fdroidserver archive URL does not match the pinned commit"
+  [[ "$FDROIDSERVER_ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]] \
+    || fail "fdroidserver archive is not pinned by a full SHA-256 digest"
+  [[ "$FDROIDSERVER_ARCHIVE_SIZE_BYTES" =~ ^[1-9][0-9]*$ ]] \
+    || fail "fdroidserver archive size must be a positive integer"
+  [[ "$GRADLEW_FDROID_COMMIT" =~ ^[0-9a-f]{40}$ ]] \
+    || fail "gradlew-fdroid revision is not a full Git commit"
+  [[ "$FDROIDSERVER_COMMIT" == "$BUILDSERVER_REVISION" ]] \
+    || fail "fdroidserver revision does not match the buildserver image revision"
+  [[ "$GRADLE_MAX_WORKERS" =~ ^[1-9][0-9]*$ ]] \
+    || fail "Gradle worker count must be a positive integer"
+}
+
+print_contract() {
+  printf 'BUILDSERVER_IMAGE=%s\n' "$BUILDSERVER_IMAGE"
+  printf 'BUILDSERVER_REVISION=%s\n' "$BUILDSERVER_REVISION"
+  printf 'FDROIDSERVER_COMMIT=%s\n' "$FDROIDSERVER_COMMIT"
+  printf 'FDROIDSERVER_ARCHIVE_URL=%s\n' "$FDROIDSERVER_ARCHIVE_URL"
+  printf 'FDROIDSERVER_ARCHIVE_SHA256=%s\n' "$FDROIDSERVER_ARCHIVE_SHA256"
+  printf 'FDROIDSERVER_ARCHIVE_SIZE_BYTES=%s\n' "$FDROIDSERVER_ARCHIVE_SIZE_BYTES"
+  printf 'GRADLEW_FDROID_COMMIT=%s\n' "$GRADLEW_FDROID_COMMIT"
+  printf 'GRADLE_MAX_WORKERS=%s\n' "$GRADLE_MAX_WORKERS"
+  printf 'GRADLE_OPTS=%s\n' "$GRADLE_OPTS"
+  printf 'VAGRANT_ENV_MODE=%s\n' "$VAGRANT_ENV_MODE"
+  printf 'VAGRANT_ENV_REQUIRED_NAMES=%s\n' "$VAGRANT_ENV_REQUIRED_NAMES"
+  printf 'VAGRANT_ENV_OPTIONAL_NAMES=%s\n' "$VAGRANT_ENV_OPTIONAL_NAMES"
+}
+
+verify_buildserver_id() {
+  local id_file="$1"
+  local actual_revision
+
+  [[ -r "$id_file" ]] || fail "buildserver ID is not readable: $id_file"
+  actual_revision="$(tr -d '\r\n' < "$id_file")"
+  [[ "$actual_revision" == "$BUILDSERVER_REVISION" ]] \
+    || fail "buildserver ID $actual_revision does not match expected revision $BUILDSERVER_REVISION"
+  printf 'Verified F-Droid buildserver revision %s\n' "$actual_revision"
+}
+
+usage() {
+  printf 'Usage: %s [--print-contract | --verify-buildserver-id PATH]\n' "${0##*/}" >&2
+}
+
+validate_toolchain_contract
+case "${1:-}" in
+  --print-contract)
+    [[ "$#" -eq 1 ]] || { usage; exit 64; }
+    print_contract
+    exit 0
+    ;;
+  --verify-buildserver-id)
+    [[ "$#" -eq 2 ]] || { usage; exit 64; }
+    verify_buildserver_id "$2"
+    exit 0
+    ;;
+  "")
+    ;;
+  *)
+    usage
+    exit 64
+    ;;
+esac
+
+# Fail before downloads if the caller used a different buildserver image.
+verify_buildserver_id "$BUILDSERVER_ID_FILE"
+set -x
 
 source /etc/profile.d/bsenv.sh
 sdkmanager "build-tools;31.0.0"
@@ -16,9 +109,23 @@ test -x /opt/android-sdk/build-tools/31.0.0/aapt
 
 rm -rf "$FDROIDSERVER_DIR"
 mkdir -p "$FDROIDSERVER_DIR"
+fdroidserver_archive="$(mktemp --tmpdir=/tmp "hermes-fdroidserver-${FDROIDSERVER_COMMIT}.XXXXXXXXXX")"
+cleanup_fdroidserver_archive() {
+  rm -f -- "$fdroidserver_archive"
+}
+trap cleanup_fdroidserver_archive EXIT
+[[ -f "$fdroidserver_archive" && ! -L "$fdroidserver_archive" ]] \
+  || fail "fdroidserver archive temporary path is not a regular file"
 curl --fail --location --silent --show-error \
-  "https://gitlab.com/fdroid/fdroidserver/-/archive/${FDROIDSERVER_COMMIT}/fdroidserver-${FDROIDSERVER_COMMIT}.tar.gz" \
-  | tar -xz --directory="$FDROIDSERVER_DIR" --strip-components=1
+  --max-filesize "$FDROIDSERVER_ARCHIVE_SIZE_BYTES" \
+  --output "$fdroidserver_archive" \
+  "$FDROIDSERVER_ARCHIVE_URL"
+test "$(stat --format='%s' "$fdroidserver_archive")" = "$FDROIDSERVER_ARCHIVE_SIZE_BYTES"
+printf '%s  %s\n' "$FDROIDSERVER_ARCHIVE_SHA256" "$fdroidserver_archive" \
+  | sha256sum --check --strict -
+tar -xzf "$fdroidserver_archive" --directory="$FDROIDSERVER_DIR" --strip-components=1
+rm -f -- "$fdroidserver_archive"
+trap - EXIT
 git -C "$GRADLEW_FDROID_DIR" fetch --force origin "$GRADLEW_FDROID_COMMIT"
 git -C "$GRADLEW_FDROID_DIR" checkout --detach --force "$GRADLEW_FDROID_COMMIT"
 test "$(git -C "$GRADLEW_FDROID_DIR" rev-parse HEAD)" = "$GRADLEW_FDROID_COMMIT"
@@ -40,21 +147,36 @@ export PYTHONUNBUFFERED=true
 export GRADLE_USER_HOME=/home/vagrant/.gradle
 export TERM=dumb
 
+[[ -n "${ANDROID_HOME:-}" ]] || fail "bsenv did not define ANDROID_HOME"
+VAGRANT_ENV=(
+  "PATH=$PATH"
+  "PYTHONPATH=$PYTHONPATH"
+  "PYTHONUNBUFFERED=$PYTHONUNBUFFERED"
+  "HOME=/home/vagrant"
+  "GRADLE_USER_HOME=$GRADLE_USER_HOME"
+  "GRADLE_OPTS=$GRADLE_OPTS"
+  "TERM=$TERM"
+  "LC_ALL=C.UTF-8"
+  "LANG=C.UTF-8"
+  "ANDROID_HOME=$ANDROID_HOME"
+)
+for optional_name in ANDROID_SDK ANDROID_SDK_ROOT JAVA_HOME; do
+  if [[ -n "${!optional_name:-}" ]]; then
+    VAGRANT_ENV+=("${optional_name}=${!optional_name}")
+  fi
+done
+readonly -a VAGRANT_ENV
+
 run_fdroid() {
-  sudo --preserve-env --user vagrant env \
-    "PATH=$PATH" \
-    "PYTHONPATH=$PYTHONPATH" \
-    PYTHONUNBUFFERED=true \
-    TERM=dumb \
-    HOME=/home/vagrant \
-    "GRADLE_USER_HOME=$GRADLE_USER_HOME" \
+  sudo -u vagrant env -i \
+    "${VAGRANT_ENV[@]}" \
     fdroid "$@"
 }
 
 cd /home/vagrant
 if [ -d "build/${APP_ID}/.git" ]; then
-  sudo --preserve-env --user vagrant env \
-    HOME=/home/vagrant \
+  sudo -u vagrant env -i \
+    "${VAGRANT_ENV[@]}" \
     git -C "build/${APP_ID}" fetch --prune --tags --force origin
 fi
 run_fdroid fetchsrclibs "${APP_ID}:${VERSION_CODE}" --verbose
