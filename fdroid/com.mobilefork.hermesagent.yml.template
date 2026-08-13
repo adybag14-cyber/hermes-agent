@@ -1,7 +1,9 @@
-# Draft fdroiddata metadata for Hermes Agent Fork.
-# Copy this to fdroiddata/metadata/com.mobilefork.hermesagent.yml, then
-# keep the source commit, Binaries URL, and AllowedAPKSigningKeys aligned with
-# the signed GitHub release for reproducible-build verification.
+# Candidate fdroiddata metadata for Hermes Agent Fork.
+# Do not overwrite the live fdroiddata metadata with this template. Start from
+# a fresh Linux checkout, merge only the new release fields, and preserve all
+# prior Builds entries and maintained metadata. Review that diff, then keep the
+# source commit, Binaries URL, and AllowedAPKSigningKeys aligned with the signed
+# GitHub release for reproducible-build verification.
 
 AntiFeatures:
   NonFreeNet:
