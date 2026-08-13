@@ -113,8 +113,11 @@ def _macro_report(
     iterations: int = 5,
     frames_per_iteration: int = 24,
     self_jank_tagged_per_iteration: int = 1,
+    app_deadline_missed_per_iteration: int | None = None,
     other_jank_tagged_per_iteration: int = 2,
     dropped_per_iteration: int = 0,
+    deadline_dropped_overlap_per_iteration: int = 0,
+    app_deadline_missed_or_dropped_per_iteration: int | None = None,
     unknown_tag_per_iteration: int = 0,
     overlapping_jank_tag_per_iteration: int = 0,
     positive_overrun_per_iteration: int = 2,
@@ -123,8 +126,23 @@ def _macro_report(
     frame_counts = [frames_per_iteration] * iterations
     totals = [frames_per_iteration] * iterations
     self_jank_tagged = [self_jank_tagged_per_iteration] * iterations
-    deadline = [self_jank_tagged_per_iteration] * iterations
-    non_deadline_self = [0] * iterations
+    deadline_per_iteration = (
+        self_jank_tagged_per_iteration
+        if app_deadline_missed_per_iteration is None
+        else app_deadline_missed_per_iteration
+    )
+    deadline = [deadline_per_iteration] * iterations
+    deadline_or_dropped_per_iteration = (
+        deadline_per_iteration
+        + dropped_per_iteration
+        - deadline_dropped_overlap_per_iteration
+        if app_deadline_missed_or_dropped_per_iteration is None
+        else app_deadline_missed_or_dropped_per_iteration
+    )
+    deadline_or_dropped = [deadline_or_dropped_per_iteration] * iterations
+    non_deadline_self = [
+        self_jank_tagged_per_iteration - deadline_per_iteration
+    ] * iterations
     other_jank_tagged = [other_jank_tagged_per_iteration] * iterations
     dropped = [dropped_per_iteration] * iterations
     unknown_tag = [unknown_tag_per_iteration] * iterations
@@ -189,6 +207,9 @@ def _macro_report(
                         self_jank_tagged
                     ),
                     "hermesFrameAppDeadlineMissedCount": _single_metric(deadline),
+                    "hermesFrameAppDeadlineMissedOrDroppedCount": _single_metric(
+                        deadline_or_dropped
+                    ),
                     "hermesFrameNonDeadlineSelfJankTaggedCount": _single_metric(
                         non_deadline_self
                     ),
@@ -278,8 +299,11 @@ def _inputs(
     iterations: int = 5,
     frames_per_iteration: int = 24,
     self_jank_tagged_per_iteration: int = 1,
+    app_deadline_missed_per_iteration: int | None = None,
     other_jank_tagged_per_iteration: int = 2,
     dropped_per_iteration: int = 0,
+    deadline_dropped_overlap_per_iteration: int = 0,
+    app_deadline_missed_or_dropped_per_iteration: int | None = None,
     unknown_tag_per_iteration: int = 0,
     overlapping_jank_tag_per_iteration: int = 0,
     positive_overrun_per_iteration: int = 2,
@@ -295,8 +319,15 @@ def _inputs(
                 iterations=iterations,
                 frames_per_iteration=frames_per_iteration,
                 self_jank_tagged_per_iteration=self_jank_tagged_per_iteration,
+                app_deadline_missed_per_iteration=app_deadline_missed_per_iteration,
                 other_jank_tagged_per_iteration=other_jank_tagged_per_iteration,
                 dropped_per_iteration=dropped_per_iteration,
+                deadline_dropped_overlap_per_iteration=(
+                    deadline_dropped_overlap_per_iteration
+                ),
+                app_deadline_missed_or_dropped_per_iteration=(
+                    app_deadline_missed_or_dropped_per_iteration
+                ),
                 unknown_tag_per_iteration=unknown_tag_per_iteration,
                 overlapping_jank_tag_per_iteration=overlapping_jank_tag_per_iteration,
                 positive_overrun_per_iteration=positive_overrun_per_iteration,
@@ -563,6 +594,12 @@ def test_collector_produces_validator_accepted_macrobenchmark_v2(
     assert payload["frames"]["perfetto_self_jank_tagged"] == 5
     assert payload["frames"]["perfetto_app_deadline_missed"] == 5
     assert payload["frames"]["perfetto_app_deadline_missed_percent"] == 100 / 24
+    assert payload["frames"]["perfetto_app_deadline_missed_or_dropped"] == 5
+    assert (
+        payload["frames"]["perfetto_app_deadline_missed_or_dropped_percent"]
+        == 100 / 24
+    )
+    assert payload["frames"]["perfetto_app_deadline_missed_and_dropped"] == 0
     assert payload["frames"]["perfetto_non_deadline_self_jank_tagged"] == 0
     assert payload["frames"]["perfetto_other_jank_tagged"] == 10
     assert payload["frames"]["perfetto_dropped"] == 0
@@ -704,7 +741,7 @@ def test_invocation_rejects_any_suppression_beyond_emulator(collector_module, tm
 
 
 @pytest.mark.parametrize(
-        ("options", "message"),
+    ("options", "message"),
     [
         ({"iterations": 4}, "5 to 20"),
         ({"frames_per_iteration": 10}, "at least 100"),
@@ -728,15 +765,14 @@ def test_iteration_frame_and_jank_gates_fail_closed(
     ("options", "message"),
     (
         ({"other_jank_tagged_per_iteration": 24}, "jank counts"),
-        ({"dropped_per_iteration": 1}, "dropped, unknown-tag, or overlapping-tag"),
-        ({"unknown_tag_per_iteration": 1}, "dropped, unknown-tag, or overlapping-tag"),
+        ({"unknown_tag_per_iteration": 1}, "unknown-tag or overlapping Self/Other-tag"),
         (
             {"overlapping_jank_tag_per_iteration": 1},
-            "dropped, unknown-tag, or overlapping-tag",
+            "unknown-tag or overlapping Self/Other-tag",
         ),
     ),
 )
-def test_other_tag_dropped_unknown_and_overlap_perfetto_counts_fail_closed(
+def test_other_unknown_and_self_other_overlap_perfetto_counts_fail_closed(
     collector_module, tmp_path, options, message
 ):
     config = _config(collector_module, tmp_path, **options)
@@ -747,6 +783,128 @@ def test_other_tag_dropped_unknown_and_overlap_perfetto_counts_fail_closed(
         StaticSourceVerifier(collector_module),
     )
     with pytest.raises(collector_module.CollectorError, match=message):
+        collector.collect()
+
+
+def test_nonzero_dropped_frames_are_budgeted_with_deadline_misses(
+    collector_module, tmp_path
+):
+    _, payload, _, _, _ = _collect(
+        collector_module,
+        tmp_path,
+        dropped_per_iteration=1,
+    )
+
+    assert payload["frames"]["perfetto_dropped"] == 5
+    assert payload["frames"]["perfetto_app_deadline_missed_or_dropped"] == 10
+    assert (
+        payload["frames"]["perfetto_app_deadline_missed_or_dropped_percent"]
+        == 100 / 12
+    )
+    assert payload["frames"]["perfetto_app_deadline_missed_and_dropped"] == 0
+    assert all(
+        iteration["perfetto_dropped_frames"] == 1
+        and iteration["perfetto_app_deadline_missed_or_dropped_frames"] == 2
+        and iteration["perfetto_app_deadline_missed_and_dropped_frames"] == 0
+        for iteration in payload["frames"]["iterations"]
+    )
+
+
+def test_deadline_and_dropped_overlap_is_derived_from_union(
+    collector_module, tmp_path
+):
+    _, payload, _, _, _ = _collect(
+        collector_module,
+        tmp_path,
+        dropped_per_iteration=1,
+        deadline_dropped_overlap_per_iteration=1,
+    )
+
+    assert payload["frames"]["perfetto_app_deadline_missed_or_dropped"] == 5
+    assert payload["frames"]["perfetto_app_deadline_missed_and_dropped"] == 5
+    assert all(
+        iteration["perfetto_app_deadline_missed_or_dropped_frames"] == 1
+        and iteration["perfetto_app_deadline_missed_and_dropped_frames"] == 1
+        for iteration in payload["frames"]["iterations"]
+    )
+
+
+def test_combined_deadline_and_dropped_budget_accepts_exact_ten_percent(
+    collector_module, tmp_path
+):
+    _, payload, _, _, _ = _collect(
+        collector_module,
+        tmp_path,
+        frames_per_iteration=20,
+        dropped_per_iteration=1,
+    )
+
+    assert (
+        payload["frames"]["perfetto_app_deadline_missed_or_dropped_percent"]
+        == 10.0
+    )
+
+
+@pytest.mark.parametrize(
+    "options",
+    (
+        {
+            "frames_per_iteration": 20,
+            "self_jank_tagged_per_iteration": 3,
+        },
+        {
+            "frames_per_iteration": 20,
+            "self_jank_tagged_per_iteration": 0,
+            "dropped_per_iteration": 3,
+        },
+        {
+            "frames_per_iteration": 20,
+            "self_jank_tagged_per_iteration": 1,
+            "dropped_per_iteration": 2,
+        },
+    ),
+    ids=("deadline", "dropped", "combined"),
+)
+def test_combined_deadline_and_dropped_budget_rejects_each_over_ten_source(
+    collector_module, tmp_path, options
+):
+    config = _config(collector_module, tmp_path, **options)
+    collector = collector_module.PerformanceCollector(
+        config,
+        FixtureExecutor(collector_module),
+        StaticProcessSource(collector_module),
+        StaticSourceVerifier(collector_module),
+    )
+
+    with pytest.raises(
+        collector_module.CollectorError,
+        match="App Deadline Missed or Dropped Frame",
+    ):
+        collector.collect()
+
+
+@pytest.mark.parametrize(
+    "union_per_iteration",
+    (0, 3),
+    ids=("below-max", "above-sum"),
+)
+def test_deadline_dropped_union_divergence_fails_closed(
+    collector_module, tmp_path, union_per_iteration
+):
+    config = _config(
+        collector_module,
+        tmp_path,
+        dropped_per_iteration=1,
+        app_deadline_missed_or_dropped_per_iteration=union_per_iteration,
+    )
+    collector = collector_module.PerformanceCollector(
+        config,
+        FixtureExecutor(collector_module),
+        StaticProcessSource(collector_module),
+        StaticSourceVerifier(collector_module),
+    )
+
+    with pytest.raises(collector_module.CollectorError, match="union does not reconcile"):
         collector.collect()
 
 
@@ -800,26 +958,6 @@ def test_positive_frame_overrun_is_a_nongating_avd_diagnostic(
         and iteration["frame_timing_overrun_positive_percent"] == 15.0
         for iteration in high_overrun_payload["frames"]["iterations"]
     )
-
-
-def test_app_deadline_missed_surface_tokens_enforce_ten_percent_avd_budget(
-    collector_module, tmp_path
-):
-    config = _config(
-        collector_module,
-        tmp_path,
-        frames_per_iteration=20,
-        self_jank_tagged_per_iteration=3,
-        positive_overrun_per_iteration=0,
-    )
-    collector = collector_module.PerformanceCollector(
-        config,
-        FixtureExecutor(collector_module),
-        StaticProcessSource(collector_module),
-        StaticSourceVerifier(collector_module),
-    )
-    with pytest.raises(collector_module.CollectorError, match="App Deadline Missed"):
-        collector.collect()
 
 
 @pytest.mark.parametrize(

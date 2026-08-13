@@ -64,15 +64,36 @@ def test_frame_metric_deduplicates_target_frames_and_reconciles_jank_categories(
         """
     )
 
-    total, janky, app_deadline, other, other_tagged, overlap, dropped, unknown = _query_counts(
+    (
+        total,
+        janky,
+        app_deadline,
+        app_deadline_or_dropped,
+        other,
+        other_tagged,
+        overlap,
+        dropped,
+        unknown,
+    ) = _query_counts(
         connection,
         "com.mobilefork.hermesagent",
     )
 
-    assert (total, janky, app_deadline, other, other_tagged, overlap, dropped, unknown) == (
+    assert (
+        total,
+        janky,
+        app_deadline,
+        app_deadline_or_dropped,
+        other,
+        other_tagged,
+        overlap,
+        dropped,
+        unknown,
+    ) == (
         8,
         2,
         1,
+        2,
         1,
         1,
         0,
@@ -81,6 +102,8 @@ def test_frame_metric_deduplicates_target_frames_and_reconciles_jank_categories(
     )
     assert app_deadline + other == janky
     assert janky + other_tagged <= total
+    assert max(app_deadline, dropped) <= app_deadline_or_dropped
+    assert app_deadline_or_dropped <= app_deadline + dropped
 
 
 def test_frame_metric_escapes_target_process_and_returns_zero_counts():
@@ -99,7 +122,17 @@ def test_frame_metric_escapes_target_process_and_returns_zero_counts():
         """
     )
 
-    assert _query_counts(connection, "com.example.o'hare") == (0, 0, 0, 0, 0, 0, 0, 0)
+    assert _query_counts(connection, "com.example.o'hare") == (
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
 
 
 def test_frame_metric_accepts_full_subprocess_and_perfetto_truncated_names():
@@ -129,7 +162,17 @@ def test_frame_metric_accepts_full_subprocess_and_perfetto_truncated_names():
         """
     )
 
-    assert _query_counts(connection, package_name) == (3, 1, 1, 0, 0, 0, 0, 0)
+    assert _query_counts(connection, package_name) == (
+        3,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+    )
 
 
 def test_frame_metric_exposes_conflicting_self_and_other_tags_for_one_token():
@@ -156,9 +199,36 @@ def test_frame_metric_exposes_conflicting_self_and_other_tags_for_one_token():
         2,
         1,
         1,
+        1,
         0,
         1,
         1,
         0,
         0,
     )
+
+
+def test_frame_metric_deduplicates_deadline_and_dropped_overlap_for_one_token():
+    connection = sqlite3.connect(":memory:")
+    connection.executescript(
+        """
+        CREATE TABLE process (upid INTEGER PRIMARY KEY, name TEXT NOT NULL);
+        CREATE TABLE actual_frame_timeline_slice (
+            upid INTEGER NOT NULL,
+            surface_frame_token INTEGER,
+            dur INTEGER NOT NULL,
+            jank_type TEXT,
+            jank_tag TEXT
+        );
+        INSERT INTO process VALUES (1, 'com.mobilefork.hermesagent');
+        INSERT INTO actual_frame_timeline_slice VALUES
+            (1, 101, 16000000, 'App Deadline Missed', 'Self Jank'),
+            (1, 101, 16000000, 'Dropped Frame', 'Dropped Frame'),
+            (1, 102, 16000000, 'None', 'No Jank');
+        """
+    )
+
+    counts = _query_counts(connection, "com.mobilefork.hermesagent")
+    assert counts == (2, 1, 1, 1, 0, 0, 0, 1, 0)
+    _, _, deadline, union, _, _, _, dropped, _ = counts
+    assert deadline + dropped - union == 1

@@ -2081,6 +2081,7 @@ def _expected_frames_from_macrobenchmark(
         "hermesFrameTotalCount",
         "hermesFrameSelfJankTaggedCount",
         "hermesFrameAppDeadlineMissedCount",
+        "hermesFrameAppDeadlineMissedOrDroppedCount",
         "hermesFrameNonDeadlineSelfJankTaggedCount",
         "hermesFrameOtherJankTaggedCount",
         "hermesFrameDroppedCount",
@@ -2103,6 +2104,12 @@ def _expected_frames_from_macrobenchmark(
     deadline = _androidx_metric_runs(
         metrics, "hermesFrameAppDeadlineMissedCount", iterations, integral=True
     )
+    deadline_or_dropped = _androidx_metric_runs(
+        metrics,
+        "hermesFrameAppDeadlineMissedOrDroppedCount",
+        iterations,
+        integral=True,
+    )
     non_deadline_self_jank_tagged = _androidx_metric_runs(
         metrics, "hermesFrameNonDeadlineSelfJankTaggedCount", iterations, integral=True
     )
@@ -2124,6 +2131,7 @@ def _expected_frames_from_macrobenchmark(
     assert isinstance(totals, list)
     assert isinstance(self_jank_tagged, list)
     assert isinstance(deadline, list)
+    assert isinstance(deadline_or_dropped, list)
     assert isinstance(non_deadline_self_jank_tagged, list)
     assert isinstance(other_jank_tagged, list)
     assert isinstance(dropped, list)
@@ -2161,6 +2169,7 @@ def _expected_frames_from_macrobenchmark(
         total = int(totals[index])
         self_jank_tagged_count = int(self_jank_tagged[index])
         deadline_count = int(deadline[index])
+        deadline_or_dropped_count = int(deadline_or_dropped[index])
         non_deadline_self_jank_tagged_count = int(
             non_deadline_self_jank_tagged[index]
         )
@@ -2187,12 +2196,33 @@ def _expected_frames_from_macrobenchmark(
             raise EvidenceError(
                 f"{context} iteration {index + 1} dropped/unknown/overlap counts exceed surface tokens"
             )
-        if dropped_count != 0 or unknown_tag_count != 0 or overlapping_jank_tag_count != 0:
+        if not (
+            max(deadline_count, dropped_count)
+            <= deadline_or_dropped_count
+            <= min(total, deadline_count + dropped_count)
+        ):
             raise EvidenceError(
-                f"{context} iteration {index + 1} contains dropped, unknown-tag, or overlapping-tag frames"
+                f"{context} iteration {index + 1} App Deadline Missed/Dropped Frame "
+                "union does not reconcile"
+            )
+        deadline_and_dropped_count = (
+            deadline_count + dropped_count - deadline_or_dropped_count
+        )
+        if not 0 <= deadline_and_dropped_count <= min(deadline_count, dropped_count):
+            raise EvidenceError(
+                f"{context} iteration {index + 1} App Deadline Missed/Dropped Frame "
+                "intersection does not reconcile"
+            )
+        if unknown_tag_count != 0 or overlapping_jank_tag_count != 0:
+            raise EvidenceError(
+                f"{context} iteration {index + 1} contains unknown-tag or overlapping "
+                "Self/Other-tag frames"
             )
         expected_self_tagged_percent = self_jank_tagged_count * 100.0 / total
         app_deadline_missed_percent = deadline_count * 100.0 / total
+        app_deadline_missed_or_dropped_percent = (
+            deadline_or_dropped_count * 100.0 / total
+        )
         if (
             not 0 <= self_jank_tagged_percent <= 100
             or abs(self_jank_tagged_percent - expected_self_tagged_percent) > 1e-6
@@ -2212,6 +2242,15 @@ def _expected_frames_from_macrobenchmark(
                 "perfetto_self_jank_tagged_frames": self_jank_tagged_count,
                 "perfetto_app_deadline_missed_frames": deadline_count,
                 "perfetto_app_deadline_missed_percent": app_deadline_missed_percent,
+                "perfetto_app_deadline_missed_or_dropped_frames": (
+                    deadline_or_dropped_count
+                ),
+                "perfetto_app_deadline_missed_or_dropped_percent": (
+                    app_deadline_missed_or_dropped_percent
+                ),
+                "perfetto_app_deadline_missed_and_dropped_frames": (
+                    deadline_and_dropped_count
+                ),
                 "perfetto_non_deadline_self_jank_tagged_frames": (
                     non_deadline_self_jank_tagged_count
                 ),
@@ -2227,6 +2266,7 @@ def _expected_frames_from_macrobenchmark(
     total_frames = sum(int(value) for value in totals)
     self_jank_tagged_frames = sum(int(value) for value in self_jank_tagged)
     deadline_frames = sum(int(value) for value in deadline)
+    deadline_or_dropped_frames = sum(int(value) for value in deadline_or_dropped)
     non_deadline_self_jank_tagged_frames = sum(
         int(value) for value in non_deadline_self_jank_tagged
     )
@@ -2238,10 +2278,13 @@ def _expected_frames_from_macrobenchmark(
         raise EvidenceError(f"{context} must contain at least 100 aggregate frames")
     self_jank_tagged_percent = self_jank_tagged_frames * 100.0 / total_frames
     app_deadline_missed_percent = deadline_frames * 100.0 / total_frames
-    if app_deadline_missed_percent > 10.0:
+    app_deadline_missed_or_dropped_percent = (
+        deadline_or_dropped_frames * 100.0 / total_frames
+    )
+    if app_deadline_missed_or_dropped_percent > 10.0:
         raise EvidenceError(
-            f"{context} App Deadline Missed surface tokens exceed the 10% "
-            "controlled-AVD budget"
+            f"{context} App Deadline Missed or Dropped Frame surface tokens exceed "
+            "the 10% controlled-AVD budget"
         )
     if (
         deadline_frames + non_deadline_self_jank_tagged_frames
@@ -2250,13 +2293,27 @@ def _expected_frames_from_macrobenchmark(
         raise EvidenceError(f"{context} pooled jank categories do not reconcile")
     if self_jank_tagged_frames + other_jank_tagged_frames > total_frames:
         raise EvidenceError(f"{context} pooled Self/Other Jank tags exceed surface tokens")
+    if not (
+        max(deadline_frames, dropped_frames)
+        <= deadline_or_dropped_frames
+        <= min(total_frames, deadline_frames + dropped_frames)
+    ):
+        raise EvidenceError(
+            f"{context} pooled App Deadline Missed/Dropped Frame union does not reconcile"
+        )
+    deadline_and_dropped_frames = (
+        deadline_frames + dropped_frames - deadline_or_dropped_frames
+    )
+    if not 0 <= deadline_and_dropped_frames <= min(deadline_frames, dropped_frames):
+        raise EvidenceError(
+            f"{context} pooled App Deadline Missed/Dropped Frame intersection does not reconcile"
+        )
     if (
-        dropped_frames != 0
-        or unknown_tag_frames != 0
+        unknown_tag_frames != 0
         or overlapping_jank_tag_frames != 0
     ):
         raise EvidenceError(
-            f"{context} contains dropped, unknown-tag, or overlapping-tag Perfetto frames"
+            f"{context} contains unknown-tag or overlapping Self/Other-tag Perfetto frames"
         )
     overrun_positive = sum(
         value > 0.0 for iteration_values in overrun_runs for value in iteration_values
@@ -2300,6 +2357,11 @@ def _expected_frames_from_macrobenchmark(
         "perfetto_self_jank_tagged": self_jank_tagged_frames,
         "perfetto_app_deadline_missed": deadline_frames,
         "perfetto_app_deadline_missed_percent": app_deadline_missed_percent,
+        "perfetto_app_deadline_missed_or_dropped": deadline_or_dropped_frames,
+        "perfetto_app_deadline_missed_or_dropped_percent": (
+            app_deadline_missed_or_dropped_percent
+        ),
+        "perfetto_app_deadline_missed_and_dropped": deadline_and_dropped_frames,
         "perfetto_non_deadline_self_jank_tagged": non_deadline_self_jank_tagged_frames,
         "perfetto_other_jank_tagged": other_jank_tagged_frames,
         "perfetto_dropped": dropped_frames,
@@ -3023,11 +3085,12 @@ def build_manifest(
             "minimum_frame_timing_samples_per_profile": 100,
             "minimum_perfetto_surface_frame_timeline_tokens_per_profile": 100,
             "minimum_macrobenchmark_iterations_per_profile": 5,
-            "maximum_perfetto_app_deadline_missed_percent": 10.0,
+            "maximum_perfetto_app_deadline_missed_or_dropped_percent": 10.0,
             "maximum_frame_duration_cpu_p95_ms": MAX_FRAME_DURATION_CPU_P95_MS,
             "maximum_frame_duration_cpu_p99_ms": MAX_FRAME_DURATION_CPU_P99_MS,
             "frame_timing_positive_overrun_is_nongating_avd_buffer_queue_diagnostic": True,
-            "requires_zero_perfetto_dropped_unknown_or_overlapping_jank_tags": True,
+            "requires_zero_perfetto_unknown_or_overlapping_self_other_jank_tags": True,
+            "dropped_frames_are_budgeted_with_app_deadline_misses": True,
             "requires_hardware_accelerated_avd": True,
             "avd_metrics_are_validation_signals_not_end_user_benchmarks": True,
             "requires_host_raw_transcript": True,

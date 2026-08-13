@@ -60,6 +60,15 @@ SELECT
     COALESCE(
         SUM(
             CASE
+                WHEN is_app_deadline_missed = 1 OR is_dropped = 1
+                THEN 1 ELSE 0
+            END
+        ),
+        0
+    ) AS app_deadline_missed_or_dropped_frames,
+    COALESCE(
+        SUM(
+            CASE
                 WHEN is_self_jank_tagged = 1 AND is_app_deadline_missed = 0
                 THEN 1 ELSE 0
             END

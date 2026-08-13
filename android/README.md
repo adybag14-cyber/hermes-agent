@@ -245,7 +245,8 @@ basename, AVD/port/GPU/acceleration identity, and command hashes. The validator
 requires a positive accelerator result, one effective `-gpu host`, one
 effective `-accel on`, a headed window, at least five Macrobenchmark iterations
 and 100 pooled frames in both FrameTiming and Hermes Perfetto counts, no more
-than 10 percent pooled App Deadline Missed surface tokens, bounded
+than 10 percent pooled distinct surface tokens marked either App Deadline
+Missed or Dropped Frame, bounded
 launch/frame results, `PSS <= RSS`, and
 compact/tablet PSS/RSS ceilings of
 512/768 MiB and 768/1024 MiB respectively. It fully decodes screenshot pixels,
@@ -313,6 +314,7 @@ Macrobenchmark JSON distributions and one Perfetto trace per iteration. A
 custom `TraceMetric` queries Hermes-only `actual_frame_timeline_slice` rows and
 emits the single-value metrics `hermesFrameTotalCount`,
 `hermesFrameSelfJankTaggedCount`, `hermesFrameAppDeadlineMissedCount`,
+`hermesFrameAppDeadlineMissedOrDroppedCount`,
 `hermesFrameNonDeadlineSelfJankTaggedCount`, `hermesFrameOtherJankTaggedCount`,
 `hermesFrameDroppedCount`, `hermesFrameUnknownTagCount`,
 `hermesFrameOverlappingJankTagCount`, `hermesFrameSelfJankTaggedPercent`, and
@@ -322,16 +324,22 @@ is a non-headline visualization-tag diagnostic and must equal
 app-deadline-missed plus non-deadline Self Jank-tagged tokens.
 `hermesFrameOtherJankTaggedCount` only records the Perfetto visualization tag
 `Other Jank`; it is a non-gating diagnostic and makes no causal claim about
-SurfaceFlinger, the emulator, or the system. Dropped, unknown-tag, or
-overlapping Self/Other-tag tokens invalidate the evidence instead of
-disappearing from the surface-token denominator.
+SurfaceFlinger, the emulator, or the system. `hermesFrameDroppedCount` is
+preserved as a diagnostic and every dropped token is included in the gated
+App Deadline Missed-or-Dropped union instead of disappearing from the
+surface-token denominator. The union is computed after de-duplicating surface
+tokens, so a token carrying both conditions is counted once; the host derives
+and records that intersection as `deadline + dropped - union`. Unknown-tag or
+overlapping Self/Other-tag tokens invalidate the evidence.
 The metric always returns structurally valid counts, even when the performance
 budget fails, so the complete JSON and traces remain available for diagnosis.
 The host evidence validator sums all five iterations, requires at least 100
 FrameTiming samples and at least 100 distinct Hermes surface-frame tokens. Its
-controlled AVD gate is the share of exact `App Deadline Missed` surface tokens,
-using distinct Hermes surface-frame tokens as its denominator; it rejects an
-aggregate share above 10 percent. Perfetto Self Jank-tagged percentage is
+controlled AVD gate is the share of the exact union of `App Deadline Missed`
+and `Dropped Frame` surface tokens, using distinct Hermes surface-frame tokens
+as its denominator; it rejects an aggregate share above 10 percent. Each
+iteration must satisfy exact inclusion-exclusion bounds for the reported
+deadline, dropped, and union counts. Perfetto Self Jank-tagged percentage is
 separately recomputed over the same surface-token population as a non-gating
 visualization-tag diagnostic. Positive raw AndroidX `frameOverrunMs` sample
 count and percentage are preserved with the separate FrameTiming sample
@@ -619,15 +627,18 @@ counters. It strictly parses the already completed AndroidX report, requires
 five to twenty iterations and one nonempty trace per iteration, recomputes the
 pooled AndroidX percentiles from the raw sample arrays, and enforces at least
 100 pooled FrameTiming samples, at least 100 pooled Hermes Perfetto surface
-tokens, and the 10 percent `App Deadline Missed` controlled-AVD budget.
+tokens, and the 10 percent pooled `App Deadline Missed`-or-`Dropped Frame`
+controlled-AVD budget.
 Positive `frameOverrunMs` count and percentage remain bound diagnostics without
 a threshold in this AVD-only lane. Pooled `frameDurationCpuMs` P95 and P99 must
 remain at or below 50 ms and 100 ms respectively. FrameTiming samples and Perfetto
 surface-frame tokens keep distinct, explicitly named denominators.
 App-deadline-missed plus non-deadline Self Jank-tagged tokens must reproduce the Perfetto Self
 Jank-tagged total. The `Other Jank`-tagged count is diagnostic only and carries no
-causal attribution; dropped, unknown-tag, and overlapping-tag counts must all
-be zero. It atomically commits the normalized JSON, host raw
+causal attribution. Dropped tokens may be nonzero, but they are budgeted in the
+de-duplicated App Deadline Missed-or-Dropped union and must satisfy exact
+inclusion-exclusion reconciliation; unknown-tag and overlapping Self/Other-tag
+counts must be zero. It atomically commits the normalized JSON, host raw
 JSON, untouched Macrobenchmark raw JSON, and canonical iteration traces; raw
 diagnostics go first and the normalized claim last. The source identity is
 rechecked between replacements, and any failure restores every prior artifact.
