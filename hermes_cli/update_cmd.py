@@ -4356,6 +4356,12 @@ def _cmd_update_impl(args, gateway_mode: bool):
                     print(f"    cd {_m().PROJECT_ROOT} && git reflog && git reset --hard <prev-sha>")
                 sys.exit(1)
 
+            # Termux updates must prove the freshly pulled lock is still fully
+            # satisfiable from the immutable Android wheelhouse before the new
+            # checkout is accepted. The helper rolls back to pre_pull_sha on
+            # integrity, pin, download, or binary-coverage failure.
+            _m()._termux_post_pull_wheelhouse_gate(git_cmd, pre_pull_sha)
+
             update_succeeded = True
         finally:
             if auto_stash_ref is not None:

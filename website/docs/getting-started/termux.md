@@ -22,7 +22,7 @@ On Termux, the normal `install.sh` entrypoint dispatches to `scripts/install-ter
 - creates the Hermes virtual environment with `uv venv`
 - derives an Android-safe dependency graph from `pyproject.toml` and `uv.lock`
 - verifies that the graph matches the immutable CPython 3.13 Android arm64 wheel release
-- downloads ten native wheels from release `wheelhouse-cp313-android24-arm64-20260719.1`, verifying the pinned `SHA256SUMS` file and every wheel before installation
+- downloads ten native wheels from release `wheelhouse-cp313-android24-arm64-20260811.1`, verifying the pinned `SHA256SUMS` file and every wheel before installation
 - installs the complete graph with `--only-binary :all:` so a supported phone never silently starts a local C or Rust build
 - installs Hermes as an editable package with `--no-deps` and runs dependency/import smoke checks
 - writes a launcher to `$PREFIX/bin/hermes` that clears inherited `PYTHONPATH` and `PYTHONHOME`
@@ -108,7 +108,7 @@ Before accepting newly pulled code, the updater executes the wheel verifier from
 The verified cache is stored under:
 
 ```text
-~/.hermes/cache/termux-wheelhouse/wheelhouse-cp313-android24-arm64-20260719.1/
+~/.hermes/cache/termux-wheelhouse/wheelhouse-cp313-android24-arm64-20260811.1/
 ```
 
 Rerunning the installer remains supported when repairing the repository checkout itself:
@@ -124,7 +124,7 @@ Local changes are stashed before an update and restored afterward when Git can a
 
 ### Termux currently provides Python 3.14
 
-Hermes supports Python 3.11 through 3.13, but automatic arm64 installs deliberately use CPython 3.13 so they can consume the immutable wheelhouse. When no CPython 3.13 interpreter is available, including when Termux currently provides only Python 3.14?the native installer stages the exact `python_3.13.14_aarch64.deb` asset from release `termux-aarch64-20260719.9.1` side-by-side without replacing Termux's system aliases. The download is locked to SHA-256 `42376a2a47e50048cb7eca2d0f442fc1895fbca2aee2dee3d2fd82728ea1bd80`; installation stops before extraction if the bytes or package metadata differ. This fallback currently supports aarch64 Termux devices only.
+Hermes supports Python 3.11 through 3.13, but automatic arm64 installs deliberately use CPython 3.13 so they can consume the immutable wheelhouse. When no CPython 3.13 interpreter is available, including when Termux currently provides only Python 3.14, the native installer stages the exact `python_3.13.14_aarch64.deb` asset from release `termux-aarch64-20260719.9.1` side-by-side without replacing Termux's system aliases. The download is locked to SHA-256 `42376a2a47e50048cb7eca2d0f442fc1895fbca2aee2dee3d2fd82728ea1bd80`; installation stops before extraction if the bytes or package metadata differ. This fallback currently supports aarch64 Termux devices only.
 
 A known compatible interpreter can also be selected explicitly. Selecting 3.11 or 3.12 opts into the native-build compatibility path:
 
@@ -140,7 +140,7 @@ Do not bypass the checksum check or remove `--only-binary :all:`. Rerun the inst
 bash scripts/install-termux.sh --skip-setup
 ```
 
-The immutable release is [`wheelhouse-cp313-android24-arm64-20260719.1`](https://github.com/adybag14-cyber/termux-hermes/releases/tag/wheelhouse-cp313-android24-arm64-20260719.1). Its `SHA256SUMS` asset is itself pinned by Hermes to SHA-256 `916ff13af7e5283f75952b810fb6b7eef86ab3422bc5004c1ee1440d5163ade5`.
+The immutable release is [`wheelhouse-cp313-android24-arm64-20260811.1`](https://github.com/adybag14-cyber/termux-hermes/releases/tag/wheelhouse-cp313-android24-arm64-20260811.1). Its `SHA256SUMS` asset is itself pinned by Hermes to SHA-256 `435f23524d76cf061bf658c48bbee7439a85bf39e3a3b0b292d54db38669d079`.
 
 CPython 3.11/3.12 or non-arm64 Termux environments cannot consume these CPython 3.13 arm64 wheels. Those unsupported targets retain the older one-time native-build compatibility path and therefore still require the compiler/Rust toolchain.
 

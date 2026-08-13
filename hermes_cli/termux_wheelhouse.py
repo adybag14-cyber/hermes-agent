@@ -16,12 +16,12 @@ import tomllib
 from pathlib import Path
 
 RELEASE_REPOSITORY = "adybag14-cyber/termux-hermes"
-RELEASE_TAG = "wheelhouse-cp313-android24-arm64-20260719.1"
-RELEASE_COMMIT = "b042ce9e662f14794ef6b5664c9ae711330df31b"
+RELEASE_TAG = "wheelhouse-cp313-android24-arm64-20260811.1"
+RELEASE_COMMIT = "5184b2059257918e9a98993186b57f6aaf9037b9"
 RELEASE_BASE_URL = (
     f"https://github.com/{RELEASE_REPOSITORY}/releases/download/{RELEASE_TAG}"
 )
-SHA256SUMS_SHA256 = "916ff13af7e5283f75952b810fb6b7eef86ab3422bc5004c1ee1440d5163ade5"
+SHA256SUMS_SHA256 = "435f23524d76cf061bf658c48bbee7439a85bf39e3a3b0b292d54db38669d079"
 MIN_ANDROID_API = 24
 SUPPORTED_PYTHON = (3, 13)
 SUPPORTED_ARCHES = frozenset({"aarch64", "arm64"})
@@ -33,9 +33,9 @@ LOCKED_WHEELS: dict[str, tuple[str, str, str]] = {
         "2dc0a19762e92645cebc0d466221aeb1b77757f4e8f0daab33caa4cfa3f25db7",
     ),
     "cryptography": (
-        "46.0.7",
-        "cryptography-46.0.7-cp313-abi3-android_24_arm64_v8a.whl",
-        "dd2cfdc605e647a5795479d3060d909a25e54ccd1bab4ac56de7c9827cfd859f",
+        "50.0.0",
+        "cryptography-50.0.0-cp313-abi3-android_24_arm64_v8a.whl",
+        "7580a6de25b86680389c1083b72d5eb27f20b2d588c1aa51600784864d7739de",
     ),
     "jiter": (
         "0.13.0",
@@ -48,9 +48,9 @@ LOCKED_WHEELS: dict[str, tuple[str, str, str]] = {
         "17d4ae49861da832cbb8d6d5211c23c65e047eb67fdb20f41e5ab9a6539a35e2",
     ),
     "pillow": (
-        "12.2.0",
-        "pillow-12.2.0-cp313-cp313-android_24_arm64_v8a.whl",
-        "f0c0d2256e05318958d88db9740717a59b88e1906d423111c4e5e62ee7d5ef5f",
+        "12.3.0",
+        "pillow-12.3.0-cp313-cp313-android_24_arm64_v8a.whl",
+        "7a2d796d96f9b2a9061a78306d5585b0eaa65a93e16e645c887f87dd55eacd67",
     ),
     "psutil": (
         "7.2.2",

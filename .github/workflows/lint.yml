@@ -178,3 +178,28 @@ jobs:
 
       - name: Run footgun checker
         run: python scripts/check-windows-footguns.py --all
+
+
+  termux-footguns:
+    # Android/Bionic-specific static guardrails that normal Linux runners do
+    # not exercise: host package managers, fake wheel tags, accidental Electron
+    # execution, unsafe Termux:X11 Chromium flags, and non-loopback Desktop binds.
+    name: Termux footguns (blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # 8.2.0
+        with:
+          version: "0.9.28"
+
+      - name: Set up Python 3.11
+        uses: ./.github/actions/retry
+        with:
+          command: uv python install 3.11
+
+      - name: Run Termux footgun checker
+        run: python scripts/check-termux-footguns.py --all

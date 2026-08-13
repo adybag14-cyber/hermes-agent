@@ -1,0 +1,70 @@
+name: Termux regression
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/termux-regression.yml"
+      - ".github/workflows/lint.yml"
+      - "hermes_cli/android_wheels.py"
+      - "hermes_cli/main.py"
+      - "hermes_cli/psutil_android.py"
+      - "hermes_cli/termux_wheelhouse.py"
+      - "hermes_cli/update_cmd.py"
+      - "pyproject.toml"
+      - "constraints-termux.txt"
+      - "scripts/check-termux-footguns.py"
+      - "scripts/install-termux.sh"
+      - "scripts/install.sh"
+      - "scripts/install_android_wheels.py"
+      - "scripts/prepare_termux_wheelhouse.py"
+      - "scripts/run-termux-regression.sh"
+      - "scripts/termux_requirements.py"
+      - "tests/hermes_cli/test_android_wheels.py"
+      - "tests/hermes_cli/test_psutil_android_wheel_tag.py"
+      - "tests/hermes_cli/test_termux_wheelhouse.py"
+      - "tests/scripts/test_termux_footguns.py"
+      - "tests/test_install_termux_native.py"
+      - "tests/test_termux_requirements.py"
+      - "uv.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: termux-regression-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-termux-aarch64:
+    name: Native Termux aarch64 install/update
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 55
+    env:
+      TERMUX_IMAGE: termux/termux-docker@sha256:3aed9c7fbcf9195a9919deaad418da006232864a779fb4f322d68a34887a2e15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Make the checked-out PR addressable to the native installer
+        shell: bash
+        run: git branch -f termux-ci "$GITHUB_SHA"
+
+      - name: Pull pinned native Termux aarch64 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "aarch64"
+          docker pull "$TERMUX_IMAGE"
+          test "$(docker image inspect --format '{{.Architecture}}' "$TERMUX_IMAGE")" = "arm64"
+
+      - name: Run native installer/update regression gates
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker run --rm \
+            -v "$PWD:/workspace:ro" \
+            "$TERMUX_IMAGE" \
+            bash /workspace/scripts/run-termux-regression.sh

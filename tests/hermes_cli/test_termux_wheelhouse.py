@@ -33,8 +33,19 @@ def test_current_uv_lock_matches_immutable_release() -> None:
     root = Path(__file__).resolve().parents[2]
     tw.validate_uv_lock(root / "uv.lock")
     assert set(tw.LOCKED_WHEELS) == EXPECTED_NAMES
-    assert tw.RELEASE_TAG == "wheelhouse-cp313-android24-arm64-20260719.1"
-    assert tw.RELEASE_COMMIT == "b042ce9e662f14794ef6b5664c9ae711330df31b"
+    assert tw.RELEASE_TAG == "wheelhouse-cp313-android24-arm64-20260811.1"
+    assert tw.RELEASE_COMMIT == "5184b2059257918e9a98993186b57f6aaf9037b9"
+    assert tw.SHA256SUMS_SHA256 == "435f23524d76cf061bf658c48bbee7439a85bf39e3a3b0b292d54db38669d079"
+    assert tw.LOCKED_WHEELS["cryptography"] == (
+        "50.0.0",
+        "cryptography-50.0.0-cp313-abi3-android_24_arm64_v8a.whl",
+        "7580a6de25b86680389c1083b72d5eb27f20b2d588c1aa51600784864d7739de",
+    )
+    assert tw.LOCKED_WHEELS["pillow"] == (
+        "12.3.0",
+        "pillow-12.3.0-cp313-cp313-android_24_arm64_v8a.whl",
+        "7a2d796d96f9b2a9061a78306d5585b0eaa65a93e16e645c887f87dd55eacd67",
+    )
 
 
 def test_uv_lock_pin_drift_is_rejected() -> None:
@@ -55,7 +66,7 @@ def test_resolved_requirements_pin_drift_is_rejected() -> None:
     tw.validate_requirements_text(requirements)
     with pytest.raises(tw.TermuxWheelhouseMismatch, match="cryptography"):
         tw.validate_requirements_text(
-            requirements.replace("cryptography==46.0.7", "cryptography==1")
+            requirements.replace("cryptography==50.0.0", "cryptography==1")
         )
 
 
