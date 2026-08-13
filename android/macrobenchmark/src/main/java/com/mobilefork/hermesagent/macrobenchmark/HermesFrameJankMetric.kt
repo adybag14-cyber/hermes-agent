@@ -60,6 +60,8 @@ internal class HermesFrameJankMetric(
         val totalFrames = row.long("total_frames")
         val selfJankTaggedFrames = row.long("self_jank_tagged_frames")
         val appDeadlineMissedFrames = row.long("app_deadline_missed_frames")
+        val appDeadlineMissedOrDroppedFrames =
+            row.long("app_deadline_missed_or_dropped_frames")
         val nonDeadlineSelfJankTaggedFrames =
             row.long("non_deadline_self_jank_tagged_frames")
         val otherJankTaggedFrames = row.long("other_jank_tagged_frames")
@@ -73,17 +75,25 @@ internal class HermesFrameJankMetric(
         }
 
         check(totalFrames >= 0 && selfJankTaggedFrames >= 0 &&
-            appDeadlineMissedFrames >= 0 && nonDeadlineSelfJankTaggedFrames >= 0 &&
+            appDeadlineMissedFrames >= 0 && appDeadlineMissedOrDroppedFrames >= 0 &&
+            nonDeadlineSelfJankTaggedFrames >= 0 &&
             otherJankTaggedFrames >= 0 && overlappingJankTagFrames >= 0 &&
             droppedFrames >= 0 && unknownTagFrames >= 0) {
             "Perfetto returned a negative Hermes frame count"
         }
+        val appDeadlineMissedAndDroppedFrames =
+            appDeadlineMissedFrames + droppedFrames - appDeadlineMissedOrDroppedFrames
         check(selfJankTaggedFrames <= totalFrames &&
             appDeadlineMissedFrames + nonDeadlineSelfJankTaggedFrames == selfJankTaggedFrames &&
             otherJankTaggedFrames <= totalFrames &&
             selfJankTaggedFrames + otherJankTaggedFrames <= totalFrames &&
             overlappingJankTagFrames == 0L &&
             droppedFrames <= totalFrames &&
+            appDeadlineMissedOrDroppedFrames >= maxOf(appDeadlineMissedFrames, droppedFrames) &&
+            appDeadlineMissedOrDroppedFrames <= totalFrames &&
+            appDeadlineMissedOrDroppedFrames <= appDeadlineMissedFrames + droppedFrames &&
+            appDeadlineMissedAndDroppedFrames >= 0L &&
+            appDeadlineMissedAndDroppedFrames <= minOf(appDeadlineMissedFrames, droppedFrames) &&
             unknownTagFrames <= totalFrames) {
             "Perfetto returned Hermes frame categories outside the total frame count"
         }
@@ -96,6 +106,10 @@ internal class HermesFrameJankMetric(
             Measurement(
                 "hermesFrameAppDeadlineMissedCount",
                 appDeadlineMissedFrames.toDouble(),
+            ),
+            Measurement(
+                "hermesFrameAppDeadlineMissedOrDroppedCount",
+                appDeadlineMissedOrDroppedFrames.toDouble(),
             ),
             Measurement(
                 "hermesFrameNonDeadlineSelfJankTaggedCount",

@@ -47,7 +47,7 @@ BENCHMARK_TEST_ID = f"{BENCHMARK_CLASS}#{BENCHMARK_METHOD}"
 MIN_BENCHMARK_ITERATIONS = 5
 MAX_BENCHMARK_ITERATIONS = 20
 MIN_AGGREGATE_FRAMES = 100
-MAX_APP_DEADLINE_MISSED_PERCENT = 10.0
+MAX_APP_DEADLINE_MISSED_OR_DROPPED_PERCENT = 10.0
 MAX_FRAME_DURATION_CPU_P95_MS = 50.0
 MAX_FRAME_DURATION_CPU_P99_MS = 100.0
 HEX_64_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -1284,6 +1284,9 @@ def _parse_macrobenchmark_report(
     deadline_frames = _integral_metric_runs(
         metrics, "hermesFrameAppDeadlineMissedCount", iterations
     )
+    deadline_or_dropped_frames = _integral_metric_runs(
+        metrics, "hermesFrameAppDeadlineMissedOrDroppedCount", iterations
+    )
     non_deadline_self_jank_tagged_frames = _integral_metric_runs(
         metrics, "hermesFrameNonDeadlineSelfJankTaggedCount", iterations
     )
@@ -1317,6 +1320,7 @@ def _parse_macrobenchmark_report(
         total = total_frames[index]
         self_jank_tagged = self_jank_tagged_frames[index]
         deadline = deadline_frames[index]
+        deadline_or_dropped = deadline_or_dropped_frames[index]
         non_deadline_self_jank_tagged = non_deadline_self_jank_tagged_frames[index]
         other_jank_tagged = other_jank_tagged_frames[index]
         dropped = dropped_frames[index]
@@ -1338,12 +1342,30 @@ def _parse_macrobenchmark_report(
             raise CollectorError(
                 f"Perfetto dropped/unknown/overlap counts exceed surface tokens in iteration {index + 1}"
             )
-        if dropped != 0 or unknown_tag != 0 or overlapping_jank_tag != 0:
+        if not (
+            max(deadline, dropped)
+            <= deadline_or_dropped
+            <= min(total, deadline + dropped)
+        ):
             raise CollectorError(
-                f"Perfetto iteration {index + 1} contains dropped, unknown-tag, or overlapping-tag frames"
+                "Perfetto App Deadline Missed/Dropped Frame union does not "
+                f"reconcile in iteration {index + 1}"
+            )
+        deadline_and_dropped = deadline + dropped - deadline_or_dropped
+        if not 0 <= deadline_and_dropped <= min(deadline, dropped):
+            raise CollectorError(
+                "Perfetto App Deadline Missed/Dropped Frame intersection does not "
+                f"reconcile in iteration {index + 1}"
+            )
+        if unknown_tag != 0 or overlapping_jank_tag != 0:
+            raise CollectorError(
+                f"Perfetto iteration {index + 1} contains unknown-tag or overlapping Self/Other-tag frames"
             )
         expected_self_tagged_percent = self_jank_tagged * 100.0 / total
         app_deadline_missed_percent = deadline * 100.0 / total
+        app_deadline_missed_or_dropped_percent = (
+            deadline_or_dropped * 100.0 / total
+        )
         if (
             not 0 <= self_jank_tagged_percent <= 100
             or abs(self_jank_tagged_percent - expected_self_tagged_percent) > 1e-6
@@ -1363,6 +1385,15 @@ def _parse_macrobenchmark_report(
                 "perfetto_self_jank_tagged_frames": self_jank_tagged,
                 "perfetto_app_deadline_missed_frames": deadline,
                 "perfetto_app_deadline_missed_percent": app_deadline_missed_percent,
+                "perfetto_app_deadline_missed_or_dropped_frames": (
+                    deadline_or_dropped
+                ),
+                "perfetto_app_deadline_missed_or_dropped_percent": (
+                    app_deadline_missed_or_dropped_percent
+                ),
+                "perfetto_app_deadline_missed_and_dropped_frames": (
+                    deadline_and_dropped
+                ),
                 "perfetto_non_deadline_self_jank_tagged_frames": (
                     non_deadline_self_jank_tagged
                 ),
@@ -1378,6 +1409,7 @@ def _parse_macrobenchmark_report(
     total = sum(total_frames)
     self_jank_tagged = sum(self_jank_tagged_frames)
     deadline = sum(deadline_frames)
+    deadline_or_dropped = sum(deadline_or_dropped_frames)
     non_deadline_self_jank_tagged = sum(non_deadline_self_jank_tagged_frames)
     other_jank_tagged = sum(other_jank_tagged_frames)
     dropped = sum(dropped_frames)
@@ -1387,18 +1419,35 @@ def _parse_macrobenchmark_report(
         raise CollectorError("Macrobenchmark did not capture at least 100 aggregate frames")
     self_jank_tagged_percent = self_jank_tagged * 100.0 / total
     app_deadline_missed_percent = deadline * 100.0 / total
-    if app_deadline_missed_percent > MAX_APP_DEADLINE_MISSED_PERCENT:
+    app_deadline_missed_or_dropped_percent = deadline_or_dropped * 100.0 / total
+    if (
+        app_deadline_missed_or_dropped_percent
+        > MAX_APP_DEADLINE_MISSED_OR_DROPPED_PERCENT
+    ):
         raise CollectorError(
-            "Macrobenchmark aggregate App Deadline Missed surface tokens exceed the 10% "
-            "controlled-AVD budget"
+            "Macrobenchmark aggregate App Deadline Missed or Dropped Frame surface "
+            "tokens exceed the 10% controlled-AVD budget"
         )
     if deadline + non_deadline_self_jank_tagged != self_jank_tagged:
         raise CollectorError("Macrobenchmark aggregate jank categories do not reconcile")
     if self_jank_tagged + other_jank_tagged > total:
         raise CollectorError("Macrobenchmark aggregate Self/Other Jank tags exceed surface tokens")
-    if dropped != 0 or unknown_tag != 0 or overlapping_jank_tag != 0:
+    if not (
+        max(deadline, dropped)
+        <= deadline_or_dropped
+        <= min(total, deadline + dropped)
+    ):
         raise CollectorError(
-            "Macrobenchmark contains dropped, unknown-tag, or overlapping-tag Perfetto frames"
+            "Macrobenchmark aggregate App Deadline Missed/Dropped Frame union does not reconcile"
+        )
+    deadline_and_dropped = deadline + dropped - deadline_or_dropped
+    if not 0 <= deadline_and_dropped <= min(deadline, dropped):
+        raise CollectorError(
+            "Macrobenchmark aggregate App Deadline Missed/Dropped Frame intersection does not reconcile"
+        )
+    if unknown_tag != 0 or overlapping_jank_tag != 0:
+        raise CollectorError(
+            "Macrobenchmark contains unknown-tag or overlapping Self/Other-tag Perfetto frames"
         )
     overrun_positive = sum(
         value > 0.0 for iteration_values in overrun_runs for value in iteration_values
@@ -1443,6 +1492,11 @@ def _parse_macrobenchmark_report(
         "perfetto_self_jank_tagged": self_jank_tagged,
         "perfetto_app_deadline_missed": deadline,
         "perfetto_app_deadline_missed_percent": app_deadline_missed_percent,
+        "perfetto_app_deadline_missed_or_dropped": deadline_or_dropped,
+        "perfetto_app_deadline_missed_or_dropped_percent": (
+            app_deadline_missed_or_dropped_percent
+        ),
+        "perfetto_app_deadline_missed_and_dropped": deadline_and_dropped,
         "perfetto_non_deadline_self_jank_tagged": non_deadline_self_jank_tagged,
         "perfetto_other_jank_tagged": other_jank_tagged,
         "perfetto_dropped": dropped,

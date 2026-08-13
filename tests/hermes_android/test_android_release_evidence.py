@@ -155,6 +155,57 @@ def _single_metric(runs: list[int | float]) -> dict:
     }
 
 
+def _set_perfetto_jank_runs(
+    report: dict,
+    *,
+    self_jank: int | list[int] = 1,
+    deadline: int | list[int] = 1,
+    dropped: int | list[int] = 0,
+    deadline_or_dropped: int | list[int] | None = None,
+    other: int | list[int] = 2,
+    unknown: int | list[int] = 0,
+    self_other_overlap: int | list[int] = 0,
+) -> None:
+    benchmark = report["benchmarks"][0]
+    iterations = benchmark["repeatIterations"]
+
+    def expanded(value: int | list[int]) -> list[int]:
+        runs = [value] * iterations if isinstance(value, int) else list(value)
+        assert len(runs) == iterations
+        return runs
+
+    self_runs = expanded(self_jank)
+    deadline_runs = expanded(deadline)
+    dropped_runs = expanded(dropped)
+    union_runs = (
+        [left + right for left, right in zip(deadline_runs, dropped_runs)]
+        if deadline_or_dropped is None
+        else expanded(deadline_or_dropped)
+    )
+    other_runs = expanded(other)
+    unknown_runs = expanded(unknown)
+    self_other_overlap_runs = expanded(self_other_overlap)
+    total_runs = benchmark["metrics"]["hermesFrameTotalCount"]["runs"]
+    metrics = benchmark["metrics"]
+    metrics["hermesFrameSelfJankTaggedCount"] = _single_metric(self_runs)
+    metrics["hermesFrameAppDeadlineMissedCount"] = _single_metric(deadline_runs)
+    metrics["hermesFrameAppDeadlineMissedOrDroppedCount"] = _single_metric(
+        union_runs
+    )
+    metrics["hermesFrameNonDeadlineSelfJankTaggedCount"] = _single_metric(
+        [self_count - deadline_count for self_count, deadline_count in zip(self_runs, deadline_runs)]
+    )
+    metrics["hermesFrameOtherJankTaggedCount"] = _single_metric(other_runs)
+    metrics["hermesFrameDroppedCount"] = _single_metric(dropped_runs)
+    metrics["hermesFrameUnknownTagCount"] = _single_metric(unknown_runs)
+    metrics["hermesFrameOverlappingJankTagCount"] = _single_metric(
+        self_other_overlap_runs
+    )
+    metrics["hermesFrameSelfJankTaggedPercent"] = _single_metric(
+        [self_count * 100.0 / total for self_count, total in zip(self_runs, total_runs)]
+    )
+
+
 def _sampled_distribution(runs: list[list[float]]) -> dict:
     pooled = sorted(value for iteration in runs for value in iteration)
 
@@ -228,6 +279,9 @@ def _macro_report(profile: str) -> dict:
                     "hermesFrameTotalCount": _single_metric(values),
                     "hermesFrameSelfJankTaggedCount": _single_metric(one),
                     "hermesFrameAppDeadlineMissedCount": _single_metric(one),
+                    "hermesFrameAppDeadlineMissedOrDroppedCount": _single_metric(
+                        one
+                    ),
                     "hermesFrameNonDeadlineSelfJankTaggedCount": _single_metric(zero),
                     "hermesFrameOtherJankTaggedCount": _single_metric([2] * iterations),
                     "hermesFrameDroppedCount": _single_metric(zero),
@@ -500,6 +554,9 @@ def _frames(profile: str) -> dict:
                 "perfetto_self_jank_tagged_frames": 1,
                 "perfetto_app_deadline_missed_frames": 1,
                 "perfetto_app_deadline_missed_percent": 100 / 24,
+                "perfetto_app_deadline_missed_or_dropped_frames": 1,
+                "perfetto_app_deadline_missed_or_dropped_percent": 100 / 24,
+                "perfetto_app_deadline_missed_and_dropped_frames": 0,
                 "perfetto_non_deadline_self_jank_tagged_frames": 0,
                 "perfetto_other_jank_tagged_frames": 2,
                 "perfetto_dropped_frames": 0,
@@ -516,6 +573,9 @@ def _frames(profile: str) -> dict:
         "perfetto_self_jank_tagged": 5,
         "perfetto_app_deadline_missed": 5,
         "perfetto_app_deadline_missed_percent": 100 / 24,
+        "perfetto_app_deadline_missed_or_dropped": 5,
+        "perfetto_app_deadline_missed_or_dropped_percent": 100 / 24,
+        "perfetto_app_deadline_missed_and_dropped": 0,
         "perfetto_non_deadline_self_jank_tagged": 0,
         "perfetto_other_jank_tagged": 10,
         "perfetto_dropped": 0,
@@ -821,7 +881,18 @@ def test_complete_v2_directory_validates_with_four_distinct_apk_hashes(
     assert "performance/phone-compact.macrobenchmark.raw.json" in paths
     assert "performance/tablet.traces/iteration-005.perfetto-trace" in paths
     assert manifest["contract"]["avd_metrics_are_validation_signals_not_end_user_benchmarks"]
-    assert manifest["contract"]["maximum_perfetto_app_deadline_missed_percent"] == 10.0
+    assert (
+        manifest["contract"][
+            "maximum_perfetto_app_deadline_missed_or_dropped_percent"
+        ]
+        == 10.0
+    )
+    assert manifest["contract"][
+        "requires_zero_perfetto_unknown_or_overlapping_self_other_jank_tags"
+    ] is True
+    assert manifest["contract"][
+        "dropped_frames_are_budgeted_with_app_deadline_misses"
+    ] is True
     assert manifest["contract"]["requested_macrobenchmark_compilation_mode"] == "Full"
     assert (
         manifest["contract"]["required_androidx_reporting_package_compilation_mode"]
@@ -956,23 +1027,18 @@ def test_normalized_compilation_provenance_is_exact(
         ("hermesFrameNonDeadlineSelfJankTaggedCount", [1] * 5, "jank counts"),
         ("hermesFrameOtherJankTaggedCount", [24] * 5, "jank counts"),
         (
-            "hermesFrameDroppedCount",
-            [1] * 5,
-            "dropped, unknown-tag, or overlapping-tag",
-        ),
-        (
             "hermesFrameUnknownTagCount",
             [1] * 5,
-            "dropped, unknown-tag, or overlapping-tag",
+            "unknown-tag or overlapping Self/Other-tag",
         ),
         (
             "hermesFrameOverlappingJankTagCount",
             [1] * 5,
-            "dropped, unknown-tag, or overlapping-tag",
+            "unknown-tag or overlapping Self/Other-tag",
         ),
     ),
 )
-def test_perfetto_self_other_tag_dropped_unknown_and_overlap_contract_fails_closed(
+def test_perfetto_self_other_unknown_and_overlap_contract_fails_closed(
     evidence_root, evidence_module, artifacts, metric_name, runs, message
 ):
     def rewrite(report):
@@ -980,6 +1046,140 @@ def test_perfetto_self_other_tag_dropped_unknown_and_overlap_contract_fails_clos
 
     _rewrite_report(evidence_root, "phone-compact", rewrite)
     with pytest.raises(evidence_module.EvidenceError, match=message):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_raw_nonzero_dropped_frames_are_budgeted_with_deadline_misses(
+    evidence_root, evidence_module, artifacts
+):
+    def rewrite(report):
+        _set_perfetto_jank_runs(report, dropped=1)
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    normalized = _sync_normalized_frames_from_raw_report(
+        evidence_root, "phone-compact", evidence_module
+    )
+    validated = evidence_module.validate_evidence_directory(
+        evidence_root, artifacts, SOURCE_DIGEST, TAG
+    )
+
+    assert normalized["frames"]["perfetto_dropped"] == 5
+    assert normalized["frames"]["perfetto_app_deadline_missed_or_dropped"] == 10
+    assert (
+        normalized["frames"]["perfetto_app_deadline_missed_or_dropped_percent"]
+        == 100 / 12
+    )
+    assert normalized["frames"]["perfetto_app_deadline_missed_and_dropped"] == 0
+    assert validated.performance_record_count == 2
+
+
+def test_raw_deadline_and_dropped_overlap_is_derived_from_union(
+    evidence_root, evidence_module, artifacts
+):
+    def rewrite(report):
+        _set_perfetto_jank_runs(
+            report,
+            dropped=1,
+            deadline_or_dropped=1,
+        )
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    normalized = _sync_normalized_frames_from_raw_report(
+        evidence_root, "phone-compact", evidence_module
+    )
+    evidence_module.validate_evidence_directory(
+        evidence_root, artifacts, SOURCE_DIGEST, TAG
+    )
+
+    assert normalized["frames"]["perfetto_app_deadline_missed_or_dropped"] == 5
+    assert normalized["frames"]["perfetto_app_deadline_missed_and_dropped"] == 5
+    assert all(
+        iteration["perfetto_app_deadline_missed_or_dropped_frames"] == 1
+        and iteration["perfetto_app_deadline_missed_and_dropped_frames"] == 1
+        for iteration in normalized["frames"]["iterations"]
+    )
+
+
+def test_raw_combined_deadline_and_dropped_budget_accepts_exact_ten_percent(
+    evidence_root, evidence_module, artifacts
+):
+    def rewrite(report):
+        _set_perfetto_jank_runs(
+            report,
+            dropped=[1, 1, 1, 2, 2],
+            deadline_or_dropped=[2, 2, 2, 3, 3],
+        )
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    normalized = _sync_normalized_frames_from_raw_report(
+        evidence_root, "phone-compact", evidence_module
+    )
+    evidence_module.validate_evidence_directory(
+        evidence_root, artifacts, SOURCE_DIGEST, TAG
+    )
+
+    assert (
+        normalized["frames"]["perfetto_app_deadline_missed_or_dropped_percent"]
+        == 10.0
+    )
+
+
+@pytest.mark.parametrize(
+    ("self_jank", "deadline", "dropped", "union"),
+    (
+        (3, 3, 0, 3),
+        (0, 0, 3, 3),
+        (1, 1, 2, 3),
+    ),
+    ids=("deadline", "dropped", "combined"),
+)
+def test_raw_combined_deadline_and_dropped_budget_rejects_each_over_ten_source(
+    evidence_root,
+    evidence_module,
+    artifacts,
+    self_jank,
+    deadline,
+    dropped,
+    union,
+):
+    def rewrite(report):
+        _set_perfetto_jank_runs(
+            report,
+            self_jank=self_jank,
+            deadline=deadline,
+            dropped=dropped,
+            deadline_or_dropped=union,
+        )
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    with pytest.raises(
+        evidence_module.EvidenceError,
+        match="App Deadline Missed or Dropped Frame",
+    ):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    "union",
+    (0, 3),
+    ids=("below-max", "above-sum"),
+)
+def test_raw_deadline_dropped_union_divergence_fails_closed(
+    evidence_root, evidence_module, artifacts, union
+):
+    def rewrite(report):
+        _set_perfetto_jank_runs(
+            report,
+            dropped=1,
+            deadline_or_dropped=union,
+        )
+
+    _rewrite_report(evidence_root, "phone-compact", rewrite)
+    with pytest.raises(evidence_module.EvidenceError, match="union does not reconcile"):
         evidence_module.validate_evidence_directory(
             evidence_root, artifacts, SOURCE_DIGEST, TAG
         )
@@ -1008,27 +1208,6 @@ def test_raw_androidx_positive_frame_overrun_above_ten_percent_remains_avd_diagn
     assert normalized["frames"]["perfetto_app_deadline_missed_percent"] == 100 / 24
     assert normalized["evidence_classification"]["result_kind"] == "validation-signal"
     assert validated.performance_record_count == 2
-
-
-def test_raw_app_deadline_missed_above_ten_percent_fails_avd_budget(
-    evidence_root, evidence_module, artifacts
-):
-    def rewrite(report):
-        metrics = report["benchmarks"][0]["metrics"]
-        metrics["hermesFrameSelfJankTaggedCount"] = _single_metric([3] * 5)
-        metrics["hermesFrameAppDeadlineMissedCount"] = _single_metric([3] * 5)
-        metrics["hermesFrameNonDeadlineSelfJankTaggedCount"] = _single_metric(
-            [0] * 5
-        )
-        metrics["hermesFrameSelfJankTaggedPercent"] = _single_metric(
-            [12.5] * 5
-        )
-
-    _rewrite_report(evidence_root, "phone-compact", rewrite)
-    with pytest.raises(evidence_module.EvidenceError, match="App Deadline Missed"):
-        evidence_module.validate_evidence_directory(
-            evidence_root, artifacts, SOURCE_DIGEST, TAG
-        )
 
 
 @pytest.mark.parametrize(
