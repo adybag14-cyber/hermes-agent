@@ -135,7 +135,7 @@ API 35 `x86_64` AVD with host GPU acceleration. Keep separate snapshots for:
 - compact-phone and tablet window sizes for responsive-layout checks.
 
 Before trusting a run, verify `emulator -accel-check`, wait for
-`sys.boot_completed=1`, record the emulator/QEMU command lines, and capture the
+`sys.boot_completed=1`, verify the live emulator/QEMU command, and capture the
 app's UI tree, screenshots, frame timing, and memory use. Tests which skip
 because a model file is missing are not release evidence.
 
@@ -211,56 +211,331 @@ android/release-evidence/<tag>/
 │   └── tablet/<language>/{screen.png,semantics.txt}
 ├── performance/
 │   ├── phone-compact.json
-│   ├── phone-compact.raw.json
+│   ├── phone-compact.host.raw.json
+│   ├── phone-compact.macrobenchmark.raw.json
+│   ├── phone-compact.traces/iteration-{001..005}.perfetto-trace
 │   ├── tablet.json
-│   └── tablet.raw.json
+│   ├── tablet.host.raw.json
+│   ├── tablet.macrobenchmark.raw.json
+│   └── tablet.traces/iteration-{001..005}.perfetto-trace
 ├── models/<registered-model-id>.json
 └── manifest.json                 # emitted by the create command
 ```
 
 The performance records use schema
-`hermes-android-performance-evidence-v1` and include emulator/AVD/build/GPU
-identity, the usable acceleration check and headed `-gpu host -accel on` launch
-command plus its SHA-256, screen px/dp/density, cold and warm launch times, at
-least 100 frames with p50/p90/p95/p99 and jank counts, and total PSS/RSS. The
+`hermes-android-performance-evidence-v2`. The host transcript preserves the
+emulator/AVD/build/GPU identity, usable acceleration check, public-safe
+canonical headed `-gpu host -accel on` command, its recomputable SHA-256, and
+a one-way SHA-256 of the raw live command, plus screen px/dp/density, cold and
+warm launch proof, live PID, and total PSS/RSS. Separately produced AndroidX
+Macrobenchmark JSON and every referenced Perfetto trace supply the frame/jank
+claim. Both raw streams and all traces are content-addressed from the normalized
+record. The
 model files are the unaltered `hermes-model-evidence-v1` JSON records retrieved
 from `files/hermes-model-evidence/`. There must be exactly one passing record
 for every current `VerifiedLocalModelArtifacts.releaseMatrix` entry.
 
 Use the compact-phone AVD for `performance/phone-compact.json` and the
 large-memory tablet AVD for `performance/tablet.json`; all model evidence must
-come from one of those exact measured serial/AVD/fingerprint records. Capture
-the live QEMU command line, not a remembered launch command. The validator
+come from one of those exact measured serial/AVD/fingerprint records. Verify
+the live QEMU command line, not a remembered launch command. The collector
+compares that raw command again after measurement but never writes its
+user-specific paths: persisted evidence contains only the QEMU executable
+basename, AVD/port/GPU/acceleration identity, and command hashes. The validator
 requires a positive accelerator result, one effective `-gpu host`, one
-effective `-accel on`, a headed window, at least 100 rendered frames, bounded
-launch/frame/jank results, `PSS <= RSS`, and compact/tablet PSS/RSS ceilings of
+effective `-accel on`, a headed window, at least five Macrobenchmark iterations
+and 100 pooled frames in both FrameTiming and Hermes Perfetto counts, no more
+than 10 percent pooled jank, bounded launch/frame results, `PSS <= RSS`, and
+compact/tablet PSS/RSS ceilings of
 512/768 MiB and 768/1024 MiB respectively. It fully decodes screenshot pixels,
 rejects blank/reused captures, and requires localized Device/Overview plus the
 correct drawer-versus-persistent-rail semantics for each profile.
 
-#### Live performance collector
+#### Non-debuggable Macrobenchmark jank gate
 
-Keep the same exact APKs, `$sourceDigest`, and `$runId` used by instrumentation
-installed on the active headed AVD. Start that AVD with one explicit console
-port, `-gpu host`, and `-accel on`, then collect each profile while the same
-emulator boot remains alive:
+Frame/jank release acceptance comes exclusively from the separate
+`:macrobenchmark` process and its Perfetto traces. The app's
+`benchmark` build type is initialized from `release`, remains non-debuggable,
+uses the local debug signing key, and adds `profileable shell=true` only through
+the benchmark manifest overlay. `androidx.profileinstaller:profileinstaller`
+1.4.1 intentionally applies to normal release and F-Droid artifacts as well as
+the benchmark variant; this is the AndroidX-supported runtime hook used for
+profile capture/reset and is inert when an APK contains no installed profile.
+
+Build the source-bound target first, record that exact universal APK hash on
+the host, and pass it back to the external benchmark process:
 
 ```powershell
-# Run this headed launch in its own terminal for the compact-phone lane.
-emulator -avd Medium_Phone_API_35 -port 5570 -gpu host -accel on
-
 $serial = 'emulator-5570'
-$profile = 'phone-compact' # repeat with the tablet serial and 'tablet'
+$profile = 'phone-compact' # repeat later with the tablet serial and 'tablet'
+$env:HERMES_RELEASE_TAG = $tag
+$env:HERMES_SOURCE_DIGEST = $sourceDigest
+Push-Location android
+.\gradlew.bat :app:assembleBenchmark --no-daemon --console=plain
+$benchmarkApk = Resolve-Path app/build/outputs/apk/benchmark/app-benchmark.apk
+$benchmarkSha = (Get-FileHash $benchmarkApk -Algorithm SHA256).Hash.ToLowerInvariant()
+$benchmarkOutput = Get-Content app/build/outputs/apk/benchmark/output-metadata.json -Raw |
+    ConvertFrom-Json
+if (@($benchmarkOutput.elements).Count -ne 1) { throw 'Expected one target APK' }
+$benchmarkVersionCode = [string]$benchmarkOutput.elements[0].versionCode
+.\gradlew.bat :macrobenchmark:assembleBenchmark --no-daemon --console=plain
+$benchmarkTestApk = Get-ChildItem macrobenchmark/build/outputs/apk/benchmark/*.apk -File
+if (@($benchmarkTestApk).Count -ne 1) { throw 'Expected one benchmark APK' }
+$benchmarkTestSha = (Get-FileHash $benchmarkTestApk.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+```
+
+Do not invoke the connected task until the exclusive-device preflight below has
+recorded the exact AVD name and boot UUID. Those values are part of the runner
+arguments, AndroidX payload, and per-iteration evidence token; a reboot after
+the preflight invalidates the run.
+
+The task-graph guard rejects benchmark artifact or connected tasks unless the
+release tag and lowercase source SHA-256 are exact, LiteRT-LM remains the
+release coordinate `com.google.ai.edge.litertlm:litertlm-android:0.16.0`, and
+no local LiteRT-LM AAR is selected. Before measurement the benchmark reads the
+installed target's benchmark-only manifest identity, package version,
+debuggable/profileable flags, and APK bytes; it refuses any mismatch with the
+expected digest, version code, dependency coordinate, or host-recorded APK
+SHA-256. It also self-hashes the separately installed benchmark APK and binds
+both APKs to the shared evidence run ID and phone/tablet profile. The same five
+identity values plus the exact AVD name and kernel boot UUID are written into
+AndroidX's official `context.payload`, and the
+custom metric emits `hermesEvidenceToken` on every iteration. That safe 52-bit
+integer is derived from the exact source digest, both APK SHA-256 values, run ID,
+profile, AVD name, and boot UUID; the offline validator recomputes it and
+requires every run to match.
+
+`HermesSettingsScrollBenchmark` navigates through UiAutomator to the real
+Compose resource ID `HermesSettingsContentList` and performs alternating list
+flings for five measured iterations. `FrameTimingMetric` writes the standard
+Macrobenchmark JSON distributions and one Perfetto trace per iteration. A
+custom `TraceMetric` queries Hermes-only `actual_frame_timeline_slice` rows and
+emits the single-value metrics `hermesFrameTotalCount`,
+`hermesFrameJankyCount`, `hermesFrameAppDeadlineMissedCount`,
+`hermesFrameOtherJankCount`, `hermesFrameJankPercent`, and
+`hermesEvidenceToken` for every iteration.
+The metric always returns structurally valid counts, even when the performance
+budget fails, so the complete JSON and traces remain available for diagnosis.
+The host evidence validator sums all five iterations, requires at least 100
+measured Hermes frames, and rejects aggregate jank above 10 percent. Preserve
+the JSON report and every `.perfetto-trace` from
+`macrobenchmark/build/outputs/connected_android_test_additional_output/benchmark/`.
+
+AndroidX warns that emulator measurements are not representative of physical
+devices. This hardware-accelerated AVD lane therefore suppresses only the
+`EMULATOR` configuration error and is suitable for this release's controlled
+AVD comparison, not a claim about physical-device latency. Never suppress
+`DEBUGGABLE` or `NOT-PROFILEABLE`; either condition invalidates the run.
+AndroidX serializes `CompilationMode.Full()` as the package-manager compiler
+filter `context.compilationMode = "speed"`; the normalized v2 record calls the
+same mode `Full` and the validator requires that exact mapping.
+
+#### Live performance collector
+
+Treat each profile as one serialized AVD phase. Before starting a phase, count
+live `qemu-system-*` processes and fail if there are more than two; the normal
+release lane requires exactly one active emulator. Finish the compact-phone
+capture, shut that emulator down, prove the QEMU count returned to zero, and
+only then start the tablet/model AVD. Never keep a spare background emulator
+alive during normal collection.
+
+Before invoking Macrobenchmark, quarantine the prior contents of
+`macrobenchmark/build/outputs/connected_android_test_additional_output/benchmark`
+so stale output cannot be selected. Record the run start time and the exact
+Gradle argv, exit code, stdout, and stderr as strict JSON with schema
+`hermes-android-macrobenchmark-invocation-v1`. A successful run must create
+exactly one fresh
+`com.mobilefork.hermesagent.macrobenchmark-benchmarkData.json`, exactly one
+benchmark result for the fully qualified `Class#settingsListFling` selector,
+and exactly five fresh nonempty `.perfetto-trace` files named by its
+`profilerOutputs`. Reject missing, extra, duplicate, symlinked, zero-byte, or
+pre-run output. Copy that closed set to run-bound scratch before collection.
+The following continuation of the build snippet performs the exclusive ADB/QEMU
+preflight, captures the exact Gradle process result, and closes the AndroidX
+output set. Keep the argument array unchanged: the collector and offline
+validator require this exact order.
+
+```powershell
+$deviceRows = @(
+    adb devices -l |
+        Where-Object { $_ -match '^\S+\s+\S+' -and $_ -notmatch '^List of devices attached' }
+)
+if ($deviceRows.Count -ne 1) {
+    throw "Expected exactly one attached ADB endpoint; observed $($deviceRows.Count)"
+}
+$deviceFields = @($deviceRows[0] -split '\s+')
+if ($deviceFields[0] -ne $serial -or $deviceFields[1] -ne 'device') {
+    throw "The only ADB endpoint must be $serial in device state"
+}
+
+$qemu = @(
+    Get-CimInstance Win32_Process |
+        Where-Object { $_.Name -like 'qemu-system-*' -and $_.CommandLine }
+)
+if ($qemu.Count -gt 2) { throw 'The absolute two-emulator RAM limit was exceeded' }
+if ($qemu.Count -ne 1) { throw 'Normal release capture requires exactly one live emulator' }
+
+$avdName = (adb -s $serial shell getprop ro.boot.qemu.avd_name).Trim()
+$bootId = (adb -s $serial shell cat /proc/sys/kernel/random/boot_id).Trim().ToLowerInvariant()
+if ($avdName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$') {
+    throw "Invalid AVD identity: $avdName"
+}
+if ($bootId -notmatch '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') {
+    throw "Invalid boot identity: $bootId"
+}
+
+$versionName = $tag.TrimStart('v')
+$coordinate = 'com.google.ai.edge.litertlm:litertlm-android:0.16.0'
+$gradle = (Resolve-Path .\gradlew.bat).Path
+$gradleArgs = @(
+    ':macrobenchmark:connectedBenchmarkAndroidTest'
+    "-PhermesBenchmarkExpectedSourceDigest=$sourceDigest"
+    "-PhermesBenchmarkExpectedVersionName=$versionName"
+    "-PhermesBenchmarkExpectedVersionCode=$benchmarkVersionCode"
+    "-PhermesBenchmarkExpectedLiteRtLmCoordinate=$coordinate"
+    "-PhermesBenchmarkTargetApkSha256=$benchmarkSha"
+    "-PhermesBenchmarkApkSha256=$benchmarkTestSha"
+    "-PhermesBenchmarkEvidenceRunId=$runId"
+    "-PhermesBenchmarkEvidenceProfile=$profile"
+    "-PhermesBenchmarkExpectedAvdName=$avdName"
+    "-PhermesBenchmarkExpectedBootId=$bootId"
+    '-Pandroid.testInstrumentationRunnerArguments.class=com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark#settingsListFling'
+    '-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR'
+    '-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.profiling.mode=None'
+    "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.sourceDigest=$sourceDigest"
+    "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.targetApkSha256=$benchmarkSha"
+    "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.benchmarkApkSha256=$benchmarkTestSha"
+    "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.evidenceRunId=$runId"
+    "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.evidenceProfile=$profile"
+    "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.avdName=$avdName"
+    "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.bootId=$bootId"
+    '--no-daemon'
+    '--console=plain'
+)
+
+$runStamp = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+$scratch = Join-Path $env:TEMP "hermes-macro-$runId-$profile-$runStamp"
+New-Item -ItemType Directory -Path $scratch -ErrorAction Stop | Out-Null
+$outputRoot = Join-Path (Resolve-Path macrobenchmark).Path `
+    'build/outputs/connected_android_test_additional_output/benchmark'
+if (Test-Path -LiteralPath $outputRoot) {
+    $quarantine = "$outputRoot.stale-$runStamp"
+    Move-Item -LiteralPath $outputRoot -Destination $quarantine -ErrorAction Stop
+}
+
+$stdoutPath = Join-Path $scratch 'gradle.stdout.txt'
+$stderrPath = Join-Path $scratch 'gradle.stderr.txt'
+$startedUtc = [DateTime]::UtcNow
+& $gradle @gradleArgs 1> $stdoutPath 2> $stderrPath
+$gradleExit = $LASTEXITCODE
+$stdout = [IO.File]::ReadAllText($stdoutPath)
+$stderr = [IO.File]::ReadAllText($stderrPath)
+$invocation = [ordered]@{
+    schema = 'hermes-android-macrobenchmark-invocation-v1'
+    argv = @($gradle) + $gradleArgs
+    exit_code = $gradleExit
+    stdout = $stdout
+    stderr = $stderr
+}
+$utf8NoBom = [Text.UTF8Encoding]::new($false)
+$invocationPath = Join-Path $scratch 'invocation.json'
+[IO.File]::WriteAllText(
+    $invocationPath,
+    ($invocation | ConvertTo-Json -Depth 5),
+    $utf8NoBom
+)
+if ($gradleExit -ne 0 -or "$stdout`n$stderr" -notmatch 'BUILD SUCCESSFUL') {
+    throw "Macrobenchmark failed; diagnostics are preserved in $scratch"
+}
+if ("$stdout`n$stderr" -match 'BUILD FAILED|FAILURE:|INSTRUMENTATION_FAILED') {
+    throw "Macrobenchmark output contains a failure marker; see $scratch"
+}
+
+$reports = @(
+    Get-ChildItem -LiteralPath $outputRoot -Recurse -File `
+        -Filter 'com.mobilefork.hermesagent.macrobenchmark-benchmarkData.json'
+)
+if ($reports.Count -ne 1) { throw "Expected one fresh AndroidX report; got $($reports.Count)" }
+$sourceReport = $reports[0]
+if (($sourceReport.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+    $sourceReport.Length -le 0 -or $sourceReport.LastWriteTimeUtc -lt $startedUtc) {
+    throw 'AndroidX report is unsafe, empty, or predates this run'
+}
+$reportJson = Get-Content -LiteralPath $sourceReport.FullName -Raw | ConvertFrom-Json
+if (@($reportJson.benchmarks).Count -ne 1) { throw 'Expected one benchmark result' }
+$outputs = @($reportJson.benchmarks[0].profilerOutputs)
+if ($outputs.Count -ne 5) { throw 'Expected five AndroidX Perfetto outputs' }
+$rootPrefix = [IO.Path]::GetFullPath($outputRoot).TrimEnd(
+    [IO.Path]::DirectorySeparatorChar,
+    [IO.Path]::AltDirectorySeparatorChar
+) + `
+    [IO.Path]::DirectorySeparatorChar
+$referencedTraces = for ($index = 0; $index -lt $outputs.Count; $index++) {
+    $entry = $outputs[$index]
+    if ($entry.type -ne 'PerfettoTrace' -or $entry.label -ne "Trace Iteration $index") {
+        throw "Invalid profiler output at iteration $index"
+    }
+    $candidate = Join-Path $sourceReport.Directory.FullName ([string]$entry.filename)
+    $resolved = (Resolve-Path -LiteralPath $candidate -ErrorAction Stop).Path
+    if (-not $resolved.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Trace escapes the fresh output root: $resolved"
+    }
+    $item = Get-Item -LiteralPath $resolved
+    if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0 -or
+        $item.Length -le 0 -or $item.LastWriteTimeUtc -lt $startedUtc) {
+        throw "Trace is unsafe, empty, or predates this run: $resolved"
+    }
+    $item
+}
+if (@($referencedTraces.FullName | Sort-Object -Unique).Count -ne 5) {
+    throw 'AndroidX trace references are duplicated'
+}
+$allTraces = @(Get-ChildItem -LiteralPath $outputRoot -Recurse -File -Filter '*.perfetto-trace')
+$traceDiff = @(Compare-Object `
+    @($allTraces.FullName | Sort-Object) `
+    @($referencedTraces.FullName | Sort-Object))
+if ($traceDiff.Count -ne 0) { throw 'Fresh output contains missing or unreferenced traces' }
+
+$report = Join-Path $scratch $sourceReport.Name
+Copy-Item -LiteralPath $sourceReport.FullName -Destination $report -ErrorAction Stop
+foreach ($trace in $referencedTraces) {
+    Copy-Item -LiteralPath $trace.FullName -Destination `
+        (Join-Path $scratch $trace.Name) -ErrorAction Stop
+}
+$traces = @(Get-ChildItem -LiteralPath $scratch -File -Filter '*.perfetto-trace' | Sort-Object Name)
+if ($traces.Count -ne 5) { throw 'Run-bound scratch does not contain five traces' }
+```
+
+Do not assume the connected test task leaves either APK installed. Reinstall
+the same prehashed benchmark target and benchmark test APK pair explicitly with
+`adb install -r -t`, then prove their installed `pm path` bytes with
+`sha256sum`. Keep that AVD boot alive while the collector rechecks both APKs,
+device/QEMU/source identity, launch, PID, and memory before and after the run:
+
+```powershell
+Pop-Location
+adb -s $serial install -r -t $benchmarkApk
+if ($LASTEXITCODE -ne 0) { throw 'Failed to reinstall the prehashed benchmark target APK' }
+adb -s $serial install -r -t $benchmarkTestApk.FullName
+if ($LASTEXITCODE -ne 0) { throw 'Failed to reinstall the prehashed benchmark test APK' }
+$report = Resolve-Path $report
+$traceArgs = @($traces | ForEach-Object { @('--macrobenchmark-trace', $_.FullName) } |
+    ForEach-Object { $_ })
 python scripts/android_collect_performance_evidence.py `
     --serial $serial `
     --profile $profile `
+    --expected-avd-name $avdName `
+    --expected-boot-id $bootId `
     --release-source-digest $sourceDigest `
-    --candidate-apk-sha256 $candidateSha `
-    --instrumentation-apk-sha256 $testSha `
+    --benchmark-target-apk-sha256 $benchmarkSha `
+    --benchmark-test-apk-sha256 $benchmarkTestSha `
     --evidence-run-id $runId `
-    --version-name '0.13.147' `
-    --version-code 144790 `
-    --litertlm-coordinate 'com.google.ai.edge.litertlm:litertlm-android:0.16.0' `
+    --version-name $versionName `
+    --version-code $benchmarkVersionCode `
+    --litertlm-coordinate $coordinate `
+    --macrobenchmark-report $report `
+    --macrobenchmark-invocation "$scratch/invocation.json" `
+    @traceArgs `
     --output "android/release-evidence/$tag/performance/$profile.json"
 ```
 
@@ -269,11 +544,13 @@ The collector requires a clean committed source tree outside
 device. It verifies the exact adb serial, observed AVD name, fingerprint, API,
 ABIs, boot UUID, installed app/test APK hashes, and installed version. On the
 host it resolves exactly one matching live `qemu-system-*` process through
-Windows CIM and records its actual PID and command line. It also requires a
+Windows CIM and verifies its actual PID and raw command in memory. It persists
+only a deterministic public-safe canonical command plus public/raw SHA-256
+digests. It also requires a
 successful `emulator -accel-check`, a hardware SurfaceFlinger renderer, and a
 headed command containing exactly one effective `-gpu host` and `-accel on`.
 
-For the measurements it records effective `wm` size/density and cold/warm
+For the host measurements it records effective `wm` size/density and cold/warm
 `am start -W` timings. The warm lane captures the Hermes PID after the cold
 launch, sends `KEYCODE_BACK`, proves that the same nonblank process PID remains,
 and only then relaunches the activity; a killed or replaced process is rejected.
@@ -288,50 +565,30 @@ Both the initial and final device identity require Android's system
 `font_scale` to be exactly `1.0`; the normalized performance record and every
 language/profile semantics header must agree. The collector also proves that
 `com.mobilefork.hermesagent/.MainActivity` is the single resumed activity
-immediately before the frame reset and again after the final UI exercise, so
-overlays, keyguard, and redirected activities cannot be reported as headed
-Hermes performance.
+after the warm launch, so an overlay, keyguard, or redirected activity cannot
+be reported as headed Hermes host evidence. It reads TOTAL PSS/RSS from
+`dumpsys meminfo`, requires the dump to identify that same warm PID, then
+rechecks the live PID, device, boot, both benchmark APKs, QEMU command, and
+source after measurement.
 
-The AppShell publishes its stable Compose test tags as accessibility resource
-IDs. After the warm launch, the collector records fixed `uiautomator dump` and
-`cat` commands. Each phase first removes its phase-specific temporary XML path
-and accepts only UiAutomator's exact successful-dump marker before reading it,
-so a timeout or null-root failure cannot reuse stale hierarchy bytes. It then
-follows exactly one profile route: compact phones tap
-`HermesChatDrawerButton` and `HermesNavSettings`; tablets tap
-`HermesRailSettings`. Both routes must expose exactly one enabled, app-owned,
-scrollable `HermesSettingsContentList`. Its on-screen bounds determine interior
-tap/swipe coordinates, and the raw-evidence validator reparses the XML and
-reconciles every navigation command, bound, route, and gesture coordinate.
-Missing, duplicate, wrong-package, wrong-profile, off-screen, or retargeted
-records fail closed.
+The collector never creates a frame claim from host gestures or shell renderer
+counters. It strictly parses the already completed AndroidX report, requires
+five to twenty iterations and one nonempty trace per iteration, recomputes the
+pooled AndroidX percentiles from the raw sample arrays, and enforces at least
+100 pooled FrameTiming frames, at least 100 pooled Hermes Perfetto frames, and
+the 10 percent jank budget. It atomically commits the normalized JSON, host raw
+JSON, untouched Macrobenchmark raw JSON, and canonical iteration traces; raw
+diagnostics go first and the normalized claim last. The source identity is
+rechecked between replacements, and any failure restores every prior artifact.
 
-Only after reaching that real Settings list does the collector reset `gfxinfo`
-and swipe its scrollable content until at least 100 frames exist. It derives
-jank from the reported counts, preserves the
-p50/p90/p95/p99 timings, and reads TOTAL PSS/RSS from `dumpsys meminfo`. It
-requires both dumps to identify the same Hermes PID measured by the warm lane,
-then rechecks that live PID, the device, boot, APKs, and QEMU command after
-measurement. The
-collector atomically writes both `$profile.json` and
-`$profile.raw.json` under `performance/`. The deterministic raw transcript
-retains every command argv, exit code, stdout, and stderr, including initial
-and final `adb devices`, exact `get-serialno`, guest/package/boot identity,
-Win32_Process QEMU inventory, acceleration/GPU/screen probes, both launches,
-every UI exercise, each `gfxinfo` dump, and `meminfo`. The normalized record
-contains the raw relative path and SHA-256.
-
-Both files are staged and parsed by the current release validator before they
-replace anything. The clean committed source identity is rechecked before,
-between, and after the paired replacements; a late source change restores the
-prior evidence pair (or removes the newly created pair). At manifest creation
-the validator requires the two raw
-profile files, hashes them into the manifest, independently reparses their
-security identities and metrics, and reconciles those values with the
-normalized JSON. Missing, reordered, retargeted, tampered, or internally
-inconsistent transcripts fail the release gate. Existing records are
-preserved unless `--overwrite` is explicitly used. Use `--adb`, `--emulator`,
-or `--powershell` when those executables are not on `PATH`.
+At manifest creation the offline validator reparses both raw streams, verifies
+the exact Gradle argv and AndroidX `context.payload`, recomputes the evidence
+token, frame counts, percentiles, and file hashes, and binds all traces to the
+same device/APK/source/run/profile identity. Missing, reordered, retargeted,
+tampered, symlinked, extra, or internally inconsistent artifacts fail closed.
+Existing records are preserved unless `--overwrite` is explicitly used. Use
+`--adb`, `--emulator`, or `--powershell` when those executables are not on
+`PATH`.
 
 Create the deterministic manifest only while the source tree is clean outside
 the evidence directory, then commit the evidence before creating the tag:
@@ -345,8 +602,10 @@ git tag $tag
 python scripts/android_release_evidence.py verify --tag $tag --require-tag-ref
 ```
 
-The manifest records the shared run ID and hashes every evidence file, both
-installed APKs, and a deterministic Git source-tree identity.
+The manifest records the shared run ID and hashes every evidence file, the
+debug UI candidate/instrumentation pair, the separate non-debuggable benchmark
+target/debuggable benchmark-test pair, and a deterministic Git source-tree
+identity.
 `android/release-evidence/**` is excluded from the source identity,
 so the evidence-only commit does not create a circular commit-hash dependency;
 any later source, registry, or evidence-byte change still invalidates the gate.

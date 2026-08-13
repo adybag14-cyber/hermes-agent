@@ -22,17 +22,16 @@ import shlex
 import struct
 import subprocess
 import sys
-import xml.etree.ElementTree as ET
 import zlib
 from dataclasses import asdict, dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
 
-MANIFEST_SCHEMA = "hermes-android-release-evidence-manifest-v1"
+MANIFEST_SCHEMA = "hermes-android-release-evidence-manifest-v2"
 MODEL_EVIDENCE_SCHEMA = "hermes-model-evidence-v1"
-PERFORMANCE_SCHEMA = "hermes-android-performance-evidence-v1"
-RAW_PERFORMANCE_SCHEMA = "hermes-android-performance-raw-v1"
+PERFORMANCE_SCHEMA = "hermes-android-performance-evidence-v2"
+RAW_PERFORMANCE_SCHEMA = "hermes-android-performance-host-raw-v2"
 SOURCE_DIGEST_ALGORITHM = "sha256-git-tree-contents-v1"
 EVIDENCE_PREFIX = PurePosixPath("android/release-evidence")
 LANGUAGES = ("en", "zh", "es", "de", "pt", "fr")
@@ -51,17 +50,21 @@ SOFTWARE_RENDERER_MARKERS = (
 )
 PACKAGE_ID = "com.mobilefork.hermesagent"
 TEST_PACKAGE_ID = f"{PACKAGE_ID}.test"
+BENCHMARK_TEST_PACKAGE_ID = f"{PACKAGE_ID}.macrobenchmark"
 MAIN_ACTIVITY = f"{PACKAGE_ID}/.MainActivity"
-UI_DUMP_PATH_PREFIX = "/data/local/tmp/hermes-performance-ui-"
-PHONE_DRAWER_TAG = "HermesChatDrawerButton"
 PHONE_UI_DRAWER_TAG = "HermesShellDrawerButton"
-PHONE_SETTINGS_TAG = "HermesNavSettings"
-TABLET_SETTINGS_TAG = "HermesRailSettings"
-SETTINGS_CONTENT_TAG = "HermesSettingsContentList"
 BUILD_VARIANT = "debug"
+PERFORMANCE_BUILD_VARIANT = "benchmark"
 LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.0"
+ANDROIDX_BENCHMARK_COORDINATE = "androidx.benchmark:benchmark-macro-junit4:1.4.1"
+BENCHMARK_CLASS = "com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark"
+BENCHMARK_METHOD = "settingsListFling"
+BENCHMARK_TEST_ID = f"{BENCHMARK_CLASS}#{BENCHMARK_METHOD}"
+MIN_BENCHMARK_ITERATIONS = 5
+MAX_BENCHMARK_ITERATIONS = 20
 RUN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{15,79}$")
 BOOT_ID_RE = re.compile(r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+AVD_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$")
 LOCALIZED_DEVICE_OVERVIEW = {
     "en": "Device / Overview",
     "zh": "设备 / 概览",
@@ -132,8 +135,10 @@ class ValidatedEvidence:
     ui_capture_count: int
     performance_record_count: int
     device_models: tuple[str, ...]
-    candidate_apk_sha256: str
-    instrumentation_apk_sha256: str
+    ui_candidate_apk_sha256: str
+    ui_instrumentation_apk_sha256: str
+    benchmark_target_apk_sha256: str
+    benchmark_test_apk_sha256: str
     evidence_run_id: str
 
 
@@ -912,32 +917,37 @@ def _decode_png(path: Path) -> DecodedPng:
         cursor += row_bytes
         if filter_type > 4:
             raise EvidenceError(f"UI screenshot PNG uses invalid row filter {filter_type}: {path}")
-        reconstructed = bytearray(row_bytes)
-        for index, value in enumerate(filtered):
-            left = reconstructed[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
-            above = previous[index]
-            upper_left = previous[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
-            if filter_type == 0:
-                predictor = 0
-            elif filter_type == 1:
-                predictor = left
-            elif filter_type == 2:
-                predictor = above
-            elif filter_type == 3:
-                predictor = (left + above) // 2
-            else:
-                predictor = _paeth_predictor(left, above, upper_left)
-            reconstructed[index] = (value + predictor) & 0xFF
+        # UiAutomation screenshots are often emitted with filter 0.  Copy that
+        # row in C instead of running the generic per-byte predictor loop: a
+        # release evidence set contains twelve full-resolution screenshots,
+        # and the byte-at-a-time no-op path otherwise dominates validation.
+        if filter_type == 0:
+            reconstructed = bytearray(filtered)
+        else:
+            reconstructed = bytearray(row_bytes)
+            for index, value in enumerate(filtered):
+                left = reconstructed[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+                above = previous[index]
+                upper_left = previous[index - bytes_per_pixel] if index >= bytes_per_pixel else 0
+                if filter_type == 1:
+                    predictor = left
+                elif filter_type == 2:
+                    predictor = above
+                elif filter_type == 3:
+                    predictor = (left + above) // 2
+                else:
+                    predictor = _paeth_predictor(left, above, upper_left)
+                reconstructed[index] = (value + predictor) & 0xFF
         if content_start <= y < content_end:
             if bytes_per_pixel == 4:
                 if any(reconstructed[index] != 255 for index in range(3, row_bytes, 4)):
                     raise EvidenceError(
                         f"UI screenshot contains non-opaque pixels and cannot be compared canonically: {path}"
                     )
-                visible_row = b"".join(
-                    reconstructed[index : index + 3]
-                    for index in range(0, row_bytes, 4)
-                )
+                visible_row = bytearray(width * 3)
+                visible_row[0::3] = reconstructed[0::4]
+                visible_row[1::3] = reconstructed[1::4]
+                visible_row[2::3] = reconstructed[2::4]
             else:
                 visible_row = reconstructed
             content_digest.update(visible_row)
@@ -1262,92 +1272,6 @@ def _raw_retryable_unknown_start(output: str) -> bool:
     )
 
 
-def _raw_ui_nodes(xml_text: str, context: str) -> tuple[Mapping[str, str], ...]:
-    encoded_size = len(xml_text.encode("utf-8"))
-    if encoded_size <= 0 or encoded_size > 4 * 1024 * 1024:
-        raise EvidenceError(f"{context} UI hierarchy has an unsafe byte size: {encoded_size}")
-    if "<!DOCTYPE" in xml_text.upper() or "<!ENTITY" in xml_text.upper():
-        raise EvidenceError(f"{context} UI hierarchy contains a forbidden XML declaration")
-    try:
-        root = ET.fromstring(xml_text)
-    except ET.ParseError as exc:
-        raise EvidenceError(f"{context} UI hierarchy is invalid XML: {exc}") from exc
-    if root.tag != "hierarchy":
-        raise EvidenceError(f"{context} UI hierarchy has unexpected root {root.tag!r}")
-    nodes = tuple(dict(node.attrib) for node in root.iter("node"))
-    if not nodes:
-        raise EvidenceError(f"{context} UI hierarchy contains no accessibility nodes")
-    return nodes
-
-
-def _raw_matching_ui_nodes(
-    xml_text: str, resource_id: str, context: str
-) -> tuple[Mapping[str, str], ...]:
-    return tuple(
-        node
-        for node in _raw_ui_nodes(xml_text, context)
-        if node.get("resource-id", "") == resource_id
-    )
-
-
-def _raw_reject_ui_resource(xml_text: str, resource_id: str, context: str) -> None:
-    if _raw_matching_ui_nodes(xml_text, resource_id, context):
-        raise EvidenceError(f"{context} exposes wrong-profile resource ID {resource_id}")
-
-
-def _raw_ui_target(
-    xml_text: str,
-    resource_id: str,
-    width_px: int,
-    height_px: int,
-    context: str,
-    *,
-    clickable: bool = False,
-    scrollable: bool = False,
-) -> tuple[int, int, int, int]:
-    matches = _raw_matching_ui_nodes(xml_text, resource_id, context)
-    if len(matches) != 1:
-        raise EvidenceError(
-            f"{context} resource ID {resource_id} must appear exactly once; observed {len(matches)}"
-        )
-    node = matches[0]
-    if node.get("package") != PACKAGE_ID:
-        raise EvidenceError(f"{context} resource ID {resource_id} belongs to the wrong package")
-    if node.get("enabled") != "true":
-        raise EvidenceError(f"{context} resource ID {resource_id} is not enabled")
-    if clickable and node.get("clickable") != "true":
-        raise EvidenceError(f"{context} resource ID {resource_id} is not clickable")
-    if scrollable and node.get("scrollable") != "true":
-        raise EvidenceError(f"{context} resource ID {resource_id} is not scrollable")
-    match = re.fullmatch(
-        r"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]", node.get("bounds", "")
-    )
-    if match is None:
-        raise EvidenceError(f"{context} resource ID {resource_id} has invalid bounds")
-    bounds = tuple(int(value) for value in match.groups())
-    left, top, right, bottom = bounds
-    if not (0 <= left < right <= width_px and 0 <= top < bottom <= height_px):
-        raise EvidenceError(f"{context} resource ID {resource_id} has unsafe display bounds")
-    return bounds
-
-
-def _raw_safe_swipe_coordinates(bounds: tuple[int, int, int, int]) -> tuple[int, int, int]:
-    left, top, right, bottom = bounds
-    width, height = right - left, bottom - top
-    if width < 48 or height < 160:
-        raise EvidenceError("settings scroll bounds are too small for a safe swipe")
-    x = (left + right) // 2
-    inset = max(16, height // 5)
-    top_y, bottom_y = top + inset, bottom - inset
-    if not (
-        left < x < right
-        and top < top_y < bottom_y < bottom
-        and bottom_y - top_y >= 48
-    ):
-        raise EvidenceError("settings scroll bounds cannot yield safe interior swipe coordinates")
-    return x, top_y, bottom_y
-
-
 def _raw_parse_gpu_renderer(output: str, context: str) -> str:
     gles = [
         match.group(1).strip()
@@ -1375,62 +1299,6 @@ def _raw_parse_gpu_renderer(output: str, context: str) -> str:
     return observed[0]
 
 
-def _raw_gfx_number(
-    output: str, label: str, context: str, *, integer: bool
-) -> tuple[int | float, int]:
-    values = re.findall(
-        rf"(?mi)^\s*{re.escape(label)}:\s*([0-9]+(?:\.[0-9]+)?)\s*(?:ms)?\s*$",
-        output,
-    )
-    if len(values) not in (1, 2) or len(set(values)) != 1:
-        raise EvidenceError(f"{context} does not expose one unambiguous {label}")
-    raw = values[0]
-    if integer and not raw.isdigit():
-        raise EvidenceError(f"{context} {label} is not an integer")
-    return (int(raw) if integer else float(raw)), len(values)
-
-
-def _raw_parse_gfxinfo(output: str, context: str) -> dict[str, int | float]:
-    total_value, total_count = _raw_gfx_number(
-        output, "Total frames rendered", context, integer=True
-    )
-    total = int(total_value)
-    matches = re.findall(
-        r"(?mi)^\s*Janky frames:\s*([0-9]+)(?:\s*\(([0-9]+(?:\.[0-9]+)?)%\))?\s*$",
-        output,
-    )
-    unique = [(int(count), printed) for count, printed in matches]
-    if len(unique) not in (1, 2) or len(set(unique)) != 1:
-        raise EvidenceError(f"{context} does not expose one unambiguous janky-frame summary")
-    janky, printed = unique[0]
-    if total <= 0 or not 0 <= janky <= total:
-        raise EvidenceError(f"{context} contains invalid frame counts")
-    percent = janky * 100.0 / total
-    if printed and abs(float(printed) - percent) > 0.25:
-        raise EvidenceError(f"{context} printed jank percentage disagrees with counts")
-    percentile_pairs = {
-        "p50_ms": _raw_gfx_number(output, "50th percentile", context, integer=False),
-        "p90_ms": _raw_gfx_number(output, "90th percentile", context, integer=False),
-        "p95_ms": _raw_gfx_number(output, "95th percentile", context, integer=False),
-        "p99_ms": _raw_gfx_number(output, "99th percentile", context, integer=False),
-    }
-    occurrence_counts = {total_count, len(unique)} | {
-        count for _, count in percentile_pairs.values()
-    }
-    if len(occurrence_counts) != 1:
-        raise EvidenceError(f"{context} frame-summary occurrence counts disagree")
-    result: dict[str, int | float] = {
-        "total_rendered": total,
-        "janky": janky,
-        "janky_percent": round(percent, 4),
-        **{field: float(value) for field, (value, _) in percentile_pairs.items()},
-    }
-    percentiles = [result[field] for field in ("p50_ms", "p90_ms", "p95_ms", "p99_ms")]
-    if any(value <= 0 for value in percentiles) or percentiles != sorted(percentiles):
-        raise EvidenceError(f"{context} contains invalid percentile timings")
-    return result
-
-
 def _raw_qemu_inventory(output: str, context: str) -> tuple[Mapping[str, Any], ...]:
     try:
         decoded = json.loads(output)
@@ -1439,19 +1307,31 @@ def _raw_qemu_inventory(output: str, context: str) -> tuple[Mapping[str, Any], .
     items = decoded if isinstance(decoded, list) else [decoded]
     processes: list[Mapping[str, Any]] = []
     for index, item in enumerate(items):
-        if not isinstance(item, Mapping) or set(item) != {"pid", "name", "command_line"}:
+        if not isinstance(item, Mapping) or set(item) != {
+            "pid",
+            "name",
+            "public_command",
+            "public_command_sha256",
+            "raw_command_sha256",
+        }:
             raise EvidenceError(f"{context} QEMU inventory entry {index} has invalid fields")
         if (
             isinstance(item["pid"], bool)
             or not isinstance(item["pid"], int)
             or item["pid"] <= 0
             or not isinstance(item["name"], str)
-            or not item["name"]
-            or not item["name"].casefold().startswith("qemu-system-")
-            or not isinstance(item["command_line"], str)
-            or not item["command_line"]
+            or re.fullmatch(r"qemu-system-[a-z0-9_.-]+", item["name"].casefold()) is None
+            or not isinstance(item["public_command"], str)
+            or not item["public_command"]
+            or not isinstance(item["public_command_sha256"], str)
+            or not HEX_64_RE.fullmatch(item["public_command_sha256"])
+            or not isinstance(item["raw_command_sha256"], str)
+            or not HEX_64_RE.fullmatch(item["raw_command_sha256"])
         ):
             raise EvidenceError(f"{context} QEMU inventory entry {index} has invalid identity")
+        expected_public_sha = hashlib.sha256(item["public_command"].encode("utf-8")).hexdigest()
+        if item["public_command_sha256"] != expected_public_sha:
+            raise EvidenceError(f"{context} QEMU inventory entry {index} public hash is wrong")
         processes.append(item)
     return tuple(processes)
 
@@ -1474,22 +1354,30 @@ def _raw_qemu_match(
     if serial_match is None:
         raise EvidenceError(f"{context} normalized serial has no emulator console port")
     console_port = int(serial_match.group(1))
+    processes = _raw_qemu_inventory(_raw_stdout(record, context), context)
+    if len(processes) > 2:
+        raise EvidenceError(f"{context} exceeds the absolute two-emulator limit")
+    if len(processes) != 1:
+        raise EvidenceError(f"{context} does not prove exactly one total live QEMU process")
+    if normalized_device.get("active_qemu_process_count") != len(processes):
+        raise EvidenceError(f"{context} QEMU count disagrees with normalized evidence")
     matches: list[Mapping[str, Any]] = []
-    for process in _raw_qemu_inventory(_raw_stdout(record, context), context):
+    for process in processes:
         try:
-            tokens = shlex.split(str(process["command_line"]), posix=False)
+            tokens = shlex.split(str(process["public_command"]), posix=False)
         except ValueError as exc:
             raise EvidenceError(f"{context} contains an untokenizable QEMU command: {exc}") from exc
-        flags: dict[str, list[str]] = {}
-        for index, token in enumerate(tokens):
-            folded = token.strip('"\'').casefold()
-            if folded in {"-avd", "-port", "-ports"}:
-                if index + 1 >= len(tokens):
-                    raise EvidenceError(f"{context} contains incomplete QEMU flag {token}")
-                flags.setdefault(folded, []).append(tokens[index + 1].strip('"\''))
-        exact_port = flags.get("-port") == [str(console_port)] and "-ports" not in flags
-        exact_ports = flags.get("-ports") == [f"{console_port},{console_port + 1}"] and "-port" not in flags
-        if flags.get("-avd") == [normalized_device["avd_name"]] and (exact_port or exact_ports):
+        expected_prefix = [process["name"].casefold(), "-avd", normalized_device["avd_name"]]
+        expected_suffix = ["-gpu", "host", "-accel", "on"]
+        expected_port = [*expected_prefix, "-port", str(console_port), *expected_suffix]
+        expected_ports = [
+            *expected_prefix,
+            "-ports",
+            f"{console_port},{console_port + 1}",
+            *expected_suffix,
+        ]
+        normalized_tokens = [token.strip('"\'') for token in tokens]
+        if normalized_tokens in (expected_port, expected_ports):
             matches.append(process)
     if len(matches) != 1:
         raise EvidenceError(f"{context} does not prove exactly one serial/AVD QEMU process")
@@ -1497,7 +1385,9 @@ def _raw_qemu_match(
     exact = {
         "pid": normalized_device.get("emulator_pid"),
         "name": normalized_device.get("emulator_process_name"),
-        "command_line": normalized_device.get("emulator_command"),
+        "public_command": normalized_device.get("emulator_public_command"),
+        "public_command_sha256": normalized_device.get("emulator_public_command_sha256"),
+        "raw_command_sha256": normalized_device.get("emulator_raw_command_sha256"),
     }
     if any(process.get(field) != expected for field, expected in exact.items()):
         raise EvidenceError(f"{context} QEMU process identity disagrees with normalized evidence")
@@ -1511,22 +1401,23 @@ def _validate_raw_performance(
     version_name: str,
     version_code: int,
 ) -> None:
-    context = f"performance[{profile}].raw"
+    context = f"performance[{profile}].host_raw"
     exact_header: dict[str, Any] = {
         "schema": RAW_PERFORMANCE_SCHEMA,
         "profile": profile,
         "release_source_digest": source_digest,
-        "candidate_apk_sha256": normalized["candidate_apk_sha256"],
-        "instrumentation_apk_sha256": normalized["instrumentation_apk_sha256"],
+        "benchmark_target_apk_sha256": normalized["benchmark_target_apk_sha256"],
+        "benchmark_test_apk_sha256": normalized["benchmark_test_apk_sha256"],
         "evidence_run_id": normalized["evidence_run_id"],
         "package_id": PACKAGE_ID,
+        "benchmark_test_package_id": BENCHMARK_TEST_PACKAGE_ID,
         "version_name": version_name,
         "version_code": version_code,
-        "build_variant": BUILD_VARIANT,
+        "build_variant": PERFORMANCE_BUILD_VARIANT,
         "litertlm_coordinate": LITERTLM_COORDINATE,
     }
     if set(raw_payload) != set(exact_header) | {"records"}:
-        raise EvidenceError(f"{context} top-level fields do not match the raw transcript contract")
+        raise EvidenceError(f"{context} top-level fields do not match the v2 host transcript")
     for field, expected in exact_header.items():
         if raw_payload.get(field) != expected:
             raise EvidenceError(f"{context}.{field} must equal {expected!r}")
@@ -1543,18 +1434,21 @@ def _validate_raw_performance(
         "device.getprop.supported_abis",
         "device.boot_id",
         "device.settings.font_scale",
-        "package.candidate.path",
-        "package.candidate.sha256",
-        "package.instrumentation.path",
-        "package.instrumentation.sha256",
+        "package.benchmark_target.path",
+        "package.benchmark_target.sha256",
+        "package.benchmark_test.path",
+        "package.benchmark_test.sha256",
         "package.version",
         "host.qemu_processes",
     ]
     initial_ids = [f"initial.{suffix}" for suffix in identity_suffix]
-    measure_before_retry = [
+    final_ids = [f"final.{suffix}" for suffix in identity_suffix]
+    measure_prefix = [
         "measure.emulator.accel-check",
         "measure.screen.wm_size",
         "measure.screen.wm_density",
+        "measure.screen.am_config",
+        "measure.gpu.surfaceflinger",
         "measure.launch.force_stop",
         "measure.launch.cold",
         "measure.launch.pid_before_back",
@@ -1568,89 +1462,69 @@ def _validate_raw_performance(
         "measure.launch.retry.pid_after_back",
         "measure.launch.retry.warm",
     ]
-    navigation_ids = (
-        [
-            "measure.ui.initial.remove",
-            "measure.ui.initial.dump",
-            "measure.ui.initial.cat",
-            "measure.ui.phone.drawer.tap",
-            "measure.ui.drawer.remove",
-            "measure.ui.drawer.dump",
-            "measure.ui.drawer.cat",
-            "measure.ui.phone.settings.tap",
-            "measure.ui.settings.remove",
-            "measure.ui.settings.dump",
-            "measure.ui.settings.cat",
-        ]
-        if profile == "phone-compact"
-        else [
-            "measure.ui.initial.remove",
-            "measure.ui.initial.dump",
-            "measure.ui.initial.cat",
-            "measure.ui.tablet.settings.tap",
-            "measure.ui.settings.remove",
-            "measure.ui.settings.dump",
-            "measure.ui.settings.cat",
-        ]
-    )
-    measure_after_retry = [
-        *navigation_ids,
-        "measure.screen.am_config",
-        "measure.gpu.surfaceflinger",
-        "measure.activity.before_gfx",
-        "measure.gfx.reset",
-    ]
-    final_ids = [f"final.{suffix}" for suffix in identity_suffix]
-    fixed_before = initial_ids + measure_before_retry
-    if order[: len(fixed_before)] != fixed_before:
-        raise EvidenceError(f"{context} initial/measurement command order is incomplete or reordered")
-    prefix_cursor = len(fixed_before)
-    has_warm_retry = order[prefix_cursor : prefix_cursor + len(retry_ids)] == retry_ids
-    if has_warm_retry:
-        prefix_cursor += len(retry_ids)
-    if order[prefix_cursor : prefix_cursor + len(measure_after_retry)] != measure_after_retry:
-        raise EvidenceError(f"{context} UI navigation/measurement command order is incomplete")
-    prefix_cursor += len(measure_after_retry)
-    measurement_suffix = [
-        "measure.activity.after_gfx",
+    has_retry = any(record_id in records for record_id in retry_ids)
+    if has_retry and not all(record_id in records for record_id in retry_ids):
+        raise EvidenceError(f"{context} contains an incomplete bounded warm-launch retry")
+    measure_suffix = [
+        "measure.activity.after_launch",
         "measure.memory.meminfo",
         "measure.process.pid_after_measurement",
+    ]
+    expected_order = [
+        "macrobenchmark.invocation",
+        *initial_ids,
+        *measure_prefix,
+        *(retry_ids if has_retry else []),
+        *measure_suffix,
         *final_ids,
     ]
-    if order[-len(measurement_suffix) :] != measurement_suffix:
-        raise EvidenceError(f"{context} memory/final identity command order is incomplete or reordered")
-    dynamic = order[prefix_cursor : -len(measurement_suffix)]
-    if not dynamic:
-        raise EvidenceError(f"{context} contains no gfxinfo exercise records")
-    swipe_index = 1
-    round_index = 1
-    summary_ids: list[str] = []
-    swipe_ordinal_in_round: dict[str, int] = {}
-    cursor = 0
-    while cursor < len(dynamic):
-        swipes_this_round = 0
-        while cursor < len(dynamic) and dynamic[cursor].startswith("measure.gfx.swipe."):
-            expected = f"measure.gfx.swipe.{swipe_index:04d}"
-            if dynamic[cursor] != expected:
-                raise EvidenceError(f"{context} swipe transcript IDs are not contiguous")
-            swipe_ordinal_in_round[expected] = swipes_this_round
-            swipe_index += 1
-            swipes_this_round += 1
-            cursor += 1
-        if swipes_this_round == 0:
-            raise EvidenceError(f"{context} each gfxinfo round must exercise the UI")
-        expected_summary = f"measure.gfx.summary.{round_index:02d}"
-        if cursor >= len(dynamic) or dynamic[cursor] != expected_summary:
-            raise EvidenceError(f"{context} each exercise round must end in one gfxinfo summary")
-        summary_ids.append(expected_summary)
-        round_index += 1
-        cursor += 1
+    if order != expected_order:
+        raise EvidenceError(f"{context} command order is incomplete, unexpected, or reordered")
+
+    invocation = _raw_record(records, "macrobenchmark.invocation", context)
+    invocation_argv = list(invocation["argv"])
+    if _portable_executable_name(invocation_argv[0]) not in {"gradlew", "gradlew.bat"}:
+        raise EvidenceError(f"{context} Macrobenchmark invocation did not use the Gradle wrapper")
+    exact_invocation_args = [
+        ":macrobenchmark:connectedBenchmarkAndroidTest",
+        f"-PhermesBenchmarkExpectedSourceDigest={source_digest}",
+        f"-PhermesBenchmarkExpectedVersionName={version_name}",
+        f"-PhermesBenchmarkExpectedVersionCode={version_code}",
+        f"-PhermesBenchmarkExpectedLiteRtLmCoordinate={LITERTLM_COORDINATE}",
+        f"-PhermesBenchmarkTargetApkSha256={normalized['benchmark_target_apk_sha256']}",
+        f"-PhermesBenchmarkApkSha256={normalized['benchmark_test_apk_sha256']}",
+        f"-PhermesBenchmarkEvidenceRunId={normalized['evidence_run_id']}",
+        f"-PhermesBenchmarkEvidenceProfile={profile}",
+        f"-PhermesBenchmarkExpectedAvdName={normalized['device']['avd_name']}",
+        f"-PhermesBenchmarkExpectedBootId={normalized['device']['boot_id']}",
+        f"-Pandroid.testInstrumentationRunnerArguments.class={BENCHMARK_TEST_ID}",
+        "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR",
+        "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.profiling.mode=None",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.sourceDigest={source_digest}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.targetApkSha256={normalized['benchmark_target_apk_sha256']}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.benchmarkApkSha256={normalized['benchmark_test_apk_sha256']}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.evidenceRunId={normalized['evidence_run_id']}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.evidenceProfile={profile}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.avdName={normalized['device']['avd_name']}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.bootId={normalized['device']['boot_id']}",
+        "--no-daemon",
+        "--console=plain",
+    ]
+    if invocation_argv[1:] != exact_invocation_args:
+        raise EvidenceError(f"{context} Macrobenchmark invocation arguments are not exact")
+    invocation_output = f"{invocation['stdout']}\n{invocation['stderr']}"
+    if "BUILD SUCCESSFUL" not in invocation_output or any(
+        marker in invocation_output for marker in ("BUILD FAILED", "FAILURE:", "INSTRUMENTATION_FAILED")
+    ):
+        raise EvidenceError(f"{context} Macrobenchmark invocation does not prove one successful run")
 
     device = _nested_object(normalized, "device", f"performance[{profile}]")
+    screen = _nested_object(normalized, "screen", f"performance[{profile}]")
+    launch = _nested_object(normalized, "launch", f"performance[{profile}]")
     collector = _nested_object(normalized, "collector", f"performance[{profile}]")
     serial = _required_string(device, "serial", f"performance[{profile}].device")
-    adb_record = _raw_record(records, "initial.adb.devices", context)
-    adb = str(adb_record["argv"][0])
+    first_adb = _raw_record(records, "initial.adb.devices", context)
+    adb = str(first_adb["argv"][0])
     if _portable_executable_name(adb) not in {"adb", "adb.exe"}:
         raise EvidenceError(f"{context} uses an unexpected adb executable")
 
@@ -1662,41 +1536,50 @@ def _validate_raw_performance(
 
     def validate_identity(phase: str) -> None:
         inventory = adb_command(f"{phase}.adb.devices", "devices", "-l", targeted=False)
-        states = []
+        endpoints: list[tuple[str, str]] = []
         for line in str(inventory["stdout"]).splitlines():
             fields = line.strip().split()
-            if fields and fields[0] == serial:
-                states.append(fields[1] if len(fields) > 1 else "")
-        if states != ["device"]:
-            raise EvidenceError(f"{context}.{phase} adb inventory does not bind one device target")
+            if not fields or line.strip() == "List of devices attached":
+                continue
+            endpoints.append((fields[0], fields[1] if len(fields) > 1 else ""))
+        if endpoints != [(serial, "device")]:
+            raise EvidenceError(
+                f"{context}.{phase} adb inventory does not prove one exclusive target"
+            )
         if _raw_stdout(adb_command(f"{phase}.adb.get-serialno", "get-serialno"), context) != serial:
-            raise EvidenceError(f"{context}.{phase} adb get-serialno does not exactly match serial")
+            raise EvidenceError(f"{context}.{phase} serial does not match")
         if _raw_stdout(adb_command(f"{phase}.adb.get-state", "get-state"), context) != "device":
-            raise EvidenceError(f"{context}.{phase} adb get-state is not device")
+            raise EvidenceError(f"{context}.{phase} adb state is not device")
 
-        properties: tuple[tuple[str, str, Any], ...] = (
-            ("avd_name", "ro.boot.qemu.avd_name", device["avd_name"]),
-            ("build_fingerprint", "ro.build.fingerprint", device["build_fingerprint"]),
-            ("model", "ro.product.model", device["model"]),
+        properties: tuple[tuple[str, str, str], ...] = (
+            ("avd_name", "ro.boot.qemu.avd_name", str(device["avd_name"])),
+            ("build_fingerprint", "ro.build.fingerprint", str(device["build_fingerprint"])),
+            ("model", "ro.product.model", str(device["model"])),
             ("android_sdk", "ro.build.version.sdk", str(device["android_sdk"])),
         )
         for label, prop, expected in properties:
-            record_id = f"{phase}.device.getprop.{label}"
-            observed = _raw_stdout(adb_command(record_id, "shell", "getprop", prop), context)
+            observed = _raw_stdout(
+                adb_command(f"{phase}.device.getprop.{label}", "shell", "getprop", prop),
+                context,
+            )
             if observed != expected:
-                raise EvidenceError(f"{context}.{record_id} disagrees with normalized device identity")
-        abi_record = adb_command(
-            f"{phase}.device.getprop.supported_abis",
-            "shell",
-            "getprop",
-            "ro.product.cpu.abilist",
-        )
+                raise EvidenceError(f"{context}.{phase} {label} changed")
         observed_abis = tuple(
-            part.strip() for part in _raw_stdout(abi_record, context).split(",") if part.strip()
+            part.strip()
+            for part in _raw_stdout(
+                adb_command(
+                    f"{phase}.device.getprop.supported_abis",
+                    "shell",
+                    "getprop",
+                    "ro.product.cpu.abilist",
+                ),
+                context,
+            ).split(",")
+            if part.strip()
         )
         if observed_abis != tuple(device["supported_abis"]):
-            raise EvidenceError(f"{context}.{phase} ABI getprop disagrees with normalized identity")
-        boot = _raw_stdout(
+            raise EvidenceError(f"{context}.{phase} ABI identity changed")
+        boot_id = _raw_stdout(
             adb_command(
                 f"{phase}.device.boot_id",
                 "shell",
@@ -1705,430 +1588,544 @@ def _validate_raw_performance(
             ),
             context,
         ).lower()
-        if boot != str(device["boot_id"]).lower():
-            raise EvidenceError(f"{context}.{phase} boot_id disagrees with normalized identity")
-        font_scale_record = adb_command(
-            f"{phase}.device.settings.font_scale",
-            "shell",
-            "settings",
-            "get",
-            "system",
-            "font_scale",
+        if boot_id != str(device["boot_id"]).lower():
+            raise EvidenceError(f"{context}.{phase} boot ID changed")
+        font_scale = _raw_stdout(
+            adb_command(
+                f"{phase}.device.settings.font_scale",
+                "shell",
+                "settings",
+                "get",
+                "system",
+                "font_scale",
+            ),
+            context,
         )
-        font_scale_text = _raw_stdout(font_scale_record, context)
         try:
-            observed_font_scale = float(font_scale_text)
+            observed_font_scale = float(font_scale)
         except ValueError as exc:
-            raise EvidenceError(f"{context}.{phase} font_scale is invalid") from exc
-        normalized_screen = _nested_object(
-            normalized, "screen", f"performance[{profile}]"
-        )
-        if (
-            not math.isfinite(observed_font_scale)
-            or observed_font_scale != 1.0
-            or normalized_screen.get("font_scale") != observed_font_scale
-        ):
-            raise EvidenceError(
-                f"{context}.{phase} font_scale must equal normalized release value 1.0"
-            )
+            raise EvidenceError(f"{context}.{phase} font scale is invalid") from exc
+        if observed_font_scale != 1.0 or screen.get("font_scale") != observed_font_scale:
+            raise EvidenceError(f"{context}.{phase} font scale is not exactly 1.0")
 
         package_contract = (
             (
-                "candidate",
+                "benchmark_target",
                 PACKAGE_ID,
-                collector.get("candidate_apk_device_path"),
-                normalized["candidate_apk_sha256"],
+                collector.get("benchmark_target_apk_device_path"),
+                normalized["benchmark_target_apk_sha256"],
             ),
             (
-                "instrumentation",
-                TEST_PACKAGE_ID,
-                collector.get("instrumentation_apk_device_path"),
-                normalized["instrumentation_apk_sha256"],
+                "benchmark_test",
+                BENCHMARK_TEST_PACKAGE_ID,
+                collector.get("benchmark_test_apk_device_path"),
+                normalized["benchmark_test_apk_sha256"],
             ),
         )
         for label, package_id, expected_path, expected_sha in package_contract:
             if not isinstance(expected_path, str) or not expected_path.startswith("/"):
-                raise EvidenceError(f"performance[{profile}].collector {label} APK path is invalid")
-            path_record = adb_command(
-                f"{phase}.package.{label}.path", "shell", "pm", "path", package_id
+                raise EvidenceError(f"{context} {label} device path is invalid")
+            path_output = _raw_stdout(
+                adb_command(f"{phase}.package.{label}.path", "shell", "pm", "path", package_id),
+                context,
             )
-            paths = [
-                line.removeprefix("package:").strip()
-                for line in str(path_record["stdout"]).splitlines()
-                if line.strip().startswith("package:")
-            ]
-            if paths != [expected_path]:
-                raise EvidenceError(f"{context}.{phase} {label} package path disagrees")
-            sha_record = adb_command(
-                f"{phase}.package.{label}.sha256", "shell", "sha256sum", expected_path
+            if path_output != f"package:{expected_path}":
+                raise EvidenceError(f"{context}.{phase} {label} APK path changed")
+            sha_output = _raw_stdout(
+                adb_command(
+                    f"{phase}.package.{label}.sha256",
+                    "shell",
+                    "sha256sum",
+                    str(expected_path),
+                ),
+                context,
             )
-            sha_match = re.fullmatch(
-                r"([0-9A-Fa-f]{64})\s+(.+)", _raw_stdout(sha_record, context)
-            )
-            if (
-                sha_match is None
-                or sha_match.group(1).lower() != expected_sha
-                or sha_match.group(2).strip() != expected_path
-            ):
-                raise EvidenceError(f"{context}.{phase} {label} APK SHA/path disagrees")
+            sha_parts = sha_output.split()
+            if len(sha_parts) != 2 or sha_parts != [expected_sha, expected_path]:
+                raise EvidenceError(f"{context}.{phase} {label} APK hash changed")
 
-        package_dump = _raw_stdout(
-            adb_command(
-                f"{phase}.package.version", "shell", "dumpsys", "package", PACKAGE_ID
-            ),
-            context,
+        version_record = adb_command(
+            f"{phase}.package.version", "shell", "dumpsys", "package", PACKAGE_ID
         )
-        names = re.findall(r"(?m)^\s*versionName=([^\s]+)\s*$", package_dump)
-        codes = [
-            int(value)
-            for value in re.findall(r"(?m)^\s*versionCode=([0-9]+)(?:\s|$)", package_dump)
-        ]
-        if names != [version_name] or codes != [version_code]:
-            raise EvidenceError(f"{context}.{phase} package version disagrees")
-        _raw_qemu_match(
-            _raw_record(records, f"{phase}.host.qemu_processes", context),
-            device,
-            serial,
-            f"{context}.{phase}.host.qemu_processes",
-        )
+        version_output = _raw_stdout(version_record, context)
+        version_names = set(re.findall(r"(?m)^\s*versionName=([^\s]+)\s*$", version_output))
+        version_codes = set(re.findall(r"(?m)^\s*versionCode=([0-9]+)(?:\s|$)", version_output))
+        if version_names != {version_name} or version_codes != {str(version_code)}:
+            raise EvidenceError(f"{context}.{phase} installed version changed")
+
+        qemu_record = _raw_record(records, f"{phase}.host.qemu_processes", context)
+        _raw_qemu_match(qemu_record, device, serial, f"{context}.{phase}")
 
     validate_identity("initial")
 
     accel = _raw_record(records, "measure.emulator.accel-check", context)
-    emulator = str(accel["argv"][0])
-    if _portable_executable_name(emulator) not in {"emulator", "emulator.exe"}:
-        raise EvidenceError(f"{context} uses an unexpected emulator executable")
-    _raw_expect_argv(accel, [emulator, "-accel-check"], f"{context}.accel-check")
-    acceleration_output = "\n".join(
-        value.strip() for value in (str(accel["stdout"]), str(accel["stderr"])) if value.strip()
+    if len(accel["argv"]) != 2 or accel["argv"][1] != "-accel-check":
+        raise EvidenceError(f"{context} acceleration command is not emulator -accel-check")
+    accel_output = "\n".join(
+        part.strip() for part in (str(accel["stdout"]), str(accel["stderr"])) if part.strip()
     )
-    if (
-        device.get("acceleration_check_exit_code") != accel["exit_code"]
-        or device["acceleration_check"] != acceleration_output
-    ):
-        raise EvidenceError(f"{context} accel-check raw output disagrees with normalized evidence")
+    if accel_output != device.get("acceleration_check"):
+        raise EvidenceError(f"{context} acceleration output disagrees with normalized evidence")
 
-    screen = _nested_object(normalized, "screen", f"performance[{profile}]")
-    wm_size = adb_command("measure.screen.wm_size", "shell", "wm", "size")
-    if _raw_parse_wm_size(_raw_stdout(wm_size, context), context) != (
-        screen["width_px"],
-        screen["height_px"],
-    ):
-        raise EvidenceError(f"{context} wm size disagrees with normalized screen")
-    wm_density = adb_command("measure.screen.wm_density", "shell", "wm", "density")
-    if _raw_parse_wm_density(_raw_stdout(wm_density, context), context) != screen["density_dpi"]:
-        raise EvidenceError(f"{context} wm density disagrees with normalized screen")
-    config_record = adb_command("measure.screen.am_config", "shell", "am", "get-config")
+    wm_size = _raw_parse_wm_size(
+        _raw_stdout(adb_command("measure.screen.wm_size", "shell", "wm", "size"), context),
+        context,
+    )
+    wm_density = _raw_parse_wm_density(
+        _raw_stdout(adb_command("measure.screen.wm_density", "shell", "wm", "density"), context),
+        context,
+    )
+    if wm_size != (screen["width_px"], screen["height_px"]) or wm_density != screen["density_dpi"]:
+        raise EvidenceError(f"{context} wm size/density disagrees with normalized evidence")
+    am_config = _raw_stdout(
+        adb_command("measure.screen.am_config", "shell", "am", "get-config"), context
+    )
     dp_pairs = {
         (int(width), int(height))
-        for width, height in re.findall(
-            r"(?:^|[-\s])w([0-9]+)dp-h([0-9]+)dp(?:[-\s]|$)",
-            _raw_stdout(config_record, context),
-        )
+        for width, height in re.findall(r"(?:^|[-\s])w([0-9]+)dp-h([0-9]+)dp(?:[-\s]|$)", am_config)
     }
     if dp_pairs != {(screen["width_dp"], screen["height_dp"])}:
-        raise EvidenceError(f"{context} am get-config disagrees with normalized dp dimensions")
+        raise EvidenceError(f"{context} configured dp dimensions disagree with normalized evidence")
+    gpu_output = _raw_stdout(
+        adb_command("measure.gpu.surfaceflinger", "shell", "dumpsys", "SurfaceFlinger"), context
+    )
+    if _raw_parse_gpu_renderer(gpu_output, context) != device["gpu_renderer"]:
+        raise EvidenceError(f"{context} GPU renderer disagrees with normalized evidence")
 
     adb_command("measure.launch.force_stop", "shell", "am", "force-stop", PACKAGE_ID)
-    cold_record = adb_command(
-        "measure.launch.cold", "shell", "am", "start", "-W", "-S", "-n", MAIN_ACTIVITY
-    )
     cold_total, cold_wait = _raw_parse_start(
-        _raw_stdout(cold_record, context), {"COLD"}, f"{context}.cold"
-    )
-    process_before = _raw_parse_pidof(
         _raw_stdout(
             adb_command(
-                "measure.launch.pid_before_back",
+                "measure.launch.cold",
                 "shell",
-                "pidof",
-                PACKAGE_ID,
+                "am",
+                "start",
+                "-W",
+                "-S",
+                "-n",
+                MAIN_ACTIVITY,
             ),
             context,
-            allow_blank=True,
         ),
-        f"{context}.pid_before_back",
+        {"COLD"},
+        context,
+    )
+    if (cold_total, cold_wait) != (launch["cold_total_ms"], launch["cold_wait_ms"]):
+        raise EvidenceError(f"{context} cold launch timings disagree with normalized evidence")
+    pid_before = _raw_parse_pidof(
+        _raw_stdout(
+            adb_command("measure.launch.pid_before_back", "shell", "pidof", PACKAGE_ID),
+            context,
+        ),
+        context,
     )
     adb_command("measure.launch.back", "shell", "input", "keyevent", "KEYCODE_BACK")
-    process_after = _raw_parse_pidof(
+    pid_after = _raw_parse_pidof(
         _raw_stdout(
-            adb_command(
-                "measure.launch.pid_after_back",
-                "shell",
-                "pidof",
-                PACKAGE_ID,
-            ),
+            adb_command("measure.launch.pid_after_back", "shell", "pidof", PACKAGE_ID),
             context,
-            allow_blank=True,
         ),
-        f"{context}.pid_after_back",
+        context,
     )
-    if process_after != process_before:
-        raise EvidenceError(f"{context} Hermes process PID changed across KEYCODE_BACK")
+    if pid_before != pid_after or pid_after != launch["warm_process_pid"]:
+        raise EvidenceError(f"{context} warm process PID is not stable across KEYCODE_BACK")
     warm_record = adb_command(
         "measure.launch.warm", "shell", "am", "start", "-W", "-n", MAIN_ACTIVITY
     )
     warm_output = _raw_stdout(warm_record, context)
-    if has_warm_retry:
+    if has_retry:
         if not _raw_retryable_unknown_start(warm_output):
-            raise EvidenceError(
-                f"{context}.warm retry is only permitted for one UNKNOWN/zero launch result"
-            )
+            raise EvidenceError(f"{context} unexpected warm retry")
         retry_before = _raw_parse_pidof(
             _raw_stdout(
-                adb_command(
-                    "measure.launch.retry.pid_before_back",
-                    "shell",
-                    "pidof",
-                    PACKAGE_ID,
-                ),
+                adb_command("measure.launch.retry.pid_before_back", "shell", "pidof", PACKAGE_ID),
                 context,
             ),
-            f"{context}.retry.pid_before_back",
+            context,
         )
-        if retry_before != process_after:
-            raise EvidenceError(f"{context} Hermes PID changed before bounded warm retry")
-        adb_command(
-            "measure.launch.retry.back", "shell", "input", "keyevent", "KEYCODE_BACK"
-        )
+        adb_command("measure.launch.retry.back", "shell", "input", "keyevent", "KEYCODE_BACK")
         retry_after = _raw_parse_pidof(
             _raw_stdout(
-                adb_command(
-                    "measure.launch.retry.pid_after_back",
-                    "shell",
-                    "pidof",
-                    PACKAGE_ID,
-                ),
+                adb_command("measure.launch.retry.pid_after_back", "shell", "pidof", PACKAGE_ID),
                 context,
             ),
-            f"{context}.retry.pid_after_back",
+            context,
         )
-        if retry_after != retry_before:
-            raise EvidenceError(f"{context} Hermes PID changed across bounded warm retry BACK")
-        retry_record = adb_command(
-            "measure.launch.retry.warm",
-            "shell",
-            "am",
-            "start",
-            "-W",
-            "-n",
-            MAIN_ACTIVITY,
+        if retry_before != pid_after or retry_after != retry_before:
+            raise EvidenceError(f"{context} process changed during bounded warm retry")
+        warm_output = _raw_stdout(
+            adb_command(
+                "measure.launch.retry.warm",
+                "shell",
+                "am",
+                "start",
+                "-W",
+                "-n",
+                MAIN_ACTIVITY,
+            ),
+            context,
         )
-        warm_total, _ = _raw_parse_start(
-            _raw_stdout(retry_record, context),
-            {"WARM", "HOT"},
-            f"{context}.retry.warm",
-        )
-    else:
-        warm_total, _ = _raw_parse_start(warm_output, {"WARM", "HOT"}, f"{context}.warm")
-    launch = _nested_object(normalized, "launch", f"performance[{profile}]")
-    if (cold_total, cold_wait, warm_total, process_after) != (
-        launch["cold_total_ms"],
-        launch["cold_wait_ms"],
-        launch["warm_total_ms"],
-        launch["warm_process_pid"],
-    ):
-        raise EvidenceError(
-            f"{context} raw launch timings disagree with normalized evidence, or process PID differs"
-        )
+    elif _raw_retryable_unknown_start(warm_output):
+        raise EvidenceError(f"{context} retryable UNKNOWN warm launch was not retried")
+    warm_total, _ = _raw_parse_start(warm_output, {"WARM", "HOT"}, context)
+    if warm_total != launch["warm_total_ms"]:
+        raise EvidenceError(f"{context} warm launch timing disagrees with normalized evidence")
 
-    def ui_hierarchy(phase: str) -> str:
-        if phase not in {"initial", "drawer", "settings"}:
-            raise EvidenceError(f"{context} contains unsupported UI phase {phase!r}")
-        dump_path = f"{UI_DUMP_PATH_PREFIX}{phase}.xml"
-        remove_record = adb_command(
-            f"measure.ui.{phase}.remove",
-            "shell",
-            "rm",
-            "-f",
-            dump_path,
-        )
-        if str(remove_record["stdout"]).strip() or str(remove_record["stderr"]).strip():
-            raise EvidenceError(f"{context}.ui.{phase} fresh-path removal produced output")
-        dump_record = adb_command(
-            f"measure.ui.{phase}.dump",
-            "shell",
-            "uiautomator",
-            "dump",
-            dump_path,
-        )
-        expected_success = f"UI hierchary dumped to: {dump_path}"
-        if (
-            str(dump_record["stdout"]).strip() != expected_success
-            or str(dump_record["stderr"]).strip()
-        ):
-            raise EvidenceError(f"{context}.ui.{phase} dump lacks exact fresh success marker")
-        return _raw_stdout(
-            adb_command(f"measure.ui.{phase}.cat", "shell", "cat", dump_path),
-            f"{context}.ui.{phase}",
-        )
-
-    def expect_tap(record_id: str, bounds: tuple[int, int, int, int]) -> None:
-        left, top, right, bottom = bounds
-        x, y = (left + right) // 2, (top + bottom) // 2
-        if not (left < x < right and top < y < bottom):
-            raise EvidenceError(f"{context}.{record_id} target has no safe interior tap")
-        adb_command(record_id, "shell", "input", "tap", str(x), str(y))
-
-    width_px, height_px = screen["width_px"], screen["height_px"]
-    initial_xml = ui_hierarchy("initial")
-    if profile == "phone-compact":
-        _raw_reject_ui_resource(initial_xml, TABLET_SETTINGS_TAG, f"{context}.ui.initial")
-        drawer_bounds = _raw_ui_target(
-            initial_xml,
-            PHONE_DRAWER_TAG,
-            width_px,
-            height_px,
-            f"{context}.ui.initial",
-            clickable=True,
-        )
-        expect_tap("measure.ui.phone.drawer.tap", drawer_bounds)
-        drawer_xml = ui_hierarchy("drawer")
-        settings_bounds = _raw_ui_target(
-            drawer_xml,
-            PHONE_SETTINGS_TAG,
-            width_px,
-            height_px,
-            f"{context}.ui.drawer",
-            clickable=True,
-        )
-        expect_tap("measure.ui.phone.settings.tap", settings_bounds)
-        expected_route = "phone-drawer-settings"
-    else:
-        _raw_reject_ui_resource(initial_xml, PHONE_DRAWER_TAG, f"{context}.ui.initial")
-        settings_bounds = _raw_ui_target(
-            initial_xml,
-            TABLET_SETTINGS_TAG,
-            width_px,
-            height_px,
-            f"{context}.ui.initial",
-            clickable=True,
-        )
-        expect_tap("measure.ui.tablet.settings.tap", settings_bounds)
-        expected_route = "tablet-rail-settings"
-
-    settings_xml = ui_hierarchy("settings")
-    content_bounds = _raw_ui_target(
-        settings_xml,
-        SETTINGS_CONTENT_TAG,
-        width_px,
-        height_px,
-        f"{context}.ui.settings",
-        scrollable=True,
+    foreground = _raw_stdout(
+        adb_command(
+            "measure.activity.after_launch", "shell", "dumpsys", "activity", "activities"
+        ),
+        context,
     )
-    swipe_x, swipe_top_y, swipe_bottom_y = _raw_safe_swipe_coordinates(content_bounds)
-    if collector.get("ui_navigation_route") != expected_route:
-        raise EvidenceError(f"{context} normalized UI navigation route disagrees with profile")
-    if collector.get("settings_scroll_bounds_px") != list(content_bounds):
-        raise EvidenceError(f"{context} normalized settings bounds disagree with raw UI hierarchy")
-    expected_swipe = [swipe_x, swipe_bottom_y, swipe_x, swipe_top_y]
-    if collector.get("gfx_swipe_coordinates") != expected_swipe:
-        raise EvidenceError(f"{context} normalized swipe coordinates disagree with raw UI hierarchy")
-
-    gpu_record = adb_command(
-        "measure.gpu.surfaceflinger", "shell", "dumpsys", "SurfaceFlinger"
+    _raw_require_resumed_activity(foreground, f"{context}.measure.activity.after_launch")
+    meminfo = _raw_stdout(
+        adb_command("measure.memory.meminfo", "shell", "dumpsys", "meminfo", PACKAGE_ID),
+        context,
     )
-    if _raw_parse_gpu_renderer(_raw_stdout(gpu_record, context), context) != device["gpu_renderer"]:
-        raise EvidenceError(f"{context} SurfaceFlinger renderer disagrees with normalized evidence")
-    foreground_before = adb_command(
-        "measure.activity.before_gfx",
-        "shell",
-        "dumpsys",
-        "activity",
-        "activities",
-    )
-    _raw_require_resumed_activity(
-        _raw_stdout(foreground_before, context), f"{context}.measure.activity.before_gfx"
-    )
-    adb_command("measure.gfx.reset", "shell", "dumpsys", "gfxinfo", PACKAGE_ID, "reset")
-
-    for index in range(1, swipe_index):
-        record_id = f"measure.gfx.swipe.{index:04d}"
-        record = _raw_record(records, record_id, context)
-        argv = list(record["argv"])
-        expected_prefix = [adb, "-s", serial, "shell", "input", "swipe", str(swipe_x)]
-        if len(argv) != 11 or argv[:7] != expected_prefix or argv[8] != str(swipe_x):
-            raise EvidenceError(f"{context}.{record_id} is not the expected display exercise command")
-        coordinates = (argv[7], argv[9])
-        expected_coordinates = (
-            (str(swipe_bottom_y), str(swipe_top_y))
-            if swipe_ordinal_in_round[record_id] % 2 == 0
-            else (str(swipe_top_y), str(swipe_bottom_y))
-        )
-        if coordinates != expected_coordinates:
-            raise EvidenceError(f"{context}.{record_id} uses unexpected swipe coordinates")
-        if not argv[10].isdigit() or not 50 <= int(argv[10]) <= 2_000:
-            raise EvidenceError(f"{context}.{record_id} has an invalid swipe duration")
-
-    observed_frames: list[dict[str, int | float]] = []
-    for record_id in summary_ids:
-        record = adb_command(record_id, "shell", "dumpsys", "gfxinfo", PACKAGE_ID)
-        raw_gfxinfo = _raw_stdout(record, context)
-        _raw_require_process_header(
-            raw_gfxinfo,
-            "Graphics info for pid",
-            launch["warm_process_pid"],
-            f"{context}.{record_id}",
-        )
-        observed_frames.append(_raw_parse_gfxinfo(raw_gfxinfo, f"{context}.{record_id}"))
-    totals = [record["total_rendered"] for record in observed_frames]
-    if totals != sorted(totals) or any(total >= 100 for total in totals[:-1]) or totals[-1] < 100:
-        raise EvidenceError(f"{context} gfxinfo rounds do not stop at the first >=100-frame dump")
-    if collector.get("gfxinfo_exercise_rounds") != len(summary_ids):
-        raise EvidenceError(f"{context} gfxinfo round count disagrees with normalized collector data")
-    normalized_frames = _nested_object(normalized, "frames", f"performance[{profile}]")
-    if any(normalized_frames.get(field) != value for field, value in observed_frames[-1].items()):
-        raise EvidenceError(f"{context} raw gfxinfo summary disagrees with normalized frame metrics")
-
-    foreground_after = adb_command(
-        "measure.activity.after_gfx",
-        "shell",
-        "dumpsys",
-        "activity",
-        "activities",
-    )
-    _raw_require_resumed_activity(
-        _raw_stdout(foreground_after, context), f"{context}.measure.activity.after_gfx"
-    )
-
-    memory_record = adb_command(
-        "measure.memory.meminfo", "shell", "dumpsys", "meminfo", PACKAGE_ID
-    )
-    raw_meminfo = _raw_stdout(memory_record, context)
     _raw_require_process_header(
-        raw_meminfo,
-        "MEMINFO in pid",
-        launch["warm_process_pid"],
-        f"{context}.measure.memory.meminfo",
+        meminfo, "MEMINFO in pid", launch["warm_process_pid"], f"{context}.measure.memory.meminfo"
     )
     memory_pairs = [
         (int(pss), int(rss))
         for pss, rss in re.findall(
             r"(?mi)^\s*TOTAL\s+PSS:\s*([0-9]+)\s+TOTAL\s+RSS:\s*([0-9]+)(?:\s|$)",
-            raw_meminfo,
+            meminfo,
         )
     ]
     memory = _nested_object(normalized, "memory", f"performance[{profile}]")
     if memory_pairs != [(memory["total_pss_kb"], memory["total_rss_kb"])]:
-        raise EvidenceError(f"{context} raw meminfo disagrees with normalized memory metrics")
-
-    final_process_pid = _raw_parse_pidof(
+        raise EvidenceError(f"{context} meminfo disagrees with normalized evidence")
+    final_pid = _raw_parse_pidof(
         _raw_stdout(
-            adb_command(
-                "measure.process.pid_after_measurement",
-                "shell",
-                "pidof",
-                PACKAGE_ID,
-            ),
+            adb_command("measure.process.pid_after_measurement", "shell", "pidof", PACKAGE_ID),
             context,
-            allow_blank=True,
         ),
-        f"{context}.pid_after_measurement",
+        context,
     )
-    if final_process_pid != launch["warm_process_pid"]:
-        raise EvidenceError(f"{context} Hermes process PID changed during measurement")
-
+    if final_pid != launch["warm_process_pid"]:
+        raise EvidenceError(f"{context} process PID changed during memory collection")
     validate_identity("final")
+
+
+def _finite_json_number(value: Any, context: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise EvidenceError(f"{context} must be a finite number")
+    result = float(value)
+    if not math.isfinite(result):
+        raise EvidenceError(f"{context} must be a finite number")
+    return result
+
+
+def _androidx_metric_runs(
+    metrics: Mapping[str, Any], name: str, iterations: int, *, integral: bool
+) -> list[int] | list[float]:
+    metric = _nested_object(metrics, name, "macrobenchmark.metrics")
+    expected_keys = {"minimum", "maximum", "median", "coefficientOfVariation", "runs"}
+    if set(metric) != expected_keys:
+        raise EvidenceError(f"macrobenchmark.metrics.{name} has an unexpected AndroidX shape")
+    runs = metric.get("runs")
+    if not isinstance(runs, list) or len(runs) != iterations:
+        raise EvidenceError(f"macrobenchmark.metrics.{name}.runs must contain {iterations} values")
+    values = [
+        _finite_json_number(value, f"macrobenchmark.metrics.{name}.runs[{index}]")
+        for index, value in enumerate(runs)
+    ]
+    for stat in ("minimum", "maximum", "median", "coefficientOfVariation"):
+        _finite_json_number(metric.get(stat), f"macrobenchmark.metrics.{name}.{stat}")
+    if metric["minimum"] != min(values) or metric["maximum"] != max(values):
+        raise EvidenceError(f"macrobenchmark.metrics.{name} min/max do not match runs")
+    if integral:
+        if any(value < 0 or not value.is_integer() for value in values):
+            raise EvidenceError(f"macrobenchmark.metrics.{name} must contain nonnegative integers")
+        return [int(value) for value in values]
+    return values
+
+
+def _androidx_sampled_metric(
+    sampled_metrics: Mapping[str, Any], name: str, iterations: int
+) -> tuple[dict[str, float], list[list[float]]]:
+    metric = _nested_object(sampled_metrics, name, "macrobenchmark.sampledMetrics")
+    if set(metric) != {"P50", "P90", "P95", "P99", "runs"}:
+        raise EvidenceError(f"macrobenchmark.sampledMetrics.{name} has an unexpected shape")
+    percentile_keys = ("P50", "P90", "P95", "P99")
+    percentiles = {
+        key: _finite_json_number(metric.get(key), f"macrobenchmark.sampledMetrics.{name}.{key}")
+        for key in percentile_keys
+    }
+    if list(percentiles.values()) != sorted(percentiles.values()):
+        raise EvidenceError(f"macrobenchmark.sampledMetrics.{name} percentiles are not monotonic")
+    raw_runs = metric.get("runs")
+    if not isinstance(raw_runs, list) or len(raw_runs) != iterations:
+        raise EvidenceError(
+            f"macrobenchmark.sampledMetrics.{name}.runs must contain {iterations} arrays"
+        )
+    runs: list[list[float]] = []
+    for iteration, raw_values in enumerate(raw_runs, start=1):
+        if not isinstance(raw_values, list) or not raw_values:
+            raise EvidenceError(f"macrobenchmark sampled {name} iteration {iteration} is empty")
+        runs.append(
+            [
+                _finite_json_number(
+                    value, f"macrobenchmark.sampledMetrics.{name}.runs[{iteration - 1}]"
+                )
+                for value in raw_values
+            ]
+        )
+    pooled = sorted(value for iteration_values in runs for value in iteration_values)
+    for key, percentile in (("P50", 50), ("P90", 90), ("P95", 95), ("P99", 99)):
+        expected = _linear_interpolated_percentile(pooled, percentile)
+        if not math.isclose(
+            percentiles[key], expected, rel_tol=1e-9, abs_tol=1e-9
+        ):
+            raise EvidenceError(
+                f"macrobenchmark.sampledMetrics.{name}.{key} does not reproduce "
+                "the pooled AndroidX runs"
+            )
+    return percentiles, runs
+
+
+def _linear_interpolated_percentile(values: Sequence[float], percentile: int) -> float:
+    """Reproduce AndroidX MetricResult percentile interpolation over pooled samples."""
+    if not values:
+        raise EvidenceError("cannot calculate a percentile from an empty sample")
+    ideal_index = percentile / 100.0 * (len(values) - 1)
+    lower_index = math.floor(ideal_index)
+    upper_index = math.ceil(ideal_index)
+    lower = values[lower_index]
+    upper = values[upper_index]
+    return lower + (upper - lower) * (ideal_index - lower_index)
+
+
+def _expected_frames_from_macrobenchmark(
+    report: Mapping[str, Any],
+    normalized: Mapping[str, Any],
+    profile: str,
+    trace_source_names: Sequence[str],
+) -> dict[str, Any]:
+    context = f"performance[{profile}].macrobenchmark_raw"
+    if set(report) != {"context", "benchmarks"}:
+        raise EvidenceError(f"{context} root does not match AndroidX BenchmarkData 1.4.1")
+    report_context = _nested_object(report, "context", context)
+    expected_context_keys = {
+        "build",
+        "cpuCoreCount",
+        "cpuLocked",
+        "cpuMaxFreqHz",
+        "memTotalBytes",
+        "sustainedPerformanceModeEnabled",
+        "artMainlineVersion",
+        "osCodenameAbbreviated",
+        "compilationMode",
+        "payload",
+    }
+    if set(report_context) != expected_context_keys:
+        raise EvidenceError(f"{context}.context does not match AndroidX BenchmarkData 1.4.1")
+    if report_context.get("compilationMode") != "speed":
+        raise EvidenceError(
+            f"{context}.context.compilationMode must equal speed for CompilationMode.Full"
+        )
+    normalized_device = _nested_object(normalized, "device", f"performance[{profile}]")
+    if report_context.get("payload") != {
+        "sourceDigest": normalized["release_source_digest"],
+        "targetApkSha256": normalized["benchmark_target_apk_sha256"],
+        "benchmarkApkSha256": normalized["benchmark_test_apk_sha256"],
+        "evidenceRunId": normalized["evidence_run_id"],
+        "evidenceProfile": profile,
+        "avdName": normalized_device.get("avd_name"),
+        "bootId": normalized_device.get("boot_id"),
+    }:
+        raise EvidenceError(
+            f"{context}.context.payload does not bind the exact source/APKs/run/profile/boot"
+        )
+    build = _nested_object(report_context, "build", f"{context}.context")
+    if set(build) != {"brand", "device", "fingerprint", "id", "model", "type", "version"}:
+        raise EvidenceError(f"{context}.context.build has an unexpected key set")
+    version = _nested_object(build, "version", f"{context}.context.build")
+    if set(version) != {"codename", "sdk"}:
+        raise EvidenceError(f"{context}.context.build.version has an unexpected key set")
+    if (
+        build.get("fingerprint") != normalized_device.get("build_fingerprint")
+        or build.get("model") != normalized_device.get("model")
+        or version.get("sdk") != normalized_device.get("android_sdk")
+    ):
+        raise EvidenceError(f"{context} build identity does not match the exact live AVD")
+
+    benchmarks = report.get("benchmarks")
+    if not isinstance(benchmarks, list) or len(benchmarks) != 1 or not isinstance(benchmarks[0], Mapping):
+        raise EvidenceError(f"{context} must contain exactly one benchmark")
+    result = benchmarks[0]
+    expected_result_keys = {
+        "name",
+        "params",
+        "className",
+        "totalRunTimeNs",
+        "metrics",
+        "sampledMetrics",
+        "warmupIterations",
+        "repeatIterations",
+        "thermalThrottleSleepSeconds",
+        "profilerOutputs",
+    }
+    if set(result) != expected_result_keys:
+        raise EvidenceError(f"{context}.benchmarks[0] does not match AndroidX 1.4.1")
+    if result.get("name") != BENCHMARK_METHOD or result.get("className") != BENCHMARK_CLASS:
+        raise EvidenceError(f"{context} benchmark class/method is wrong")
+    if result.get("params") != {}:
+        raise EvidenceError(f"{context} must contain one unparameterized benchmark")
+    iterations = result.get("repeatIterations")
+    if (
+        isinstance(iterations, bool)
+        or not isinstance(iterations, int)
+        or not MIN_BENCHMARK_ITERATIONS <= iterations <= MAX_BENCHMARK_ITERATIONS
+    ):
+        raise EvidenceError(f"{context}.repeatIterations must be between 5 and 20")
+    if result.get("thermalThrottleSleepSeconds") != 0:
+        raise EvidenceError(f"{context} reports thermal throttling")
+    warmup_iterations = result.get("warmupIterations")
+    if isinstance(warmup_iterations, bool) or not isinstance(warmup_iterations, int) or warmup_iterations < 0:
+        raise EvidenceError(f"{context}.warmupIterations must be nonnegative")
+    total_run_time = result.get("totalRunTimeNs")
+    if isinstance(total_run_time, bool) or not isinstance(total_run_time, int) or total_run_time <= 0:
+        raise EvidenceError(f"{context}.totalRunTimeNs must be positive")
+
+    metrics = _nested_object(result, "metrics", f"{context}.benchmarks[0]")
+    expected_metric_names = {
+        "frameCount",
+        "hermesFrameTotalCount",
+        "hermesFrameJankyCount",
+        "hermesFrameAppDeadlineMissedCount",
+        "hermesFrameOtherJankCount",
+        "hermesFrameJankPercent",
+        "hermesEvidenceToken",
+    }
+    if set(metrics) != expected_metric_names:
+        raise EvidenceError(f"{context}.metrics does not contain the exact Hermes metric set")
+    sampled = _nested_object(result, "sampledMetrics", f"{context}.benchmarks[0]")
+    if set(sampled) != {"frameDurationCpuMs", "frameOverrunMs"}:
+        raise EvidenceError(f"{context}.sampledMetrics does not contain both frame distributions")
+
+    frame_counts = _androidx_metric_runs(metrics, "frameCount", iterations, integral=True)
+    totals = _androidx_metric_runs(metrics, "hermesFrameTotalCount", iterations, integral=True)
+    janky = _androidx_metric_runs(metrics, "hermesFrameJankyCount", iterations, integral=True)
+    deadline = _androidx_metric_runs(
+        metrics, "hermesFrameAppDeadlineMissedCount", iterations, integral=True
+    )
+    other = _androidx_metric_runs(metrics, "hermesFrameOtherJankCount", iterations, integral=True)
+    percentages = _androidx_metric_runs(metrics, "hermesFrameJankPercent", iterations, integral=False)
+    evidence_tokens = _androidx_metric_runs(metrics, "hermesEvidenceToken", iterations, integral=True)
+    assert isinstance(frame_counts, list)
+    assert isinstance(totals, list)
+    assert isinstance(janky, list)
+    assert isinstance(deadline, list)
+    assert isinstance(other, list)
+    assert isinstance(percentages, list)
+    assert isinstance(evidence_tokens, list)
+    canonical_token_input = (
+        "hermes-macrobenchmark-evidence-v2\n"
+        f"{normalized['release_source_digest']}\n"
+        f"{normalized['benchmark_target_apk_sha256']}\n"
+        f"{normalized['benchmark_test_apk_sha256']}\n"
+        f"{normalized['evidence_run_id']}\n"
+        f"{profile}\n"
+        f"{normalized_device['avd_name']}\n"
+        f"{normalized_device['boot_id']}\n"
+    )
+    expected_evidence_token = int(
+        hashlib.sha256(canonical_token_input.encode("utf-8")).hexdigest()[:13], 16
+    )
+    if evidence_tokens != [expected_evidence_token] * iterations:
+        raise EvidenceError(
+            f"{context}.hermesEvidenceToken does not bind the exact source/APKs/run/profile/boot"
+        )
+    duration_percentiles, duration_runs = _androidx_sampled_metric(
+        sampled, "frameDurationCpuMs", iterations
+    )
+    overrun_percentiles, overrun_runs = _androidx_sampled_metric(
+        sampled, "frameOverrunMs", iterations
+    )
+
+    normalized_iterations: list[dict[str, Any]] = []
+    for index in range(iterations):
+        frame_count = int(frame_counts[index])
+        total = int(totals[index])
+        janky_count = int(janky[index])
+        deadline_count = int(deadline[index])
+        other_count = int(other[index])
+        percent = float(percentages[index])
+        if frame_count <= 0 or total <= 0:
+            raise EvidenceError(f"{context} iteration {index + 1} contains no frames")
+        if len(duration_runs[index]) != frame_count or len(overrun_runs[index]) != frame_count:
+            raise EvidenceError(f"{context} FrameTiming samples disagree with iteration frameCount")
+        if janky_count > total or deadline_count + other_count != janky_count:
+            raise EvidenceError(f"{context} iteration {index + 1} jank counts do not reconcile")
+        expected_percent = janky_count * 100.0 / total
+        if not 0 <= percent <= 100 or abs(percent - expected_percent) > 1e-6:
+            raise EvidenceError(f"{context} iteration {index + 1} jank percentage is inconsistent")
+        normalized_iterations.append(
+            {
+                "iteration": index + 1,
+                "frame_timing_frame_count": frame_count,
+                "perfetto_total_frames": total,
+                "perfetto_janky_frames": janky_count,
+                "perfetto_app_deadline_missed_frames": deadline_count,
+                "perfetto_other_janky_frames": other_count,
+                "perfetto_janky_percent": percent,
+            }
+        )
+
+    frame_timing_total = sum(int(value) for value in frame_counts)
+    total_frames = sum(int(value) for value in totals)
+    janky_frames = sum(int(value) for value in janky)
+    deadline_frames = sum(int(value) for value in deadline)
+    other_frames = sum(int(value) for value in other)
+    if frame_timing_total < 100 or total_frames < 100:
+        raise EvidenceError(f"{context} must contain at least 100 aggregate frames")
+    janky_percent = janky_frames * 100.0 / total_frames
+    if janky_percent > 10.0:
+        raise EvidenceError(f"{context} exceeds the 10% pooled jank budget")
+    if deadline_frames + other_frames != janky_frames:
+        raise EvidenceError(f"{context} pooled jank categories do not reconcile")
+    if duration_percentiles["P95"] > 250 or duration_percentiles["P99"] > 1_000:
+        raise EvidenceError(f"{context} frame duration percentiles exceed the release budget")
+
+    profiler_outputs = result.get("profilerOutputs")
+    if not isinstance(profiler_outputs, list) or len(profiler_outputs) != iterations:
+        raise EvidenceError(f"{context} must contain one profiler output per iteration")
+    raw_source_names: list[str] = []
+    for index, output in enumerate(profiler_outputs, start=1):
+        if not isinstance(output, Mapping) or set(output) != {"type", "label", "filename"}:
+            raise EvidenceError(f"{context} profiler output {index} has an invalid shape")
+        if output.get("type") != "PerfettoTrace":
+            raise EvidenceError(f"{context} profiler output {index} is not a Perfetto trace")
+        label = output.get("label")
+        filename = output.get("filename")
+        if label != f"Trace Iteration {index - 1}" or not isinstance(filename, str):
+            raise EvidenceError(f"{context} profiler output {index} is incomplete")
+        source_name = PurePosixPath(filename.replace("\\", "/")).name
+        if not source_name.endswith(".perfetto-trace") or source_name in raw_source_names:
+            raise EvidenceError(f"{context} profiler output filenames are invalid or duplicated")
+        raw_source_names.append(source_name)
+    if raw_source_names != list(trace_source_names):
+        raise EvidenceError(f"{context} profiler outputs do not match the bound trace files")
+
+    return {
+        "metric_source": "androidx.macrobenchmark.FrameTimingMetric+HermesFrameJankMetric",
+        "iterations": normalized_iterations,
+        "frame_timing_total_rendered": frame_timing_total,
+        "total_rendered": total_frames,
+        "janky": janky_frames,
+        "janky_percent": janky_percent,
+        "p50_ms": duration_percentiles["P50"],
+        "p90_ms": duration_percentiles["P90"],
+        "p95_ms": duration_percentiles["P95"],
+        "p99_ms": duration_percentiles["P99"],
+        "frame_overrun_ms": {
+            "p50": overrun_percentiles["P50"],
+            "p90": overrun_percentiles["P90"],
+            "p95": overrun_percentiles["P95"],
+            "p99": overrun_percentiles["P99"],
+        },
+    }
 
 
 def _validate_performance(
@@ -2138,137 +2135,273 @@ def _validate_performance(
     version_name: str,
     version_code: int,
     *,
-    raw_path_override: Path | None = None,
+    artifact_path_overrides: Mapping[str, Path] | None = None,
 ) -> dict[str, Any]:
     payload = _json_object(path)
     context = f"performance[{profile}]"
-    if payload.get("schema") != PERFORMANCE_SCHEMA or payload.get("profile") != profile:
-        raise EvidenceError(f"{context} has the wrong schema/profile")
-    if payload.get("release_source_digest") != source_digest:
-        raise EvidenceError(f"{context}.release_source_digest does not match the tested source")
-    expected_identity: dict[str, Any] = {
+    expected_top_keys = {
+        "schema",
+        "profile",
+        "release_source_digest",
+        "benchmark_target_apk_sha256",
+        "benchmark_test_apk_sha256",
+        "evidence_run_id",
+        "package_id",
+        "version_name",
+        "version_code",
+        "build_variant",
+        "litertlm_coordinate",
+        "recorded_at_epoch_ms",
+        "evidence_classification",
+        "raw_evidence",
+        "benchmark",
+        "traces",
+        "device",
+        "screen",
+        "launch",
+        "frames",
+        "memory",
+        "collector",
+    }
+    if set(payload) != expected_top_keys:
+        raise EvidenceError(f"{context} top-level key set does not match performance v2")
+    exact_identity = {
+        "schema": PERFORMANCE_SCHEMA,
+        "profile": profile,
+        "release_source_digest": source_digest,
         "package_id": PACKAGE_ID,
         "version_name": version_name,
         "version_code": version_code,
-        "build_variant": BUILD_VARIANT,
+        "build_variant": PERFORMANCE_BUILD_VARIANT,
         "litertlm_coordinate": LITERTLM_COORDINATE,
     }
-    for field, expected in expected_identity.items():
+    for field, expected in exact_identity.items():
         if payload.get(field) != expected:
             raise EvidenceError(f"{context}.{field} must equal {expected!r}")
-    run_id = payload.get("evidence_run_id")
-    if not isinstance(run_id, str) or not RUN_ID_RE.fullmatch(run_id):
+    for field in ("benchmark_target_apk_sha256", "benchmark_test_apk_sha256"):
+        if not isinstance(payload.get(field), str) or not HEX_64_RE.fullmatch(payload[field]):
+            raise EvidenceError(f"{context}.{field} must be one lowercase SHA-256")
+    if not isinstance(payload.get("evidence_run_id"), str) or not RUN_ID_RE.fullmatch(
+        payload["evidence_run_id"]
+    ):
         raise EvidenceError(f"{context}.evidence_run_id is invalid")
-    for field in ("candidate_apk_sha256", "instrumentation_apk_sha256"):
-        value = payload.get(field)
-        if not isinstance(value, str) or not HEX_64_RE.fullmatch(value):
-            raise EvidenceError(f"{context}.{field} must be lowercase SHA-256")
-    raw_reference = _nested_object(payload, "raw_evidence", context)
-    if set(raw_reference) != {"path", "sha256"}:
-        raise EvidenceError(f"{context}.raw_evidence must contain exactly path and sha256")
-    expected_raw_relative = f"performance/{profile}.raw.json"
-    if raw_reference.get("path") != expected_raw_relative:
-        raise EvidenceError(
-            f"{context}.raw_evidence.path must equal {expected_raw_relative!r}"
-        )
-    raw_sha256 = raw_reference.get("sha256")
-    if not isinstance(raw_sha256, str) or not HEX_64_RE.fullmatch(raw_sha256):
-        raise EvidenceError(f"{context}.raw_evidence.sha256 must be lowercase SHA-256")
-    raw_path = (
-        raw_path_override.resolve()
-        if raw_path_override is not None
-        else path.parent.parent / Path(expected_raw_relative)
+    _integer(payload, "recorded_at_epoch_ms", context, positive=True)
+    if payload.get("evidence_classification") != {
+        "environment": "headed-hardware-accelerated-avd",
+        "result_kind": "validation-signal",
+        "representative_end_user_benchmark": False,
+    }:
+        raise EvidenceError(f"{context} must label AVD metrics as non-representative validation signals")
+
+    benchmark = _nested_object(payload, "benchmark", context)
+    expected_benchmark = {
+        "target_package_id": PACKAGE_ID,
+        "test_package_id": BENCHMARK_TEST_PACKAGE_ID,
+        "runner": "androidx.test.runner.AndroidJUnitRunner",
+        "test_id": BENCHMARK_TEST_ID,
+        "androidx_benchmark_coordinate": ANDROIDX_BENCHMARK_COORDINATE,
+        "compilation_mode": "Full",
+        "suppressed_errors": ["EMULATOR"],
+        "profiling_mode": "None",
+        "target_debuggable": False,
+        "target_profileable_by_shell": True,
+    }
+    if set(benchmark) != set(expected_benchmark) | {"iteration_count"}:
+        raise EvidenceError(f"{context}.benchmark key set is invalid")
+    for field, expected in expected_benchmark.items():
+        if benchmark.get(field) != expected:
+            raise EvidenceError(f"{context}.benchmark.{field} must equal {expected!r}")
+    iteration_count = _integer(benchmark, "iteration_count", f"{context}.benchmark", positive=True)
+    if not MIN_BENCHMARK_ITERATIONS <= iteration_count <= MAX_BENCHMARK_ITERATIONS:
+        raise EvidenceError(f"{context}.benchmark.iteration_count must be between 5 and 20")
+
+    evidence_root = path.parent.parent
+    raw_evidence = _nested_object(payload, "raw_evidence", context)
+    if set(raw_evidence) != {"host", "macrobenchmark"}:
+        raise EvidenceError(f"{context}.raw_evidence must bind host and Macrobenchmark raw files")
+    traces = payload.get("traces")
+    if not isinstance(traces, list) or len(traces) != iteration_count:
+        raise EvidenceError(f"{context}.traces must contain one entry per iteration")
+    expected_references = {
+        f"performance/{profile}.host.raw.json",
+        f"performance/{profile}.macrobenchmark.raw.json",
+        *{
+            f"performance/{profile}.traces/iteration-{index:03d}.perfetto-trace"
+            for index in range(1, iteration_count + 1)
+        },
+    }
+    overrides = dict(artifact_path_overrides or {})
+    if overrides and set(overrides) != expected_references:
+        raise EvidenceError(f"{context} temporary artifact override set is incomplete or unexpected")
+
+    def validate_reference(reference: Any, expected_path: str, *, nonempty: bool = True) -> Path:
+        if not isinstance(reference, Mapping) or set(reference) != {"path", "bytes", "sha256"}:
+            raise EvidenceError(f"{context} artifact reference for {expected_path} is invalid")
+        if reference.get("path") != expected_path:
+            raise EvidenceError(f"{context} artifact path must equal {expected_path}")
+        size = reference.get("bytes")
+        digest = reference.get("sha256")
+        if isinstance(size, bool) or not isinstance(size, int) or (size <= 0 if nonempty else size < 0):
+            raise EvidenceError(f"{context} artifact {expected_path} has an invalid byte count")
+        if not isinstance(digest, str) or not HEX_64_RE.fullmatch(digest):
+            raise EvidenceError(f"{context} artifact {expected_path} has an invalid SHA-256")
+        artifact_path = overrides.get(expected_path, evidence_root / Path(expected_path))
+        if not artifact_path.is_file() or artifact_path.is_symlink():
+            raise EvidenceError(f"{context} artifact {expected_path} is missing or unsafe")
+        if artifact_path.stat().st_size != size or _sha256_file(artifact_path) != digest:
+            raise EvidenceError(f"{context} artifact {expected_path} bytes/hash do not match")
+        return artifact_path
+
+    host_path = validate_reference(
+        raw_evidence["host"], f"performance/{profile}.host.raw.json"
     )
-    if not raw_path.is_file():
-        raise EvidenceError(f"{context} raw transcript is missing: {raw_path}")
-    if _sha256_file(raw_path) != raw_sha256:
-        raise EvidenceError(f"{context}.raw_evidence.sha256 does not match the raw transcript bytes")
-    raw_payload = _json_object(raw_path)
+    macro_path = validate_reference(
+        raw_evidence["macrobenchmark"], f"performance/{profile}.macrobenchmark.raw.json"
+    )
+    trace_paths: list[Path] = []
+    trace_source_names: list[str] = []
+    seen_trace_hashes: set[str] = set()
+    for index, trace in enumerate(traces, start=1):
+        expected_path = f"performance/{profile}.traces/iteration-{index:03d}.perfetto-trace"
+        if not isinstance(trace, Mapping) or set(trace) != {
+            "iteration",
+            "path",
+            "source_name",
+            "bytes",
+            "sha256",
+        }:
+            raise EvidenceError(f"{context}.traces[{index - 1}] has an invalid key set")
+        if trace.get("iteration") != index:
+            raise EvidenceError(f"{context}.traces must use contiguous one-based iteration numbers")
+        source_name = trace.get("source_name")
+        if (
+            not isinstance(source_name, str)
+            or PurePosixPath(source_name).name != source_name
+            or not source_name.endswith(".perfetto-trace")
+            or source_name in trace_source_names
+        ):
+            raise EvidenceError(f"{context}.traces[{index - 1}].source_name is invalid")
+        reference = {field: trace[field] for field in ("path", "bytes", "sha256")}
+        trace_path = validate_reference(reference, expected_path)
+        if trace["sha256"] in seen_trace_hashes:
+            raise EvidenceError(f"{context} trace hashes must be unique per iteration")
+        seen_trace_hashes.add(trace["sha256"])
+        trace_paths.append(trace_path)
+        trace_source_names.append(source_name)
+
+    macro_report = _json_object(macro_path)
+    expected_frames = _expected_frames_from_macrobenchmark(
+        macro_report, payload, profile, trace_source_names
+    )
+    if payload.get("frames") != expected_frames:
+        raise EvidenceError(f"{context}.frames does not exactly reproduce the AndroidX raw report")
+    if benchmark["iteration_count"] != len(expected_frames["iterations"]):
+        raise EvidenceError(f"{context} iteration count disagrees with AndroidX raw data")
 
     device = _nested_object(payload, "device", context)
+    required_device_keys = {
+        "serial",
+        "avd_name",
+        "boot_id",
+        "model",
+        "build_fingerprint",
+        "android_sdk",
+        "supported_abis",
+        "hardware_acceleration",
+        "acceleration_check",
+        "acceleration_check_exit_code",
+        "gpu_renderer",
+        "active_qemu_process_count",
+        "emulator_pid",
+        "emulator_process_name",
+        "emulator_public_command",
+        "emulator_public_command_sha256",
+        "emulator_raw_command_sha256",
+    }
+    if set(device) != required_device_keys:
+        raise EvidenceError(f"{context}.device key set is invalid")
     serial = _required_string(device, "serial", f"{context}.device")
-    if not serial.startswith("emulator-"):
-        raise EvidenceError(f"{context}.device.serial must identify an Android emulator")
-    _required_string(device, "avd_name", f"{context}.device")
+    serial_match = re.fullmatch(r"emulator-([0-9]{4,5})", serial)
+    if not serial_match or int(serial_match.group(1)) % 2:
+        raise EvidenceError(f"{context}.device.serial is not one exact emulator console serial")
+    avd_name = _required_string(device, "avd_name", f"{context}.device")
+    if not AVD_NAME_RE.fullmatch(avd_name):
+        raise EvidenceError(f"{context}.device.avd_name is invalid")
     boot_id = _required_string(device, "boot_id", f"{context}.device").lower()
     if not BOOT_ID_RE.fullmatch(boot_id):
-        raise EvidenceError(f"{context}.device.boot_id must be a kernel boot UUID")
+        raise EvidenceError(f"{context}.device.boot_id is invalid")
     _required_string(device, "model", f"{context}.device")
     _required_string(device, "build_fingerprint", f"{context}.device")
-    android_sdk = _integer(device, "android_sdk", f"{context}.device", positive=True)
-    if android_sdk < 24:
-        raise EvidenceError(f"{context}.device.android_sdk is below the supported API 24 floor")
-    supported_abis = device.get("supported_abis")
-    if not isinstance(supported_abis, list) or not supported_abis or not all(
-        isinstance(abi, str) and abi for abi in supported_abis
-    ):
-        raise EvidenceError(f"{context}.device.supported_abis must be a nonempty string list")
+    if _integer(device, "android_sdk", f"{context}.device", positive=True) < 31:
+        raise EvidenceError(f"{context}.device.android_sdk must support FrameTimeline")
+    supported_abis = _normalized_abis(device.get("supported_abis"), f"{context}.device.supported_abis")
     if "x86_64" not in supported_abis:
-        raise EvidenceError(f"{context}.device.supported_abis must prove the x86_64 AVD lane")
-    emulator_pid = _integer(device, "emulator_pid", f"{context}.device", positive=True)
-    if emulator_pid <= 0:
-        raise EvidenceError(f"{context}.device.emulator_pid must be positive")
-    emulator_process_name = _required_string(
-        device, "emulator_process_name", f"{context}.device"
-    )
-    if not emulator_process_name.casefold().startswith("qemu-system-"):
-        raise EvidenceError(f"{context}.device.emulator_process_name must identify qemu-system")
-    if not _required_bool(device, "hardware_acceleration", f"{context}.device"):
-        raise EvidenceError(f"{context}.device must record hardware_acceleration=true")
-    acceleration_check = _required_string(device, "acceleration_check", f"{context}.device")
+        raise EvidenceError(f"{context}.device does not prove the x86_64 AVD")
+    if _required_bool(device, "hardware_acceleration", f"{context}.device") is not True:
+        raise EvidenceError(f"{context}.device is not hardware accelerated")
     if _integer(device, "acceleration_check_exit_code", f"{context}.device") != 0:
-        raise EvidenceError(f"{context}.device.acceleration_check_exit_code must be zero")
-    normalized_acceleration = acceleration_check.casefold()
-    if "usable" not in normalized_acceleration or re.search(
-        r"\b(?:not|isn't|isnt|unusable|failed|unavailable)\b", normalized_acceleration
+        raise EvidenceError(f"{context}.device acceleration check failed")
+    acceleration = _required_string(device, "acceleration_check", f"{context}.device")
+    acceleration_normalized = acceleration.casefold()
+    if "usable" not in acceleration_normalized or re.search(
+        r"\b(?:not|isn't|isnt|unusable|failed|unavailable)\b",
+        acceleration_normalized,
     ):
-        raise EvidenceError(f"{context}.device.acceleration_check does not report a usable accelerator")
+        raise EvidenceError(f"{context}.device acceleration output does not prove usable acceleration")
     renderer = _required_string(device, "gpu_renderer", f"{context}.device")
     if any(marker in renderer.casefold() for marker in SOFTWARE_RENDERER_MARKERS):
-        raise EvidenceError(f"{context}.device.gpu_renderer reports a software renderer: {renderer}")
-    emulator_command = _required_string(device, "emulator_command", f"{context}.device")
+        raise EvidenceError(f"{context}.device uses a software renderer")
+    if _integer(device, "active_qemu_process_count", f"{context}.device") != 1:
+        raise EvidenceError(f"{context}.device must prove exactly one active QEMU process")
+    _integer(device, "emulator_pid", f"{context}.device", positive=True)
+    process_name = _required_string(device, "emulator_process_name", f"{context}.device")
+    if re.fullmatch(r"qemu-system-[a-z0-9_.-]+", process_name.casefold()) is None:
+        raise EvidenceError(f"{context}.device emulator process is not QEMU")
+    emulator_command = _required_string(
+        device, "emulator_public_command", f"{context}.device"
+    )
     try:
-        import shlex
-
-        command_tokens = shlex.split(emulator_command, posix=False)
+        tokens = tuple(shlex.split(emulator_command, posix=False))
     except ValueError as exc:
-        raise EvidenceError(f"{context}.device.emulator_command cannot be tokenized: {exc}") from exc
-    flag_values: dict[str, list[str]] = {}
-    for index, token in enumerate(command_tokens):
-        normalized_token = token.casefold()
-        if normalized_token in {"-avd", "-gpu", "-accel"}:
-            if index + 1 >= len(command_tokens):
-                raise EvidenceError(f"{context}.device.emulator_command has an incomplete {token} flag")
-            flag_values.setdefault(normalized_token, []).append(command_tokens[index + 1].strip('"\'').casefold())
-    if flag_values.get("-gpu") != ["host"] or flag_values.get("-accel") != ["on"]:
-        raise EvidenceError(f"{context}.device.emulator_command must use -gpu host and -accel on")
-    if any(token.casefold() == "-no-window" for token in command_tokens):
-        raise EvidenceError(f"{context}.device.emulator_command is not a headed emulator launch")
-    avd_name = _required_string(device, "avd_name", f"{context}.device")
-    if flag_values.get("-avd") != [avd_name.casefold()]:
-        raise EvidenceError(f"{context}.device.emulator_command does not identify its avd_name")
-    command_sha = _required_string(device, "emulator_command_sha256", f"{context}.device").lower()
-    if not HEX_64_RE.fullmatch(command_sha):
-        raise EvidenceError(f"{context}.device.emulator_command_sha256 must be lowercase SHA-256")
-    calculated_command_sha = hashlib.sha256(emulator_command.encode("utf-8")).hexdigest()
-    if command_sha != calculated_command_sha:
-        raise EvidenceError(f"{context}.device.emulator_command_sha256 does not match emulator_command")
+        raise EvidenceError(f"{context}.device emulator command cannot be tokenized") from exc
+    normalized_tokens = [token.strip('"\'') for token in tokens]
+    port = int(serial_match.group(1))
+    expected_prefix = [process_name.casefold(), "-avd", avd_name]
+    expected_suffix = ["-gpu", "host", "-accel", "on"]
+    expected_commands = (
+        [*expected_prefix, "-port", str(port), *expected_suffix],
+        [*expected_prefix, "-ports", f"{port},{port + 1}", *expected_suffix],
+    )
+    if normalized_tokens not in expected_commands:
+        raise EvidenceError(
+            f"{context}.device public emulator command is not the canonical headed identity"
+        )
+    public_sha = _required_string(
+        device, "emulator_public_command_sha256", f"{context}.device"
+    )
+    if not HEX_64_RE.fullmatch(public_sha) or public_sha != hashlib.sha256(
+        emulator_command.encode("utf-8")
+    ).hexdigest():
+        raise EvidenceError(f"{context}.device public emulator command hash is wrong")
+    raw_sha = _required_string(
+        device, "emulator_raw_command_sha256", f"{context}.device"
+    )
+    if not HEX_64_RE.fullmatch(raw_sha):
+        raise EvidenceError(f"{context}.device raw emulator command hash is invalid")
 
     screen = _nested_object(payload, "screen", context)
+    if set(screen) != {"width_px", "height_px", "width_dp", "height_dp", "density_dpi", "font_scale"}:
+        raise EvidenceError(f"{context}.screen key set is invalid")
     width_px = _integer(screen, "width_px", f"{context}.screen", positive=True)
     height_px = _integer(screen, "height_px", f"{context}.screen", positive=True)
     width_dp = _integer(screen, "width_dp", f"{context}.screen", positive=True)
     height_dp = _integer(screen, "height_dp", f"{context}.screen", positive=True)
-    density_dpi = _integer(screen, "density_dpi", f"{context}.screen", positive=True)
-    font_scale = _number(screen, "font_scale", f"{context}.screen", positive=True)
-    if font_scale != 1.0:
+    density = _integer(screen, "density_dpi", f"{context}.screen", positive=True)
+    if _number(screen, "font_scale", f"{context}.screen", positive=True) != 1.0:
         raise EvidenceError(f"{context}.screen.font_scale must equal 1.0")
     _validate_profile_dimensions(profile, width_dp, height_dp, f"{context}.screen")
-    physical_width_dp = width_px * 160 / density_dpi
-    physical_height_dp = height_px * 160 / density_dpi
-    # Configuration screen dp can exclude status/navigation bars while a
-    # UiAutomation screenshot covers the full display. Preserve that real
-    # relationship without accepting unrelated dimensions.
+    physical_width_dp = width_px * 160 / density
+    physical_height_dp = height_px * 160 / density
     if (
         width_dp > physical_width_dp + 3
         or height_dp > physical_height_dp + 3
@@ -2278,64 +2411,50 @@ def _validate_performance(
         raise EvidenceError(f"{context}.screen pixel/dp/density values disagree")
 
     launch = _nested_object(payload, "launch", context)
+    if set(launch) != {"cold_total_ms", "cold_wait_ms", "warm_total_ms", "warm_process_pid"}:
+        raise EvidenceError(f"{context}.launch key set is invalid")
     for field in ("cold_total_ms", "cold_wait_ms", "warm_total_ms"):
         _number(launch, field, f"{context}.launch", positive=True)
     _integer(launch, "warm_process_pid", f"{context}.launch", positive=True)
     if launch["cold_total_ms"] > 15_000 or launch["warm_total_ms"] > 5_000:
-        raise EvidenceError(f"{context}.launch exceeds the release performance budget")
+        raise EvidenceError(f"{context}.launch exceeds the release budget")
     if launch["cold_wait_ms"] > launch["cold_total_ms"] + 1_000:
-        raise EvidenceError(f"{context}.launch cold wait/total timings disagree")
-
-    frames = _nested_object(payload, "frames", context)
-    total_frames = _integer(frames, "total_rendered", f"{context}.frames", positive=True)
-    if total_frames < 100:
-        raise EvidenceError(f"{context}.frames.total_rendered must be at least 100")
-    janky_frames = _integer(frames, "janky", f"{context}.frames")
-    if not 0 <= janky_frames <= total_frames:
-        raise EvidenceError(f"{context}.frames.janky is outside the rendered-frame range")
-    janky_percent = _number(frames, "janky_percent", f"{context}.frames")
-    expected_percent = janky_frames * 100 / total_frames
-    if not 0 <= janky_percent <= 100 or abs(janky_percent - expected_percent) > 0.25:
-        raise EvidenceError(f"{context}.frames.janky_percent disagrees with frame counts")
-    if janky_percent > 10.0:
-        raise EvidenceError(f"{context}.frames.janky_percent exceeds the 10% release budget")
-    percentiles = [
-        _number(frames, field, f"{context}.frames", positive=True)
-        for field in ("p50_ms", "p90_ms", "p95_ms", "p99_ms")
-    ]
-    if percentiles != sorted(percentiles):
-        raise EvidenceError(f"{context}.frames percentile timings are not monotonic")
-    if percentiles[2] > 250 or percentiles[3] > 1_000:
-        raise EvidenceError(f"{context}.frames percentile timings exceed the release budget")
+        raise EvidenceError(f"{context}.launch cold wait/total values disagree")
 
     memory = _nested_object(payload, "memory", context)
+    if set(memory) != {"total_pss_kb", "total_rss_kb"}:
+        raise EvidenceError(f"{context}.memory key set is invalid")
     total_pss = _integer(memory, "total_pss_kb", f"{context}.memory", positive=True)
     total_rss = _integer(memory, "total_rss_kb", f"{context}.memory", positive=True)
     if total_pss > total_rss:
-        raise EvidenceError(f"{context}.memory total_pss_kb cannot exceed total_rss_kb")
-    memory_budget = MEMORY_BUDGET_KB[profile]
-    if total_pss > memory_budget["total_pss_kb"] or total_rss > memory_budget["total_rss_kb"]:
-        raise EvidenceError(
-            f"{context}.memory exceeds the {profile} release ceiling: "
-            f"PSS {total_pss}/{memory_budget['total_pss_kb']} KB, "
-            f"RSS {total_rss}/{memory_budget['total_rss_kb']} KB"
-        )
+        raise EvidenceError(f"{context}.memory PSS cannot exceed RSS")
+    budget = MEMORY_BUDGET_KB[profile]
+    if total_pss > budget["total_pss_kb"] or total_rss > budget["total_rss_kb"]:
+        raise EvidenceError(f"{context}.memory exceeds the {profile} release ceiling")
+
     collector = _nested_object(payload, "collector", context)
-    _required_string(collector, "source_digest_algorithm", f"{context}.collector")
+    if set(collector) != {
+        "source_digest_algorithm",
+        "source_file_count",
+        "git_object_format",
+        "benchmark_target_apk_device_path",
+        "benchmark_test_apk_device_path",
+        "scenario",
+    }:
+        raise EvidenceError(f"{context}.collector key set is invalid")
+    if collector.get("source_digest_algorithm") != SOURCE_DIGEST_ALGORITHM:
+        raise EvidenceError(f"{context}.collector source digest algorithm is wrong")
     _integer(collector, "source_file_count", f"{context}.collector", positive=True)
     _required_string(collector, "git_object_format", f"{context}.collector")
-    for field in ("candidate_apk_device_path", "instrumentation_apk_device_path"):
-        device_path = _required_string(collector, field, f"{context}.collector")
-        if not device_path.startswith("/"):
-            raise EvidenceError(f"{context}.collector.{field} must be an absolute device path")
-    _integer(collector, "gfxinfo_exercise_rounds", f"{context}.collector", positive=True)
+    for field in ("benchmark_target_apk_device_path", "benchmark_test_apk_device_path"):
+        if not _required_string(collector, field, f"{context}.collector").startswith("/"):
+            raise EvidenceError(f"{context}.collector.{field} is not an absolute guest path")
+    if collector.get("scenario") != "settings-list-fling":
+        raise EvidenceError(f"{context}.collector.scenario is wrong")
+
+    host_payload = _json_object(host_path)
     _validate_raw_performance(
-        raw_payload,
-        payload,
-        profile,
-        source_digest,
-        version_name,
-        version_code,
+        host_payload, payload, profile, source_digest, version_name, version_code
     )
     return payload
 
@@ -2456,15 +2575,25 @@ def _validate_model_evidence(
     return payload
 
 
-def expected_evidence_paths(artifacts: Sequence[ArtifactSpec]) -> set[PurePosixPath]:
+def expected_evidence_paths(
+    artifacts: Sequence[ArtifactSpec],
+    performance_records: Sequence[Mapping[str, Any]] = (),
+) -> set[PurePosixPath]:
     paths = {
         PurePosixPath("performance") / f"{profile}.json"
         for profile in PROFILES
     }
-    paths.update(
-        PurePosixPath("performance") / f"{profile}.raw.json"
-        for profile in PROFILES
-    )
+    for record in performance_records:
+        raw = record.get("raw_evidence")
+        traces = record.get("traces")
+        if isinstance(raw, Mapping):
+            for reference in raw.values():
+                if isinstance(reference, Mapping) and isinstance(reference.get("path"), str):
+                    paths.add(PurePosixPath(reference["path"]))
+        if isinstance(traces, list):
+            for reference in traces:
+                if isinstance(reference, Mapping) and isinstance(reference.get("path"), str):
+                    paths.add(PurePosixPath(reference["path"]))
     for profile in PROFILES:
         for language in LANGUAGES:
             base = PurePosixPath("ui") / profile / language
@@ -2497,14 +2626,12 @@ def validate_evidence_directory(
         raise EvidenceError(f"Release evidence directory does not exist: {evidence_dir}")
     actual_paths = _walk_evidence_files(evidence_dir)
     actual_without_manifest = actual_paths - {PurePosixPath("manifest.json")}
-    expected_paths = expected_evidence_paths(artifacts)
-    missing = expected_paths - actual_without_manifest
-    unexpected = actual_without_manifest - expected_paths
-    if missing or unexpected:
+    base_expected_paths = expected_evidence_paths(artifacts)
+    missing_base = base_expected_paths - actual_without_manifest
+    if missing_base:
         raise EvidenceError(
-            "Release evidence layout mismatch; "
-            f"missing={[path.as_posix() for path in sorted(missing)]}, "
-            f"unexpected={[path.as_posix() for path in sorted(unexpected)]}"
+            "Release evidence is missing required fixed paths: "
+            f"{[path.as_posix() for path in sorted(missing_base)]}"
         )
 
     if not HEX_64_RE.fullmatch(source_digest):
@@ -2520,18 +2647,54 @@ def validate_evidence_directory(
         )
         for profile in PROFILES
     ]
-    candidate_digests = {record["candidate_apk_sha256"] for record in performance_records}
-    instrumentation_digests = {
-        record["instrumentation_apk_sha256"] for record in performance_records
+    expected_paths = expected_evidence_paths(artifacts, performance_records)
+    missing = expected_paths - actual_without_manifest
+    unexpected = actual_without_manifest - expected_paths
+    if missing or unexpected:
+        raise EvidenceError(
+            "Release evidence layout mismatch; "
+            f"missing={[path.as_posix() for path in sorted(missing)]}, "
+            f"unexpected={[path.as_posix() for path in sorted(unexpected)]}"
+        )
+
+    benchmark_target_digests = {
+        record["benchmark_target_apk_sha256"] for record in performance_records
     }
-    if len(candidate_digests) != 1 or len(instrumentation_digests) != 1:
-        raise EvidenceError("Performance profiles were not measured from the same app/test APK pair")
-    candidate_apk_sha256 = candidate_digests.pop()
-    instrumentation_apk_sha256 = instrumentation_digests.pop()
+    benchmark_test_digests = {
+        record["benchmark_test_apk_sha256"] for record in performance_records
+    }
+    if len(benchmark_target_digests) != 1 or len(benchmark_test_digests) != 1:
+        raise EvidenceError("Performance profiles do not share one benchmark target/test APK pair")
+    benchmark_target_apk_sha256 = benchmark_target_digests.pop()
+    benchmark_test_apk_sha256 = benchmark_test_digests.pop()
     evidence_run_ids = {record["evidence_run_id"] for record in performance_records}
     if len(evidence_run_ids) != 1:
         raise EvidenceError("Performance profiles do not share one evidence_run_id")
     evidence_run_id = evidence_run_ids.pop()
+
+    ui_candidate_digests: set[str] = set()
+    ui_instrumentation_digests: set[str] = set()
+    ui_run_ids: set[str] = set()
+    for profile in PROFILES:
+        for language in LANGUAGES:
+            header, _ = _semantics_evidence(
+                evidence_dir / "ui" / profile / language / "semantics.txt", language
+            )
+            candidate_digest = header.get("candidate_apk_sha256", "")
+            instrumentation_digest = header.get("instrumentation_apk_sha256", "")
+            if not HEX_64_RE.fullmatch(candidate_digest) or not HEX_64_RE.fullmatch(
+                instrumentation_digest
+            ):
+                raise EvidenceError(f"ui[{profile}/{language}] APK hashes are invalid")
+            ui_candidate_digests.add(candidate_digest)
+            ui_instrumentation_digests.add(instrumentation_digest)
+            ui_run_ids.add(header.get("evidence_run_id", ""))
+    if len(ui_candidate_digests) != 1 or len(ui_instrumentation_digests) != 1:
+        raise EvidenceError("UI captures do not share one debug app/androidTest APK pair")
+    if ui_run_ids != {evidence_run_id}:
+        raise EvidenceError("UI captures do not share the performance evidence_run_id")
+    ui_candidate_apk_sha256 = ui_candidate_digests.pop()
+    ui_instrumentation_apk_sha256 = ui_instrumentation_digests.pop()
     profile_screens: dict[str, tuple[int, int]] = {}
     profile_semantics: dict[str, tuple[int, int]] = {}
     for profile in PROFILES:
@@ -2546,8 +2709,8 @@ def validate_evidence_directory(
             header, semantics_body = _semantics_evidence(base / "semantics.txt", language)
             exact_binding = {
                 "release_source_digest": source_digest,
-                "candidate_apk_sha256": candidate_apk_sha256,
-                "instrumentation_apk_sha256": instrumentation_apk_sha256,
+                "candidate_apk_sha256": ui_candidate_apk_sha256,
+                "instrumentation_apk_sha256": ui_instrumentation_apk_sha256,
                 "evidence_run_id": evidence_run_id,
                 "package_id": PACKAGE_ID,
                 "version_name": version_name,
@@ -2617,8 +2780,8 @@ def validate_evidence_directory(
             artifact,
             performance_records,
             source_digest,
-            candidate_apk_sha256,
-            instrumentation_apk_sha256,
+            ui_candidate_apk_sha256,
+            ui_instrumentation_apk_sha256,
             evidence_run_id,
             version_name,
             version_code,
@@ -2641,8 +2804,10 @@ def validate_evidence_directory(
         ui_capture_count=len(PROFILES) * len(LANGUAGES),
         performance_record_count=len(PROFILES),
         device_models=device_models,
-        candidate_apk_sha256=candidate_apk_sha256,
-        instrumentation_apk_sha256=instrumentation_apk_sha256,
+        ui_candidate_apk_sha256=ui_candidate_apk_sha256,
+        ui_instrumentation_apk_sha256=ui_instrumentation_apk_sha256,
+        benchmark_target_apk_sha256=benchmark_target_apk_sha256,
+        benchmark_test_apk_sha256=benchmark_test_apk_sha256,
         evidence_run_id=evidence_run_id,
     )
 
@@ -2663,14 +2828,24 @@ def build_manifest(
             "profiles": list(PROFILES),
             "ui_screenshot_and_semantics_per_language_and_profile": True,
             "minimum_rendered_frames_per_profile": 100,
+            "minimum_macrobenchmark_iterations_per_profile": 5,
+            "maximum_aggregate_jank_percent": 10.0,
             "requires_hardware_accelerated_avd": True,
-            "requires_raw_performance_transcript": True,
+            "avd_metrics_are_validation_signals_not_end_user_benchmarks": True,
+            "requires_host_raw_transcript": True,
+            "requires_androidx_macrobenchmark_raw_json": True,
+            "requires_one_perfetto_trace_per_iteration": True,
+            "requires_compilation_mode_full": True,
+            "requires_nondebuggable_profileable_target": True,
+            "only_suppressed_macrobenchmark_error": "EMULATOR",
             "requires_runtime_health_and_nonempty_completion": True,
         },
         "registered_model_matrix": [asdict(artifact) for artifact in artifacts],
         "tested_binaries": {
-            "candidate_apk_sha256": evidence.candidate_apk_sha256,
-            "instrumentation_apk_sha256": evidence.instrumentation_apk_sha256,
+            "ui_candidate_apk_sha256": evidence.ui_candidate_apk_sha256,
+            "ui_instrumentation_apk_sha256": evidence.ui_instrumentation_apk_sha256,
+            "benchmark_target_apk_sha256": evidence.benchmark_target_apk_sha256,
+            "benchmark_test_apk_sha256": evidence.benchmark_test_apk_sha256,
             "evidence_run_id": evidence.evidence_run_id,
         },
         "evidence": {

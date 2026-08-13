@@ -2,10 +2,12 @@
 """Collect fail-closed Android performance evidence from one live headed AVD.
 
 The release evidence validator deliberately does not operate devices.  This
-producer supplies that missing live boundary: it observes the selected adb
-guest and its Windows QEMU host process, exercises the installed candidate,
-and writes one validator-compatible JSON record only after all observations
-remain stable through the end of the run.
+producer supplies that missing live boundary: it binds an independently run
+AndroidX Macrobenchmark JSON report and its Perfetto traces to the selected adb
+guest, exact benchmark APKs, and Windows QEMU host process.  Host launch,
+process, and memory proof is collected separately from frame timing.  One
+validator-compatible evidence set is committed only after all identities stay
+stable through the end of the run.
 """
 
 from __future__ import annotations
@@ -22,28 +24,32 @@ import subprocess
 import sys
 import tempfile
 import time
-import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
 
-PERFORMANCE_SCHEMA = "hermes-android-performance-evidence-v1"
-RAW_PERFORMANCE_SCHEMA = "hermes-android-performance-raw-v1"
+PERFORMANCE_SCHEMA = "hermes-android-performance-evidence-v2"
+RAW_PERFORMANCE_SCHEMA = "hermes-android-performance-host-raw-v2"
+INVOCATION_SCHEMA = "hermes-android-macrobenchmark-invocation-v1"
 PACKAGE_ID = "com.mobilefork.hermesagent"
-TEST_PACKAGE_ID = f"{PACKAGE_ID}.test"
+TEST_PACKAGE_ID = f"{PACKAGE_ID}.macrobenchmark"
 MAIN_ACTIVITY = f"{PACKAGE_ID}/.MainActivity"
-UI_DUMP_PATH_PREFIX = "/data/local/tmp/hermes-performance-ui-"
-PHONE_DRAWER_TAG = "HermesChatDrawerButton"
-PHONE_SETTINGS_TAG = "HermesNavSettings"
-TABLET_SETTINGS_TAG = "HermesRailSettings"
-SETTINGS_CONTENT_TAG = "HermesSettingsContentList"
-BUILD_VARIANT = "debug"
+BUILD_VARIANT = "benchmark"
 PROFILES = ("phone-compact", "tablet")
 LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.0"
+ANDROIDX_BENCHMARK_COORDINATE = "androidx.benchmark:benchmark-macro-junit4:1.4.1"
+BENCHMARK_CLASS = "com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark"
+BENCHMARK_METHOD = "settingsListFling"
+BENCHMARK_TEST_ID = f"{BENCHMARK_CLASS}#{BENCHMARK_METHOD}"
+MIN_BENCHMARK_ITERATIONS = 5
+MAX_BENCHMARK_ITERATIONS = 20
+MIN_AGGREGATE_FRAMES = 100
+MAX_JANK_PERCENT = 10.0
 HEX_64_RE = re.compile(r"^[0-9a-f]{64}$")
 RUN_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{15,79}$")
 BOOT_ID_RE = re.compile(r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")
+AVD_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$")
 SERIAL_RE = re.compile(r"^emulator-([0-9]{4,5})$")
 SOFTWARE_RENDERER_MARKERS = (
     "swiftshader",
@@ -217,12 +223,26 @@ class GitSourceVerifier:
 
 
 class PayloadValidator(Protocol):
-    def validate(self, path: Path, raw_path: Path, config: "CollectorConfig") -> None:
-        """Validate the fully serialized normalized and raw records."""
+    def validate(
+        self,
+        path: Path,
+        host_raw_path: Path,
+        macrobenchmark_raw_path: Path,
+        trace_paths: Sequence[Path],
+        config: "CollectorConfig",
+    ) -> None:
+        """Validate the fully serialized normalized record and every raw artifact."""
 
 
 class ReleaseEvidencePayloadValidator:
-    def validate(self, path: Path, raw_path: Path, config: "CollectorConfig") -> None:
+    def validate(
+        self,
+        path: Path,
+        host_raw_path: Path,
+        macrobenchmark_raw_path: Path,
+        trace_paths: Sequence[Path],
+        config: "CollectorConfig",
+    ) -> None:
         release_evidence = _load_release_evidence_module()
         try:
             release_evidence._validate_performance(
@@ -231,7 +251,14 @@ class ReleaseEvidencePayloadValidator:
                 config.release_source_digest,
                 config.version_name,
                 config.version_code,
-                raw_path_override=raw_path,
+                artifact_path_overrides={
+                    f"performance/{config.profile}.host.raw.json": host_raw_path,
+                    f"performance/{config.profile}.macrobenchmark.raw.json": macrobenchmark_raw_path,
+                    **{
+                        f"performance/{config.profile}.traces/iteration-{index:03d}.perfetto-trace": trace_path
+                        for index, trace_path in enumerate(trace_paths, start=1)
+                    },
+                },
             )
         except Exception as exc:
             raise CollectorError(f"Collected JSON fails the release evidence schema: {exc}") from exc
@@ -241,18 +268,20 @@ class ReleaseEvidencePayloadValidator:
 class CollectorConfig:
     serial: str
     profile: str
+    expected_avd_name: str
+    expected_boot_id: str
     release_source_digest: str
-    candidate_apk_sha256: str
-    instrumentation_apk_sha256: str
+    benchmark_target_apk_sha256: str
+    benchmark_test_apk_sha256: str
     evidence_run_id: str
     version_name: str
     version_code: int
     litertlm_coordinate: str
+    macrobenchmark_report: Path
+    macrobenchmark_traces: tuple[Path, ...]
+    macrobenchmark_invocation: Path
     adb: str = "adb"
     emulator: str = "emulator"
-    max_exercise_rounds: int = 4
-    swipes_per_round: int = 30
-    swipe_duration_ms: int = 180
 
     def validate(self) -> int:
         serial_match = SERIAL_RE.fullmatch(self.serial)
@@ -263,10 +292,14 @@ class CollectorConfig:
             raise CollectorError("emulator console port must be a positive even port below 65535")
         if self.profile not in PROFILES:
             raise CollectorError(f"profile must be one of {', '.join(PROFILES)}")
+        if not AVD_NAME_RE.fullmatch(self.expected_avd_name):
+            raise CollectorError("expected_avd_name must be one exact AVD identifier")
+        if not BOOT_ID_RE.fullmatch(self.expected_boot_id):
+            raise CollectorError("expected_boot_id must be one lowercase kernel boot UUID")
         for name, digest in (
             ("release_source_digest", self.release_source_digest),
-            ("candidate_apk_sha256", self.candidate_apk_sha256),
-            ("instrumentation_apk_sha256", self.instrumentation_apk_sha256),
+            ("benchmark_target_apk_sha256", self.benchmark_target_apk_sha256),
+            ("benchmark_test_apk_sha256", self.benchmark_test_apk_sha256),
         ):
             if not HEX_64_RE.fullmatch(digest):
                 raise CollectorError(f"{name} must be an exact lowercase SHA-256")
@@ -282,12 +315,28 @@ class CollectorConfig:
             )
         if not self.adb.strip() or not self.emulator.strip():
             raise CollectorError("adb and emulator executable inputs must be nonblank")
-        if not 1 <= self.max_exercise_rounds <= 20:
-            raise CollectorError("max_exercise_rounds must be between 1 and 20")
-        if not 1 <= self.swipes_per_round <= 100:
-            raise CollectorError("swipes_per_round must be between 1 and 100")
-        if not 50 <= self.swipe_duration_ms <= 2_000:
-            raise CollectorError("swipe_duration_ms must be between 50 and 2000")
+        inputs = (
+            ("macrobenchmark_report", self.macrobenchmark_report),
+            ("macrobenchmark_invocation", self.macrobenchmark_invocation),
+        )
+        for name, path in inputs:
+            if not path.is_file() or path.is_symlink():
+                raise CollectorError(f"{name} must be one existing regular non-symlink file")
+        if not MIN_BENCHMARK_ITERATIONS <= len(self.macrobenchmark_traces) <= MAX_BENCHMARK_ITERATIONS:
+            raise CollectorError(
+                f"macrobenchmark_traces must contain {MIN_BENCHMARK_ITERATIONS} to "
+                f"{MAX_BENCHMARK_ITERATIONS} files"
+            )
+        resolved_traces: set[Path] = set()
+        for trace in self.macrobenchmark_traces:
+            if not trace.is_file() or trace.is_symlink() or trace.stat().st_size <= 0:
+                raise CollectorError("every macrobenchmark trace must be a nonempty regular non-symlink file")
+            if not trace.name.endswith(".perfetto-trace"):
+                raise CollectorError("every macrobenchmark trace must end in .perfetto-trace")
+            resolved = trace.resolve()
+            if resolved in resolved_traces:
+                raise CollectorError("macrobenchmark trace inputs must be unique")
+            resolved_traces.add(resolved)
         return console_port
 
 
@@ -301,10 +350,10 @@ class DeviceIdentity:
     android_sdk: int
     supported_abis: tuple[str, ...]
     font_scale: float
-    candidate_apk_path: str
-    candidate_apk_sha256: str
-    instrumentation_apk_path: str
-    instrumentation_apk_sha256: str
+    benchmark_target_apk_path: str
+    benchmark_target_apk_sha256: str
+    benchmark_test_apk_path: str
+    benchmark_test_apk_sha256: str
     version_name: str
     version_code: int
 
@@ -314,29 +363,20 @@ class QemuIdentity:
     pid: int
     name: str
     command_line: str
+    public_command: str
+    public_command_sha256: str
+    raw_command_sha256: str
 
 
 @dataclass(frozen=True)
-class UiBounds:
-    left: int
-    top: int
-    right: int
-    bottom: int
-
-
-@dataclass(frozen=True)
-class UiTarget:
-    resource_id: str
-    bounds: UiBounds
-
-
-@dataclass(frozen=True)
-class SettingsNavigation:
-    route: str
-    bounds: UiBounds
-    swipe_x: int
-    swipe_top_y: int
-    swipe_bottom_y: int
+class MacrobenchmarkInputs:
+    report_bytes: bytes
+    report: Mapping[str, Any]
+    invocation: CommandResult
+    traces: tuple[Path, ...]
+    frames: Mapping[str, Any]
+    iteration_count: int
+    trace_source_names: tuple[str, ...]
 
 
 class PerformanceCollector:
@@ -366,20 +406,20 @@ class PerformanceCollector:
         source_identity = self.source_verifier.verify(self.config.release_source_digest)
         if source_identity.digest != self.config.release_source_digest:
             raise CollectorError("source verifier returned an identity different from the exact input")
+        macrobenchmark = self._macrobenchmark_inputs()
+        self._record_result("macrobenchmark.invocation", macrobenchmark.invocation)
         self._verify_adb_target("initial")
         initial_device = self._observe_device_identity("initial")
+        self._bind_report_identity(macrobenchmark.report, initial_device)
         qemu = self._resolve_qemu("initial", initial_device.avd_name, console_port)
         acceleration = self._acceleration_check()
         width_px, height_px, density_dpi = self._screen_pixels()
-        cold_total, cold_wait = self._cold_launch()
-        warm_total, warm_process_pid = self._warm_launch()
-        navigation = self._navigate_to_settings(width_px, height_px)
         width_dp, height_dp = self._configured_dp()
         self._check_profile_dimensions(width_dp, height_dp)
         gpu_renderer = self._gpu_renderer()
-        self._foreground_activity("measure.activity.before_gfx")
-        frames = self._exercise_and_measure_frames(navigation, warm_process_pid)
-        self._foreground_activity("measure.activity.after_gfx")
+        cold_total, cold_wait = self._cold_launch()
+        warm_total, warm_process_pid = self._warm_launch()
+        self._foreground_activity("measure.activity.after_launch")
         memory = self._memory(warm_process_pid)
         final_process_pid = _parse_pidof(
             self._adb_text(
@@ -404,30 +444,48 @@ class PerformanceCollector:
         if final_source_identity != source_identity:
             raise CollectorError("source identity changed during performance collection")
 
-        command_sha = hashlib.sha256(qemu.command_line.encode("utf-8")).hexdigest()
-        exercise_rounds = frames.pop("_exercise_rounds")
-        raw_relative_path = f"performance/{self.config.profile}.raw.json"
+        host_raw_relative_path = f"performance/{self.config.profile}.host.raw.json"
+        macro_raw_relative_path = f"performance/{self.config.profile}.macrobenchmark.raw.json"
         raw_transcript = {
             "schema": RAW_PERFORMANCE_SCHEMA,
             "profile": self.config.profile,
             "release_source_digest": self.config.release_source_digest,
-            "candidate_apk_sha256": self.config.candidate_apk_sha256,
-            "instrumentation_apk_sha256": self.config.instrumentation_apk_sha256,
+            "benchmark_target_apk_sha256": self.config.benchmark_target_apk_sha256,
+            "benchmark_test_apk_sha256": self.config.benchmark_test_apk_sha256,
             "evidence_run_id": self.config.evidence_run_id,
             "package_id": PACKAGE_ID,
+            "benchmark_test_package_id": TEST_PACKAGE_ID,
             "version_name": self.config.version_name,
             "version_code": self.config.version_code,
             "build_variant": BUILD_VARIANT,
             "litertlm_coordinate": self.config.litertlm_coordinate,
             "records": self._records,
         }
-        raw_sha256 = hashlib.sha256(_encode_json(raw_transcript)).hexdigest()
+        host_raw_bytes = _encode_json(raw_transcript)
+        trace_records = []
+        for iteration, (trace, source_name) in enumerate(
+            zip(macrobenchmark.traces, macrobenchmark.trace_source_names, strict=True),
+            start=1,
+        ):
+            trace_bytes = trace.read_bytes()
+            trace_records.append(
+                {
+                    "iteration": iteration,
+                    "path": (
+                        f"performance/{self.config.profile}.traces/"
+                        f"iteration-{iteration:03d}.perfetto-trace"
+                    ),
+                    "source_name": source_name,
+                    "bytes": len(trace_bytes),
+                    "sha256": hashlib.sha256(trace_bytes).hexdigest(),
+                }
+            )
         payload = {
             "schema": PERFORMANCE_SCHEMA,
             "profile": self.config.profile,
             "release_source_digest": self.config.release_source_digest,
-            "candidate_apk_sha256": self.config.candidate_apk_sha256,
-            "instrumentation_apk_sha256": self.config.instrumentation_apk_sha256,
+            "benchmark_target_apk_sha256": self.config.benchmark_target_apk_sha256,
+            "benchmark_test_apk_sha256": self.config.benchmark_test_apk_sha256,
             "evidence_run_id": self.config.evidence_run_id,
             "package_id": PACKAGE_ID,
             "version_name": self.config.version_name,
@@ -435,10 +493,37 @@ class PerformanceCollector:
             "build_variant": BUILD_VARIANT,
             "litertlm_coordinate": self.config.litertlm_coordinate,
             "recorded_at_epoch_ms": int(time.time() * 1_000),
-            "raw_evidence": {
-                "path": raw_relative_path,
-                "sha256": raw_sha256,
+            "evidence_classification": {
+                "environment": "headed-hardware-accelerated-avd",
+                "result_kind": "validation-signal",
+                "representative_end_user_benchmark": False,
             },
+            "raw_evidence": {
+                "host": {
+                    "path": host_raw_relative_path,
+                    "bytes": len(host_raw_bytes),
+                    "sha256": hashlib.sha256(host_raw_bytes).hexdigest(),
+                },
+                "macrobenchmark": {
+                    "path": macro_raw_relative_path,
+                    "bytes": len(macrobenchmark.report_bytes),
+                    "sha256": hashlib.sha256(macrobenchmark.report_bytes).hexdigest(),
+                },
+            },
+            "benchmark": {
+                "target_package_id": PACKAGE_ID,
+                "test_package_id": TEST_PACKAGE_ID,
+                "runner": "androidx.test.runner.AndroidJUnitRunner",
+                "test_id": BENCHMARK_TEST_ID,
+                "androidx_benchmark_coordinate": ANDROIDX_BENCHMARK_COORDINATE,
+                "compilation_mode": "Full",
+                "iteration_count": macrobenchmark.iteration_count,
+                "suppressed_errors": ["EMULATOR"],
+                "profiling_mode": "None",
+                "target_debuggable": False,
+                "target_profileable_by_shell": True,
+            },
+            "traces": trace_records,
             "device": {
                 "serial": initial_device.serial,
                 "avd_name": initial_device.avd_name,
@@ -451,10 +536,12 @@ class PerformanceCollector:
                 "acceleration_check": acceleration["output"],
                 "acceleration_check_exit_code": acceleration["exit_code"],
                 "gpu_renderer": gpu_renderer,
+                "active_qemu_process_count": 1,
                 "emulator_pid": qemu.pid,
                 "emulator_process_name": qemu.name,
-                "emulator_command": qemu.command_line,
-                "emulator_command_sha256": command_sha,
+                "emulator_public_command": qemu.public_command,
+                "emulator_public_command_sha256": qemu.public_command_sha256,
+                "emulator_raw_command_sha256": qemu.raw_command_sha256,
             },
             "screen": {
                 "width_px": width_px,
@@ -470,41 +557,102 @@ class PerformanceCollector:
                 "warm_total_ms": warm_total,
                 "warm_process_pid": warm_process_pid,
             },
-            "frames": frames,
+            "frames": macrobenchmark.frames,
             "memory": memory,
             "collector": {
                 "source_digest_algorithm": source_identity.algorithm,
                 "source_file_count": source_identity.file_count,
                 "git_object_format": source_identity.git_object_format,
-                "candidate_apk_device_path": initial_device.candidate_apk_path,
-                "instrumentation_apk_device_path": initial_device.instrumentation_apk_path,
-                "ui_navigation_route": navigation.route,
-                "settings_scroll_bounds_px": [
-                    navigation.bounds.left,
-                    navigation.bounds.top,
-                    navigation.bounds.right,
-                    navigation.bounds.bottom,
-                ],
-                "gfx_swipe_coordinates": [
-                    navigation.swipe_x,
-                    navigation.swipe_bottom_y,
-                    navigation.swipe_x,
-                    navigation.swipe_top_y,
-                ],
-                "gfxinfo_exercise_rounds": exercise_rounds,
+                "benchmark_target_apk_device_path": initial_device.benchmark_target_apk_path,
+                "benchmark_test_apk_device_path": initial_device.benchmark_test_apk_path,
+                "scenario": "settings-list-fling",
             },
         }
         self._raw_transcript = raw_transcript
         return payload
 
+    def _macrobenchmark_inputs(self) -> MacrobenchmarkInputs:
+        try:
+            report_bytes = self.config.macrobenchmark_report.read_bytes()
+            report = json.loads(report_bytes.decode("utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise CollectorError(f"macrobenchmark report is not strict UTF-8 JSON: {exc}") from exc
+        if not isinstance(report, Mapping):
+            raise CollectorError("macrobenchmark report root must be one JSON object")
+
+        try:
+            invocation_payload = json.loads(
+                self.config.macrobenchmark_invocation.read_text(encoding="utf-8")
+            )
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise CollectorError(f"macrobenchmark invocation capture is invalid: {exc}") from exc
+        invocation = _parse_macrobenchmark_invocation(invocation_payload, self.config)
+        frames, iteration_count, source_names = _parse_macrobenchmark_report(report, self.config)
+
+        traces_by_name: dict[str, Path] = {}
+        for trace in self.config.macrobenchmark_traces:
+            if trace.name in traces_by_name:
+                raise CollectorError(f"duplicate macrobenchmark trace basename: {trace.name}")
+            traces_by_name[trace.name] = trace
+        if set(traces_by_name) != set(source_names):
+            raise CollectorError(
+                "trace inputs do not exactly match AndroidX profilerOutputs: "
+                f"expected={list(source_names)!r}, observed={sorted(traces_by_name)!r}"
+            )
+        traces = tuple(traces_by_name[name] for name in source_names)
+        if len(traces) != iteration_count:
+            raise CollectorError("AndroidX trace count does not equal repeatIterations")
+        return MacrobenchmarkInputs(
+            report_bytes=report_bytes,
+            report=report,
+            invocation=invocation,
+            traces=traces,
+            frames=frames,
+            iteration_count=iteration_count,
+            trace_source_names=source_names,
+        )
+
+    def _bind_report_identity(
+        self, report: Mapping[str, Any], device: DeviceIdentity
+    ) -> None:
+        context = _mapping_field(report, "context", "macrobenchmark")
+        build = _mapping_field(context, "build", "macrobenchmark.context")
+        version = _mapping_field(build, "version", "macrobenchmark.context.build")
+        expected = {
+            "fingerprint": device.build_fingerprint,
+            "model": device.model,
+        }
+        for field, expected_value in expected.items():
+            if build.get(field) != expected_value:
+                raise CollectorError(
+                    f"macrobenchmark context build {field} does not match the live AVD"
+                )
+        if version.get("sdk") != device.android_sdk:
+            raise CollectorError("macrobenchmark context SDK does not match the live AVD")
+        if context.get("payload") != {
+            "sourceDigest": self.config.release_source_digest,
+            "targetApkSha256": self.config.benchmark_target_apk_sha256,
+            "benchmarkApkSha256": self.config.benchmark_test_apk_sha256,
+            "evidenceRunId": self.config.evidence_run_id,
+            "evidenceProfile": self.config.profile,
+            "avdName": self.config.expected_avd_name,
+            "bootId": self.config.expected_boot_id,
+        }:
+            raise CollectorError(
+                "macrobenchmark context payload does not bind the exact source/APKs/run/profile/boot"
+            )
+
     def _record_result(self, record_id: str, result: CommandResult) -> None:
         if record_id in self._record_ids or not re.fullmatch(r"[a-z0-9][a-z0-9._-]{2,99}", record_id):
             raise CollectorError(f"duplicate or invalid raw transcript record id: {record_id!r}")
         self._record_ids.add(record_id)
+        public_argv = list(result.args)
+        if public_argv:
+            public_argv[0] = _portable_executable_name(public_argv[0])
         self._records.append(
             {
                 "id": record_id,
-                "argv": list(result.args),
+                "argv": public_argv,
                 "exit_code": result.returncode,
                 "stdout": result.stdout,
                 "stderr": result.stderr,
@@ -553,17 +701,18 @@ class PerformanceCollector:
             timeout_seconds=30,
             context="enumerate adb devices",
         )
-        matching_states: list[str] = []
+        endpoints: list[tuple[str, str]] = []
         for line in inventory.stdout.splitlines():
             fields = line.strip().split()
-            if fields and fields[0] == self.config.serial:
-                if len(fields) < 2:
-                    raise CollectorError(f"adb inventory has no state for {self.config.serial}")
-                matching_states.append(fields[1])
-        if matching_states != ["device"]:
+            if not fields or line.strip() == "List of devices attached":
+                continue
+            if len(fields) < 2:
+                raise CollectorError(f"adb inventory has no state for endpoint {fields[0]}")
+            endpoints.append((fields[0], fields[1]))
+        if endpoints != [(self.config.serial, "device")]:
             raise CollectorError(
-                f"adb target {self.config.serial} must appear exactly once in device state; "
-                f"observed {matching_states!r}"
+                "normal release collection requires exactly one attached adb endpoint, "
+                f"the requested serial in device state; observed {endpoints!r}"
             )
         serial = self._adb_text(f"{phase}.adb.get-serialno", "get-serialno")
         if serial != self.config.serial:
@@ -584,8 +733,12 @@ class PerformanceCollector:
 
     def _observe_device_identity(self, phase: str) -> DeviceIdentity:
         avd_name = self._getprop(phase, "avd_name", "ro.boot.qemu.avd_name")
-        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", avd_name):
+        if not AVD_NAME_RE.fullmatch(avd_name):
             raise CollectorError(f"observed AVD name is invalid: {avd_name!r}")
+        if avd_name != self.config.expected_avd_name:
+            raise CollectorError(
+                f"observed AVD name {avd_name!r} does not match the pre-run identity"
+            )
         fingerprint = self._getprop(phase, "build_fingerprint", "ro.build.fingerprint")
         model = self._getprop(phase, "model", "ro.product.model")
         sdk_text = self._getprop(phase, "android_sdk", "ro.build.version.sdk")
@@ -603,6 +756,10 @@ class PerformanceCollector:
         ).lower()
         if not BOOT_ID_RE.fullmatch(boot_id):
             raise CollectorError(f"observed kernel boot_id is invalid: {boot_id!r}")
+        if boot_id != self.config.expected_boot_id:
+            raise CollectorError(
+                f"observed kernel boot_id {boot_id!r} does not match the pre-run identity"
+            )
         font_scale_text = self._adb_text(
             f"{phase}.device.settings.font_scale",
             "shell",
@@ -617,11 +774,11 @@ class PerformanceCollector:
             raise CollectorError(f"observed font_scale is invalid: {font_scale_text!r}") from exc
         if not math.isfinite(font_scale) or font_scale != 1.0:
             raise CollectorError(f"release evidence requires font_scale exactly 1.0, got {font_scale!r}")
-        candidate_path, candidate_sha = self._installed_apk_identity(
-            phase, "candidate", PACKAGE_ID, self.config.candidate_apk_sha256
+        target_path, target_sha = self._installed_apk_identity(
+            phase, "benchmark_target", PACKAGE_ID, self.config.benchmark_target_apk_sha256
         )
         test_path, test_sha = self._installed_apk_identity(
-            phase, "instrumentation", TEST_PACKAGE_ID, self.config.instrumentation_apk_sha256
+            phase, "benchmark_test", TEST_PACKAGE_ID, self.config.benchmark_test_apk_sha256
         )
         version_name, version_code = self._installed_version(phase)
         if version_name != self.config.version_name or version_code != self.config.version_code:
@@ -638,10 +795,10 @@ class PerformanceCollector:
             android_sdk=int(sdk_text),
             supported_abis=abis,
             font_scale=font_scale,
-            candidate_apk_path=candidate_path,
-            candidate_apk_sha256=candidate_sha,
-            instrumentation_apk_path=test_path,
-            instrumentation_apk_sha256=test_sha,
+            benchmark_target_apk_path=target_path,
+            benchmark_target_apk_sha256=target_sha,
+            benchmark_test_apk_path=test_path,
+            benchmark_test_apk_sha256=test_sha,
             version_name=version_name,
             version_code=version_code,
         )
@@ -689,11 +846,24 @@ class PerformanceCollector:
 
     def _resolve_qemu(self, phase: str, avd_name: str, console_port: int) -> QemuIdentity:
         snapshot = self.process_source.qemu_snapshot()
-        self._record_result(f"{phase}.host.qemu_processes", snapshot.query)
+        if snapshot.query.stderr.strip():
+            raise CollectorError("live QEMU process query emitted unexpected diagnostics")
+        live_qemu = [
+            process
+            for process in snapshot.processes
+            if process.name.casefold().startswith("qemu-system-")
+        ]
+        if len(live_qemu) > 2:
+            raise CollectorError(
+                f"live QEMU process count {len(live_qemu)} exceeds the absolute two-emulator limit"
+            )
+        if len(live_qemu) != 1:
+            raise CollectorError(
+                "normal release collection requires exactly one total live qemu-system process; "
+                f"observed {len(live_qemu)}"
+            )
         matches: list[QemuIdentity] = []
-        for process in snapshot.processes:
-            if not process.name.casefold().startswith("qemu-system-"):
-                continue
+        for process in live_qemu:
             tokens = _tokenize_windows_command(process.command_line)
             avd_values = _flag_values(tokens, "-avd")
             port_values = _flag_values(tokens, "-port")
@@ -701,7 +871,17 @@ class PerformanceCollector:
             exact_port = port_values == [str(console_port)] and not ports_values
             exact_ports = ports_values == [f"{console_port},{console_port + 1}"] and not port_values
             if avd_values == [avd_name] and (exact_port or exact_ports):
-                matches.append(QemuIdentity(process.pid, process.name, process.command_line))
+                public_command = _public_qemu_command(process, avd_name, console_port)
+                matches.append(
+                    QemuIdentity(
+                        process.pid,
+                        process.name,
+                        process.command_line,
+                        public_command,
+                        hashlib.sha256(public_command.encode("utf-8")).hexdigest(),
+                        hashlib.sha256(process.command_line.encode("utf-8")).hexdigest(),
+                    )
+                )
         if len(matches) != 1:
             raise CollectorError(
                 "expected exactly one live qemu-system process for "
@@ -715,6 +895,24 @@ class PerformanceCollector:
             raise CollectorError("live QEMU command must contain exactly one effective -accel on")
         if any(_strip_token(token).casefold() == "-no-window" for token in tokens):
             raise CollectorError("live QEMU command uses -no-window and is not headed")
+        public_inventory = [
+            {
+                "pid": qemu.pid,
+                "name": qemu.name,
+                "public_command": qemu.public_command,
+                "public_command_sha256": qemu.public_command_sha256,
+                "raw_command_sha256": qemu.raw_command_sha256,
+            }
+        ]
+        self._record_result(
+            f"{phase}.host.qemu_processes",
+            CommandResult(
+                snapshot.query.args,
+                snapshot.query.returncode,
+                json.dumps(public_inventory, separators=(",", ":")),
+                snapshot.query.stderr,
+            ),
+        )
         return qemu
 
     def _acceleration_check(self) -> dict[str, Any]:
@@ -826,101 +1024,6 @@ class PerformanceCollector:
             metrics = _parse_start_metrics(retry_result, expected_states={"WARM", "HOT"})
         return metrics["TotalTime"], process_after
 
-    def _ui_hierarchy(self, phase: str) -> str:
-        if phase not in {"initial", "drawer", "settings"}:
-            raise CollectorError(f"unsupported UI hierarchy phase: {phase!r}")
-        dump_path = f"{UI_DUMP_PATH_PREFIX}{phase}.xml"
-        self._adb(
-            f"measure.ui.{phase}.remove",
-            "shell",
-            "rm",
-            "-f",
-            dump_path,
-            timeout_seconds=30,
-        )
-        dump_result = self._adb(
-            f"measure.ui.{phase}.dump",
-            "shell",
-            "uiautomator",
-            "dump",
-            dump_path,
-            timeout_seconds=60,
-        )
-        expected_success = f"UI hierchary dumped to: {dump_path}"
-        if dump_result.stdout.strip() != expected_success or dump_result.stderr.strip():
-            raise CollectorError(
-                f"uiautomator {phase} dump did not report exact success for fresh path: "
-                f"stdout={dump_result.stdout!r}, stderr={dump_result.stderr!r}"
-            )
-        return self._adb_text(
-            f"measure.ui.{phase}.cat",
-            "shell",
-            "cat",
-            dump_path,
-            timeout_seconds=30,
-        )
-
-    def _tap_target(self, record_id: str, target: UiTarget) -> None:
-        x = (target.bounds.left + target.bounds.right) // 2
-        y = (target.bounds.top + target.bounds.bottom) // 2
-        if not (
-            target.bounds.left < x < target.bounds.right
-            and target.bounds.top < y < target.bounds.bottom
-        ):
-            raise CollectorError(f"{target.resource_id} has no safe interior tap coordinate")
-        self._adb(record_id, "shell", "input", "tap", str(x), str(y))
-
-    def _navigate_to_settings(self, width_px: int, height_px: int) -> SettingsNavigation:
-        initial = self._ui_hierarchy("initial")
-        if self.config.profile == "phone-compact":
-            _reject_ui_resource(initial, TABLET_SETTINGS_TAG, "phone initial hierarchy")
-            drawer = _ui_target(
-                initial,
-                PHONE_DRAWER_TAG,
-                width_px,
-                height_px,
-                clickable=True,
-            )
-            self._tap_target("measure.ui.phone.drawer.tap", drawer)
-            drawer_xml = self._ui_hierarchy("drawer")
-            settings = _ui_target(
-                drawer_xml,
-                PHONE_SETTINGS_TAG,
-                width_px,
-                height_px,
-                clickable=True,
-            )
-            self._tap_target("measure.ui.phone.settings.tap", settings)
-            route = "phone-drawer-settings"
-        else:
-            _reject_ui_resource(initial, PHONE_DRAWER_TAG, "tablet initial hierarchy")
-            settings = _ui_target(
-                initial,
-                TABLET_SETTINGS_TAG,
-                width_px,
-                height_px,
-                clickable=True,
-            )
-            self._tap_target("measure.ui.tablet.settings.tap", settings)
-            route = "tablet-rail-settings"
-
-        settings_xml = self._ui_hierarchy("settings")
-        content = _ui_target(
-            settings_xml,
-            SETTINGS_CONTENT_TAG,
-            width_px,
-            height_px,
-            scrollable=True,
-        )
-        swipe_x, swipe_top_y, swipe_bottom_y = _safe_swipe_coordinates(content.bounds)
-        return SettingsNavigation(
-            route=route,
-            bounds=content.bounds,
-            swipe_x=swipe_x,
-            swipe_top_y=swipe_top_y,
-            swipe_bottom_y=swipe_bottom_y,
-        )
-
     def _configured_dp(self) -> tuple[int, int]:
         output = self._adb_text("measure.screen.am_config", "shell", "am", "get-config")
         pairs = {
@@ -984,58 +1087,6 @@ class PerformanceCollector:
         )
         _require_resumed_activity(output, record_id)
 
-    def _exercise_and_measure_frames(
-        self, navigation: SettingsNavigation, expected_pid: int
-    ) -> dict[str, Any]:
-        self._adb(
-            "measure.gfx.reset",
-            "shell",
-            "dumpsys",
-            "gfxinfo",
-            PACKAGE_ID,
-            "reset",
-            timeout_seconds=60,
-        )
-        latest: dict[str, Any] | None = None
-        gesture_number = 0
-        for round_number in range(1, self.config.max_exercise_rounds + 1):
-            for gesture in range(self.config.swipes_per_round):
-                gesture_number += 1
-                start_y, end_y = (
-                    (navigation.swipe_bottom_y, navigation.swipe_top_y)
-                    if gesture % 2 == 0
-                    else (navigation.swipe_top_y, navigation.swipe_bottom_y)
-                )
-                self._adb(
-                    f"measure.gfx.swipe.{gesture_number:04d}",
-                    "shell",
-                    "input",
-                    "swipe",
-                    str(navigation.swipe_x),
-                    str(start_y),
-                    str(navigation.swipe_x),
-                    str(end_y),
-                    str(self.config.swipe_duration_ms),
-                    timeout_seconds=10,
-                )
-            raw = self._adb_text(
-                f"measure.gfx.summary.{round_number:02d}",
-                "shell",
-                "dumpsys",
-                "gfxinfo",
-                PACKAGE_ID,
-                timeout_seconds=60,
-            )
-            _require_process_header(raw, "Graphics info for pid", expected_pid, "gfxinfo")
-            latest = _parse_gfxinfo(raw)
-            if latest["total_rendered"] >= 100:
-                latest["_exercise_rounds"] = round_number
-                return latest
-        observed = 0 if latest is None else latest["total_rendered"]
-        raise CollectorError(
-            f"gfxinfo produced only {observed} frames after {self.config.max_exercise_rounds} rounds"
-        )
-
     def _memory(self, expected_pid: int) -> dict[str, int]:
         output = self._adb_text(
             "measure.memory.meminfo",
@@ -1059,6 +1110,306 @@ class PerformanceCollector:
         if total_pss <= 0 or total_rss <= 0 or total_pss > total_rss:
             raise CollectorError(f"invalid TOTAL PSS/RSS relationship: {total_pss}/{total_rss} KB")
         return {"total_pss_kb": total_pss, "total_rss_kb": total_rss}
+
+
+def _mapping_field(value: Mapping[str, Any], field: str, context: str) -> Mapping[str, Any]:
+    nested = value.get(field)
+    if not isinstance(nested, Mapping):
+        raise CollectorError(f"{context}.{field} must be one JSON object")
+    return nested
+
+
+def _finite_number(value: Any, context: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise CollectorError(f"{context} must be a finite number")
+    result = float(value)
+    if not math.isfinite(result):
+        raise CollectorError(f"{context} must be a finite number")
+    return result
+
+
+def _metric_runs(metrics: Mapping[str, Any], name: str, iterations: int) -> list[float]:
+    metric = _mapping_field(metrics, name, "macrobenchmark.metrics")
+    runs = metric.get("runs")
+    if not isinstance(runs, list) or len(runs) != iterations:
+        raise CollectorError(
+            f"macrobenchmark.metrics.{name}.runs must contain exactly {iterations} values"
+        )
+    return [
+        _finite_number(value, f"macrobenchmark.metrics.{name}.runs[{index}]")
+        for index, value in enumerate(runs)
+    ]
+
+
+def _integral_metric_runs(metrics: Mapping[str, Any], name: str, iterations: int) -> list[int]:
+    values = _metric_runs(metrics, name, iterations)
+    if any(value < 0 or not value.is_integer() for value in values):
+        raise CollectorError(f"macrobenchmark metric {name} must contain nonnegative integers")
+    return [int(value) for value in values]
+
+
+def _sampled_metric(
+    sampled_metrics: Mapping[str, Any], name: str, iterations: int
+) -> tuple[dict[str, float], list[list[float]]]:
+    metric = _mapping_field(sampled_metrics, name, "macrobenchmark.sampledMetrics")
+    percentile_keys = ("P50", "P90", "P95", "P99")
+    percentiles = {
+        key: _finite_number(metric.get(key), f"macrobenchmark.sampledMetrics.{name}.{key}")
+        for key in percentile_keys
+    }
+    ordered = [percentiles[key] for key in percentile_keys]
+    if ordered != sorted(ordered):
+        raise CollectorError(f"macrobenchmark sampled metric {name} percentiles are not monotonic")
+    raw_runs = metric.get("runs")
+    if not isinstance(raw_runs, list) or len(raw_runs) != iterations:
+        raise CollectorError(
+            f"macrobenchmark.sampledMetrics.{name}.runs must contain {iterations} iteration arrays"
+        )
+    runs: list[list[float]] = []
+    for iteration, raw_values in enumerate(raw_runs, start=1):
+        if not isinstance(raw_values, list) or not raw_values:
+            raise CollectorError(f"sampled metric {name} iteration {iteration} is empty")
+        runs.append(
+            [
+                _finite_number(value, f"macrobenchmark.sampledMetrics.{name}.runs[{iteration - 1}]")
+                for value in raw_values
+            ]
+        )
+    pooled = sorted(value for iteration_values in runs for value in iteration_values)
+    for key, percentile in (("P50", 50), ("P90", 90), ("P95", 95), ("P99", 99)):
+        expected = _linear_interpolated_percentile(pooled, percentile)
+        if not math.isclose(
+            percentiles[key], expected, rel_tol=1e-9, abs_tol=1e-9
+        ):
+            raise CollectorError(
+                f"macrobenchmark.sampledMetrics.{name}.{key} does not reproduce "
+                "the pooled AndroidX runs"
+            )
+    return percentiles, runs
+
+
+def _linear_interpolated_percentile(values: Sequence[float], percentile: int) -> float:
+    if not values:
+        raise CollectorError("cannot calculate a percentile from an empty sample")
+    ideal_index = percentile / 100.0 * (len(values) - 1)
+    lower_index = math.floor(ideal_index)
+    upper_index = math.ceil(ideal_index)
+    lower = values[lower_index]
+    upper = values[upper_index]
+    return lower + (upper - lower) * (ideal_index - lower_index)
+
+
+def _evidence_token(config: CollectorConfig) -> int:
+    canonical = (
+        "hermes-macrobenchmark-evidence-v2\n"
+        f"{config.release_source_digest}\n"
+        f"{config.benchmark_target_apk_sha256}\n"
+        f"{config.benchmark_test_apk_sha256}\n"
+        f"{config.evidence_run_id}\n"
+        f"{config.profile}\n"
+        f"{config.expected_avd_name}\n"
+        f"{config.expected_boot_id}\n"
+    )
+    return int(hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:13], 16)
+
+
+def _parse_macrobenchmark_report(
+    report: Mapping[str, Any], config: CollectorConfig
+) -> tuple[dict[str, Any], int, tuple[str, ...]]:
+    context = _mapping_field(report, "context", "macrobenchmark")
+    # AndroidX 1.4.1 serializes CompilationMode.Full() using the underlying
+    # package-manager compiler filter name, not the Kotlin API enum name.
+    if context.get("compilationMode") != "speed":
+        raise CollectorError("AndroidX report context compilationMode must equal speed for Full")
+    benchmarks = report.get("benchmarks")
+    if not isinstance(benchmarks, list) or len(benchmarks) != 1 or not isinstance(benchmarks[0], Mapping):
+        raise CollectorError("AndroidX report must contain exactly one benchmark result")
+    benchmark = benchmarks[0]
+    if benchmark.get("name") != BENCHMARK_METHOD or benchmark.get("className") != BENCHMARK_CLASS:
+        raise CollectorError("AndroidX report benchmark class/method does not match the Hermes scenario")
+    if benchmark.get("params") != {}:
+        raise CollectorError("Hermes settings benchmark must not have parameterized variants")
+    iterations_raw = benchmark.get("repeatIterations")
+    if (
+        isinstance(iterations_raw, bool)
+        or not isinstance(iterations_raw, int)
+        or not MIN_BENCHMARK_ITERATIONS <= iterations_raw <= MAX_BENCHMARK_ITERATIONS
+    ):
+        raise CollectorError("AndroidX repeatIterations must be between 5 and 20")
+    iterations = iterations_raw
+    if benchmark.get("thermalThrottleSleepSeconds") != 0:
+        raise CollectorError("AndroidX report indicates thermal throttling")
+    metrics = _mapping_field(benchmark, "metrics", "macrobenchmark.benchmarks[0]")
+    sampled = _mapping_field(benchmark, "sampledMetrics", "macrobenchmark.benchmarks[0]")
+
+    frame_counts = _integral_metric_runs(metrics, "frameCount", iterations)
+    total_frames = _integral_metric_runs(metrics, "hermesFrameTotalCount", iterations)
+    janky_frames = _integral_metric_runs(metrics, "hermesFrameJankyCount", iterations)
+    deadline_frames = _integral_metric_runs(
+        metrics, "hermesFrameAppDeadlineMissedCount", iterations
+    )
+    other_frames = _integral_metric_runs(metrics, "hermesFrameOtherJankCount", iterations)
+    jank_percentages = _metric_runs(metrics, "hermesFrameJankPercent", iterations)
+    evidence_tokens = _integral_metric_runs(metrics, "hermesEvidenceToken", iterations)
+    expected_evidence_token = _evidence_token(config)
+    if evidence_tokens != [expected_evidence_token] * iterations:
+        raise CollectorError(
+            "Macrobenchmark hermesEvidenceToken does not bind the exact source/APKs/run/profile/boot"
+        )
+    duration_percentiles, duration_runs = _sampled_metric(
+        sampled, "frameDurationCpuMs", iterations
+    )
+    overrun_percentiles, overrun_runs = _sampled_metric(sampled, "frameOverrunMs", iterations)
+
+    normalized_iterations: list[dict[str, Any]] = []
+    for index in range(iterations):
+        frame_count = frame_counts[index]
+        total = total_frames[index]
+        janky = janky_frames[index]
+        deadline = deadline_frames[index]
+        other = other_frames[index]
+        percent = jank_percentages[index]
+        if frame_count <= 0 or total <= 0:
+            raise CollectorError(f"Macrobenchmark iteration {index + 1} contains no rendered frames")
+        if len(duration_runs[index]) != frame_count or len(overrun_runs[index]) != frame_count:
+            raise CollectorError(
+                f"FrameTimingMetric sampled run length disagrees with frameCount in iteration {index + 1}"
+            )
+        if janky > total or deadline + other != janky:
+            raise CollectorError(f"Perfetto jank counts do not reconcile in iteration {index + 1}")
+        expected_percent = janky * 100.0 / total
+        if not 0 <= percent <= 100 or abs(percent - expected_percent) > 1e-6:
+            raise CollectorError(f"Perfetto jank percentage is inconsistent in iteration {index + 1}")
+        normalized_iterations.append(
+            {
+                "iteration": index + 1,
+                "frame_timing_frame_count": frame_count,
+                "perfetto_total_frames": total,
+                "perfetto_janky_frames": janky,
+                "perfetto_app_deadline_missed_frames": deadline,
+                "perfetto_other_janky_frames": other,
+                "perfetto_janky_percent": percent,
+            }
+        )
+
+    frame_timing_total = sum(frame_counts)
+    total = sum(total_frames)
+    janky = sum(janky_frames)
+    deadline = sum(deadline_frames)
+    other = sum(other_frames)
+    if frame_timing_total < MIN_AGGREGATE_FRAMES or total < MIN_AGGREGATE_FRAMES:
+        raise CollectorError("Macrobenchmark did not capture at least 100 aggregate frames")
+    pooled_percent = janky * 100.0 / total
+    if pooled_percent > MAX_JANK_PERCENT:
+        raise CollectorError("Macrobenchmark aggregate jank exceeds the 10% release budget")
+    if deadline + other != janky:
+        raise CollectorError("Macrobenchmark aggregate jank categories do not reconcile")
+    duration_ordered = [duration_percentiles[key] for key in ("P50", "P90", "P95", "P99")]
+    if duration_ordered[2] > 250 or duration_ordered[3] > 1_000:
+        raise CollectorError("Macrobenchmark frame duration percentiles exceed the release budget")
+
+    profiler_outputs = benchmark.get("profilerOutputs")
+    if not isinstance(profiler_outputs, list) or len(profiler_outputs) != iterations:
+        raise CollectorError("AndroidX profilerOutputs must contain one trace per iteration")
+    source_names: list[str] = []
+    for index, output in enumerate(profiler_outputs, start=1):
+        if not isinstance(output, Mapping) or set(output) != {"type", "label", "filename"}:
+            raise CollectorError(f"AndroidX profiler output {index} has an invalid shape")
+        if output.get("type") != "PerfettoTrace":
+            raise CollectorError(f"AndroidX profiler output {index} is not a Perfetto trace")
+        if output.get("label") != f"Trace Iteration {index - 1}":
+            raise CollectorError(
+                "AndroidX profiler output labels do not bind exact iteration order"
+            )
+        filename = output.get("filename")
+        if not isinstance(filename, str) or not filename.strip():
+            raise CollectorError(f"AndroidX profiler output {index} has no filename")
+        source_name = Path(filename).name
+        if not source_name.endswith(".perfetto-trace") or source_name in source_names:
+            raise CollectorError("AndroidX Perfetto trace filenames must be unique .perfetto-trace files")
+        source_names.append(source_name)
+
+    frames = {
+        "metric_source": "androidx.macrobenchmark.FrameTimingMetric+HermesFrameJankMetric",
+        "iterations": normalized_iterations,
+        "frame_timing_total_rendered": frame_timing_total,
+        "total_rendered": total,
+        "janky": janky,
+        "janky_percent": pooled_percent,
+        "p50_ms": duration_percentiles["P50"],
+        "p90_ms": duration_percentiles["P90"],
+        "p95_ms": duration_percentiles["P95"],
+        "p99_ms": duration_percentiles["P99"],
+        "frame_overrun_ms": {
+            "p50": overrun_percentiles["P50"],
+            "p90": overrun_percentiles["P90"],
+            "p95": overrun_percentiles["P95"],
+            "p99": overrun_percentiles["P99"],
+        },
+    }
+    return frames, iterations, tuple(source_names)
+
+
+def _parse_macrobenchmark_invocation(
+    payload: Any, config: CollectorConfig
+) -> CommandResult:
+    if not isinstance(payload, Mapping) or set(payload) != {
+        "schema",
+        "argv",
+        "exit_code",
+        "stdout",
+        "stderr",
+    }:
+        raise CollectorError("macrobenchmark invocation capture has an invalid key set")
+    if payload.get("schema") != INVOCATION_SCHEMA:
+        raise CollectorError(f"macrobenchmark invocation schema must equal {INVOCATION_SCHEMA}")
+    argv = payload.get("argv")
+    if not isinstance(argv, list) or not argv or any(not isinstance(part, str) or not part for part in argv):
+        raise CollectorError("macrobenchmark invocation argv must be a nonempty string array")
+    executable = Path(argv[0]).name.casefold()
+    if executable not in {"gradlew", "gradlew.bat"}:
+        raise CollectorError("macrobenchmark invocation must use the repository Gradle wrapper")
+    expected_args = [
+        ":macrobenchmark:connectedBenchmarkAndroidTest",
+        f"-PhermesBenchmarkExpectedSourceDigest={config.release_source_digest}",
+        f"-PhermesBenchmarkExpectedVersionName={config.version_name}",
+        f"-PhermesBenchmarkExpectedVersionCode={config.version_code}",
+        f"-PhermesBenchmarkExpectedLiteRtLmCoordinate={config.litertlm_coordinate}",
+        f"-PhermesBenchmarkTargetApkSha256={config.benchmark_target_apk_sha256}",
+        f"-PhermesBenchmarkApkSha256={config.benchmark_test_apk_sha256}",
+        f"-PhermesBenchmarkEvidenceRunId={config.evidence_run_id}",
+        f"-PhermesBenchmarkEvidenceProfile={config.profile}",
+        f"-PhermesBenchmarkExpectedAvdName={config.expected_avd_name}",
+        f"-PhermesBenchmarkExpectedBootId={config.expected_boot_id}",
+        f"-Pandroid.testInstrumentationRunnerArguments.class={BENCHMARK_TEST_ID}",
+        "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR",
+        "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.profiling.mode=None",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.sourceDigest={config.release_source_digest}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.targetApkSha256={config.benchmark_target_apk_sha256}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.benchmarkApkSha256={config.benchmark_test_apk_sha256}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.evidenceRunId={config.evidence_run_id}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.evidenceProfile={config.profile}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.avdName={config.expected_avd_name}",
+        f"-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.output.payload.bootId={config.expected_boot_id}",
+        "--no-daemon",
+        "--console=plain",
+    ]
+    if argv[1:] != expected_args:
+        raise CollectorError("macrobenchmark invocation argv does not match the exact release command")
+    exit_code = payload.get("exit_code")
+    stdout = payload.get("stdout")
+    stderr = payload.get("stderr")
+    if isinstance(exit_code, bool) or not isinstance(exit_code, int):
+        raise CollectorError("macrobenchmark invocation exit_code must be an integer")
+    if not isinstance(stdout, str) or not isinstance(stderr, str):
+        raise CollectorError("macrobenchmark invocation stdout/stderr must be strings")
+    combined = f"{stdout}\n{stderr}"
+    if exit_code != 0 or "BUILD SUCCESSFUL" not in combined:
+        raise CollectorError("macrobenchmark invocation did not prove a successful Gradle run")
+    forbidden = ("BUILD FAILED", "FAILURE:", "INSTRUMENTATION_FAILED")
+    if any(marker in combined for marker in forbidden):
+        raise CollectorError("macrobenchmark invocation output contains a failure marker")
+    return CommandResult(tuple(argv), exit_code, stdout, stderr)
 
 
 def _display_command(args: Sequence[str]) -> str:
@@ -1086,6 +1437,11 @@ def _strip_token(token: str) -> str:
     return token.strip().strip('"\'')
 
 
+def _portable_executable_name(value: str) -> str:
+    parts = [part for part in re.split(r"[\\/]", value.strip()) if part]
+    return parts[-1] if parts else value.strip()
+
+
 def _tokenize_windows_command(command_line: str) -> tuple[str, ...]:
     try:
         tokens = tuple(shlex.split(command_line, posix=False))
@@ -1094,6 +1450,37 @@ def _tokenize_windows_command(command_line: str) -> tuple[str, ...]:
     if not tokens:
         raise CollectorError("live QEMU command line is blank after tokenization")
     return tokens
+
+
+def _public_qemu_command(
+    process: ProcessInfo, avd_name: str, console_port: int
+) -> str:
+    process_name = process.name.casefold()
+    if not re.fullmatch(r"qemu-system-[a-z0-9_.-]+", process_name):
+        raise CollectorError("live QEMU process name is not public-safe")
+    tokens = _tokenize_windows_command(process.command_line)
+    if _flag_values(tokens, "-avd") != [avd_name]:
+        raise CollectorError("live QEMU command does not contain the exact AVD identity")
+    port_values = _flag_values(tokens, "-port")
+    ports_values = _flag_values(tokens, "-ports")
+    if port_values == [str(console_port)] and not ports_values:
+        port_flag = "-port"
+        port_value = str(console_port)
+    elif ports_values == [f"{console_port},{console_port + 1}"] and not port_values:
+        port_flag = "-ports"
+        port_value = f"{console_port},{console_port + 1}"
+    else:
+        raise CollectorError("live QEMU command does not contain the exact console port identity")
+    if _flag_values(tokens, "-gpu", casefold=True) != ["host"]:
+        raise CollectorError("live QEMU command must contain exactly one effective -gpu host")
+    if _flag_values(tokens, "-accel", casefold=True) != ["on"]:
+        raise CollectorError("live QEMU command must contain exactly one effective -accel on")
+    if any(_strip_token(token).casefold() == "-no-window" for token in tokens):
+        raise CollectorError("live QEMU command uses -no-window and is not headed")
+    return (
+        f"{process_name} -avd {avd_name} {port_flag} {port_value} "
+        "-gpu host -accel on"
+    )
 
 
 def _flag_values(tokens: Sequence[str], flag: str, *, casefold: bool = False) -> list[str]:
@@ -1216,93 +1603,6 @@ def _is_retryable_unknown_start(output: str) -> bool:
     )
 
 
-def _ui_nodes(xml_text: str, context: str) -> tuple[Mapping[str, str], ...]:
-    encoded_size = len(xml_text.encode("utf-8"))
-    if encoded_size <= 0 or encoded_size > 4 * 1024 * 1024:
-        raise CollectorError(f"{context} UI hierarchy has an unsafe byte size: {encoded_size}")
-    if "<!DOCTYPE" in xml_text.upper() or "<!ENTITY" in xml_text.upper():
-        raise CollectorError(f"{context} UI hierarchy contains a forbidden XML declaration")
-    try:
-        root = ET.fromstring(xml_text)
-    except ET.ParseError as exc:
-        raise CollectorError(f"{context} UI hierarchy is invalid XML: {exc}") from exc
-    if root.tag != "hierarchy":
-        raise CollectorError(f"{context} UI hierarchy has unexpected root {root.tag!r}")
-    nodes = tuple(dict(node.attrib) for node in root.iter("node"))
-    if not nodes:
-        raise CollectorError(f"{context} UI hierarchy contains no accessibility nodes")
-    return nodes
-
-
-def _matching_ui_nodes(xml_text: str, resource_id: str, context: str) -> tuple[Mapping[str, str], ...]:
-    return tuple(
-        node
-        for node in _ui_nodes(xml_text, context)
-        if node.get("resource-id", "") == resource_id
-    )
-
-
-def _reject_ui_resource(xml_text: str, resource_id: str, context: str) -> None:
-    if _matching_ui_nodes(xml_text, resource_id, context):
-        raise CollectorError(f"{context} exposes wrong-profile resource ID {resource_id}")
-
-
-def _ui_target(
-    xml_text: str,
-    resource_id: str,
-    width_px: int,
-    height_px: int,
-    *,
-    clickable: bool = False,
-    scrollable: bool = False,
-) -> UiTarget:
-    context = f"UI target {resource_id}"
-    matches = _matching_ui_nodes(xml_text, resource_id, context)
-    if len(matches) != 1:
-        raise CollectorError(f"{context} must appear exactly once; observed {len(matches)}")
-    node = matches[0]
-    if node.get("package") != PACKAGE_ID:
-        raise CollectorError(f"{context} belongs to wrong package {node.get('package')!r}")
-    if node.get("enabled") != "true":
-        raise CollectorError(f"{context} is not enabled")
-    if clickable and node.get("clickable") != "true":
-        raise CollectorError(f"{context} is not clickable")
-    if scrollable and node.get("scrollable") != "true":
-        raise CollectorError(f"{context} is not scrollable")
-    bounds_match = re.fullmatch(
-        r"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]", node.get("bounds", "")
-    )
-    if bounds_match is None:
-        raise CollectorError(f"{context} has invalid bounds {node.get('bounds')!r}")
-    bounds = UiBounds(*(int(value) for value in bounds_match.groups()))
-    if not (
-        0 <= bounds.left < bounds.right <= width_px
-        and 0 <= bounds.top < bounds.bottom <= height_px
-    ):
-        raise CollectorError(
-            f"{context} bounds {bounds} are outside the effective {width_px}x{height_px} display"
-        )
-    return UiTarget(resource_id, bounds)
-
-
-def _safe_swipe_coordinates(bounds: UiBounds) -> tuple[int, int, int]:
-    width = bounds.right - bounds.left
-    height = bounds.bottom - bounds.top
-    if width < 48 or height < 160:
-        raise CollectorError(f"settings scroll bounds are too small for a safe swipe: {bounds}")
-    x = (bounds.left + bounds.right) // 2
-    inset = max(16, height // 5)
-    top_y = bounds.top + inset
-    bottom_y = bounds.bottom - inset
-    if not (
-        bounds.left < x < bounds.right
-        and bounds.top < top_y < bottom_y < bounds.bottom
-        and bottom_y - top_y >= 48
-    ):
-        raise CollectorError(f"settings scroll bounds cannot yield safe interior swipe coordinates: {bounds}")
-    return x, top_y, bottom_y
-
-
 def _parse_start_metrics(output: str, *, expected_states: set[str]) -> dict[str, int]:
     statuses = [
         value.strip().casefold()
@@ -1336,63 +1636,6 @@ def _parse_start_metrics(output: str, *, expected_states: set[str]) -> dict[str,
     return {"TotalTime": total, "WaitTime": wait}
 
 
-def _gfx_number(output: str, label: str, *, integer: bool) -> tuple[int | float, int]:
-    pattern = rf"(?mi)^\s*{re.escape(label)}:\s*([0-9]+(?:\.[0-9]+)?)\s*(?:ms)?\s*$"
-    raw_values = re.findall(pattern, output)
-    if len(raw_values) not in (1, 2) or len(set(raw_values)) != 1:
-        raise CollectorError(f"gfxinfo did not expose one unambiguous {label}: {raw_values!r}")
-    raw = raw_values[0]
-    if integer and not raw.isdigit():
-        raise CollectorError(f"gfxinfo {label} must be an integer")
-    return (int(raw) if integer else float(raw)), len(raw_values)
-
-
-def _parse_gfxinfo(output: str) -> dict[str, Any]:
-    total_value, total_count = _gfx_number(output, "Total frames rendered", integer=True)
-    total = int(total_value)
-    jank_matches = re.findall(
-        r"(?mi)^\s*Janky frames:\s*([0-9]+)(?:\s*\(([0-9]+(?:\.[0-9]+)?)%\))?\s*$",
-        output,
-    )
-    unique_jank = [(int(count), percent) for count, percent in jank_matches]
-    if len(unique_jank) not in (1, 2) or len(set(unique_jank)) != 1:
-        raise CollectorError(
-            f"gfxinfo did not expose one unambiguous Janky frames summary: {unique_jank!r}"
-        )
-    janky, printed_percent = unique_jank[0]
-    if total <= 0 or not 0 <= janky <= total:
-        raise CollectorError(f"gfxinfo frame counts are invalid: {janky}/{total}")
-    derived_percent = janky * 100.0 / total
-    if printed_percent and abs(float(printed_percent) - derived_percent) > 0.25:
-        raise CollectorError(
-            "gfxinfo printed jank percentage disagrees with its counts: "
-            f"{printed_percent}% vs {derived_percent:.4f}%"
-        )
-    percentile_pairs = {
-        "p50_ms": _gfx_number(output, "50th percentile", integer=False),
-        "p90_ms": _gfx_number(output, "90th percentile", integer=False),
-        "p95_ms": _gfx_number(output, "95th percentile", integer=False),
-        "p99_ms": _gfx_number(output, "99th percentile", integer=False),
-    }
-    occurrence_counts = {total_count, len(unique_jank)} | {
-        count for _, count in percentile_pairs.values()
-    }
-    if len(occurrence_counts) != 1:
-        raise CollectorError(
-            f"gfxinfo summary metrics have inconsistent occurrence counts: {sorted(occurrence_counts)!r}"
-        )
-    percentiles = {field: float(value) for field, (value, _) in percentile_pairs.items()}
-    ordered = list(percentiles.values())
-    if any(value <= 0 for value in ordered) or ordered != sorted(ordered):
-        raise CollectorError(f"gfxinfo percentile values are invalid or non-monotonic: {ordered!r}")
-    return {
-        "total_rendered": total,
-        "janky": janky,
-        "janky_percent": round(derived_percent, 4),
-        **percentiles,
-    }
-
-
 def _encode_json(payload: Mapping[str, Any]) -> bytes:
     return (json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
 
@@ -1413,88 +1656,149 @@ def write_atomic_validated_evidence(
             "performance output must be the profile layout "
             f"performance/{config.profile}.json"
         )
-    raw_destination = destination.with_name(f"{config.profile}.raw.json")
+    host_raw_destination = destination.with_name(f"{config.profile}.host.raw.json")
+    macro_raw_destination = destination.with_name(f"{config.profile}.macrobenchmark.raw.json")
+    trace_directory = destination.with_name(f"{config.profile}.traces")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    invalid_destinations = [
-        path for path in (destination, raw_destination) if path.exists() and not path.is_file()
+    if trace_directory.exists() and (not trace_directory.is_dir() or trace_directory.is_symlink()):
+        raise CollectorError("performance trace destination must be a regular non-symlink directory")
+    existing_trace_files: list[Path] = []
+    if trace_directory.is_dir():
+        for path in trace_directory.iterdir():
+            if not path.is_file() or path.is_symlink():
+                raise CollectorError("performance trace directory may contain regular files only")
+            existing_trace_files.append(path)
+
+    encoded = _encode_json(payload)
+    host_raw_encoded = _encode_json(raw_transcript)
+    traces = payload.get("traces")
+    if not isinstance(traces, list) or len(traces) != len(config.macrobenchmark_traces):
+        raise CollectorError("normalized trace references do not match input trace count")
+    trace_paths_by_name = {trace.name: trace for trace in config.macrobenchmark_traces}
+    try:
+        ordered_trace_paths = [trace_paths_by_name[trace["source_name"]] for trace in traces]
+    except (KeyError, TypeError) as exc:
+        raise CollectorError("normalized trace source names do not match trace inputs") from exc
+    try:
+        macro_raw_encoded = config.macrobenchmark_report.read_bytes()
+        trace_inputs = [trace.read_bytes() for trace in ordered_trace_paths]
+    except OSError as exc:
+        raise CollectorError(f"unable to reread Macrobenchmark artifacts for commit: {exc}") from exc
+    trace_destinations = [
+        trace_directory / f"iteration-{index:03d}.perfetto-trace"
+        for index in range(1, len(trace_inputs) + 1)
     ]
+    final_artifacts = [destination, host_raw_destination, macro_raw_destination, *trace_destinations]
+    invalid_destinations = [path for path in final_artifacts[:3] if path.exists() and not path.is_file()]
     if invalid_destinations:
         raise CollectorError(
             "performance evidence destinations must be regular files: "
             + ", ".join(str(path) for path in invalid_destinations)
         )
-    existing = [path for path in (destination, raw_destination) if path.exists()]
+    existing = [path for path in final_artifacts if path.exists()]
+    existing.extend(path for path in existing_trace_files if path not in existing)
     if existing and not overwrite:
         raise CollectorError(
             "refusing to overwrite existing performance evidence: "
             + ", ".join(str(path) for path in existing)
         )
-    encoded = _encode_json(payload)
-    raw_encoded = _encode_json(raw_transcript)
-    prior_contents = {
-        path: path.read_bytes() if path.is_file() else None
-        for path in (destination, raw_destination)
-    }
     raw_reference = payload.get("raw_evidence")
     expected_reference = {
-        "path": f"performance/{config.profile}.raw.json",
-        "sha256": hashlib.sha256(raw_encoded).hexdigest(),
+        "host": {
+            "path": f"performance/{config.profile}.host.raw.json",
+            "bytes": len(host_raw_encoded),
+            "sha256": hashlib.sha256(host_raw_encoded).hexdigest(),
+        },
+        "macrobenchmark": {
+            "path": f"performance/{config.profile}.macrobenchmark.raw.json",
+            "bytes": len(macro_raw_encoded),
+            "sha256": hashlib.sha256(macro_raw_encoded).hexdigest(),
+        },
     }
     if raw_reference != expected_reference:
-        raise CollectorError("normalized raw_evidence reference does not match raw transcript bytes")
-    temporary_path: Path | None = None
-    raw_temporary_path: Path | None = None
+        raise CollectorError("normalized raw_evidence references do not match raw artifact bytes")
+    for index, (trace_reference, trace_bytes) in enumerate(
+        zip(traces, trace_inputs, strict=True), start=1
+    ):
+        expected_trace = {
+            "iteration": index,
+            "path": (
+                f"performance/{config.profile}.traces/"
+                f"iteration-{index:03d}.perfetto-trace"
+            ),
+            "source_name": ordered_trace_paths[index - 1].name,
+            "bytes": len(trace_bytes),
+            "sha256": hashlib.sha256(trace_bytes).hexdigest(),
+        }
+        if trace_reference != expected_trace:
+            raise CollectorError(f"normalized trace reference {index} does not match trace bytes")
+
+    artifact_bytes = [encoded, host_raw_encoded, macro_raw_encoded, *trace_inputs]
+    prior_contents = {path: path.read_bytes() for path in existing if path.is_file()}
+    trace_directory_existed = trace_directory.exists()
+    temporary_paths: list[Path] = []
     transaction_started = False
     try:
-        with tempfile.NamedTemporaryFile(
-            mode="wb", prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent, delete=False
-        ) as handle:
-            temporary_path = Path(handle.name)
-            handle.write(encoded)
-            handle.flush()
-            os.fsync(handle.fileno())
-        with tempfile.NamedTemporaryFile(
-            mode="wb",
-            prefix=f".{raw_destination.name}.",
-            suffix=".tmp",
-            dir=destination.parent,
-            delete=False,
-        ) as handle:
-            raw_temporary_path = Path(handle.name)
-            handle.write(raw_encoded)
-            handle.flush()
-            os.fsync(handle.fileno())
-        validator.validate(temporary_path, raw_temporary_path, config)
+        for final_path, contents in zip(final_artifacts, artifact_bytes, strict=True):
+            with tempfile.NamedTemporaryFile(
+                mode="wb",
+                prefix=f".{final_path.name}.",
+                suffix=".tmp",
+                dir=destination.parent,
+                delete=False,
+            ) as handle:
+                temporary_paths.append(Path(handle.name))
+                handle.write(contents)
+                handle.flush()
+                os.fsync(handle.fileno())
+        validator.validate(
+            temporary_paths[0],
+            temporary_paths[1],
+            temporary_paths[2],
+            temporary_paths[3:],
+            config,
+        )
         source_verifier.verify(config.release_source_digest)
         appeared = [
-            path for path in (destination, raw_destination) if path.exists() and path not in existing
+            path for path in final_artifacts if path.exists() and path not in existing
         ]
         if appeared and not overwrite:
             raise CollectorError(
                 "performance evidence appeared during collection: "
                 + ", ".join(str(path) for path in appeared)
             )
-        os.replace(raw_temporary_path, raw_destination)
-        raw_temporary_path = None
-        transaction_started = True
-        source_verifier.verify(config.release_source_digest)
-        os.replace(temporary_path, destination)
-        temporary_path = None
+        trace_directory.mkdir(parents=False, exist_ok=True)
+        # Commit all raw diagnostic artifacts first and the normalized claim last.
+        commit_order = [1, 2, *range(3, len(final_artifacts)), 0]
+        for index in commit_order:
+            os.replace(temporary_paths[index], final_artifacts[index])
+            temporary_paths[index] = Path()
+            transaction_started = True
+            source_verifier.verify(config.release_source_digest)
+        for stale in existing_trace_files:
+            if stale not in trace_destinations:
+                stale.unlink()
         source_verifier.verify(config.release_source_digest)
     except Exception:
         if transaction_started:
-            for path, contents in prior_contents.items():
-                if contents is None:
+            touched = set(final_artifacts) | set(existing_trace_files)
+            for path in touched:
+                if path in prior_contents:
+                    _atomic_replace_bytes(path, prior_contents[path])
+                else:
                     try:
                         path.unlink()
                     except FileNotFoundError:
                         pass
-                    continue
-                _atomic_replace_bytes(path, contents)
+            if not trace_directory_existed:
+                try:
+                    trace_directory.rmdir()
+                except OSError:
+                    pass
         raise
     finally:
-        for unfinished in (temporary_path, raw_temporary_path):
-            if unfinished is None:
+        for unfinished in temporary_paths:
+            if unfinished == Path():
                 continue
             try:
                 unfinished.unlink()
@@ -1550,45 +1854,60 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--serial", required=True)
     parser.add_argument("--profile", required=True, choices=PROFILES)
+    parser.add_argument("--expected-avd-name", required=True)
+    parser.add_argument("--expected-boot-id", required=True)
     parser.add_argument("--release-source-digest", required=True)
-    parser.add_argument("--candidate-apk-sha256", required=True)
-    parser.add_argument("--instrumentation-apk-sha256", required=True)
+    parser.add_argument("--benchmark-target-apk-sha256", required=True)
+    parser.add_argument("--benchmark-test-apk-sha256", required=True)
     parser.add_argument("--evidence-run-id", required=True)
     parser.add_argument("--version-name", required=True)
     parser.add_argument("--version-code", required=True, type=int)
     parser.add_argument("--litertlm-coordinate", required=True)
+    parser.add_argument("--macrobenchmark-report", required=True, type=Path)
+    parser.add_argument(
+        "--macrobenchmark-trace",
+        required=True,
+        action="append",
+        type=Path,
+        dest="macrobenchmark_traces",
+    )
+    parser.add_argument("--macrobenchmark-invocation", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--adb", default="adb")
     parser.add_argument("--emulator", default="emulator")
     parser.add_argument("--powershell", default="powershell.exe")
-    parser.add_argument("--max-exercise-rounds", type=int, default=4)
-    parser.add_argument("--swipes-per-round", type=int, default=30)
-    parser.add_argument("--swipe-duration-ms", type=int, default=180)
     parser.add_argument("--overwrite", action="store_true")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
+    repo_root = args.repo_root.resolve()
+
+    def input_path(path: Path) -> Path:
+        return path.resolve() if path.is_absolute() else (repo_root / path).resolve()
+
     config = CollectorConfig(
         serial=args.serial,
         profile=args.profile,
+        expected_avd_name=args.expected_avd_name,
+        expected_boot_id=args.expected_boot_id.lower(),
         release_source_digest=args.release_source_digest,
-        candidate_apk_sha256=args.candidate_apk_sha256,
-        instrumentation_apk_sha256=args.instrumentation_apk_sha256,
+        benchmark_target_apk_sha256=args.benchmark_target_apk_sha256,
+        benchmark_test_apk_sha256=args.benchmark_test_apk_sha256,
         evidence_run_id=args.evidence_run_id,
         version_name=args.version_name,
         version_code=args.version_code,
         litertlm_coordinate=args.litertlm_coordinate,
+        macrobenchmark_report=input_path(args.macrobenchmark_report),
+        macrobenchmark_traces=tuple(input_path(path) for path in args.macrobenchmark_traces),
+        macrobenchmark_invocation=input_path(args.macrobenchmark_invocation),
         adb=args.adb,
         emulator=args.emulator,
-        max_exercise_rounds=args.max_exercise_rounds,
-        swipes_per_round=args.swipes_per_round,
-        swipe_duration_ms=args.swipe_duration_ms,
     )
     try:
         executor = SubprocessExecutor()
-        source_verifier = GitSourceVerifier(args.repo_root)
+        source_verifier = GitSourceVerifier(repo_root)
         collector = PerformanceCollector(
             config,
             executor,
@@ -1596,7 +1915,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             source_verifier,
         )
         payload = collector.collect()
-        output = args.output if args.output.is_absolute() else args.repo_root / args.output
+        output = args.output if args.output.is_absolute() else repo_root / args.output
         write_atomic_validated_evidence(
             output,
             payload,
