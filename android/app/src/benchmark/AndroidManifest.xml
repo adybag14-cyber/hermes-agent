@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application>
+        <profileable
+            android:shell="true"
+            tools:targetApi="29" />
+
+        <meta-data
+            android:name="com.mobilefork.hermesagent.benchmark.SOURCE_DIGEST"
+            android:value="${hermesBenchmarkSourceDigest}" />
+        <meta-data
+            android:name="com.mobilefork.hermesagent.benchmark.VERSION_NAME"
+            android:value="${hermesBenchmarkVersionName}" />
+        <meta-data
+            android:name="com.mobilefork.hermesagent.benchmark.VERSION_CODE"
+            android:value="${hermesBenchmarkVersionCode}" />
+        <meta-data
+            android:name="com.mobilefork.hermesagent.benchmark.LITERTLM_COORDINATE"
+            android:value="${hermesBenchmarkLiteRtLmCoordinate}" />
+    </application>
+
+</manifest>

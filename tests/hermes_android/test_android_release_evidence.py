@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import importlib.util
 import hashlib
+import importlib.util
 import json
 import struct
 import subprocess
@@ -14,13 +14,29 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_DIGEST = "d" * 64
-CANDIDATE_APK_SHA256 = "c" * 64
-INSTRUMENTATION_APK_SHA256 = "e" * 64
-EVIDENCE_RUN_ID = "release-v0.1.2-synthetic-run"
-DEVICE_BOOT_ID = "12345678-1234-4abc-8def-1234567890ab"
+UI_TARGET_SHA = "a" * 64
+UI_TEST_SHA = "b" * 64
+BENCHMARK_TARGET_SHA = "c" * 64
+BENCHMARK_TEST_SHA = "e" * 64
+RUN_ID = "release-v0.1.2-synthetic-run"
+BOOT_ID = "12345678-1234-4abc-8def-1234567890ab"
+AVD_NAME = "Hermes_API_35"
 TAG = "v0.1.2"
 VERSION_NAME = "0.1.2"
 VERSION_CODE = 10_290
+FINGERPRINT = "google/sdk_gphone64_x86_64/emu64xa:15/test/release-keys"
+MODEL = "sdk_gphone64_x86_64"
+QEMU_RAW_COMMAND = (
+    '"C:\\Users\\private-builder\\AppData\\Local\\Android\\Sdk\\emulator\\qemu\\'
+    'windows-x86_64\\qemu-system-x86_64.exe" '
+    f"-avd {AVD_NAME} -gpu host -accel on -port 5566 "
+    '-data "C:\\Users\\private-builder\\.android\\avd\\Hermes_API_35.avd\\userdata.img"'
+)
+QEMU_PUBLIC_COMMAND = (
+    f"qemu-system-x86_64.exe -avd {AVD_NAME} -port 5566 -gpu host -accel on"
+)
+QEMU_PUBLIC_SHA = hashlib.sha256(QEMU_PUBLIC_COMMAND.encode("utf-8")).hexdigest()
+QEMU_RAW_SHA = hashlib.sha256(QEMU_RAW_COMMAND.encode("utf-8")).hexdigest()
 QEMU_CIM_SCRIPT = (
     "$utf8 = [System.Text.UTF8Encoding]::new($false); "
     "[Console]::OutputEncoding = $utf8; $OutputEncoding = $utf8; "
@@ -58,7 +74,7 @@ def artifacts(evidence_module):
             file_name="small.litertlm",
             runtime="litert-lm",
             expected_bytes=123_456,
-            sha256="a" * 64,
+            sha256="6" * 64,
         ),
         evidence_module.ArtifactSpec(
             model_id="small-gguf",
@@ -67,16 +83,9 @@ def artifacts(evidence_module):
             file_name="small.gguf",
             runtime="llama.cpp",
             expected_bytes=654_321,
-            sha256="b" * 64,
+            sha256="7" * 64,
         ),
     )
-
-
-@pytest.fixture
-def evidence_root(tmp_path):
-    root = tmp_path / "release-evidence"
-    root.mkdir()
-    return root
 
 
 def _chunk(kind: bytes, payload: bytes) -> bytes:
@@ -90,21 +99,19 @@ def _chunk(kind: bytes, payload: bytes) -> bytes:
 
 def _png(width: int, height: int, marker: str) -> bytes:
     ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
-    marker_seed = hashlib.sha256(marker.encode("utf-8")).digest()
-    palette = [
-        bytes(
-            (
-                (marker_seed[0] + index * 17) & 0xFF,
-                (marker_seed[1] + index * 29) & 0xFF,
-                (marker_seed[2] + index * 43) & 0xFF,
-            )
-        )
-        for index in range(16)
-    ]
+    seed = hashlib.sha256(marker.encode()).digest()
     compressor = zlib.compressobj(level=9)
     compressed = bytearray()
     for y in range(height):
-        row = b"".join(palette[(x // 8 + y // 8) % len(palette)] for x in range(width))
+        row = bytes(
+            channel
+            for x in range(width)
+            for channel in (
+                (seed[0] + x + y) & 0xFF,
+                (seed[1] + 2 * x + y) & 0xFF,
+                (seed[2] + x + 2 * y) & 0xFF,
+            )
+        )
         compressed.extend(compressor.compress(b"\x00" + row))
     compressed.extend(compressor.flush())
     return (
@@ -115,148 +122,194 @@ def _png(width: int, height: int, marker: str) -> bytes:
     )
 
 
-def _performance(profile: str) -> dict:
-    compact = profile == "phone-compact"
-    width_dp, height_dp = (360, 800) if compact else (800, 1280)
-    settings_bounds = [0, 100, 360, 760] if compact else [120, 100, 800, 1240]
-    swipe_coordinates = [180, 628, 180, 232] if compact else [460, 1012, 460, 328]
-    emulator_command = (
-        "D:/Android/Sdk/emulator/emulator.exe -avd Hermes_API_35 "
-        "-gpu host -accel on -port 5566 -no-snapshot-load"
+def _token(profile: str) -> int:
+    canonical = (
+        "hermes-macrobenchmark-evidence-v2\n"
+        f"{SOURCE_DIGEST}\n{BENCHMARK_TARGET_SHA}\n{BENCHMARK_TEST_SHA}\n"
+        f"{RUN_ID}\n{profile}\n{AVD_NAME}\n{BOOT_ID}\n"
     )
-    payload = {
-        "schema": "hermes-android-performance-evidence-v1",
-        "profile": profile,
-        "release_source_digest": SOURCE_DIGEST,
-        "candidate_apk_sha256": CANDIDATE_APK_SHA256,
-        "instrumentation_apk_sha256": INSTRUMENTATION_APK_SHA256,
-        "evidence_run_id": EVIDENCE_RUN_ID,
-        "package_id": "com.mobilefork.hermesagent",
-        "version_name": VERSION_NAME,
-        "version_code": VERSION_CODE,
-        "build_variant": "debug",
-        "litertlm_coordinate": "com.google.ai.edge.litertlm:litertlm-android:0.16.0",
-        "device": {
-            "serial": "emulator-5566",
-            "avd_name": "Hermes_API_35",
-            "boot_id": DEVICE_BOOT_ID,
-            "model": "sdk_gphone64_x86_64",
-            "build_fingerprint": "google/sdk_gphone64_x86_64/emu64xa:15/test/release-keys",
-            "android_sdk": 35,
-            "supported_abis": ["x86_64"],
-            "hardware_acceleration": True,
-            "acceleration_check": "WHPX is installed and usable.",
-            "acceleration_check_exit_code": 0,
-            "gpu_renderer": "Android Emulator OpenGL ES Translator (NVIDIA RTX)",
-            "emulator_pid": 4242,
-            "emulator_process_name": "qemu-system-x86_64.exe",
-            "emulator_command": emulator_command,
-            "emulator_command_sha256": hashlib.sha256(emulator_command.encode("utf-8")).hexdigest(),
-        },
-        "screen": {
-            "width_px": width_dp,
-            "height_px": height_dp,
-            "width_dp": width_dp,
-            "height_dp": height_dp,
-            "density_dpi": 160,
-            "font_scale": 1.0,
-        },
-        "launch": {
-            "cold_total_ms": 1200,
-            "cold_wait_ms": 1100,
-            "warm_total_ms": 400,
-            "warm_process_pid": 8123,
-        },
-        "frames": {
-            "total_rendered": 120,
-            "janky": 6,
-            "janky_percent": 5.0,
-            "p50_ms": 8.0,
-            "p90_ms": 14.0,
-            "p95_ms": 18.0,
-            "p99_ms": 28.0,
-        },
-        "memory": {"total_pss_kb": 250_000, "total_rss_kb": 320_000},
-        "collector": {
-            "source_digest_algorithm": "sha256-git-tree-contents-v1",
-            "source_file_count": 123,
-            "git_object_format": "sha1",
-            "candidate_apk_device_path": "/data/app/hermes/base.apk",
-            "instrumentation_apk_device_path": "/data/app/hermes-test/base.apk",
-            "ui_navigation_route": (
-                "phone-drawer-settings" if compact else "tablet-rail-settings"
-            ),
-            "settings_scroll_bounds_px": settings_bounds,
-            "gfx_swipe_coordinates": swipe_coordinates,
-            "gfxinfo_exercise_rounds": 1,
-        },
-    }
-    raw_bytes = _raw_performance_bytes(profile, payload)
-    payload["raw_evidence"] = {
-        "path": f"performance/{profile}.raw.json",
-        "sha256": hashlib.sha256(raw_bytes).hexdigest(),
-    }
-    return payload
+    return int(hashlib.sha256(canonical.encode()).hexdigest()[:13], 16)
 
 
-def _command(record_id: str, argv: list[str], stdout: str = "", stderr: str = "") -> dict:
+def _single_metric(runs: list[int | float]) -> dict:
+    ordered = sorted(float(value) for value in runs)
+    middle = len(ordered) // 2
+    median = ordered[middle]
     return {
-        "id": record_id,
-        "argv": argv,
-        "exit_code": 0,
-        "stdout": stdout,
-        "stderr": stderr,
+        "minimum": min(runs),
+        "maximum": max(runs),
+        "median": median,
+        "coefficientOfVariation": 0.0,
+        "runs": runs,
     }
 
 
-def _ui_xml(
-    resource_id: str,
-    bounds: str,
-    *,
-    clickable: bool = False,
-    scrollable: bool = False,
-    enabled: bool = True,
-    package: str = "com.mobilefork.hermesagent",
-) -> str:
-    return (
-        f'<hierarchy rotation="0"><node package="{package}" '
-        f'resource-id="{resource_id}" bounds="{bounds}" '
-        f'enabled="{str(enabled).lower()}" '
-        f'clickable="{str(clickable).lower()}" scrollable="{str(scrollable).lower()}"/>'
-        "</hierarchy>"
-    )
+def _sampled_distribution(runs: list[list[float]]) -> dict:
+    pooled = sorted(value for iteration in runs for value in iteration)
+
+    def percentile(percent: int) -> float:
+        ideal = percent / 100.0 * (len(pooled) - 1)
+        lower = int(ideal)
+        upper = min(lower + 1, len(pooled) - 1)
+        return pooled[lower] + (pooled[upper] - pooled[lower]) * (ideal - lower)
+
+    return {
+        "P50": percentile(50),
+        "P90": percentile(90),
+        "P95": percentile(95),
+        "P99": percentile(99),
+        "runs": runs,
+    }
 
 
-def _raw_performance(profile: str, performance: dict) -> dict:
-    serial = performance["device"]["serial"]
+def _macro_report(profile: str) -> dict:
+    iterations = 5
+    frame_count = 24
+    values = [frame_count] * iterations
+    one = [1] * iterations
+    zero = [0] * iterations
+    percent = [100 / frame_count] * iterations
+    duration_runs = [[8.0 + sample % 4 for sample in range(frame_count)] for _ in values]
+    overrun_runs = [[-5.0 + sample % 4 for sample in range(frame_count)] for _ in values]
+    return {
+        "context": {
+            "build": {
+                "brand": "google",
+                "device": "emu64",
+                "fingerprint": FINGERPRINT,
+                "id": "test",
+                "model": MODEL,
+                "type": "userdebug",
+                "version": {"codename": "REL", "sdk": 35},
+            },
+            "cpuCoreCount": 8,
+            "cpuLocked": False,
+            "cpuMaxFreqHz": 4_000_000_000,
+            "memTotalBytes": 8_000_000_000,
+            "sustainedPerformanceModeEnabled": False,
+            "artMainlineVersion": 1,
+            "osCodenameAbbreviated": "REL",
+            "compilationMode": "speed",
+            "payload": {
+                "sourceDigest": SOURCE_DIGEST,
+                "targetApkSha256": BENCHMARK_TARGET_SHA,
+                "benchmarkApkSha256": BENCHMARK_TEST_SHA,
+                "evidenceRunId": RUN_ID,
+                "evidenceProfile": profile,
+                "avdName": AVD_NAME,
+                "bootId": BOOT_ID,
+            },
+        },
+        "benchmarks": [
+            {
+                "name": "settingsListFling",
+                "params": {},
+                "className": (
+                    "com.mobilefork.hermesagent.macrobenchmark."
+                    "HermesSettingsScrollBenchmark"
+                ),
+                "totalRunTimeNs": 20_000_000_000,
+                "metrics": {
+                    "frameCount": _single_metric(values),
+                    "hermesFrameTotalCount": _single_metric(values),
+                    "hermesFrameJankyCount": _single_metric(one),
+                    "hermesFrameAppDeadlineMissedCount": _single_metric(one),
+                    "hermesFrameOtherJankCount": _single_metric(zero),
+                    "hermesFrameJankPercent": _single_metric(percent),
+                    "hermesEvidenceToken": _single_metric([_token(profile)] * iterations),
+                },
+                "sampledMetrics": {
+                    "frameDurationCpuMs": _sampled_distribution(duration_runs),
+                    "frameOverrunMs": _sampled_distribution(overrun_runs),
+                },
+                "warmupIterations": 0,
+                "repeatIterations": iterations,
+                "thermalThrottleSleepSeconds": 0,
+                "profilerOutputs": [
+                    {
+                        "type": "PerfettoTrace",
+                        "label": f"Trace Iteration {index - 1}",
+                        "filename": f"settings_iter{index:03d}.perfetto-trace",
+                    }
+                    for index in range(1, iterations + 1)
+                ],
+            }
+        ],
+    }
+
+
+def _invocation_argv(profile: str) -> list[str]:
+    prefix = "-Pandroid.testInstrumentationRunnerArguments."
+    return [
+        "gradlew.bat",
+        ":macrobenchmark:connectedBenchmarkAndroidTest",
+        f"-PhermesBenchmarkExpectedSourceDigest={SOURCE_DIGEST}",
+        f"-PhermesBenchmarkExpectedVersionName={VERSION_NAME}",
+        f"-PhermesBenchmarkExpectedVersionCode={VERSION_CODE}",
+        "-PhermesBenchmarkExpectedLiteRtLmCoordinate="
+        "com.google.ai.edge.litertlm:litertlm-android:0.16.0",
+        f"-PhermesBenchmarkTargetApkSha256={BENCHMARK_TARGET_SHA}",
+        f"-PhermesBenchmarkApkSha256={BENCHMARK_TEST_SHA}",
+        f"-PhermesBenchmarkEvidenceRunId={RUN_ID}",
+        f"-PhermesBenchmarkEvidenceProfile={profile}",
+        f"-PhermesBenchmarkExpectedAvdName={AVD_NAME}",
+        f"-PhermesBenchmarkExpectedBootId={BOOT_ID}",
+        f"{prefix}class=com.mobilefork.hermesagent.macrobenchmark."
+        "HermesSettingsScrollBenchmark#settingsListFling",
+        f"{prefix}androidx.benchmark.suppressErrors=EMULATOR",
+        f"{prefix}androidx.benchmark.profiling.mode=None",
+        f"{prefix}androidx.benchmark.output.payload.sourceDigest={SOURCE_DIGEST}",
+        f"{prefix}androidx.benchmark.output.payload.targetApkSha256={BENCHMARK_TARGET_SHA}",
+        f"{prefix}androidx.benchmark.output.payload.benchmarkApkSha256={BENCHMARK_TEST_SHA}",
+        f"{prefix}androidx.benchmark.output.payload.evidenceRunId={RUN_ID}",
+        f"{prefix}androidx.benchmark.output.payload.evidenceProfile={profile}",
+        f"{prefix}androidx.benchmark.output.payload.avdName={AVD_NAME}",
+        f"{prefix}androidx.benchmark.output.payload.bootId={BOOT_ID}",
+        "--no-daemon",
+        "--console=plain",
+    ]
+
+
+def _command(record_id: str, argv: list[str], stdout="", stderr="") -> dict:
+    return {"id": record_id, "argv": argv, "exit_code": 0, "stdout": stdout, "stderr": stderr}
+
+
+def _host_raw(profile: str, performance: dict) -> dict:
+    serial = "emulator-5566"
     adb = "adb"
     targeted = [adb, "-s", serial]
-    records: list[dict] = []
+    records = [
+        _command(
+            "macrobenchmark.invocation",
+            _invocation_argv(profile),
+            "5 tests completed\nBUILD SUCCESSFUL in 1m\n",
+        )
+    ]
 
     def identity(phase: str) -> None:
         records.extend(
-            (
+            [
                 _command(
                     f"{phase}.adb.devices",
                     [adb, "devices", "-l"],
-                    f"List of devices attached\n{serial} device product:sdk_phone\n",
+                    f"List of devices attached\n{serial} device product:sdk\n",
                 ),
                 _command(f"{phase}.adb.get-serialno", [*targeted, "get-serialno"], f"{serial}\n"),
                 _command(f"{phase}.adb.get-state", [*targeted, "get-state"], "device\n"),
                 _command(
                     f"{phase}.device.getprop.avd_name",
                     [*targeted, "shell", "getprop", "ro.boot.qemu.avd_name"],
-                    "Hermes_API_35\n",
+                    AVD_NAME + "\n",
                 ),
                 _command(
                     f"{phase}.device.getprop.build_fingerprint",
                     [*targeted, "shell", "getprop", "ro.build.fingerprint"],
-                    "google/sdk_gphone64_x86_64/emu64xa:15/test/release-keys\n",
+                    FINGERPRINT + "\n",
                 ),
                 _command(
                     f"{phase}.device.getprop.model",
                     [*targeted, "shell", "getprop", "ro.product.model"],
-                    "sdk_gphone64_x86_64\n",
+                    MODEL + "\n",
                 ),
                 _command(
                     f"{phase}.device.getprop.android_sdk",
@@ -271,7 +324,7 @@ def _raw_performance(profile: str, performance: dict) -> dict:
                 _command(
                     f"{phase}.device.boot_id",
                     [*targeted, "shell", "cat", "/proc/sys/kernel/random/boot_id"],
-                    f"{DEVICE_BOOT_ID}\n",
+                    BOOT_ID + "\n",
                 ),
                 _command(
                     f"{phase}.device.settings.font_scale",
@@ -279,29 +332,36 @@ def _raw_performance(profile: str, performance: dict) -> dict:
                     "1.0\n",
                 ),
                 _command(
-                    f"{phase}.package.candidate.path",
+                    f"{phase}.package.benchmark_target.path",
                     [*targeted, "shell", "pm", "path", "com.mobilefork.hermesagent"],
                     "package:/data/app/hermes/base.apk\n",
                 ),
                 _command(
-                    f"{phase}.package.candidate.sha256",
+                    f"{phase}.package.benchmark_target.sha256",
                     [*targeted, "shell", "sha256sum", "/data/app/hermes/base.apk"],
-                    f"{CANDIDATE_APK_SHA256}  /data/app/hermes/base.apk\n",
+                    f"{BENCHMARK_TARGET_SHA}  /data/app/hermes/base.apk\n",
                 ),
                 _command(
-                    f"{phase}.package.instrumentation.path",
-                    [*targeted, "shell", "pm", "path", "com.mobilefork.hermesagent.test"],
-                    "package:/data/app/hermes-test/base.apk\n",
+                    f"{phase}.package.benchmark_test.path",
+                    [
+                        *targeted,
+                        "shell",
+                        "pm",
+                        "path",
+                        "com.mobilefork.hermesagent.macrobenchmark",
+                    ],
+                    "package:/data/app/hermes-benchmark/base.apk\n",
                 ),
                 _command(
-                    f"{phase}.package.instrumentation.sha256",
-                    [*targeted, "shell", "sha256sum", "/data/app/hermes-test/base.apk"],
-                    f"{INSTRUMENTATION_APK_SHA256}  /data/app/hermes-test/base.apk\n",
+                    f"{phase}.package.benchmark_test.sha256",
+                    [*targeted, "shell", "sha256sum", "/data/app/hermes-benchmark/base.apk"],
+                    f"{BENCHMARK_TEST_SHA}  /data/app/hermes-benchmark/base.apk\n",
                 ),
                 _command(
                     f"{phase}.package.version",
                     [*targeted, "shell", "dumpsys", "package", "com.mobilefork.hermesagent"],
-                    f"Packages:\n  versionCode={VERSION_CODE} minSdk=24\n  versionName={VERSION_NAME}\n",
+                    f"Packages:\n  versionCode={VERSION_CODE} minSdk=31\n"
+                    f"  versionName={VERSION_NAME}\n",
                 ),
                 _command(
                     f"{phase}.host.qemu_processes",
@@ -318,302 +378,218 @@ def _raw_performance(profile: str, performance: dict) -> dict:
                             {
                                 "pid": 4242,
                                 "name": "qemu-system-x86_64.exe",
-                                "command_line": performance["device"]["emulator_command"],
+                                "public_command": performance["device"][
+                                    "emulator_public_command"
+                                ],
+                                "public_command_sha256": performance["device"][
+                                    "emulator_public_command_sha256"
+                                ],
+                                "raw_command_sha256": performance["device"][
+                                    "emulator_raw_command_sha256"
+                                ],
                             }
                         ],
                         separators=(",", ":"),
                     ),
                 ),
-            )
+            ]
         )
 
     identity("initial")
     screen = performance["screen"]
-    def ui_dump(phase: str) -> str:
-        return f"/data/local/tmp/hermes-performance-ui-{phase}.xml"
-
-    if profile == "phone-compact":
-        navigation_records = [
-            _command(
-                "measure.ui.initial.remove",
-                [*targeted, "shell", "rm", "-f", ui_dump("initial")],
-            ),
-            _command(
-                "measure.ui.initial.dump",
-                [*targeted, "shell", "uiautomator", "dump", ui_dump("initial")],
-                f"UI hierchary dumped to: {ui_dump('initial')}\n",
-            ),
-            _command(
-                "measure.ui.initial.cat",
-                [*targeted, "shell", "cat", ui_dump("initial")],
-                _ui_xml("HermesChatDrawerButton", "[10,10][110,110]", clickable=True),
-            ),
-            _command(
-                "measure.ui.phone.drawer.tap",
-                [*targeted, "shell", "input", "tap", "60", "60"],
-            ),
-            _command(
-                "measure.ui.drawer.remove",
-                [*targeted, "shell", "rm", "-f", ui_dump("drawer")],
-            ),
-            _command(
-                "measure.ui.drawer.dump",
-                [*targeted, "shell", "uiautomator", "dump", ui_dump("drawer")],
-                f"UI hierchary dumped to: {ui_dump('drawer')}\n",
-            ),
-            _command(
-                "measure.ui.drawer.cat",
-                [*targeted, "shell", "cat", ui_dump("drawer")],
-                _ui_xml("HermesNavSettings", "[0,200][360,300]", clickable=True),
-            ),
-            _command(
-                "measure.ui.phone.settings.tap",
-                [*targeted, "shell", "input", "tap", "180", "250"],
-            ),
-            _command(
-                "measure.ui.settings.remove",
-                [*targeted, "shell", "rm", "-f", ui_dump("settings")],
-            ),
-            _command(
-                "measure.ui.settings.dump",
-                [*targeted, "shell", "uiautomator", "dump", ui_dump("settings")],
-                f"UI hierchary dumped to: {ui_dump('settings')}\n",
-            ),
-            _command(
-                "measure.ui.settings.cat",
-                [*targeted, "shell", "cat", ui_dump("settings")],
-                _ui_xml(
-                    "HermesSettingsContentList", "[0,100][360,760]", scrollable=True
-                ),
-            ),
-        ]
-    else:
-        navigation_records = [
-            _command(
-                "measure.ui.initial.remove",
-                [*targeted, "shell", "rm", "-f", ui_dump("initial")],
-            ),
-            _command(
-                "measure.ui.initial.dump",
-                [*targeted, "shell", "uiautomator", "dump", ui_dump("initial")],
-                f"UI hierchary dumped to: {ui_dump('initial')}\n",
-            ),
-            _command(
-                "measure.ui.initial.cat",
-                [*targeted, "shell", "cat", ui_dump("initial")],
-                _ui_xml("HermesRailSettings", "[10,100][110,220]", clickable=True),
-            ),
-            _command(
-                "measure.ui.tablet.settings.tap",
-                [*targeted, "shell", "input", "tap", "60", "160"],
-            ),
-            _command(
-                "measure.ui.settings.remove",
-                [*targeted, "shell", "rm", "-f", ui_dump("settings")],
-            ),
-            _command(
-                "measure.ui.settings.dump",
-                [*targeted, "shell", "uiautomator", "dump", ui_dump("settings")],
-                f"UI hierchary dumped to: {ui_dump('settings')}\n",
-            ),
-            _command(
-                "measure.ui.settings.cat",
-                [*targeted, "shell", "cat", ui_dump("settings")],
-                _ui_xml(
-                    "HermesSettingsContentList", "[120,100][800,1240]", scrollable=True
-                ),
-            ),
-        ]
     records.extend(
-        (
-            _command(
-                "measure.emulator.accel-check",
-                ["emulator", "-accel-check"],
-                "WHPX is installed and usable.\n",
-            ),
-            _command(
-                "measure.screen.wm_size",
-                [*targeted, "shell", "wm", "size"],
-                f"Physical size: {screen['width_px']}x{screen['height_px']}\n",
-            ),
-            _command(
-                "measure.screen.wm_density",
-                [*targeted, "shell", "wm", "density"],
-                f"Physical density: {screen['density_dpi']}\n",
-            ),
-            _command(
-                "measure.launch.force_stop",
-                [*targeted, "shell", "am", "force-stop", "com.mobilefork.hermesagent"],
-            ),
-            _command(
-                "measure.launch.cold",
-                [
-                    *targeted,
-                    "shell",
-                    "am",
-                    "start",
-                    "-W",
-                    "-S",
-                    "-n",
-                    "com.mobilefork.hermesagent/.MainActivity",
-                ],
-                "Status: ok\n"
-                "LaunchState: COLD\n"
-                "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-                "TotalTime: 1200\nWaitTime: 1100\n",
-            ),
-            _command(
-                "measure.launch.pid_before_back",
-                [*targeted, "shell", "pidof", "com.mobilefork.hermesagent"],
-                "8123\n",
-            ),
-            _command(
-                "measure.launch.back",
-                [*targeted, "shell", "input", "keyevent", "KEYCODE_BACK"],
-            ),
-            _command(
-                "measure.launch.pid_after_back",
-                [*targeted, "shell", "pidof", "com.mobilefork.hermesagent"],
-                "8123\n",
-            ),
-            _command(
-                "measure.launch.warm",
-                [
-                    *targeted,
-                    "shell",
-                    "am",
-                    "start",
-                    "-W",
-                    "-n",
-                    "com.mobilefork.hermesagent/.MainActivity",
-                ],
-                "Status: ok\n"
-                "LaunchState: WARM\n"
-                "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-                "TotalTime: 400\nWaitTime: 410\n",
-            ),
-            *navigation_records,
-            _command(
-                "measure.screen.am_config",
-                [*targeted, "shell", "am", "get-config"],
-                f"config: en-rUS-w{screen['width_dp']}dp-h{screen['height_dp']}dp-normal\n",
-            ),
-            _command(
-                "measure.gpu.surfaceflinger",
-                [*targeted, "shell", "dumpsys", "SurfaceFlinger"],
-                "GLES: Google, Android Emulator OpenGL ES Translator (NVIDIA RTX), OpenGL ES 3.2\n",
-            ),
-            _command(
-                "measure.activity.before_gfx",
-                [*targeted, "shell", "dumpsys", "activity", "activities"],
-                "topResumedActivity=ActivityRecord{abc u0 "
-                "com.mobilefork.hermesagent/.MainActivity t1}\n",
-            ),
-            _command(
-                "measure.gfx.reset",
-                [*targeted, "shell", "dumpsys", "gfxinfo", "com.mobilefork.hermesagent", "reset"],
-            ),
-        )
-    )
-    x, bottom, _, top = performance["collector"]["gfx_swipe_coordinates"]
-    records.extend(
-        (
-            _command(
-                "measure.gfx.swipe.0001",
-                [
-                    *targeted,
-                    "shell",
-                    "input",
-                    "swipe",
-                    str(x),
-                    str(bottom),
-                    str(x),
-                    str(top),
-                    "180",
-                ],
-            ),
-            _command(
-                "measure.gfx.summary.01",
-                [
-                    *targeted,
-                    "shell",
-                    "dumpsys",
-                    "gfxinfo",
-                    "com.mobilefork.hermesagent",
-                ],
-                "** Graphics info for pid 8123 [com.mobilefork.hermesagent] **\n"
-                "Total frames rendered: 120\n"
-                "Janky frames: 6 (5.00%)\n"
-                "50th percentile: 8ms\n"
-                "90th percentile: 14ms\n"
-                "95th percentile: 18ms\n"
-                "99th percentile: 28ms\n",
-            ),
-            _command(
-                "measure.activity.after_gfx",
-                [*targeted, "shell", "dumpsys", "activity", "activities"],
-                "topResumedActivity=ActivityRecord{abc u0 "
-                "com.mobilefork.hermesagent/.MainActivity t1}\n",
-            ),
-            _command(
-                "measure.memory.meminfo",
-                [*targeted, "shell", "dumpsys", "meminfo", "com.mobilefork.hermesagent"],
-                "** MEMINFO in pid 8123 [com.mobilefork.hermesagent] **\n"
-                " TOTAL PSS: 250000 TOTAL RSS: 320000 TOTAL SWAP PSS: 0\n",
-            ),
-            _command(
-                "measure.process.pid_after_measurement",
-                [*targeted, "shell", "pidof", "com.mobilefork.hermesagent"],
-                "8123\n",
-            ),
-        )
+        [
+            _command("measure.emulator.accel-check", ["emulator", "-accel-check"], "WHPX is installed and usable.\n"),
+            _command("measure.screen.wm_size", [*targeted, "shell", "wm", "size"], f"Physical size: {screen['width_px']}x{screen['height_px']}\n"),
+            _command("measure.screen.wm_density", [*targeted, "shell", "wm", "density"], f"Physical density: {screen['density_dpi']}\n"),
+            _command("measure.screen.am_config", [*targeted, "shell", "am", "get-config"], f"config: en-rUS-w{screen['width_dp']}dp-h{screen['height_dp']}dp-normal\n"),
+            _command("measure.gpu.surfaceflinger", [*targeted, "shell", "dumpsys", "SurfaceFlinger"], "GLES: Google, Android Emulator OpenGL ES Translator (NVIDIA RTX), OpenGL ES 3.2\n"),
+            _command("measure.launch.force_stop", [*targeted, "shell", "am", "force-stop", "com.mobilefork.hermesagent"]),
+            _command("measure.launch.cold", [*targeted, "shell", "am", "start", "-W", "-S", "-n", "com.mobilefork.hermesagent/.MainActivity"], "Status: ok\nLaunchState: COLD\nActivity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 1200\nWaitTime: 1100\n"),
+            _command("measure.launch.pid_before_back", [*targeted, "shell", "pidof", "com.mobilefork.hermesagent"], "8123\n"),
+            _command("measure.launch.back", [*targeted, "shell", "input", "keyevent", "KEYCODE_BACK"]),
+            _command("measure.launch.pid_after_back", [*targeted, "shell", "pidof", "com.mobilefork.hermesagent"], "8123\n"),
+            _command("measure.launch.warm", [*targeted, "shell", "am", "start", "-W", "-n", "com.mobilefork.hermesagent/.MainActivity"], "Status: ok\nLaunchState: WARM\nActivity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 400\nWaitTime: 410\n"),
+            _command("measure.activity.after_launch", [*targeted, "shell", "dumpsys", "activity", "activities"], "topResumedActivity=ActivityRecord{abc u0 com.mobilefork.hermesagent/.MainActivity t1}\n"),
+            _command("measure.memory.meminfo", [*targeted, "shell", "dumpsys", "meminfo", "com.mobilefork.hermesagent"], "** MEMINFO in pid 8123 [com.mobilefork.hermesagent] **\n TOTAL PSS: 250000 TOTAL RSS: 320000 TOTAL SWAP PSS: 0\n"),
+            _command("measure.process.pid_after_measurement", [*targeted, "shell", "pidof", "com.mobilefork.hermesagent"], "8123\n"),
+        ]
     )
     identity("final")
     return {
-        "schema": "hermes-android-performance-raw-v1",
+        "schema": "hermes-android-performance-host-raw-v2",
         "profile": profile,
         "release_source_digest": SOURCE_DIGEST,
-        "candidate_apk_sha256": CANDIDATE_APK_SHA256,
-        "instrumentation_apk_sha256": INSTRUMENTATION_APK_SHA256,
-        "evidence_run_id": EVIDENCE_RUN_ID,
+        "benchmark_target_apk_sha256": BENCHMARK_TARGET_SHA,
+        "benchmark_test_apk_sha256": BENCHMARK_TEST_SHA,
+        "evidence_run_id": RUN_ID,
         "package_id": "com.mobilefork.hermesagent",
+        "benchmark_test_package_id": "com.mobilefork.hermesagent.macrobenchmark",
         "version_name": VERSION_NAME,
         "version_code": VERSION_CODE,
-        "build_variant": "debug",
+        "build_variant": "benchmark",
         "litertlm_coordinate": "com.google.ai.edge.litertlm:litertlm-android:0.16.0",
         "records": records,
     }
 
 
-def _raw_performance_bytes(profile: str, performance: dict) -> bytes:
-    return (
-        json.dumps(
-            _raw_performance(profile, performance),
-            indent=2,
-            sort_keys=True,
-            ensure_ascii=False,
+def _frames(profile: str) -> dict:
+    sampled = _macro_report(profile)["benchmarks"][0]["sampledMetrics"]
+    duration = sampled["frameDurationCpuMs"]
+    overrun = sampled["frameOverrunMs"]
+    return {
+        "metric_source": "androidx.macrobenchmark.FrameTimingMetric+HermesFrameJankMetric",
+        "iterations": [
+            {
+                "iteration": index,
+                "frame_timing_frame_count": 24,
+                "perfetto_total_frames": 24,
+                "perfetto_janky_frames": 1,
+                "perfetto_app_deadline_missed_frames": 1,
+                "perfetto_other_janky_frames": 0,
+                "perfetto_janky_percent": 100 / 24,
+            }
+            for index in range(1, 6)
+        ],
+        "frame_timing_total_rendered": 120,
+        "total_rendered": 120,
+        "janky": 5,
+        "janky_percent": 100 / 24,
+        "p50_ms": duration["P50"],
+        "p90_ms": duration["P90"],
+        "p95_ms": duration["P95"],
+        "p99_ms": duration["P99"],
+        "frame_overrun_ms": {
+            "p50": overrun["P50"],
+            "p90": overrun["P90"],
+            "p95": overrun["P95"],
+            "p99": overrun["P99"],
+        },
+    }
+
+
+def _write_performance(root: Path, profile: str) -> dict:
+    compact = profile == "phone-compact"
+    width_px, height_px, density = ((1080, 2400, 420) if compact else (1600, 2560, 320))
+    width_dp, height_dp = ((411, 891) if compact else (800, 1280))
+    performance_dir = root / "performance"
+    trace_dir = performance_dir / f"{profile}.traces"
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    trace_records = []
+    for index in range(1, 6):
+        trace = trace_dir / f"iteration-{index:03d}.perfetto-trace"
+        trace.write_bytes(b"PERFETTO\x00" + bytes([index]) * 64)
+        trace_records.append(
+            {
+                "iteration": index,
+                "path": f"performance/{profile}.traces/iteration-{index:03d}.perfetto-trace",
+                "source_name": f"settings_iter{index:03d}.perfetto-trace",
+                "bytes": trace.stat().st_size,
+                "sha256": hashlib.sha256(trace.read_bytes()).hexdigest(),
+            }
         )
-        + "\n"
-    ).encode("utf-8")
+    macro_path = performance_dir / f"{profile}.macrobenchmark.raw.json"
+    macro_path.write_text(json.dumps(_macro_report(profile)), encoding="utf-8")
+    payload = {
+        "schema": "hermes-android-performance-evidence-v2",
+        "profile": profile,
+        "release_source_digest": SOURCE_DIGEST,
+        "benchmark_target_apk_sha256": BENCHMARK_TARGET_SHA,
+        "benchmark_test_apk_sha256": BENCHMARK_TEST_SHA,
+        "evidence_run_id": RUN_ID,
+        "package_id": "com.mobilefork.hermesagent",
+        "version_name": VERSION_NAME,
+        "version_code": VERSION_CODE,
+        "build_variant": "benchmark",
+        "litertlm_coordinate": "com.google.ai.edge.litertlm:litertlm-android:0.16.0",
+        "recorded_at_epoch_ms": 1_780_000_000_000,
+        "evidence_classification": {
+            "environment": "headed-hardware-accelerated-avd",
+            "result_kind": "validation-signal",
+            "representative_end_user_benchmark": False,
+        },
+        "benchmark": {
+            "target_package_id": "com.mobilefork.hermesagent",
+            "test_package_id": "com.mobilefork.hermesagent.macrobenchmark",
+            "runner": "androidx.test.runner.AndroidJUnitRunner",
+            "test_id": "com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark#settingsListFling",
+            "androidx_benchmark_coordinate": "androidx.benchmark:benchmark-macro-junit4:1.4.1",
+            "compilation_mode": "Full",
+            "iteration_count": 5,
+            "suppressed_errors": ["EMULATOR"],
+            "profiling_mode": "None",
+            "target_debuggable": False,
+            "target_profileable_by_shell": True,
+        },
+        "traces": trace_records,
+        "device": {
+            "serial": "emulator-5566",
+            "avd_name": AVD_NAME,
+            "boot_id": BOOT_ID,
+            "model": MODEL,
+            "build_fingerprint": FINGERPRINT,
+            "android_sdk": 35,
+            "supported_abis": ["x86_64"],
+            "hardware_acceleration": True,
+            "acceleration_check": "WHPX is installed and usable.",
+            "acceleration_check_exit_code": 0,
+            "gpu_renderer": "Android Emulator OpenGL ES Translator (NVIDIA RTX)",
+            "active_qemu_process_count": 1,
+            "emulator_pid": 4242,
+            "emulator_process_name": "qemu-system-x86_64.exe",
+            "emulator_public_command": QEMU_PUBLIC_COMMAND,
+            "emulator_public_command_sha256": QEMU_PUBLIC_SHA,
+            "emulator_raw_command_sha256": QEMU_RAW_SHA,
+        },
+        "screen": {
+            "width_px": width_px,
+            "height_px": height_px,
+            "width_dp": width_dp,
+            "height_dp": height_dp,
+            "density_dpi": density,
+            "font_scale": 1.0,
+        },
+        "launch": {"cold_total_ms": 1200, "cold_wait_ms": 1100, "warm_total_ms": 400, "warm_process_pid": 8123},
+        "frames": _frames(profile),
+        "memory": {"total_pss_kb": 250_000, "total_rss_kb": 320_000},
+        "collector": {
+            "source_digest_algorithm": "sha256-git-tree-contents-v1",
+            "source_file_count": 123,
+            "git_object_format": "sha1",
+            "benchmark_target_apk_device_path": "/data/app/hermes/base.apk",
+            "benchmark_test_apk_device_path": "/data/app/hermes-benchmark/base.apk",
+            "scenario": "settings-list-fling",
+        },
+    }
+    host_path = performance_dir / f"{profile}.host.raw.json"
+    host_path.write_text(json.dumps(_host_raw(profile, payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    payload["raw_evidence"] = {
+        "host": {
+            "path": f"performance/{profile}.host.raw.json",
+            "bytes": host_path.stat().st_size,
+            "sha256": hashlib.sha256(host_path.read_bytes()).hexdigest(),
+        },
+        "macrobenchmark": {
+            "path": f"performance/{profile}.macrobenchmark.raw.json",
+            "bytes": macro_path.stat().st_size,
+            "sha256": hashlib.sha256(macro_path.read_bytes()).hexdigest(),
+        },
+    }
+    (performance_dir / f"{profile}.json").write_text(json.dumps(payload), encoding="utf-8")
+    return payload
 
 
 def _model_record(artifact) -> dict:
     method = {
-        "litert-lm": (
-            "LiteRtLmModelMatrixInstrumentedTest#"
-            "provisionedLiteRtLmModelLoadsAndAnswersLocally"
-        ),
-        "llama.cpp": (
-            "LlamaCppModelMatrixInstrumentedTest#"
-            "provisionedContentAddressedGgufStartsAndAnswers"
-        ),
+        "litert-lm": "LiteRtLmModelMatrixInstrumentedTest#provisionedLiteRtLmModelLoadsAndAnswersLocally",
+        "llama.cpp": "LlamaCppModelMatrixInstrumentedTest#provisionedContentAddressedGgufStartsAndAnswers",
     }[artifact.runtime]
     return {
         "schema": "hermes-model-evidence-v1",
         "release_source_digest": SOURCE_DIGEST,
-        "candidate_apk_sha256": CANDIDATE_APK_SHA256,
-        "instrumentation_apk_sha256": INSTRUMENTATION_APK_SHA256,
-        "evidence_run_id": EVIDENCE_RUN_ID,
+        "candidate_apk_sha256": UI_TARGET_SHA,
+        "instrumentation_apk_sha256": UI_TEST_SHA,
+        "evidence_run_id": RUN_ID,
         "package_id": "com.mobilefork.hermesagent",
         "version_name": VERSION_NAME,
         "version_code": VERSION_CODE,
@@ -639,11 +615,11 @@ def _model_record(artifact) -> dict:
         "elapsed_ms": 3000,
         "accelerator": "gpu" if artifact.runtime == "litert-lm" else "cpu",
         "status_message": "completion verified",
-        "device_model": "sdk_gphone64_x86_64",
+        "device_model": MODEL,
         "device_serial": "emulator-5566",
         "avd_name": "Hermes_API_35",
-        "device_boot_id": DEVICE_BOOT_ID,
-        "build_fingerprint": "google/sdk_gphone64_x86_64/emu64xa:15/test/release-keys",
+        "device_boot_id": BOOT_ID,
+        "build_fingerprint": FINGERPRINT,
         "android_sdk": 35,
         "supported_abis": "x86_64",
         "recorded_at_epoch_ms": 1_780_000_000_000,
@@ -652,36 +628,29 @@ def _model_record(artifact) -> dict:
     }
 
 
-def _write_fixture(root: Path, evidence_module, artifacts) -> None:
-    for profile in evidence_module.PROFILES:
-        performance = _performance(profile)
-        performance_path = root / "performance" / f"{profile}.json"
-        performance_path.parent.mkdir(parents=True, exist_ok=True)
-        performance_path.write_text(json.dumps(performance), encoding="utf-8")
-        (performance_path.parent / f"{profile}.raw.json").write_bytes(
-            _raw_performance_bytes(profile, performance)
-        )
+def _write_fixture(root: Path, module, artifacts) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    for profile in module.PROFILES:
+        performance = _write_performance(root, profile)
         screen = performance["screen"]
-        for language in evidence_module.LANGUAGES:
-            language_dir = root / "ui" / profile / language
-            language_dir.mkdir(parents=True, exist_ok=True)
-            (language_dir / "screen.png").write_bytes(
-                _png(screen["width_px"], screen["height_px"], f"{profile}-{language}")
-            )
-            screenshot_sha256 = hashlib.sha256(
-                (language_dir / "screen.png").read_bytes()
-            ).hexdigest()
-            (language_dir / "semantics.txt").write_text(
+        for language in module.LANGUAGES:
+            directory = root / "ui" / profile / language
+            directory.mkdir(parents=True)
+            screen_path = directory / "screen.png"
+            screen_path.write_bytes(_png(screen["width_px"], screen["height_px"], f"{profile}-{language}"))
+            screen_hash = hashlib.sha256(screen_path.read_bytes()).hexdigest()
+            shell_tag = "HermesPersistentNavigation" if profile == "tablet" else "HermesShellDrawerButton"
+            (directory / "semantics.txt").write_text(
                 "\n".join(
-                    (
+                    [
                         f"language={language}",
                         f"screen_width_dp={screen['width_dp']}",
                         f"screen_height_dp={screen['height_dp']}",
                         "font_scale=1.0",
                         f"release_source_digest={SOURCE_DIGEST}",
-                        f"candidate_apk_sha256={CANDIDATE_APK_SHA256}",
-                        f"instrumentation_apk_sha256={INSTRUMENTATION_APK_SHA256}",
-                        f"evidence_run_id={EVIDENCE_RUN_ID}",
+                        f"candidate_apk_sha256={UI_TARGET_SHA}",
+                        f"instrumentation_apk_sha256={UI_TEST_SHA}",
+                        f"evidence_run_id={RUN_ID}",
                         "package_id=com.mobilefork.hermesagent",
                         f"version_name={VERSION_NAME}",
                         f"version_code={VERSION_CODE}",
@@ -689,108 +658,296 @@ def _write_fixture(root: Path, evidence_module, artifacts) -> None:
                         "litertlm_coordinate=com.google.ai.edge.litertlm:litertlm-android:0.16.0",
                         "device_serial=emulator-5566",
                         "avd_name=Hermes_API_35",
-                        f"device_boot_id={DEVICE_BOOT_ID}",
-                        "build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/test/release-keys",
-                        f"screenshot_sha256={screenshot_sha256}",
+                        f"device_boot_id={BOOT_ID}",
+                        f"build_fingerprint={FINGERPRINT}",
+                        f"screenshot_sha256={screen_hash}",
                         "",
-                        (
-                            "Tag: 'HermesPersistentNavigation'\n"
-                            if profile == "tablet"
-                            else "Tag: 'HermesShellDrawerButton'\n"
-                        )
-                        + "Tag: 'HermesDevicePageNavigation'\n"
-                        + f"Text = '[{evidence_module.LOCALIZED_DEVICE_OVERVIEW[language]}]'\n"
-                        + f"Semantics tree localized for {profile} in language {language}",
-                    )
+                        f"Tag: '{shell_tag}'\nTag: 'HermesDevicePageNavigation'\n"
+                        f"Text = '[{module.LOCALIZED_DEVICE_OVERVIEW[language]}]'\n"
+                        f"localized {profile} {language}",
+                    ]
                 ),
                 encoding="utf-8",
             )
     models = root / "models"
-    models.mkdir(parents=True, exist_ok=True)
+    models.mkdir()
     for artifact in artifacts:
-        (models / f"{artifact.model_id}.json").write_text(
-            json.dumps(_model_record(artifact)),
-            encoding="utf-8",
+        (models / f"{artifact.model_id}.json").write_text(json.dumps(_model_record(artifact)), encoding="utf-8")
+
+
+@pytest.fixture
+def evidence_root(tmp_path, evidence_module, artifacts):
+    root = tmp_path / "release-evidence"
+    _write_fixture(root, evidence_module, artifacts)
+    return root
+
+
+def _rehash_reference(root: Path, profile: str, kind: str) -> None:
+    normalized_path = root / "performance" / f"{profile}.json"
+    payload = json.loads(normalized_path.read_text(encoding="utf-8"))
+    reference = payload["raw_evidence"][kind]
+    artifact = root / Path(reference["path"])
+    reference["bytes"] = artifact.stat().st_size
+    reference["sha256"] = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    normalized_path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _rewrite_host(root: Path, profile: str, mutator) -> None:
+    path = root / "performance" / f"{profile}.host.raw.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    mutator(payload)
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _rehash_reference(root, profile, "host")
+
+
+def _rewrite_report(root: Path, profile: str, mutator) -> None:
+    path = root / "performance" / f"{profile}.macrobenchmark.raw.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    mutator(payload)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    _rehash_reference(root, profile, "macrobenchmark")
+
+
+def test_complete_v2_directory_validates_with_four_distinct_apk_hashes(
+    evidence_root, evidence_module, artifacts
+):
+    validated = evidence_module.validate_evidence_directory(
+        evidence_root, artifacts, SOURCE_DIGEST, TAG
+    )
+    source = evidence_module.SourceTreeIdentity(
+        algorithm=evidence_module.SOURCE_DIGEST_ALGORITHM,
+        digest=SOURCE_DIGEST,
+        file_count=100,
+        git_object_format="sha1",
+        excluded_prefix="android/release-evidence/",
+    )
+    manifest = evidence_module.build_manifest(
+        tag=TAG, source=source, artifacts=artifacts, evidence=validated
+    )
+    assert manifest["schema"] == "hermes-android-release-evidence-manifest-v2"
+    assert manifest["tested_binaries"] == {
+        "ui_candidate_apk_sha256": UI_TARGET_SHA,
+        "ui_instrumentation_apk_sha256": UI_TEST_SHA,
+        "benchmark_target_apk_sha256": BENCHMARK_TARGET_SHA,
+        "benchmark_test_apk_sha256": BENCHMARK_TEST_SHA,
+        "evidence_run_id": RUN_ID,
+    }
+    paths = {record.path for record in validated.files}
+    assert "performance/phone-compact.host.raw.json" in paths
+    assert "performance/phone-compact.macrobenchmark.raw.json" in paths
+    assert "performance/tablet.traces/iteration-005.perfetto-trace" in paths
+    assert manifest["contract"]["avd_metrics_are_validation_signals_not_end_user_benchmarks"]
+
+
+def test_old_shell_gfxinfo_layout_is_rejected(evidence_root, evidence_module, artifacts):
+    old_raw = evidence_root / "performance" / "phone-compact.raw.json"
+    old_raw.write_text("{}", encoding="utf-8")
+    with pytest.raises(evidence_module.EvidenceError, match="layout mismatch"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
         )
 
 
-def _rewrite_raw_fixture(root: Path, profile: str, mutator) -> None:
-    raw_path = root / "performance" / f"{profile}.raw.json"
-    raw_payload = json.loads(raw_path.read_text(encoding="utf-8"))
-    mutator(raw_payload)
-    raw_bytes = (
-        json.dumps(raw_payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    ).encode("utf-8")
-    raw_path.write_bytes(raw_bytes)
-    normalized_path = root / "performance" / f"{profile}.json"
-    normalized = json.loads(normalized_path.read_text(encoding="utf-8"))
-    normalized["raw_evidence"]["sha256"] = hashlib.sha256(raw_bytes).hexdigest()
-    normalized_path.write_text(json.dumps(normalized), encoding="utf-8")
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda report: report["context"].__setitem__("compilationMode", "Full"),
+        lambda report: report["context"]["payload"].__setitem__("evidenceRunId", "stale-run"),
+        lambda report: report["context"]["payload"].__setitem__(
+            "bootId", "87654321-4321-4abc-8def-1234567890ab"
+        ),
+        lambda report: report["benchmarks"][0]["metrics"]["hermesEvidenceToken"]["runs"].__setitem__(0, 1),
+        lambda report: report["benchmarks"][0].__setitem__("repeatIterations", 4),
+    ],
+)
+def test_androidx_report_identity_compilation_and_iteration_tampering_fails(
+    evidence_root, evidence_module, artifacts, mutation
+):
+    macro = evidence_root / "performance" / "phone-compact.macrobenchmark.raw.json"
+    report = json.loads(macro.read_text(encoding="utf-8"))
+    mutation(report)
+    macro.write_text(json.dumps(report), encoding="utf-8")
+    _rehash_reference(evidence_root, "phone-compact", "macrobenchmark")
+    with pytest.raises(evidence_module.EvidenceError):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
 
 
-def _insert_warm_retry(
-    raw: dict,
-    *,
-    initial_wait_ms: int = 7,
-    retry_state: str = "WARM",
-    retry_total_ms: int = 401,
-    retry_wait_ms: int = 411,
-) -> None:
-    records = raw["records"]
-    warm_index = next(
-        index for index, item in enumerate(records) if item["id"] == "measure.launch.warm"
+def test_only_exact_emulator_suppression_is_accepted(
+    evidence_root, evidence_module, artifacts
+):
+    host = evidence_root / "performance" / "phone-compact.host.raw.json"
+    raw = json.loads(host.read_text(encoding="utf-8"))
+    invocation = raw["records"][0]
+    index = next(i for i, arg in enumerate(invocation["argv"]) if "suppressErrors=" in arg)
+    invocation["argv"][index] += ",NOT-PROFILEABLE"
+    host.write_text(json.dumps(raw, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _rehash_reference(evidence_root, "phone-compact", "host")
+    with pytest.raises(evidence_module.EvidenceError, match="arguments are not exact"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_raw_host_identity_requires_one_exclusive_adb_endpoint(
+    evidence_root, evidence_module, artifacts
+):
+    def add_endpoint(raw):
+        record = next(
+            item for item in raw["records"] if item["id"] == "initial.adb.devices"
+        )
+        record["stdout"] += "emulator-5570 device product:sdk\n"
+
+    _rewrite_host(evidence_root, "phone-compact", add_endpoint)
+    with pytest.raises(evidence_module.EvidenceError, match="one exclusive target"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    ("extra_count", "message"),
+    ((1, "exactly one total live QEMU"), (2, "absolute two-emulator limit")),
+)
+def test_raw_host_qemu_inventory_enforces_normal_and_absolute_limits(
+    evidence_root, evidence_module, artifacts, extra_count, message
+):
+    def add_qemu_processes(raw):
+        record = next(
+            item
+            for item in raw["records"]
+            if item["id"] == "initial.host.qemu_processes"
+        )
+        processes = json.loads(record["stdout"])
+        for offset in range(extra_count):
+            port = 5570 + 2 * offset
+            processes.append(
+                {
+                    "pid": 5000 + offset,
+                    "name": "qemu-system-x86_64.exe",
+                    "public_command": (
+                        "qemu-system-x86_64.exe "
+                        f"-avd Spare_{offset + 1} -port {port} -gpu host -accel on"
+                    ),
+                    "public_command_sha256": hashlib.sha256(
+                        (
+                            "qemu-system-x86_64.exe "
+                            f"-avd Spare_{offset + 1} -port {port} -gpu host -accel on"
+                        ).encode("utf-8")
+                    ).hexdigest(),
+                    "raw_command_sha256": hashlib.sha256(
+                        f"private raw command {offset}".encode("utf-8")
+                    ).hexdigest(),
+                }
+            )
+        record["stdout"] = json.dumps(processes, separators=(",", ":"))
+
+    _rewrite_host(evidence_root, "phone-compact", add_qemu_processes)
+    with pytest.raises(evidence_module.EvidenceError, match=message):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_public_qemu_evidence_preserves_identity_without_private_host_paths(
+    evidence_root, evidence_module, artifacts
+):
+    normalized_path = evidence_root / "performance" / "phone-compact.json"
+    host_path = evidence_root / "performance" / "phone-compact.host.raw.json"
+    public_blob = normalized_path.read_text(encoding="utf-8") + host_path.read_text(
+        encoding="utf-8"
     )
-    records[warm_index]["stdout"] = (
-        "Status: ok\n"
-        "LaunchState: UNKNOWN (0)\n"
-        "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-        "TotalTime: 0\n"
-        f"WaitTime: {initial_wait_ms}\n"
+    assert "private-builder" not in public_blob
+    assert "C:\\\\Users\\\\" not in public_blob
+    assert "userdata.img" not in public_blob
+    assert QEMU_PUBLIC_COMMAND in public_blob
+    assert QEMU_RAW_SHA in public_blob
+    evidence_module.validate_evidence_directory(
+        evidence_root, artifacts, SOURCE_DIGEST, TAG
     )
-    targeted = ["adb", "-s", "emulator-5566"]
-    records[warm_index + 1 : warm_index + 1] = [
-        _command(
-            "measure.launch.retry.pid_before_back",
-            [*targeted, "shell", "pidof", "com.mobilefork.hermesagent"],
-            "8123\n",
-        ),
-        _command(
-            "measure.launch.retry.back",
-            [*targeted, "shell", "input", "keyevent", "KEYCODE_BACK"],
-        ),
-        _command(
-            "measure.launch.retry.pid_after_back",
-            [*targeted, "shell", "pidof", "com.mobilefork.hermesagent"],
-            "8123\n",
-        ),
-        _command(
-            "measure.launch.retry.warm",
-            [
-                *targeted,
-                "shell",
-                "am",
-                "start",
-                "-W",
-                "-n",
-                "com.mobilefork.hermesagent/.MainActivity",
-            ],
-            "Status: ok\n"
-            f"LaunchState: {retry_state}\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            f"TotalTime: {retry_total_ms}\n"
-            f"WaitTime: {retry_wait_ms}\n",
-        ),
+
+
+@pytest.mark.parametrize("mutation", ("public_command", "raw_hash"))
+def test_public_qemu_transcript_tampering_fails_closed(
+    evidence_root, evidence_module, artifacts, mutation
+):
+    def tamper(raw):
+        record = next(
+            item
+            for item in raw["records"]
+            if item["id"] == "initial.host.qemu_processes"
+        )
+        processes = json.loads(record["stdout"])
+        if mutation == "public_command":
+            processes[0]["public_command"] = processes[0]["public_command"].replace(
+                "-gpu host", "-gpu guest"
+            )
+            processes[0]["public_command_sha256"] = hashlib.sha256(
+                processes[0]["public_command"].encode("utf-8")
+            ).hexdigest()
+        else:
+            processes[0]["raw_command_sha256"] = "0" * 64
+        record["stdout"] = json.dumps(processes, separators=(",", ":"))
+
+    _rewrite_host(evidence_root, "phone-compact", tamper)
+    with pytest.raises(evidence_module.EvidenceError, match="QEMU|command|identity"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_missing_tampered_or_extra_trace_fails_closed(
+    evidence_root, evidence_module, artifacts
+):
+    trace = evidence_root / "performance" / "phone-compact.traces" / "iteration-003.perfetto-trace"
+    trace.write_bytes(b"tampered")
+    with pytest.raises(evidence_module.EvidenceError, match="bytes/hash"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+    trace.write_bytes(b"PERFETTO\x00" + bytes([3]) * 64)
+    extra = trace.with_name("unexpected.perfetto-trace")
+    extra.write_bytes(b"extra")
+    with pytest.raises(evidence_module.EvidenceError, match="layout mismatch"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_ui_debug_pair_is_not_inferred_from_benchmark_pair(
+    evidence_root, evidence_module, artifacts
+):
+    semantics = evidence_root / "ui" / "tablet" / "fr" / "semantics.txt"
+    semantics.write_text(
+        semantics.read_text(encoding="utf-8").replace(UI_TARGET_SHA, BENCHMARK_TARGET_SHA),
+        encoding="utf-8",
+    )
+    with pytest.raises(evidence_module.EvidenceError, match="do not share one debug"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_source_and_manifest_helpers_remain_fail_closed(evidence_module, tmp_path):
+    entries = [
+        ("100644", "blob", "1" * 40, "android/app/source.kt"),
+        ("100644", "blob", "2" * 40, "android/release-evidence/v0.1.2/manifest.json"),
     ]
+    original = evidence_module.source_digest_from_entries(entries, object_format="sha1")
+    changed_evidence = [entries[0], ("100644", "blob", "3" * 40, entries[1][3])]
+    assert evidence_module.source_digest_from_entries(changed_evidence, object_format="sha1") == original
+
+    path = tmp_path / "manifest.json"
+    evidence_module.write_manifest(path, {"schema": "x", "value": 1})
+    evidence_module.verify_manifest(path, {"schema": "x", "value": 1})
+    with pytest.raises(evidence_module.EvidenceError, match="does not match"):
+        evidence_module.verify_manifest(path, {"schema": "x", "value": 2})
 
 
-def _set_normalized_warm_total(root: Path, profile: str, total_ms: int) -> None:
-    normalized_path = root / "performance" / f"{profile}.json"
-    normalized = json.loads(normalized_path.read_text(encoding="utf-8"))
-    normalized["launch"]["warm_total_ms"] = total_ms
-    normalized_path.write_text(json.dumps(normalized), encoding="utf-8")
-
-
-def test_parser_tracks_variable_runtime_registry_entries_without_a_catalog_snapshot(evidence_module):
+def test_parser_tracks_variable_runtime_registry_entries_without_a_catalog_snapshot(
+    evidence_module,
+):
     source = """
 object VerifiedLocalModelArtifacts {
   val releaseMatrix: List<Artifact> = listOf(
@@ -820,24 +977,12 @@ object VerifiedLocalModelArtifacts {
 }
 """
     parsed = evidence_module.parse_registered_model_matrix(source)
-
     assert {artifact.model_id for artifact in parsed} == {"future-gguf", "new-litert"}
     assert {artifact.backend for artifact in parsed} == {"llama.cpp", "litert-lm"}
-    assert next(artifact for artifact in parsed if artifact.model_id == "future-gguf").expected_bytes == 9_876_543
-
-
-def test_source_digest_ignores_evidence_blobs_but_changes_with_source(evidence_module):
-    base = [
-        ("100644", "blob", "1" * 40, "android/app/source.kt"),
-        ("100644", "blob", "2" * 40, "android/release-evidence/v0.1.0/manifest.json"),
-    ]
-    changed_evidence = [base[0], ("100644", "blob", "3" * 40, base[1][3])]
-    changed_source = [("100644", "blob", "4" * 40, base[0][3]), base[1]]
-
-    original = evidence_module.source_digest_from_entries(base, object_format="sha1")
-    assert evidence_module.source_digest_from_entries(changed_evidence, object_format="sha1") == original
-    assert evidence_module.source_digest_from_entries(changed_source, object_format="sha1").digest != original.digest
-    assert original.file_count == 1
+    assert (
+        next(artifact for artifact in parsed if artifact.model_id == "future-gguf").expected_bytes
+        == 9_876_543
+    )
 
 
 def test_bound_source_identity_rejects_dirty_or_untracked_build_inputs(
@@ -846,7 +991,9 @@ def test_bound_source_identity_rejects_dirty_or_untracked_build_inputs(
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=repo, check=True)
+    subprocess.run(
+        ["git", "config", "user.email", "test@example.invalid"], cwd=repo, check=True
+    )
     subprocess.run(["git", "config", "user.name", "Evidence Test"], cwd=repo, check=True)
     source = repo / "source.txt"
     source.write_text("clean\n", encoding="utf-8")
@@ -856,7 +1003,6 @@ def test_bound_source_identity_rejects_dirty_or_untracked_build_inputs(
     evidence_module.require_clean_worktree(repo)
     clean = evidence_module.git_source_tree_identity(repo)
     assert evidence_module.HEX_64_RE.fullmatch(clean.digest)
-
     source.write_text("dirty\n", encoding="utf-8")
     with pytest.raises(evidence_module.EvidenceError, match="clean worktree"):
         evidence_module.require_clean_worktree(repo)
@@ -866,63 +1012,23 @@ def test_bound_source_identity_rejects_dirty_or_untracked_build_inputs(
         evidence_module.require_clean_worktree(repo)
 
 
-def test_complete_synthetic_headed_device_matrix_validates_and_manifests(
+def test_missing_language_capture_is_rejected(evidence_root, evidence_module, artifacts):
+    (evidence_root / "ui" / "tablet" / "fr" / "screen.png").unlink()
+    with pytest.raises(evidence_module.EvidenceError, match="missing required fixed paths"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_unregistered_extra_model_record_is_rejected(
     evidence_root, evidence_module, artifacts
 ):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    validated = evidence_module.validate_evidence_directory(
-        evidence_root, artifacts, SOURCE_DIGEST, TAG
-    )
-    source = evidence_module.SourceTreeIdentity(
-        algorithm=evidence_module.SOURCE_DIGEST_ALGORITHM,
-        digest=SOURCE_DIGEST,
-        file_count=100,
-        git_object_format="sha1",
-        excluded_prefix="android/release-evidence/",
-    )
-    manifest = evidence_module.build_manifest(
-        tag=TAG,
-        source=source,
-        artifacts=artifacts,
-        evidence=validated,
-    )
-    manifest_path = evidence_root / "manifest.json"
-    evidence_module.write_manifest(manifest_path, manifest)
-
-    evidence_module.verify_manifest(manifest_path, manifest)
-    assert validated.ui_capture_count == 12
-    assert validated.performance_record_count == 2
-    assert validated.model_count == len(artifacts)
-    assert manifest["source_tree"]["digest"] == SOURCE_DIGEST
-    assert manifest["tested_binaries"] == {
-        "candidate_apk_sha256": CANDIDATE_APK_SHA256,
-        "instrumentation_apk_sha256": INSTRUMENTATION_APK_SHA256,
-        "evidence_run_id": EVIDENCE_RUN_ID,
-    }
-    manifest_paths = {record["path"] for record in manifest["evidence"]["files"]}
-    assert "performance/phone-compact.raw.json" in manifest_paths
-    assert "performance/tablet.raw.json" in manifest_paths
-    assert {item["model_id"] for item in manifest["registered_model_matrix"]} == {
-        artifact.model_id for artifact in artifacts
-    }
-
-
-def test_missing_language_capture_is_rejected(evidence_root, evidence_module, artifacts):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    (evidence_root / "ui" / "tablet" / "fr" / "screen.png").unlink()
-
-    with pytest.raises(evidence_module.EvidenceError, match="layout mismatch"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_unregistered_extra_model_record_is_rejected(evidence_root, evidence_module, artifacts):
-    _write_fixture(evidence_root, evidence_module, artifacts)
     extra = evidence_root / "models" / "not-in-runtime-registry.json"
     extra.write_text(json.dumps(_model_record(artifacts[0])), encoding="utf-8")
-
     with pytest.raises(evidence_module.EvidenceError, match="unexpected"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
 
 
 @pytest.mark.parametrize(
@@ -940,996 +1046,19 @@ def test_unregistered_extra_model_record_is_rejected(evidence_root, evidence_mod
 def test_model_matrix_requires_exact_registered_bytes_and_real_completion(
     evidence_root, evidence_module, artifacts, field, replacement
 ):
-    _write_fixture(evidence_root, evidence_module, artifacts)
     target = evidence_root / "models" / f"{artifacts[0].model_id}.json"
     payload = json.loads(target.read_text(encoding="utf-8"))
     payload[field] = replacement
     target.write_text(json.dumps(payload), encoding="utf-8")
-
     with pytest.raises(evidence_module.EvidenceError, match=field):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
 
 
-@pytest.mark.parametrize(
-    ("mutator", "message"),
-    (
-        (lambda payload: payload["frames"].update(total_rendered=8), "at least 100"),
-        (lambda payload: payload["memory"].update(total_pss_kb=0), "total_pss_kb"),
-        (lambda payload: payload["device"].update(hardware_acceleration=False), "hardware_acceleration"),
-        (lambda payload: payload["device"].update(gpu_renderer="SwiftShader"), "software renderer"),
-        (
-            lambda payload: payload["device"].update(
-                gpu_renderer="Microsoft Basic Render Driver"
-            ),
-            "software renderer",
-        ),
-    ),
-)
-def test_performance_contract_rejects_non_certifying_records(
-    evidence_root, evidence_module, artifacts, mutator, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    target = evidence_root / "performance" / "phone-compact.json"
-    payload = json.loads(target.read_text(encoding="utf-8"))
-    mutator(payload)
-    if payload["frames"]["total_rendered"] == 8:
-        payload["frames"].update(janky=1, janky_percent=12.5)
-    target.write_text(json.dumps(payload), encoding="utf-8")
-
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_performance_raw_transcript_missing_or_byte_tampered_is_rejected(
+def test_reused_untranslated_ui_capture_is_rejected(
     evidence_root, evidence_module, artifacts
 ):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    raw_path = evidence_root / "performance" / "phone-compact.raw.json"
-    raw_path.write_bytes(raw_path.read_bytes() + b" ")
-    with pytest.raises(evidence_module.EvidenceError, match="sha256 does not match"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    raw_path.unlink()
-    with pytest.raises(evidence_module.EvidenceError, match="layout mismatch"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_performance_raw_metrics_cannot_diverge_after_hash_is_recomputed(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(item for item in raw["records"] if item["id"] == "measure.launch.warm")
-        record["stdout"] = record["stdout"].replace("TotalTime: 400", "TotalTime: 401")
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match="raw launch timings disagree"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize("retry_state", ("WARM", "HOT"))
-def test_performance_raw_unknown_warm_launch_allows_one_pid_bound_positive_retry(
-    evidence_root, evidence_module, artifacts, retry_state
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def add_retry(raw):
-        _insert_warm_retry(raw, retry_state=retry_state)
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", add_retry)
-    _set_normalized_warm_total(evidence_root, "phone-compact", 401)
-
-    evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("retry_stdout", "message"),
-    [
-        (
-            "Status: ok\nLaunchState: UNKNOWN (0)\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 0\nWaitTime: 7\n",
-            "launch state",
-        ),
-        (
-            "Status: ok\nLaunchState: COLD\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 401\nWaitTime: 411\n",
-            "launch state",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 0\nWaitTime: 10\n",
-            "invalid launch",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 10\nWaitTime: 0\n",
-            "invalid launch",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: -1\nWaitTime: 10\n",
-            "one TotalTime",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 10\nWaitTime: -1\n",
-            "one WaitTime",
-        ),
-    ],
-)
-def test_performance_retry_rejects_second_unknown_cold_or_nonpositive_timings(
-    evidence_root, evidence_module, artifacts, retry_stdout, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        _insert_warm_retry(raw)
-        record = next(
-            item for item in raw["records"] if item["id"] == "measure.launch.retry.warm"
-        )
-        record["stdout"] = retry_stdout
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("output", "message"),
-    [
-        (
-            "Status: ok\nStatus: ok\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 401\nWaitTime: 411\n",
-            "one Status",
-        ),
-        (
-            "Status: ok\nStatus: failed\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 401\nWaitTime: 411\n",
-            "one Status",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\nLaunchState: COLD\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 401\nWaitTime: 411\n",
-            "launch state",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 401\nTotalTime: 402\nWaitTime: 411\n",
-            "one TotalTime",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 401\nWaitTime: 411\nWaitTime: 412\n",
-            "one WaitTime",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\nTotalTime: 401\nWaitTime: 411\n",
-            "intended Activity",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\nActivity: com.example/.MainActivity\n"
-            "TotalTime: 401\nWaitTime: 411\n",
-            "intended Activity",
-        ),
-        (
-            "Status: ok\nLaunchState: WARM\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-            "TotalTime: 401\nWaitTime: 411\n",
-            "intended Activity",
-        ),
-    ],
-)
-def test_raw_start_parser_rejects_duplicate_conflicting_fields_or_wrong_activity(
-    evidence_module, output, message
-):
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module._raw_parse_start(output, {"WARM", "HOT"}, "synthetic.warm")
-
-
-def test_performance_retry_rejects_initial_unknown_wait_over_bound(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    _rewrite_raw_fixture(
-        evidence_root,
-        "phone-compact",
-        lambda raw: _insert_warm_retry(raw, initial_wait_ms=1_001),
-    )
-
-    with pytest.raises(evidence_module.EvidenceError, match="retry is only permitted"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    "unknown_stdout",
-    [
-        "Status: ok\nStatus: ok\nLaunchState: UNKNOWN (0)\n"
-        "Activity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 0\nWaitTime: 7\n",
-        (
-            "Status: ok\nLaunchState: UNKNOWN (0)\nLaunchState: UNKNOWN (0)\n"
-            "Activity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 0\nWaitTime: 7\n"
-        ),
-        "Status: ok\nLaunchState: UNKNOWN (0)\n"
-        "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-        "TotalTime: 0\nTotalTime: 0\nWaitTime: 7\n",
-        "Status: ok\nLaunchState: UNKNOWN (0)\n"
-        "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-        "TotalTime: 0\nWaitTime: 7\nWaitTime: 7\n",
-        "Status: ok extra\nLaunchState: UNKNOWN (0)\n"
-        "Activity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 0\nWaitTime: 7\n",
-        "Status: ok\nLaunchState: UNKNOWN OTHER\n"
-        "Activity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 0\nWaitTime: 7\n",
-        "Status: ok\nLaunchState: UNKNOWN (0)\nTotalTime: 0\nWaitTime: 7\n",
-        "Status: ok\nLaunchState: UNKNOWN (0)\nActivity: com.example/.MainActivity\n"
-        "TotalTime: 0\nWaitTime: 7\n",
-        "Status: ok\nLaunchState: UNKNOWN (0)\n"
-        "Activity: com.mobilefork.hermesagent/.MainActivity\n"
-        "Activity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 0\nWaitTime: 7\n",
-    ],
-)
-def test_performance_retry_rejects_malformed_or_duplicate_unknown_result(
-    evidence_root, evidence_module, artifacts, unknown_stdout
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        _insert_warm_retry(raw)
-        record = next(
-            item for item in raw["records"] if item["id"] == "measure.launch.warm"
-        )
-        record["stdout"] = unknown_stdout
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match="retry is only permitted"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("record_id", "stdout", "message"),
-    [
-        ("measure.launch.retry.pid_before_back", "", "stdout is blank"),
-        ("measure.launch.retry.pid_before_back", "8124\n", "changed before bounded"),
-        ("measure.launch.retry.pid_after_back", "", "stdout is blank"),
-        ("measure.launch.retry.pid_after_back", "8124\n", "changed across bounded"),
-    ],
-)
-def test_performance_retry_rejects_killed_or_replaced_pid(
-    evidence_root, evidence_module, artifacts, record_id, stdout, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        _insert_warm_retry(raw)
-        record = next(item for item in raw["records"] if item["id"] == record_id)
-        record["stdout"] = stdout
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("record_id", "replacement"),
-    [
-        ("measure.launch.retry.pid_before_back", "com.example.unrelated"),
-        ("measure.launch.retry.pid_after_back", "com.example.unrelated"),
-        ("measure.launch.retry.back", "KEYCODE_HOME"),
-    ],
-)
-def test_performance_retry_rejects_retargeted_pidof_or_back_command(
-    evidence_root, evidence_module, artifacts, record_id, replacement
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        _insert_warm_retry(raw)
-        record = next(item for item in raw["records"] if item["id"] == record_id)
-        record["argv"][-1] = replacement
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match="required live command"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_performance_retry_rejects_extra_retry_record(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        _insert_warm_retry(raw)
-        records = raw["records"]
-        retry_index = next(
-            index
-            for index, item in enumerate(records)
-            if item["id"] == "measure.launch.retry.warm"
-        )
-        records.insert(
-            retry_index + 1,
-            _command(
-                "measure.launch.retry.extra",
-                [
-                    "adb",
-                    "-s",
-                    "emulator-5566",
-                    "shell",
-                    "pidof",
-                    "com.mobilefork.hermesagent",
-                ],
-                "8123\n",
-            ),
-        )
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(
-        evidence_module.EvidenceError,
-        match="UI navigation/measurement command order",
-    ):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("mutator", "message"),
-    [
-        (
-            lambda record: record.update(
-                stdout=record["stdout"].replace(
-                    'package="com.mobilefork.hermesagent"', 'package="com.example.unrelated"'
-                )
-            ),
-            "wrong package",
-        ),
-        (
-            lambda record: record.update(
-                stdout=record["stdout"].replace(
-                    "</hierarchy>",
-                    '<node package="com.mobilefork.hermesagent" '
-                    'resource-id="HermesSettingsContentList" bounds="[0,100][360,760]" '
-                    'enabled="true" clickable="false" scrollable="true"/></hierarchy>',
-                )
-            ),
-            "exactly once",
-        ),
-        (
-            lambda record: record["argv"].__setitem__(-1, "999"),
-            "required live command",
-        ),
-    ],
-)
-def test_performance_raw_ui_navigation_tampering_is_rejected(
-    evidence_root, evidence_module, artifacts, mutator, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record_id = (
-            "measure.ui.phone.drawer.tap"
-            if message == "required live command"
-            else "measure.ui.settings.cat"
-        )
-        record = next(item for item in raw["records"] if item["id"] == record_id)
-        mutator(record)
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("record_id", "mutator", "message"),
-    [
-        (
-            "measure.ui.initial.remove",
-            lambda record: record["argv"].__setitem__(
-                -1, "/data/local/tmp/hermes-performance-ui-stale.xml"
-            ),
-            "required live command",
-        ),
-        (
-            "measure.ui.initial.remove",
-            lambda record: record.update(stdout="removed stale file\n"),
-            "fresh-path removal produced output",
-        ),
-        (
-            "measure.ui.initial.dump",
-            lambda record: record["argv"].__setitem__(
-                -1, "/data/local/tmp/hermes-performance-ui-stale.xml"
-            ),
-            "required live command",
-        ),
-        (
-            "measure.ui.initial.dump",
-            lambda record: record.update(stdout=""),
-            "exact fresh success marker",
-        ),
-        (
-            "measure.ui.initial.dump",
-            lambda record: record.update(
-                stdout=(
-                    "UI hierarchy dumped to: "
-                    "/data/local/tmp/hermes-performance-ui-initial.xml\n"
-                )
-            ),
-            "exact fresh success marker",
-        ),
-        (
-            "measure.ui.initial.dump",
-            lambda record: record.update(
-                stdout=(
-                    "UI hierchary dumped to: "
-                    "/data/local/tmp/hermes-performance-ui-stale.xml\n"
-                )
-            ),
-            "exact fresh success marker",
-        ),
-        (
-            "measure.ui.initial.dump",
-            lambda record: record.update(stderr="ERROR: stale hierarchy\n"),
-            "exact fresh success marker",
-        ),
-    ],
-)
-def test_raw_ui_dump_requires_fresh_phase_path_and_exact_success(
-    evidence_root, evidence_module, artifacts, record_id, mutator, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(item for item in raw["records"] if item["id"] == record_id)
-        mutator(record)
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("record_id", "mutator", "message"),
-    [
-        (
-            "measure.ui.initial.cat",
-            lambda record: record.update(
-                stdout=_ui_xml(
-                    "HermesChatDrawerButton", "[10,10][110,110]", clickable=True
-                )
-            ),
-            "wrong-profile",
-        ),
-        (
-            "measure.ui.tablet.settings.tap",
-            lambda record: record["argv"].__setitem__(-1, "999"),
-            "required live command",
-        ),
-        (
-            "measure.ui.settings.cat",
-            lambda record: record.update(stdout="<hierarchy><node"),
-            "invalid XML",
-        ),
-    ],
-)
-def test_tablet_raw_navigation_rejects_wrong_profile_argv_or_xml(
-    evidence_root, evidence_module, artifacts, record_id, mutator, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(item for item in raw["records"] if item["id"] == record_id)
-        mutator(record)
-
-    _rewrite_raw_fixture(evidence_root, "tablet", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("field", "replacement", "message"),
-    [
-        ("ui_navigation_route", "phone-drawer-settings", "navigation route disagrees"),
-        ("settings_scroll_bounds_px", [121, 100, 800, 1240], "settings bounds disagree"),
-        ("gfx_swipe_coordinates", [461, 1012, 461, 328], "swipe coordinates disagree"),
-    ],
-)
-def test_tablet_normalized_navigation_cannot_diverge_from_raw_route_bounds_or_swipe(
-    evidence_root, evidence_module, artifacts, field, replacement, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    target = evidence_root / "performance" / "tablet.json"
-    normalized = json.loads(target.read_text(encoding="utf-8"))
-    normalized["collector"][field] = replacement
-    target.write_text(json.dumps(normalized), encoding="utf-8")
-
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_raw_swipe_rejects_flipped_first_direction(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        swipe = next(
-            item for item in raw["records"] if item["id"] == "measure.gfx.swipe.0001"
-        )
-        swipe["argv"][7], swipe["argv"][9] = swipe["argv"][9], swipe["argv"][7]
-
-    _rewrite_raw_fixture(evidence_root, "tablet", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match="unexpected swipe coordinates"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_raw_swipe_rejects_repeated_direction_within_round(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        records = raw["records"]
-        first_index = next(
-            index
-            for index, item in enumerate(records)
-            if item["id"] == "measure.gfx.swipe.0001"
-        )
-        repeated = json.loads(json.dumps(records[first_index]))
-        repeated["id"] = "measure.gfx.swipe.0002"
-        records.insert(first_index + 1, repeated)
-
-    _rewrite_raw_fixture(evidence_root, "tablet", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match="unexpected swipe coordinates"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("record_id", "stdout"),
-    [
-        ("measure.activity.before_gfx", "Activities:\n"),
-        (
-            "measure.activity.before_gfx",
-            "topResumedActivity=ActivityRecord{abc u0 com.example/.MainActivity t1}\n",
-        ),
-        ("measure.activity.after_gfx", "Activities:\n"),
-        (
-            "measure.activity.after_gfx",
-            "topResumedActivity=ActivityRecord{abc u0 com.example/.MainActivity t1}\n",
-        ),
-    ],
-)
-def test_raw_gfx_measurement_requires_hermes_foreground_before_and_after(
-    evidence_root, evidence_module, artifacts, record_id, stdout
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(item for item in raw["records"] if item["id"] == record_id)
-        record["stdout"] = stdout
-
-    _rewrite_raw_fixture(evidence_root, "tablet", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match="resumed Hermes MainActivity"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    "output",
-    [
-        "topResumedActivity=ActivityRecord{abc u0 "
-        "com.mobilefork.hermesagent/.MainActivity t1}\n",
-        "ResumedActivity: ActivityRecord{abc u0 "
-        "com.mobilefork.hermesagent/.MainActivity t1}\n",
-        (
-            "topResumedActivity=ActivityRecord{abc u0 "
-            "com.mobilefork.hermesagent/.MainActivity t1}\n"
-            "ResumedActivity: ActivityRecord{def u0 "
-            "com.mobilefork.hermesagent/.MainActivity t1}\n"
-        ),
-    ],
-)
-def test_raw_resumed_activity_parser_accepts_current_and_canonical_claims(
-    evidence_module, output
-):
-    evidence_module._raw_require_resumed_activity(output, "synthetic.activity")
-
-
-@pytest.mark.parametrize(
-    "output",
-    [
-        (
-            "topResumedActivity=ActivityRecord{abc u0 "
-            "com.mobilefork.hermesagent/.MainActivity t1}\n"
-            "ResumedActivity: malformed\n"
-        ),
-        (
-            "topResumedActivity=ActivityRecord{abc u0 "
-            "com.mobilefork.hermesagent/.MainActivity t1}\n"
-            "ResumedActivity: ActivityRecord{def u0 com.example/.MainActivity t1}\n"
-        ),
-    ],
-)
-def test_raw_resumed_activity_parser_rejects_unparsed_or_non_hermes_claims(
-    evidence_module, output
-):
-    with pytest.raises(evidence_module.EvidenceError, match="only resumed Hermes"):
-        evidence_module._raw_require_resumed_activity(output, "synthetic.activity")
-
-
-def test_raw_device_font_scale_cannot_drift(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(
-            item
-            for item in raw["records"]
-            if item["id"] == "final.device.settings.font_scale"
-        )
-        record["stdout"] = "1.1\n"
-
-    _rewrite_raw_fixture(evidence_root, "tablet", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match="font_scale must equal"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_normalized_screen_font_scale_must_equal_one(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    target = evidence_root / "performance" / "tablet.json"
-    payload = json.loads(target.read_text(encoding="utf-8"))
-    payload["screen"]["font_scale"] = 1.1
-    target.write_text(json.dumps(payload), encoding="utf-8")
-
-    with pytest.raises(evidence_module.EvidenceError, match="font_scale must equal 1.0"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("settings_xml", "message"),
-    [
-        (
-            _ui_xml(
-                "HermesSettingsContentList",
-                "[120,100][800,1240]",
-                scrollable=True,
-                enabled=False,
-            ),
-            "not enabled",
-        ),
-        (
-            _ui_xml(
-                "HermesSettingsContentList", "[120,100][800,1240]", scrollable=False
-            ),
-            "not scrollable",
-        ),
-        (
-            _ui_xml(
-                "HermesSettingsContentList", "[-1,100][800,1240]", scrollable=True
-            ),
-            "invalid bounds",
-        ),
-        (
-            _ui_xml(
-                "HermesSettingsContentList", "[800,100][120,1240]", scrollable=True
-            ),
-            "unsafe display bounds",
-        ),
-        (
-            _ui_xml(
-                "HermesSettingsContentList", "[120,100][120,1240]", scrollable=True
-            ),
-            "unsafe display bounds",
-        ),
-        (
-            _ui_xml(
-                "HermesSettingsContentList", "[120,100][800,1281]", scrollable=True
-            ),
-            "unsafe display bounds",
-        ),
-    ],
-)
-def test_tablet_raw_settings_target_rejects_disabled_non_scrollable_or_unsafe_bounds(
-    evidence_root, evidence_module, artifacts, settings_xml, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(
-            item for item in raw["records"] if item["id"] == "measure.ui.settings.cat"
-        )
-        record["stdout"] = settings_xml
-
-    _rewrite_raw_fixture(evidence_root, "tablet", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize("after_pid", ("", "8124\n"))
-def test_performance_raw_warm_launch_requires_pid_preserved_across_back(
-    evidence_root, evidence_module, artifacts, after_pid
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(
-            item for item in raw["records"] if item["id"] == "measure.launch.pid_after_back"
-        )
-        record["stdout"] = after_pid
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    message = "positive Hermes process PID" if not after_pid else "PID changed across KEYCODE_BACK"
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_performance_raw_warm_launch_back_and_pid_argv_are_enforced(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def replace_back_with_home(raw):
-        record = next(item for item in raw["records"] if item["id"] == "measure.launch.back")
-        record["argv"][-1] = "KEYCODE_HOME"
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", replace_back_with_home)
-    with pytest.raises(evidence_module.EvidenceError, match="required live command"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def retarget_pidof(raw):
-        record = next(
-            item for item in raw["records"] if item["id"] == "measure.launch.pid_before_back"
-        )
-        record["argv"][-1] = "com.example.unrelated"
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", retarget_pidof)
-    with pytest.raises(evidence_module.EvidenceError, match="required live command"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_performance_normalized_warm_pid_must_match_reparsed_transcript(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    target = evidence_root / "performance" / "phone-compact.json"
-    normalized = json.loads(target.read_text(encoding="utf-8"))
-    normalized["launch"]["warm_process_pid"] = 9999
-    target.write_text(json.dumps(normalized), encoding="utf-8")
-
-    with pytest.raises(evidence_module.EvidenceError, match="process PID differs"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_raw_fixture_binds_gfx_memory_and_final_pid_to_warm_process():
-    performance = _performance("phone-compact")
-    raw = _raw_performance("phone-compact", performance)
-    records = raw["records"]
-    by_id = {record["id"]: record for record in records}
-
-    assert by_id["initial.device.settings.font_scale"]["stdout"] == "1.0\n"
-    assert by_id["final.device.settings.font_scale"]["stdout"] == "1.0\n"
-    assert by_id["measure.activity.before_gfx"]["stdout"].startswith(
-        "topResumedActivity="
-    )
-    assert by_id["measure.activity.after_gfx"]["stdout"].startswith(
-        "topResumedActivity="
-    )
-    assert "Graphics info for pid 8123 [com.mobilefork.hermesagent]" in by_id[
-        "measure.gfx.summary.01"
-    ]["stdout"]
-    assert "MEMINFO in pid 8123 [com.mobilefork.hermesagent]" in by_id[
-        "measure.memory.meminfo"
-    ]["stdout"]
-    assert by_id["measure.process.pid_after_measurement"]["stdout"] == "8123\n"
-    memory_index = next(
-        index for index, record in enumerate(records) if record["id"] == "measure.memory.meminfo"
-    )
-    assert [record["id"] for record in records[memory_index : memory_index + 2]] == [
-        "measure.memory.meminfo",
-        "measure.process.pid_after_measurement",
-    ]
-
-
-@pytest.mark.parametrize(
-    ("record_id", "old", "new", "message"),
-    [
-        (
-            "measure.gfx.summary.01",
-            "** Graphics info for pid 8123 [com.mobilefork.hermesagent] **\n",
-            "",
-            "process header",
-        ),
-        (
-            "measure.gfx.summary.01",
-            "Graphics info for pid 8123",
-            "Graphics info for pid 8124",
-            "process header",
-        ),
-        (
-            "measure.memory.meminfo",
-            "** MEMINFO in pid 8123 [com.mobilefork.hermesagent] **\n",
-            "",
-            "process header",
-        ),
-        (
-            "measure.memory.meminfo",
-            "MEMINFO in pid 8123",
-            "MEMINFO in pid 8124",
-            "process header",
-        ),
-        ("measure.process.pid_after_measurement", "8123\n", "", "positive Hermes process PID"),
-        (
-            "measure.process.pid_after_measurement",
-            "8123\n",
-            "8124\n",
-            "PID changed during measurement",
-        ),
-    ],
-)
-def test_raw_measurement_rejects_missing_or_mismatched_process_identity(
-    evidence_root, evidence_module, artifacts, record_id, old, new, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(item for item in raw["records"] if item["id"] == record_id)
-        record["stdout"] = record["stdout"].replace(old, new)
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize(
-    ("record_id", "duplicate", "message"),
-    [
-        (
-            "measure.gfx.summary.01",
-            "** Graphics info for pid 8123 [com.mobilefork.hermesagent] **\n",
-            "process header",
-        ),
-        (
-            "measure.gfx.summary.01",
-            "Total frames rendered: 121\n",
-            "one unambiguous Total frames rendered",
-        ),
-        (
-            "measure.gfx.summary.01",
-            "Janky frames: 7 (5.83%)\n",
-            "one unambiguous janky-frame summary",
-        ),
-        (
-            "measure.memory.meminfo",
-            "** MEMINFO in pid 8123 [com.mobilefork.hermesagent] **\n",
-            "process header",
-        ),
-        (
-            "measure.memory.meminfo",
-            " TOTAL PSS: 250000 TOTAL RSS: 320000 TOTAL SWAP PSS: 0\n",
-            "raw meminfo disagrees",
-        ),
-    ],
-)
-def test_raw_measurement_rejects_duplicate_headers_or_metrics(
-    evidence_root, evidence_module, artifacts, record_id, duplicate, message
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(item for item in raw["records"] if item["id"] == record_id)
-        record["stdout"] += duplicate
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match=message):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_raw_measurement_accepts_android_duplicate_summary(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-    summary = (
-        "Total frames rendered: 120\n"
-        "Janky frames: 6 (5.00%)\n"
-        "50th percentile: 8ms\n"
-        "90th percentile: 14ms\n"
-        "95th percentile: 18ms\n"
-        "99th percentile: 28ms\n"
-    )
-
-    def mutate(raw):
-        record = next(
-            item for item in raw["records"] if item["id"] == "measure.gfx.summary.01"
-        )
-        record["stdout"] += summary
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-@pytest.mark.parametrize("field", ("versionName", "versionCode"))
-def test_raw_identity_rejects_duplicate_installed_version_fields(
-    evidence_root, evidence_module, artifacts, field
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def mutate(raw):
-        record = next(
-            item for item in raw["records"] if item["id"] == "initial.package.version"
-        )
-        value = VERSION_NAME if field == "versionName" else VERSION_CODE
-        record["stdout"] += f"  {field}={value}\n"
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", mutate)
-    with pytest.raises(evidence_module.EvidenceError, match="package version disagrees"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_performance_raw_get_serialno_and_command_argv_are_enforced(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def substitute_serial(raw):
-        record = next(
-            item for item in raw["records"] if item["id"] == "initial.adb.get-serialno"
-        )
-        record["stdout"] = "emulator-5588\n"
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", substitute_serial)
-    with pytest.raises(evidence_module.EvidenceError, match="get-serialno does not exactly match"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def substitute_command(raw):
-        record = next(
-            item
-            for item in raw["records"]
-            if item["id"] == "initial.device.getprop.build_fingerprint"
-        )
-        record["argv"][-1] = "ro.product.brand"
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", substitute_command)
-    with pytest.raises(evidence_module.EvidenceError, match="required live command"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_performance_raw_ambiguous_qemu_inventory_is_rejected(
-    evidence_root, evidence_module, artifacts
-):
-    _write_fixture(evidence_root, evidence_module, artifacts)
-
-    def duplicate_qemu(raw):
-        record = next(
-            item for item in raw["records"] if item["id"] == "initial.host.qemu_processes"
-        )
-        processes = json.loads(record["stdout"])
-        duplicate = dict(processes[0])
-        duplicate["pid"] = duplicate["pid"] + 1
-        processes.append(duplicate)
-        record["stdout"] = json.dumps(processes, separators=(",", ":"))
-
-    _rewrite_raw_fixture(evidence_root, "phone-compact", duplicate_qemu)
-    with pytest.raises(evidence_module.EvidenceError, match="exactly one serial/AVD QEMU"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-
-def test_reused_untranslated_ui_capture_is_rejected(evidence_root, evidence_module, artifacts):
-    _write_fixture(evidence_root, evidence_module, artifacts)
     en = evidence_root / "ui" / "phone-compact" / "en"
     fr = evidence_root / "ui" / "phone-compact" / "fr"
     (fr / "screen.png").write_bytes((en / "screen.png").read_bytes())
@@ -1937,27 +1066,29 @@ def test_reused_untranslated_ui_capture_is_rejected(evidence_root, evidence_modu
         "language=en", "language=fr"
     )
     (fr / "semantics.txt").write_text(fr_semantics, encoding="utf-8")
-
-    with pytest.raises(evidence_module.EvidenceError, match="localized Device/Overview sentinel"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
+    with pytest.raises(
+        evidence_module.EvidenceError, match="localized Device/Overview sentinel"
+    ):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
 
 
 def test_phone_ui_requires_the_live_device_shell_drawer_tag(
     evidence_root, evidence_module, artifacts
 ):
-    _write_fixture(evidence_root, evidence_module, artifacts)
     for language in evidence_module.LANGUAGES:
         semantics = evidence_root / "ui" / "phone-compact" / language / "semantics.txt"
         semantics.write_text(
             semantics.read_text(encoding="utf-8").replace(
-                "Tag: 'HermesShellDrawerButton'",
-                "Tag: 'HermesChatDrawerButton'",
+                "Tag: 'HermesShellDrawerButton'", "Tag: 'HermesChatDrawerButton'"
             ),
             encoding="utf-8",
         )
-
     with pytest.raises(evidence_module.EvidenceError, match="compact drawer navigation"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
 
 
 def test_registry_parser_rejects_helper_or_variable_entries(evidence_module):
@@ -1981,19 +1112,20 @@ object VerifiedLocalModelArtifacts {
 """
     with pytest.raises(evidence_module.EvidenceError, match="literal Artifact"):
         evidence_module.parse_registered_model_matrix(source)
-
-    chained = source.replace(
-        "    helperArtifact,\n",
-        "",
-    ).replace(
-        "  );\n}",
-        "  )!!.let { it + helperArtifact };\n}",
+    chained = source.replace("    helperArtifact,\n", "").replace(
+        "  );\n}", "  )!!.let { it + helperArtifact };\n}"
     )
     with pytest.raises(evidence_module.EvidenceError, match="explicit semicolon"):
         evidence_module.parse_registered_model_matrix(chained)
 
 
-def test_registry_rejects_platform_specific_or_traversing_artifact_names(evidence_module):
+@pytest.mark.parametrize(
+    "unsafe_name",
+    ("folder/model.gguf", r"folder\model.gguf", "../model.gguf", "bad name.gguf"),
+)
+def test_registry_rejects_platform_specific_or_traversing_artifact_names(
+    evidence_module, unsafe_name
+):
     base = evidence_module.ArtifactSpec(
         model_id="unsafe",
         repository="org/model",
@@ -2003,11 +1135,10 @@ def test_registry_rejects_platform_specific_or_traversing_artifact_names(evidenc
         expected_bytes=123,
         sha256="a" * 64,
     )
-    for unsafe_name in ("folder/model.gguf", r"folder\model.gguf", "../model.gguf", "bad name.gguf"):
-        with pytest.raises(evidence_module.EvidenceError, match="unsafe portable file name"):
-            evidence_module._validate_artifact_spec(
-                evidence_module.ArtifactSpec(**{**base.__dict__, "file_name": unsafe_name})
-            )
+    with pytest.raises(evidence_module.EvidenceError, match="unsafe portable file name"):
+        evidence_module._validate_artifact_spec(
+            evidence_module.ArtifactSpec(**{**base.__dict__, "file_name": unsafe_name})
+        )
 
 
 def test_registry_parser_ignores_comment_and_string_decoys(evidence_module):
@@ -2027,7 +1158,9 @@ object VerifiedLocalModelArtifacts {
   val releaseMatrix: List<Artifact> get() = emptyList()
 }
 '''
-    with pytest.raises(evidence_module.EvidenceError, match="canonical literal|explicitly typed literal"):
+    with pytest.raises(
+        evidence_module.EvidenceError, match="canonical literal|explicitly typed literal"
+    ):
         evidence_module.parse_registered_model_matrix(decoy)
 
 
@@ -2052,7 +1185,9 @@ def test_png_decoder_rejects_hidden_rgb_under_transparency(evidence_module, tmp_
     for y in range(height):
         rows.append(0)
         for x in range(width):
-            rows.extend(((x * 13) & 0xFF, (y * 17) & 0xFF, ((x + y) * 19) & 0xFF, 0))
+            rows.extend(
+                ((x * 13) & 0xFF, (y * 17) & 0xFF, ((x + y) * 19) & 0xFF, 0)
+            )
     path.write_bytes(
         b"\x89PNG\r\n\x1a\n"
         + _chunk(b"IHDR", ihdr)
@@ -2063,64 +1198,49 @@ def test_png_decoder_rejects_hidden_rgb_under_transparency(evidence_module, tmp_
         evidence_module._decode_png(path)
 
 
-def test_performance_rejects_negative_accel_conflicting_flags_and_catastrophic_numbers(
-    evidence_root, evidence_module, artifacts
+@pytest.mark.parametrize(
+    ("path", "replacement", "message"),
+    (
+        (("device", "acceleration_check"), "WHPX is NOT usable", "usable acceleration"),
+        (("launch", "cold_total_ms"), 999_999, "launch|raw"),
+        (("memory", "total_pss_kb"), 600_000, "PSS|release ceiling"),
+    ),
+)
+def test_non_frame_performance_guards_remain_fail_closed(
+    evidence_root, evidence_module, artifacts, path, replacement, message
 ):
-    _write_fixture(evidence_root, evidence_module, artifacts)
     target = evidence_root / "performance" / "phone-compact.json"
     payload = json.loads(target.read_text(encoding="utf-8"))
-    payload["device"]["acceleration_check"] = "WHPX is NOT usable"
+    payload[path[0]][path[1]] = replacement
     target.write_text(json.dumps(payload), encoding="utf-8")
-    with pytest.raises(evidence_module.EvidenceError, match="usable accelerator"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-    payload["device"]["acceleration_check"] = "WHPX is installed and usable."
-    payload["device"]["emulator_command"] += " -gpu swiftshader_indirect -accel off"
-    payload["device"]["emulator_command_sha256"] = hashlib.sha256(
-        payload["device"]["emulator_command"].encode("utf-8")
-    ).hexdigest()
-    target.write_text(json.dumps(payload), encoding="utf-8")
-    with pytest.raises(evidence_module.EvidenceError, match="-gpu host and -accel on"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-    payload = _performance("phone-compact")
-    payload["launch"]["cold_total_ms"] = 999_999
-    payload["launch"]["cold_wait_ms"] = 999_999
-    payload["launch"]["warm_total_ms"] = 999_999
-    target.write_text(json.dumps(payload), encoding="utf-8")
-    with pytest.raises(evidence_module.EvidenceError, match="performance budget"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
-
-    payload = _performance("phone-compact")
-    payload["memory"] = {"total_pss_kb": 600_000, "total_rss_kb": 700_000}
-    target.write_text(json.dumps(payload), encoding="utf-8")
-    with pytest.raises(evidence_module.EvidenceError, match="release ceiling"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
+    with pytest.raises(evidence_module.EvidenceError, match=message):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
 
 
 def test_model_record_must_match_a_measured_device_identity(
     evidence_root, evidence_module, artifacts
 ):
-    _write_fixture(evidence_root, evidence_module, artifacts)
     target = evidence_root / "models" / f"{artifacts[0].model_id}.json"
     payload = json.loads(target.read_text(encoding="utf-8"))
     payload["device_model"] = "unmeasured-emulator"
     target.write_text(json.dumps(payload), encoding="utf-8")
-
     with pytest.raises(evidence_module.EvidenceError, match="device model/API/ABI identity"):
-        evidence_module.validate_evidence_directory(evidence_root, artifacts, SOURCE_DIGEST, TAG)
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
 
 
-def test_manifest_verification_detects_evidence_or_source_tampering(
+def test_manifest_verification_detects_source_tampering(
     evidence_root, evidence_module, artifacts
 ):
-    _write_fixture(evidence_root, evidence_module, artifacts)
     validated = evidence_module.validate_evidence_directory(
         evidence_root, artifacts, SOURCE_DIGEST, TAG
     )
     source = evidence_module.SourceTreeIdentity(
         algorithm=evidence_module.SOURCE_DIGEST_ALGORITHM,
-        digest="d" * 64,
+        digest=SOURCE_DIGEST,
         file_count=100,
         git_object_format="sha1",
         excluded_prefix="android/release-evidence/",
@@ -2133,6 +1253,137 @@ def test_manifest_verification_detects_evidence_or_source_tampering(
     tampered = json.loads(manifest_path.read_text(encoding="utf-8"))
     tampered["source_tree"]["digest"] = "e" * 64
     manifest_path.write_text(json.dumps(tampered), encoding="utf-8")
-
     with pytest.raises(evidence_module.EvidenceError, match="does not match"):
         evidence_module.verify_manifest(manifest_path, manifest)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        lambda raw: raw["records"].pop(2),
+        lambda raw: raw["records"].__setitem__(
+            slice(0, 2), [raw["records"][1], raw["records"][0]]
+        ),
+        lambda raw: raw["records"][1].__setitem__("id", raw["records"][0]["id"]),
+        lambda raw: raw["records"][1]["argv"].__setitem__(2, "emulator-9999"),
+        lambda raw: raw["records"][3].__setitem__("exit_code", 1),
+        lambda raw: raw["records"].append(
+            _command(
+                "legacy.gfxinfo",
+                ["adb", "-s", "emulator-5566", "shell", "dumpsys", "gfxinfo"],
+            )
+        ),
+    ),
+)
+def test_v2_host_transcript_exact_order_argv_status_and_allowlist_are_enforced(
+    evidence_root, evidence_module, artifacts, mutation
+):
+    _rewrite_host(evidence_root, "phone-compact", mutation)
+    with pytest.raises(evidence_module.EvidenceError):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        lambda report: report.__setitem__("unexpected", True),
+        lambda report: report["context"].__setitem__("unexpected", True),
+        lambda report: report["context"]["build"].__setitem__("unexpected", True),
+        lambda report: report["benchmarks"][0]["metrics"].__setitem__(
+            "unrequestedMetric", _single_metric([1] * 5)
+        ),
+        lambda report: report["benchmarks"][0]["sampledMetrics"].pop(
+            "frameOverrunMs"
+        ),
+        lambda report: report["benchmarks"][0]["sampledMetrics"][
+            "frameDurationCpuMs"
+        ].__setitem__("P50", 9.6),
+        lambda report: report["benchmarks"][0]["sampledMetrics"][
+            "frameOverrunMs"
+        ].__setitem__("P99", -1.5),
+        lambda report: report["benchmarks"][0]["profilerOutputs"][0].__setitem__(
+            "filename", "../escaped.perfetto-trace"
+        ),
+        lambda report: report["benchmarks"][0]["profilerOutputs"][0].__setitem__(
+            "type", "MethodTrace"
+        ),
+        lambda report: report["benchmarks"][0]["profilerOutputs"][0].__setitem__(
+            "label", "Trace Iteration 1"
+        ),
+    ),
+)
+def test_androidx_raw_report_uses_an_exact_fail_closed_grammar(
+    evidence_root, evidence_module, artifacts, mutation
+):
+    _rewrite_report(evidence_root, "phone-compact", mutation)
+    with pytest.raises(evidence_module.EvidenceError):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        lambda payload: payload["benchmark"].__setitem__(
+            "test_id",
+            "com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark",
+        ),
+        lambda payload: payload["benchmark"].__setitem__("target_debuggable", True),
+        lambda payload: payload["benchmark"].__setitem__(
+            "target_profileable_by_shell", False
+        ),
+        lambda payload: payload["evidence_classification"].__setitem__(
+            "representative_end_user_benchmark", True
+        ),
+        lambda payload: payload["frames"].__setitem__("total_rendered", 121),
+        lambda payload: payload["device"].__setitem__("serial", "emulator-9999"),
+        lambda payload: payload["memory"].__setitem__("total_rss_kb", 1),
+    ),
+)
+def test_normalized_v2_claims_must_reproduce_raw_identity_and_metrics(
+    evidence_root, evidence_module, artifacts, mutation
+):
+    path = evidence_root / "performance" / "phone-compact.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    mutation(payload)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(evidence_module.EvidenceError):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_raw_reference_path_traversal_is_rejected(
+    evidence_root, evidence_module, artifacts
+):
+    path = evidence_root / "performance" / "phone-compact.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["raw_evidence"]["host"]["path"] = "../outside.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(evidence_module.EvidenceError):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_symlinked_trace_is_rejected(evidence_root, evidence_module, artifacts, tmp_path):
+    trace = (
+        evidence_root
+        / "performance"
+        / "phone-compact.traces"
+        / "iteration-001.perfetto-trace"
+    )
+    outside = tmp_path / "outside.perfetto-trace"
+    outside.write_bytes(trace.read_bytes())
+    trace.unlink()
+    try:
+        trace.symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlink creation unavailable: {exc}")
+    with pytest.raises(evidence_module.EvidenceError, match="symlink"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )

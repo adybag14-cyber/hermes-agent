@@ -230,6 +230,23 @@ android {
                 "proguard-rules.pro"
             )
         }
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+            buildConfigField(
+                "String",
+                "HERMES_SOURCE_DIGEST",
+                "\"${hermesSourceDigest.ifBlank { "unbound" }}\"",
+            )
+            manifestPlaceholders["hermesBenchmarkSourceDigest"] =
+                hermesSourceDigest.ifBlank { "unbound" }
+            manifestPlaceholders["hermesBenchmarkVersionName"] = androidVersionName()
+            manifestPlaceholders["hermesBenchmarkVersionCode"] = hermesVersionCode().toString()
+            manifestPlaceholders["hermesBenchmarkLiteRtLmCoordinate"] =
+                "com.google.ai.edge.litertlm:litertlm-android:$liteRtLmVersion"
+        }
     }
 
     testOptions {
@@ -543,6 +560,7 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.26.2")
     implementation("org.tukaani:xz:1.9")
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation("org.json:json:20240303")
     // Release/F-Droid builds use the exact stable default (0.16.0). Developers can compile
     // an upstream preview version or a locally built LiteRT-LM main-branch AAR

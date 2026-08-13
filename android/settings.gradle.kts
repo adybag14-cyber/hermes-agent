@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "HermesAgentAndroid"
 include(":app")
+include(":macrobenchmark")
