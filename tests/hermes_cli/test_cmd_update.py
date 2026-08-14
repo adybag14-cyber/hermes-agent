@@ -13,6 +13,9 @@ from hermes_cli import main_install_repair
 from hermes_cli import update_cmd
 
 
+pytestmark = pytest.mark.usefixtures("isolate_update_repository_side_effects")
+
+
 def _make_run_side_effect(branch="main", verify_ok=True, commit_count="0"):
     """Build a side_effect function for subprocess.run that simulates git commands."""
 

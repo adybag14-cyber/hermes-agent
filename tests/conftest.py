@@ -1288,8 +1288,14 @@ def pytest_collection_modifyitems(config, items):  # noqa: D401 — pytest hook
             item.add_marker(skip_marker)
 
 
+@pytest.fixture
+def _live_system_guard_primitives():
+    """Self-tests override this before the guard captures its primitive backends."""
+    yield
+
+
 @pytest.fixture(autouse=True)
-def _live_system_guard(request, monkeypatch):
+def _live_system_guard(request, monkeypatch, _live_system_guard_primitives):
     """Block real os.kill / systemctl / gateway-pid scans during tests.
 
     See block comment above for the why. Tests that genuinely need
@@ -1420,12 +1426,197 @@ def _live_system_guard(request, monkeypatch):
         "daemon-reload", "try-restart", "reload-or-restart",
     )
     _PROCESS_KILLERS = ("pkill", "killall", "taskkill", "skill", "fuser")
-    # Shell/launcher executables whose arguments are themselves commands —
-    # argv[0]-only scanning must not exempt what they wrap.
-    _WRAPPER_COMMANDS = (
-        "sh", "bash", "zsh", "dash", "env", "nohup", "setsid",
-        "timeout", "sudo", "xargs", "nice", "ionice", "stdbuf", "flock",
+    _COMMAND_WRAPPERS = ("command", "nohup", "setsid")
+    _NON_EXECUTING_ARGUMENT_COMMANDS = {
+        "echo", "egrep", "false", "fgrep", "grep", "printf", "rg", "true",
+    }
+    _SHELL_COMMAND_PREFIXES = (
+        "!", "elif", "else", "exec", "if", "then", "time", "until", "while", "do",
     )
+    _SUDO_VALUE_OPTIONS = {
+        "-C", "--close-from",
+        "-D", "--chdir",
+        "-g", "--group",
+        "-h", "--host",
+        "-p", "--prompt",
+        "-R", "--chroot",
+        "-r", "--role",
+        "-T", "--command-timeout",
+        "-t", "--type",
+        "-u", "--user",
+    }
+    _ENV_VALUE_OPTIONS = {
+        "-a", "--argv0",
+        "-C", "--chdir",
+        "-S", "--split-string",
+        "-u", "--unset",
+    }
+    _EXEC_VALUE_OPTIONS = {"-a"}
+    _TIME_VALUE_OPTIONS = {"-f", "--format", "-o", "--output"}
+    _TIMEOUT_VALUE_OPTIONS = {"-k", "--kill-after", "-s", "--signal"}
+
+    def _command_basename(token: str) -> str:
+        return token.rsplit("/", 1)[-1].rsplit("\\", 1)[-1].lower()
+
+    def _shell_execution_groups(script):
+        """Parse shell commands while sharing context only across pipelines."""
+        try:
+            lexer = _shlex.shlex(
+                script.replace("\n", ";"),
+                posix=True,
+                punctuation_chars="();&|",
+            )
+            lexer.whitespace_split = True
+            lexer.commenters = ""
+            parsed = list(lexer)
+        except ValueError:
+            parsed = script.split()
+
+        groups = []
+        pipeline_group = []
+        segment = []
+        for token in parsed:
+            if token and set(token) <= set("();&|"):
+                if segment:
+                    pipeline_group.append(segment)
+                    segment = []
+                if token not in {"|", "|&"} and pipeline_group:
+                    groups.append(pipeline_group)
+                    pipeline_group = []
+                continue
+            segment.append(token)
+        if segment:
+            pipeline_group.append(segment)
+        if pipeline_group:
+            groups.append(pipeline_group)
+        return groups
+
+    def _shell_command_segments(script):
+        for group in _shell_execution_groups(script):
+            yield from group
+
+    def _shell_command_payload(tokens):
+        """Return the payload after a shell's ``-c`` or combined option."""
+        for index in range(1, len(tokens)):
+            option = tokens[index]
+            if option == "-c" or (
+                option.startswith("-")
+                and not option.startswith("--")
+                and "c" in option[1:]
+            ):
+                payload_index = index + 1
+                if payload_index < len(tokens):
+                    return tokens[payload_index], payload_index
+                return None, None
+        return None, None
+
+    def _consume_wrapper_options(tokens, value_options):
+        """Return the operand index after conventional wrapper options."""
+        index = 1
+        while index < len(tokens) and tokens[index].startswith("-"):
+            option_token = tokens[index]
+            if option_token == "--":
+                return index + 1
+            option = option_token.split("=", 1)[0]
+            index += 1
+            if option in value_options and "=" not in option_token:
+                index += 1
+        return index
+
+    def _process_killer_name(token):
+        name = _command_basename(token)
+        return name[:-4] if name.endswith(".exe") else name
+
+    def _killer_targets_protected(tokens):
+        low = " ".join(tokens).lower()
+        return (
+            "hermes" in low
+            or "gateway" in low
+            or ("python" in low and any(flag in tokens for flag in ("-f", "--full")))
+        )
+
+    def _contains_conservative_wrapped_killer(tokens):
+        """Reproduce HEAD's exact-token fallback for unknown launchers."""
+        joined = " ".join(str(token) for token in tokens)
+        try:
+            parsed = _shlex.split(joined)
+        except ValueError:
+            parsed = joined.split()
+        for token in parsed:
+            legacy_basename = token.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+            if legacy_basename not in _PROCESS_KILLERS:
+                continue
+            low = " ".join(parsed).lower()
+            if (
+                "hermes" in low
+                or "gateway" in low
+                or ("python" in low and "-f" in parsed)
+            ):
+                return True
+        return False
+
+    def _shell_payload_contains_process_killer(script, positional_context=()):
+        execution_groups = _shell_execution_groups(script)
+        whole_script_context = [
+            token
+            for pipeline_group in execution_groups
+            for segment in pipeline_group
+            for token in segment
+        ]
+        for pipeline_group in execution_groups:
+            if any(
+                _is_process_killer([*segment, *positional_context])
+                for segment in pipeline_group
+            ):
+                return True
+            if len(pipeline_group) > 1:
+                flattened = [
+                    token for segment in pipeline_group for token in segment
+                ]
+                if _contains_conservative_wrapped_killer(
+                    [*flattened, *positional_context]
+                ):
+                    return True
+            if any(
+                _is_process_killer(
+                    [
+                        *segment,
+                        *whole_script_context,
+                        *positional_context,
+                    ]
+                )
+                for segment in pipeline_group
+            ):
+                return True
+        return False
+
+    def _non_executing_command_is_safe(tokens):
+        """Recognize data-only tools while inspecting their command hooks."""
+        if _process_killer_name(tokens[0]) != "rg":
+            return True
+        effective_pre = None
+        index = 1
+        while index < len(tokens):
+            token = tokens[index]
+            if token == "--":
+                break
+            if token == "--pre":
+                if index + 1 >= len(tokens):
+                    effective_pre = None
+                    break
+                effective_pre = tokens[index + 1]
+                index += 2
+                continue
+            if token.startswith("--pre="):
+                effective_pre = token.split("=", 1)[1]
+            elif token == "--no-pre":
+                effective_pre = None
+            index += 1
+
+        if effective_pre is None:
+            return True
+        pre_tokens = _cmd_to_tokens(effective_pre)
+        return not _is_process_killer([*pre_tokens, *tokens[1:]])
 
     def _cmd_to_string(cmd) -> str:
         if cmd is None:
@@ -1444,6 +1635,21 @@ def _live_system_guard(request, monkeypatch):
                 return ""
         return str(cmd)
 
+    def _cmd_to_tokens(cmd):
+        if isinstance(cmd, (list, tuple)):
+            tokens = []
+            for token in cmd:
+                if isinstance(token, (bytes, bytearray)):
+                    tokens.append(bytes(token).decode(errors="replace"))
+                else:
+                    tokens.append(str(token))
+            return tokens
+        cmd_str = _cmd_to_string(cmd)
+        try:
+            return _shlex.split(cmd_str)
+        except ValueError:
+            return cmd_str.split()
+
     def _matches_hermes_gateway(cmd_str: str) -> bool:
         low = cmd_str.lower()
         return any(tok in low for tok in _HERMES_TOKENS)
@@ -1461,37 +1667,119 @@ def _live_system_guard(request, monkeypatch):
         return any(verb in tokens for verb in _MUTATING_VERBS)
 
     def _is_process_killer(cmd) -> bool:
-        cmd_str = _cmd_to_string(cmd)
-        try:
-            tokens = _shlex.split(cmd_str)
-        except ValueError:
-            tokens = cmd_str.split()
+        if isinstance(cmd, (str, bytes, bytearray)):
+            command_string = _cmd_to_string(cmd)
+            return _shell_payload_contains_process_killer(command_string)
+
+        tokens = _cmd_to_tokens(cmd)
         if not tokens:
             return False
 
-        # For argv-style calls only argv[0] is the executable; scanning every
-        # argument blocked innocent commands like ``cat /tmp/.../skill``
-        # ("skill" is in _PROCESS_KILLERS).  Wrapper executables still get
-        # full-token scanning so ``["bash", "-c", "pkill ..."]`` stays caught.
-        if isinstance(cmd, (list, tuple)):
-            head0 = tokens[0].rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
-            killer_tokens = tokens if head0 in _WRAPPER_COMMANDS else tokens[:1]
-        else:
-            killer_tokens = tokens
-        for tok in killer_tokens:
-            head = tok.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
-            if head in _PROCESS_KILLERS:
-                low = cmd_str.lower()
-                # pkill -f pattern: catch hermes-themed patterns + a
-                # plain "python" -f which would catch the live gateway
-                # whose cmdline contains "python -m hermes_cli.main".
-                if (
-                    "hermes" in low
-                    or "gateway" in low
-                    or ("python" in low and "-f" in tokens)
-                ):
-                    return True
-        return False
+        while tokens and "=" in tokens[0] and not tokens[0].startswith(("=", "-")):
+            tokens = tokens[1:]
+        if not tokens:
+            return False
+
+        head = _command_basename(tokens[0])
+        wrapped_fallback = _contains_conservative_wrapped_killer(tokens[1:])
+        if head == "sudo":
+            operand_index = _consume_wrapper_options(tokens, _SUDO_VALUE_OPTIONS)
+            return (
+                _is_process_killer(tokens[operand_index:])
+                or wrapped_fallback
+            )
+
+        if head == "env":
+            index = 1
+            while index < len(tokens):
+                token = tokens[index]
+                split_payload = None
+                if token in {"-S", "--split-string"}:
+                    index += 1
+                    if index >= len(tokens):
+                        return False
+                    split_payload = tokens[index]
+                elif token.startswith("--split-string="):
+                    split_payload = token.split("=", 1)[1]
+                elif token.startswith("-S") and token != "-S":
+                    split_payload = token[2:]
+
+                if split_payload is not None:
+                    index += 1
+                    return (
+                        _is_process_killer(
+                            [*_cmd_to_tokens(split_payload), *tokens[index:]]
+                        )
+                        or wrapped_fallback
+                    )
+                if token == "--":
+                    index += 1
+                    break
+                if token.startswith("-"):
+                    option = token.split("=", 1)[0]
+                    index += 1
+                    if option in _ENV_VALUE_OPTIONS and "=" not in token:
+                        index += 1
+                    continue
+                if "=" in token and not token.startswith("="):
+                    index += 1
+                    continue
+                break
+            return _is_process_killer(tokens[index:]) or wrapped_fallback
+
+        if head in _COMMAND_WRAPPERS:
+            operand_index = _consume_wrapper_options(tokens, set())
+            return (
+                _is_process_killer(tokens[operand_index:])
+                or wrapped_fallback
+            )
+
+        if head in _SHELL_COMMAND_PREFIXES:
+            value_options = set()
+            if head == "exec":
+                value_options = _EXEC_VALUE_OPTIONS
+            elif head == "time":
+                value_options = _TIME_VALUE_OPTIONS
+            operand_index = _consume_wrapper_options(tokens, value_options)
+            return (
+                _is_process_killer(tokens[operand_index:])
+                or wrapped_fallback
+            )
+
+        if head in {"timeout", "gtimeout"}:
+            duration_index = _consume_wrapper_options(
+                tokens, _TIMEOUT_VALUE_OPTIONS
+            )
+            command_index = duration_index + 1
+            if duration_index >= len(tokens) or command_index >= len(tokens):
+                return wrapped_fallback
+            return (
+                _is_process_killer(tokens[command_index:])
+                or wrapped_fallback
+            )
+
+        if head in {"bash", "dash", "sh", "zsh"}:
+            command_payload, payload_index = _shell_command_payload(tokens)
+            if command_payload is None:
+                return wrapped_fallback
+            positional_context = tokens[payload_index + 1 :]
+            return _shell_payload_contains_process_killer(
+                command_payload, positional_context
+            )
+
+        if head in {"cmd", "cmd.exe", "command.com"}:
+            for index in range(1, len(tokens)):
+                if tokens[index].lower() in {"/c", "/k"}:
+                    return _is_process_killer(" ".join(tokens[index + 1 :]))
+            return wrapped_fallback
+
+        if _process_killer_name(tokens[0]) in _PROCESS_KILLERS:
+            return _killer_targets_protected(tokens)
+
+        if _process_killer_name(tokens[0]) in _NON_EXECUTING_ARGUMENT_COMMANDS:
+            return not _non_executing_command_is_safe(tokens)
+
+        return wrapped_fallback
 
     def _check_subprocess_cmd(name, cmd):
         if _is_blocked_systemctl(cmd):

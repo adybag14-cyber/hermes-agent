@@ -24,65 +24,71 @@ import types
 
 import pytest
 
-# A guaranteed-foreign PID: PID 1 (init).  Owned by root, not us, and
-# always exists. A sane guard refuses to signal it.
-FOREIGN_PID = 1
+# The parent is an existing foreign process on every host, including Windows
+# where PID 1 need not exist. No real signal backend is reachable in this file.
+FOREIGN_PID = os.getppid()
 
 
-# ──────────────────── fail-closed self-protection ──────────────
-#
-# This file executes REAL kill primitives — os.kill(-1, SIGTERM), os.killpg,
-# pkill -f python — and depends entirely on the autouse ``_live_system_guard``
-# fixture in tests/conftest.py to intercept them. That makes the canary
-# fail-OPEN: in any collection context where this file is present but its home
-# conftest is not, the primitives fire for real and ``os.kill(-1, SIGTERM)``
-# SIGTERMs every process the invoking user owns (a full desktop-session kill was
-# reported in the field — see issue #68311). Such contexts are not exotic:
-# published sdists that ship ``tests/`` but not ``tests/conftest.py``, trees
-# assembled by copying ``test*.py`` files (that glob does NOT match
-# ``conftest.py``), ``pytest --noconftest``, or running from a foreign rootdir.
-#
-# The fixture below makes the canary fail-CLOSED instead: it refuses to run any
-# test in this file unless the guard is provably active, so no collection
-# context can ever detonate the primitives. The one thing the canary can detect
-# about its own safety is that the guard monkeypatches ``os.kill`` with a plain
-# Python function, whereas the unguarded primitive is a C builtin.
+@pytest.fixture
+def _live_system_guard_primitives(monkeypatch):
+    """Record primitives BEFORE the guard wraps them: a guard regression is inert.
+
+    The dependency in conftest guarantees ordering. The local safety fixture
+    also depends on this fixture, so collection without that conftest remains
+    harmless and fails the guard-identity check.
+    """
+    import asyncio
+    from types import SimpleNamespace
+
+    tape = SimpleNamespace(calls=[], result=object())
+
+    def record(name):
+        def invoke(*args, **kwargs):
+            tape.calls.append((name, args, kwargs))
+            return tape.result
+        return invoke
+
+    class RecordingPopen:
+        def __init__(self, *args, **kwargs):
+            tape.calls.append(("Popen", args, kwargs))
+
+        @classmethod
+        def __class_getitem__(cls, _item):
+            return cls
+
+    for name in ("run", "call", "check_call", "check_output", "getoutput", "getstatusoutput"):
+        monkeypatch.setattr(subprocess, name, record(name))
+    monkeypatch.setattr(subprocess, "Popen", RecordingPopen)
+    for name in ("kill", "killpg", "system", "popen"):
+        if hasattr(os, name):
+            monkeypatch.setattr(os, name, record("os." + name))
+    try:
+        import pty
+    except ImportError:
+        pass
+    else:
+        monkeypatch.setattr(pty, "spawn", record("pty.spawn"))
+
+    def async_record(name):
+        async def invoke(*args, **kwargs):
+            return record(name)(*args, **kwargs)
+        return invoke
+
+    for name in ("create_subprocess_exec", "create_subprocess_shell"):
+        monkeypatch.setattr(asyncio, name, async_record(name))
+    return tape
 
 
 def _live_system_guard_is_active() -> bool:
-    """True iff tests/conftest.py's ``_live_system_guard`` has patched os.kill.
-
-    The guard replaces ``os.kill`` with a plain Python function; the raw,
-    unguarded primitive is a C builtin (``types.BuiltinFunctionType``). If
-    ``os.kill`` is still the builtin, the guard never loaded and every kill
-    primitive in this file would fire for real.
-    """
-    return not isinstance(os.kill, types.BuiltinFunctionType)
+    # A recording Python function alone is not proof the guard loaded.
+    return getattr(os.kill, "__name__", "") == "_guarded_kill"
 
 
 @pytest.fixture(autouse=True)
-def _refuse_to_fire_live_weapons(request):
-    """Fail closed: refuse to run a canary test unless the guard is active.
-
-    Tests genuinely marked ``@pytest.mark.live_system_guard_bypass`` opt out
-    (they run the raw primitive deliberately and harmlessly, e.g. a signal-0
-    liveness probe of our own PID), matching the guard's own bypass contract.
-    """
-    if request.node.get_closest_marker("live_system_guard_bypass"):
-        yield
-        return
-    if not _live_system_guard_is_active():
-        pytest.fail(
-            "REFUSING TO RUN: the live-system guard from tests/conftest.py is "
-            "not active in this interpreter (os.kill is still the raw C "
-            "builtin). This canary file executes real kill primitives — "
-            "os.kill(-1, SIGTERM), os.killpg, pkill -f python — and relies on "
-            "the guard to intercept them; unguarded, they SIGTERM every process "
-            "the current user owns. This usually means the file was collected "
-            "without its home tests/conftest.py (note: a test*.py copy glob "
-            "does NOT match conftest.py). See issue #68311.",
-            pytrace=False,
-        )
+def _refuse_to_fire_live_weapons(request, _live_system_guard_primitives):
+    if not request.node.get_closest_marker("live_system_guard_bypass"):
+        if not _live_system_guard_is_active():
+            pytest.fail("REFUSING TO RUN: live-system guard was not installed", pytrace=False)
     yield
 
 
@@ -218,7 +224,17 @@ def test_os_popen_systemctl_blocked():
 # ──────────────────── pty.spawn ────────────────────────────────
 
 
+@pytest.mark.linux_only
 def test_pty_spawn_systemctl_blocked():
+    _assert_pty_spawn_systemctl_blocked()
+
+
+@pytest.mark.macos_only
+def test_pty_spawn_systemctl_blocked_on_macos():
+    _assert_pty_spawn_systemctl_blocked()
+
+
+def _assert_pty_spawn_systemctl_blocked():
     import pty
     with pytest.raises(RuntimeError, match="live-system guard"):
         pty.spawn(["systemctl", "--user", "restart", "hermes-gateway"])
@@ -275,35 +291,366 @@ def test_subprocess_killall_hermes_blocked():
         subprocess.run(["killall", "hermes"])
 
 
-# ──────────────────── pass-through cases (must NOT raise) ──────
+def test_subprocess_env_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "EXAMPLE=1",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
 
 
+def test_subprocess_env_inline_option_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "--unset=EXAMPLE",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
 
 
+def test_subprocess_env_split_string_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "-S",
+                "pkill -f hermes-live-guard-sentinel-never-running",
+            ]
+        )
 
 
+def test_subprocess_shell_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            ["sh", "-c", "pkill -f hermes-live-guard-sentinel-never-running"]
+        )
 
 
+def test_subprocess_chained_shell_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "sh",
+                "-c",
+                "true; pkill -f hermes-live-guard-sentinel-never-running",
+            ]
+        )
 
 
+def test_subprocess_combined_shell_options_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "bash",
+                "-lc",
+                "pkill -f hermes-live-guard-sentinel-never-running",
+            ]
+        )
 
 
+def test_subprocess_shell_positional_pkill_target_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "sh",
+                "-c",
+                'pkill -f "$1"',
+                "guard",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
 
 
+@pytest.mark.parametrize(
+    "script",
+    [
+        'target=hermes; pkill -f "$target"',
+        'target=hermes && pkill -f "$target"',
+        'set -- hermes; pkill -f "$1"',
+    ],
+)
+def test_subprocess_shell_stateful_pkill_target_blocked(script):
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(["sh", "-c", script])
 
 
-# ──────────────────── bypass marker ─────────────────────────────
+def test_subprocess_raw_shell_list_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            "true; pkill -f hermes-live-guard-sentinel-never-running",
+            shell=True,
+        )
+
+
+def test_subprocess_pipeline_supplied_pkill_target_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            "echo hermes | xargs pkill -f",
+            shell=True,
+        )
+
+
+def test_subprocess_getoutput_raw_shell_list_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.getoutput(
+            "true; pkill -f hermes-live-guard-sentinel-never-running"
+        )
+
+
+def test_os_system_raw_shell_list_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        os.system("true; pkill -f hermes-live-guard-sentinel-never-running")
+
+
+def test_asyncio_raw_shell_list_pkill_hermes_blocked():
+    import asyncio
+
+    async def _attempt():
+        await asyncio.create_subprocess_shell(
+            "true; pkill -f hermes-live-guard-sentinel-never-running"
+        )
+
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        asyncio.run(_attempt())
+
+
+def test_subprocess_cmd_wrapped_taskkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "cmd.exe",
+                "/c",
+                "taskkill",
+                "/IM",
+                "hermes-live-guard-sentinel-never-running.exe",
+            ]
+        )
+
+
+def test_subprocess_time_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "/usr/bin/time",
+                "-p",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_timeout_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "timeout",
+                "5s",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_unknown_posix_wrapper_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "nice",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_command_producer_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "xargs",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_busybox_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "busybox",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_powershell_taskkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "powershell",
+                "-Command",
+                "taskkill /IM "
+                "hermes-live-guard-sentinel-never-running.exe",
+            ]
+        )
+
+
+def test_subprocess_rg_pre_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "rg",
+                "--pre",
+                "pkill -f hermes-live-guard-sentinel-never-running",
+                "needle",
+                "fixture.txt",
+            ]
+        )
+
+
+@pytest.mark.parametrize("pre_option", ["--pre", "--pre=pkill -f"])
+def test_subprocess_rg_pre_receives_protected_path_blocked(pre_option):
+    command = ["rg", pre_option]
+    if pre_option == "--pre":
+        command.append("pkill -f")
+    command.extend(
+        ["needle", "hermes-live-guard-sentinel-never-running"]
+    )
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(command)
+
+
+def test_subprocess_rg_pre_after_path_receives_protected_path_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "rg",
+                "needle",
+                "hermes-live-guard-sentinel-never-running",
+                "--pre",
+                "pkill",
+            ]
+        )
+
+
+def test_subprocess_rg_last_pre_wins_and_is_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "rg",
+                "--pre",
+                "true",
+                "--pre",
+                "pkill",
+                "needle",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_env_argv0_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "-a",
+                "worker",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_env_clustered_options_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "-iS",
+                "pkill -f hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_env_clustered_argv0_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "-ia",
+                "true",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_sudo_clustered_prompt_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "sudo",
+                "-np",
+                "true",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_shell_exec_named_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "bash",
+                "-c",
+                "exec -a worker pkill -f "
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+# Pass-through contract: the guard must forward data arguments unchanged,
+# but no shell or process is needed to establish that relationship.
+@pytest.mark.parametrize("command,options", [
+    (["true", "skill", "/tmp/hermes-agent/skills"], {}),
+    (["rg", "pkill", "/tmp/hermes-agent/skills/definitely-missing"], {}),
+    (["rg", "--pre=pkill", "--no-pre", "needle", "/tmp/hermes-sentinel"], {}),
+    (["git", "grep", "foo;pkill -f hermes", "--", "file.py"], {}),
+    (["git", "grep", "taskkill.exe", "--", "hermes_cli"], {}),
+    (["git", "grep", "SKILL", "--", "hermes_cli"], {}),
+    (["git", "grep", "pkill", "--", "--full", "python"], {}),
+    (["sh", "-c", "printf '%s\\\\n' skill /tmp/hermes-agent/skills"], {}),
+    ("true skill; echo hermes", {"shell": True}),
+])
+def test_harmless_commands_reach_backend_unchanged(_live_system_guard_primitives, command, options):
+    tape = _live_system_guard_primitives
+    result = subprocess.run(command, **options)
+    assert result is tape.result
+    assert tape.calls == [("run", (command,), options)]
 
 
 @pytest.mark.live_system_guard_bypass
-def test_bypass_marker_disables_guard():
-    """The bypass marker exists for tests that genuinely need real signal delivery
-    (e.g. PTY tests SIGINTing their own child). Verify it works.
-
-    We use it harmlessly here by signaling our own PID 0 (own group) so we
-    don't actually kill anything — but the call goes through real os.kill.
-    """
-    # With bypass, the guard yields without installing the monkeypatch,
-    # so we get the real os.kill. Calling os.kill(os.getpid(), 0) just
-    # checks that the PID exists — harmless.
-    os.kill(os.getpid(), 0)  # No exception — guard is OFF.
+def test_bypass_marker_disables_guard(_live_system_guard_primitives):
+    tape = _live_system_guard_primitives
+    assert not _live_system_guard_is_active()
+    os.kill(os.getpid(), 0)
+    assert tape.calls == [("os.kill", (os.getpid(), 0), {})]

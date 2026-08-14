@@ -10,6 +10,9 @@ from hermes_cli import main as hermes_main
 from hermes_cli import update_cmd
 
 
+pytestmark = pytest.mark.usefixtures("isolate_update_repository_side_effects")
+
+
 def _normalize_git_cmd(cmd):
     if cmd[:3] == ["git", "-c", "windows.appendAtomically=false"]:
         return ["git"] + cmd[3:]

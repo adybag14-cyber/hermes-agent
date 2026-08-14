@@ -109,6 +109,16 @@ async def test_start_gateway_verbosity_imports_redacting_formatter(monkeypatch, 
     monkeypatch.setattr("hermes_logging.setup_logging", lambda hermes_home, mode: tmp_path)
     monkeypatch.setattr("hermes_logging._add_rotating_handler", lambda *args, **kwargs: None)
     monkeypatch.setattr("gateway.run.GatewayRunner", _CleanExitRunner)
+    monitor_started = []
+    monitor_stopped = []
+    monkeypatch.setattr(
+        "gateway.memory_monitor.start_memory_monitoring",
+        lambda **kwargs: monitor_started.append(kwargs),
+    )
+    monkeypatch.setattr(
+        "gateway.memory_monitor.stop_memory_monitoring",
+        lambda **kwargs: monitor_stopped.append(kwargs),
+    )
 
     from gateway.run import start_gateway
 
@@ -117,6 +127,10 @@ async def test_start_gateway_verbosity_imports_redacting_formatter(monkeypatch, 
     ok = await start_gateway(config=GatewayConfig(), replace=False, verbosity=1)
 
     assert ok is True
+    assert monitor_started == []
+    assert monitor_stopped == []
+
+
 
 
 @pytest.mark.asyncio

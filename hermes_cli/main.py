@@ -2152,13 +2152,16 @@ def _clear_bytecode_cache(root: Path) -> int:
 
     Returns the number of directories removed.
     """
+    # Retained diagnostics and generated trees are not importable application
+    # source. Preserve their byte-bound contents and avoid walking whole builds.
+    skipped_dirs = {
+        "venv", ".venv", "node_modules", ".git", ".worktrees", ".artifacts",
+        ".cache", ".cxx", ".gradle", ".mypy_cache", ".nox", ".pytest_cache",
+        ".ruff_cache", ".tox", "build", "dist", "out", "site-packages", "target",
+    }
     removed = 0
     for dirpath, dirnames, _ in os.walk(root):
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if d not in {"venv", ".venv", "node_modules", ".git", ".worktrees"}
-        ]
+        dirnames[:] = [d for d in dirnames if d not in skipped_dirs]
         if os.path.basename(dirpath) == "__pycache__":
             try:
                 shutil.rmtree(dirpath)

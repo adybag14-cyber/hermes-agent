@@ -54,3 +54,16 @@ def _suppress_concurrent_hermes_gate(request, monkeypatch):
         lambda *_a, **_k: [],
         raising=False,
     )
+@pytest.fixture
+def isolate_update_repository_side_effects(monkeypatch):
+    """Keep update-flow tests from mutating or inspecting the real checkout.
+
+    Cache cleanup has dedicated filesystem-behavior coverage.  Tests focused
+    on branching, migrations, or gateway restarts should neither scan the
+    repository nor refresh installed optional backends, especially while
+    racing one another under xdist.
+    """
+    from hermes_cli import main
+
+    monkeypatch.setattr(main, "_clear_bytecode_cache", lambda _root: 0)
+    monkeypatch.setattr(main, "_refresh_active_lazy_features", lambda *args, **kwargs: True)
