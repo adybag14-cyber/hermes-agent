@@ -111,18 +111,34 @@ def _chunk(kind: bytes, payload: bytes) -> bytes:
 def _png(width: int, height: int, marker: str) -> bytes:
     ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
     seed = hashlib.sha256(marker.encode()).digest()
+    # Every channel in the synthetic pattern repeats modulo 256 on both axes.
+    # Build that period once instead of regenerating every pixel in Python for
+    # each full-resolution release screenshot.  The tiled rows are byte-for-byte
+    # identical to the original formula, so the fixture keeps the same color,
+    # dimension, content-hash, and per-language-distinctness coverage.
+    period = 256
+    row_repetitions = (width + period - 1) // period
+    x_period = min(width, period)
+    y_period = min(height, period)
+    periodic_rows = tuple(
+        (
+            bytes(
+                channel
+                for x in range(x_period)
+                for channel in (
+                    (seed[0] + x + y) & 0xFF,
+                    (seed[1] + 2 * x + y) & 0xFF,
+                    (seed[2] + x + 2 * y) & 0xFF,
+                )
+            )
+            * row_repetitions
+        )[: width * 3]
+        for y in range(y_period)
+    )
     compressor = zlib.compressobj(level=9)
     compressed = bytearray()
     for y in range(height):
-        row = bytes(
-            channel
-            for x in range(width)
-            for channel in (
-                (seed[0] + x + y) & 0xFF,
-                (seed[1] + 2 * x + y) & 0xFF,
-                (seed[2] + x + 2 * y) & 0xFF,
-            )
-        )
+        row = periodic_rows[y % period]
         compressed.extend(compressor.compress(b"\x00" + row))
     compressed.extend(compressor.flush())
     return (
@@ -131,6 +147,31 @@ def _png(width: int, height: int, marker: str) -> bytes:
         + _chunk(b"IDAT", bytes(compressed))
         + _chunk(b"IEND", b"")
     )
+
+
+@pytest.mark.parametrize(("width", "height"), ((20, 20), (257, 257)))
+def test_synthetic_png_tiling_matches_direct_pixel_formula(width, height):
+    marker = f"period-boundary-{width}x{height}"
+    seed = hashlib.sha256(marker.encode()).digest()
+    png = _png(width, height, marker)
+    idat_length = struct.unpack(">I", png[33:37])[0]
+    assert png[37:41] == b"IDAT"
+    decoded = zlib.decompress(png[41 : 41 + idat_length])
+    direct = b"".join(
+        b"\x00"
+        + bytes(
+            channel
+            for x in range(width)
+            for channel in (
+                (seed[0] + x + y) & 0xFF,
+                (seed[1] + 2 * x + y) & 0xFF,
+                (seed[2] + x + 2 * y) & 0xFF,
+            )
+        )
+        for y in range(height)
+    )
+
+    assert decoded == direct
 
 
 def _token(profile: str) -> int:
