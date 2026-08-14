@@ -82,15 +82,7 @@ class LlamaCppModelMatrixInstrumentedTest {
         val servedModels = models.optJSONArray("data") ?: JSONArray()
         assertTrue("Expected a nonempty llama.cpp /v1/models response: $models", servedModels.length() > 0)
 
-        val requestJson = JSONObject()
-            .put("model", status.modelName)
-            .put(
-                "messages",
-                JSONArray().put(JSONObject().put("role", "user").put("content", "Reply with one short word: hello")),
-            )
-            .put("max_tokens", 64)
-            .put("temperature", 0)
-            .put("stream", false)
+        val requestJson = LlamaCppServerController.releaseMatrixCompletionPayload(status.modelName)
         val request = Request.Builder()
             .url("${status.baseUrl}/chat/completions")
             .post(requestJson.toString().toRequestBody(JSON_MEDIA_TYPE))

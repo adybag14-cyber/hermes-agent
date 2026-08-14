@@ -2,6 +2,7 @@ package com.mobilefork.hermesagent.backend
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -39,5 +40,37 @@ class LlamaCppServerControllerTest {
         assertTrue(options, "--ctx-size 2048" in options)
         assertTrue(options, "--threads 2" in options)
         assertTrue(options, "--parallel 1" in options)
+    }
+
+    @Test
+    fun startupAndReleaseMatrixCompletionPayloadsDisableThinking() {
+        val payloads = listOf(
+            Triple(
+                LlamaCppServerController.startupCompletionCanaryPayload("startup-model"),
+                "startup-model",
+                "Reply with exactly this word and nothing else: OK",
+            ),
+            Triple(
+                LlamaCppServerController.releaseMatrixCompletionPayload("matrix-model"),
+                "matrix-model",
+                "Reply with one short word: hello",
+            ),
+        )
+
+        payloads.forEach { (payload, expectedModel, expectedPrompt) ->
+            assertEquals(expectedModel, payload.getString("model"))
+            assertFalse(
+                payload.getJSONObject("chat_template_kwargs").getBoolean("enable_thinking"),
+            )
+            assertFalse(payload.getBoolean("stream"))
+            assertEquals(0, payload.getInt("temperature"))
+            assertEquals(64, payload.getInt("max_tokens"))
+
+            val messages = payload.getJSONArray("messages")
+            assertEquals(1, messages.length())
+            val message = messages.getJSONObject(0)
+            assertEquals("user", message.getString("role"))
+            assertEquals(expectedPrompt, message.getString("content"))
+        }
     }
 }
