@@ -5791,14 +5791,36 @@ def _clear_bytecode_cache(root: Path) -> int:
 
     Returns the number of directories removed.
     """
+    # Repository-owned evidence can contain complete pytest basetemps and
+    # extracted source trees.  None of it is importable application source,
+    # and walking it makes a routine update proportional to the size of every
+    # retained diagnostic run.  Keep that evidence intact and out of the
+    # bytecode-cache traversal.
+    skipped_dirs = {
+        "venv",
+        ".venv",
+        "node_modules",
+        ".git",
+        ".worktrees",
+        ".artifacts",
+        ".cache",
+        ".cxx",
+        ".gradle",
+        ".mypy_cache",
+        ".nox",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".tox",
+        "build",
+        "dist",
+        "out",
+        "site-packages",
+        "target",
+    }
+
     removed = 0
     for dirpath, dirnames, _ in os.walk(root):
-        # Skip venv / node_modules / .git entirely
-        dirnames[:] = [
-            d
-            for d in dirnames
-            if d not in {"venv", ".venv", "node_modules", ".git", ".worktrees"}
-        ]
+        dirnames[:] = [d for d in dirnames if d not in skipped_dirs]
         if os.path.basename(dirpath) == "__pycache__":
             try:
                 shutil.rmtree(dirpath)

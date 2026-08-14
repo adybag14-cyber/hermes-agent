@@ -18,6 +18,9 @@ import hermes_cli.main as cli_main
 from hermes_cli.main import cmd_update
 
 
+pytestmark = pytest.mark.usefixtures("isolate_update_repository_side_effects")
+
+
 # ---------------------------------------------------------------------------
 # Skip the real-time sleeps inside cmd_update's restart-verification path
 # ---------------------------------------------------------------------------

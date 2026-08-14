@@ -201,6 +201,343 @@ def test_subprocess_killall_hermes_blocked():
         subprocess.run(["killall", "hermes"])
 
 
+def test_subprocess_env_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "EXAMPLE=1",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_env_inline_option_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "--unset=EXAMPLE",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_env_split_string_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "-S",
+                "pkill -f hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_shell_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            ["sh", "-c", "pkill -f hermes-live-guard-sentinel-never-running"]
+        )
+
+
+def test_subprocess_chained_shell_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "sh",
+                "-c",
+                "true; pkill -f hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_combined_shell_options_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "bash",
+                "-lc",
+                "pkill -f hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_shell_positional_pkill_target_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "sh",
+                "-c",
+                'pkill -f "$1"',
+                "guard",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+@pytest.mark.parametrize(
+    "script",
+    [
+        'target=hermes; pkill -f "$target"',
+        'target=hermes && pkill -f "$target"',
+        'set -- hermes; pkill -f "$1"',
+    ],
+)
+def test_subprocess_shell_stateful_pkill_target_blocked(script):
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(["sh", "-c", script])
+
+
+def test_subprocess_raw_shell_list_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            "true; pkill -f hermes-live-guard-sentinel-never-running",
+            shell=True,
+        )
+
+
+def test_subprocess_pipeline_supplied_pkill_target_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            "echo hermes | xargs pkill -f",
+            shell=True,
+        )
+
+
+def test_subprocess_getoutput_raw_shell_list_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.getoutput(
+            "true; pkill -f hermes-live-guard-sentinel-never-running"
+        )
+
+
+def test_os_system_raw_shell_list_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        os.system("true; pkill -f hermes-live-guard-sentinel-never-running")
+
+
+def test_asyncio_raw_shell_list_pkill_hermes_blocked():
+    import asyncio
+
+    async def _attempt():
+        await asyncio.create_subprocess_shell(
+            "true; pkill -f hermes-live-guard-sentinel-never-running"
+        )
+
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        asyncio.run(_attempt())
+
+
+def test_subprocess_cmd_wrapped_taskkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "cmd.exe",
+                "/c",
+                "taskkill",
+                "/IM",
+                "hermes-live-guard-sentinel-never-running.exe",
+            ]
+        )
+
+
+def test_subprocess_time_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "/usr/bin/time",
+                "-p",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_timeout_wrapped_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "timeout",
+                "5s",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_unknown_posix_wrapper_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "nice",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_command_producer_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "xargs",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_busybox_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "busybox",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_powershell_taskkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "powershell",
+                "-Command",
+                "taskkill /IM "
+                "hermes-live-guard-sentinel-never-running.exe",
+            ]
+        )
+
+
+def test_subprocess_rg_pre_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "rg",
+                "--pre",
+                "pkill -f hermes-live-guard-sentinel-never-running",
+                "needle",
+                "fixture.txt",
+            ]
+        )
+
+
+@pytest.mark.parametrize("pre_option", ["--pre", "--pre=pkill -f"])
+def test_subprocess_rg_pre_receives_protected_path_blocked(pre_option):
+    command = ["rg", pre_option]
+    if pre_option == "--pre":
+        command.append("pkill -f")
+    command.extend(
+        ["needle", "hermes-live-guard-sentinel-never-running"]
+    )
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(command)
+
+
+def test_subprocess_rg_pre_after_path_receives_protected_path_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "rg",
+                "needle",
+                "hermes-live-guard-sentinel-never-running",
+                "--pre",
+                "pkill",
+            ]
+        )
+
+
+def test_subprocess_rg_last_pre_wins_and_is_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "rg",
+                "--pre",
+                "true",
+                "--pre",
+                "pkill",
+                "needle",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_env_argv0_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "-a",
+                "worker",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_env_clustered_options_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "-iS",
+                "pkill -f hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_env_clustered_argv0_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "env",
+                "-ia",
+                "true",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_sudo_clustered_prompt_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "sudo",
+                "-np",
+                "true",
+                "pkill",
+                "-f",
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
+def test_subprocess_shell_exec_named_pkill_hermes_blocked():
+    with pytest.raises(RuntimeError, match="live-system guard"):
+        subprocess.run(
+            [
+                "bash",
+                "-c",
+                "exec -a worker pkill -f "
+                "hermes-live-guard-sentinel-never-running",
+            ]
+        )
+
+
 # ──────────────────── pass-through cases (must NOT raise) ──────
 
 
@@ -276,6 +613,99 @@ def test_normal_subprocess_run_passes_through():
     """Plain non-systemctl subprocess.run should work normally."""
     r = subprocess.run(["echo", "hello"], capture_output=True, text=True)
     assert r.stdout.strip() == "hello"
+
+
+def test_process_killer_words_in_harmless_arguments_pass_through():
+    """A search term and checkout path must not be mistaken for an executable."""
+    r = subprocess.run(
+        ["true", "skill", "/tmp/hermes-agent/skills"],
+        capture_output=True,
+        check=False,
+    )
+    assert r.returncode == 0
+
+
+def test_rg_process_killer_words_in_data_arguments_pass_through():
+    r = subprocess.run(
+        ["rg", "pkill", "/tmp/hermes-agent/skills/definitely-missing"],
+        capture_output=True,
+        check=False,
+    )
+    assert r.returncode in {1, 2}
+
+
+def test_rg_no_pre_disables_prior_preprocessor_passes_through():
+    r = subprocess.run(
+        [
+            "rg",
+            "--pre=pkill",
+            "--no-pre",
+            "needle",
+            "/tmp/hermes-live-guard-sentinel-never-running",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    assert r.returncode in {1, 2}
+
+
+def test_git_grep_shell_punctuation_in_pattern_passes_through():
+    r = subprocess.run(
+        ["git", "grep", "foo;pkill -f hermes", "--", "file.py"],
+        capture_output=True,
+        check=False,
+    )
+    assert r.returncode in {1, 128}
+
+
+def test_git_grep_taskkill_exe_data_passes_through():
+    r = subprocess.run(
+        ["git", "grep", "taskkill.exe", "--", "hermes_cli"],
+        capture_output=True,
+        check=False,
+    )
+    assert r.returncode in {0, 1, 128}
+
+
+def test_git_grep_uppercase_skill_data_passes_through():
+    r = subprocess.run(
+        ["git", "grep", "SKILL", "--", "hermes_cli"],
+        capture_output=True,
+        check=False,
+    )
+    assert r.returncode in {0, 1, 128}
+
+
+def test_git_grep_pkill_full_python_data_passes_through():
+    r = subprocess.run(
+        ["git", "grep", "pkill", "--", "--full", "python"],
+        capture_output=True,
+        check=False,
+    )
+    assert r.returncode in {0, 1, 128}
+
+
+def test_shell_process_killer_words_in_harmless_arguments_pass_through():
+    r = subprocess.run(
+        ["sh", "-c", "printf '%s\\n' skill /tmp/hermes-agent/skills"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode == 0
+    assert r.stdout.splitlines() == ["skill", "/tmp/hermes-agent/skills"]
+
+
+def test_independent_shell_segments_do_not_share_killer_target_context():
+    r = subprocess.run(
+        "true skill; echo hermes",
+        shell=True,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert r.returncode == 0
+    assert r.stdout.strip() == "hermes"
 
 
 # ──────────────────── bypass marker ─────────────────────────────

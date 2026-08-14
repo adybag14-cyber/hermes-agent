@@ -164,6 +164,16 @@ async def test_start_gateway_verbosity_imports_redacting_formatter(monkeypatch, 
     monkeypatch.setattr("hermes_logging.setup_logging", lambda hermes_home, mode: tmp_path)
     monkeypatch.setattr("hermes_logging._add_rotating_handler", lambda *args, **kwargs: None)
     monkeypatch.setattr("gateway.run.GatewayRunner", _CleanExitRunner)
+    monitor_started = []
+    monitor_stopped = []
+    monkeypatch.setattr(
+        "gateway.memory_monitor.start_memory_monitoring",
+        lambda **kwargs: monitor_started.append(kwargs),
+    )
+    monkeypatch.setattr(
+        "gateway.memory_monitor.stop_memory_monitoring",
+        lambda **kwargs: monitor_stopped.append(kwargs),
+    )
 
     from gateway.run import start_gateway
 
@@ -172,6 +182,64 @@ async def test_start_gateway_verbosity_imports_redacting_formatter(monkeypatch, 
     ok = await start_gateway(config=GatewayConfig(), replace=False, verbosity=1)
 
     assert ok is True
+    assert monitor_started == []
+    assert monitor_stopped == []
+
+
+@pytest.mark.asyncio
+async def test_start_gateway_stops_memory_monitor_on_runtime_failure(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+
+    class _RuntimeFailureRunner:
+        def __init__(self, config):
+            self.config = config
+            self.should_exit_cleanly = False
+            self.should_exit_with_failure = True
+            self.exit_reason = "simulated runtime failure"
+            self.adapters = {}
+            self.exit_code = None
+            self._restart_requested = False
+
+        async def start(self):
+            return True
+
+        async def wait_for_shutdown(self):
+            return None
+
+        async def stop(self):
+            return None
+
+    monitor_events = []
+    monkeypatch.setattr("gateway.status.get_running_pid", lambda: None)
+    monkeypatch.setattr("gateway.status.acquire_gateway_runtime_lock", lambda: True)
+    monkeypatch.setattr("gateway.status.release_gateway_runtime_lock", lambda: None)
+    monkeypatch.setattr("gateway.status.write_pid_file", lambda: None)
+    monkeypatch.setattr("tools.skills_sync.sync_skills", lambda quiet=True: None)
+    monkeypatch.setattr("tools.mcp_tool.discover_mcp_tools", lambda: None)
+    monkeypatch.setattr("tools.mcp_tool.shutdown_mcp_servers", lambda: None)
+    monkeypatch.setattr("hermes_logging.setup_logging", lambda hermes_home, mode: tmp_path)
+    monkeypatch.setattr("gateway.run._start_cron_ticker", lambda *args, **kwargs: None)
+    monkeypatch.setattr("gateway.run.GatewayRunner", _RuntimeFailureRunner)
+    monkeypatch.setattr(
+        "gateway.memory_monitor.start_memory_monitoring",
+        lambda **kwargs: monitor_events.append(("start", kwargs)),
+    )
+    monkeypatch.setattr(
+        "gateway.memory_monitor.stop_memory_monitoring",
+        lambda **kwargs: monitor_events.append(("stop", kwargs)),
+    )
+
+    from gateway.run import start_gateway
+
+    ok = await start_gateway(config=GatewayConfig(), replace=False, verbosity=None)
+
+    assert ok is False
+    assert monitor_events == [
+        ("start", {"interval_seconds": 300.0}),
+        ("stop", {"timeout": 2.0}),
+    ]
 
 
 @pytest.mark.asyncio
