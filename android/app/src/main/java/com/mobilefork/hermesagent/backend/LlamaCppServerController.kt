@@ -409,19 +409,7 @@ object LlamaCppServerController {
     )
 
     private fun runCompletionCanary(port: Int, modelName: String): CompletionCanary {
-        val payload = JSONObject()
-            .put("model", modelName)
-            .put(
-                "messages",
-                JSONArray().put(
-                    JSONObject()
-                        .put("role", "user")
-                        .put("content", "Reply with exactly this word and nothing else: OK"),
-                ),
-            )
-            .put("temperature", 0)
-            .put("max_tokens", 64)
-            .put("stream", false)
+        val payload = startupCompletionCanaryPayload(modelName)
         val request = Request.Builder()
             .url("http://127.0.0.1:$port/v1/chat/completions")
             .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
@@ -464,6 +452,37 @@ object LlamaCppServerController {
                 elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt),
             )
         }
+    }
+
+    internal fun startupCompletionCanaryPayload(modelName: String): JSONObject {
+        return nonThinkingCompletionPayload(
+            modelName = modelName,
+            prompt = "Reply with exactly this word and nothing else: OK",
+        )
+    }
+
+    internal fun releaseMatrixCompletionPayload(modelName: String): JSONObject {
+        return nonThinkingCompletionPayload(
+            modelName = modelName,
+            prompt = "Reply with one short word: hello",
+        )
+    }
+
+    private fun nonThinkingCompletionPayload(modelName: String, prompt: String): JSONObject {
+        return JSONObject()
+            .put("model", modelName)
+            .put(
+                "messages",
+                JSONArray().put(
+                    JSONObject()
+                        .put("role", "user")
+                        .put("content", prompt),
+                ),
+            )
+            .put("temperature", 0)
+            .put("max_tokens", 64)
+            .put("stream", false)
+            .put("chat_template_kwargs", JSONObject().put("enable_thinking", false))
     }
 
     private fun processExitDetail(candidate: Process): String {
