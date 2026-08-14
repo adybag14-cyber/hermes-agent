@@ -40,222 +40,222 @@
       {
         "bytes": 2706,
         "path": "models/minicpm5-1b-fable5-q4-k-m.json",
-        "sha256": "53ed69af7eaf5b40e769f70a00862f5b33e8dd02879bf8c342e6f6e2a7078c39"
+        "sha256": "b73efc3540093582159f1fdbc2147f66110722edd991e9600c756083fadbbef0"
       },
       {
         "bytes": 2544,
         "path": "models/minicpm5-1b-web-litert-lm.json",
-        "sha256": "16100543e088745bbf67a41d059829534e67045729a62a698ed43fddfb22a0cf"
+        "sha256": "37fb06f8e86975f4e194d3460a154b79ec4b741ae19eaf935d063352671b7d88"
       },
       {
         "bytes": 2594,
         "path": "models/qwen3.5-0.8b-q4-k-m.json",
-        "sha256": "91b126b500a6df924df0619fd6b6881165d92c172e90965eef6248db0a37e48a"
+        "sha256": "1548b04043569c9967dc85c07063023462be648caced3df96ea1378d194f4de5"
       },
       {
         "bytes": 2545,
         "path": "models/vibethinker-3b-litert-lm.json",
-        "sha256": "bd90cc6ec84a411fb457948ddde56ce3638d5024a7e5b383dbb39202a21d8d22"
+        "sha256": "486504bd0c4d0cc87127ffa9a6fd42d88973e4415a0956e55f5ca48150e43047"
       },
       {
-        "bytes": 661729,
+        "bytes": 609565,
         "path": "performance/phone-compact.host.raw.json",
-        "sha256": "9d48673ddeb6ad5bff871403f7c512cfaa064d6b8b1409dfc49a5534949e66ff"
+        "sha256": "ab6055004fff5f839aa583c6cc277cd45278f3355378c8c56765dac6fd997d79"
       },
       {
-        "bytes": 11445,
+        "bytes": 11402,
         "path": "performance/phone-compact.json",
-        "sha256": "f75e1e62a63f4cc510a288041cc2c80b001d4093aa80135697e6d40c2f9b68d7"
+        "sha256": "3d52fe405b42e416bddbcd99f65ebda33eabc64f053798730be16b86f375f232"
       },
       {
-        "bytes": 430808,
+        "bytes": 420301,
         "path": "performance/phone-compact.macrobenchmark.raw.json",
-        "sha256": "f260cf1787b3fb80522a48f0080da7dd3c83b4863d95b3913ae58a2a0da01ae8"
+        "sha256": "e5042b254f869cf492c72827fa9a64d14d1663c007bc03e5192042d4a51ebfe1"
       },
       {
-        "bytes": 44825310,
+        "bytes": 45010965,
         "path": "performance/phone-compact.traces/iteration-001.perfetto-trace",
-        "sha256": "a022dab7d590232a1484ef31143ce10be638168261230166691c017e507c9255"
+        "sha256": "670a6566b281828eac3d649ef685c8e6e15b96f27a78006169543ca715ba2383"
       },
       {
-        "bytes": 54277188,
+        "bytes": 53517408,
         "path": "performance/phone-compact.traces/iteration-002.perfetto-trace",
-        "sha256": "86a49ddb78afb11e08dfaa2e37e700a2b2d6b4991dfed4396570a2bb38b6b945"
+        "sha256": "4f61ba92d31036155619ada72ff04b288aa7db0b23cc0c29a843001973bb4873"
       },
       {
-        "bytes": 48481974,
+        "bytes": 43139819,
         "path": "performance/phone-compact.traces/iteration-003.perfetto-trace",
-        "sha256": "0eda335e1daaadf9f19be51a3ac6196381f20c5484c5c59b487fe9afb0d9151b"
+        "sha256": "2eef77e0969aef2800cd815d74034ef540fbed19985ffd85886c982d64233cc4"
       },
       {
-        "bytes": 43091473,
+        "bytes": 46238338,
         "path": "performance/phone-compact.traces/iteration-004.perfetto-trace",
-        "sha256": "f81bdf60cd8912285f31631da97d7c6be73d2d845a9474e050a2bb08afc218d9"
+        "sha256": "5061b42347fc41b9dd8507e30734a63bf67386b19bd4098c45544fc3ba8b4a76"
       },
       {
-        "bytes": 43241294,
+        "bytes": 47214089,
         "path": "performance/phone-compact.traces/iteration-005.perfetto-trace",
-        "sha256": "d2e0d4f180b3536190c594cebee719e4eb6f0c799f4f2ed586b14dd47bf4df73"
+        "sha256": "e9013e8e0633e54f36c20109f3723a5029542e170e75ea46082ad5877d401e7a"
       },
       {
-        "bytes": 620368,
+        "bytes": 622638,
         "path": "performance/tablet.host.raw.json",
-        "sha256": "5a65190f80b6c99c8a6b433b5fc002963f8621be58f97d8f313e695a37822f9e"
+        "sha256": "3edbdf50aa702e9d94ca6827b88e1f56cf60c782285340562d30061e47074472"
       },
       {
-        "bytes": 11368,
+        "bytes": 11354,
         "path": "performance/tablet.json",
-        "sha256": "6cfa6f4d97f9a83b5aaf6627337e87daeae119367102775ab53bc83cb1ba173e"
+        "sha256": "71e5cbaa0a667d63906f09992c09c1e37fe4eb57ec321d2a751beb97cd1b2a4e"
       },
       {
-        "bytes": 224344,
+        "bytes": 223885,
         "path": "performance/tablet.macrobenchmark.raw.json",
-        "sha256": "80f423691bde56f489508c6947559ed05ac0aab80975f45e045fc47c4f34645f"
+        "sha256": "25196ff5cbd2f7cf18307ed8c63ff0e830c46e05fa609ae75faea109dcfbe22b"
       },
       {
-        "bytes": 34744788,
+        "bytes": 35427753,
         "path": "performance/tablet.traces/iteration-001.perfetto-trace",
-        "sha256": "a7e598ee8fae51f9354060192fb95a7307280ff5b772967787395532d038ae81"
+        "sha256": "0b4349d7ebf25cdfa835a6393c56f56950c89b4d3dd39895f6e291bd3745c8dd"
       },
       {
-        "bytes": 36306555,
+        "bytes": 36651025,
         "path": "performance/tablet.traces/iteration-002.perfetto-trace",
-        "sha256": "f8d907b73f7c1d0365ad5ae5c1de32c7ce4f5c73f49fca3ee9dcd43d6d70b342"
+        "sha256": "4af2e03a8815b692909b0df73b6d18e981d1d84408b82363e2e45f09d48e3c77"
       },
       {
-        "bytes": 41007328,
+        "bytes": 32978774,
         "path": "performance/tablet.traces/iteration-003.perfetto-trace",
-        "sha256": "ebe499182a7c7fe01c2f39841f09f606383f931966be65c009b5a51b1f154743"
+        "sha256": "0069acf5f986560ccbbf03adfd3094ad822bca067d65033fc80e7de71d421d2e"
       },
       {
-        "bytes": 35574692,
+        "bytes": 44419286,
         "path": "performance/tablet.traces/iteration-004.perfetto-trace",
-        "sha256": "a6fb415fcce3dbd01f5b4a56bb0049e1a011ca7a1fb91d802af9599e4402c0d8"
+        "sha256": "544639622ed889bbcd960f3faea7f4256ca1504945864d0a32e765c3c918ec10"
       },
       {
-        "bytes": 34447704,
+        "bytes": 34001940,
         "path": "performance/tablet.traces/iteration-005.perfetto-trace",
-        "sha256": "d1a22a106a1897f06cd548c6cb1a03d114cf1fc4c5be787d9862fe9893f68210"
+        "sha256": "d6c12704e60218832bb82d543f4f7cd39916f2b214b626ea27b55f483d471fa2"
       },
       {
-        "bytes": 427947,
+        "bytes": 428698,
         "path": "ui/phone-compact/de/screen.png",
-        "sha256": "525f9e90b93d24e93a1fd06ba5441a2201a15b86f798b2a1be019b5706d9d1e2"
+        "sha256": "15a0ece9c6224edf99cab1f77b93f17981dc47a8fde33d1f0e86ad3541c5fd66"
       },
       {
         "bytes": 11507,
         "path": "ui/phone-compact/de/semantics.txt",
-        "sha256": "ac78fc549bd3c600c79fe1b5da836b88694dce4f84581b373a195bccab02e3a2"
+        "sha256": "930056b9f4b4289298ff61049c7b8bf412d4bd4de4978da2fee4994d5f7780f5"
       },
       {
-        "bytes": 417081,
+        "bytes": 416840,
         "path": "ui/phone-compact/en/screen.png",
-        "sha256": "e18c451f0e7b874b483a9d98a2760f28e7b6ae117781043cdc6ee14dc124c990"
+        "sha256": "0d45d95e72ac9021435e51a9f949a67036348eed6176c3580208e69e1b906c2f"
       },
       {
         "bytes": 11276,
         "path": "ui/phone-compact/en/semantics.txt",
-        "sha256": "f3991a34f9871d7e45120af55249154a2abcb19c8c0e17a888dfdb3f2c3988c4"
+        "sha256": "2279ad5af52b2379ff0e04393d633077d29be448f81cb1f9b63076b68370ec19"
       },
       {
-        "bytes": 425662,
+        "bytes": 424596,
         "path": "ui/phone-compact/es/screen.png",
-        "sha256": "6b6d6b754b3dfae4976fc2bf0dc8b15f6709529d1d734272a554241984c3b7c7"
+        "sha256": "f861c43023486ec009b29fae162a4984ff9e5f0d10103e541999bcae1187140f"
       },
       {
         "bytes": 11506,
         "path": "ui/phone-compact/es/semantics.txt",
-        "sha256": "b65bfeb2d4bcdbbf588f9cfc0028ac2aaa559327b98063140c810346cfe3338b"
+        "sha256": "1327b1f43b45b7f8f0949a20f08122df5fcc6ffe51ac49d3d800307c9829f7c0"
       },
       {
-        "bytes": 417778,
+        "bytes": 417529,
         "path": "ui/phone-compact/fr/screen.png",
-        "sha256": "940e2208b9a5ded49b3a6bfc82b508d0804238bbcecb0ca3b50d87a62e7a3faa"
+        "sha256": "470a15627ae9d5316c95b887375360708707cfb9e86a59a8b4f32d04d9c6b39b"
       },
       {
         "bytes": 11561,
         "path": "ui/phone-compact/fr/semantics.txt",
-        "sha256": "1d04ceed929765d4cae6ba735e4df955fcef892ed4399c427fa01dd117d795e8"
+        "sha256": "a6b809855c632a636e1782834ad6e714e52e5d1a0186f95e54fa0caaa89230c5"
       },
       {
-        "bytes": 428101,
+        "bytes": 428266,
         "path": "ui/phone-compact/pt/screen.png",
-        "sha256": "aa67dd75a99a593e096f69bed5907ba899f39534bdb93202d7a6f5ef978db09d"
+        "sha256": "557e42ec45ad66ba0c897981b6e1816cae750e17b44cba6aea88efc29090d28e"
       },
       {
         "bytes": 11491,
         "path": "ui/phone-compact/pt/semantics.txt",
-        "sha256": "c696608e68cb1b061738d92c9c8a73755897f7787eed99375154e91a490a04ac"
+        "sha256": "dd3f48dd47fb3188d9f05a5a11809a47641325a1117bdbdc0004b138c279e154"
       },
       {
-        "bytes": 500698,
+        "bytes": 500457,
         "path": "ui/phone-compact/zh/screen.png",
-        "sha256": "b022022e4d28a7aeb25017bc514329cdcc4f6f1e19352cdd5c290983686b2f11"
+        "sha256": "d327176fe48e45103dededcef3f102ff640d502dc5582172b10c6c74814e6254"
       },
       {
         "bytes": 11291,
         "path": "ui/phone-compact/zh/semantics.txt",
-        "sha256": "f7af5ecba3944e72c7579f4065f158713c62d44cca6a44d556c8fcdb7d43de78"
+        "sha256": "b417984bd40f2e386b62ad6c4354ab2e4d08b38944cf4b08bfcab0bc383d1a05"
       },
       {
-        "bytes": 505567,
+        "bytes": 505139,
         "path": "ui/tablet/de/screen.png",
-        "sha256": "57ff59823addfb7c49a4963087a795c1dd587c5bd806fbc8c3a13b2c9190d2ab"
+        "sha256": "bd15792f772077692a9d5ebb72352a63feb8b8f22eeba9e557117dce623077f4"
       },
       {
         "bytes": 21899,
         "path": "ui/tablet/de/semantics.txt",
-        "sha256": "f6e5f85fbd719339be91ea865739259febe9c23074f0c3a01c3f686769912675"
+        "sha256": "794286b687ec20d510a2fe3f634e182178e7c39a48ea557d94f0f4ee9bb63b11"
       },
       {
-        "bytes": 509858,
+        "bytes": 509365,
         "path": "ui/tablet/en/screen.png",
-        "sha256": "1f29a6468f0102f91d4db443bbed57b92fcffef080583edeca1f6c4820069bdb"
+        "sha256": "1035055b784efa2020eeb1c51c181216856ef6e6134fc12e998ad1a02a14e6e7"
       },
       {
         "bytes": 21569,
         "path": "ui/tablet/en/semantics.txt",
-        "sha256": "3b8321a0c21e41de33ddfb34a8f31a7b1be3e5a37e775d81f30ef46f29a5f257"
+        "sha256": "7312855d591dcca7f3b0b13c37a045eedd3a3d393fe69468e20e411b6e66322b"
       },
       {
-        "bytes": 528062,
+        "bytes": 527582,
         "path": "ui/tablet/es/screen.png",
-        "sha256": "a6b4bb3cdfe288e533ee8d2962910566485e92fbb2f2f9d95b80c7b1763e0f76"
+        "sha256": "3db4ad7e69287865c1e1a2d8fcffccc666752bee4b02149c8f33c59fecc6b2ea"
       },
       {
         "bytes": 21877,
         "path": "ui/tablet/es/semantics.txt",
-        "sha256": "b7a69a01ab4324828c12133d8258ae75c0e3c6106a984e62f975d1f95486d22d"
+        "sha256": "debc9d4a58860ec7f26502996b45b715ab623465b3e597ad01fece891a0c64c1"
       },
       {
-        "bytes": 534457,
+        "bytes": 534046,
         "path": "ui/tablet/fr/screen.png",
-        "sha256": "a7bc228438217c645ea6416ec0b77687a4c019d3a8c1204aa873e3019455f0b6"
+        "sha256": "b1d92fa94ff0051a032f26252055d84f50b7f6e8880991f52e90ac9182d44a6b"
       },
       {
         "bytes": 21982,
         "path": "ui/tablet/fr/semantics.txt",
-        "sha256": "b58642fa5890a51ef05475adcccce9fb4457c5f855558fa5a7e358dd272736a0"
+        "sha256": "f9f969c26584c2e74507eb2d07e87bc9ab268ed049881f65fa73f7b840338796"
       },
       {
-        "bytes": 546975,
+        "bytes": 546666,
         "path": "ui/tablet/pt/screen.png",
-        "sha256": "3e1f161f2f705728cc6d21ed613a2862e2cb05205050ffa3b43b37fce817c906"
+        "sha256": "4780da28ce67e138ada47c449d21fa7bbd2cd0062e314cf7a343161783275eeb"
       },
       {
         "bytes": 21862,
         "path": "ui/tablet/pt/semantics.txt",
-        "sha256": "13b2f918931224bbb2fd16c98b13f48201214875b7fc646c5143727638cd8009"
+        "sha256": "7426ba47e4667fa8a212e16f51b15074a089b56296bcd1b6ecd509388ca3cce7"
       },
       {
-        "bytes": 629793,
+        "bytes": 629527,
         "path": "ui/tablet/zh/screen.png",
-        "sha256": "20b3e18620db68b34df85eb1738f64331c004aea30a05c076c134e1adef3d410"
+        "sha256": "3ddee2e2dc6e7847cedf03bbded7bf0a68126d83a94ef8a12175d661dd42ef61"
       },
       {
         "bytes": 21577,
         "path": "ui/tablet/zh/semantics.txt",
-        "sha256": "9590f035960a841db55e10475a9bdf19ebf4cf214e79544e9689981c62b8906e"
+        "sha256": "c5dbb9fb1b32ee883825cca9a3b19b63f355ec80dec25beed2c4b7581366b20a"
       }
     ]
   },
@@ -300,7 +300,7 @@
   "schema": "hermes-android-release-evidence-manifest-v2",
   "source_tree": {
     "algorithm": "sha256-git-tree-contents-v1",
-    "digest": "ce3779cd248e7a190364b42bd9cc51072dfe8f93d510a31d648e3f1ac4d700f8",
+    "digest": "53ee26c27a02715fa5a349fbba1e9e9714ef5939203a7b4f9c7868d6dbf70440",
     "excluded_prefix": "android/release-evidence/",
     "file_count": 4172,
     "git_object_format": "sha1"
@@ -315,10 +315,10 @@
   },
   "tag": "v0.13.147",
   "tested_binaries": {
-    "benchmark_target_apk_sha256": "fa4138ba9c7506411a2e1b23269a757eb0acd119312ac7d0b1c71656e88c63f4",
+    "benchmark_target_apk_sha256": "377a079c231e99da14d446c35722307af4edc5da33355271365ba6d5da04c5b9",
     "benchmark_test_apk_sha256": "d03dc96a355eea614e2877d90cccba562c5c9d26b8f13056cb49ee341c670873",
-    "evidence_run_id": "v0.13.147-ce3779cd248e7a19-20260814-151424bst",
-    "ui_candidate_apk_sha256": "219b34d3a6048a5141c09e4a61c09a6ddf0ae2594ed8699c443b4a5678459d5a",
-    "ui_instrumentation_apk_sha256": "df80fb951f6df112a2dd20112cf4d0be78c6e64a229fc2c8fb84561cfb7b1a93"
+    "evidence_run_id": "v0.13.147-53ee26c27a02715f-20260814-163527bst",
+    "ui_candidate_apk_sha256": "17e8639a043092f6eb47c686ccdd84fe0122fac5e5a2d498c810e888e090c57d",
+    "ui_instrumentation_apk_sha256": "8be7dece41b4e39e61e55434f6b884d593bd2b1da8b7c97dbbd55bdc5d68ac1b"
   }
 }

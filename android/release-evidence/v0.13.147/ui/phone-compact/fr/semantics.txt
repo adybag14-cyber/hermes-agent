@@ -2,10 +2,10 @@ language=fr
 screen_width_dp=360
 screen_height_dp=800
 font_scale=1.0
-release_source_digest=ce3779cd248e7a190364b42bd9cc51072dfe8f93d510a31d648e3f1ac4d700f8
-candidate_apk_sha256=219b34d3a6048a5141c09e4a61c09a6ddf0ae2594ed8699c443b4a5678459d5a
-instrumentation_apk_sha256=df80fb951f6df112a2dd20112cf4d0be78c6e64a229fc2c8fb84561cfb7b1a93
-evidence_run_id=v0.13.147-ce3779cd248e7a19-20260814-151424bst
+release_source_digest=53ee26c27a02715fa5a349fbba1e9e9714ef5939203a7b4f9c7868d6dbf70440
+candidate_apk_sha256=17e8639a043092f6eb47c686ccdd84fe0122fac5e5a2d498c810e888e090c57d
+instrumentation_apk_sha256=8be7dece41b4e39e61e55434f6b884d593bd2b1da8b7c97dbbd55bdc5d68ac1b
+evidence_run_id=v0.13.147-53ee26c27a02715f-20260814-163527bst
 package_id=com.mobilefork.hermesagent
 version_name=0.13.147
 version_code=144790
@@ -13,9 +13,9 @@ build_variant=debug
 litertlm_coordinate=com.google.ai.edge.litertlm:litertlm-android:0.16.0
 device_serial=emulator-5570
 avd_name=Medium_Phone_API_35
-device_boot_id=6822d6aa-635a-4d84-b83b-04ce8cf4a323
+device_boot_id=6f63c4c7-680c-4540-ae5f-1994be77c59b
 build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.036/12592187:user/release-keys
-screenshot_sha256=940e2208b9a5ded49b3a6bfc82b508d0804238bbcecb0ca3b50d87a62e7a3faa
+screenshot_sha256=470a15627ae9d5316c95b887375360708707cfb9e86a59a8b4f32d04d9c6b39b
 
 Printing with useUnmergedTree = 'true'
 Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
