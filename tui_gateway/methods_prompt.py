@@ -495,6 +495,24 @@ def _(rid, params: dict) -> dict:
                 if err is not None:
                     return err
             else:
+                # Once active user turns carry durable row ids, an ordinal-only
+                # target is an unsafe downgrade: renderer and gateway ordinals
+                # can diverge after compaction/rebuild while the row id remains
+                # stable. Require the client to prove which durable turn it
+                # means instead of persisting a potentially mis-aimed cut.
+                if any(_message_row_id(history[h_idx]) is not None for h_idx in user_indices):
+                    logger.warning(
+                        "prompt.submit: REFUSED ordinal-only truncation of durable "
+                        "session %s (ordinal=%d); truncate_before_row_id required",
+                        sid,
+                        client_ordinal,
+                    )
+                    return _err(
+                        rid,
+                        4004,
+                        "ordinal-only truncation is unsafe for durable session history; "
+                        "include truncate_before_row_id",
+                    )
                 ordinal = client_ordinal
 
             # Reject out-of-range ordinals on BOTH ends. A negative value would
@@ -564,8 +582,12 @@ def _(rid, params: dict) -> dict:
                     # #82756). Soft-archiving keeps them on disk (active=0) and
                     # in the FTS index, so a mis-aimed cut is recoverable
                     # instead of terminal. The live transcript is unchanged.
+                    # Fall back to session id when session_key is NULL — CLI-origin
+                    # sessions created before the session_key default fix have no
+                    # key, and replace_messages(None) triggers an FK violation.
+                    truncation_key = session.get("session_key") or sid
                     db.replace_messages(
-                        session["session_key"],
+                        truncation_key,
                         truncated,
                         active_only=True,
                         archive_dropped=True,
@@ -717,7 +739,7 @@ def _(rid, params: dict) -> dict:
 
 @method("clipboard.paste")
 def _(rid, params: dict) -> dict:
-    session, err = _sess(params, rid)
+    session, err = _sess_building(params, rid)
     if err:
         return err
     try:
@@ -757,7 +779,7 @@ def _(rid, params: dict) -> dict:
 
 @method("image.attach")
 def _(rid, params: dict) -> dict:
-    session, err = _sess(params, rid)
+    session, err = _sess_building(params, rid)
     if err:
         return err
     raw = str(params.get("path", "") or "").strip()
@@ -815,7 +837,7 @@ def _(rid, params: dict) -> dict:
       filename / ext (str, optional): extension hint. Without it, magic bytes
         identify PNG/JPEG/GIF/WebP/BMP, falling back to ``.png``.
     """
-    session, err = _sess(params, rid)
+    session, err = _sess_building(params, rid)
     if err:
         return err
 
@@ -875,7 +897,7 @@ def _(rid, params: dict) -> dict:
     import subprocess
     import tempfile
 
-    session, err = _sess(params, rid)
+    session, err = _sess_building(params, rid)
     if err:
         return err
 
@@ -1004,7 +1026,7 @@ def _(rid, params: dict) -> dict:
         required when the path isn't visible to the gateway.
       name (str, optional): preferred filename.
     """
-    session, err = _sess(params, rid)
+    session, err = _sess_building(params, rid)
     if err:
         return err
     raw = str(params.get("path", "") or "").strip()
@@ -1034,7 +1056,7 @@ def _(rid, params: dict) -> dict:
 
 @method("image.detach")
 def _(rid, params: dict) -> dict:
-    session, err = _sess(params, rid)
+    session, err = _sess_building(params, rid)
     if err:
         return err
     raw = str(params.get("path", "") or "").strip()
@@ -1114,12 +1136,28 @@ def _(rid, params: dict) -> dict:
         try:
             from run_agent import AIAgent
 
-            result = AIAgent(
-                **_background_agent_kwargs(session["agent"], task_id)
-            ).run_conversation(
-                user_message=text,
-                task_id=task_id,
+            # Bug #50233: ephemeral agent threads don't inherit the session's
+            # HERMES_HOME override (the ContextVar set on the session-create
+            # thread doesn't propagate here), so a background turn under a
+            # non-default profile would run against the wrong home. Re-bind the
+            # override for the duration of this turn, exactly as the normal
+            # prompt turn does, and restore it afterward.
+            _profile_home_str = session.get("profile_home")
+            home_token = (
+                set_hermes_home_override(_profile_home_str)
+                if _profile_home_str
+                else None
             )
+            try:
+                result = AIAgent(
+                    **_background_agent_kwargs(session["agent"], task_id)
+                ).run_conversation(
+                    user_message=text,
+                    task_id=task_id,
+                )
+            finally:
+                if home_token is not None:
+                    reset_hermes_home_override(home_token)
             _emit(
                 "background.complete",
                 parent,
@@ -1225,14 +1263,33 @@ def _(rid, params: dict) -> dict:
                 parent,
                 {"task_id": task_id, "text": f"Starting hidden restart agent{history_note}"},
             )
-            result = AIAgent(
-                **_ephemeral_preview_agent_kwargs(session["agent"], task_id),
-                **_preview_restart_callbacks(parent, task_id),
-            ).run_conversation(
-                user_message=prompt,
-                task_id=task_id,
-                conversation_history=parent_history or None,
+            # Bug #50233: ephemeral preview-restart agent threads don't inherit
+            # the session's HERMES_HOME override (the ContextVar set on the
+            # session-create thread doesn't propagate here). Re-bind it for the
+            # duration of the turn, mirroring the normal prompt turn, then
+            # restore it. NOTE: we deliberately do NOT close this agent through
+            # task-wide process cleanup — the whole point of preview.restart is
+            # to leave a background server running under this task_id, and
+            # AIAgent.close() would kill every process for the task_id and tear
+            # down the very server the restart just started.
+            _profile_home_str = session.get("profile_home")
+            home_token = (
+                set_hermes_home_override(_profile_home_str)
+                if _profile_home_str
+                else None
             )
+            try:
+                result = AIAgent(
+                    **_ephemeral_preview_agent_kwargs(session["agent"], task_id),
+                    **_preview_restart_callbacks(parent, task_id),
+                ).run_conversation(
+                    user_message=prompt,
+                    task_id=task_id,
+                    conversation_history=parent_history or None,
+                )
+            finally:
+                if home_token is not None:
+                    reset_hermes_home_override(home_token)
             text = (
                 result.get("final_response", str(result))
                 if isinstance(result, dict)
@@ -1312,6 +1369,38 @@ def _(rid, params: dict) -> dict:
     return _respond(rid, params, "value", allow_expired=True)
 
 
+@method("approval.pending")
+def _(rid, params: dict) -> dict:
+    session, err = _sess(params, rid)
+    if err:
+        return err
+    try:
+        from tools.approval import list_gateway_approvals
+
+        return _ok(rid, {"approvals": list_gateway_approvals(session["session_key"])})
+    except Exception as e:
+        return _err(rid, 5004, str(e))
+
+
+@method("approval.received")
+def _(rid, params: dict) -> dict:
+    session, err = _sess(params, rid)
+    if err:
+        return err
+    request_id = params.get("request_id")
+    if not isinstance(request_id, str) or not request_id:
+        return _err(rid, 4006, "request_id required")
+    try:
+        from tools.approval import ack_gateway_approval
+
+        return _ok(
+            rid,
+            {"acknowledged": ack_gateway_approval(session["session_key"], request_id)},
+        )
+    except Exception as e:
+        return _err(rid, 5004, str(e))
+
+
 @method("approval.respond")
 def _(rid, params: dict) -> dict:
     session, err = _sess(params, rid)
@@ -1327,6 +1416,7 @@ def _(rid, params: dict) -> dict:
                     session["session_key"],
                     params.get("choice", "deny"),
                     resolve_all=params.get("all", False),
+                    request_id=params.get("request_id"),
                 )
             },
         )

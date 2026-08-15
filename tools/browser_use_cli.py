@@ -60,6 +60,16 @@ def _base_subprocess_env() -> dict:
     from tools.browser_tool import _build_browser_env
 
     env = _build_browser_env()
+    # The browser-use CLI runs under its own Python (uv tool / uvx), which
+    # may differ from Hermes's venv Python. PYTHONPATH/PYTHONHOME inherited
+    # from the agent process point at Hermes's venv site-packages, and a
+    # child interpreter honors them ahead of its own site-packages — so the
+    # CLI imports compiled C-extensions (e.g. pydantic_core) built for the
+    # wrong interpreter and crashes on ABI mismatch (#83427, #84841, #86006,
+    # #86104). Strip both — the CLI manages its own environment and never
+    # needs Hermes's import path.
+    env.pop("PYTHONPATH", None)
+    env.pop("PYTHONHOME", None)
     env.setdefault("ANONYMIZED_TELEMETRY", "false")
     return env
 
@@ -203,21 +213,42 @@ def _managed_bin_dir() -> Optional[str]:
         return None
 
 
+def _user_local_bin_dir() -> Optional[str]:
+    """The standard user-level tool dir (~/.local/bin on POSIX; uv's default
+    tool bin dir on Windows). Desktop/TUI workers may start with a minimal
+    PATH that omits it even when `uv tool install browser-use` put the
+    binary there."""
+    try:
+        if os.name == "nt":
+            base = os.environ.get("APPDATA")
+            if base:
+                return str(Path(base) / "uv" / "bin")
+            return None
+        return str(Path(os.path.expanduser("~")) / ".local" / "bin")
+    except Exception as e:  # pragma: no cover — defensive
+        logger.debug("Could not resolve user-local bin dir: %s", e)
+        return None
+
+
 def _find_cli() -> Optional[List[str]]:
     """Locate the browser-use CLI, or None when it can't be run.
 
-    Prefers an installed browser-use binary (PATH, then Hermes' managed
-    $HERMES_HOME/bin); falls back to running it through uvx (PATH, then
-    managed). The managed probes matter because Hermes bootstraps its own
-    uv into $HERMES_HOME/bin, which is not on the user's PATH.
+    MANAGED-FIRST resolution: Hermes' own ``$HERMES_HOME/bin`` copy — the
+    one every browser backend selection installs and updates via
+    ``install_cli()`` — always wins, so all sessions drive one canonical,
+    Hermes-controlled binary. PATH and the user-level tool dir
+    (~/.local/bin / %APPDATA%\\uv\\bin, where a manual ``uv tool install``
+    links binaries) are fallbacks for setups that never ran our install,
+    and cover Desktop/TUI workers that spawn with a minimal PATH. The uvx
+    zero-install path (same probe order) is the final fallback.
     """
-    bin_dir = _managed_bin_dir()
-    for probe_path in (None, bin_dir):
+    probe_paths = (_managed_bin_dir(), None, _user_local_bin_dir())
+    for probe_path in probe_paths:
         if probe_path is None or probe_path:
             direct = shutil.which("browser-use", path=probe_path)
             if direct:
                 return [direct]
-    for probe_path in (None, bin_dir):
+    for probe_path in probe_paths:
         if probe_path is None or probe_path:
             uvx = shutil.which("uvx", path=probe_path)
             if uvx:
@@ -235,9 +266,11 @@ def install_cli(timeout_s: int = 600) -> Tuple[bool, str]:
 
     Returns ``(ok, message)`` — never raises.
     """
-    direct = shutil.which("browser-use")
-    if direct:
-        return True, f"browser-use CLI already installed ({direct})"
+    # MANAGED-FIRST: only the managed copy short-circuits the install. A
+    # browser-use found on PATH is a user-level side install — it must NOT
+    # prevent provisioning the canonical Hermes-managed copy, or resolution
+    # stays pinned to a binary we don't control (version drift, no updates
+    # through hermes tools).
     bin_dir = _managed_bin_dir()
     if bin_dir:
         managed = shutil.which("browser-use", path=bin_dir)
@@ -366,7 +399,9 @@ def _native_screenshot_result(result: Dict[str, Any], path: str) -> Optional[Dic
         return None
 
 
-def _resolve_backend_cdp(env: dict, task_id: Optional[str]) -> Optional[str]:
+def _resolve_backend_cdp(
+    env: dict, task_id: Optional[str], session_name: str = ""
+) -> Optional[str]:
     """Point the harness at the configured browser backend's CDP endpoint.
 
     Resolution order (first hit wins):
@@ -382,6 +417,12 @@ def _resolve_backend_cdp(env: dict, task_id: Optional[str]) -> Optional[str]:
        inactivity reaper, and atexit cleanup — instead of duplicating it.
     4. Nothing configured: return None; the harness attaches to local
        Chrome (or Browser Use cloud via BU_AUTOSPAWN for legacy configs).
+
+    ``session_name`` (the tool's ``session`` argument / BU_NAME) keys the
+    provider session cache when set, so every distinct name gets its OWN
+    cloud browser and the same name reuses one — that is what makes named
+    sessions actually concurrent-safe on provider backends instead of all
+    names sharing a single per-task browser.
 
     Returns an error string on provider failure, None on success.
     """
@@ -427,7 +468,11 @@ def _resolve_backend_cdp(env: dict, task_id: Optional[str]) -> Optional[str]:
         return None
 
     try:
-        session_info = _get_session_info(task_id or "browser-exec-default")
+        # Named sessions get their OWN provider browser, keyed by name so the
+        # same name reuses one browser across calls and tasks, and different
+        # names never collide. Unnamed calls keep the per-task key.
+        cache_key = f"bu-named-{session_name}" if session_name else (task_id or "browser-exec-default")
+        session_info = _get_session_info(cache_key)
     except Exception as e:
         return (
             f"Cloud browser provider {type(provider).__name__} failed to "
@@ -478,13 +523,17 @@ def browser_exec(
                 "dashes, or underscores (e.g. 'r7k2')."
             )
         env["BU_NAME"] = session
-    else:
-        # Route through the configured browser backend (Browserbase,
-        # Firecrawl, Nous gateway, CDP override, …). Explicit BU_NAME cloud
-        # sessions manage their own browser and skip backend resolution.
-        backend_err = _resolve_backend_cdp(env, task_id)
-        if backend_err:
-            return tool_error(backend_err)
+    # Route through the configured browser backend (Browserbase, Firecrawl,
+    # Nous gateway, CDP override, local Chrome, …). Named sessions compose
+    # with the backend: BU_NAME namespaces the harness daemon (its IPC
+    # socket, log, and pid), and on provider backends the name additionally
+    # keys its own cloud browser — so concurrent sessions stop clobbering
+    # each other's daemon (#86894). Browser Use direct-API cloud configs
+    # are the one exception: the CLI manages named cloud browsers natively,
+    # and _resolve_backend_cdp skips provider resolution for them.
+    backend_err = _resolve_backend_cdp(env, task_id, session_name=session)
+    if backend_err:
+        return tool_error(backend_err)
 
     workspace = _workspace_dir(task_id)
     if workspace:
@@ -583,8 +632,10 @@ _HEADER_BASE = (
     "Batch each sub-procedure (navigate, wait, extract, act) into one call "
     "— do not spend a call per action — but for long extractions prefer "
     "several medium calls that append to workspace files over one giant "
-    "call, so progress survives timeouts. For a named cloud browser, pass "
-    "session=<name> (never BU_NAME env syntax)."
+    "call, so progress survives timeouts. For an isolated concurrent "
+    "browser session (parallel tasks that must not share tabs), pass "
+    "session=<name> (never BU_NAME env syntax) and reuse the same name on "
+    "every related call."
 )
 
 _HEADER_VISION = (
@@ -683,7 +734,7 @@ BROWSER_EXEC_SCHEMA = {
             },
             "session": {
                 "type": "string",
-                "description": "Named cloud browser session (sets BU_NAME). Omit for the local default daemon. Use the same name you passed to start_remote_daemon().",
+                "description": "Named isolated browser session (sets BU_NAME): each name gets its own harness daemon — and on cloud backends its own browser — so concurrent tasks don't clobber each other. Omit for the shared default session. Reuse the same name across calls to keep working in that session (and the name passed to start_remote_daemon(), if used).",
             },
             "timeout_s": {
                 "type": "integer",
