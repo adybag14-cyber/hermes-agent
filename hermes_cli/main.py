@@ -9454,6 +9454,11 @@ def _termux_post_pull_wheelhouse_gate(
                 print(f"  Recover manually: git reset --hard {pre_pull_sha}")
         raise SystemExit(1)
 
+    # Keep updater internals lazy after main.py command decomposition. Global
+    # name lookup does not invoke module __getattr__, so import this private
+    # helper only on the native Termux post-pull path.
+    from hermes_cli.update_cmd import _ensure_uv_for_termux
+
     uv_bin = _ensure_uv_for_termux([sys.executable, "-m", "pip"])
     if not uv_bin:
         reject("Termux uv is unavailable; reinstall the Termux uv package")
