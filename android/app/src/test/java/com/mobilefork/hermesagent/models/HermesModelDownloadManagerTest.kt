@@ -7,6 +7,15 @@ import org.junit.Test
 
 class HermesModelDownloadManagerTest {
     @Test
+    fun ggufArtifactSelection_prefersBonsaiQ10OverF16() {
+        assertTrue(isCompatibleRepoFile("Bonsai-27B-Q1_0.gguf", "GGUF"))
+        assertTrue(
+            compatibleFileRank("Bonsai-27B-Q1_0.gguf", "GGUF") <
+                compatibleFileRank("Bonsai-27B-F16.gguf", "GGUF"),
+        )
+    }
+
+    @Test
     fun liteRtLmArtifactSelection_prefersMtpLiteRtLmBundleOverWebTask() {
         assertTrue(isCompatibleRepoFile("gemma-4-E2B-it.litertlm", "LiteRT-LM"))
         assertFalse(isCompatibleRepoFile("gemma-4-E2B-it-web.task", "LiteRT-LM"))

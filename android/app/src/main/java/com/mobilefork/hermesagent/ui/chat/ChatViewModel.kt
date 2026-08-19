@@ -15,6 +15,7 @@ import com.mobilefork.hermesagent.api.HermesApiClient
 import com.mobilefork.hermesagent.api.HermesSseClient
 import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.HermesRuntimeManager
+import com.mobilefork.hermesagent.backend.LocalBackendStatus
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
 import com.mobilefork.hermesagent.data.ConversationStore
 import com.mobilefork.hermesagent.data.AppSettings
@@ -26,9 +27,13 @@ import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.data.SecureSecretsStore
 import com.mobilefork.hermesagent.data.StoredConversationAttachment
 import com.mobilefork.hermesagent.data.StoredConversationMessage
+import com.mobilefork.hermesagent.ui.i18n.AppLanguage
+import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -318,6 +323,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val sendJob = viewModelScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
             val directDiagnosticArguments = if (attachments.isEmpty()) directNativeDiagnosticArgumentsForPrompt(text) else null
             if (directDiagnosticArguments != null) {
+                val directStrings = AppSettingsStore(getApplication<Application>()).load().let { settings ->
+                    hermesStringsFor(AppLanguage.fromTag(settings.languageTag))
+                }
                 persistMessages(sessionId, userMessage, assistantPlaceholder)
                 _uiState.update {
                     it.copy(
@@ -329,23 +337,242 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         attachments = emptyList(),
                         isSending = true,
                         error = "",
-                        status = "Running native Android diagnostics…",
+                        status = directStrings.runningNativeAndroidDiagnostics(),
                         isShowingHistory = false,
                     )
                 }
-                val content = runCatching {
-                    val action = directDiagnosticArguments.optString("action").ifBlank { "agent_native_tool_self_test_report" }
+                val action = directDiagnosticArguments.optString("action").ifBlank { "agent_native_tool_self_test_report" }
+                val directExecution = runSynchronousDirectRouteWithCancellationCheck {
                     NativeBridgeInvoker.performDiagnosticsAction(
                         context = getApplication<Application>(),
                         action = action,
                         arguments = directDiagnosticArguments,
                     )
-                }.fold(
+                }
+                val content = directExecution.fold(
                     onSuccess = { formatDirectNativeDiagnosticsReply(it) },
                     onFailure = { error ->
-                        "Native Android diagnostics failed: ${error.message ?: error.javaClass.simpleName}"
+                        directStrings.nativeAndroidDiagnosticsFailed(error.message ?: error.javaClass.simpleName)
                     },
                 )
+                val resultEventContent = directExecution.fold(
+                    onSuccess = {
+                        directStrings.nativeAndroidDiagnosticsCompleted(content, modelRequests = 0)
+                    },
+                    onFailure = { error ->
+                        directStrings.nativeAndroidDiagnosticsFailureResult(
+                            detail = error.message ?: error.javaClass.simpleName,
+                            modelRequests = 0,
+                        )
+                    },
+                )
+                val directEvents = listOf(
+                    ChatUiMessage(
+                        id = UUID.randomUUID().toString(),
+                        role = AgentEventType.ToolCall.persistedRole,
+                        content = "android_device_diagnostics_tool\n$action",
+                        createdAtEpochMs = System.currentTimeMillis(),
+                    ),
+                    ChatUiMessage(
+                        id = UUID.randomUUID().toString(),
+                        role = AgentEventType.ToolResult.persistedRole,
+                        content = resultEventContent,
+                        createdAtEpochMs = System.currentTimeMillis() + 1L,
+                    ),
+                )
+                directEvents.forEach { eventMessage ->
+                    conversationStore.insertMessageBefore(
+                        sessionId = sessionId,
+                        beforeMessageId = assistantMessageId,
+                        message = eventMessage.toStoredMessage(),
+                    )
+                }
+                conversationStore.updateMessageContent(
+                    sessionId = sessionId,
+                    messageId = assistantMessageId,
+                    newContent = content,
+                )
+                retainConversationMemory(sessionId, text, content)
+                _uiState.update { state ->
+                    state.copy(
+                        activeConversationTitle = conversationStore.currentConversation().title,
+                        conversationSummaries = loadSummaries(),
+                        messages = state.messages.map { message ->
+                            if (message.id == assistantMessageId) {
+                                message.copy(content = content)
+                            } else {
+                                message
+                            }
+                        }.let { messages ->
+                            val finalIndex = messages.indexOfFirst { it.id == assistantMessageId }
+                            messages.toMutableList().apply {
+                                if (finalIndex >= 0) addAll(finalIndex, directEvents) else addAll(directEvents)
+                            }
+                        },
+                        isSending = false,
+                        error = "",
+                        status = "",
+                    )
+                }
+                return@launch
+            }
+
+            if (attachments.isEmpty() && NativeToolChatSender.extractDirectLinuxSandboxPrompt(text)) {
+                persistMessages(sessionId, userMessage, assistantPlaceholder)
+                _uiState.update {
+                    it.copy(
+                        activeConversationId = sessionId,
+                        activeConversationTitle = conversationStore.currentConversation().title,
+                        conversationSummaries = loadSummaries(),
+                        messages = conversationStore.currentConversationMessages().toUiMessages(),
+                        input = "",
+                        attachments = emptyList(),
+                        isSending = true,
+                        error = "",
+                        status = "Running Linux sandbox tool…",
+                        isShowingHistory = false,
+                    )
+                }
+                val sandboxResult = runSynchronousDirectRouteWithCancellationCheck {
+                    requireNotNull(
+                        NativeToolChatSender.executeDirectLinuxSandbox(
+                            context = getApplication<Application>(),
+                            prompt = text,
+                        ),
+                    ) { "Linux sandbox tool was not executed." }
+                }.getOrElse { error ->
+                    NativeToolChatSendResult(
+                        content = "Linux sandbox tool failed: ${error.message ?: error.javaClass.simpleName}",
+                    )
+                }
+                val sandboxContent = sandboxResult.content
+                if (sandboxResult.executedToolCalls > 0) {
+                    val sandboxEvents = listOf(
+                        ChatUiMessage(
+                            id = UUID.randomUUID().toString(),
+                            role = AgentEventType.ToolCall.persistedRole,
+                            content = "linux_sandbox_tool\n$text",
+                            createdAtEpochMs = System.currentTimeMillis(),
+                        ),
+                        ChatUiMessage(
+                            id = UUID.randomUUID().toString(),
+                            role = AgentEventType.ProcessLog.persistedRole,
+                            content = sandboxContent,
+                            createdAtEpochMs = System.currentTimeMillis() + 1L,
+                        ),
+                    )
+                    sandboxEvents.forEach { eventMessage ->
+                        conversationStore.insertMessageBefore(
+                            sessionId = sessionId,
+                            beforeMessageId = assistantMessageId,
+                            message = eventMessage.toStoredMessage(),
+                        )
+                    }
+                    _uiState.update { state ->
+                        val finalIndex = state.messages.indexOfFirst { it.id == assistantMessageId }
+                        val updated = state.messages.toMutableList().apply {
+                            if (finalIndex >= 0) addAll(finalIndex, sandboxEvents) else addAll(sandboxEvents)
+                        }
+                        state.copy(messages = updated)
+                    }
+                }
+                conversationStore.updateMessageContent(
+                    sessionId = sessionId,
+                    messageId = assistantMessageId,
+                    newContent = sandboxContent,
+                )
+                retainConversationMemory(sessionId, text, sandboxContent)
+                _uiState.update { state ->
+                    state.copy(
+                        activeConversationTitle = conversationStore.currentConversation().title,
+                        conversationSummaries = loadSummaries(),
+                        messages = state.messages.map { message ->
+                            if (message.id == assistantMessageId) {
+                                message.copy(content = sandboxContent)
+                            } else {
+                                message
+                            }
+                        },
+                        isSending = false,
+                        error = "",
+                        status = "",
+                    )
+                }
+                return@launch
+            }
+
+            val directTerminalCommand = if (attachments.isEmpty()) {
+                NativeToolChatSender.extractDirectReadOnlyTerminalCommand(text)
+            } else {
+                null
+            }
+            if (directTerminalCommand != null) {
+                val directStrings = AppSettingsStore(getApplication<Application>()).load().let { settings ->
+                    hermesStringsFor(AppLanguage.fromTag(settings.languageTag))
+                }
+                persistMessages(sessionId, userMessage, assistantPlaceholder)
+                _uiState.update {
+                    it.copy(
+                        activeConversationId = sessionId,
+                        activeConversationTitle = conversationStore.currentConversation().title,
+                        conversationSummaries = loadSummaries(),
+                        messages = conversationStore.currentConversationMessages().toUiMessages(),
+                        input = "",
+                        attachments = emptyList(),
+                        isSending = true,
+                        error = "",
+                        status = directStrings.runningReadOnlyNativeCommand(),
+                        isShowingHistory = false,
+                    )
+                }
+                val directResult = runSynchronousDirectRouteWithCancellationCheck {
+                    requireNotNull(
+                        NativeToolChatSender.executeDirectReadOnlyTerminal(
+                            context = getApplication<Application>(),
+                            prompt = text,
+                        )
+                    ) { directStrings.readOnlyNativeCommandUnavailable() }
+                }.getOrElse { error ->
+                    NativeToolChatSendResult(
+                        content = directStrings.nativeTerminalCommandFailed(
+                            error.message ?: error.javaClass.simpleName,
+                        ),
+                    )
+                }
+                val content = directResult.content
+                if (directResult.executedToolCalls > 0) {
+                    val directEvents = listOf(
+                        ChatUiMessage(
+                            id = UUID.randomUUID().toString(),
+                            role = AgentEventType.ToolCall.persistedRole,
+                            content = "terminal_tool\n$directTerminalCommand",
+                            createdAtEpochMs = System.currentTimeMillis(),
+                        ),
+                        ChatUiMessage(
+                            id = UUID.randomUUID().toString(),
+                            role = AgentEventType.ToolResult.persistedRole,
+                            content = directStrings.nativeReadOnlyCommandCompleted(
+                                content = content,
+                                modelRequests = directResult.modelRequestCount,
+                            ),
+                            createdAtEpochMs = System.currentTimeMillis() + 1L,
+                        ),
+                    )
+                    directEvents.forEach { eventMessage ->
+                        conversationStore.insertMessageBefore(
+                            sessionId = sessionId,
+                            beforeMessageId = assistantMessageId,
+                            message = eventMessage.toStoredMessage(),
+                        )
+                    }
+                    _uiState.update { state ->
+                        val finalIndex = state.messages.indexOfFirst { it.id == assistantMessageId }
+                        val updated = state.messages.toMutableList().apply {
+                            if (finalIndex >= 0) addAll(finalIndex, directEvents) else addAll(directEvents)
+                        }
+                        state.copy(messages = updated)
+                    }
+                }
                 conversationStore.updateMessageContent(
                     sessionId = sessionId,
                     messageId = assistantMessageId,
@@ -803,7 +1030,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun resolveChatEndpoint(runtime: HermesRuntimeManager.RuntimeState): ChatEndpoint? {
+        if (HermesRuntimeManager.remoteStopRequiresAppRestart()) {
+            return null
+        }
         val localBackend = OnDeviceBackendManager.currentStatus()
+        if (!chatRuntimeRoutingAllowed(localBackend)) {
+            return null
+        }
         if (localBackend.started && localBackend.baseUrl.isNotBlank() && localBackend.modelName.isNotBlank()) {
             return ChatEndpoint(
                 baseUrl = HermesEndpointUrl.normalizeBaseUrl(localBackend.baseUrl),
@@ -826,6 +1059,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun resolveDirectProviderEndpoint(): ChatEndpoint? {
+        if (HermesRuntimeManager.remoteStopRequiresAppRestart()) {
+            return null
+        }
+        if (!chatRuntimeRoutingAllowed(OnDeviceBackendManager.currentStatus())) {
+            return null
+        }
         val settings = AppSettingsStore(getApplication<Application>()).load()
         if (settings.offlineAirplaneMode || BackendKind.fromPersistedValue(settings.onDeviceBackend) != BackendKind.NONE) {
             return null
@@ -856,7 +1095,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun ensureRuntimeReady(): HermesRuntimeManager.RuntimeState {
         val current = HermesRuntimeManager.currentState()
-        if (current.started && resolveChatEndpoint(current) != null) {
+        val localStatus = OnDeviceBackendManager.currentStatus()
+        if (
+            shouldReuseCachedRuntime(
+                localBackendStatus = localStatus,
+                runtimeStarted = current.started,
+                endpointAvailable = resolveChatEndpoint(current) != null,
+            )
+        ) {
             return current
         }
         return HermesRuntimeManager.ensureStarted(getApplication())
@@ -1036,6 +1282,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
+internal fun chatRuntimeRoutingAllowed(localBackendStatus: LocalBackendStatus): Boolean {
+    return !localBackendStatus.requiresAppRestart
+}
+
+internal fun shouldReuseCachedRuntime(
+    localBackendStatus: LocalBackendStatus,
+    runtimeStarted: Boolean,
+    endpointAvailable: Boolean,
+): Boolean {
+    return chatRuntimeRoutingAllowed(localBackendStatus) && runtimeStarted && endpointAvailable
+}
+
 internal fun extractAssistantContentFromChatCompletion(rawBody: String): String {
     val root = JSONObject(rawBody)
     val choices = root.optJSONArray("choices") ?: return ""
@@ -1181,12 +1439,23 @@ internal fun directNativeDiagnosticArgumentsForPrompt(text: String): JSONObject?
     return NativeToolChatSender.extractDirectDiagnosticsArguments(prompt)
 }
 
+internal suspend fun <T> runSynchronousDirectRouteWithCancellationCheck(block: () -> T): Result<T> {
+    val result = runCatching(block)
+    currentCoroutineContext().ensureActive()
+    return result
+}
+
 internal fun formatDirectNativeDiagnosticsReply(rawJson: String): String {
     val json = runCatching { JSONObject(rawJson) }.getOrNull()
         ?: return rawJson.take(4_000)
     val output = json.optString("output")
     if (output.isNotBlank()) {
         return output
+    }
+    if (json.optString("action") == "status") {
+        // The status bridge also supplies generic cards. Preserve the actual status payload for
+        // this direct user request instead of reducing it to those three explanatory cards.
+        return json.toString(2).take(4_000)
     }
     val cards = json.optJSONArray("cards")
     if (cards != null && cards.length() > 0) {

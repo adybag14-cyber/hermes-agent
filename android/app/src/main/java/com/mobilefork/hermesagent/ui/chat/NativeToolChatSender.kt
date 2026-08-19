@@ -7,6 +7,8 @@ import org.json.JSONObject
 
 internal data class NativeToolChatSendResult(
     val content: String,
+    val executedToolCalls: Int = 0,
+    val modelRequestCount: Int = 0,
 )
 
 data class NativeAgentEvent(
@@ -26,6 +28,51 @@ internal object NativeToolChatSender {
     fun extractDirectDiagnosticsArguments(prompt: String): JSONObject? {
         return NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(prompt)
             ?: NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments(prompt)
+    }
+
+    fun extractDirectReadOnlyTerminalCommand(prompt: String): String? {
+        return NativeToolCallingChatClient.inferSafeNaturalTerminalCommand(prompt)
+    }
+
+    fun extractDirectLinuxSandboxPrompt(prompt: String): Boolean {
+        return NativeToolCallingChatClient.isGuestLinuxSandboxIntent(prompt) &&
+            (
+                "linux_sandbox_tool" in prompt.lowercase() ||
+                    "mcp_run_in_proot" in prompt.lowercase() ||
+                    "linux sandbox" in prompt.lowercase()
+                )
+    }
+
+    fun executeDirectLinuxSandbox(context: Context, prompt: String): NativeToolChatSendResult? {
+        val client = NativeToolCallingChatClient(context.applicationContext)
+        activeClient = client
+        return try {
+            client.executeExplicitLinuxSandboxRequest(prompt)?.let { result ->
+                NativeToolChatSendResult(
+                    content = result.content,
+                    executedToolCalls = result.executedToolCalls,
+                    modelRequestCount = result.modelRequestCount,
+                )
+            }
+        } finally {
+            if (activeClient === client) activeClient = null
+        }
+    }
+
+    fun executeDirectReadOnlyTerminal(context: Context, prompt: String): NativeToolChatSendResult? {
+        val client = NativeToolCallingChatClient(context.applicationContext)
+        activeClient = client
+        return try {
+            client.executeSafeNaturalTerminalRequest(prompt)?.let { result ->
+                NativeToolChatSendResult(
+                    content = result.content,
+                    executedToolCalls = result.executedToolCalls,
+                    modelRequestCount = result.modelRequestCount,
+                )
+            }
+        } finally {
+            if (activeClient === client) activeClient = null
+        }
     }
 
     fun send(
@@ -52,7 +99,11 @@ internal object NativeToolChatSender {
                 relevantMemoryContext = relevantMemoryContext,
                 onEvent = onEvent,
             )
-            NativeToolChatSendResult(content = result.content)
+            NativeToolChatSendResult(
+                content = result.content,
+                executedToolCalls = result.executedToolCalls,
+                modelRequestCount = result.modelRequestCount,
+            )
         } finally {
             if (activeClient === client) activeClient = null
         }
