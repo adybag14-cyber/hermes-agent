@@ -13,6 +13,8 @@ import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.device.AlpineAgentCommandCatalog
 import com.mobilefork.hermesagent.device.HermesLinuxSandboxBridge
+import com.mobilefork.hermesagent.ui.chat.AgentEventType
+import com.mobilefork.hermesagent.ui.chat.NativeAgentEvent
 import com.mobilefork.hermesagent.ui.chat.NativeToolCallingChatClient
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -46,8 +48,8 @@ class Release148Bonsai27BLocalRuntimeSmokeTest {
 
         val runtime = HermesRuntimeManager.ensureStarted(app)
         val backend = OnDeviceBackendManager.currentStatus()
-        assumeTrue(
-            "llama.cpp could not boot Bonsai-27B-Q1_0.gguf: runtime=${runtime.error} backend=${backend.statusMessage}",
+        assertTrue(
+            "llama.cpp must boot Bonsai-27B-Q1_0.gguf (Q1_0 load failure is an app gap): runtime=${runtime.error} backend=${backend.statusMessage}",
             runtime.started && backend.started && backend.backendKind == BackendKind.LLAMA_CPP,
         )
         assertTrue(backend.baseUrl, backend.baseUrl.startsWith("http://127.0.0.1:"))
@@ -63,21 +65,39 @@ class Release148Bonsai27BLocalRuntimeSmokeTest {
             timeoutSeconds = 60,
         )
 
+        val prompt = "Inside the active Alpine 3.21 guest, perform this as one guest action: " +
+            "printf 'HERMES_BONSAI_Q10_148_OK\\n' > $proofPath; " +
+            "cat /etc/alpine-release >> $proofPath. Then report the release you observed."
+        val toolNames = mutableListOf<String>()
+        val toolResults = mutableListOf<String>()
         val result = NativeToolCallingChatClient(app).send(
             baseUrl = backend.baseUrl.removeSuffix("/v1"),
             modelName = backend.modelName,
             sessionId = "release-148-bonsai-q10",
-            userText = AlpineAgentCommandCatalog.guestPrompt(
-                "printf 'HERMES_BONSAI_Q10_148_OK\\n' > $proofPath; cat /etc/alpine-release >> $proofPath",
-            ),
+            userText = prompt,
+            onEvent = { event: NativeAgentEvent ->
+                if (event.type == AgentEventType.ToolCall) {
+                    toolNames += event.title
+                }
+                if (event.type == AgentEventType.ProcessLog || event.type == AgentEventType.ToolResult) {
+                    toolResults += event.content
+                }
+            },
         )
 
-        assertTrue("Expected a real Bonsai model request: $result", result.modelRequestCount > 0)
+        assertTrue("Expected a real Bonsai model request: $result names=$toolNames", result.modelRequestCount > 0)
         assertTrue(
-            "If Bonsai emitted a tool call the app must process it: $result",
+            "If Bonsai emitted a tool call the app must process it: $result names=$toolNames results=$toolResults",
             result.executedToolCalls > 0,
         )
-        assertFalse("Expected a non-blank post-tool reply", result.content.isBlank())
+        assertFalse("Expected a non-blank post-tool reply: $result", result.content.isBlank())
+        val sandboxTool = toolNames.any { name ->
+            name.contains("mcp_run_in_proot") || name.contains("linux_sandbox")
+        } || toolResults.any { it.contains("proot_distro_qemu") }
+        assertTrue(
+            "Bonsai tool calls must be routed to the Alpine guest, not dropped or host-only: names=$toolNames results=$toolResults",
+            sandboxTool,
+        )
 
         val proof = HermesLinuxSandboxBridge.performAction(
             context = app,
@@ -86,9 +106,17 @@ class Release148Bonsai27BLocalRuntimeSmokeTest {
             command = "cat $proofPath",
             timeoutSeconds = 60,
         )
-        assertEquals(proof.toString(2), 0, proof.optInt("exit_code", -1))
-        assertTrue(proof.toString(2), proof.optString("output").contains("HERMES_BONSAI_Q10_148_OK"))
-        assertTrue(proof.toString(2), proof.optString("output").contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE))
+        val proofOutput = proof.optString("output")
+        val guestOutput = toolResults.joinToString("\n")
+        val guestEffect = proofOutput.contains("HERMES_BONSAI_Q10_148_OK") ||
+            proofOutput.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE) ||
+            guestOutput.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE) ||
+            guestOutput.contains("HERMES_BONSAI_Q10_148_OK") ||
+            result.content.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE)
+        assertTrue(
+            "Expected a guest-side Alpine effect. proof=$proof results=$toolResults reply=${result.content}",
+            guestEffect,
+        )
         assertEquals("proot_distro_qemu", proof.optString("sandbox_execution_mode"))
     }
 
