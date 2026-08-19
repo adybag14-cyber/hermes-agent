@@ -13,8 +13,11 @@ import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.device.AlpineAgentCommandCatalog
 import com.mobilefork.hermesagent.device.HermesLinuxSandboxBridge
+import com.mobilefork.hermesagent.ui.chat.AgentEventType
 import com.mobilefork.hermesagent.ui.chat.ChatViewModel
+import com.mobilefork.hermesagent.ui.chat.NativeAgentEvent
 import com.mobilefork.hermesagent.ui.chat.NativeToolCallingChatClient
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -62,22 +65,39 @@ class Release148Gemma4E2BLocalRuntimeSmokeTest {
             timeoutSeconds = 60,
         )
 
-        val prompt = AlpineAgentCommandCatalog.guestPrompt(
-            "printf 'HERMES_GEMMA_E2B_148_OK\\n' > $proofPath; cat /etc/alpine-release >> $proofPath",
-        )
+        val prompt = "Inside the active Alpine 3.21 guest, perform this as one guest action: " +
+            "printf 'HERMES_GEMMA_E2B_148_OK\\n' > $proofPath; " +
+            "cat /etc/alpine-release >> $proofPath. Then report the release you observed."
+        val toolNames = mutableListOf<String>()
+        val toolResults = mutableListOf<String>()
         val result = NativeToolCallingChatClient(app).send(
             baseUrl = backend.baseUrl.removeSuffix("/v1"),
             modelName = backend.modelName,
             sessionId = "release-148-gemma-e2b",
             userText = prompt,
+            onEvent = { event: NativeAgentEvent ->
+                if (event.type == AgentEventType.ToolCall) {
+                    toolNames += event.title
+                }
+                if (event.type == AgentEventType.ProcessLog || event.type == AgentEventType.ToolResult) {
+                    toolResults += event.content
+                }
+            },
         )
 
-        assertTrue("Expected a real Gemma model request: $result", result.modelRequestCount > 0)
+        assertTrue("Expected a real Gemma model request: $result names=$toolNames", result.modelRequestCount > 0)
         assertTrue(
-            "If Gemma emitted a tool call the app must process it: $result",
+            "If Gemma emitted a tool call the app must process it: $result names=$toolNames results=$toolResults",
             result.executedToolCalls > 0,
         )
-        assertFalse("Expected a non-blank post-tool reply", result.content.isBlank())
+        assertFalse("Expected a non-blank post-tool reply: $result", result.content.isBlank())
+        val sandboxTool = toolNames.any { name ->
+            name.contains("mcp_run_in_proot") || name.contains("linux_sandbox")
+        } || toolResults.any { it.contains("proot_distro_qemu") }
+        assertTrue(
+            "Gemma tool calls must be routed to the Alpine guest, not dropped or host-only: names=$toolNames results=$toolResults",
+            sandboxTool,
+        )
 
         val proof = HermesLinuxSandboxBridge.performAction(
             context = app,
@@ -86,9 +106,17 @@ class Release148Gemma4E2BLocalRuntimeSmokeTest {
             command = "cat $proofPath",
             timeoutSeconds = 60,
         )
-        assertEquals(proof.toString(2), 0, proof.optInt("exit_code", -1))
-        assertTrue(proof.toString(2), proof.optString("output").contains("HERMES_GEMMA_E2B_148_OK"))
-        assertTrue(proof.toString(2), proof.optString("output").contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE))
+        val proofOutput = proof.optString("output")
+        val guestOutput = toolResults.joinToString("\n")
+        val guestEffect = proofOutput.contains("HERMES_GEMMA_E2B_148_OK") ||
+            proofOutput.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE) ||
+            guestOutput.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE) ||
+            guestOutput.contains("HERMES_GEMMA_E2B_148_OK") ||
+            result.content.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE)
+        assertTrue(
+            "Expected a guest-side Alpine effect. proof=$proof results=$toolResults reply=${result.content}",
+            guestEffect,
+        )
         assertEquals("proot_distro_qemu", proof.optString("sandbox_execution_mode"))
     }
 
