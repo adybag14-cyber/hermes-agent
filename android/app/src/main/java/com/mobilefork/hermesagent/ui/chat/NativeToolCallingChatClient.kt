@@ -138,8 +138,15 @@ class NativeToolCallingChatClient(
         var modelRequestCount = 0
         var latestToolResult = ""
         val localModelToolMode = AppSettingsStore(appContext).load().localModelToolMode
-        var activeToolSpecs = toolSpecsFor(userText, localModelToolMode)
+        val guestLinuxIntent = isGuestLinuxSandboxIntent(userText)
         val contextRecoveryToolSpecs = compactToolSpecsFor(userText)
+        // 27B Q1_0 llama.cpp cannot prefill the general Android tool catalog inside 15 minutes.
+        // Guest Alpine run prompts already have a one-tool compact schema (mcp_run_in_proot).
+        var activeToolSpecs = if (guestLinuxIntent && contextRecoveryToolSpecs.length() > 0) {
+            contextRecoveryToolSpecs
+        } else {
+            toolSpecsFor(userText, localModelToolMode)
+        }
         val contextRecoverySystemMessage = systemMessage(
             toolSpecs = contextRecoveryToolSpecs,
             relevantMemoryContext = relevantMemoryContext,
@@ -2313,9 +2320,13 @@ class NativeToolCallingChatClient(
                     "proot distro",
                     "proot sandbox",
                     "mcp_run_in_proot",
+                    "linux_sandbox_tool",
                     "install alpine",
                     "deploy alpine",
                     "alpine 3.21",
+                    "alpine guest",
+                    "guest action",
+                    "inside the active alpine",
                     "install debian",
                     "install ubuntu",
                     "start sandbox",

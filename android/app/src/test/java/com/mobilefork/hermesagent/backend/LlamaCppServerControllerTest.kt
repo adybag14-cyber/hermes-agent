@@ -28,17 +28,19 @@ class LlamaCppServerControllerTest {
         assertTrue(options, "--batch-size 64" in options)
         assertTrue(options, "--ubatch-size 64" in options)
         assertTrue(options, "--no-warmup" in options)
+        assertTrue(options, "--jinja" in options)
     }
 
     @Test
-    fun launchOptionsUseCompactContextForBonsai27BQ10() {
+    fun launchOptionsUseToolCallContextForBonsai27BQ10() {
         val options = LlamaCppServerController.launchOptionsForModel(
             modelPath = "/models/Bonsai-27B-Q1_0.gguf",
             availableProcessors = 4,
         )
 
-        assertTrue(options, "--ctx-size 1024" in options)
+        assertTrue(options, "--ctx-size 2048" in options)
         assertTrue(options, "--threads 4" in options)
+        assertTrue(options, "--jinja" in options)
     }
 
     @Test

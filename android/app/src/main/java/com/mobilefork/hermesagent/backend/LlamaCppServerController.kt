@@ -637,7 +637,8 @@ object LlamaCppServerController {
     ): String {
         val ctxSize = contextSizeOverride?.takeIf { it > 0 } ?: contextSizeForModel(modelPath)
         val threads = availableProcessors.coerceIn(1, 4)
-        return "--ctx-size $ctxSize --parallel 1 --threads $threads --batch-size 64 --ubatch-size 64 --no-warmup"
+        // --jinja is required for GGUF chat-template tool calling (Qwen3.5 / Bonsai Q1_0).
+        return "--ctx-size $ctxSize --parallel 1 --threads $threads --batch-size 64 --ubatch-size 64 --no-warmup --jinja"
     }
 
     internal fun contextSizeForModel(modelPath: String): Int {
@@ -645,7 +646,8 @@ object LlamaCppServerController {
         return when {
             "0.8b" in lower || "0-8b" in lower || "0_8b" in lower -> 1024
             "0.6b" in lower || "0-6b" in lower || "0_6b" in lower -> 1024
-            "bonsai" in lower && ("27b" in lower || "q1_0" in lower || "q1-0" in lower) -> 1024
+            // 2048 fits one sandbox tool + focused prompt; 4096 prefill is too slow on-device.
+            "bonsai" in lower && ("27b" in lower || "q1_0" in lower || "q1-0" in lower) -> 2048
             else -> 2048
         }
     }
