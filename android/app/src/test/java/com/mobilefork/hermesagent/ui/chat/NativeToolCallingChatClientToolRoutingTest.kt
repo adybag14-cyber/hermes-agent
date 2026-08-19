@@ -88,12 +88,44 @@ class NativeToolCallingChatClientToolRoutingTest {
         )
         assertEquals("date", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("What time is it?"))
         assertEquals("date", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("What's the time?"))
+        assertEquals("date", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("What is the current date?"))
+        listOf(
+            "Run the date command and tell me the time.",
+            "运行 date 命令并告诉我时间。",
+            "Ejecuta date y dime la hora.",
+            "Führe date aus und nenne mir die Uhrzeit.",
+            "Execute date e diga a hora.",
+            "Exécute date et donne-moi l’heure.",
+        ).forEach { prompt ->
+            assertEquals("date", NativeToolCallingChatClient.inferSafeNaturalTerminalCommand(prompt))
+        }
         assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Delete every file here"))
         assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("I like the current directory layout"))
         assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Tell me what time the meeting starts"))
         assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Tell me the time the meeting starts"))
         assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("What is the time signature of this song?"))
         assertEquals(null, NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("Write a poem about time"))
+        assertEquals(
+            null,
+            NativeToolCallingChatClient.inferSafeNaturalTerminalCommand("What is the date of the Battle of Hastings?"),
+        )
+        assertEquals(
+            null,
+            NativeToolCallingChatClient.inferSafeNaturalTerminalCommand(
+                "Inside the active Alpine 3.21 guest, perform this as one guest action: pwd",
+            ),
+        )
+        assertEquals(
+            null,
+            NativeToolCallingChatClient.inferSafeNaturalTerminalCommand(
+                "Inside the active Alpine 3.21 guest, run uname -a and whoami",
+            ),
+        )
+        assertTrue(
+            NativeToolCallingChatClient.isGuestLinuxSandboxIntent(
+                "Inside the active Alpine 3.21 guest, perform this as one guest action: date +%Y",
+            ),
+        )
     }
 
     @Test

@@ -63,6 +63,38 @@ class NativeToolCallingChatClient(
         val modelRequestCount: Int = 0,
     )
 
+    internal fun executeSafeNaturalTerminalRequest(userText: String): Result? {
+        val command = inferSafeNaturalTerminalCommand(userText) ?: return null
+        val toolResult = executeTerminalTool(
+            ToolCall(
+                id = "direct_${UUID.randomUUID()}",
+                name = "terminal_tool",
+                arguments = JSONObject()
+                    .put("command", command)
+                    .put("timeout_seconds", TOOL_TIMEOUT_SECONDS),
+            )
+        )
+        return Result(
+            content = toolCompletionReply(toolResult),
+            executedToolCalls = 1,
+        )
+    }
+
+    internal fun executeExplicitLinuxSandboxRequest(userText: String): Result? {
+        val arguments = extractExplicitLinuxSandboxArguments(userText) ?: return null
+        val toolResult = executeLinuxSandboxTool(
+            ToolCall(
+                id = "direct_${UUID.randomUUID()}",
+                name = "linux_sandbox_tool",
+                arguments = arguments,
+            ),
+        )
+        return Result(
+            content = toolCompletionReply(toolResult),
+            executedToolCalls = 1,
+        )
+    }
+
     fun send(
         baseUrl: String,
         modelName: String,
@@ -4459,6 +4491,22 @@ class NativeToolCallingChatClient(
                 .takeIf { it.isNotBlank() }
         }
 
+        internal fun isGuestLinuxSandboxIntent(userText: String): Boolean {
+            val lower = userText.lowercase()
+            return listOf(
+                "alpine",
+                "proot",
+                "linux guest",
+                "linux sandbox",
+                "hermes-alpine",
+                "alpine-3-21",
+                "mcp_run_in_proot",
+                "linux_sandbox",
+                "guest action",
+                "inside the active alpine",
+            ).any { it in lower }
+        }
+
         internal fun extractExactTerminalCommand(userText: String): String? =
             extractDirectTerminalCommand(userText) ?: inferSafeNaturalTerminalCommand(userText)
 
@@ -4469,15 +4517,32 @@ class NativeToolCallingChatClient(
          */
         internal fun inferSafeNaturalTerminalCommand(userText: String): String? {
             val lower = userText.lowercase()
+            if (isGuestLinuxSandboxIntent(lower)) {
+                return null
+            }
             val normalized = lower
                 .replace(Regex("""[^\p{L}\p{N}']+"""), " ")
                 .trim()
-            val currentTimeIntent = listOf(
+            val exactLocalizedTimeIntent = normalized in setOf(
+                "run the date command and tell me the time",
+                "运行 date 命令并告诉我时间",
+                "ejecuta date y dime la hora",
+                "führe date aus und nenne mir die uhrzeit",
+                "execute date e diga a hora",
+                "exécute date et donne moi l heure",
+            )
+            val currentTimeIntent = exactLocalizedTimeIntent || listOf(
                 Regex("""^(?:please )?(?:run (?:a )?command to )?tell me what time it is$"""),
                 Regex("""^(?:please )?what time is it(?: now| please)?$"""),
                 Regex("""^(?:please )?what(?:'s| is) the time(?: now| please)?$"""),
                 Regex("""^(?:please )?tell me (?:the )?time(?: now| please)?$"""),
                 Regex("""^(?:please )?(?:show|tell me) (?:the )?current time$"""),
+            ).any { it.matches(normalized) }
+            val currentDateIntent = listOf(
+                Regex("""^(?:please )?(?:run (?:a )?command to )?tell me (?:the )?(?:current|today's) date$"""),
+                Regex("""^(?:please )?what(?:'s| is) (?:the )?(?:current|today's) date(?: today| now| please)?$"""),
+                Regex("""^(?:please )?(?:show|tell me) (?:the )?(?:current|today's) date$"""),
+                Regex("""^(?:please )?what(?:'s| is) (?:the )?date today$"""),
             ).any { it.matches(normalized) }
             val requestsAction = listOf(
                 "run ",
@@ -4486,10 +4551,11 @@ class NativeToolCallingChatClient(
                 "tell me",
                 "what is",
                 "what's",
+                "who ",
                 "which ",
                 "list ",
                 "print ",
-            ).any { it in lower } || currentTimeIntent
+            ).any { it in lower } || currentTimeIntent || currentDateIntent
             if (!requestsAction) return null
 
             return when {
@@ -4505,8 +4571,7 @@ class NativeToolCallingChatClient(
                 Regex("""\buname\b""").containsMatchIn(lower) ||
                     "system information" in lower ||
                     "kernel version" in lower -> "uname -a"
-                Regex("""\bdate\b""").containsMatchIn(lower) ||
-                    currentTimeIntent -> "date"
+                currentTimeIntent || currentDateIntent -> "date"
                 else -> null
             }
         }
@@ -4765,6 +4830,21 @@ class NativeToolCallingChatClient(
 
         internal fun extractImplicitAndroidDiagnosticsArguments(userText: String): JSONObject? {
             val lower = userText.lowercase()
+            val normalized = lower
+                .replace(Regex("""[^\p{L}\p{N}]+"""), " ")
+                .trim()
+            if (
+                normalized in setOf(
+                    "check my device status",
+                    "检查我的设备状态",
+                    "comprueba el estado de mi dispositivo",
+                    "prüfe meinen gerätestatus",
+                    "verifique o status do meu dispositivo",
+                    "vérifie l état de mon appareil",
+                )
+            ) {
+                return diagnosticArguments("status")
+            }
             if (lower.contains("screen") && !lower.containsAny("wifi", "wi-fi", "bluetooth", "ble", "radio", "rf", "sensor", "motion", "soc", "mediatek", "mcp", "tool server", "upgrade", "objective")) {
                 return null
             }

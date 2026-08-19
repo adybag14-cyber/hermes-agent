@@ -1,8 +1,10 @@
 package com.mobilefork.hermesagent.backend
 
 import android.content.Context
+import android.os.Build
 import android.system.Os
 import android.system.OsConstants
+import androidx.annotation.RequiresApi
 import com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridge
 import com.mobilefork.hermesagent.device.LocalModelRuntimeDiagnostics
 import okhttp3.MediaType.Companion.toMediaType
@@ -16,6 +18,13 @@ import java.io.File
 import java.io.InputStreamReader
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+
+internal interface LlamaProcessStopHandle {
+    val supportsForceDestroy: Boolean
+    fun exitValue(): Int
+    fun destroy()
+    fun forceDestroy()
+}
 
 object LlamaCppServerController {
     private val httpClient = OkHttpClient.Builder()
@@ -47,7 +56,7 @@ object LlamaCppServerController {
         val currentProcess = process
         if (
             currentProcess != null &&
-            currentProcess.isAlive &&
+            isProcessAlive(currentProcess) &&
             activeModelPath == modelPath &&
             activeCompletionVerified &&
             checkReady(port)
@@ -66,7 +75,15 @@ object LlamaCppServerController {
             )
         }
 
-        stop()
+        stop()?.let { failure ->
+            return LocalBackendStatus(
+                backendKind = BackendKind.LLAMA_CPP,
+                started = false,
+                sourceModelPath = modelPath,
+                statusMessage = llamaStopFailureMessage("another llama.cpp model", failure),
+                requiresAppRestart = true,
+            )
+        }
         val modelFile = File(modelPath)
         val inspection = GgufArtifactInspector.inspect(modelFile)
         if (!inspection.valid) {
@@ -195,46 +212,41 @@ object LlamaCppServerController {
                     errorTail.isNotBlank() -> "llama.cpp failed to become ready$exitDetail: $errorTail"
                     else -> "llama.cpp failed to become ready$exitDetail"
                 }
-                stop()
+                val status = failureStatusAfterStop(
+                    modelPath = modelPath,
+                    artifactSummary = inspection.summary,
+                    detail = failure,
+                )
                 LocalModelRuntimeDiagnostics.finishAttempt(
                     context = context,
                     attemptId = attemptId,
                     status = "failed",
                     stage = "server_readiness",
-                    detail = failure,
+                    detail = status.statusMessage,
                 )
-                return LocalBackendStatus(
-                    backendKind = BackendKind.LLAMA_CPP,
-                    started = false,
-                    sourceModelPath = modelPath,
-                    statusMessage = failure,
-                    artifactSummary = inspection.summary,
-                )
+                return status
             }
             val modelName = actualModelName(port, requestedModelName)
             val canary = runCompletionCanary(port, modelName)
             if (!canary.verified) {
                 val failure = "llama.cpp opened /v1/models but failed the required chat completion canary: ${canary.detail}"
-                stop()
+                val status = failureStatusAfterStop(
+                    modelPath = modelPath,
+                    artifactSummary = inspection.summary,
+                    detail = failure,
+                    accelerator = "cpu",
+                    completionLatencyMs = canary.elapsedMs,
+                )
                 LocalModelRuntimeDiagnostics.finishAttempt(
                     context = context,
                     attemptId = attemptId,
                     status = "failed",
                     stage = "completion_canary",
-                    detail = failure,
+                    detail = status.statusMessage,
                     accelerator = "cpu",
                     completionLatencyMs = canary.elapsedMs,
                 )
-                return LocalBackendStatus(
-                    backendKind = BackendKind.LLAMA_CPP,
-                    started = false,
-                    sourceModelPath = modelPath,
-                    statusMessage = failure,
-                    accelerator = "cpu",
-                    artifactSummary = inspection.summary,
-                    completionVerified = false,
-                    completionLatencyMs = canary.elapsedMs,
-                )
+                return status
             }
             activeCompletionVerified = true
             activeCompletionLatencyMs = canary.elapsedMs
@@ -263,43 +275,157 @@ object LlamaCppServerController {
             )
             status
         } catch (error: Throwable) {
-            stop()
             val failure = LiteRtLmOpenAiProxy.actionableRuntimeFailure(error, "llama.cpp")
+            val status = failureStatusAfterStop(
+                modelPath = modelPath,
+                artifactSummary = inspection.summary,
+                detail = failure,
+            )
             LocalModelRuntimeDiagnostics.finishAttempt(
                 context = context,
                 attemptId = attemptId,
                 status = "failed",
                 stage = "server_start",
-                detail = failure,
+                detail = status.statusMessage,
             )
-            LocalBackendStatus(
-                backendKind = BackendKind.LLAMA_CPP,
-                started = false,
-                sourceModelPath = modelPath,
-                statusMessage = failure,
-                artifactSummary = inspection.summary,
-            )
+            status
         }
     }
 
     @Synchronized
-    fun stop() {
-        process?.let { current ->
-            runCatching {
-                current.destroy()
-                if (!current.waitFor(1200, TimeUnit.MILLISECONDS)) {
-                    current.destroyForcibly()
-                    current.waitFor(1200, TimeUnit.MILLISECONDS)
-                }
+    fun stop(): Throwable? {
+        val current = process
+        if (current != null) {
+            val failure = stopOwnedProcess(llamaProcessStopHandle(current))
+            if (failure != null) {
+                // Retain the exact Process handle and identity. A later stop can retry,
+                // while callers must fail closed instead of overlapping another runtime.
+                return failure
             }
         }
         process = null
+        clearActiveState()
+        return null
+    }
+
+    private fun clearActiveState() {
         activeModelPath = ""
         activeModelName = ""
         recentLog = ""
         activeCompletionVerified = false
         activeCompletionLatencyMs = 0L
         activeArtifactSummary = ""
+    }
+
+    private fun failureStatusAfterStop(
+        modelPath: String,
+        artifactSummary: String,
+        detail: String,
+        accelerator: String = "",
+        completionLatencyMs: Long = 0L,
+    ): LocalBackendStatus {
+        val stopFailure = stop()
+        return LocalBackendStatus(
+            backendKind = BackendKind.LLAMA_CPP,
+            started = false,
+            sourceModelPath = modelPath,
+            statusMessage = if (stopFailure == null) {
+                detail
+            } else {
+                "$detail ${llamaStopFailureMessage("a replacement backend", stopFailure)}"
+            },
+            accelerator = accelerator,
+            artifactSummary = artifactSummary,
+            completionVerified = false,
+            completionLatencyMs = completionLatencyMs,
+            requiresAppRestart = stopFailure != null,
+        )
+    }
+
+    private fun llamaStopFailureMessage(target: String, failure: Throwable): String {
+        val reason = failure.message?.lineSequence()?.firstOrNull().orEmpty()
+            .ifBlank { failure.javaClass.simpleName }
+        return "The existing llama.cpp process did not stop safely ($reason). Hermes did not start $target. Force stop and reopen Hermes before retrying."
+    }
+
+    internal fun stopOwnedProcess(
+        current: LlamaProcessStopHandle,
+        gracefulTimeoutMs: Long = 1_200L,
+        forcedTimeoutMs: Long = 1_200L,
+    ): Throwable? {
+        return try {
+            if (!isOwnedProcessAlive(current)) return null
+            current.destroy()
+            val exitedGracefully = waitForOwnedProcess(current, gracefulTimeoutMs)
+            if (!exitedGracefully || isOwnedProcessAlive(current)) {
+                if (!current.supportsForceDestroy) {
+                    return IllegalStateException(
+                        "llama.cpp process remained alive after graceful termination; " +
+                            "forced termination requires Android 8.0 (API 26)",
+                    )
+                }
+                current.forceDestroy()
+                if (!waitForOwnedProcess(current, forcedTimeoutMs) || isOwnedProcessAlive(current)) {
+                    return IllegalStateException("llama.cpp process remained alive after forced termination")
+                }
+            }
+            if (isOwnedProcessAlive(current)) {
+                IllegalStateException("llama.cpp process reported alive after termination")
+            } else {
+                null
+            }
+        } catch (error: Throwable) {
+            if (error is InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+            error
+        }
+    }
+
+    private fun waitForOwnedProcess(current: LlamaProcessStopHandle, timeoutMs: Long): Boolean {
+        val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs.coerceAtLeast(0L))
+        while (isOwnedProcessAlive(current)) {
+            val remainingNanos = deadlineNanos - System.nanoTime()
+            if (remainingNanos <= 0L) return false
+            Thread.sleep(pollSleepMillis(remainingNanos))
+        }
+        return true
+    }
+
+    private fun isOwnedProcessAlive(current: LlamaProcessStopHandle): Boolean = try {
+        current.exitValue()
+        false
+    } catch (_: IllegalThreadStateException) {
+        true
+    }
+
+    private fun pollSleepMillis(remainingNanos: Long): Long {
+        val roundedUpMs = (remainingNanos + 999_999L) / 1_000_000L
+        return roundedUpMs.coerceIn(1L, PROCESS_POLL_INTERVAL_MS)
+    }
+
+    private fun llamaProcessStopHandle(process: Process): LlamaProcessStopHandle {
+        return object : LlamaProcessStopHandle {
+            override val supportsForceDestroy: Boolean
+                get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+
+            override fun exitValue(): Int = process.exitValue()
+
+            override fun destroy() = process.destroy()
+
+            override fun forceDestroy() {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    destroyProcessForciblyApi26(process)
+                } else {
+                    error("forced process termination requires Android 8.0 (API 26)")
+                }
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    private fun destroyProcessForciblyApi26(process: Process) {
+        process.destroyForcibly()
     }
 
     private fun shellQuote(value: String): String {
@@ -519,6 +645,7 @@ object LlamaCppServerController {
         return when {
             "0.8b" in lower || "0-8b" in lower || "0_8b" in lower -> 1024
             "0.6b" in lower || "0-6b" in lower || "0_6b" in lower -> 1024
+            "bonsai" in lower && ("27b" in lower || "q1_0" in lower || "q1-0" in lower) -> 1024
             else -> 2048
         }
     }
@@ -529,6 +656,7 @@ object LlamaCppServerController {
 
     private const val ANDROID_16K_PAGE_SIZE_BYTES = 16_384L
     private const val LLAMA_CPP_READY_CHECKS = 720
+    private const val PROCESS_POLL_INTERVAL_MS = 10L
     private const val BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
     private const val LEGACY_BIONIC_SPAWN_LLAMA_SERVER_LIBRARY_NAME = "libhermes_android_llama_server_bionic_spawn.so"
     private const val ANDROID_SYSTEM_SHELL_PATH = "/system/bin/sh"

@@ -2,12 +2,44 @@ package com.mobilefork.hermesagent.ui.chat
 
 import com.mobilefork.hermesagent.api.ChatContentPart
 import com.mobilefork.hermesagent.api.ChatMessage
+import com.mobilefork.hermesagent.backend.BackendKind
+import com.mobilefork.hermesagent.backend.LocalBackendStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class ChatViewModelTest {
+    @Test
+    fun allChatRoutingRejectsRestartRequiredLocalRuntimeAndStaleCachedEndpoint() {
+        val restartRequired = LocalBackendStatus(
+            backendKind = BackendKind.LITERT_LM,
+            started = false,
+            requiresAppRestart = true,
+        )
+        assertFalse(
+            chatRuntimeRoutingAllowed(restartRequired),
+        )
+        assertFalse(
+            shouldReuseCachedRuntime(
+                localBackendStatus = restartRequired,
+                runtimeStarted = true,
+                endpointAvailable = true,
+            ),
+        )
+        assertTrue(
+            chatRuntimeRoutingAllowed(
+                LocalBackendStatus(backendKind = BackendKind.NONE, started = false),
+            ),
+        )
+    }
+
     @Test
     fun chatUiState_defaultsAreEmptyAndIdle() {
         val state = ChatUiState()
@@ -206,6 +238,23 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun exactDeviceStatusExamplesRouteDirectlyToNativeStatusDiagnostics() {
+        listOf(
+            "Check my device status.",
+            "检查我的设备状态。",
+            "Comprueba el estado de mi dispositivo.",
+            "Prüfe meinen Gerätestatus.",
+            "Verifique o status do meu dispositivo.",
+            "Vérifie l’état de mon appareil.",
+        ).forEach { prompt ->
+            val arguments = directNativeDiagnosticArgumentsForPrompt(prompt)
+            requireNotNull(arguments)
+            assertEquals("status", arguments.getString("action"))
+        }
+        assertEquals(null, directNativeDiagnosticArgumentsForPrompt("Write a story about device status dashboards"))
+    }
+
+    @Test
     fun chineseAllFeaturesPromptRoutesDirectlyToNativeSelfTestDiagnostics() {
         val arguments = directNativeDiagnosticArgumentsForPrompt("全部功能全测试")
 
@@ -221,12 +270,112 @@ class ChatViewModelTest {
     }
 
     @Test
+    fun readOnlyTerminalIntentIsRecognizedBeforeEndpointSelection() {
+        assertTrue(
+            NativeToolChatSender.extractDirectLinuxSandboxPrompt(
+                "linux_sandbox_tool action=run distro_id=alpine-3-21 command=uname",
+            ),
+        )
+        assertFalse(
+            NativeToolChatSender.extractDirectLinuxSandboxPrompt(
+                "Inside the active Alpine 3.21 guest, perform this as one guest action: uname",
+            ),
+        )
+        assertEquals("date", NativeToolChatSender.extractDirectReadOnlyTerminalCommand("What time is it?"))
+        assertEquals(
+            "date",
+            NativeToolChatSender.extractDirectReadOnlyTerminalCommand(
+                "Run a command to tell me what time it is.",
+            ),
+        )
+        assertEquals("date", NativeToolChatSender.extractDirectReadOnlyTerminalCommand("What is the current date?"))
+        assertEquals("whoami", NativeToolChatSender.extractDirectReadOnlyTerminalCommand("Who is the current user?"))
+        assertEquals(
+            null,
+            NativeToolChatSender.extractDirectReadOnlyTerminalCommand(
+                "Write a story about a character who wonders what time it is",
+            ),
+        )
+        assertEquals(
+            null,
+            NativeToolChatSender.extractDirectReadOnlyTerminalCommand(
+                "Use terminal_tool to run: rm -rf /data/local/tmp/example",
+            ),
+        )
+        assertEquals(
+            null,
+            NativeToolChatSender.extractDirectReadOnlyTerminalCommand(
+                "What is the date of the Battle of Hastings?",
+            ),
+        )
+        listOf(
+            "Run the date command and tell me the time.",
+            "运行 date 命令并告诉我时间。",
+            "Ejecuta date y dime la hora.",
+            "Führe date aus und nenne mir die Uhrzeit.",
+            "Execute date e diga a hora.",
+            "Exécute date et donne-moi l’heure.",
+        ).forEach { prompt ->
+            assertEquals(
+                "Expected localized exact time route for '$prompt'",
+                "date",
+                NativeToolChatSender.extractDirectReadOnlyTerminalCommand(prompt),
+            )
+        }
+        listOf(
+            "写一个关于时间的故事。",
+            "Cuenta una historia sobre la hora.",
+            "Schreibe eine Geschichte über die Uhrzeit.",
+            "Escreva uma história sobre a hora.",
+            "Écris une histoire sur l’heure.",
+        ).forEach { prompt ->
+            assertEquals(
+                "Localized time prose must not execute for '$prompt'",
+                null,
+                NativeToolChatSender.extractDirectReadOnlyTerminalCommand(prompt),
+            )
+        }
+    }
+
+    @Test
     fun directNativeDiagnosticsReplyPrefersBridgeOutputText() {
         val reply = formatDirectNativeDiagnosticsReply(
             """{"success":true,"output":"Hermes native tool self-test\nterminal_tool: ready"}""",
         )
 
         assertEquals("Hermes native tool self-test\nterminal_tool: ready", reply)
+    }
+
+    @Test
+    fun directNativeStatusReplyPreservesStatusFieldsInsteadOfGenericCards() {
+        val reply = formatDirectNativeDiagnosticsReply(
+            """{"success":true,"action":"status","sensor_count":7,"cards":[{"title":"Diagnostics","body":"Generic help"}]}""",
+        )
+
+        assertTrue(reply.contains("\"action\": \"status\""))
+        assertTrue(reply.contains("\"sensor_count\": 7"))
+        assertFalse(reply == "Diagnostics: Generic help")
+    }
+
+    @Test
+    fun synchronousDirectRouteDoesNotPublishAfterCancellation() = runBlocking {
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val published = AtomicBoolean(false)
+        val job = launch(Dispatchers.Default) {
+            runSynchronousDirectRouteWithCancellationCheck {
+                entered.countDown()
+                check(release.await(2, TimeUnit.SECONDS))
+                "late diagnostics"
+            }.getOrThrow()
+            published.set(true)
+        }
+
+        assertTrue("Direct diagnostics did not enter the synchronous bridge", entered.await(2, TimeUnit.SECONDS))
+        job.cancel()
+        release.countDown()
+        job.join()
+        assertFalse("Cancelled direct diagnostics must not publish a late result", published.get())
     }
 
     @Test

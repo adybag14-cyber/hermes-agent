@@ -64,6 +64,8 @@ object HermesModelDownloadManager {
         "litert-community/gemma-4-e4b-it-litert-lm" to "9695417f248178c63a9f318c6e0c56cb917cb837",
     )
     private val GGUF_RECOMMENDED_REPOS = mapOf(
+        "prism-ml/bonsai-27b" to "prism-ml/Bonsai-27B-gguf",
+        "prism-ml/bonsai-27b-gguf" to "prism-ml/Bonsai-27B-gguf",
         "qwen/qwen2.5-1.5b-instruct" to "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
         "deepseek-ai/deepseek-r1-distill-qwen-1.5b" to "unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
         "microsoft/phi-4-mini-instruct" to "bartowski/microsoft_Phi-4-mini-instruct-GGUF",
@@ -488,23 +490,67 @@ object HermesModelDownloadManager {
         records: List<LocalModelDownloadRecord>,
     ) {
         val preferredId = store.preferredDownloadId()
-        val preferred = records.firstOrNull { it.id == preferredId }
-        if (preferred != null && preferred.isReadyLocalModelRecord()) {
-            return
-        }
-        val replacement = records
-            .filter { it.isReadyLocalModelRecord() }
-            .sortedWith(compareBy<LocalModelDownloadRecord> { localModelPreferenceRank(it) }.thenBy { it.title.lowercase(Locale.US) })
-            .firstOrNull()
-        when {
-            replacement != null -> store.setPreferredDownloadId(replacement.id)
-            preferredId.isNotBlank() -> store.setPreferredDownloadId("")
+        val repairedId = repairedPreferredDownloadId(preferredId, records)
+        if (repairedId != preferredId) {
+            store.setPreferredDownloadId(repairedId)
         }
     }
 
-    private fun LocalModelDownloadRecord.isReadyLocalModelRecord(): Boolean {
-        return status == "completed" &&
-            File(destinationPath).isImportableModelFile()
+    internal fun repairedPreferredDownloadId(
+        preferredId: String,
+        records: List<LocalModelDownloadRecord>,
+        observedFileBytes: (LocalModelDownloadRecord) -> Long = { record ->
+            File(record.destinationPath).takeIf { it.isFile }?.length() ?: 0L
+        },
+    ): String {
+        fun ready(record: LocalModelDownloadRecord): Boolean {
+            return record.status == "completed" &&
+                isImportableModelPath(record.destinationPath, observedFileBytes(record))
+        }
+
+        val explicitPreferred = records.firstOrNull { it.id == preferredId }
+        if (explicitPreferred != null && ready(explicitPreferred)) {
+            // Preserve an explicit operator choice, including an experimental
+            // custom import. Only automatic repair is release-certified-only.
+            return explicitPreferred.id
+        }
+
+        return records.mapNotNull { record ->
+            if (!ready(record)) return@mapNotNull null
+            val artifact = VerifiedLocalModelArtifacts.find(record.repoOrUrl, record.filePath)
+                ?: return@mapNotNull null
+            val runtimeMatches = when (artifact.runtime) {
+                "litert-lm" -> record.runtimeFlavor.trim().lowercase(Locale.US) in
+                    setOf("litert-lm", "litert_lm", "litertlm")
+                "llama.cpp" -> record.runtimeFlavor.trim().lowercase(Locale.US) in
+                    setOf("llama.cpp", "llama-cpp", "llama_cpp", "gguf")
+                else -> false
+            }
+            val selectedFile = record.filePath.substringBefore('?').fileNamePart()
+            val destinationFile = record.destinationFileName.fileNamePart()
+            val destinationPathFile = record.destinationPath.fileNamePart()
+            val exactIdentity = record.revision.equals(artifact.revision, ignoreCase = true) &&
+                runtimeMatches &&
+                selectedFile.equals(artifact.fileName, ignoreCase = true) &&
+                destinationFile.equals(artifact.fileName, ignoreCase = true) &&
+                destinationPathFile.equals(artifact.fileName, ignoreCase = true) &&
+                record.totalBytes == artifact.expectedBytes &&
+                record.downloadedBytes == artifact.expectedBytes &&
+                observedFileBytes(record) == artifact.expectedBytes
+            if (!exactIdentity) return@mapNotNull null
+            Triple(
+                VerifiedLocalModelArtifacts.releaseMatrix.indexOf(artifact),
+                record.title.lowercase(Locale.US),
+                record,
+            )
+        }.sortedWith(
+            compareBy<Triple<Int, String, LocalModelDownloadRecord>> { it.first }
+                .thenBy { it.second },
+        )
+            .firstOrNull()
+            ?.third
+            ?.id
+            .orEmpty()
     }
 
     private fun File.isImportableModelFile(): Boolean {
@@ -532,15 +578,16 @@ object HermesModelDownloadManager {
         return displayName.ifBlank { "model.bin" }
     }
 
-    private fun localModelPreferenceRank(record: LocalModelDownloadRecord): Int {
-        val lower = record.destinationPath.lowercase(Locale.US)
-        return when {
-            lower.endsWith(".litertlm") && "gemma-4" in lower -> 0
-            lower.endsWith(".litertlm") -> 1
-            lower.endsWith(".task") -> 2
-            lower.endsWith(".gguf") -> 3
-            else -> 10
-        }
+    private fun isImportableModelPath(path: String, bytes: Long): Boolean {
+        if (bytes <= 0L) return false
+        val lower = path.lowercase(Locale.US)
+        return lower.endsWith(".gguf") ||
+            lower.endsWith(".litertlm") ||
+            (lower.endsWith(".task") && !isLiteRtWebTaskArtifact(lower))
+    }
+
+    private fun String.fileNamePart(): String {
+        return substringAfterLast('/').substringAfterLast('\\')
     }
 
     private fun String.canonicalPathOrNull(): String? {
@@ -935,14 +982,16 @@ object HermesModelDownloadManager {
                 else -> 2
             }
             else -> when {
-                "q4_k_m" in lower -> 0
-                "q4_k_s" in lower -> 1
-                "iq4" in lower -> 2
-                "q5_k_m" in lower -> 3
-                "q5" in lower -> 4
-                "q6" in lower -> 5
-                "q8" in lower -> 6
-                else -> 7
+                "bonsai" in lower && ("q1_0" in lower || "q1-0" in lower) -> 0
+                "q4_k_m" in lower -> 1
+                "q4_k_s" in lower -> 2
+                "iq4" in lower -> 3
+                "q5_k_m" in lower -> 4
+                "q5" in lower -> 5
+                "q6" in lower -> 6
+                "q8" in lower -> 7
+                "f16" in lower || "bf16" in lower -> 18
+                else -> 8
             }
         }
     }
