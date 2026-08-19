@@ -154,8 +154,8 @@ class NativeToolCallingChatClientToolRoutingTest {
     fun activeAlpineCommandUsesOnlySmallRunAliasSchema() {
         val specs = client.compactToolSpecsFor(
             "Inside the active Alpine 3.21 guest, perform this as one guest action: " +
-                "printf 'HERMES_GEMMA_ALPINE_TOOL_OK\\n' > /tmp/hermes-gemma-alpine-proof; " +
-                "cat /etc/alpine-release >> /tmp/hermes-gemma-alpine-proof.",
+                "printf 'HERMES_GEMMA_ALPINE_TOOL_OK\\n' | tee /tmp/hermes-gemma-alpine-proof; " +
+                "cat /etc/alpine-release | tee -a /tmp/hermes-gemma-alpine-proof",
         )
         assertEquals(listOf("mcp_run_in_proot"), toolNames(specs))
 
