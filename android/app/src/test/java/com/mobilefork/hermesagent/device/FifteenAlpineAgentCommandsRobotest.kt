@@ -43,6 +43,17 @@ class FifteenAlpineAgentCommandsRobotest {
     }
 
     @Test
+    fun wrappedGuestCommandDoesNotTeeOntoAPathTheCommandAlreadyWrites() {
+        val writeCat = AlpineAgentCommandCatalog.release148Commands.first { it.id == "write-cat" }
+        val wrapped = AlpineAgentCommandCatalog.wrappedGuestCommand(writeCat)
+        assertEquals(writeCat.command, wrapped)
+        assertTrue(wrapped.contains(writeCat.proofFile))
+        val printf = AlpineAgentCommandCatalog.release148Commands.first { it.id == "printf-marker" }
+        val teed = AlpineAgentCommandCatalog.wrappedGuestCommand(printf)
+        assertTrue(teed, teed.contains("| tee ${printf.proofFile}"))
+    }
+
+    @Test
     fun fifteenDistinctMcpRunInProotCallsAreExecutedAndFedBack() {
         val commands = AlpineAgentCommandCatalog.release148Commands
         server.enqueue(jsonResponse(fifteenToolCallsPayload(commands)))

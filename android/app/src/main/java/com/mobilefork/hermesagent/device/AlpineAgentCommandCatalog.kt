@@ -119,11 +119,13 @@ object AlpineAgentCommandCatalog {
     }
 
     fun wrappedGuestCommand(entry: GuestCommand): String {
-        val writeProof = if (entry.proofFile.isNotBlank()) {
-            " | tee ${entry.proofFile}"
-        } else {
-            ""
+        if (entry.proofFile.isBlank()) {
+            return entry.command
         }
-        return "( ${entry.command} )$writeProof"
+        // Do not tee onto a path the command already writes; that truncates the proof.
+        if (entry.command.contains(entry.proofFile)) {
+            return entry.command
+        }
+        return "( ${entry.command} ) | tee ${entry.proofFile}"
     }
 }
