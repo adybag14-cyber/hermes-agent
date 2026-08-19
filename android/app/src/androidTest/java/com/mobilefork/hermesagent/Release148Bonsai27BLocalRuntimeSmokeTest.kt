@@ -65,9 +65,10 @@ class Release148Bonsai27BLocalRuntimeSmokeTest {
             timeoutSeconds = 60,
         )
 
+        val marker = "HERMES_BONSAI_Q10_148_OK"
         val prompt = "Inside the active Alpine 3.21 guest, perform this as one guest action: " +
-            "printf 'HERMES_BONSAI_Q10_148_OK\\n' > $proofPath; " +
-            "cat /etc/alpine-release >> $proofPath. Then report the release you observed."
+            "printf '$marker\\n' | tee $proofPath; " +
+            "cat /etc/alpine-release | tee -a $proofPath"
         val toolNames = mutableListOf<String>()
         val toolResults = mutableListOf<String>()
         val result = NativeToolCallingChatClient(app).send(
@@ -93,7 +94,7 @@ class Release148Bonsai27BLocalRuntimeSmokeTest {
         assertFalse("Expected a non-blank post-tool reply: $result", result.content.isBlank())
         val sandboxTool = toolNames.any { name ->
             name.contains("mcp_run_in_proot") || name.contains("linux_sandbox")
-        } || toolResults.any { it.contains("proot_distro_qemu") }
+        }
         assertTrue(
             "Bonsai tool calls must be routed to the Alpine guest, not dropped or host-only: names=$toolNames results=$toolResults",
             sandboxTool,
@@ -106,18 +107,14 @@ class Release148Bonsai27BLocalRuntimeSmokeTest {
             command = "cat $proofPath",
             timeoutSeconds = 60,
         )
-        val proofOutput = proof.optString("output")
-        val guestOutput = toolResults.joinToString("\n")
-        val guestEffect = proofOutput.contains("HERMES_BONSAI_Q10_148_OK") ||
-            proofOutput.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE) ||
-            guestOutput.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE) ||
-            guestOutput.contains("HERMES_BONSAI_Q10_148_OK") ||
-            result.content.contains(AlpineAgentCommandCatalog.ALPINE_RELEASE_NEEDLE)
-        assertTrue(
-            "Expected a guest-side Alpine effect. proof=$proof results=$toolResults reply=${result.content}",
-            guestEffect,
+        Release148GuestProof.assertMarkerFile(
+            label = "bonsai-q10",
+            proofPath = proofPath,
+            proof = proof,
+            marker = marker,
+            toolNames = toolNames,
+            rawResults = toolResults,
         )
-        assertEquals("proot_distro_qemu", proof.optString("sandbox_execution_mode"))
     }
 
     private fun assumeAlpineReady() {
