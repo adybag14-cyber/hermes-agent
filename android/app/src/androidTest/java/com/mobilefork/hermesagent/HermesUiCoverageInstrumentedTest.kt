@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -62,6 +63,7 @@ import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.settings.AppearanceThemePreset
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsViewModel
 import com.mobilefork.hermesagent.ui.settings.SettingsPage
+import com.mobilefork.hermesagent.ui.settings.appearanceCardShapes
 import com.mobilefork.hermesagent.ui.settings.appearanceThemePresets
 import com.mobilefork.hermesagent.ui.shell.AppSection
 import com.mobilefork.hermesagent.ui.shell.AppShellScreen
@@ -212,20 +214,12 @@ class HermesUiCoverageInstrumentedTest {
         val shapeAndFontThemeId = "shape-proof"
         val renderedCornerDepths = mutableMapOf<String, Int>()
         THEME_SHAPE_FONT_STATES.forEachIndexed { index, state ->
-            val shapeTag = "CardShape-${state.shape}"
-            scrollSettingsToTag(shapeTag)
-            composeRule.onNodeWithTag(shapeTag).performClick()
-            scrollSettingsToTag("UiFontScaleSlider")
-            composeRule.onNodeWithTag("UiFontScaleSlider")
-                .performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
-                    assertTrue("Slider rejected ${state.fontScale}", setProgress(state.fontScale))
-                }
-            saveAppearanceAndAwait {
-                it.themeCardShape == state.shape &&
-                    kotlin.math.abs(it.uiFontScale - state.fontScale) < 0.001f
-            }
-            scrollSettingsToTag("HermesAppearanceCardTop")
-            composeRule.onNodeWithTag("HermesAppearanceCardTop").assertIsDisplayed()
+            assertShapeFontPreconditionDiffers(state)
+            selectShapeAndFontAndAwaitDraft(state, strings)
+            saveShapeFontAndAwait(state)
+            composeRule.onNodeWithTag("HermesAppearanceCardTop")
+                .performScrollTo()
+                .assertIsDisplayed()
             renderedCornerDepths[state.shape] = renderedAppearanceCornerDepth()
             captureComposeEvidence(
                 identity = "shape:${state.shape}",
@@ -238,9 +232,12 @@ class HermesUiCoverageInstrumentedTest {
             )
 
             val fontLabel = strings.uiFontSizeLabel(state.fontScale)
-            scrollSettingsToText(fontLabel)
-            composeRule.onNodeWithText(fontLabel).assertIsDisplayed()
-            composeRule.onNodeWithTag("UiFontScaleSlider").assertIsDisplayed()
+            composeRule.onNodeWithTag("UiFontScaleSlider")
+                .performScrollTo()
+                .assertIsDisplayed()
+            composeRule.onNodeWithTag("UiFontScaleValueLabel")
+                .assertIsDisplayed()
+                .assertTextEquals(fontLabel)
             assertRenderedFontScale(fontLabel, state.fontScale)
             captureComposeEvidence(
                 identity = "font:${state.fontLabel}:${fontScaleSlug(state.fontScale)}",
@@ -308,6 +305,37 @@ class HermesUiCoverageInstrumentedTest {
             "Legacy appearance preset did not remain durable after the visible Save action",
             expected,
             settingsStore.load().appearancePalette(),
+        )
+    }
+
+    @Test
+    fun softMinimumShapeAndFontVisiblyReplaceRoundedDefaultAndPersistTogether() {
+        prepareDeterministicBaseline(AppLanguage.ENGLISH)
+        setShellContent("shape-font-regression")
+        val strings = hermesStringsFor(AppLanguage.ENGLISH)
+        openAppearancePage(strings)
+
+        val baseline = AppearanceShapeFont("rounded", AppSettings.DEFAULT_UI_FONT_SCALE)
+        assertTrue(
+            "Shape/font regression requires the deterministic rounded/default draft; " +
+                shapeFontStateDiagnostic(baseline),
+            appearanceDraftShapeFont().matches(baseline),
+        )
+        assertTrue(
+            "Shape/font regression requires the deterministic rounded/default store; " +
+                shapeFontStateDiagnostic(baseline),
+            settingsStore.load().appearanceShapeFont().matches(baseline),
+        )
+
+        val target = THEME_SHAPE_FONT_STATES.first()
+        assertShapeFontPreconditionDiffers(target)
+        selectShapeAndFontAndAwaitDraft(target, strings)
+        saveShapeFontAndAwait(target)
+
+        assertTrue(
+            "Soft/minimum shape and font did not remain durable after the visible Save action; " +
+                shapeFontStateDiagnostic(target.appearanceShapeFont()),
+            settingsStore.load().appearanceShapeFont().matches(target.appearanceShapeFont()),
         )
     }
 
@@ -514,6 +542,195 @@ class HermesUiCoverageInstrumentedTest {
         navigateToShellSection("HermesNavSettings")
     }
 
+    private fun assertShapeFontPreconditionDiffers(state: ThemeShapeFontState) {
+        val expected = state.appearanceShapeFont()
+        val draft = appearanceDraftShapeFont()
+        val stored = settingsStore.load().appearanceShapeFont()
+        assertTrue(
+            "Shape/font ${state.shape}/${state.fontScale} draft precondition was vacuous; " +
+                shapeFontStateDiagnostic(expected),
+            !draft.matches(expected),
+        )
+        assertTrue(
+            "Shape/font ${state.shape}/${state.fontScale} store precondition was vacuous; " +
+                shapeFontStateDiagnostic(expected),
+            !stored.matches(expected),
+        )
+        assertTrue(
+            "Shape ${state.shape} was already selected before its visible control action; " +
+                shapeFontStateDiagnostic(expected),
+            draft.shape != expected.shape,
+        )
+        assertTrue(
+            "Font scale ${state.fontScale} was already selected before SetProgress; " +
+                shapeFontStateDiagnostic(expected),
+            kotlin.math.abs(draft.fontScale - expected.fontScale) >= SHAPE_FONT_TOLERANCE,
+        )
+    }
+
+    private fun selectShapeAndFontAndAwaitDraft(
+        state: ThemeShapeFontState,
+        strings: HermesStrings,
+    ) {
+        val expected = state.appearanceShapeFont()
+        val shapeTag = "CardShape-${state.shape}"
+        val shapeNode = composeRule.onNodeWithTag(shapeTag)
+        shapeNode.performScrollTo().assertIsDisplayed()
+        assertEquals(
+            "$shapeTag must expose an unselected state before its click; " +
+                shapeFontStateDiagnostic(expected),
+            false,
+            shapeNode.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Selected),
+        )
+        shapeNode.performClick()
+        awaitSelectedCardShape("select ${state.shape}", expected)
+        shapeNode.assertIsDisplayed()
+        assertEquals(
+            "$shapeTag must expose a selected state after its click; " +
+                shapeFontStateDiagnostic(expected),
+            true,
+            shapeNode.fetchSemanticsNode().config.getOrNull(SemanticsProperties.Selected),
+        )
+        assertEquals(
+            "Visible $shapeTag selection did not persist the production shape transition; " +
+                shapeFontStateDiagnostic(expected),
+            state.shape,
+            settingsStore.load().themeCardShape,
+        )
+
+        val slider = composeRule.onNodeWithTag("UiFontScaleSlider")
+        slider.performScrollTo().assertIsDisplayed()
+        assertTrue(
+            "UiFontScaleSlider must visibly start away from ${state.fontScale}; " +
+                shapeFontStateDiagnostic(expected),
+            kotlin.math.abs(appearanceDraftUiFontScale() - state.fontScale) >= SHAPE_FONT_TOLERANCE,
+        )
+        slider.performSemanticsAction(SemanticsActions.SetProgress) { setProgress ->
+            assertTrue("Slider rejected ${state.fontScale}", setProgress(state.fontScale))
+        }
+
+        awaitAppearanceShapeFont("select ${state.shape}/${state.fontScale}", expected) {
+            appearanceDraftShapeFont()
+        }
+        slider.assertIsDisplayed()
+        composeRule.onNodeWithTag("UiFontScaleValueLabel")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .assertTextEquals(strings.uiFontSizeLabel(state.fontScale))
+        assertTrue(
+            "Visible shape/font draft did not transition to the exact target; " +
+                shapeFontStateDiagnostic(expected),
+            appearanceDraftShapeFont().matches(expected),
+        )
+    }
+
+    private fun saveShapeFontAndAwait(state: ThemeShapeFontState) {
+        val expected = state.appearanceShapeFont()
+        assertTrue(
+            "Refusing to save before the visible shape/font draft matches; " +
+                shapeFontStateDiagnostic(expected),
+            appearanceDraftShapeFont().matches(expected),
+        )
+        val storedBeforeSave = settingsStore.load().appearanceShapeFont()
+        assertEquals(
+            "Selected card shape must be persisted before the combined Save; " +
+                shapeFontStateDiagnostic(expected),
+            expected.shape,
+            storedBeforeSave.shape,
+        )
+        assertTrue(
+            "Font scale must remain draft-only until Save; " +
+                shapeFontStateDiagnostic(expected),
+            kotlin.math.abs(storedBeforeSave.fontScale - expected.fontScale) >= SHAPE_FONT_TOLERANCE,
+        )
+        composeRule.onNodeWithTag("SaveAppearanceButton")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        awaitAppearanceShapeFont("save ${state.shape}/${state.fontScale}", expected) {
+            settingsStore.load().appearanceShapeFont()
+        }
+        composeRule.waitForIdle()
+        assertTrue(
+            "Saved shape/font was not reflected back into the visible controls; " +
+                shapeFontStateDiagnostic(expected),
+            appearanceDraftShapeFont().matches(expected),
+        )
+    }
+
+    private fun awaitSelectedCardShape(stage: String, expected: AppearanceShapeFont) {
+        try {
+            composeRule.waitUntil(timeoutMillis = 5_000L) {
+                runCatching { selectedAppearanceCardShape() == expected.shape }.getOrDefault(false)
+            }
+        } catch (failure: Throwable) {
+            throw AssertionError(
+                "Appearance $stage timed out; ${shapeFontStateDiagnostic(expected)}",
+                failure,
+            )
+        }
+        assertEquals(
+            "Appearance $stage selected the wrong shape; ${shapeFontStateDiagnostic(expected)}",
+            expected.shape,
+            selectedAppearanceCardShape(),
+        )
+    }
+
+    private fun awaitAppearanceShapeFont(
+        stage: String,
+        expected: AppearanceShapeFont,
+        read: () -> AppearanceShapeFont,
+    ) {
+        try {
+            composeRule.waitUntil(timeoutMillis = 5_000L) {
+                runCatching { read().matches(expected) }.getOrDefault(false)
+            }
+        } catch (failure: Throwable) {
+            throw AssertionError(
+                "Appearance $stage timed out; ${shapeFontStateDiagnostic(expected)}",
+                failure,
+            )
+        }
+        assertTrue(
+            "Appearance $stage completed with the wrong shape/font; " +
+                shapeFontStateDiagnostic(expected),
+            read().matches(expected),
+        )
+    }
+
+    private fun shapeFontStateDiagnostic(expected: AppearanceShapeFont): String {
+        val draft = runCatching { appearanceDraftShapeFont().toString() }
+            .getOrElse { "<unavailable:${it::class.java.simpleName}>" }
+        val stored = runCatching { settingsStore.load().appearanceShapeFont().toString() }
+            .getOrElse { "<unavailable:${it::class.java.simpleName}>" }
+        return "expected=$expected draft=$draft stored=$stored"
+    }
+
+    private fun appearanceDraftShapeFont(): AppearanceShapeFont = AppearanceShapeFont(
+        shape = selectedAppearanceCardShape(),
+        fontScale = appearanceDraftUiFontScale(),
+    )
+
+    private fun selectedAppearanceCardShape(): String {
+        val selected = appearanceCardShapes.filter { shape ->
+            composeRule.onNodeWithTag("CardShape-$shape")
+                .fetchSemanticsNode()
+                .config
+                .getOrNull(SemanticsProperties.Selected) == true
+        }
+        return selected.singleOrNull()
+            ?: throw AssertionError("Expected exactly one selected card shape, found $selected")
+    }
+
+    private fun appearanceDraftUiFontScale(): Float {
+        return composeRule.onNodeWithTag("UiFontScaleSlider")
+            .fetchSemanticsNode()
+            .config
+            .getOrNull(SemanticsProperties.ProgressBarRangeInfo)
+            ?.current
+            ?: throw AssertionError("UiFontScaleSlider did not expose ProgressBarRangeInfo semantics")
+    }
+
     private fun assertAppearancePreconditionDiffers(
         preset: AppearanceThemePreset,
         expected: AppearancePalette,
@@ -573,22 +790,6 @@ class HermesUiCoverageInstrumentedTest {
             expected,
             appearanceDraftPalette(),
         )
-    }
-
-    private fun saveAppearanceAndAwait(predicate: (AppSettings) -> Boolean) {
-        composeRule.onNodeWithTag("SaveAppearanceButton")
-            .performScrollTo()
-            .assertIsDisplayed()
-            .performClick()
-        try {
-            composeRule.waitUntil(timeoutMillis = 5_000L) { predicate(settingsStore.load()) }
-        } catch (failure: Throwable) {
-            throw AssertionError(
-                "Appearance shape/font save timed out; stored=${settingsStore.load()}",
-                failure,
-            )
-        }
-        composeRule.waitForIdle()
     }
 
     private fun awaitAppearancePalette(
@@ -1276,6 +1477,24 @@ class HermesUiCoverageInstrumentedTest {
         assertEquals("Appearance preset IDs must be unique", presetIds.size, presetIds.toSet().size)
         val presetPalettes = appearanceThemePresets.map { it.appearancePalette() }
         assertEquals("Appearance preset palettes must be unique", presetPalettes.size, presetPalettes.toSet().size)
+        val shapeFontPairs = THEME_SHAPE_FONT_STATES.map { it.appearanceShapeFont() }
+        assertEquals("Shape/font evidence states must be unique", shapeFontPairs.size, shapeFontPairs.toSet().size)
+        assertEquals(
+            "Canonical appearance card shapes must be unique",
+            appearanceCardShapes.size,
+            appearanceCardShapes.toSet().size,
+        )
+        val evidenceShapeIds = THEME_SHAPE_FONT_STATES.map { it.shape }
+        assertEquals(
+            "Shape/font evidence must contain exactly one state per canonical card shape",
+            appearanceCardShapes.size,
+            evidenceShapeIds.size,
+        )
+        assertEquals(
+            "Shape/font evidence must cover every visible card-shape control",
+            appearanceCardShapes.toSet(),
+            evidenceShapeIds.toSet(),
+        )
         assertEquals(EXPECTED_LANGUAGE_TAGS, AppLanguage.entries.map { it.tag }.toSet())
     }
 
@@ -1360,6 +1579,16 @@ class HermesUiCoverageInstrumentedTest {
         val fontLabel: String,
     )
 
+    private data class AppearanceShapeFont(
+        val shape: String,
+        val fontScale: Float,
+    ) {
+        fun matches(expected: AppearanceShapeFont): Boolean {
+            return shape == expected.shape &&
+                kotlin.math.abs(fontScale - expected.fontScale) < SHAPE_FONT_TOLERANCE
+        }
+    }
+
     private data class AppearancePalette(
         val primary: String,
         val secondary: String,
@@ -1382,6 +1611,16 @@ class HermesUiCoverageInstrumentedTest {
         background = themeBackgroundHex,
         surface = themeSurfaceHex,
         surfaceVariant = themeSurfaceVariantHex,
+    )
+
+    private fun ThemeShapeFontState.appearanceShapeFont(): AppearanceShapeFont = AppearanceShapeFont(
+        shape = shape,
+        fontScale = fontScale,
+    )
+
+    private fun AppSettings.appearanceShapeFont(): AppearanceShapeFont = AppearanceShapeFont(
+        shape = themeCardShape,
+        fontScale = uiFontScale,
     )
 
     private fun appearancePresetTag(preset: AppearanceThemePreset): String = "AppearancePreset-${preset.id}"
@@ -1409,6 +1648,7 @@ class HermesUiCoverageInstrumentedTest {
         private const val SHAPE_PROOF_BACKGROUND = "#000000"
         private const val SHAPE_PROOF_SURFACE = "#000000"
         private const val SHAPE_PROOF_SURFACE_VARIANT = "#FFFFFF"
+        private const val SHAPE_FONT_TOLERANCE = 0.001f
         private val THEME_SHAPE_FONT_STATES = listOf(
             ThemeShapeFontState("soft", AppSettings.MIN_UI_FONT_SCALE, "min"),
             ThemeShapeFontState("square", AppSettings.MAX_UI_FONT_SCALE, "max"),

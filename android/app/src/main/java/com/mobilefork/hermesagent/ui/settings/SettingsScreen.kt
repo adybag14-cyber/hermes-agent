@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.KeyboardType
@@ -60,6 +61,8 @@ enum class SettingsPage(val route: String, val label: String) {
     Theme("/settings/theme", "Theme"),
     Tools("/settings/tools", "Tools"),
 }
+
+internal val appearanceCardShapes = listOf("rounded", "soft", "square")
 
 @Composable
 fun SettingsScreen(
@@ -986,7 +989,11 @@ private fun AppearanceCard(
                 }
                 Switch(checked = keywordHighlightingEnabled, onCheckedChange = onKeywordHighlightingChange)
             }
-            Text(strings.uiFontSizeLabel(uiFontScale), style = MaterialTheme.typography.titleSmall)
+            Text(
+                strings.uiFontSizeLabel(uiFontScale),
+                modifier = Modifier.testTag("UiFontScaleValueLabel"),
+                style = MaterialTheme.typography.titleSmall,
+            )
             Slider(
                 value = uiFontScale,
                 onValueChange = onUiFontScaleChange,
@@ -1049,9 +1056,11 @@ private fun AppearanceCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                listOf("rounded", "soft", "square").forEach { shape ->
+                appearanceCardShapes.forEach { shape ->
                     Button(
-                        modifier = Modifier.testTag("CardShape-$shape"),
+                        modifier = Modifier
+                            .testTag("CardShape-$shape")
+                            .semantics { selected = themeCardShape == shape },
                         onClick = { onCardShapeChange(shape) },
                         enabled = themeCardShape != shape,
                     ) {
