@@ -35,6 +35,7 @@ import com.mobilefork.hermesagent.ui.theme.hermesViewBackdropDrawable
 import com.mobilefork.hermesagent.ui.theme.hermesViewButtonDrawable
 import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
 import com.mobilefork.hermesagent.ui.theme.hermesViewPanelDrawable
+import com.mobilefork.hermesagent.ui.theme.setHermesSafeDrawingInsetsListener
 
 @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 class HermesProviderSetupWebActivity : Activity() {
@@ -90,7 +91,9 @@ class HermesProviderSetupWebActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             background = hermesViewBackdropDrawable(palette)
-            setPadding(0, statusBarInsetPx(), 0, 0)
+        }
+        root.setHermesSafeDrawingInsetsListener { safeInsets ->
+            root.setPadding(safeInsets.left, safeInsets.top, safeInsets.right, safeInsets.bottom)
         }
 
         titleText = TextView(this).apply {
@@ -278,7 +281,7 @@ class HermesProviderSetupWebActivity : Activity() {
         root.addView(toolbarButton(getString(R.string.hermes_provider_setup_copy_url)) { copyToClipboard(url) }, fullWidthWrapParams())
         root.addView(toolbarButton(getString(R.string.hermes_provider_setup_close)) { finish() }, fullWidthWrapParams())
         applyHermesViewTree(root, palette)
-        setContentView(hermesScrollablePage(root, palette, topInsetPx = statusBarInsetPx()))
+        setContentView(hermesScrollablePage(root, palette))
         if (url.isNotBlank()) {
             copyToClipboard(url, showToast = false)
         }
@@ -328,15 +331,6 @@ class HermesProviderSetupWebActivity : Activity() {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT,
         )
-    }
-
-    private fun statusBarInsetPx(): Int {
-        val resourceId = resources.getIdentifier("status_bar_height", "dimen", "android")
-        return if (resourceId > 0) {
-            resources.getDimensionPixelSize(resourceId)
-        } else {
-            0
-        }
     }
 
     private fun currentUrl(): String {
