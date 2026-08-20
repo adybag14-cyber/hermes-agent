@@ -405,6 +405,7 @@ class HermesUiCoverageInstrumentedTest {
 
         AppLanguage.entries.forEach { language ->
             val strings = hermesStringsFor(language)
+            assertComposeHostForeground("localized model Compose phase for ${language.tag}")
             selectLanguage(language, strings)
             composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
             composeRule.waitForIdle()
@@ -435,15 +436,25 @@ class HermesUiCoverageInstrumentedTest {
                     sentinels = listOf(preset.title, description, runtimeAndTestedLabel),
                 )
             }
+        }
 
-            if (language != AppLanguage.ENGLISH) {
-                assertFrameworkLabelsDifferFromEnglish(language)
-                captureAllFrameworkActivities(
-                    prefix = "$prefix-lang-${language.tag}-view",
-                    language = language,
-                    themeId = "hermes",
-                )
-            }
+        // ActivityScenario owns and destroys each framework Activity. Its close() does not
+        // contractually restore the createComposeRule host or re-register that host's semantics
+        // root. Finish every Compose interaction first, then capture framework pages after no
+        // later Compose query is required.
+        AppLanguage.entries.filterNot { language -> language == AppLanguage.ENGLISH }.forEach { language ->
+            settingsStore.save(settingsStore.load().copy(languageTag = language.tag))
+            assertEquals(
+                "Framework evidence language did not persist before ${language.tag} capture",
+                language.tag,
+                settingsStore.load().languageTag,
+            )
+            assertFrameworkLabelsDifferFromEnglish(language)
+            captureAllFrameworkActivities(
+                prefix = "$prefix-lang-${language.tag}-view",
+                language = language,
+                themeId = "hermes",
+            )
         }
 
         assertEvidenceManifest(expectedLocalizedEvidenceIdentities(targetPresets.map { it.id }))
