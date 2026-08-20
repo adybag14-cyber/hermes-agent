@@ -38,6 +38,9 @@ import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.printToString
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -1035,7 +1038,7 @@ class HermesUiCoverageInstrumentedTest {
                 val root = activity.window.decorView
                 assertTrue("$pageId decor must be attached and shown", root.isAttachedToWindow && root.isShown)
                 assertTrue("$pageId must own window focus at capture", root.hasWindowFocus())
-                assertGlassChrome(activity, expectedVisibleTexts.first())
+                assertGlassChrome(activity, pageId, expectedVisibleTexts.first())
                 val visibleTexts = visibleTextValues(root)
                 expectedVisibleTexts.forEach { expected ->
                     assertTrue(
@@ -1077,46 +1080,120 @@ class HermesUiCoverageInstrumentedTest {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
     }
 
-    private fun assertGlassChrome(activity: Activity, expectedTitle: String) {
+    @Suppress("DEPRECATION")
+    private fun assertGlassChrome(activity: Activity, pageId: String, expectedTitle: String) {
+        val activityName = activity::class.java.simpleName
+        val evidencePage = "$pageId ($activityName)"
         val palette = hermesViewPalette(activity)
         val contentRoot = activity.findViewById<ViewGroup>(android.R.id.content)
         val page = contentRoot.getChildAt(0)
-        assertTrue("${activity::class.java.simpleName} must use the Hermes ScrollView page", page is ScrollView)
+        assertTrue("$evidencePage must use the Hermes ScrollView page", page is ScrollView)
         val backdrop = page.background as? GradientDrawable
-            ?: throw AssertionError("${activity::class.java.simpleName} must use the saved-theme gradient backdrop")
+            ?: throw AssertionError("$evidencePage must use the saved-theme gradient backdrop")
         val expectedBackdrop = hermesViewBackdropDrawable(palette)
         assertArrayEquals(
-            "${activity::class.java.simpleName} rendered the wrong backdrop colours",
+            "$evidencePage rendered the wrong backdrop colours",
             requireNotNull(expectedBackdrop.colors),
             requireNotNull(backdrop.colors),
         )
         val responsiveFrame = (page as ScrollView).getChildAt(0) as? ViewGroup
         val glassPanel = responsiveFrame?.getChildAt(0)
         val panel = glassPanel?.background as? GradientDrawable
-            ?: throw AssertionError("${activity::class.java.simpleName} must place controls on a glass panel")
+            ?: throw AssertionError("$evidencePage must place controls on a glass panel")
         val expectedPanel = hermesViewPanelDrawable(activity, palette, elevated = true)
         assertEquals(
-            "${activity::class.java.simpleName} rendered the wrong panel colour",
+            "$evidencePage rendered the wrong panel colour",
             requireNotNull(expectedPanel.color).defaultColor,
             requireNotNull(panel.color).defaultColor,
         )
         assertEquals(
-            "${activity::class.java.simpleName} rendered the wrong card corner radius",
+            "$evidencePage rendered the wrong card corner radius",
             expectedPanel.cornerRadius,
             panel.cornerRadius,
             0.5f,
         )
         val title = allTextViews(page).firstOrNull { it.text.toString() == expectedTitle }
-            ?: throw AssertionError("${activity::class.java.simpleName} did not expose title '$expectedTitle'")
+            ?: throw AssertionError("$evidencePage did not expose title '$expectedTitle'")
         val expectedTitleSizePx = 22f * activity.resources.displayMetrics.scaledDensity * palette.fontScale
         assertEquals(
-            "${activity::class.java.simpleName} did not render the persisted UI font scale",
+            "$evidencePage did not render the persisted UI font scale",
             expectedTitleSizePx,
             title.textSize,
             1.0f,
         )
-        assertEquals(palette.background, activity.window.statusBarColor)
-        assertEquals(palette.surface, activity.window.navigationBarColor)
+
+        val decor = activity.window.decorView
+        val rootInsets = ViewCompat.getRootWindowInsets(decor)
+            ?: throw AssertionError("$evidencePage did not expose root window insets")
+        val statusBarInsets = rootInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+        val displayCutoutInsets = rootInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
+        val tappableElementInsets = rootInsets.getInsets(WindowInsetsCompat.Type.tappableElement())
+        val safeTop = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+        val usesGestureNavigation = tappableElementInsets.bottom == 0
+        val platformEnforcesEdgeToEdge =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM &&
+                activity.applicationInfo.targetSdkVersion >= Build.VERSION_CODES.VANILLA_ICE_CREAM
+
+        val insetsController = WindowCompat.getInsetsController(activity.window, decor)
+        assertEquals(
+            "$evidencePage status-bar icon appearance must follow saved-theme lightCanvas=${palette.lightCanvas}",
+            palette.lightCanvas,
+            insetsController.isAppearanceLightStatusBars,
+        )
+        assertEquals(
+            "$evidencePage navigation-bar icon appearance must follow saved-theme lightCanvas=${palette.lightCanvas}",
+            palette.lightCanvas,
+            insetsController.isAppearanceLightNavigationBars,
+        )
+
+        if (platformEnforcesEdgeToEdge) {
+            assertEquals(
+                "$evidencePage must use a transparent status bar on target/API 35 edge-to-edge",
+                Color.TRANSPARENT,
+                activity.window.statusBarColor,
+            )
+            if (usesGestureNavigation) {
+                assertEquals(
+                    "$evidencePage must use a transparent gesture-navigation bar " +
+                        "(tappableElement.bottom=${tappableElementInsets.bottom})",
+                    Color.TRANSPARENT,
+                    activity.window.navigationBarColor,
+                )
+            }
+        } else {
+            assertEquals(
+                "$evidencePage must use the saved-theme status colour before target/API 35 edge-to-edge",
+                palette.background,
+                activity.window.statusBarColor,
+            )
+            assertEquals(
+                "$evidencePage must use the saved-theme navigation colour before target/API 35 edge-to-edge",
+                palette.surface,
+                activity.window.navigationBarColor,
+            )
+        }
+
+        val decorBounds = Rect()
+        val pageBounds = Rect()
+        val titleBounds = Rect()
+        assertTrue("$evidencePage decor must have visible global bounds", decor.getGlobalVisibleRect(decorBounds))
+        assertTrue("$evidencePage themed ScrollView must have visible global bounds", page.getGlobalVisibleRect(pageBounds))
+        assertTrue("$evidencePage title '$expectedTitle' must have visible global bounds", title.getGlobalVisibleRect(titleBounds))
+        val safeTopGlobal = decorBounds.top + safeTop
+        if (platformEnforcesEdgeToEdge) {
+            assertTrue(
+                "$evidencePage themed ScrollView must begin behind the transparent status bar; " +
+                    "pageTop=${pageBounds.top}, safeTop=$safeTopGlobal, " +
+                    "statusInset=${statusBarInsets.top}, cutoutInset=${displayCutoutInsets.top}",
+                safeTop > 0 && pageBounds.top < safeTopGlobal,
+            )
+        }
+        assertTrue(
+            "$evidencePage title '$expectedTitle' must begin at or below the system-bar/cutout safe top; " +
+                "titleTop=${titleBounds.top}, safeTop=$safeTopGlobal, " +
+                "statusInset=${statusBarInsets.top}, cutoutInset=${displayCutoutInsets.top}",
+            titleBounds.top >= safeTopGlobal,
+        )
     }
 
     private fun allTextViews(root: View): List<TextView> {
