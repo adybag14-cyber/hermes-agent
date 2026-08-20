@@ -543,7 +543,9 @@ fun ChatScreen(
                     ) {
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .testTag("HermesChatMessageList"),
                             verticalArrangement = Arrangement.spacedBy(5.dp),
                             contentPadding = PaddingValues(bottom = messageListBottomPadding),
                         ) {
@@ -1340,6 +1342,7 @@ private fun AgentEventCard(message: ChatUiMessage) {
     ) {
         Column(
             modifier = Modifier
+                .testTag("HermesAgentEventMessage_${message.id}")
                 .clickable { expanded = !expanded }
                 .padding(horizontal = 9.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),

@@ -10,7 +10,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performTextInput
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
@@ -124,9 +124,15 @@ class NativeAppUiChatInstrumentedTest {
                 composeRule.waitUntil(timeoutMillis = BOOT_TIMEOUT_MS) {
                     composeRule.onAllNodesWithTag("HermesChatInput").fetchSemanticsNodes().isNotEmpty()
                 }
-                composeRule.onNodeWithTag("HermesChatInput").performTextInput(
-                    "Run a command to tell me what time it is.",
-                )
+                // The status reply is intentionally source-exact JSON and can be taller than a
+                // compact turn's viewport. Select the app's visible expanded mode so each event is
+                // its own lazy-list item and the call/result nodes can be independently displayed.
+                composeRule.onNodeWithTag("HermesChatDisplayToggle").assertIsDisplayed().performClick()
+                composeRule.waitUntil(timeoutMillis = 5_000L) {
+                    settingsStore.load().chatDisplayMode == "expanded"
+                }
+                composeRule.waitForIdle()
+                composeRule.onNodeWithTag("HermesChatInput").performTextInput(ISSUE8_TIME_PROMPT)
                 composeRule.onNodeWithTag("HermesChatSendButton").performClick()
 
                 composeRule.waitUntil(timeoutMillis = 30_000L) {
@@ -137,11 +143,19 @@ class NativeAppUiChatInstrumentedTest {
                         messages.any { it.role == "tool_call" && it.content.contains("terminal_tool") } &&
                         messages.any { it.role == "tool_result" && it.content.contains("model_requests=0") }
                 }
-                val dateToolVisible = assertLatestAgentEventDisplayed("HermesAgentEvent_tool_call")
-                val dateResultVisible = assertLatestAgentEventDisplayed("HermesAgentEvent_tool_result")
-                composeRule.waitUntil {
+                composeRule.waitUntil(timeoutMillis = 30_000L) {
                     composeRule.onAllNodesWithTag("HermesStopAgentButton").fetchSemanticsNodes().isEmpty()
                 }
+                val dateToolVisible = assertPersistedAgentEventDisplayed(
+                    prompt = ISSUE8_TIME_PROMPT,
+                    role = "tool_call",
+                    requiredContent = listOf("terminal_tool", "date"),
+                )
+                val dateResultVisible = assertPersistedAgentEventDisplayed(
+                    prompt = ISSUE8_TIME_PROMPT,
+                    role = "tool_result",
+                    requiredContent = listOf("model_requests=0"),
+                )
                 Thread.sleep(250L)
                 assertEquals(
                     "The exact issue phrase must make zero remote TCP connections",
@@ -177,11 +191,19 @@ class NativeAppUiChatInstrumentedTest {
                             ?.content
                             ?.contains("model_requests=0") == true
                 }
-                val statusToolVisible = assertLatestAgentEventDisplayed("HermesAgentEvent_tool_call")
-                val statusResultVisible = assertLatestAgentEventDisplayed("HermesAgentEvent_tool_result")
-                composeRule.waitUntil {
+                composeRule.waitUntil(timeoutMillis = 30_000L) {
                     composeRule.onAllNodesWithTag("HermesStopAgentButton").fetchSemanticsNodes().isEmpty()
                 }
+                val statusToolVisible = assertPersistedAgentEventDisplayed(
+                    prompt = ISSUE8_STATUS_PROMPT,
+                    role = "tool_call",
+                    requiredContent = listOf("android_device_diagnostics_tool", "status"),
+                )
+                val statusResultVisible = assertPersistedAgentEventDisplayed(
+                    prompt = ISSUE8_STATUS_PROMPT,
+                    role = "tool_result",
+                    requiredContent = listOf("model_requests=0"),
+                )
                 Thread.sleep(250L)
                 assertEquals(
                     "Both exact issue routes must make zero remote TCP connections",
@@ -342,10 +364,32 @@ class NativeAppUiChatInstrumentedTest {
         }
     }
 
-    private fun assertLatestAgentEventDisplayed(tag: String): Boolean {
-        val nodes = composeRule.onAllNodesWithTag(tag).fetchSemanticsNodes()
-        assertTrue("Expected at least one rendered $tag node", nodes.isNotEmpty())
-        composeRule.onAllNodesWithTag(tag)[nodes.lastIndex].performScrollTo().assertIsDisplayed()
+    private fun assertPersistedAgentEventDisplayed(
+        prompt: String,
+        role: String,
+        requiredContent: List<String>,
+    ): Boolean {
+        val messages = ConversationStore(app).currentConversationMessages()
+        val latestUserIndex = messages.indexOfLast { it.role == "user" && it.content == prompt }
+        assertTrue("Expected persisted user prompt: $prompt", latestUserIndex >= 0)
+        val expectedMessage = messages
+            .drop(latestUserIndex + 1)
+            .firstOrNull { message ->
+                message.role == role && requiredContent.all { marker -> message.content.contains(marker) }
+            }
+        assertTrue(
+            "Expected persisted $role after '$prompt' containing ${requiredContent.joinToString()}",
+            expectedMessage != null,
+        )
+        val message = requireNotNull(expectedMessage)
+        val messageIndex = messages.indexOfFirst { it.id == message.id }
+        assertTrue("Expected persisted message index for ${message.id}", messageIndex >= 0)
+        composeRule.onNodeWithTag("HermesChatMessageList").performScrollToIndex(messageIndex)
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(
+            "HermesAgentEventMessage_${message.id}",
+            useUnmergedTree = true,
+        ).assertIsDisplayed()
         return true
     }
 
