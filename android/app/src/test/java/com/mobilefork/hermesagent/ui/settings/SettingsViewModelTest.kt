@@ -183,6 +183,73 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun everyShapeAndFontStateUpdatesDraftAndPersistsExactPair() {
+        val application = RuntimeEnvironment.getApplication()
+        val store = AppSettingsStore(application)
+        val original = store.load()
+        val canonicalTargets = appearanceCardShapes.map { shape ->
+            ShapeFontTarget(shape, expectedRegressionFontScale(shape))
+        }
+        val targets = canonicalTargets.filterNot { it.shape == "rounded" } +
+            canonicalTargets.single { it.shape == "rounded" }
+
+        try {
+            store.save(
+                original.copy(
+                    themeCardShape = "rounded",
+                    uiFontScale = AppSettings.DEFAULT_UI_FONT_SCALE,
+                ),
+            )
+            val viewModel = SettingsViewModel(application)
+
+            targets.forEach { target ->
+                val draftBefore = viewModel.uiState.value
+                val storedBefore = store.load()
+                assertTrue(
+                    "$target must start from a different draft pair",
+                    !draftBefore.matches(target),
+                )
+                assertTrue(
+                    "$target must start from a different persisted pair",
+                    !storedBefore.matches(target),
+                )
+
+                viewModel.updateThemeCardShape(target.shape)
+                viewModel.updateUiFontScale(target.fontScale)
+
+                val draft = viewModel.uiState.value
+                assertEquals("$target draft shape", target.shape, draft.themeCardShape)
+                assertEquals("$target draft font scale", target.fontScale, draft.uiFontScale, 0.0001f)
+
+                store.invalidateCache()
+                val beforeSave = store.load()
+                assertEquals(
+                    "$target visible shape action must persist the selected shape",
+                    target.shape,
+                    beforeSave.themeCardShape,
+                )
+                assertTrue(
+                    "$target pair must not be fully persisted before Save",
+                    !beforeSave.matches(target),
+                )
+
+                viewModel.saveAppearance()
+                store.invalidateCache()
+                val persisted = store.load()
+                assertEquals("$target persisted shape", target.shape, persisted.themeCardShape)
+                assertEquals(
+                    "$target persisted font scale",
+                    target.fontScale,
+                    persisted.uiFontScale,
+                    0.0001f,
+                )
+            }
+        } finally {
+            store.save(original)
+        }
+    }
+
+    @Test
     fun completedDownloadRuntimeHandoffIsDurableBeforeTheMethodReturns() {
         val application = RuntimeEnvironment.getApplication()
         val store = AppSettingsStore(application)
@@ -255,5 +322,27 @@ class SettingsViewModelTest {
             themeBackgroundHex.equals(preset.backgroundHex, ignoreCase = true) &&
             themeSurfaceHex.equals(preset.surfaceHex, ignoreCase = true) &&
             themeSurfaceVariantHex.equals(preset.surfaceVariantHex, ignoreCase = true)
+    }
+
+    private data class ShapeFontTarget(
+        val shape: String,
+        val fontScale: Float,
+    )
+
+    private fun expectedRegressionFontScale(shape: String): Float = when (shape) {
+        "rounded" -> AppSettings.DEFAULT_UI_FONT_SCALE
+        "soft" -> AppSettings.MIN_UI_FONT_SCALE
+        "square" -> AppSettings.MAX_UI_FONT_SCALE
+        else -> error("No shape/font regression scale is defined for canonical shape '$shape'")
+    }
+
+    private fun SettingsUiState.matches(target: ShapeFontTarget): Boolean {
+        return themeCardShape == target.shape &&
+            kotlin.math.abs(uiFontScale - target.fontScale) < 0.0001f
+    }
+
+    private fun AppSettings.matches(target: ShapeFontTarget): Boolean {
+        return themeCardShape == target.shape &&
+            kotlin.math.abs(uiFontScale - target.fontScale) < 0.0001f
     }
 }
