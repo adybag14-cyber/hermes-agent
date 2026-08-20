@@ -217,9 +217,7 @@ class HermesUiCoverageInstrumentedTest {
             assertShapeFontPreconditionDiffers(state)
             selectShapeAndFontAndAwaitDraft(state, strings)
             saveShapeFontAndAwait(state)
-            composeRule.onNodeWithTag("HermesAppearanceCardTop")
-                .performScrollTo()
-                .assertIsDisplayed()
+            scrollAppearanceCardCornerIntoView()
             renderedCornerDepths[state.shape] = renderedAppearanceCornerDepth()
             captureComposeEvidence(
                 identity = "shape:${state.shape}",
@@ -311,6 +309,13 @@ class HermesUiCoverageInstrumentedTest {
     @Test
     fun softMinimumShapeAndFontVisiblyReplaceRoundedDefaultAndPersistTogether() {
         prepareDeterministicBaseline(AppLanguage.ENGLISH)
+        settingsStore.save(
+            settingsStore.load().copy(
+                themeBackgroundHex = SHAPE_PROOF_BACKGROUND,
+                themeSurfaceHex = SHAPE_PROOF_SURFACE,
+                themeSurfaceVariantHex = SHAPE_PROOF_SURFACE_VARIANT,
+            ),
+        )
         setShellContent("shape-font-regression")
         val strings = hermesStringsFor(AppLanguage.ENGLISH)
         openAppearancePage(strings)
@@ -326,16 +331,25 @@ class HermesUiCoverageInstrumentedTest {
                 shapeFontStateDiagnostic(baseline),
             settingsStore.load().appearanceShapeFont().matches(baseline),
         )
+        scrollAppearanceCardCornerIntoView()
+        val roundedCornerDepth = renderedAppearanceCornerDepth()
 
         val target = THEME_SHAPE_FONT_STATES.first()
         assertShapeFontPreconditionDiffers(target)
         selectShapeAndFontAndAwaitDraft(target, strings)
         saveShapeFontAndAwait(target)
+        scrollAppearanceCardCornerIntoView()
+        val softCornerDepth = renderedAppearanceCornerDepth()
 
         assertTrue(
             "Soft/minimum shape and font did not remain durable after the visible Save action; " +
                 shapeFontStateDiagnostic(target.appearanceShapeFont()),
             settingsStore.load().appearanceShapeFont().matches(target.appearanceShapeFont()),
+        )
+        assertTrue(
+            "Rendered soft card corner must enter its surface before rounded: " +
+                "soft=$softCornerDepth, rounded=$roundedCornerDepth",
+            softCornerDepth < roundedCornerDepth,
         )
     }
 
@@ -1397,27 +1411,105 @@ class HermesUiCoverageInstrumentedTest {
             kotlin.math.abs(Color.blue(first) - Color.blue(second))
     }
 
+    private fun scrollAppearanceCardCornerIntoView() {
+        composeRule.onNodeWithTag("HermesSettingsContentList")
+            .performScrollToIndex(THEME_APPEARANCE_CARD_ITEM_INDEX)
+        try {
+            composeRule.waitUntil(timeoutMillis = 5_000L) {
+                runCatching { appearanceCornerSamplingBandFitsViewport() }.getOrDefault(false)
+            }
+        } catch (failure: Throwable) {
+            val listBounds = runCatching {
+                composeRule.onNodeWithTag("HermesSettingsContentList").fetchSemanticsNode().boundsInRoot
+            }.getOrNull()
+            val cardBounds = runCatching {
+                composeRule.onNodeWithTag("HermesAppearanceCard").fetchSemanticsNode().boundsInRoot
+            }.getOrNull()
+            throw AssertionError(
+                "Appearance card corner sampling band did not enter the Settings viewport; " +
+                    "list=$listBounds, card=$cardBounds",
+                failure,
+            )
+        }
+        composeRule.onNodeWithTag("HermesAppearanceCardTop").assertIsDisplayed()
+    }
+
+    private fun appearanceCornerSamplingBandFitsViewport(): Boolean {
+        val listBounds = composeRule.onNodeWithTag("HermesSettingsContentList").fetchSemanticsNode().boundsInRoot
+        val cardBounds = composeRule.onNodeWithTag("HermesAppearanceCard").fetchSemanticsNode().boundsInRoot
+        val requiredBandPx = APPEARANCE_CORNER_MAX_DEPTH_DP * app.resources.displayMetrics.density
+        return cardBounds.top >= listBounds.top &&
+            cardBounds.top + requiredBandPx <= listBounds.bottom
+    }
+
     private fun renderedAppearanceCornerDepth(): Int {
         val appearance = composeRule.onNodeWithTag("HermesAppearanceCard").fetchSemanticsNode()
         val bounds = appearance.boundsInRoot
         val rootBitmap = composeRule.onRoot(useUnmergedTree = true).captureToImage().asAndroidBitmap()
-        val density = app.resources.displayMetrics.density
-        val top = bounds.top.toInt().coerceAtLeast(0)
-        val left = bounds.left.toInt().coerceAtLeast(0)
-        val right = bounds.right.toInt().coerceAtMost(rootBitmap.width)
-        val referenceY = (top + (8f * density).toInt()).coerceIn(0, rootBitmap.height - 1)
-        val referenceX = ((left + right) / 2).coerceIn(0, rootBitmap.width - 1)
-        val reference = rootBitmap.getPixel(referenceX, referenceY)
-        val maximumDepthDp = minOf(24, ((right - left) / density / 4f).toInt())
-        for (depthDp in 1..maximumDepthDp) {
-            val offset = (depthDp * density).toInt().coerceAtLeast(1)
-            val x = (left + offset).coerceIn(0, rootBitmap.width - 1)
-            val y = (top + offset).coerceIn(0, rootBitmap.height - 1)
-            if (colorDistance(rootBitmap.getPixel(x, y), reference) <= 42) {
-                return depthDp
+        return try {
+            assertTrue(
+                "Appearance card corner sampling band must be inside the captured Compose root: " +
+                    "card=$bounds, root=${rootBitmap.width}x${rootBitmap.height}",
+                bounds.left >= 0f &&
+                    bounds.top >= 0f &&
+                    bounds.right <= rootBitmap.width.toFloat() &&
+                    bounds.top + (APPEARANCE_CORNER_MAX_DEPTH_DP * app.resources.displayMetrics.density) <
+                    rootBitmap.height,
+            )
+            val density = app.resources.displayMetrics.density
+            val top = bounds.top.toInt()
+            val left = bounds.left.toInt()
+            val right = bounds.right.toInt().coerceAtMost(rootBitmap.width - 1)
+            val referenceInsetPx = (APPEARANCE_CORNER_REFERENCE_INSET_DP * density).toInt().coerceAtLeast(1)
+            val referenceY = top + referenceInsetPx
+            val referenceX = (left + right) / 2
+            assertTrue(
+                "Appearance card interior reference must remain inside its bounds: card=$bounds, " +
+                    "reference=($referenceX,$referenceY)",
+                referenceX in left..right && referenceY < bounds.bottom,
+            )
+            val exteriorInsetPx = density.toInt().coerceAtLeast(1)
+            val exteriorX = left - exteriorInsetPx
+            assertTrue(
+                "Appearance card requires exterior pixels to the left of its corner proof: " +
+                    "card=$bounds, exteriorX=$exteriorX",
+                exteriorX >= 0,
+            )
+            val interior = rootBitmap.getPixel(referenceX, referenceY)
+            val exterior = rootBitmap.getPixel(exteriorX, referenceY)
+            val interiorExteriorContrast = colorDistance(interior, exterior)
+            assertTrue(
+                "Appearance card corner proof is vacuous because its interior and exterior " +
+                    "references are indistinguishable; card=$bounds, " +
+                    "contrast=$interiorExteriorContrast",
+                interiorExteriorContrast > APPEARANCE_CORNER_COLOR_TOLERANCE * 3,
+            )
+            val maximumDepthDp = minOf(
+                APPEARANCE_CORNER_MAX_DEPTH_DP,
+                ((right - left) / density / 4f).toInt(),
+            )
+            assertTrue("Appearance card corner proof has no sampling depth: card=$bounds", maximumDepthDp > 0)
+            for (depthDp in 1..maximumDepthDp) {
+                val offset = (depthDp * density).toInt().coerceAtLeast(1)
+                val x = left + offset
+                val y = top + offset
+                val sample = rootBitmap.getPixel(x, y)
+                val interiorDistance = colorDistance(sample, interior)
+                val exteriorDistance = colorDistance(sample, exterior)
+                if (
+                    interiorDistance <= APPEARANCE_CORNER_COLOR_TOLERANCE &&
+                    interiorDistance < exteriorDistance
+                ) {
+                    return depthDp
+                }
             }
+            throw AssertionError(
+                "Rendered appearance card never entered its surface colour at the top-left corner; " +
+                    "card=$bounds, contrast=$interiorExteriorContrast",
+            )
+        } finally {
+            rootBitmap.recycle()
         }
-        throw AssertionError("Rendered appearance card never entered its surface colour at the top-left corner")
     }
 
     private fun assertRenderedFontScale(label: String, expectedScale: Float) {
@@ -1648,6 +1740,10 @@ class HermesUiCoverageInstrumentedTest {
         private const val SHAPE_PROOF_BACKGROUND = "#000000"
         private const val SHAPE_PROOF_SURFACE = "#000000"
         private const val SHAPE_PROOF_SURFACE_VARIANT = "#FFFFFF"
+        private const val THEME_APPEARANCE_CARD_ITEM_INDEX = 1
+        private const val APPEARANCE_CORNER_REFERENCE_INSET_DP = 8
+        private const val APPEARANCE_CORNER_MAX_DEPTH_DP = 24
+        private const val APPEARANCE_CORNER_COLOR_TOLERANCE = 42
         private const val SHAPE_FONT_TOLERANCE = 0.001f
         private val THEME_SHAPE_FONT_STATES = listOf(
             ThemeShapeFontState("soft", AppSettings.MIN_UI_FONT_SCALE, "min"),
