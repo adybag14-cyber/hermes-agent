@@ -213,7 +213,7 @@ android {
         buildConfigField(
             "String",
             "HERMES_SOURCE_DIGEST",
-            "\"unbound\"",
+            "\"hermes-source-unbound\"",
         )
         buildConfigField(
             "String",
@@ -264,14 +264,14 @@ android {
             buildConfigField(
                 "String",
                 "HERMES_SOURCE_DIGEST",
-                "\"${hermesSourceDigest.ifBlank { "unbound" }}\"",
+                "\"${hermesSourceDigest.ifBlank { "hermes-source-unbound" }}\"",
             )
         }
         release {
             buildConfigField(
                 "String",
                 "HERMES_SOURCE_DIGEST",
-                "\"${hermesSourceDigest.ifBlank { "unbound" }}\"",
+                "\"${hermesSourceDigest.ifBlank { "hermes-source-unbound" }}\"",
             )
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
@@ -291,10 +291,10 @@ android {
             buildConfigField(
                 "String",
                 "HERMES_SOURCE_DIGEST",
-                "\"${hermesSourceDigest.ifBlank { "unbound" }}\"",
+                "\"${hermesSourceDigest.ifBlank { "hermes-source-unbound" }}\"",
             )
             manifestPlaceholders["hermesBenchmarkSourceDigest"] =
-                hermesSourceDigest.ifBlank { "unbound" }
+                hermesSourceDigest.ifBlank { "hermes-source-unbound" }
             manifestPlaceholders["hermesBenchmarkVersionName"] = androidVersionName()
             manifestPlaceholders["hermesBenchmarkVersionCode"] = hermesVersionCode().toString()
             manifestPlaceholders["hermesBenchmarkLiteRtLmCoordinate"] =
