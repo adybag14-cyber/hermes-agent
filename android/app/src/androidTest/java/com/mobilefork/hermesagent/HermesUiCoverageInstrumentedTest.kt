@@ -65,9 +65,11 @@ import com.mobilefork.hermesagent.ui.i18n.HermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.settings.AppearanceThemePreset
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsViewModel
+import com.mobilefork.hermesagent.ui.settings.RecommendedLocalModelPreset
 import com.mobilefork.hermesagent.ui.settings.SettingsPage
 import com.mobilefork.hermesagent.ui.settings.appearanceCardShapes
 import com.mobilefork.hermesagent.ui.settings.appearanceThemePresets
+import com.mobilefork.hermesagent.ui.settings.recommendedLocalModelCardTestTag
 import com.mobilefork.hermesagent.ui.shell.AppSection
 import com.mobilefork.hermesagent.ui.shell.AppShellScreen
 import com.mobilefork.hermesagent.ui.theme.hermesLocalizedContext
@@ -358,6 +360,29 @@ class HermesUiCoverageInstrumentedTest {
     }
 
     @Test
+    fun firstAndLastRecommendedModelCardsScrollVisiblyInsideTheOversizedDownloadsSection() {
+        prepareDeterministicBaseline(AppLanguage.ENGLISH)
+        setShellContent("recommended-model-scroll-regression")
+        val strings = hermesStringsFor(AppLanguage.ENGLISH)
+        selectLanguage(AppLanguage.ENGLISH, strings)
+        composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("HermesSettingsContentList")
+            .performScrollToIndex(MODELS_LOCAL_DOWNLOADS_ITEM_INDEX)
+
+        val presets = LocalModelDownloadsViewModel.recommendedModelPresets
+        listOf(presets.first(), presets.last()).distinctBy { preset -> preset.id }.forEach { preset ->
+            assertRecommendedModelCardVisible(
+                preset = preset,
+                description = strings.recommendedLocalModelDescription(preset.id, preset.description),
+                runtimeAndTestedLabel =
+                    "${preset.runtimeFlavor} · ${strings.recommendedLocalModelTestedLabel(preset.id, preset.testedLabel)}",
+                context = "focused English first/last-card regression",
+            )
+        }
+    }
+
+    @Test
     fun capturesSixLanguageRecommendedModelsAndPhoneOnlyLocalizedFrameworkActivities() {
         assumeTrue(
             "Localized framework screenshots are intentionally phone-only; current width is " +
@@ -383,7 +408,8 @@ class HermesUiCoverageInstrumentedTest {
             selectLanguage(language, strings)
             composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
             composeRule.waitForIdle()
-            composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(2)
+            composeRule.onNodeWithTag("HermesSettingsContentList")
+                .performScrollToIndex(MODELS_LOCAL_DOWNLOADS_ITEM_INDEX)
 
             targetPresets.forEach { preset ->
                 val description = strings.recommendedLocalModelDescription(preset.id, preset.description)
@@ -393,10 +419,12 @@ class HermesUiCoverageInstrumentedTest {
                     assertNotEquals("${preset.id} description leaked English in ${language.tag}", preset.description, description)
                     assertNotEquals("${preset.id} tested label leaked English in ${language.tag}", preset.testedLabel, testedLabel)
                 }
-                scrollSettingsToText(preset.title)
-                composeRule.onNodeWithText(preset.title).assertIsDisplayed()
-                composeRule.onNodeWithText(description).assertIsDisplayed()
-                composeRule.onNodeWithText(runtimeAndTestedLabel).assertIsDisplayed()
+                assertRecommendedModelCardVisible(
+                    preset = preset,
+                    description = description,
+                    runtimeAndTestedLabel = runtimeAndTestedLabel,
+                    context = "localized evidence for ${language.tag}",
+                )
                 captureComposeEvidence(
                     identity = "localized-model:${language.tag}:${preset.id}",
                     name = "$prefix-lang-${language.tag}-model-${preset.id}",
@@ -420,6 +448,29 @@ class HermesUiCoverageInstrumentedTest {
 
         assertEvidenceManifest(expectedLocalizedEvidenceIdentities(targetPresets.map { it.id }))
         writeInventory("$prefix-inventory.txt", "six-language-and-framework-localization", capturedEvidence)
+    }
+
+    private fun assertRecommendedModelCardVisible(
+        preset: RecommendedLocalModelPreset,
+        description: String,
+        runtimeAndTestedLabel: String,
+        context: String,
+    ) {
+        try {
+            composeRule.onNodeWithTag(recommendedLocalModelCardTestTag(preset.id))
+                .performScrollTo()
+                .assertIsDisplayed()
+            composeRule.onNodeWithText(preset.title).assertIsDisplayed()
+            composeRule.onNodeWithText(description).assertIsDisplayed()
+            composeRule.onNodeWithText(runtimeAndTestedLabel).assertIsDisplayed()
+        } catch (failure: AssertionError) {
+            throw AssertionError(
+                "Recommended model card ${preset.id} did not visibly render for $context; " +
+                    "title='${preset.title}', description='$description', " +
+                    "runtimeAndTestedLabel='$runtimeAndTestedLabel'",
+                failure,
+            )
+        }
     }
 
     private fun prepareDeterministicBaseline(language: AppLanguage) {
@@ -1828,6 +1879,7 @@ class HermesUiCoverageInstrumentedTest {
         private const val SHAPE_PROOF_SURFACE = "#000000"
         private const val SHAPE_PROOF_SURFACE_VARIANT = "#FFFFFF"
         private const val THEME_APPEARANCE_CARD_ITEM_INDEX = 1
+        private const val MODELS_LOCAL_DOWNLOADS_ITEM_INDEX = 3
         private const val APPEARANCE_CORNER_REFERENCE_INSET_DP = 8
         private const val APPEARANCE_CORNER_MAX_DEPTH_DP = 24
         private const val APPEARANCE_CORNER_COLOR_TOLERANCE = 42

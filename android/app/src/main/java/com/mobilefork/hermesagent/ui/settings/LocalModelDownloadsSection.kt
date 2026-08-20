@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 
+internal fun recommendedLocalModelCardTestTag(presetId: String): String =
+    "RecommendedLocalModelCard-$presetId"
+
 @Composable
 fun LocalModelDownloadsSection(
     dataSaverMode: Boolean,
@@ -250,7 +253,9 @@ fun LocalModelDownloadsSection(
             }
             LocalModelDownloadsViewModel.recommendedModelPresets.forEach { preset ->
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(recommendedLocalModelCardTestTag(preset.id)),
                     color = MaterialTheme.colorScheme.surface,
                     shape = MaterialTheme.shapes.medium,
                 ) {
