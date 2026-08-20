@@ -59,6 +59,81 @@ class HermesRuntimeManagerTest {
     }
 
     @Test
+    fun routeConfiguredBackend_remoteModeRejectsUnsafeLocalShutdownWithoutRemoteLaunch() {
+        var remoteInvocations = 0
+
+        val result = HermesRuntimeManager.routeConfiguredBackend(
+            selectedLocalBackend = BackendKind.NONE,
+            remoteAllowed = true,
+            localLauncher = {
+                LocalBackendStatus(
+                    backendKind = BackendKind.LITERT_LM,
+                    started = false,
+                    statusMessage = "LiteRT-LM shutdown is still unwinding; force stop and reopen Hermes",
+                    requiresAppRestart = true,
+                )
+            },
+            remoteLauncher = {
+                remoteInvocations += 1
+                "remote-started"
+            },
+        )
+
+        assertTrue(result is HermesRuntimeManager.BackendRouteResult.LocalFailed)
+        assertEquals(0, remoteInvocations)
+    }
+
+    @Test
+    fun routeConfiguredBackend_failedRemoteStopBlocksEveryLaterLauncher() {
+        var localInvocations = 0
+        var remoteInvocations = 0
+
+        val result = HermesRuntimeManager.routeConfiguredBackend(
+            selectedLocalBackend = BackendKind.LITERT_LM,
+            remoteAllowed = true,
+            localLauncher = {
+                localInvocations += 1
+                LocalBackendStatus(backendKind = BackendKind.LITERT_LM, started = true)
+            },
+            remoteLauncher = {
+                remoteInvocations += 1
+                "remote-started"
+            },
+            remoteStopFailure = "Embedded API server thread remained alive",
+        )
+
+        assertTrue(result is HermesRuntimeManager.BackendRouteResult.RemoteOwnershipFailed)
+        assertEquals(0, localInvocations)
+        assertEquals(0, remoteInvocations)
+    }
+
+    @Test
+    fun continueAfterSuccessfulRemoteStop_neverRestartsAfterStopFailure() {
+        var restartInvocations = 0
+        val stopFailure = HermesRuntimeManager.RuntimeState(
+            started = false,
+            error = "The previous remote runtime did not stop",
+        )
+
+        val blocked = HermesRuntimeManager.continueAfterSuccessfulRemoteStop(stopFailure) {
+            restartInvocations += 1
+            HermesRuntimeManager.RuntimeState(started = true)
+        }
+
+        assertEquals(stopFailure, blocked)
+        assertEquals(0, restartInvocations)
+
+        val restarted = HermesRuntimeManager.continueAfterSuccessfulRemoteStop(
+            HermesRuntimeManager.RuntimeState(started = false),
+        ) {
+            restartInvocations += 1
+            HermesRuntimeManager.RuntimeState(started = true)
+        }
+        assertTrue(restarted.started)
+        assertEquals(1, restartInvocations)
+    }
+
+    @Test
     fun currentState_defaultsToNotStarted() {
         assertFalse(HermesRuntimeManager.currentState().started)
     }

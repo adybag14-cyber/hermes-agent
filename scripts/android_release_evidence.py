@@ -24,24 +24,62 @@ import subprocess
 import sys
 import zlib
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
+import xml.etree.ElementTree as ET
 
 
-MANIFEST_SCHEMA = "hermes-android-release-evidence-manifest-v2"
+MANIFEST_SCHEMA_V2 = "hermes-android-release-evidence-manifest-v2"
+MANIFEST_SCHEMA_V3 = "hermes-android-release-evidence-manifest-v3"
+# Kept as the current schema for callers which display rather than select it.
+MANIFEST_SCHEMA = MANIFEST_SCHEMA_V3
 MODEL_EVIDENCE_SCHEMA = "hermes-model-evidence-v1"
 PERFORMANCE_SCHEMA = "hermes-android-performance-evidence-v2"
 RAW_PERFORMANCE_SCHEMA = "hermes-android-performance-host-raw-v2"
+HOST_LAUNCH_THEME_SCHEMA = "hermes-host-launch-theme-evidence-v2"
+PERSISTED_PALETTE_SCHEMA = "hermes-persisted-palette-state-v1"
+ISSUE8_EVIDENCE_SCHEMA = "hermes-android-issue-8-tool-and-preflight-v1"
+ISSUE16_EVIDENCE_SCHEMA = "hermes-android-issue-16-debian-sandbox-v1"
 SOURCE_DIGEST_ALGORITHM = "sha256-git-tree-contents-v1"
 EVIDENCE_PREFIX = PurePosixPath("android/release-evidence")
+COMPREHENSIVE_UI_EVIDENCE_MIN_VERSION = (0, 13, 148)
+LITERTLM_0161_MIN_VERSION = (0, 13, 148)
 LANGUAGES = ("en", "zh", "es", "de", "pt", "fr")
 PROFILES = ("phone-compact", "tablet")
+UI_COVERAGE_PREFIX = PurePosixPath("ui-coverage")
+LAUNCH_THEME_PREFIX = PurePosixPath("launch-theme")
+ISSUE_EVIDENCE_PREFIX = PurePosixPath("issues")
+ISSUE8_EVIDENCE_PATH = ISSUE_EVIDENCE_PREFIX / "issue-8-tool-and-preflight.json"
+ISSUE16_EVIDENCE_PATH = ISSUE_EVIDENCE_PREFIX / "issue-16-debian-sandbox.json"
+COMPLETE_UI_INVENTORY = "complete-inventory.txt"
+LOCALIZED_UI_INVENTORY = "localized-inventory.txt"
+APP_SECTION_SOURCE = PurePosixPath(
+    "android/app/src/main/java/com/mobilefork/hermesagent/ui/shell/ShellModels.kt"
+)
+DEVICE_PAGE_SOURCE = PurePosixPath(
+    "android/app/src/main/java/com/mobilefork/hermesagent/ui/device/DeviceScreen.kt"
+)
+SETTINGS_PAGE_SOURCE = PurePosixPath(
+    "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsScreen.kt"
+)
+RECOMMENDED_MODEL_SOURCE = PurePosixPath(
+    "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/LocalModelDownloadsViewModel.kt"
+)
+UI_EVIDENCE_PRODUCER_SOURCE = PurePosixPath(
+    "android/app/src/androidTest/java/com/mobilefork/hermesagent/HermesUiCoverageInstrumentedTest.kt"
+)
 TAG_RE = re.compile(
     r"^v0\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
     r"(?:-(?:alpha|beta|rc)(?:\.[0-9]+)?)?$"
 )
 HEX_40_RE = re.compile(r"^[0-9a-f]{40}$")
 HEX_64_RE = re.compile(r"^[0-9a-f]{64}$")
+HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
+HEADED_UI_PROFILE_RE = re.compile(r"^(phone|tablet)-([0-9]+)x([0-9]+)dp$")
+SAFE_ARTIFACT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,239}$")
+SAFE_THEME_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,79}$")
+REVIEWER_RE = re.compile(r"^[^\r\n]{2,120}$")
 SOFTWARE_RENDERER_MARKERS = (
     "swiftshader",
     "llvmpipe",
@@ -55,7 +93,8 @@ MAIN_ACTIVITY = f"{PACKAGE_ID}/.MainActivity"
 PHONE_UI_DRAWER_TAG = "HermesShellDrawerButton"
 BUILD_VARIANT = "debug"
 PERFORMANCE_BUILD_VARIANT = "benchmark"
-LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.0"
+LEGACY_LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.0"
+LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.1"
 ANDROIDX_BENCHMARK_COORDINATE = "androidx.benchmark:benchmark-macro-junit4:1.4.1"
 REPORTING_PACKAGE_COMPILATION_MODE = "run-from-apk"
 TARGET_COMPILER_FILTER = "speed"
@@ -116,6 +155,35 @@ class ArtifactSpec:
         return PurePosixPath("models") / f"{self.model_id}.json"
 
 
+HISTORICAL_E4B_ARTIFACT = ArtifactSpec(
+    model_id="gemma-4-e4b-litert-lm",
+    repository="litert-community/gemma-4-E4B-it-litert-lm",
+    revision="9695417f248178c63a9f318c6e0c56cb917cb837",
+    file_name="gemma-4-E4B-it.litertlm",
+    runtime="litert-lm",
+    expected_bytes=3_654_467_584,
+    sha256="f335f2bfd1b758dc6476db16c0f41854bd6237e2658d604cbe566bcefd00a7bc",
+)
+HISTORICAL_E4B_EVIDENCE_PATH = HISTORICAL_E4B_ARTIFACT.evidence_path
+
+ISSUE8_TWELVE_B_MODEL_ID = "gemma-4-12b-litert-lm"
+ISSUE8_TWELVE_B_REPOSITORY = "litert-community/gemma-4-12B-it-litert-lm"
+ISSUE8_TWELVE_B_REVISION = "d7de8ec6dcf035c90999ff38560bf4c6eb45a947"
+ISSUE8_TWELVE_B_FILE_NAME = "gemma-4-12B-it.litertlm"
+ISSUE8_TWELVE_B_BYTES = 6_547_589_312
+ISSUE8_TWELVE_B_SHA256 = "74fc29a10c20eb5b3ced6c389471a7994a0ffd657255b2a1c764262fb9054aef"
+NOMINAL_SIXTEEN_GIB_BYTES = 16 * 1024**3
+ISSUE8_INSTRUMENTATION_METHOD = (
+    "NativeAppUiChatInstrumentedTest#"
+    "mainActivityRunsIssueEightReadOnlyToolsBeforeAnyRemoteProviderRequest"
+)
+ISSUE16_INSTRUMENTATION_METHOD = (
+    "LiveDebianSandboxInstrumentedTest#"
+    "oneClickDebianRunsGuestBinariesWithoutWritableHostFallback"
+)
+GUEST_ONLY_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+
 @dataclass(frozen=True)
 class SourceTreeIdentity:
     algorithm: str
@@ -123,6 +191,14 @@ class SourceTreeIdentity:
     file_count: int
     git_object_format: str
     excluded_prefix: str
+
+
+@dataclass(frozen=True)
+class UiEvidenceSourceContract:
+    app_sections: tuple[str, ...]
+    settings_pages: tuple[str, ...]
+    device_pages: tuple[str, ...]
+    recommended_model_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -144,6 +220,16 @@ class ValidatedEvidence:
     benchmark_target_apk_sha256: str
     benchmark_test_apk_sha256: str
     evidence_run_id: str
+    comprehensive_ui_capture_count: int
+    launch_theme_capture_count: int
+    launch_theme_review_count: int
+    historical_issue8_model_count: int
+    issue8_tool_and_preflight_count: int
+    issue16_debian_sandbox_count: int
+    required_app_sections: tuple[str, ...] = ()
+    required_settings_pages: tuple[str, ...] = ()
+    required_device_pages: tuple[str, ...] = ()
+    required_recommended_model_ids: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -152,6 +238,192 @@ class DecodedPng:
     height: int
     content_pixel_sha256: str
     sampled_unique_colors: int
+
+
+def _read_ui_contract_source(repo_root: Path, relative: PurePosixPath) -> str:
+    path = repo_root / Path(relative.as_posix())
+    try:
+        return path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise EvidenceError(f"Cannot read the v3 UI source contract {relative}: {exc}") from exc
+
+
+def _balanced_kotlin_region(source: str, opening_index: int, opener: str, closer: str, context: str) -> str:
+    """Return one Kotlin delimiter region while ignoring strings and comments."""
+
+    if opening_index < 0 or opening_index >= len(source) or source[opening_index] != opener:
+        raise EvidenceError(f"{context} has no opening {opener!r}")
+    depth = 0
+    index = opening_index
+    quote = ""
+    block_comment_depth = 0
+    while index < len(source):
+        if block_comment_depth:
+            if source.startswith("/*", index):
+                block_comment_depth += 1
+                index += 2
+            elif source.startswith("*/", index):
+                block_comment_depth -= 1
+                index += 2
+            else:
+                index += 1
+            continue
+        if quote:
+            if quote == '"""':
+                if source.startswith(quote, index):
+                    quote = ""
+                    index += 3
+                else:
+                    index += 1
+                continue
+            character = source[index]
+            if character == "\\":
+                index += 2
+            elif character == quote:
+                quote = ""
+                index += 1
+            else:
+                index += 1
+            continue
+        if source.startswith("//", index):
+            newline = source.find("\n", index + 2)
+            index = len(source) if newline < 0 else newline + 1
+            continue
+        if source.startswith("/*", index):
+            block_comment_depth = 1
+            index += 2
+            continue
+        if source.startswith('"""', index):
+            quote = '"""'
+            index += 3
+            continue
+        character = source[index]
+        if character in {'"', "'"}:
+            quote = character
+            index += 1
+            continue
+        if character == opener:
+            depth += 1
+        elif character == closer:
+            depth -= 1
+            if depth == 0:
+                return source[opening_index : index + 1]
+            if depth < 0:
+                break
+        index += 1
+    raise EvidenceError(f"{context} has an unterminated {opener}{closer} region")
+
+
+def _kotlin_enum_entries(source: str, enum_name: str, context: str) -> tuple[str, ...]:
+    declaration = re.search(rf"\benum\s+class\s+{re.escape(enum_name)}\b", source)
+    if declaration is None:
+        raise EvidenceError(f"{context} does not declare enum class {enum_name}")
+    opening = source.find("{", declaration.end())
+    body = _balanced_kotlin_region(source, opening, "{", "}", context)[1:-1]
+    entries_text, _, _ = body.partition(";")
+    entries = tuple(
+        match.group(1)
+        for match in re.finditer(
+            r"(?m)^\s*([A-Z][A-Za-z0-9_]*)\s*(?:\([^\n]*\))?\s*,?\s*$",
+            entries_text,
+        )
+    )
+    if not entries or len(entries) != len(set(entries)):
+        raise EvidenceError(f"{context} enum {enum_name} entries are empty or duplicated")
+    return entries
+
+
+def _recommended_model_ids(source: str, context: str) -> tuple[str, ...]:
+    declaration = re.search(r"\bval\s+recommendedModelPresets\s*=\s*listOf\s*\(", source)
+    if declaration is None:
+        raise EvidenceError(f"{context} does not declare recommendedModelPresets as a source list")
+    opening = source.find("(", declaration.start())
+    region = _balanced_kotlin_region(source, opening, "(", ")", context)
+    constructor_count = len(re.findall(r"\bRecommendedLocalModelPreset\s*\(", region))
+    model_ids = tuple(
+        re.findall(r'(?m)^\s*id\s*=\s*"([a-z0-9][a-z0-9._-]*)"\s*,\s*$', region)
+    )
+    if not model_ids or constructor_count != len(model_ids) or len(model_ids) != len(set(model_ids)):
+        raise EvidenceError(
+            f"{context} recommendedModelPresets must have one unique literal safe id per preset"
+        )
+    return model_ids
+
+
+def _require_ui_producer_relation(source: str, pattern: str, relation: str) -> None:
+    if re.search(pattern, source, flags=re.DOTALL) is None:
+        raise EvidenceError(f"The headed UI producer no longer proves the source-derived {relation}")
+
+
+def load_ui_evidence_source_contract(repo_root: Path | None = None) -> UiEvidenceSourceContract:
+    """Derive the closed v3 inventory from production source and its headed producer."""
+
+    root = (repo_root or Path(__file__).resolve().parents[1]).resolve()
+    app_sections = _kotlin_enum_entries(
+        _read_ui_contract_source(root, APP_SECTION_SOURCE),
+        "AppSection",
+        APP_SECTION_SOURCE.as_posix(),
+    )
+    settings_pages = _kotlin_enum_entries(
+        _read_ui_contract_source(root, SETTINGS_PAGE_SOURCE),
+        "SettingsPage",
+        SETTINGS_PAGE_SOURCE.as_posix(),
+    )
+    all_device_pages = _kotlin_enum_entries(
+        _read_ui_contract_source(root, DEVICE_PAGE_SOURCE),
+        "DevicePage",
+        DEVICE_PAGE_SOURCE.as_posix(),
+    )
+    if all_device_pages.count("Overview") != 1:
+        raise EvidenceError("DevicePage must contain exactly one Overview entry for v3 evidence exclusion")
+    device_pages = tuple(page for page in all_device_pages if page != "Overview")
+    if not device_pages:
+        raise EvidenceError("DevicePage has no non-Overview pages to certify")
+    recommended_model_ids = _recommended_model_ids(
+        _read_ui_contract_source(root, RECOMMENDED_MODEL_SOURCE),
+        RECOMMENDED_MODEL_SOURCE.as_posix(),
+    )
+
+    producer = _read_ui_contract_source(root, UI_EVIDENCE_PRODUCER_SOURCE)
+    _require_ui_producer_relation(
+        producer,
+        r'AppSection\.entries\.forEachIndexed\s*\{\s*index,\s*section\s*->.*?'
+        r'identity\s*=\s*"section:\$\{section\.name\}".*?'
+        r'coverageKind\s*=\s*"app-section".*?pageId\s*=\s*section\.name',
+        "AppSection identity and page-ID relationship",
+    )
+    _require_ui_producer_relation(
+        producer,
+        r'SettingsPage\.entries\.forEachIndexed\s*\{\s*index,\s*page\s*->.*?'
+        r'identity\s*=\s*"settings:\$\{page\.name\}".*?'
+        r'coverageKind\s*=\s*"settings-subpage".*?'
+        r'pageId\s*=\s*"Settings\.\$\{page\.name\}"',
+        "SettingsPage identity and page-ID relationship",
+    )
+    _require_ui_producer_relation(
+        producer,
+        r'DevicePage\.entries\.filterNot\s*\{\s*it\s*==\s*DevicePage\.Overview\s*\}'
+        r'\.forEachIndexed\s*\{\s*index,\s*page\s*->.*?val\s+pageName\s*=\s*page\.name.*?'
+        r'identity\s*=\s*"device:\$\{page\.name\}".*?'
+        r'coverageKind\s*=\s*"device-subpage".*?pageId\s*=\s*pageName',
+        "non-Overview DevicePage identity and page-ID relationship",
+    )
+    _require_ui_producer_relation(
+        producer,
+        r'val\s+targetPresets\s*=\s*LocalModelDownloadsViewModel\.recommendedModelPresets.*?'
+        r'AppLanguage\.entries\.forEach\s*\{\s*language\s*->.*?'
+        r'targetPresets\.forEach\s*\{\s*preset\s*->.*?'
+        r'identity\s*=\s*"localized-model:\$\{language\.tag\}:\$\{preset\.id\}".*?'
+        r'coverageKind\s*=\s*"six-language-recommended-model".*?'
+        r'pageId\s*=\s*"Settings\.Models\.\$\{preset\.id\}"',
+        "recommended-model identity and Settings.Models page-ID relationship",
+    )
+    return UiEvidenceSourceContract(
+        app_sections=app_sections,
+        settings_pages=settings_pages,
+        device_pages=device_pages,
+        recommended_model_ids=recommended_model_ids,
+    )
 
 
 def _run_git(repo_root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[bytes]:
@@ -191,6 +463,32 @@ def android_identity_for_tag(tag: str) -> tuple[str, int]:
     rank = {"alpha": 1, "beta": 2, "rc": 3, "": 9}[prerelease]
     version_code = major * 1_000_000 + minor * 10_000 + patch * 100 + rank * 10 + prerelease_sequence
     return normalized.removeprefix("v"), version_code
+
+
+def _tag_version_tuple(tag: str) -> tuple[int, int, int]:
+    normalized = validate_tag(tag)
+    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)(?:\.[0-9]+)?)?", normalized)
+    if match is None:  # pragma: no cover - validate_tag and the regex intentionally agree
+        raise EvidenceError(f"Unable to derive release-evidence policy from tag {tag}")
+    return tuple(int(match.group(index)) for index in (1, 2, 3))
+
+
+def requires_comprehensive_ui_evidence(tag: str) -> bool:
+    """Return whether the tag is subject to the v3 headed UI/launch contract."""
+
+    return _tag_version_tuple(tag) >= COMPREHENSIVE_UI_EVIDENCE_MIN_VERSION
+
+
+def litertlm_coordinate_for_tag(tag: str) -> str:
+    """Return the release dependency required by the tag's immutable evidence contract."""
+
+    if _tag_version_tuple(tag) >= LITERTLM_0161_MIN_VERSION:
+        return LITERTLM_COORDINATE
+    return LEGACY_LITERTLM_COORDINATE
+
+
+def manifest_schema_for_tag(tag: str) -> str:
+    return MANIFEST_SCHEMA_V3 if requires_comprehensive_ui_evidence(tag) else MANIFEST_SCHEMA_V2
 
 
 def parse_registered_model_matrix(source: str) -> tuple[ArtifactSpec, ...]:
@@ -1450,6 +1748,7 @@ def _validate_raw_performance(
     source_digest: str,
     version_name: str,
     version_code: int,
+    litertlm_coordinate: str,
 ) -> None:
     context = f"performance[{profile}].host_raw"
     exact_header: dict[str, Any] = {
@@ -1464,7 +1763,7 @@ def _validate_raw_performance(
         "version_name": version_name,
         "version_code": version_code,
         "build_variant": PERFORMANCE_BUILD_VARIANT,
-        "litertlm_coordinate": LITERTLM_COORDINATE,
+        "litertlm_coordinate": litertlm_coordinate,
     }
     if set(raw_payload) != set(exact_header) | {"records"}:
         raise EvidenceError(f"{context} top-level fields do not match the v2 host transcript")
@@ -1542,7 +1841,7 @@ def _validate_raw_performance(
         f"-PhermesBenchmarkExpectedSourceDigest={source_digest}",
         f"-PhermesBenchmarkExpectedVersionName={version_name}",
         f"-PhermesBenchmarkExpectedVersionCode={version_code}",
-        f"-PhermesBenchmarkExpectedLiteRtLmCoordinate={LITERTLM_COORDINATE}",
+        f"-PhermesBenchmarkExpectedLiteRtLmCoordinate={litertlm_coordinate}",
         f"-PhermesBenchmarkTargetApkSha256={normalized['benchmark_target_apk_sha256']}",
         f"-PhermesBenchmarkApkSha256={normalized['benchmark_test_apk_sha256']}",
         f"-PhermesBenchmarkEvidenceRunId={normalized['evidence_run_id']}",
@@ -2388,6 +2687,7 @@ def _validate_performance(
     version_name: str,
     version_code: int,
     *,
+    litertlm_coordinate: str = LITERTLM_COORDINATE,
     artifact_path_overrides: Mapping[str, Path] | None = None,
 ) -> dict[str, Any]:
     payload = _json_object(path)
@@ -2426,7 +2726,7 @@ def _validate_performance(
         "version_name": version_name,
         "version_code": version_code,
         "build_variant": PERFORMANCE_BUILD_VARIANT,
-        "litertlm_coordinate": LITERTLM_COORDINATE,
+        "litertlm_coordinate": litertlm_coordinate,
     }
     for field, expected in exact_identity.items():
         if payload.get(field) != expected:
@@ -2709,7 +3009,13 @@ def _validate_performance(
 
     host_payload = _json_object(host_path)
     _validate_raw_performance(
-        host_payload, payload, profile, source_digest, version_name, version_code
+        host_payload,
+        payload,
+        profile,
+        source_digest,
+        version_name,
+        version_code,
+        litertlm_coordinate,
     )
     return payload
 
@@ -2736,6 +3042,8 @@ def _validate_model_evidence(
     evidence_run_id: str,
     version_name: str,
     version_code: int,
+    *,
+    litertlm_coordinate: str = LITERTLM_COORDINATE,
 ) -> dict[str, Any]:
     payload = _json_object(path)
     context = f"model[{artifact.model_id}]"
@@ -2749,7 +3057,7 @@ def _validate_model_evidence(
         "version_name": version_name,
         "version_code": version_code,
         "build_variant": BUILD_VARIANT,
-        "litertlm_coordinate": LITERTLM_COORDINATE,
+        "litertlm_coordinate": litertlm_coordinate,
         "result": "passed",
         "evidence_complete": True,
         "content_addressed": True,
@@ -2830,9 +3138,1758 @@ def _validate_model_evidence(
     return payload
 
 
+def _validate_historical_e4b_evidence(
+    path: Path,
+    performance_records: Sequence[Mapping[str, Any]],
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+    version_name: str,
+    version_code: int,
+) -> dict[str, Any]:
+    payload = _validate_model_evidence(
+        path,
+        HISTORICAL_E4B_ARTIFACT,
+        performance_records,
+        source_digest,
+        candidate_apk_sha256,
+        instrumentation_apk_sha256,
+        evidence_run_id,
+        version_name,
+        version_code,
+    )
+    context = "model[gemma-4-e4b-litert-lm]"
+    expected_top_level_keys = {
+        "schema",
+        "release_source_digest",
+        "candidate_apk_sha256",
+        "instrumentation_apk_sha256",
+        "evidence_run_id",
+        "package_id",
+        "version_name",
+        "version_code",
+        "build_variant",
+        "litertlm_coordinate",
+        "result",
+        "evidence_complete",
+        "content_addressed",
+        "backend",
+        "instrumentation_method",
+        "model_id",
+        "publisher_repository",
+        "publisher_revision",
+        "file_name",
+        "device_path",
+        "publisher_expected_bytes",
+        "device_visible_bytes",
+        "expected_sha256",
+        "device_sha256",
+        "runtime_started",
+        "health_ok",
+        "completion_nonempty",
+        "elapsed_ms",
+        "accelerator",
+        "status_message",
+        "device_model",
+        "device_serial",
+        "avd_name",
+        "device_boot_id",
+        "build_fingerprint",
+        "android_sdk",
+        "supported_abis",
+        "recorded_at_epoch_ms",
+        "details",
+        "evidence_file",
+    }
+    _exact_keys(payload, expected_top_level_keys, context)
+    if payload["accelerator"] != "cpu":
+        raise EvidenceError(f"{context}.accelerator must equal 'cpu'")
+    evidence_file = _required_string(payload, "evidence_file", context)
+    if not re.fullmatch(
+        r"/data/user/0/com\.mobilefork\.hermesagent/files/hermes-model-evidence/"
+        r"litert-lm-gemma-4-E4B-it\.litertlm-[0-9]+\.json",
+        evidence_file,
+    ):
+        raise EvidenceError(f"{context}.evidence_file does not match ModelMatrixEvidence output")
+    details = _nested_object(payload, "details", context)
+    expected_detail_keys = {
+        "health_backend",
+        "runtime_entrypoint",
+        "provisioning_method",
+        "accelerator_attempts",
+        "requested_accelerator",
+        "gpu_attempted",
+        "requested_speculative_decoding",
+        "speculative_decoding",
+        "mtp_policy",
+        "image_input_supported",
+        "audio_input_supported",
+        "clean_shutdown",
+        "completion_characters",
+        "artifact_summary",
+    }
+    _exact_keys(details, expected_detail_keys, f"{context}.details")
+    exact_details = {
+        "health_backend": "litert-lm",
+        "runtime_entrypoint": "on-device-backend-manager",
+        "provisioning_method": "content-addressed-preprovisioned-preferred-download-record",
+        "requested_accelerator": "cpu",
+        "gpu_attempted": False,
+        "requested_speculative_decoding": "disabled",
+        "speculative_decoding": False,
+        "image_input_supported": False,
+        "audio_input_supported": False,
+        "clean_shutdown": True,
+    }
+    for field, expected in exact_details.items():
+        if details.get(field) != expected:
+            raise EvidenceError(f"{context}.details.{field} must equal {expected!r}")
+    mtp_policy = _required_string(details, "mtp_policy", f"{context}.details")
+    if not mtp_policy.startswith("disabled:"):
+        raise EvidenceError(f"{context}.details.mtp_policy must start with 'disabled:'")
+    attempts = details.get("accelerator_attempts")
+    if not isinstance(attempts, list) or not attempts or any(
+        not isinstance(attempt, str) or not attempt.strip() for attempt in attempts
+    ):
+        raise EvidenceError(f"{context}.details.accelerator_attempts must be nonblank strings")
+    if not any("cpu/" in attempt.lower() for attempt in attempts):
+        raise EvidenceError(f"{context}.details.accelerator_attempts does not contain a CPU engine attempt")
+    _required_string(details, "artifact_summary", f"{context}.details")
+    return payload
+
+
+ISSUE_RELEASE_IDENTITY_KEYS = {
+    "release_source_digest",
+    "candidate_apk_sha256",
+    "instrumentation_apk_sha256",
+    "evidence_run_id",
+    "package_id",
+    "version_name",
+    "version_code",
+    "release_tag",
+    "build_variant",
+    "lite_rt_lm_coordinate",
+    "device_serial",
+    "avd_name",
+    "device_boot_id",
+    "device_model",
+    "build_fingerprint",
+    "android_sdk",
+    "supported_abis",
+    "profile",
+}
+
+
+def _validate_issue_release_identity(
+    identity: Mapping[str, Any],
+    context: str,
+    performance_records: Sequence[Mapping[str, Any]],
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+    version_name: str,
+    version_code: int,
+    tag: str,
+) -> Mapping[str, Any]:
+    _exact_keys(identity, ISSUE_RELEASE_IDENTITY_KEYS, context)
+    exact_values = {
+        "release_source_digest": source_digest,
+        "candidate_apk_sha256": candidate_apk_sha256,
+        "instrumentation_apk_sha256": instrumentation_apk_sha256,
+        "evidence_run_id": evidence_run_id,
+        "package_id": PACKAGE_ID,
+        "version_name": version_name,
+        "version_code": version_code,
+        "release_tag": tag,
+        "build_variant": BUILD_VARIANT,
+        "lite_rt_lm_coordinate": litertlm_coordinate_for_tag(tag),
+    }
+    for field, expected in exact_values.items():
+        if identity.get(field) != expected:
+            raise EvidenceError(f"{context}.{field} must equal {expected!r}")
+
+    profile = _required_string(identity, "profile", context)
+    if profile not in PROFILES:
+        raise EvidenceError(f"{context}.profile must be one of {list(PROFILES)}")
+    performance = performance_records[PROFILES.index(profile)]
+    device = performance["device"]
+    exact_device_values = {
+        "device_serial": device["serial"],
+        "avd_name": device["avd_name"],
+        "device_boot_id": device["boot_id"],
+        "device_model": device["model"],
+        "build_fingerprint": device["build_fingerprint"],
+        "android_sdk": device["android_sdk"],
+    }
+    for field, expected in exact_device_values.items():
+        actual = identity.get(field)
+        if field == "device_boot_id" and isinstance(actual, str):
+            actual = actual.lower()
+            expected = expected.lower()
+        if actual != expected:
+            raise EvidenceError(f"{context}.{field} does not match performance[{profile}]")
+    supported_abis = _normalized_abis(identity.get("supported_abis"), context)
+    if supported_abis != tuple(device["supported_abis"]):
+        raise EvidenceError(f"{context}.supported_abis does not match performance[{profile}]")
+    return performance
+
+
+def _validate_issue8_evidence(
+    path: Path,
+    performance_records: Sequence[Mapping[str, Any]],
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+    version_name: str,
+    version_code: int,
+    tag: str,
+) -> dict[str, Any]:
+    payload = _json_object(path)
+    context = "issue_evidence[8]"
+    _exact_keys(
+        payload,
+        {
+            "schema",
+            "issue_number",
+            "result",
+            "overall_exit_code",
+            "evidence_source",
+            "instrumentation_method",
+            "release_identity",
+            "direct_tool_routes",
+            "catalog_policy",
+            "twelve_b_preflight",
+            "validation_errors",
+        },
+        context,
+    )
+    exact_values = {
+        "schema": ISSUE8_EVIDENCE_SCHEMA,
+        "issue_number": 8,
+        "result": "pass",
+        "overall_exit_code": 0,
+        "evidence_source": "instrumentation",
+        "instrumentation_method": ISSUE8_INSTRUMENTATION_METHOD,
+    }
+    for field, expected in exact_values.items():
+        if payload.get(field) != expected:
+            raise EvidenceError(f"{context}.{field} must equal {expected!r}")
+    if payload.get("validation_errors") != []:
+        raise EvidenceError(f"{context}.validation_errors must be an empty list")
+    identity = _nested_object(payload, "release_identity", context)
+    _validate_issue_release_identity(
+        identity,
+        f"{context}.release_identity",
+        performance_records,
+        source_digest,
+        candidate_apk_sha256,
+        instrumentation_apk_sha256,
+        evidence_run_id,
+        version_name,
+        version_code,
+        tag,
+    )
+    if identity["profile"] != "phone-compact":
+        raise EvidenceError(f"{context}.release_identity.profile must equal 'phone-compact'")
+
+    routes = payload.get("direct_tool_routes")
+    if not isinstance(routes, list) or len(routes) != 2 or any(not isinstance(route, dict) for route in routes):
+        raise EvidenceError(f"{context}.direct_tool_routes must contain exactly two objects")
+    expected_routes = {
+        "Run a command to tell me what time it is.": ("terminal_tool", "date", "time"),
+        "Check my device status": ("android_device_diagnostics_tool", "status", "status"),
+    }
+    observed_prompts: set[str] = set()
+    for index, route in enumerate(routes):
+        route_context = f"{context}.direct_tool_routes[{index}]"
+        _exact_keys(
+            route,
+            {
+                "prompt",
+                "tool_name",
+                "tool_action",
+                "visible_tool_event",
+                "visible_result_event",
+                "visible_result_text",
+                "executed_tool_calls",
+                "model_request_count",
+                "provider_network_request_count",
+            },
+            route_context,
+        )
+        prompt = _required_string(route, "prompt", route_context)
+        if prompt not in expected_routes or prompt in observed_prompts:
+            raise EvidenceError(f"{route_context}.prompt is not one unique required issue-8 prompt")
+        observed_prompts.add(prompt)
+        expected_tool, expected_action, result_kind = expected_routes[prompt]
+        if route.get("tool_name") != expected_tool or route.get("tool_action") != expected_action:
+            raise EvidenceError(f"{route_context} does not prove the expected direct native route")
+        if route.get("visible_tool_event") is not True or route.get("visible_result_event") is not True:
+            raise EvidenceError(f"{route_context} must prove visible tool and result events")
+        if route.get("executed_tool_calls") != 1:
+            raise EvidenceError(f"{route_context}.executed_tool_calls must equal 1")
+        if route.get("model_request_count") != 0 or route.get("provider_network_request_count") != 0:
+            raise EvidenceError(f"{route_context} must make zero model and provider network requests")
+        visible_result = _required_string(route, "visible_result_text", route_context)
+        if result_kind == "time" and not re.search(r"\b[0-9]{4}\b", visible_result):
+            raise EvidenceError(f"{route_context}.visible_result_text lacks a four-digit year")
+        if result_kind == "status" and '"status"' not in visible_result:
+            raise EvidenceError(f"{route_context}.visible_result_text lacks the native status result")
+    if observed_prompts != set(expected_routes):
+        raise EvidenceError(f"{context}.direct_tool_routes does not cover both exact prompts")
+
+    catalog = _nested_object(payload, "catalog_policy", context)
+    catalog_context = f"{context}.catalog_policy"
+    _exact_keys(
+        catalog,
+        {
+            "evaluation_source",
+            "model_id",
+            "repository",
+            "revision",
+            "file_name",
+            "catalog_declared_bytes",
+            "expected_sha256",
+            "release_certified",
+            "quick_start_eligible",
+            "present_in_mobile_quick_catalog",
+            "automatically_selected",
+            "artifact_file_present",
+        },
+        catalog_context,
+    )
+    exact_catalog_values = {
+        "evaluation_source": "production-mobile-catalog-policy",
+        "model_id": ISSUE8_TWELVE_B_MODEL_ID,
+        "repository": ISSUE8_TWELVE_B_REPOSITORY,
+        "revision": ISSUE8_TWELVE_B_REVISION,
+        "file_name": ISSUE8_TWELVE_B_FILE_NAME,
+        "catalog_declared_bytes": ISSUE8_TWELVE_B_BYTES,
+        "expected_sha256": ISSUE8_TWELVE_B_SHA256,
+        "release_certified": False,
+        "quick_start_eligible": False,
+        "present_in_mobile_quick_catalog": False,
+        "automatically_selected": False,
+        "artifact_file_present": False,
+    }
+    for field, expected in exact_catalog_values.items():
+        if catalog.get(field) != expected:
+            raise EvidenceError(f"{catalog_context}.{field} must equal {expected!r}")
+
+    preflight = _nested_object(payload, "twelve_b_preflight", context)
+    preflight_context = f"{context}.twelve_b_preflight"
+    _exact_keys(
+        preflight,
+        {
+            "model_id",
+            "repository",
+            "revision",
+            "file_name",
+            "catalog_declared_bytes",
+            "model_bytes_evaluated",
+            "expected_sha256",
+            "backend",
+            "artifact_path",
+            "artifact_file_present",
+            "evaluation_source",
+            "memory_profile",
+            "requested_context_tokens",
+            "effective_context_tokens",
+            "estimated_additional_bytes",
+            "preflight_allowed",
+            "preflight_level",
+            "blocked_before_native_engine",
+            "native_engine_start_attempted",
+            "native_engine_started",
+            "requires_app_restart",
+            "reason",
+        },
+        preflight_context,
+    )
+    exact_preflight_values = {
+        "model_id": ISSUE8_TWELVE_B_MODEL_ID,
+        "repository": ISSUE8_TWELVE_B_REPOSITORY,
+        "revision": ISSUE8_TWELVE_B_REVISION,
+        "file_name": ISSUE8_TWELVE_B_FILE_NAME,
+        "catalog_declared_bytes": ISSUE8_TWELVE_B_BYTES,
+        "model_bytes_evaluated": ISSUE8_TWELVE_B_BYTES,
+        "expected_sha256": ISSUE8_TWELVE_B_SHA256,
+        "backend": "litert-lm",
+        "artifact_path": "",
+        "artifact_file_present": False,
+        "evaluation_source": "production-local-model-runtime-preflight",
+        "requested_context_tokens": 32_000,
+        "effective_context_tokens": 2_048,
+        "estimated_additional_bytes": 10_440_486_640,
+        "preflight_allowed": False,
+        "preflight_level": "blocked",
+        "blocked_before_native_engine": True,
+        "native_engine_start_attempted": False,
+        "native_engine_started": False,
+        "requires_app_restart": False,
+    }
+    for field, expected in exact_preflight_values.items():
+        if preflight.get(field) != expected:
+            raise EvidenceError(f"{preflight_context}.{field} must equal {expected!r}")
+    memory = _nested_object(preflight, "memory_profile", preflight_context)
+    memory_context = f"{preflight_context}.memory_profile"
+    _exact_keys(
+        memory,
+        {
+            "source",
+            "classification",
+            "total_bytes",
+            "available_bytes",
+            "threshold_bytes",
+            "usable_available_bytes",
+            "low_memory",
+        },
+        memory_context,
+    )
+    exact_memory = {
+        "source": "controlled-instrumentation-memory-snapshot",
+        "classification": "nominal-16-gib",
+        "total_bytes": NOMINAL_SIXTEEN_GIB_BYTES,
+        "available_bytes": 10_000_000_000,
+        "threshold_bytes": 500_000_000,
+        "usable_available_bytes": 9_500_000_000,
+        "low_memory": False,
+    }
+    for field, expected in exact_memory.items():
+        if memory.get(field) != expected:
+            raise EvidenceError(f"{memory_context}.{field} must equal {expected!r}")
+    reason = _required_string(preflight, "reason", preflight_context).lower()
+    if "usable ram" not in reason or "choose a smaller model" not in reason:
+        raise EvidenceError(f"{preflight_context}.reason is not the actionable production memory block")
+    return payload
+
+
+def _validate_issue16_command(
+    value: Mapping[str, Any],
+    context: str,
+    expected_command: str,
+    expected_output: str,
+) -> None:
+    _exact_keys(
+        value,
+        {"command", "exit_code", "stdout", "stderr", "sandbox_execution_mode"},
+        context,
+    )
+    if value.get("command") != expected_command:
+        raise EvidenceError(f"{context}.command must equal {expected_command!r}")
+    if value.get("exit_code") != 0:
+        raise EvidenceError(f"{context}.exit_code must equal 0")
+    if value.get("sandbox_execution_mode") != "proot_distro_qemu":
+        raise EvidenceError(f"{context}.sandbox_execution_mode must equal 'proot_distro_qemu'")
+    stdout = _required_string(value, "stdout", context)
+    stderr = value.get("stderr")
+    if not isinstance(stderr, str) or stderr.strip():
+        raise EvidenceError(f"{context}.stderr must be blank")
+    if expected_output not in stdout:
+        raise EvidenceError(f"{context}.stdout lacks {expected_output!r}")
+    if "permission denied" in stdout.lower():
+        raise EvidenceError(f"{context}.stdout contains Permission denied")
+
+
+def _validate_issue16_native_route(
+    value: Mapping[str, Any],
+    context: str,
+    expected_file_name: str,
+) -> str:
+    _exact_keys(
+        value,
+        {"route_path", "path", "expected_file_name", "exists", "executable", "trusted"},
+        context,
+    )
+    if value.get("expected_file_name") != expected_file_name:
+        raise EvidenceError(f"{context}.expected_file_name must equal {expected_file_name!r}")
+    if value.get("exists") is not True or value.get("executable") is not True or value.get("trusted") is not True:
+        raise EvidenceError(f"{context} must be an existing executable trusted APK-native route")
+    _required_string(value, "route_path", context)
+    resolved = _required_string(value, "path", context).replace("\\", "/")
+    if not resolved.endswith(f"/{expected_file_name}") or "/data/app/" not in resolved:
+        raise EvidenceError(f"{context}.path is not the package-manager-extracted native library")
+    if "/data/user/" in resolved or "/data/data/" in resolved:
+        raise EvidenceError(f"{context}.path resolves into writable app data")
+    return resolved
+
+
+def _validate_issue16_evidence(
+    path: Path,
+    performance_records: Sequence[Mapping[str, Any]],
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+    version_name: str,
+    version_code: int,
+    tag: str,
+) -> dict[str, Any]:
+    payload = _json_object(path)
+    context = "issue_evidence[16]"
+    _exact_keys(
+        payload,
+        {
+            "schema",
+            "issue_number",
+            "result",
+            "overall_exit_code",
+            "release_identity",
+            "packaged_runtime",
+            "sandbox",
+            "guest_routing",
+            "commands",
+            "cleanup",
+            "validation_errors",
+        },
+        context,
+    )
+    exact_values = {
+        "schema": ISSUE16_EVIDENCE_SCHEMA,
+        "issue_number": 16,
+        "result": "pass",
+        "overall_exit_code": 0,
+    }
+    for field, expected in exact_values.items():
+        if payload.get(field) != expected:
+            raise EvidenceError(f"{context}.{field} must equal {expected!r}")
+    if payload.get("validation_errors") != []:
+        raise EvidenceError(f"{context}.validation_errors must be an empty list")
+    identity = _nested_object(payload, "release_identity", context)
+    _validate_issue_release_identity(
+        identity,
+        f"{context}.release_identity",
+        performance_records,
+        source_digest,
+        candidate_apk_sha256,
+        instrumentation_apk_sha256,
+        evidence_run_id,
+        version_name,
+        version_code,
+        tag,
+    )
+    if identity["profile"] != "phone-compact":
+        raise EvidenceError(f"{context}.release_identity.profile must equal 'phone-compact'")
+
+    packaged = _nested_object(payload, "packaged_runtime", context)
+    packaged_context = f"{context}.packaged_runtime"
+    _exact_keys(
+        packaged,
+        {
+            "packaged_asset_path",
+            "packaged_asset_sha256",
+            "packaged_asset_skipped",
+            "packaged_assets_present",
+            "execution_mode",
+            "uses_termux",
+            "android_abi",
+            "asset_manifest_sha256",
+            "asset_refresh_error",
+            "native_execution_route",
+            "proot_direct_exec_patch_ready",
+            "host_printenv_command",
+            "host_printenv_exit_code",
+            "host_printenv_stdout",
+            "host_printenv_stderr",
+            "proot_executable",
+            "trusted_native_routes",
+        },
+        packaged_context,
+    )
+    android_abi = _required_string(packaged, "android_abi", packaged_context)
+    if android_abi not in _normalized_abis(identity.get("supported_abis"), packaged_context):
+        raise EvidenceError(f"{packaged_context}.android_abi is not in the bound device ABI list")
+    exact_packaged = {
+        "packaged_asset_path": f"hermes-linux/{android_abi}/manifest.json",
+        "packaged_asset_skipped": False,
+        "packaged_assets_present": True,
+        "execution_mode": "embedded_termux",
+        "uses_termux": True,
+        "asset_refresh_error": "",
+        "native_execution_route": "apk_native_library_direct",
+        "proot_direct_exec_patch_ready": True,
+        "host_printenv_command": "printenv HERMES_ANDROID_PROOT_EXECUTABLE",
+        "host_printenv_exit_code": 0,
+        "host_printenv_stderr": "",
+    }
+    for field, expected in exact_packaged.items():
+        if packaged.get(field) != expected:
+            raise EvidenceError(f"{packaged_context}.{field} must equal {expected!r}")
+    asset_sha = packaged.get("packaged_asset_sha256")
+    if not isinstance(asset_sha, str) or not HEX_64_RE.fullmatch(asset_sha):
+        raise EvidenceError(f"{packaged_context}.packaged_asset_sha256 must be one lowercase SHA-256")
+    if packaged.get("asset_manifest_sha256") != asset_sha:
+        raise EvidenceError(f"{packaged_context}.asset_manifest_sha256 does not match packaged asset bytes")
+    routes = _nested_object(packaged, "trusted_native_routes", packaged_context)
+    _exact_keys(routes, {"proot", "qemu_user", "coreutils"}, f"{packaged_context}.trusted_native_routes")
+    proot_path = _validate_issue16_native_route(
+        _nested_object(routes, "proot", f"{packaged_context}.trusted_native_routes"),
+        f"{packaged_context}.trusted_native_routes.proot",
+        "libhermes_exec_bin_proot.so",
+    )
+    qemu = _nested_object(routes, "qemu_user", f"{packaged_context}.trusted_native_routes")
+    qemu_name = qemu.get("expected_file_name")
+    if qemu_name not in {
+        "libhermes_exec_bin_qemu_aarch64.so",
+        "libhermes_exec_bin_qemu_x86_64.so",
+    }:
+        raise EvidenceError(f"{packaged_context}.trusted_native_routes.qemu_user has an invalid QEMU binary")
+    _validate_issue16_native_route(qemu, f"{packaged_context}.trusted_native_routes.qemu_user", qemu_name)
+    _validate_issue16_native_route(
+        _nested_object(routes, "coreutils", f"{packaged_context}.trusted_native_routes"),
+        f"{packaged_context}.trusted_native_routes.coreutils",
+        "libhermes_exec_bin_coreutils.so",
+    )
+    if packaged.get("proot_executable") != proot_path or packaged.get("host_printenv_stdout", "").strip() != proot_path:
+        raise EvidenceError(f"{packaged_context} printenv does not resolve the trusted packaged PRoot")
+
+    sandbox = _nested_object(payload, "sandbox", context)
+    sandbox_context = f"{context}.sandbox"
+    _exact_keys(
+        sandbox,
+        {
+            "name",
+            "fresh_requested",
+            "sandbox_existed_before",
+            "deploy_exit_code",
+            "deployment_completed",
+            "failed_phase",
+            "sandbox_state",
+            "sandbox_preserved_for_retry",
+            "update_exit_code",
+            "update_command",
+            "requested_timeout_seconds",
+            "guest_ca_bundle",
+        },
+        sandbox_context,
+    )
+    sandbox_name = _required_string(sandbox, "name", sandbox_context)
+    if not SAFE_ARTIFACT_NAME_RE.fullmatch(sandbox_name):
+        raise EvidenceError(f"{sandbox_context}.name is unsafe")
+    exact_sandbox = {
+        "fresh_requested": True,
+        "sandbox_existed_before": False,
+        "deploy_exit_code": 0,
+        "deployment_completed": True,
+        "failed_phase": "",
+        "sandbox_state": "ready",
+        "sandbox_preserved_for_retry": False,
+        "update_exit_code": 0,
+        "update_command": (
+            "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && "
+            "DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install curl"
+        ),
+        "requested_timeout_seconds": 900,
+    }
+    for field, expected in exact_sandbox.items():
+        if sandbox.get(field) != expected:
+            raise EvidenceError(f"{sandbox_context}.{field} must equal {expected!r}")
+    ca = _nested_object(sandbox, "guest_ca_bundle", sandbox_context)
+    ca_context = f"{sandbox_context}.guest_ca_bundle"
+    ca_base_keys = {"exit_code", "path", "source", "certificate_count", "android_certificate_count", "sha256"}
+    ca_replace_keys = ca_base_keys | {"replaced_truncated_guest_bundle", "previous_certificate_count"}
+    if frozenset(ca) not in {frozenset(ca_base_keys), frozenset(ca_replace_keys)}:
+        raise EvidenceError(f"{ca_context} key set is not one closed producer shape")
+    if ca.get("exit_code") != 0:
+        raise EvidenceError(f"{ca_context}.exit_code must equal 0")
+    ca_path = _required_string(ca, "path", ca_context).replace("\\", "/")
+    if not ca_path.endswith("/etc/ssl/certs/ca-certificates.crt"):
+        raise EvidenceError(f"{ca_context}.path is not the guest CA bundle")
+    ca_source = _required_string(ca, "source", ca_context).replace("\\", "/")
+    if ca_source != "existing_guest_bundle" and ca_source not in {
+        "/apex/com.android.conscrypt/cacerts",
+        "/system/etc/security/cacerts",
+    }:
+        raise EvidenceError(f"{ca_context}.source is not an Android trust-root source")
+    certificate_count = _integer(ca, "certificate_count", ca_context, positive=True)
+    android_certificate_count = _integer(ca, "android_certificate_count", ca_context, positive=True)
+    if certificate_count < android_certificate_count:
+        raise EvidenceError(f"{ca_context}.certificate_count is below the Android trust-root count")
+    if not isinstance(ca.get("sha256"), str) or not HEX_64_RE.fullmatch(ca["sha256"]):
+        raise EvidenceError(f"{ca_context}.sha256 must be one lowercase SHA-256")
+
+    guest_routing = _nested_object(payload, "guest_routing", context)
+    routing_context = f"{context}.guest_routing"
+    _exact_keys(
+        guest_routing,
+        {
+            "expected_path",
+            "observed_path",
+            "path_command",
+            "path_exit_code",
+            "guest_only_path",
+            "id_route",
+            "uname_route",
+            "curl_route",
+            "id_path",
+            "uname_path",
+            "curl_path",
+        },
+        routing_context,
+    )
+    exact_routing = {
+        "expected_path": GUEST_ONLY_PATH,
+        "observed_path": GUEST_ONLY_PATH,
+        "path_command": "printf '%s\\n' \"$PATH\"",
+        "path_exit_code": 0,
+        "guest_only_path": True,
+        "id_path": "/usr/bin/id",
+        "uname_path": "/usr/bin/uname",
+        "curl_path": "/usr/bin/curl",
+    }
+    for field, expected in exact_routing.items():
+        if guest_routing.get(field) != expected:
+            raise EvidenceError(f"{routing_context}.{field} must equal {expected!r}")
+    if "/data/" in guest_routing["observed_path"]:
+        raise EvidenceError(f"{routing_context}.observed_path falls through to writable Android storage")
+    for field, command, output in (
+        ("id_route", "command -v id", "/usr/bin/id"),
+        ("uname_route", "command -v uname", "/usr/bin/uname"),
+        ("curl_route", "command -v curl", "/usr/bin/curl"),
+    ):
+        _validate_issue16_command(
+            _nested_object(guest_routing, field, routing_context),
+            f"{routing_context}.{field}",
+            command,
+            output,
+        )
+
+    commands = _nested_object(payload, "commands", context)
+    _exact_keys(commands, {"id", "uname", "curl_version", "https"}, f"{context}.commands")
+    for field, command, output in (
+        ("id", "id", "uid=0(root)"),
+        ("uname", "uname -a", "GNU/Linux"),
+        ("curl_version", "curl --version", "curl "),
+        (
+            "https",
+            "curl -fsS https://example.com/ >/dev/null && printf 'HTTPS_OK\\n'",
+            "HTTPS_OK",
+        ),
+    ):
+        _validate_issue16_command(
+            _nested_object(commands, field, f"{context}.commands"),
+            f"{context}.commands.{field}",
+            command,
+            output,
+        )
+
+    cleanup = _nested_object(payload, "cleanup", context)
+    cleanup_context = f"{context}.cleanup"
+    _exact_keys(
+        cleanup,
+        {
+            "action",
+            "exit_code",
+            "status_exit_code",
+            "agent_shell_enabled",
+            "active_sandbox_name",
+            "sandbox_name",
+            "sandbox_present",
+            "sandbox_preserved",
+            "sandbox_removed",
+            "disposition",
+        },
+        cleanup_context,
+    )
+    exact_cleanup = {
+        "action": "uninstall",
+        "exit_code": 0,
+        "status_exit_code": 0,
+        "agent_shell_enabled": False,
+        "active_sandbox_name": "",
+        "sandbox_name": sandbox_name,
+        "sandbox_present": False,
+        "sandbox_preserved": False,
+        "sandbox_removed": True,
+        "disposition": "sandbox_removed_stopped",
+    }
+    for field, expected in exact_cleanup.items():
+        if cleanup.get(field) != expected:
+            raise EvidenceError(f"{cleanup_context}.{field} must equal {expected!r}")
+    return payload
+
+
+UI_METADATA_KEYS = frozenset(
+    {
+        "profile",
+        "language",
+        "theme_id",
+        "theme_primary",
+        "theme_secondary",
+        "theme_background",
+        "theme_surface",
+        "theme_surface_variant",
+        "card_shape",
+        "ui_font_scale",
+        "screen_width_dp",
+        "screen_height_dp",
+        "system_font_scale",
+        "package_id",
+        "version_name",
+        "version_code",
+        "build_variant",
+        "source_digest",
+        "candidate_apk_sha256",
+        "instrumentation_apk_sha256",
+        "evidence_run_id",
+        "device_serial",
+        "avd_name",
+        "device_boot_id",
+        "build_fingerprint",
+        "screenshot_sha256",
+    }
+)
+UI_PROOF_BASE_KEYS = frozenset(
+    {"evidence_type", "evidence_identity", "artifact", "coverage_kind", "page_id"}
+)
+PALETTE_KEYS = (
+    "theme_primary",
+    "theme_secondary",
+    "theme_background",
+    "theme_surface",
+    "theme_surface_variant",
+    "card_shape",
+    "ui_font_scale",
+)
+
+
+def _safe_artifact_name(value: Any, context: str, suffixes: tuple[str, ...]) -> str:
+    if not isinstance(value, str) or not SAFE_ARTIFACT_NAME_RE.fullmatch(value):
+        raise EvidenceError(f"{context} must be one safe basename")
+    if Path(value).name != value or not value.endswith(suffixes):
+        raise EvidenceError(f"{context} has an invalid suffix or path")
+    return value
+
+
+def _strict_key_value_file(path: Path, context: str) -> dict[str, str]:
+    try:
+        lines = path.read_text(encoding="utf-8").replace("\r\n", "\n").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise EvidenceError(f"Invalid UTF-8 {context} {path}: {exc}") from exc
+    if not lines or any(not line for line in lines):
+        raise EvidenceError(f"{context} must contain only nonblank key=value lines: {path}")
+    result: dict[str, str] = {}
+    for line in lines:
+        key, marker, raw_value = line.partition("=")
+        if not marker or not key or key in result:
+            raise EvidenceError(f"Invalid or duplicate {context} line in {path}: {line!r}")
+        result[key] = raw_value.strip()
+    return result
+
+
+def _parse_ui_inventory(path: Path, context: str) -> tuple[dict[str, str], list[dict[str, str]]]:
+    payload = _strict_key_value_file(path, context)
+    base_keys = {
+        "evidence_type",
+        "coverage_kind",
+        "profile",
+        "capture_count",
+        "source_digest",
+        "candidate_apk_sha256",
+        "instrumentation_apk_sha256",
+        "evidence_run_id",
+        "device_serial",
+        "avd_name",
+        "device_boot_id",
+    }
+    if not base_keys.issubset(payload):
+        raise EvidenceError(f"{context} is missing fields {sorted(base_keys - set(payload))}")
+    try:
+        count = int(payload["capture_count"])
+    except ValueError as exc:
+        raise EvidenceError(f"{context}.capture_count must be an integer") from exc
+    if count <= 0 or count > 500:
+        raise EvidenceError(f"{context}.capture_count is outside the bounded release range")
+    capture_keys = {
+        f"capture.{index}.{field}"
+        for index in range(1, count + 1)
+        for field in ("identity", "screenshot", "proof")
+    }
+    expected_keys = base_keys | capture_keys
+    if set(payload) != expected_keys:
+        raise EvidenceError(
+            f"{context} key set is invalid; missing={sorted(expected_keys - set(payload))}, "
+            f"unexpected={sorted(set(payload) - expected_keys)}"
+        )
+    captures = []
+    for index in range(1, count + 1):
+        identity = payload[f"capture.{index}.identity"]
+        if not identity or "\n" in identity or len(identity) > 240:
+            raise EvidenceError(f"{context}.capture.{index}.identity is invalid")
+        captures.append(
+            {
+                "identity": identity,
+                "screenshot": _safe_artifact_name(
+                    payload[f"capture.{index}.screenshot"],
+                    f"{context}.capture.{index}.screenshot",
+                    (".png",),
+                ),
+                "proof": _safe_artifact_name(
+                    payload[f"capture.{index}.proof"],
+                    f"{context}.capture.{index}.proof",
+                    ("-semantics.txt", "-ui.xml"),
+                ),
+            }
+        )
+    if len({capture["identity"] for capture in captures}) != count:
+        raise EvidenceError(f"{context} contains duplicate evidence identities")
+    if len({capture["screenshot"] for capture in captures}) != count:
+        raise EvidenceError(f"{context} contains duplicate screenshot names")
+    if len({capture["proof"] for capture in captures}) != count:
+        raise EvidenceError(f"{context} contains duplicate proof names")
+    return payload, captures
+
+
+def _parse_compose_ui_proof(path: Path, context: str) -> dict[str, Any]:
+    try:
+        text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise EvidenceError(f"Invalid UTF-8 {context} {path}: {exc}") from exc
+    header_text, separator, body = text.partition("\n\n")
+    if not separator or not body.strip():
+        raise EvidenceError(f"{context} has no nonblank semantics body")
+    values: dict[str, str] = {}
+    sentinels: list[str] = []
+    for line in header_text.splitlines():
+        key, marker, raw_value = line.partition("=")
+        if not marker or not key:
+            raise EvidenceError(f"Invalid {context} header line {line!r}")
+        if key == "sentinel":
+            if not raw_value.strip():
+                raise EvidenceError(f"{context} contains a blank visible sentinel")
+            sentinels.append(raw_value.strip())
+        elif key in values:
+            raise EvidenceError(f"{context} contains duplicate field {key!r}")
+        else:
+            values[key] = raw_value.strip()
+    expected = UI_PROOF_BASE_KEYS | UI_METADATA_KEYS
+    if set(values) != expected:
+        raise EvidenceError(
+            f"{context} key set is invalid; missing={sorted(expected - set(values))}, "
+            f"unexpected={sorted(set(values) - expected)}"
+        )
+    if not sentinels:
+        raise EvidenceError(f"{context} contains no visible sentinels")
+    return {
+        "evidence_identity": values["evidence_identity"],
+        "artifact": values["artifact"],
+        "coverage_kind": values["coverage_kind"],
+        "page_id": values["page_id"],
+        "metadata": {key: values[key] for key in UI_METADATA_KEYS},
+        "sentinels": tuple(sentinels),
+        "body": body.strip(),
+        "evidence_type": values["evidence_type"],
+    }
+
+
+def _parse_xml_ui_proof(path: Path, context: str) -> dict[str, Any]:
+    try:
+        root = ET.fromstring(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ET.ParseError) as exc:
+        raise EvidenceError(f"Invalid XML {context} {path}: {exc}") from exc
+    if root.tag != "hermes-ui-evidence":
+        raise EvidenceError(f"{context} root must be hermes-ui-evidence")
+    expected_attributes = {"artifact", "evidence-identity", "coverage-kind", "page-id"}
+    if set(root.attrib) != expected_attributes:
+        raise EvidenceError(f"{context} root attribute set is invalid")
+    metadata_node = root.find("metadata")
+    hierarchy = root.find("view-hierarchy")
+    if metadata_node is None or hierarchy is None or not list(hierarchy):
+        raise EvidenceError(f"{context} lacks metadata or a nonblank View hierarchy")
+    if [child.tag for child in root] != ["metadata", "view-hierarchy"]:
+        raise EvidenceError(f"{context} has unexpected root children")
+    metadata: dict[str, str] = {}
+    sentinels: list[str] = []
+    for child in metadata_node:
+        if child.tag == "entry" and set(child.attrib) == {"key", "value"}:
+            key = child.attrib["key"]
+            if key in metadata:
+                raise EvidenceError(f"{context} contains duplicate metadata field {key!r}")
+            metadata[key] = child.attrib["value"]
+        elif child.tag == "sentinel" and set(child.attrib) == {"value"}:
+            value = child.attrib["value"].strip()
+            if not value:
+                raise EvidenceError(f"{context} contains a blank visible sentinel")
+            sentinels.append(value)
+        else:
+            raise EvidenceError(f"{context} contains an unexpected metadata element")
+    if set(metadata) != UI_METADATA_KEYS or not sentinels:
+        raise EvidenceError(f"{context} metadata key set or sentinel list is invalid")
+    body_fragments: list[str] = []
+    for element in hierarchy.iter():
+        body_fragments.extend(element.attrib.values())
+        if element.text and element.text.strip():
+            body_fragments.append(element.text.strip())
+        if element.tail and element.tail.strip():
+            body_fragments.append(element.tail.strip())
+    return {
+        "evidence_identity": root.attrib["evidence-identity"],
+        "artifact": root.attrib["artifact"],
+        "coverage_kind": root.attrib["coverage-kind"],
+        "page_id": root.attrib["page-id"],
+        "metadata": metadata,
+        "sentinels": tuple(sentinels),
+        # ElementTree has already decoded XML entities, so exact visible
+        # sentinels containing punctuation are compared to proof-body values
+        # rather than to an escaped serialization.
+        "body": "\n".join(body_fragments),
+        "evidence_type": "headed-ui-coverage-bound",
+    }
+
+
+def _normalized_palette(metadata: Mapping[str, str], context: str) -> dict[str, str | float]:
+    for field in PALETTE_KEYS[:5]:
+        if not HEX_COLOR_RE.fullmatch(metadata.get(field, "")):
+            raise EvidenceError(f"{context}.{field} must be one #RRGGBB colour")
+    if metadata.get("card_shape") not in {"square", "soft", "rounded"}:
+        raise EvidenceError(f"{context}.card_shape is invalid")
+    try:
+        scale = float(metadata["ui_font_scale"])
+    except (KeyError, ValueError) as exc:
+        raise EvidenceError(f"{context}.ui_font_scale is invalid") from exc
+    if not math.isfinite(scale) or not 0.75 <= scale <= 1.5:
+        raise EvidenceError(f"{context}.ui_font_scale is outside the supported range")
+    return {
+        **{field: metadata[field].upper() for field in PALETTE_KEYS[:5]},
+        "card_shape": metadata["card_shape"],
+        "ui_font_scale": scale,
+    }
+
+
+def _validate_ui_coverage_capture(
+    directory: Path,
+    capture: Mapping[str, str],
+    inventory: Mapping[str, str],
+    performance: Mapping[str, Any],
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+    version_name: str,
+    version_code: int,
+    context: str,
+) -> dict[str, Any]:
+    screenshot_path = directory / capture["screenshot"]
+    proof_path = directory / capture["proof"]
+    if not screenshot_path.is_file() or not proof_path.is_file():
+        raise EvidenceError(f"{context} is missing its screenshot or proof file")
+    decoded = _decode_png(screenshot_path)
+    proof = (
+        _parse_compose_ui_proof(proof_path, context)
+        if proof_path.name.endswith("-semantics.txt")
+        else _parse_xml_ui_proof(proof_path, context)
+    )
+    if proof["evidence_type"] != "headed-ui-coverage-bound":
+        raise EvidenceError(f"{context} has the wrong evidence_type")
+    if proof["evidence_identity"] != capture["identity"]:
+        raise EvidenceError(f"{context} evidence identity disagrees with its inventory")
+    artifact = screenshot_path.name.removesuffix(".png")
+    if proof["artifact"] != artifact:
+        raise EvidenceError(f"{context} artifact name disagrees with its screenshot")
+    expected_proof_name = (
+        f"{artifact}-semantics.txt" if proof_path.name.endswith("-semantics.txt") else f"{artifact}-ui.xml"
+    )
+    if proof_path.name != expected_proof_name:
+        raise EvidenceError(f"{context} proof filename is not derived from its screenshot artifact")
+    missing_sentinels = [sentinel for sentinel in proof["sentinels"] if sentinel not in proof["body"]]
+    if missing_sentinels:
+        raise EvidenceError(
+            f"{context} declares sentinels absent from its proof body: {missing_sentinels}"
+        )
+    metadata = proof["metadata"]
+    expected_device = performance["device"]
+    exact = {
+        "profile": inventory["profile"],
+        "source_digest": source_digest,
+        "candidate_apk_sha256": candidate_apk_sha256,
+        "instrumentation_apk_sha256": instrumentation_apk_sha256,
+        "evidence_run_id": evidence_run_id,
+        "package_id": PACKAGE_ID,
+        "version_name": version_name,
+        "version_code": str(version_code),
+        "build_variant": BUILD_VARIANT,
+        "device_serial": expected_device["serial"],
+        "avd_name": expected_device["avd_name"],
+        "device_boot_id": expected_device["boot_id"],
+        "build_fingerprint": expected_device["build_fingerprint"],
+        "screenshot_sha256": _sha256_file(screenshot_path),
+    }
+    for field, expected in exact.items():
+        if metadata.get(field) != expected:
+            raise EvidenceError(f"{context}.{field} does not match {expected}")
+    if metadata["language"] not in LANGUAGES:
+        raise EvidenceError(f"{context}.language is not a supported release language")
+    if not SAFE_THEME_ID_RE.fullmatch(metadata["theme_id"]):
+        raise EvidenceError(f"{context}.theme_id is invalid")
+    try:
+        width_dp = int(metadata["screen_width_dp"])
+        height_dp = int(metadata["screen_height_dp"])
+        system_font_scale = float(metadata["system_font_scale"])
+    except ValueError as exc:
+        raise EvidenceError(f"{context} dimensions or system font scale are invalid") from exc
+    expected_screen = performance["screen"]
+    if (width_dp, height_dp) != (expected_screen["width_dp"], expected_screen["height_dp"]):
+        raise EvidenceError(f"{context} dp dimensions disagree with performance evidence")
+    if (decoded.width, decoded.height) != (expected_screen["width_px"], expected_screen["height_px"]):
+        raise EvidenceError(f"{context} PNG dimensions disagree with performance evidence")
+    if not math.isfinite(system_font_scale) or system_font_scale != 1.0:
+        raise EvidenceError(f"{context} system_font_scale must equal the release value 1.0")
+    palette = _normalized_palette(metadata, context)
+    return {
+        "identity": capture["identity"],
+        "coverage_kind": proof["coverage_kind"],
+        "page_id": proof["page_id"],
+        "language": metadata["language"],
+        "theme_id": metadata["theme_id"],
+        "palette": palette,
+        "profile": metadata["profile"],
+        "proof_sha256": _sha256_file(proof_path),
+        "screenshot_content_sha256": decoded.content_pixel_sha256,
+        "paths": {
+            PurePosixPath(UI_COVERAGE_PREFIX / performance["profile"] / capture["screenshot"]),
+            PurePosixPath(UI_COVERAGE_PREFIX / performance["profile"] / capture["proof"]),
+        },
+    }
+
+
+def _require_exact_source_pages(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    prefix: str,
+    expected_names: Sequence[str],
+    expected_kind: str,
+    page_id_prefix: str,
+    label: str,
+    context: str,
+) -> None:
+    names = [record["identity"].removeprefix(prefix) for record in records]
+    expected = set(expected_names)
+    actual = set(names)
+    if len(names) != len(expected_names) or actual != expected:
+        raise EvidenceError(
+            f"{context} must cover exactly the source-derived {label}; "
+            f"omitted={sorted(expected - actual)}, invented={sorted(actual - expected)}"
+        )
+    for record, name in zip(records, names, strict=True):
+        if record["coverage_kind"] != expected_kind:
+            raise EvidenceError(f"{context} {label} capture {name!r} has the wrong coverage kind")
+        expected_page_id = f"{page_id_prefix}{name}"
+        if record["page_id"] != expected_page_id:
+            raise EvidenceError(
+                f"{context} {label} {name!r} must use proof page ID {expected_page_id!r}"
+            )
+
+
+def _require_complete_ui_contract(
+    records: Sequence[Mapping[str, Any]],
+    source_contract: UiEvidenceSourceContract,
+    context: str,
+) -> Mapping[str, Any]:
+    by_prefix: dict[str, list[Mapping[str, Any]]] = {
+        prefix: []
+        for prefix in (
+            "section:",
+            "settings:",
+            "device:",
+            "appearance-preset:",
+            "shape:",
+            "font:",
+            "framework:en:",
+        )
+    }
+    custom = []
+    for record in records:
+        identity = record["identity"]
+        if identity == "appearance-custom-light":
+            custom.append(record)
+        else:
+            matches = [prefix for prefix in by_prefix if identity.startswith(prefix)]
+            if len(matches) != 1:
+                raise EvidenceError(f"{context} contains an unknown comprehensive identity {identity!r}")
+            by_prefix[matches[0]].append(record)
+        if record["language"] != "en":
+            raise EvidenceError(f"{context} comprehensive profile captures must use English")
+    minimums = {"appearance-preset:": 5, "shape:": 3, "font:": 3, "framework:en:": 4}
+    for prefix, minimum in minimums.items():
+        if len(by_prefix[prefix]) < minimum:
+            raise EvidenceError(f"{context} does not cover enough {prefix.removesuffix(':')} surfaces")
+    expected_kinds = {
+        "appearance-preset:": "appearance-preset",
+        "shape:": "rendered-card-shape",
+        "font:": "rendered-font-scale",
+        "framework:en:": "framework-view-activity",
+    }
+    for prefix, expected_kind in expected_kinds.items():
+        if any(record["coverage_kind"] != expected_kind for record in by_prefix[prefix]):
+            raise EvidenceError(f"{context} {prefix} capture has the wrong coverage kind")
+    _require_exact_source_pages(
+        by_prefix["section:"],
+        prefix="section:",
+        expected_names=source_contract.app_sections,
+        expected_kind="app-section",
+        page_id_prefix="",
+        label="AppSection destinations",
+        context=context,
+    )
+    _require_exact_source_pages(
+        by_prefix["settings:"],
+        prefix="settings:",
+        expected_names=source_contract.settings_pages,
+        expected_kind="settings-subpage",
+        page_id_prefix="Settings.",
+        label="nested Settings destinations",
+        context=context,
+    )
+    _require_exact_source_pages(
+        by_prefix["device:"],
+        prefix="device:",
+        expected_names=source_contract.device_pages,
+        expected_kind="device-subpage",
+        page_id_prefix="",
+        label="non-Overview DevicePage destinations",
+        context=context,
+    )
+    shapes = {record["identity"].removeprefix("shape:") for record in by_prefix["shape:"]}
+    if shapes != {"square", "soft", "rounded"}:
+        raise EvidenceError(f"{context} does not prove all supported card shapes")
+    font_scales = {record["palette"]["ui_font_scale"] for record in by_prefix["font:"]}
+    if not (any(scale < 1.0 for scale in font_scales) and 1.0 in font_scales and any(scale > 1.0 for scale in font_scales)):
+        raise EvidenceError(f"{context} does not prove smaller, default, and larger UI font scales")
+    if len(custom) != 1 or custom[0]["coverage_kind"] != "custom-light-palette":
+        raise EvidenceError(f"{context} must contain one rendered custom-light palette capture")
+    return custom[0]
+
+
+def _require_localized_ui_contract(
+    records: Sequence[Mapping[str, Any]],
+    english_framework_pages: set[str],
+    source_contract: UiEvidenceSourceContract,
+    context: str,
+) -> None:
+    models_by_language: dict[str, set[str]] = {language: set() for language in LANGUAGES}
+    framework_by_language: dict[str, set[str]] = {language: set() for language in LANGUAGES if language != "en"}
+    for record in records:
+        identity = record["identity"]
+        if identity.startswith("localized-model:"):
+            parts = identity.split(":", 2)
+            if len(parts) != 3 or parts[1] != record["language"] or not parts[2]:
+                raise EvidenceError(f"{context} contains an invalid localized model identity")
+            if record["coverage_kind"] != "six-language-recommended-model":
+                raise EvidenceError(f"{context} localized model capture has the wrong coverage kind")
+            expected_page_id = f"Settings.Models.{parts[2]}"
+            if record["page_id"] != expected_page_id:
+                raise EvidenceError(
+                    f"{context} recommended model {parts[2]!r} must use proof page ID "
+                    f"{expected_page_id!r}"
+                )
+            models_by_language.get(parts[1], set()).add(parts[2])
+        elif identity.startswith("framework:"):
+            parts = identity.split(":", 2)
+            if len(parts) != 3 or parts[1] != record["language"] or parts[1] == "en" or not parts[2]:
+                raise EvidenceError(f"{context} contains an invalid localized framework identity")
+            if record["coverage_kind"] != "framework-view-activity":
+                raise EvidenceError(f"{context} localized framework capture has the wrong coverage kind")
+            framework_by_language.get(parts[1], set()).add(parts[2])
+        else:
+            raise EvidenceError(f"{context} contains an unknown localized identity {identity!r}")
+    expected_models = set(source_contract.recommended_model_ids)
+    for language, actual_models in models_by_language.items():
+        if actual_models != expected_models:
+            raise EvidenceError(
+                f"{context} must cover exactly the source-derived recommended models in {language}; "
+                f"omitted={sorted(expected_models - actual_models)}, "
+                f"invented={sorted(actual_models - expected_models)}"
+            )
+    if not english_framework_pages:
+        raise EvidenceError(f"{context} has no English framework reference set")
+    if any(values != english_framework_pages for values in framework_by_language.values()):
+        raise EvidenceError(f"{context} does not cover every framework page in each non-English language")
+
+
+def _validate_ui_coverage_inventory(
+    evidence_dir: Path,
+    canonical_profile: str,
+    inventory_name: str,
+    expected_coverage_kind: str,
+    performance: Mapping[str, Any],
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+    version_name: str,
+    version_code: int,
+) -> tuple[list[dict[str, Any]], set[PurePosixPath]]:
+    relative = UI_COVERAGE_PREFIX / canonical_profile / inventory_name
+    path = evidence_dir / Path(relative.as_posix())
+    context = f"ui_coverage[{canonical_profile}/{inventory_name}]"
+    inventory, captures = _parse_ui_inventory(path, context)
+    if inventory["evidence_type"] != "headed-ui-coverage-inventory-bound":
+        raise EvidenceError(f"{context}.evidence_type is invalid")
+    if inventory["coverage_kind"] != expected_coverage_kind:
+        raise EvidenceError(f"{context}.coverage_kind is invalid")
+    profile_match = HEADED_UI_PROFILE_RE.fullmatch(inventory["profile"])
+    expected_kind = "phone" if canonical_profile == "phone-compact" else "tablet"
+    if profile_match is None or profile_match.group(1) != expected_kind:
+        raise EvidenceError(f"{context}.profile does not match {canonical_profile}")
+    width_dp, height_dp = (int(profile_match.group(index)) for index in (2, 3))
+    expected_screen = performance["screen"]
+    if (width_dp, height_dp) != (expected_screen["width_dp"], expected_screen["height_dp"]):
+        raise EvidenceError(f"{context}.profile dimensions disagree with performance evidence")
+    expected_device = performance["device"]
+    exact = {
+        "source_digest": source_digest,
+        "candidate_apk_sha256": candidate_apk_sha256,
+        "instrumentation_apk_sha256": instrumentation_apk_sha256,
+        "evidence_run_id": evidence_run_id,
+        "device_serial": expected_device["serial"],
+        "avd_name": expected_device["avd_name"],
+        "device_boot_id": expected_device["boot_id"],
+    }
+    for field, expected in exact.items():
+        if inventory[field] != expected:
+            raise EvidenceError(f"{context}.{field} does not match {expected}")
+    directory = path.parent
+    records = [
+        _validate_ui_coverage_capture(
+            directory,
+            capture,
+            inventory,
+            performance,
+            source_digest,
+            candidate_apk_sha256,
+            instrumentation_apk_sha256,
+            evidence_run_id,
+            version_name,
+            version_code,
+            f"{context}.capture[{index}]",
+        )
+        for index, capture in enumerate(captures, start=1)
+    ]
+    referenced_paths = {relative}
+    for record in records:
+        referenced_paths.update(record["paths"])
+    return records, referenced_paths
+
+
+def _validate_comprehensive_ui_evidence(
+    evidence_dir: Path,
+    performance_records: Sequence[Mapping[str, Any]],
+    source_contract: UiEvidenceSourceContract,
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+    version_name: str,
+    version_code: int,
+) -> tuple[set[PurePosixPath], int, dict[str, Mapping[str, Any]]]:
+    paths: set[PurePosixPath] = set()
+    all_records: list[dict[str, Any]] = []
+    custom_light_by_profile: dict[str, Mapping[str, Any]] = {}
+    english_framework_pages: set[str] = set()
+    for profile, performance in zip(PROFILES, performance_records, strict=True):
+        complete, inventory_paths = _validate_ui_coverage_inventory(
+            evidence_dir,
+            profile,
+            COMPLETE_UI_INVENTORY,
+            "complete-current-profile",
+            performance,
+            source_digest,
+            candidate_apk_sha256,
+            instrumentation_apk_sha256,
+            evidence_run_id,
+            version_name,
+            version_code,
+        )
+        paths.update(inventory_paths)
+        all_records.extend(complete)
+        custom_light_by_profile[profile] = _require_complete_ui_contract(
+            complete,
+            source_contract,
+            f"ui_coverage[{profile}/complete]",
+        )
+        framework_pages = {
+            record["identity"].removeprefix("framework:en:")
+            for record in complete
+            if record["identity"].startswith("framework:en:")
+        }
+        if not english_framework_pages:
+            english_framework_pages = framework_pages
+        elif framework_pages != english_framework_pages:
+            raise EvidenceError("Phone and tablet comprehensive UI inventories cover different framework pages")
+
+    phone_performance = performance_records[PROFILES.index("phone-compact")]
+    localized, localized_paths = _validate_ui_coverage_inventory(
+        evidence_dir,
+        "phone-compact",
+        LOCALIZED_UI_INVENTORY,
+        "six-language-and-framework-localization",
+        phone_performance,
+        source_digest,
+        candidate_apk_sha256,
+        instrumentation_apk_sha256,
+        evidence_run_id,
+        version_name,
+        version_code,
+    )
+    _require_localized_ui_contract(
+        localized,
+        english_framework_pages,
+        source_contract,
+        "ui_coverage[phone-compact/localized]",
+    )
+    paths.update(localized_paths)
+    all_records.extend(localized)
+    all_names = [path.as_posix() for path in paths]
+    if len(all_names) != len(set(all_names)):
+        raise EvidenceError("Comprehensive UI inventories reference duplicate paths")
+    return paths, len(all_records), custom_light_by_profile
+
+
+def _exact_keys(value: Mapping[str, Any], expected: set[str], context: str) -> None:
+    if set(value) != expected:
+        raise EvidenceError(
+            f"{context} key set is invalid; missing={sorted(expected - set(value))}, "
+            f"unexpected={sorted(set(value) - expected)}"
+        )
+
+
+def _reviewed_utc(value: Any, context: str) -> str:
+    if not isinstance(value, str):
+        raise EvidenceError(f"{context} must be a UTC timestamp string")
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    except ValueError as exc:
+        raise EvidenceError(f"{context} must use YYYY-MM-DDTHH:MM:SSZ") from exc
+    if parsed.year < 2026:
+        raise EvidenceError(f"{context} predates the comprehensive release-evidence contract")
+    return value
+
+
+def _validate_launch_artifact(
+    directory: Path,
+    name: Any,
+    digest: Any,
+    context: str,
+    suffix: str,
+) -> tuple[Path, PurePosixPath]:
+    safe_name = _safe_artifact_name(name, f"{context}.path", (suffix,))
+    if not isinstance(digest, str) or not HEX_64_RE.fullmatch(digest):
+        raise EvidenceError(f"{context}.sha256 must be lowercase SHA-256")
+    path = directory / safe_name
+    if not path.is_file() or path.stat().st_size <= 0 or _sha256_file(path) != digest:
+        raise EvidenceError(f"{context} is missing, empty, or does not match its SHA-256")
+    relative = PurePosixPath(LAUNCH_THEME_PREFIX / directory.name / safe_name)
+    return path, relative
+
+
+def _validate_persisted_palette_record(
+    path: Path,
+    manifest_palette: Mapping[str, Any],
+    expected_identity: Mapping[str, Any],
+    context: str,
+) -> None:
+    payload = _json_object(path)
+    _exact_keys(
+        payload,
+        {
+            "schema",
+            "identity",
+            "theme_id",
+            "palette",
+            "shared_preferences_xml_sha256",
+            "contains_only_filtered_palette_state",
+        },
+        context,
+    )
+    if payload["schema"] != PERSISTED_PALETTE_SCHEMA:
+        raise EvidenceError(f"{context}.schema is invalid")
+    identity = _nested_object(payload, "identity", context)
+    expected_identity_keys = {
+        "source_digest",
+        "candidate_apk_sha256",
+        "instrumentation_apk_sha256",
+        "evidence_run_id",
+        "device_serial",
+        "avd_name",
+        "device_boot_id",
+        "profile",
+    }
+    _exact_keys(identity, expected_identity_keys, f"{context}.identity")
+    for field, expected in expected_identity.items():
+        if identity.get(field) != expected:
+            raise EvidenceError(f"{context}.identity.{field} does not match the launch lane")
+    palette = _nested_object(payload, "palette", context)
+    _exact_keys(palette, set(PALETTE_KEYS), f"{context}.palette")
+    expected_palette = {field: manifest_palette[field] for field in PALETTE_KEYS}
+    if palette != expected_palette:
+        raise EvidenceError(f"{context}.palette disagrees with the launch manifest")
+    if payload["theme_id"] != manifest_palette["theme_id"]:
+        raise EvidenceError(f"{context}.theme_id disagrees with the launch manifest")
+    if payload["shared_preferences_xml_sha256"] != manifest_palette["shared_preferences_xml_sha256"]:
+        raise EvidenceError(f"{context} SharedPreferences digest disagrees with the launch manifest")
+    if payload["contains_only_filtered_palette_state"] is not True:
+        raise EvidenceError(f"{context} must contain only filtered palette state")
+
+
+def _validate_launch_theme_manifest(
+    evidence_dir: Path,
+    canonical_profile: str,
+    performance: Mapping[str, Any],
+    custom_light_capture: Mapping[str, Any],
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+) -> tuple[set[PurePosixPath], int]:
+    relative_manifest = LAUNCH_THEME_PREFIX / canonical_profile / "manifest.json"
+    path = evidence_dir / Path(relative_manifest.as_posix())
+    context = f"launch_theme[{canonical_profile}]"
+    payload = _json_object(path)
+    _exact_keys(
+        payload,
+        {"schema", "identity", "palette", "captures", "automated_verdict", "visual_review", "manual_acceptance"},
+        context,
+    )
+    if payload["schema"] != HOST_LAUNCH_THEME_SCHEMA:
+        raise EvidenceError(f"{context}.schema is invalid")
+    if payload["automated_verdict"] != "identity_bound_launch_capture_complete":
+        raise EvidenceError(f"{context}.automated_verdict is invalid")
+    acceptance = payload["manual_acceptance"]
+    if not isinstance(acceptance, list) or len(acceptance) < 4 or any(
+        not isinstance(item, str) or not item.strip() for item in acceptance
+    ):
+        raise EvidenceError(f"{context}.manual_acceptance is incomplete")
+
+    identity = _nested_object(payload, "identity", context)
+    identity_keys = {
+        "serial",
+        "avd_name",
+        "expected_profile",
+        "evidence_run_id",
+        "source_digest",
+        "candidate_apk_sha256",
+        "instrumentation_apk_sha256",
+        "observed_avd_name",
+        "observed_profile",
+        "width_dp",
+        "height_dp",
+        "sdk_int",
+        "build_fingerprint",
+        "device_boot_id",
+        "installed_apk_path",
+        "installed_apk_sha256",
+        "installed_instrumentation_apk_path",
+        "installed_instrumentation_apk_sha256",
+    }
+    _exact_keys(identity, identity_keys, f"{context}.identity")
+    expected_kind = "phone" if canonical_profile == "phone-compact" else "tablet"
+    expected_device = performance["device"]
+    expected_screen = performance["screen"]
+    exact_identity = {
+        "serial": expected_device["serial"],
+        "avd_name": expected_device["avd_name"],
+        "expected_profile": expected_kind,
+        "evidence_run_id": evidence_run_id,
+        "source_digest": source_digest,
+        "candidate_apk_sha256": candidate_apk_sha256,
+        "instrumentation_apk_sha256": instrumentation_apk_sha256,
+        "observed_avd_name": expected_device["avd_name"],
+        "observed_profile": expected_kind,
+        "width_dp": expected_screen["width_dp"],
+        "height_dp": expected_screen["height_dp"],
+        "sdk_int": expected_device["android_sdk"],
+        "build_fingerprint": expected_device["build_fingerprint"],
+        "device_boot_id": expected_device["boot_id"],
+        "installed_apk_sha256": candidate_apk_sha256,
+        "installed_instrumentation_apk_sha256": instrumentation_apk_sha256,
+    }
+    for field, expected in exact_identity.items():
+        if identity.get(field) != expected:
+            raise EvidenceError(f"{context}.identity.{field} does not match {expected}")
+    for field in ("installed_apk_path", "installed_instrumentation_apk_path"):
+        value = identity[field]
+        if not isinstance(value, str) or not value.startswith("/") or not value.endswith(".apk"):
+            raise EvidenceError(f"{context}.identity.{field} is invalid")
+
+    palette = _nested_object(payload, "palette", context)
+    palette_keys = {
+        "theme_id",
+        "profile",
+        "proof_evidence_identity",
+        "proof_sha256",
+        *PALETTE_KEYS,
+        "persisted_state_file",
+        "persisted_state_file_sha256",
+        "shared_preferences_xml_sha256",
+        "verified_against_persisted_app_state",
+    }
+    _exact_keys(palette, palette_keys, f"{context}.palette")
+    if palette["theme_id"] != custom_light_capture["theme_id"]:
+        raise EvidenceError(f"{context}.palette.theme_id disagrees with the rendered UI proof")
+    if palette["profile"] != custom_light_capture["profile"]:
+        raise EvidenceError(f"{context}.palette.profile disagrees with the rendered UI proof")
+    if palette["proof_evidence_identity"] != "appearance-custom-light":
+        raise EvidenceError(f"{context}.palette proof identity is invalid")
+    if palette["proof_sha256"] != custom_light_capture["proof_sha256"]:
+        raise EvidenceError(f"{context}.palette proof hash disagrees with the rendered UI proof")
+    if palette["verified_against_persisted_app_state"] is not True:
+        raise EvidenceError(f"{context}.palette was not verified against persisted app state")
+    if not HEX_64_RE.fullmatch(str(palette["shared_preferences_xml_sha256"])):
+        raise EvidenceError(f"{context}.palette SharedPreferences hash is invalid")
+    normalized_palette = _normalized_palette(
+        {key: str(palette[key]) for key in PALETTE_KEYS}, f"{context}.palette"
+    )
+    if normalized_palette != custom_light_capture["palette"]:
+        raise EvidenceError(f"{context}.palette disagrees with the rendered custom-light proof")
+
+    directory = path.parent
+    persisted_path, persisted_relative = _validate_launch_artifact(
+        directory,
+        palette["persisted_state_file"],
+        palette["persisted_state_file_sha256"],
+        f"{context}.palette.persisted_state_file",
+        ".json",
+    )
+    persisted_identity = {
+        "source_digest": source_digest,
+        "candidate_apk_sha256": candidate_apk_sha256,
+        "instrumentation_apk_sha256": instrumentation_apk_sha256,
+        "evidence_run_id": evidence_run_id,
+        "device_serial": expected_device["serial"],
+        "avd_name": expected_device["avd_name"],
+        "device_boot_id": expected_device["boot_id"],
+        "profile": custom_light_capture["profile"],
+    }
+    _validate_persisted_palette_record(
+        persisted_path, palette, persisted_identity, f"{context}.persisted_palette"
+    )
+
+    review = _nested_object(payload, "visual_review", context)
+    review_keys = {
+        "status",
+        "reviewer",
+        "reviewed_at_utc",
+        "decision",
+        "notes",
+        "method",
+        "automated_pixel_certification",
+    }
+    _exact_keys(review, review_keys, f"{context}.visual_review")
+    if review["status"] != "reviewed" or review["decision"] != "pass":
+        raise EvidenceError(f"{context} does not carry a passing completed human visual review")
+    if not isinstance(review["reviewer"], str) or not REVIEWER_RE.fullmatch(review["reviewer"]):
+        raise EvidenceError(f"{context}.visual_review.reviewer is invalid")
+    _reviewed_utc(review["reviewed_at_utc"], f"{context}.visual_review.reviewed_at_utc")
+    if not isinstance(review["notes"], str) or not review["notes"].strip() or len(review["notes"]) > 500:
+        raise EvidenceError(f"{context}.visual_review.notes is invalid")
+    if review["method"] != "manual-frame-by-frame" or review["automated_pixel_certification"] is not False:
+        raise EvidenceError(f"{context}.visual_review improperly claims automated pixel certification")
+
+    captures = payload["captures"]
+    if not isinstance(captures, list) or len(captures) != 2:
+        raise EvidenceError(f"{context}.captures must contain exactly two launch lanes")
+    expected_labels = {"cold-launcher-tap", "cold-deep-link"}
+    if {record.get("label") for record in captures if isinstance(record, dict)} != expected_labels:
+        raise EvidenceError(f"{context}.captures do not contain the required launch lanes")
+    paths = {relative_manifest, persisted_relative}
+    referenced_names = {palette["persisted_state_file"]}
+    capture_keys = {
+        "label",
+        "launch_stdout",
+        "launch_stderr",
+        "video",
+        "video_sha256",
+        "settled_screenshot",
+        "settled_screenshot_sha256",
+        "activity_dump",
+        "activity_dump_sha256",
+        "automated_state_verdict",
+        "visual_splash_verdict",
+    }
+    for index, record in enumerate(captures, start=1):
+        if not isinstance(record, dict):
+            raise EvidenceError(f"{context}.capture[{index}] must be an object")
+        _exact_keys(record, capture_keys, f"{context}.capture[{index}]")
+        if not isinstance(record["launch_stdout"], str) or not isinstance(record["launch_stderr"], str):
+            raise EvidenceError(f"{context}.capture[{index}] launch output fields must be strings")
+        if record["automated_state_verdict"] != "main_activity_resumed_and_artifacts_decoded":
+            raise EvidenceError(f"{context}.capture[{index}] automated state verdict is invalid")
+        if record["visual_splash_verdict"] != "manual_review_required":
+            raise EvidenceError(f"{context}.capture[{index}] improperly self-certifies splash pixels")
+        video_path, video_relative = _validate_launch_artifact(
+            directory, record["video"], record["video_sha256"], f"{context}.capture[{index}].video", ".mp4"
+        )
+        screenshot_path, screenshot_relative = _validate_launch_artifact(
+            directory,
+            record["settled_screenshot"],
+            record["settled_screenshot_sha256"],
+            f"{context}.capture[{index}].settled_screenshot",
+            ".png",
+        )
+        activity_path, activity_relative = _validate_launch_artifact(
+            directory,
+            record["activity_dump"],
+            record["activity_dump_sha256"],
+            f"{context}.capture[{index}].activity_dump",
+            ".txt",
+        )
+        with video_path.open("rb") as handle:
+            if handle.read(8)[4:8] != b"ftyp":
+                raise EvidenceError(f"{context}.capture[{index}] video is not an MP4 container")
+        decoded = _decode_png(screenshot_path)
+        if (decoded.width, decoded.height) != (expected_screen["width_px"], expected_screen["height_px"]):
+            raise EvidenceError(f"{context}.capture[{index}] screenshot dimensions disagree with the profile")
+        try:
+            activity_text = activity_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise EvidenceError(f"{context}.capture[{index}] activity dump is not UTF-8") from exc
+        if PACKAGE_ID not in activity_text or "MainActivity" not in activity_text:
+            raise EvidenceError(f"{context}.capture[{index}] activity dump does not prove resumed Hermes")
+        for name in (record["video"], record["settled_screenshot"], record["activity_dump"]):
+            if name in referenced_names:
+                raise EvidenceError(f"{context} reuses launch artifact name {name!r}")
+            referenced_names.add(name)
+        paths.update({video_relative, screenshot_relative, activity_relative})
+    return paths, len(captures)
+
+
+def _validate_launch_theme_evidence(
+    evidence_dir: Path,
+    performance_records: Sequence[Mapping[str, Any]],
+    custom_light_by_profile: Mapping[str, Mapping[str, Any]],
+    source_digest: str,
+    candidate_apk_sha256: str,
+    instrumentation_apk_sha256: str,
+    evidence_run_id: str,
+) -> tuple[set[PurePosixPath], int, int]:
+    paths: set[PurePosixPath] = set()
+    capture_count = 0
+    for profile, performance in zip(PROFILES, performance_records, strict=True):
+        profile_paths, profile_capture_count = _validate_launch_theme_manifest(
+            evidence_dir,
+            profile,
+            performance,
+            custom_light_by_profile[profile],
+            source_digest,
+            candidate_apk_sha256,
+            instrumentation_apk_sha256,
+            evidence_run_id,
+        )
+        paths.update(profile_paths)
+        capture_count += profile_capture_count
+    return paths, capture_count, len(PROFILES)
+
+
 def expected_evidence_paths(
     artifacts: Sequence[ArtifactSpec],
     performance_records: Sequence[Mapping[str, Any]] = (),
+    *,
+    tag: str | None = None,
+    comprehensive_ui_paths: Iterable[PurePosixPath] = (),
+    launch_theme_paths: Iterable[PurePosixPath] = (),
 ) -> set[PurePosixPath]:
     paths = {
         PurePosixPath("performance") / f"{profile}.json"
@@ -2855,6 +4912,21 @@ def expected_evidence_paths(
             paths.add(base / "screen.png")
             paths.add(base / "semantics.txt")
     paths.update(artifact.evidence_path for artifact in artifacts)
+    if tag is not None and requires_comprehensive_ui_evidence(tag):
+        paths.update(
+            {
+                UI_COVERAGE_PREFIX / "phone-compact" / COMPLETE_UI_INVENTORY,
+                UI_COVERAGE_PREFIX / "phone-compact" / LOCALIZED_UI_INVENTORY,
+                UI_COVERAGE_PREFIX / "tablet" / COMPLETE_UI_INVENTORY,
+                LAUNCH_THEME_PREFIX / "phone-compact" / "manifest.json",
+                LAUNCH_THEME_PREFIX / "tablet" / "manifest.json",
+                HISTORICAL_E4B_EVIDENCE_PATH,
+                ISSUE8_EVIDENCE_PATH,
+                ISSUE16_EVIDENCE_PATH,
+            }
+        )
+        paths.update(comprehensive_ui_paths)
+        paths.update(launch_theme_paths)
     return paths
 
 
@@ -2876,12 +4948,14 @@ def validate_evidence_directory(
     artifacts: Sequence[ArtifactSpec],
     source_digest: str,
     tag: str,
+    *,
+    repo_root: Path | None = None,
 ) -> ValidatedEvidence:
     if not evidence_dir.is_dir():
         raise EvidenceError(f"Release evidence directory does not exist: {evidence_dir}")
     actual_paths = _walk_evidence_files(evidence_dir)
     actual_without_manifest = actual_paths - {PurePosixPath("manifest.json")}
-    base_expected_paths = expected_evidence_paths(artifacts)
+    base_expected_paths = expected_evidence_paths(artifacts, tag=tag)
     missing_base = base_expected_paths - actual_without_manifest
     if missing_base:
         raise EvidenceError(
@@ -2892,6 +4966,7 @@ def validate_evidence_directory(
     if not HEX_64_RE.fullmatch(source_digest):
         raise EvidenceError("Current source digest must be one lowercase SHA-256")
     version_name, version_code = android_identity_for_tag(tag)
+    litertlm_coordinate = litertlm_coordinate_for_tag(tag)
     performance_records = [
         _validate_performance(
             evidence_dir / "performance" / f"{profile}.json",
@@ -2899,19 +4974,10 @@ def validate_evidence_directory(
             source_digest,
             version_name,
             version_code,
+            litertlm_coordinate=litertlm_coordinate,
         )
         for profile in PROFILES
     ]
-    expected_paths = expected_evidence_paths(artifacts, performance_records)
-    missing = expected_paths - actual_without_manifest
-    unexpected = actual_without_manifest - expected_paths
-    if missing or unexpected:
-        raise EvidenceError(
-            "Release evidence layout mismatch; "
-            f"missing={[path.as_posix() for path in sorted(missing)]}, "
-            f"unexpected={[path.as_posix() for path in sorted(unexpected)]}"
-        )
-
     benchmark_target_digests = {
         record["benchmark_target_apk_sha256"] for record in performance_records
     }
@@ -2971,7 +5037,7 @@ def validate_evidence_directory(
                 "version_name": version_name,
                 "version_code": str(version_code),
                 "build_variant": BUILD_VARIANT,
-                "litertlm_coordinate": LITERTLM_COORDINATE,
+                "litertlm_coordinate": litertlm_coordinate,
                 "screenshot_sha256": _sha256_file(screenshot_path),
             }
             expected_device = performance_records[PROFILES.index(profile)]["device"]
@@ -3029,6 +5095,59 @@ def validate_evidence_directory(
                 f"UI screenshots for {profile} are not distinct across all six switched languages"
             )
 
+    comprehensive_ui_paths: set[PurePosixPath] = set()
+    launch_theme_paths: set[PurePosixPath] = set()
+    comprehensive_ui_capture_count = 0
+    launch_theme_capture_count = 0
+    launch_theme_review_count = 0
+    ui_source_contract = UiEvidenceSourceContract((), (), (), ())
+    if requires_comprehensive_ui_evidence(tag):
+        ui_source_contract = load_ui_evidence_source_contract(repo_root)
+        (
+            comprehensive_ui_paths,
+            comprehensive_ui_capture_count,
+            custom_light_by_profile,
+        ) = _validate_comprehensive_ui_evidence(
+            evidence_dir,
+            performance_records,
+            ui_source_contract,
+            source_digest,
+            ui_candidate_apk_sha256,
+            ui_instrumentation_apk_sha256,
+            evidence_run_id,
+            version_name,
+            version_code,
+        )
+        (
+            launch_theme_paths,
+            launch_theme_capture_count,
+            launch_theme_review_count,
+        ) = _validate_launch_theme_evidence(
+            evidence_dir,
+            performance_records,
+            custom_light_by_profile,
+            source_digest,
+            ui_candidate_apk_sha256,
+            ui_instrumentation_apk_sha256,
+            evidence_run_id,
+        )
+
+    expected_paths = expected_evidence_paths(
+        artifacts,
+        performance_records,
+        tag=tag,
+        comprehensive_ui_paths=comprehensive_ui_paths,
+        launch_theme_paths=launch_theme_paths,
+    )
+    missing = expected_paths - actual_without_manifest
+    unexpected = actual_without_manifest - expected_paths
+    if missing or unexpected:
+        raise EvidenceError(
+            "Release evidence layout mismatch; "
+            f"missing={[path.as_posix() for path in sorted(missing)]}, "
+            f"unexpected={[path.as_posix() for path in sorted(unexpected)]}"
+        )
+
     for artifact in artifacts:
         _validate_model_evidence(
             evidence_dir / Path(artifact.evidence_path.as_posix()),
@@ -3040,7 +5159,47 @@ def validate_evidence_directory(
             evidence_run_id,
             version_name,
             version_code,
+            litertlm_coordinate=litertlm_coordinate,
         )
+    historical_issue8_model_count = 0
+    issue8_tool_and_preflight_count = 0
+    issue16_debian_sandbox_count = 0
+    if requires_comprehensive_ui_evidence(tag):
+        _validate_historical_e4b_evidence(
+            evidence_dir / Path(HISTORICAL_E4B_EVIDENCE_PATH.as_posix()),
+            performance_records,
+            source_digest,
+            ui_candidate_apk_sha256,
+            ui_instrumentation_apk_sha256,
+            evidence_run_id,
+            version_name,
+            version_code,
+        )
+        historical_issue8_model_count = 1
+        _validate_issue8_evidence(
+            evidence_dir / Path(ISSUE8_EVIDENCE_PATH.as_posix()),
+            performance_records,
+            source_digest,
+            ui_candidate_apk_sha256,
+            ui_instrumentation_apk_sha256,
+            evidence_run_id,
+            version_name,
+            version_code,
+            tag,
+        )
+        issue8_tool_and_preflight_count = 1
+        _validate_issue16_evidence(
+            evidence_dir / Path(ISSUE16_EVIDENCE_PATH.as_posix()),
+            performance_records,
+            source_digest,
+            ui_candidate_apk_sha256,
+            ui_instrumentation_apk_sha256,
+            evidence_run_id,
+            version_name,
+            version_code,
+            tag,
+        )
+        issue16_debian_sandbox_count = 1
 
     file_records = tuple(
         EvidenceFile(
@@ -3064,6 +5223,16 @@ def validate_evidence_directory(
         benchmark_target_apk_sha256=benchmark_target_apk_sha256,
         benchmark_test_apk_sha256=benchmark_test_apk_sha256,
         evidence_run_id=evidence_run_id,
+        comprehensive_ui_capture_count=comprehensive_ui_capture_count,
+        launch_theme_capture_count=launch_theme_capture_count,
+        launch_theme_review_count=launch_theme_review_count,
+        historical_issue8_model_count=historical_issue8_model_count,
+        issue8_tool_and_preflight_count=issue8_tool_and_preflight_count,
+        issue16_debian_sandbox_count=issue16_debian_sandbox_count,
+        required_app_sections=ui_source_contract.app_sections,
+        required_settings_pages=ui_source_contract.settings_pages,
+        required_device_pages=ui_source_contract.device_pages,
+        required_recommended_model_ids=ui_source_contract.recommended_model_ids,
     )
 
 
@@ -3074,9 +5243,10 @@ def build_manifest(
     artifacts: Sequence[ArtifactSpec],
     evidence: ValidatedEvidence,
 ) -> dict[str, Any]:
-    return {
-        "schema": MANIFEST_SCHEMA,
-        "tag": validate_tag(tag),
+    normalized_tag = validate_tag(tag)
+    manifest = {
+        "schema": manifest_schema_for_tag(normalized_tag),
+        "tag": normalized_tag,
         "source_tree": asdict(source),
         "contract": {
             "languages": list(LANGUAGES),
@@ -3124,6 +5294,75 @@ def build_manifest(
             "device_models": list(evidence.device_models),
         },
     }
+    if requires_comprehensive_ui_evidence(normalized_tag):
+        manifest["contract"].update(
+            {
+                "requires_comprehensive_ui_inventory_per_profile": True,
+                "required_app_sections": list(evidence.required_app_sections),
+                "required_nested_settings_pages": list(evidence.required_settings_pages),
+                "required_non_overview_device_pages": list(evidence.required_device_pages),
+                "required_recommended_model_ids": list(evidence.required_recommended_model_ids),
+                "requires_six_language_recommended_model_and_framework_ui_inventory": True,
+                "requires_persisted_palette_bound_launcher_and_deep_link_capture_per_profile": True,
+                "requires_human_frame_by_frame_launch_theme_review": True,
+                "launch_theme_capture_does_not_self_certify_pixels": True,
+                "requires_historical_issue8_e4b_cpu_speculation_off_completion": True,
+                "requires_issue8_exact_direct_tool_and_metadata_only_12b_preflight": True,
+                "requires_issue16_fresh_debian_guest_https_and_clean_stopped_disposition": True,
+            }
+        )
+        manifest["historical_model_evidence"] = {
+            "scope": "issue-8-historical-experimental-text-only",
+            "artifact": asdict(HISTORICAL_E4B_ARTIFACT),
+            "evidence_path": HISTORICAL_E4B_EVIDENCE_PATH.as_posix(),
+            "required_runtime_entrypoint": "on-device-backend-manager",
+            "required_accelerator": "cpu",
+            "required_speculative_decoding": "disabled",
+            "excluded_from_release_matrix_and_quick_recommendations": True,
+        }
+        manifest["issue_evidence"] = {
+            "issue_8": {
+                "schema": ISSUE8_EVIDENCE_SCHEMA,
+                "path": ISSUE8_EVIDENCE_PATH.as_posix(),
+                "required_exact_prompts": [
+                    "Run a command to tell me what time it is.",
+                    "Check my device status",
+                ],
+                "required_model_and_provider_network_requests": 0,
+                "twelve_b_artifact": {
+                    "model_id": ISSUE8_TWELVE_B_MODEL_ID,
+                    "repository": ISSUE8_TWELVE_B_REPOSITORY,
+                    "revision": ISSUE8_TWELVE_B_REVISION,
+                    "file_name": ISSUE8_TWELVE_B_FILE_NAME,
+                    "catalog_declared_bytes": ISSUE8_TWELVE_B_BYTES,
+                    "sha256": ISSUE8_TWELVE_B_SHA256,
+                    "artifact_file_present": False,
+                    "release_certified": False,
+                    "quick_start_eligible": False,
+                    "present_in_mobile_quick_catalog": False,
+                    "automatically_selected": False,
+                },
+            },
+            "issue_16": {
+                "schema": ISSUE16_EVIDENCE_SCHEMA,
+                "path": ISSUE16_EVIDENCE_PATH.as_posix(),
+                "required_guest_execution_mode": "proot_distro_qemu",
+                "required_guest_path": GUEST_ONLY_PATH,
+                "required_success_disposition": "sandbox_removed_stopped",
+                "failed_run_preservation_is_not_accepted_as_passing_evidence": True,
+            },
+        }
+        manifest["summary"].update(
+            {
+                "comprehensive_ui_capture_count": evidence.comprehensive_ui_capture_count,
+                "launch_theme_capture_count": evidence.launch_theme_capture_count,
+                "launch_theme_review_count": evidence.launch_theme_review_count,
+                "historical_issue8_model_count": evidence.historical_issue8_model_count,
+                "issue8_tool_and_preflight_count": evidence.issue8_tool_and_preflight_count,
+                "issue16_debian_sandbox_count": evidence.issue16_debian_sandbox_count,
+            }
+        )
+    return manifest
 
 
 def write_manifest(path: Path, manifest: Mapping[str, Any]) -> None:
@@ -3199,7 +5438,13 @@ def _create(args: argparse.Namespace) -> int:
     require_source_clean_for_create(repo_root, evidence_dir)
     artifacts = load_registered_model_matrix(registry)
     source = git_source_tree_identity(repo_root)
-    evidence = validate_evidence_directory(evidence_dir, artifacts, source.digest, tag)
+    evidence = validate_evidence_directory(
+        evidence_dir,
+        artifacts,
+        source.digest,
+        tag,
+        repo_root=repo_root,
+    )
     manifest = build_manifest(tag=tag, source=source, artifacts=artifacts, evidence=evidence)
     manifest_path = evidence_dir / "manifest.json"
     write_manifest(manifest_path, manifest)
@@ -3220,7 +5465,13 @@ def _verify(args: argparse.Namespace) -> int:
         require_tag_points_to_head(repo_root, tag)
     artifacts = load_registered_model_matrix(registry)
     source = git_source_tree_identity(repo_root)
-    evidence = validate_evidence_directory(evidence_dir, artifacts, source.digest, tag)
+    evidence = validate_evidence_directory(
+        evidence_dir,
+        artifacts,
+        source.digest,
+        tag,
+        repo_root=repo_root,
+    )
     expected = build_manifest(tag=tag, source=source, artifacts=artifacts, evidence=evidence)
     verify_manifest(evidence_dir / "manifest.json", expected)
     require_committed_evidence(repo_root, evidence_dir)

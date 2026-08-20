@@ -176,7 +176,9 @@ fun SettingsScreen(
                             speculativeDecodingMode = uiState.liteRtLmSpeculativeDecodingMode,
                             onSelectBackend = viewModel::updateOnDeviceBackend,
                             onSelectSpeculativeDecodingMode = viewModel::updateLiteRtLmSpeculativeDecodingMode,
-                            onStartRuntime = viewModel::startLocalRuntimeForFlavor,
+                            onStartRuntime = { runtimeFlavor ->
+                                viewModel.startLocalRuntimeForFlavor(runtimeFlavor)
+                            },
                             summary = uiState.onDeviceSummary,
                             strings = strings,
                         )
@@ -626,7 +628,6 @@ private fun acceleratorChoices(language: AppLanguage): List<AcceleratorChoice> =
     AcceleratorChoice("auto", settingsGenerationText(language, "auto")),
     AcceleratorChoice("cpu", "CPU"),
     AcceleratorChoice("gpu", "GPU"),
-    AcceleratorChoice("npu", "NPU"),
 )
 
 private fun maxTokensLabel(value: Int, language: AppLanguage): String {
@@ -784,12 +785,12 @@ internal fun settingsGenerationText(language: AppLanguage, key: String): String 
             AppLanguage.ENGLISH -> "Accelerator"
         }
         "accelerator_description" -> when (language) {
-            AppLanguage.CHINESE -> "自动会使用 Hermes 运行时默认值。CPU、GPU 和 NPU 会作为兼容本地后端的偏好保存。"
-            AppLanguage.SPANISH -> "Auto mantiene el valor predeterminado del runtime. CPU, GPU y NPU se guardan para backends locales compatibles."
-            AppLanguage.GERMAN -> "Auto nutzt den Runtime-Standard. CPU, GPU und NPU werden für kompatible lokale Backends gespeichert."
-            AppLanguage.PORTUGUESE -> "Auto mantém o padrão do runtime. CPU, GPU e NPU são salvos para backends locais compatíveis."
-            AppLanguage.FRENCH -> "Auto garde la valeur par défaut du runtime. CPU, GPU et NPU sont enregistrés pour les backends locaux compatibles."
-            AppLanguage.ENGLISH -> "Auto keeps Hermes on the runtime default. CPU, GPU, and NPU are saved as preferences for compatible local backends."
+            AppLanguage.CHINESE -> "自动会使用 Hermes 运行时默认值。可选择经过实现的 CPU 或 GPU 路径；Hermes 尚未实现独立 NPU 后端。"
+            AppLanguage.SPANISH -> "Auto mantiene el valor predeterminado. Elige las rutas CPU o GPU implementadas; Hermes aún no implementa un backend NPU independiente."
+            AppLanguage.GERMAN -> "Auto nutzt den Runtime-Standard. Wähle die implementierten CPU- oder GPU-Pfade; Hermes hat noch kein separates NPU-Backend."
+            AppLanguage.PORTUGUESE -> "Auto mantém o padrão do runtime. Escolha as rotas CPU ou GPU implementadas; o Hermes ainda não implementa um backend NPU separado."
+            AppLanguage.FRENCH -> "Auto garde le réglage du runtime. Choisissez les chemins CPU ou GPU implémentés ; Hermes n’a pas encore de backend NPU distinct."
+            AppLanguage.ENGLISH -> "Auto keeps the runtime default. Choose the implemented CPU or GPU paths; Hermes does not yet implement a separate NPU backend."
         }
         "system_prompt_placeholder" -> when (language) {
             AppLanguage.CHINESE -> "Hermes 回复的可选指令。"
@@ -933,7 +934,7 @@ private fun AppearanceCard(
     strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag("HermesAppearanceCard"),
         color = MaterialTheme.colorScheme.surfaceVariant,
         tonalElevation = 2.dp,
         shape = MaterialTheme.shapes.medium,
@@ -944,7 +945,11 @@ private fun AppearanceCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(strings.appearanceTitle(), style = MaterialTheme.typography.titleMedium)
+            Text(
+                strings.appearanceTitle(),
+                modifier = Modifier.testTag("HermesAppearanceCardTop"),
+                style = MaterialTheme.typography.titleMedium,
+            )
             Text(
                 strings.appearanceDescription(),
                 style = MaterialTheme.typography.bodySmall,

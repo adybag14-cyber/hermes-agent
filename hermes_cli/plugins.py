@@ -1384,6 +1384,12 @@ class PluginManager:
 _plugin_manager: Optional[PluginManager] = None
 
 
+def _embedded_android_plugins_disabled() -> bool:
+    from hermes_android.runtime_identity import is_embedded_android_runtime
+
+    return is_embedded_android_runtime()
+
+
 def get_plugin_manager() -> PluginManager:
     """Return (and lazily create) the global PluginManager singleton."""
     global _plugin_manager
@@ -1398,6 +1404,8 @@ def discover_plugins(force: bool = False) -> None:
     Default behavior is idempotent. Pass ``force=True`` to rescan plugin
     manifests and reload state in the current process.
     """
+    if _embedded_android_plugins_disabled():
+        return
     get_plugin_manager().discover_and_load(force=force)
 
 
@@ -1406,6 +1414,8 @@ def invoke_hook(hook_name: str, **kwargs: Any) -> List[Any]:
 
     Returns a list of non-``None`` return values from plugin callbacks.
     """
+    if _embedded_android_plugins_disabled():
+        return []
     return get_plugin_manager().invoke_hook(hook_name, **kwargs)
 
 
@@ -1481,11 +1491,15 @@ def _ensure_plugins_discovered(force: bool = False) -> PluginManager:
 
 def get_plugin_context_engine():
     """Return the plugin-registered context engine, or None."""
+    if _embedded_android_plugins_disabled():
+        return None
     return _ensure_plugins_discovered()._context_engine
 
 
 def get_plugin_command_handler(name: str) -> Optional[Callable]:
     """Return the handler for a plugin-registered slash command, or ``None``."""
+    if _embedded_android_plugins_disabled():
+        return None
     entry = _ensure_plugins_discovered()._plugin_commands.get(name)
     return entry["handler"] if entry else None
 

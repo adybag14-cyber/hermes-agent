@@ -17,6 +17,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class ChatViewModelTest {
     @Test
+    fun specialCodexAndChatGptWebProtocolsNeverUseGenericDirectChatCompletions() {
+        assertFalse(usesDirectOpenAiCompatibleTransport("openai-codex"))
+        assertFalse(usesDirectOpenAiCompatibleTransport("chatgpt-web"))
+        assertTrue(usesDirectOpenAiCompatibleTransport("openai"))
+        assertTrue(usesDirectOpenAiCompatibleTransport("codex"))
+    }
+
+    @Test
     fun allChatRoutingRejectsRestartRequiredLocalRuntimeAndStaleCachedEndpoint() {
         val restartRequired = LocalBackendStatus(
             backendKind = BackendKind.LITERT_LM,

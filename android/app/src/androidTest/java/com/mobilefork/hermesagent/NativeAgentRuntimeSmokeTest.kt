@@ -13,6 +13,7 @@ import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridge
 import com.mobilefork.hermesagent.device.HermesSystemControlBridge
+import com.mobilefork.hermesagent.device.NativeAndroidShellTool
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
@@ -80,6 +81,20 @@ class NativeAgentRuntimeSmokeTest {
         assertTrue(output, output.contains("hermes-native-ok"))
         assertTrue(output, output.contains("/ls"))
         assertEquals("hermes-native-ok", probeFile.readText())
+
+        if (executionMode == "embedded_termux") {
+            val coreutilsProbe = NativeAndroidShellTool.run(
+                context = context,
+                command = "printenv HERMES_ANDROID_PROOT_EXECUTABLE",
+                timeoutSeconds = 20,
+                includeLinuxSandboxStatus = false,
+            )
+            assertEquals(coreutilsProbe.toString(2), 0, coreutilsProbe.optInt("exit_code", -1))
+            assertTrue(
+                coreutilsProbe.toString(2),
+                coreutilsProbe.optString("output").trim().endsWith("/libhermes_exec_bin_proot.so"),
+            )
+        }
     }
 
     @Test

@@ -1,10 +1,19 @@
 package com.mobilefork.hermesagent.ui.settings
 
 import com.mobilefork.hermesagent.data.ProviderPresets
+import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ProviderPresetsTest {
+    @Test
+    fun firstClassLocalModelsContainOnlyReleaseCertifiedFamilies() {
+        assertEquals(
+            VerifiedLocalModelArtifacts.releaseMatrix.map { it.modelId }.toSet(),
+            ProviderPresets.firstClassLocalModels.map { it.id }.toSet(),
+        )
+    }
+
     @Test
     fun zaiDefaultBaseUrlDoesNotOverrideCliEndpointDetection() {
         val preset = requireNotNull(ProviderPresets.find("zai"))

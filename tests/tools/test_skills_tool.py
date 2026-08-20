@@ -411,6 +411,32 @@ class TestSkillView:
         assert "Current date: !`printf SHOULD_NOT_RUN`" in result["content"]
         assert "Current date: SHOULD_NOT_RUN" not in result["content"]
 
+    def test_android_skill_view_never_executes_configured_inline_shell(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
+        with (
+            patch("tools.skills_tool.SKILLS_DIR", tmp_path),
+            patch(
+                "agent.skill_preprocessing.load_skills_config",
+                return_value={"template_vars": True, "inline_shell": True},
+            ),
+            patch("agent.skill_preprocessing.subprocess.run") as run_shell,
+        ):
+            _make_skill(
+                tmp_path,
+                "android-static",
+                body="Do not execute: !`setsid unsafe-daemon &`",
+            )
+            raw = skill_view("android-static")
+
+        result = json.loads(raw)
+        assert result["success"] is True
+        assert "!`setsid unsafe-daemon &`" in result["content"]
+        run_shell.assert_not_called()
+
     def test_view_nonexistent_skill(self, tmp_path):
         with patch("tools.skills_tool.SKILLS_DIR", tmp_path):
             _make_skill(tmp_path, "other-skill")

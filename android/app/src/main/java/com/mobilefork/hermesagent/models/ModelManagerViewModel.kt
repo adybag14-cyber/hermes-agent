@@ -21,8 +21,7 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobilefork.hermesagent.backend.BackendKind
-import com.mobilefork.hermesagent.backend.LiteRtLmOpenAiProxy
-import com.mobilefork.hermesagent.backend.LlamaCppServerController
+import com.mobilefork.hermesagent.backend.HermesRuntimeManager
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
@@ -98,6 +97,10 @@ data class ModelManagerUiState(
     /** Search query text */
     val searchText: String = "",
 )
+
+internal fun isModelRuntimeReady(status: com.mobilefork.hermesagent.backend.LocalBackendStatus): Boolean {
+    return status.started && status.completionVerified
+}
 
 /** Filters for browsing the model catalog */
 enum class ModelCatalogFilter {
@@ -323,7 +326,7 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
             return
         }
 
-        val filePath = model.localFilePath ?: return
+        if (model.localFilePath == null) return
         val entry = model.catalogEntry
 
         _uiState.update {
@@ -338,14 +341,35 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
         }
 
         viewModelScope.launch {
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    // Try to probe the LiteRT-LM engine with this model
-                    testModelInitialization(filePath, entry)
-                } catch (e: Exception) {
-                    false
+            val backendKind = if (entry.supportedBackends.contains(ModelRuntimeBackend.LITERT_LM)) {
+                BackendKind.LITERT_LM
+            } else {
+                BackendKind.LLAMA_CPP
+            }
+            val status = withContext(Dispatchers.IO) {
+                val record = findDownloadRecordForModel(modelId)
+                    ?: return@withContext com.mobilefork.hermesagent.backend.LocalBackendStatus(
+                        backendKind = backendKind,
+                        started = false,
+                        statusMessage = "The completed download record for ${entry.displayName} is missing",
+                    )
+                downloadStore.setPreferredDownloadId(record.id)
+                settingsStore.save(settingsStore.load().copy(onDeviceBackend = backendKind.persistedValue))
+                val runtimeState = HermesRuntimeManager.restartAfterRemoteStop(app)
+                val localStatus = OnDeviceBackendManager.currentStatus()
+                if (runtimeState.started) {
+                    localStatus
+                } else {
+                    localStatus.copy(
+                        backendKind = backendKind,
+                        started = false,
+                        statusMessage = runtimeState.error
+                            ?: localStatus.statusMessage.ifBlank { "The local runtime did not start" },
+                        completionVerified = false,
+                    )
                 }
             }
+            val success = isModelRuntimeReady(status)
 
             if (success) {
                 _uiState.update {
@@ -356,7 +380,8 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                             } else m
                         },
                         activeModelId = modelId,
-                        systemMessage = "${entry.displayName} initialized and ready",
+                        selectedBackend = backendKind,
+                        systemMessage = "${entry.displayName} initialized and produced a verified completion",
                     )
                 }
             } else {
@@ -366,11 +391,14 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                             if (m.catalogEntry.id == modelId) {
                                 m.copy(
                                     state = ModelState.INIT_FAILED,
-                                    errorMessage = "Model initialization failed",
+                                    errorMessage = status.statusMessage.ifBlank { "Model initialization failed" },
                                 )
                             } else m
                         },
-                        systemMessage = "Failed to initialize ${entry.displayName}",
+                        activeModelId = null,
+                        selectedBackend = backendKind,
+                        systemMessage = "Failed to initialize ${entry.displayName}: " +
+                            status.statusMessage.ifBlank { "no completion-verified backend became ready" },
                     )
                 }
             }
@@ -417,6 +445,9 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
         } else {
             BackendKind.LLAMA_CPP
         }
+        settingsStore.save(
+            settingsStore.load().copy(onDeviceBackend = backendKind.persistedValue),
+        )
 
         _uiState.update {
             it.copy(
@@ -448,8 +479,14 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
         }
 
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                OnDeviceBackendManager.ensureConfigured(app, _uiState.value.selectedBackend.persistedValue)
+            val runtimeState = withContext(Dispatchers.IO) {
+                HermesRuntimeManager.restartAfterRemoteStop(app)
+            }
+            if (!runtimeState.started) {
+                _uiState.update {
+                    it.copy(systemMessage = runtimeState.error ?: "Backend server did not start")
+                }
+                return@launch
             }
             refreshState()
         }
@@ -457,12 +494,16 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
 
     /** Stop the backend server */
     fun stopBackend() {
-        OnDeviceBackendManager.stopAll()
+        val status = OnDeviceBackendManager.stopAll()
         _uiState.update {
-            it.copy(
-                systemMessage = "Backend server stopped",
-                activeModelId = null,
-            )
+            if (!status.requiresAppRestart) {
+                it.copy(
+                    systemMessage = "Backend server stopped",
+                    activeModelId = null,
+                )
+            } else {
+                it.copy(systemMessage = status.statusMessage)
+            }
         }
     }
 
@@ -523,59 +564,45 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    private fun testModelInitialization(modelPath: String, entry: ModelCatalogEntry): Boolean {
-        val file = File(modelPath)
-        if (!file.exists()) return false
-
-        // For LiteRT-LM models, try a quick probe
-        if (entry.supportedBackends.contains(ModelRuntimeBackend.LITERT_LM)) {
-            // LiteRT-LM initialization is done in the proxy server
-            // We just verify the file exists and has reasonable size
-            return file.length() > 1_000_000 // At least 1MB
-        }
-
-        // For GGUF models, just verify the file
-        return file.length() > 1_000_000
-    }
-
     /**
      * Build the default model catalog with known models for on-device inference.
      * Includes Gemma 4 variants, Qwen models, and other LiteRT-LM compatible models.
      */
     companion object {
         internal fun buildDefaultCatalog(): List<ModelCatalogEntry> = listOf(
-            // Gemma 4 and small LiteRT-LM models verified for mobile-sized downloads.
+            // Gemma 4 remains discoverable, but is experimental until an exact artifact and
+            // hardware path pass the content-addressed release matrix.
             ModelCatalogEntry(
                 id = "gemma-4-e2b-litert-lm",
                 displayName = "Gemma 4 E2B (LiteRT-LM)",
-                description = "Google Gemma 4 E2B instruction model packaged for LiteRT-LM with multimodal input and Gemma 4 MTP support. Small enough for on-device chat and native tool-use validation.",
+                description = "Experimental text-only Google Gemma 4 E2B LiteRT-LM artifact. Hermes has not certified its image, audio, MTP, tool-use, or device-accelerator paths; choose a release-certified model for one-tap setup.",
                 repoId = "litert-community/gemma-4-E2B-it-litert-lm",
                 revision = "7fa1d78473894f7e736a21d920c3aa80f950c0db",
                 supportedBackends = listOf(ModelRuntimeBackend.LITERT_LM),
                 approximateSizeBytes = 2_583_085_056,
                 recommendedRamBytes = 8_000_000_000,
-                supportsImageInput = true,
-                supportsAudioInput = true,
-                tags = listOf("gemma", "google", "litert-lm", "mtp", "speculative-decoding", "multimodal", "conversation", "tool-use", "2b"),
+                supportsImageInput = false,
+                supportsAudioInput = false,
+                tags = listOf("gemma", "google", "litert-lm", "experimental", "text-only", "2b"),
                 author = "Google",
                 license = "Apache-2.0",
-                isMobileRecommended = true,
+                isMobileRecommended = false,
             ),
             ModelCatalogEntry(
                 id = "gemma-4-e4b-litert-lm",
                 displayName = "Gemma 4 E4B (LiteRT-LM)",
-                description = "Google Gemma 4 E4B instruction model packaged for LiteRT-LM with multimodal input and Gemma 4 MTP support. Larger than E2B but still below the 5 GB mobile testing ceiling.",
+                description = "Experimental text-only Google Gemma 4 E4B LiteRT-LM artifact for high-memory devices. Hermes has not certified its image, audio, MTP, tool-use, Snapdragon/Adreno, or NPU paths, and it is not selected automatically.",
                 repoId = "litert-community/gemma-4-E4B-it-litert-lm",
                 revision = "9695417f248178c63a9f318c6e0c56cb917cb837",
                 supportedBackends = listOf(ModelRuntimeBackend.LITERT_LM),
                 approximateSizeBytes = 3_654_467_584,
                 recommendedRamBytes = 12_000_000_000,
-                supportsImageInput = true,
-                supportsAudioInput = true,
-                tags = listOf("gemma", "google", "litert-lm", "mtp", "speculative-decoding", "multimodal", "reasoning", "tool-use", "4b"),
+                supportsImageInput = false,
+                supportsAudioInput = false,
+                tags = listOf("gemma", "google", "litert-lm", "experimental", "text-only", "4b"),
                 author = "Google",
                 license = "Apache-2.0",
-                isMobileRecommended = true,
+                isMobileRecommended = false,
             ),
             ModelCatalogEntry(
                 id = "gemma-3-1b-it-litert-lm",
@@ -793,6 +820,22 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                 license = "llama3.2",
                 isMobileRecommended = true,
             ),
-        )
+        ).map { entry ->
+            entry.copy(isMobileRecommended = isReleaseCertifiedMobileEntry(entry))
+        }
+
+        private fun isReleaseCertifiedMobileEntry(entry: ModelCatalogEntry): Boolean {
+            return VerifiedLocalModelArtifacts.releaseMatrix.any { artifact ->
+                val backendMatches = when (artifact.runtime) {
+                    "litert-lm" -> ModelRuntimeBackend.LITERT_LM in entry.supportedBackends
+                    "llama.cpp" -> ModelRuntimeBackend.LLAMA_CPP in entry.supportedBackends
+                    else -> false
+                }
+                artifact.repoId.equals(entry.repoId, ignoreCase = true) &&
+                    artifact.revision == entry.revision &&
+                    artifact.expectedBytes == entry.approximateSizeBytes &&
+                    backendMatches
+            }
+        }
     }
 }

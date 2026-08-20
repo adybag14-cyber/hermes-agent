@@ -311,7 +311,11 @@ def compress_context(
     # error to the user, skip the session-rotation work entirely (no
     # session has logically ended), and let auto-compress callers detect
     # the no-op via len(returned) == len(input).
-    if getattr(agent.context_compressor, "_last_compress_aborted", False):
+    # Test doubles and third-party context engines may synthesize arbitrary
+    # truthy attributes through ``__getattr__`` (notably MagicMock).  Only the
+    # explicit boolean sentinel published by ContextCompressor is authority
+    # that summary generation aborted.
+    if getattr(agent.context_compressor, "_last_compress_aborted", False) is True:
         _err = getattr(agent.context_compressor, "_last_summary_error", None) or "unknown error"
         if getattr(agent, "_last_compression_summary_warning", None) != _err:
             agent._last_compression_summary_warning = _err

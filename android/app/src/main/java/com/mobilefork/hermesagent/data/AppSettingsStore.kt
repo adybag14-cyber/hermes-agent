@@ -218,7 +218,7 @@ data class AppSettings(
         fun normalizeLocalModelAccelerator(value: String): String {
             val normalized = value.trim().lowercase()
             return when (normalized) {
-                "auto", "cpu", "gpu", "npu" -> normalized
+                "auto", "cpu", "gpu" -> normalized
                 else -> DEFAULT_LOCAL_MODEL_ACCELERATOR
             }
         }
@@ -295,6 +295,24 @@ class AppSettingsStore(context: Context) {
                 .putFloat(KEY_UI_FONT_SCALE, AppSettings.normalizeUiFontScale(settings.uiFontScale))
                 // commit() so a subsequent load() from another store never races past apply().
                 .commit()
+        }
+    }
+
+    /**
+     * Durably accept a foreground local-runtime handoff before its asynchronous
+     * startup work begins. The caller may clear a persisted pending-download
+     * intent only when this commit succeeds.
+     */
+    fun persistOnDeviceBackend(onDeviceBackend: String): Boolean {
+        synchronized(cacheLock) {
+            val committed = preferences.edit()
+                .putString(KEY_ON_DEVICE_BACKEND, onDeviceBackend)
+                .commit()
+            if (committed) {
+                val current = processCache ?: readFromPreferences()
+                processCache = current.copy(onDeviceBackend = onDeviceBackend)
+            }
+            return committed
         }
     }
 

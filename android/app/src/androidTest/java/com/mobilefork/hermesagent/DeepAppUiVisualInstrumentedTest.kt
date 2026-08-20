@@ -90,6 +90,7 @@ class DeepAppUiVisualInstrumentedTest {
         LocalModelDownloadStore(app).apply {
             saveDownloads(emptyList())
             setPreferredDownloadId("")
+            setPendingAutoStartRecordId("")
         }
         AppSettingsStore(app).save(
             AppSettings(
@@ -370,7 +371,7 @@ class DeepAppUiVisualInstrumentedTest {
                     onDataSaverModeChange = {},
                     selectedBackend = BackendKind.LLAMA_CPP.persistedValue,
                     onRuntimeFlavorSelected = {},
-                    onCompletedDownloadReady = {},
+                    onCompletedDownloadReady = { true },
                     importModelClickOverride = {
                         openDocumentLaunched.set(true)
                         HermesModelDownloadManager.importLocalModelFile(

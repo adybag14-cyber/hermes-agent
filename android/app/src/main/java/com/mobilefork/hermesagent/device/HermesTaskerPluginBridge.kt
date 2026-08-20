@@ -3,6 +3,8 @@ package com.mobilefork.hermesagent.device
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import com.mobilefork.hermesagent.R
+import com.mobilefork.hermesagent.ui.theme.hermesLocalizedContext
 import org.json.JSONObject
 import java.util.UUID
 
@@ -27,7 +29,7 @@ object HermesTaskerPluginBridge {
         val normalizedId = normalizeAutomationId(automationId)
             ?: throw IllegalArgumentException("Tasker plugin automation id is required")
         val token = ensureAuthorizedToken(context, normalizedId, existingToken)
-        val blurb = blurbFor(normalizedId, label)
+        val blurb = blurbFor(context, normalizedId, label)
         val bundle = Bundle().apply {
             putString(KEY_AUTOMATION_ID, normalizedId)
             putString(KEY_TOKEN, token)
@@ -58,9 +60,14 @@ object HermesTaskerPluginBridge {
             .toString()
     }
 
-    fun blurbFor(automationId: String, label: String): String {
-        val display = label.trim().ifBlank { automationId.trim() }.take(MAX_LABEL_CHARS)
-        return "Run Hermes automation: $display"
+    fun blurbFor(context: Context, automationId: String, label: String): String {
+        if (label.isNotBlank()) {
+            return label.take(MAX_LABEL_CHARS)
+        }
+        val display = automationId.trim().take(MAX_LABEL_CHARS)
+        return context.hermesLocalizedContext()
+            .getString(R.string.hermes_tasker_plugin_default_blurb, display)
+            .take(MAX_LABEL_CHARS)
     }
 
     fun tokenForAutomation(context: Context, automationId: String): String {

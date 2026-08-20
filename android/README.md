@@ -38,15 +38,91 @@ there is no Play-only build.
 4. Start the selected local backend and wait for the health and completion
    checks. If initialization fails, use the status text and diagnostics rather
    than repeatedly retrying a model which exceeds available memory.
-5. Enable only the tool profiles you intend the agent to use. A model must have
-   compatible function/tool-calling training; describing a command in prose is
-   not the same as emitting a tool call.
+5. Enable only the tool profiles you intend the agent to use. The narrow,
+   read-only prompts `What time is it?`, `Show the current directory`, `Who is
+   the current user?`, `List files`, and `Show system information` run their
+   built-in native command before any local or remote model request. Other
+   commands require an enabled profile and a model with compatible structured
+   function/tool-calling training; describing a command in prose is not the
+   same as emitting a tool call.
+
+The v0.13.148 embedded Android runtime deliberately exposes only its audited
+in-process tool profile. External MCP stdio/SSE/HTTP sessions, user plugin and
+context-engine code, process-backed ACP/Codex provider modes, and the async
+web/vision tools are unavailable because the app cannot yet prove that their
+threads and child processes have stopped before switching runtimes. Existing
+MCP JSON is retained for export but is not loaded or executed. These limits are
+specific to the embedded Android app; they do not remove the corresponding
+desktop or CLI features.
 
 Large local models need substantially more free memory than their file size.
 Hermes checks current memory headroom before starting, but Android can still
 reclaim a process when another app, the GPU driver, KV cache, or model-native
 buffers consume the remaining RAM. Start with the smallest certified model for
 your backend and close other memory-heavy apps before moving up.
+
+Gemma 4 12B LiteRT-LM is not supported by Hermes on nominal 16 GB phones. For
+LiteRT-LM files of 6 GB or more, Hermes requires at least 2.5 times the file
+size as total device RAM before native initialization; a 6.5 GB bundle needs
+about 16.3 GB before Android, the GPU driver, KV cache, and other process
+memory. Hermes blocks this configuration before native allocation. A GPU run
+in Google AI Edge Gallery does not certify the same artifact/runtime path in
+Hermes. Experimental Gemma 4 E2B/E4B files require the explicit custom-import
+path; they are excluded from the release-certified quick-start catalog and are
+never selected automatically. The historical E4B pin
+`9695417f248178c63a9f318c6e0c56cb917cb837` is an April artifact of
+3,654,467,584 bytes (SHA-256
+`f335f2bfd1b758dc6476db16c0f41854bd6237e2658d604cbe566bcefd00a7bc`).
+Hermes classifies it as experimental and text-only. The narrow validation
+recipe below explicitly selects CPU and disables speculative decoding; Hermes
+does not silently force those settings for every custom import. This is not the
+newer upstream artifact for which speculative decoding is advertised, and it
+remains unverified on Snapdragon/Adreno until that exact path passes a headed
+physical-device matrix.
+
+To reproduce only that narrowly scoped historical E4B path, use the custom
+model importer rather than a quick-start card: enter repository
+`litert-community/gemma-4-E4B-it-litert-lm`, immutable revision
+`9695417f248178c63a9f318c6e0c56cb917cb837`, and file
+`gemma-4-E4B-it.litertlm`; verify the exact byte count and SHA-256 above before
+loading it. Select LiteRT-LM with CPU, keep speculative decoding off,
+send a text-only prompt, and require both a healthy runtime and a non-empty
+completion. This recipe does not certify the current moving upstream artifact,
+multimodal input, MTP, NPU, Snapdragon/Adreno, or another device/ABI.
+
+After provisioning those exact bytes and creating the release-identity `$bind`
+array described under **Committed release-evidence gate** below, the scoped
+device-evidence invocation is:
+
+```powershell
+$modelBind = @($bind) + @(
+  '-e', 'model_id', 'gemma-4-e4b-litert-lm',
+  '-e', 'model_file_name', 'gemma-4-E4B-it.litertlm',
+  '-e', 'model_bytes', '3654467584',
+  '-e', 'model_sha256', 'f335f2bfd1b758dc6476db16c0f41854bd6237e2658d604cbe566bcefd00a7bc',
+  '-e', 'model_repo', 'litert-community/gemma-4-E4B-it-litert-lm',
+  '-e', 'model_revision', '9695417f248178c63a9f318c6e0c56cb917cb837',
+  '-e', 'preferred_accelerator', 'cpu',
+  '-e', 'speculative_decoding', 'disabled',
+  '-e', 'exercise_backend_manager', 'true',
+  '-e', 'require_model', 'true',
+  '-e', 'class', 'com.mobilefork.hermesagent.LiteRtLmModelMatrixInstrumentedTest#provisionedLiteRtLmModelLoadsAndAnswersLocally'
+)
+adb -s $serial shell am instrument -w -r @modelBind `
+  com.mobilefork.hermesagent.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+Use the same active emulator serial in `$bind` and `adb -s`. The test discovers
+the model in the same private/external app directories as production, seeds an
+exact completed preferred-download record and persisted settings, then enters
+through `OnDeviceBackendManager`. It fails unless health reports CPU, no GPU
+attempt, speculative decoding disabled, no image/audio support, a successful
+startup canary, and a non-empty real completion. Its durable evidence records
+the app entry point, requested and observed accelerator, MTP policy, modality
+support, exact artifact identity, and elapsed time. This release-evidence
+identity is deliberately emulator-bound; a future physical Snapdragon test
+needs a separate physical-device identity contract and cannot reuse this record
+to claim S24/Adreno certification.
 
 ## Local-model release certification
 
@@ -63,9 +139,18 @@ The Android test lane contains fixtures for these small-model families:
 - MiniCPM5 1B LiteRT-LM
 - VibeThinker 3B LiteRT-LM on the larger model-test AVD
 
-Check the release notes for the exact files that passed the current release;
-the catalog can expose experimental or user-selected models which have not
-passed that release matrix.
+Check the release notes for the exact files that passed the current release.
+The one-tap recommended cards and signed-catalog quick-start choices are
+restricted to exact content-addressed release-matrix artifacts with a known
+byte count no larger than 5 GiB. Unknown-size, moving, oversized, or merely
+experimental catalog rows are excluded from quick start; an operator can still
+use custom import after separately verifying the repo, immutable revision,
+file, bytes, and runtime compatibility.
+
+Hermes currently implements LiteRT-LM GPU and CPU delegates only. It does not
+expose a separate AICore/NPU backend, does not infer one from Android API level,
+and normalizes a legacy `npu` preference back to `auto`. Do not interpret a GPU
+or CPU fallback as NPU execution.
 
 The managed llama.cpp chat backend accepts single-file GGUF v2/v3 artifacts
 whose metadata includes an architecture, tensors, and an embedded
@@ -85,7 +170,7 @@ Google does not currently publish an Android nightly Maven coordinate. To test
 a newly published exact preview version without changing the release default:
 
 ```powershell
-./gradlew.bat :app:compileDebugKotlin -PhermesLiteRtLmVersion=0.16.0
+./gradlew.bat :app:compileDebugKotlin -PhermesLiteRtLmVersion=0.16.1
 ```
 
 To test an Android AAR built locally from LiteRT-LM `main`:
@@ -147,13 +232,20 @@ before signing if that committed evidence is absent, incomplete, stale, or for
 a different source tree/tag. A successful instrumentation compile is not
 device certification.
 
+For `v0.13.148` and later, [RELEASE_EVIDENCE_V3.md](RELEASE_EVIDENCE_V3.md) is
+the authoritative operator contract and closed-layout specification. It adds
+comprehensive UI inventories, reviewed launch-theme captures, the scoped E4B
+lane, and the fixed issue-8 and issue-16 records. The manifest-v2 tree shown
+later in this section is retained only to explain and reproduce `v0.13.147`;
+it is incomplete for a manifest-v3 release.
+
 Release evidence is deliberately a two-commit operation. First commit every
 source, test, workflow, metadata, and documentation change. With that source
 commit checked out, obtain the identity embedded into the headed debug
 candidate and build both APKs from the same process environment:
 
 ```powershell
-$tag = 'v0.13.147'
+$tag = 'v0.13.148'
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)
@@ -161,13 +253,15 @@ $env:HERMES_RELEASE_TAG = $tag
 $env:HERMES_SOURCE_DIGEST = $sourceDigest
 $env:PYTHON_FOR_BUILD = Join-Path $env:LOCALAPPDATA 'Programs\Python\Python313\python.exe'
 Push-Location android
-.\gradlew :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon
+.\gradlew.bat :app:assembleDebug :app:assembleDebugAndroidTest `
+    -PskipHermesAndroidLinuxAssets=false `
+    --max-workers=12 --parallel --no-daemon --console=plain
 Pop-Location
 $candidateApk = Resolve-Path android/app/build/outputs/apk/debug/app-debug.apk
 $testApk = Resolve-Path android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 $candidateSha = (Get-FileHash $candidateApk -Algorithm SHA256).Hash.ToLowerInvariant()
 $testSha = (Get-FileHash $testApk -Algorithm SHA256).Hash.ToLowerInvariant()
-$runId = "v0.13.147-$($sourceDigest.Substring(0,16))-20260812"
+$runId = "$tag-$($sourceDigest.Substring(0,16))-$(Get-Date -Format yyyyMMdd-HHmmss)bst"
 ```
 
 The Gradle configuration recomputes the committed source identity, requires a
@@ -177,15 +271,17 @@ and fails if the supplied digest differs. Install those exact two APKs with `adb
 the same binding arguments (substitute the active serial and AVD name):
 
 ```powershell
+$serial = 'emulator-5570'
+$avdName = 'Medium_Phone_API_35'
 $bind = @(
     '-e', 'release_source_digest', $sourceDigest,
     '-e', 'candidate_apk_sha256', $candidateSha,
     '-e', 'instrumentation_apk_sha256', $testSha,
     '-e', 'evidence_run_id', $runId,
-    '-e', 'device_serial', 'emulator-5570',
-    '-e', 'avd_name', 'Medium_Phone_API_35'
+    '-e', 'device_serial', $serial,
+    '-e', 'avd_name', $avdName
 )
-adb -s emulator-5570 shell am instrument -w -r @bind `
+adb -s $serial shell am instrument -w -r @bind `
     -e class 'com.mobilefork.hermesagent.DeepAppUiVisualInstrumentedTest#allSixLanguagesSwitchAcrossModelToolsKanbanAndDeviceCards' `
     'com.mobilefork.hermesagent.test/androidx.test.runner.AndroidJUnitRunner'
 ```
@@ -200,9 +296,12 @@ Model invocations must additionally set
 `require_model=true` and the exact content-addressed model arguments documented
 above; a skip is a failed release gate.
 
-After both profile runs, arrange the retrieved device files in this exact
-layout (repeat `screen.png` and `semantics.txt` for `en`, `zh`, `es`, `de`,
-`pt`, and `fr` under both UI profiles):
+For the legacy `v0.13.147` manifest-v2 contract, the retrieved files use the
+following exact layout (repeat `screen.png` and `semantics.txt` for `en`, `zh`,
+`es`, `de`, `pt`, and `fr` under both UI profiles). Do not use this abbreviated
+tree for `v0.13.148` or later; follow [RELEASE_EVIDENCE_V3.md](RELEASE_EVIDENCE_V3.md)
+for the additional required `ui-coverage/`, `launch-theme/`, issue, and E4B
+artifacts:
 
 ```text
 android/release-evidence/<tag>/
@@ -293,7 +392,7 @@ the preflight invalidates the run.
 
 The task-graph guard rejects benchmark artifact or connected tasks unless the
 release tag and lowercase source SHA-256 are exact, LiteRT-LM remains the
-release coordinate `com.google.ai.edge.litertlm:litertlm-android:0.16.0`, and
+release coordinate `com.google.ai.edge.litertlm:litertlm-android:0.16.1`, and
 no local LiteRT-LM AAR is selected. Before measurement the benchmark reads the
 installed target's benchmark-only manifest identity, package version,
 debuggable/profileable flags, and APK bytes; it refuses any mismatch with the
@@ -434,7 +533,7 @@ if ($bootId -notmatch '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') {
 }
 
 $versionName = $tag.TrimStart('v')
-$coordinate = 'com.google.ai.edge.litertlm:litertlm-android:0.16.0'
+$coordinate = 'com.google.ai.edge.litertlm:litertlm-android:0.16.1'
 $gradle = (Resolve-Path .\gradlew.bat).Path
 $gradleArgs = @(
     ':macrobenchmark:connectedBenchmarkAndroidTest'
@@ -652,15 +751,17 @@ Existing records are preserved unless `--overwrite` is explicitly used. Use
 `--adb`, `--emulator`, or `--powershell` when those executables are not on
 `PATH`.
 
-Create the deterministic manifest only while the source tree is clean outside
-the evidence directory, then commit the evidence before creating the tag:
+After satisfying the complete version-selected schema (including the v3
+contract for `v0.13.148+`), create the deterministic manifest only while the
+source tree is clean outside the evidence directory, then commit the evidence
+before creating the tag:
 
 ```powershell
-$tag = 'v0.13.147'
+$tag = 'v0.13.148'
 python scripts/android_release_evidence.py create --tag $tag
 git add "android/release-evidence/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
-git tag $tag
+git tag -a $tag -m "Hermes Agent Fork $tag"
 python scripts/android_release_evidence.py verify --tag $tag --require-tag-ref
 ```
 
@@ -689,8 +790,27 @@ control platform-owned dialogs such as the document picker.
 - Reduce context length and choose CPU if the vendor GPU/OpenCL path fails.
 - Try a smaller model if current available memory is below the preflight
   estimate. Total installed RAM is not the same as memory available now.
-- After a native or low-memory termination, reopen Hermes and inspect the
+- After a native or low-memory termination, force stop and reopen Hermes, then inspect the
   recovered prior-exit diagnostic.
+- For Gemma 4, `Auto` speculative decoding is enabled only when the LiteRT-LM
+  capabilities probe explicitly advertises support. A filename containing
+  `gemma-4` is not evidence of MTP compatibility. Forced CPU mode skips the
+  OpenCL loader probe, and disabled speculative decoding skips the capabilities
+  probe. Any remaining native probes, Engine initialization, and completion
+  canary run inside one shared 300-second monotonic startup budget. An ordinary
+  failure which safely returns may continue only after bounded candidate
+  cleanup. A deadline or caller interruption aborts the whole fallback chain;
+  Hermes will not create another native engine until the abandoned worker exits
+  and cleanup succeeds. Replacing an existing engine likewise uses a bounded
+  shutdown wait and never overlaps the replacement with an old native close.
+  Each real chat completion has the same ownership boundary: the native worker
+  creates, uses, cancels, and closes its `Conversation`. If vendor JNI ignores
+  interruption, the HTTP/UI wait returns a bounded error, `/health` reports
+  `generation_state=running_or_unwinding`, and Hermes rejects another prompt or
+  backend switch instead of overlapping native work. A cleanup failure changes
+  that state to `restart_required`; the runtime is not reported ready again.
+  Force stop and reopen the app if a vendor JNI call or cleanup never returns,
+  or if Hermes reports that cleanup failed and a restart is required.
 
 ### A GGUF server is "ready" but chat does not answer
 
@@ -708,12 +828,26 @@ the final log lines. Ordinary storage permission prompts cannot make a binary
 on a `noexec` mount executable; Hermes must route commands through its internal
 executable runtime.
 
+The embedded Android terminal accepts bounded foreground commands only.
+`background=true` and shell-detached daemons are rejected: Android cannot
+reliably prove ownership of every reparented same-UID descendant, so accepting
+them would let old tool work overlap a backend stop or app-runtime restart. Use
+a native Hermes automation for persistent Android work.
+
 ### Tools are described instead of executed
 
-Verify the selected model supports structured tool calling, enable the desired
-tool profile, and ask for a concrete operation. The local runtime status must
-show that tool schemas were registered. Some general chat models will always
-answer with prose even when tools are available.
+Ask in ordinary language: `What time is it?` or `Run a command to tell me what
+time it is.` Hermes uses a narrow, read-only built-in route to execute `date`
+before the configured local or remote endpoint, so no tool name or
+model-generated function call is required. `Check my device status` similarly
+selects native device diagnostics. Confirm the visible tool result or event;
+prose saying a tool ran is not execution evidence.
+
+For commands outside the built-in safe routes, verify that the selected model
+supports structured tool calling, enable the relevant tool profile, and ask
+for a concrete operation. The local runtime status must show that tool schemas
+were registered. Some general chat models will answer with prose even when
+tools are available.
 
 ## Release and F-Droid updater contract
 
@@ -727,7 +861,29 @@ fdroid checkupdates --auto --allow-dirty com.mobilefork.hermesagent
 ```
 
 Run this from a fresh checkout of the live F-Droid metadata after the GitHub tag
-exists. The local diff must add the new version/code and resolve the exact tag
-commit. Do not add `--commit` or `--merge-request`, and do not push the preview.
-Reproducibility still requires a local pinned build and byte-for-byte APK
-comparison before the release is certified.
+exists. The local diff must add exactly one 0.13.148/144890 build and resolve the
+tag to its full Git commit. Before the pinned build, merge only the committed
+template's source-binding fields into that autoupdater-generated build and
+verify the result:
+
+```bash
+bash fdroid/run-local-buildserver.sh \
+  --render-autoupdate-preview \
+  /path/to/fdroiddata/metadata/com.mobilefork.hermesagent.yml \
+  fdroid/com.mobilefork.hermesagent.yml.template
+bash fdroid/run-local-buildserver.sh \
+  --verify-autoupdate-preview \
+  /path/to/fdroiddata/metadata/com.mobilefork.hermesagent.yml \
+  fdroid/com.mobilefork.hermesagent.yml.template
+```
+
+This transaction preserves the resolved commit, historical builds, and every
+unrelated live-metadata field. It overlays only `gradleprops` and `prebuild`,
+then requires `hermesFdroidSourceBinding=true` and the leading external-digest
+`prepare` handoff. An old two-`sed` recipe or any path which can produce
+`unbound` is rejected before the container downloads or builds anything. Do not
+copy the whole candidate template over live metadata. Do not add `--commit` or
+`--merge-request`, and do not commit or push the preview. The exact commands,
+mounts, immutable toolchain pins, and no-MR boundary are documented in
+[`fdroid/LOCAL_TOOLCHAIN.md`](../fdroid/LOCAL_TOOLCHAIN.md). Reproducibility
+still requires that pinned build and its APK comparison before certification.

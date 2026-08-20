@@ -5,6 +5,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import com.mobilefork.hermesagent.R
+import com.mobilefork.hermesagent.ui.theme.hermesLocalizedContext
 import org.json.JSONObject
 import java.security.SecureRandom
 import java.util.UUID
@@ -54,12 +56,12 @@ object HermesTaskerEventBridge {
         val error: String = "",
     )
 
-    fun eventChoices(): List<EventChoice> = listOf(
-        EventChoice(EVENT_AUTOMATION_FINISHED, "Automation finished"),
-        EventChoice(EVENT_AUTOMATION_SUCCEEDED, "Automation succeeded"),
-        EventChoice(EVENT_AUTOMATION_FAILED, "Automation failed"),
-        EventChoice(EVENT_SHIZUKU_AVAILABLE, "Shizuku available"),
-        EventChoice(EVENT_SHIZUKU_UNAVAILABLE, "Shizuku unavailable"),
+    fun eventChoices(context: Context): List<EventChoice> = listOf(
+        EventChoice(EVENT_AUTOMATION_FINISHED, context.getString(R.string.hermes_tasker_event_automation_finished)),
+        EventChoice(EVENT_AUTOMATION_SUCCEEDED, context.getString(R.string.hermes_tasker_event_automation_succeeded)),
+        EventChoice(EVENT_AUTOMATION_FAILED, context.getString(R.string.hermes_tasker_event_automation_failed)),
+        EventChoice(EVENT_SHIZUKU_AVAILABLE, context.getString(R.string.hermes_tasker_event_shizuku_available)),
+        EventChoice(EVENT_SHIZUKU_UNAVAILABLE, context.getString(R.string.hermes_tasker_event_shizuku_unavailable)),
     )
 
     fun bundleFromIntent(intent: Intent): Bundle? = intent.getBundleExtra(EXTRA_BUNDLE)
@@ -78,7 +80,7 @@ object HermesTaskerEventBridge {
         val normalizedAutomationId = normalizeOptionalAutomationId(automationId)
         val signature = eventSignature(normalizedType, normalizedAutomationId)
         val token = ensureAuthorizedToken(context, signature, existingToken)
-        val blurb = blurbFor(normalizedType, normalizedAutomationId, label)
+        val blurb = blurbFor(context, normalizedType, normalizedAutomationId, label)
         val bundle = Bundle().apply {
             putString(KEY_EVENT_TYPE, normalizedType)
             putString(KEY_AUTOMATION_ID, normalizedAutomationId)
@@ -165,20 +167,32 @@ object HermesTaskerEventBridge {
         )
     }
 
-    fun blurbFor(eventType: String, automationId: String, label: String): String {
-        val custom = label.trim()
-        if (custom.isNotBlank()) {
-            return custom.take(MAX_LABEL_CHARS)
+    fun blurbFor(context: Context, eventType: String, automationId: String, label: String): String {
+        if (label.isNotBlank()) {
+            return label.take(MAX_LABEL_CHARS)
         }
-        val suffix = automationId.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
-        return when (eventType) {
-            EVENT_AUTOMATION_FINISHED -> "Hermes event: automation finished$suffix"
-            EVENT_AUTOMATION_SUCCEEDED -> "Hermes event: automation succeeded$suffix"
-            EVENT_AUTOMATION_FAILED -> "Hermes event: automation failed$suffix"
-            EVENT_SHIZUKU_AVAILABLE -> "Hermes event: Shizuku available"
-            EVENT_SHIZUKU_UNAVAILABLE -> "Hermes event: Shizuku unavailable"
-            else -> "Hermes event"
-        }.take(MAX_LABEL_CHARS)
+        val localized = context.hermesLocalizedContext()
+        val base = localized.getString(
+            when (eventType) {
+                EVENT_AUTOMATION_FINISHED -> R.string.hermes_tasker_event_blurb_automation_finished
+                EVENT_AUTOMATION_SUCCEEDED -> R.string.hermes_tasker_event_blurb_automation_succeeded
+                EVENT_AUTOMATION_FAILED -> R.string.hermes_tasker_event_blurb_automation_failed
+                EVENT_SHIZUKU_AVAILABLE -> R.string.hermes_tasker_event_blurb_shizuku_available
+                EVENT_SHIZUKU_UNAVAILABLE -> R.string.hermes_tasker_event_blurb_shizuku_unavailable
+                else -> R.string.hermes_tasker_event_blurb_default
+            },
+        )
+        val automationDetail = automationId.takeIf {
+            eventType == EVENT_AUTOMATION_FINISHED ||
+                eventType == EVENT_AUTOMATION_SUCCEEDED ||
+                eventType == EVENT_AUTOMATION_FAILED
+        }.orEmpty()
+        return if (automationDetail.isBlank()) {
+            base.take(MAX_LABEL_CHARS)
+        } else {
+            localized.getString(R.string.hermes_tasker_blurb_with_detail, base, automationDetail)
+                .take(MAX_LABEL_CHARS)
+        }
     }
 
     private fun requestQuery(context: Context, payload: JSONObject) {

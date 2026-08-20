@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Hermes Agent Release Script
 
-Generates changelogs and creates GitHub releases with CalVer tags.
+Generates changelogs and creates Python releases with CalVer tags.
+
+This tool is intentionally not the Android release entry point. Android releases use
+an independently certified ``v0.*`` tag and the tag-push workflow documented in
+``website/docs/developer-guide/android-release.md``.
 
 Usage:
     # Preview changelog (dry run)
@@ -1203,6 +1207,11 @@ def git_result(*args, cwd=None):
     )
 
 
+def push_release_refs(tag_name: str):
+    """Push only the release commit and its exact annotated tag."""
+    return git_result("push", "origin", "HEAD", tag_name)
+
+
 def get_last_tag():
     """Get the most recent CalVer tag."""
     tags = git("tag", "--list", "v20*", "--sort=-v:refname")
@@ -1596,9 +1605,9 @@ def generate_changelog(commits, tag_name, semver, repo_url="https://github.com/N
     return "\n".join(lines)
 
 
-def main():
+def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(
-        description="Hermes Agent Release Tool (Python release orchestration; Android APK/AAB assets are attached later by GitHub Actions on release publish)"
+        description="Hermes Agent Python Release Tool (CalVer tags and Python artifacts; not Android releases)"
     )
     parser.add_argument("--bump", choices=["major", "minor", "patch"],
                         help="Which semver component to bump")
@@ -1610,10 +1619,12 @@ def main():
                         help="Mark as first release (no previous tag expected)")
     parser.add_argument("--output", type=str,
                         help="Write changelog to file instead of stdout")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     # Determine CalVer date
     if args.date:
+        if not re.fullmatch(r"\d{4}\.\d{1,2}\.\d{1,2}", args.date):
+            parser.error("--date must use the CalVer form YYYY.M.D; Android v0.* tags use the separate certified workflow")
         calver_date = args.date
     else:
         now = datetime.now()
@@ -1655,7 +1666,7 @@ def main():
     print(f"  Commits:         {len(commits)}")
     print(f"  Unique authors:  {len({c['github_author'] for c in commits})}")
     print(f"  Mode:            {'PUBLISH' if args.publish else 'DRY RUN'}")
-    print(f"  Android assets:  built by .github/workflows/android-release.yml after the GitHub release is published")
+    print("  Android release: not part of this CalVer workflow; use the documented certified v0.* tag flow")
     print(f"{'='*60}")
     print()
 
@@ -1710,13 +1721,14 @@ def main():
         print(f"  ✓ Created tag {tag_name}")
 
         # Push
-        push_result = git_result("push", "origin", "HEAD", "--tags")
+        push_result = push_release_refs(tag_name)
         if push_result.returncode == 0:
             print(f"  ✓ Pushed to origin")
         else:
             print(f"  ✗ Failed to push to origin: {push_result.stderr.strip()}")
             print("    Continue manually after fixing access:")
-            print("    git push origin HEAD --tags")
+            print(f"    git push origin HEAD {tag_name}")
+            return
 
         # Build semver-named Python artifacts so downstream packagers
         # (e.g. Homebrew) can target them without relying on CalVer tag names.
@@ -1750,7 +1762,7 @@ def main():
         if result and result.returncode == 0:
             changelog_file.unlink(missing_ok=True)
             print(f"  ✓ GitHub release created: {result.stdout.strip()}")
-            print("  ✓ Android GitHub Actions pipeline will attach APK/AAB artifacts and SHA256 files after release publication")
+            print("  ℹ This CalVer release does not trigger the Android v0.* release workflow")
             print(f"\n  🎉 Release v{new_version} ({tag_name}) published!")
         else:
             if result is None:

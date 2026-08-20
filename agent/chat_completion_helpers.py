@@ -34,6 +34,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs, urlunparse
 
 from hermes_cli.timeouts import get_provider_request_timeout, get_provider_stale_timeout
+from hermes_android.runtime_identity import is_embedded_android_runtime
 from agent.error_classifier import classify_api_error, FailoverReason
 from agent.model_metadata import is_local_endpoint
 from agent.message_sanitization import (
@@ -156,8 +157,7 @@ def interruptible_api_call(agent, api_kwargs: dict):
     _call_start = time.time()
     agent._touch_activity("waiting for non-streaming API response")
 
-    t = threading.Thread(target=_call, daemon=True)
-    t.start()
+    t = agent._start_owned_worker_thread(target=_call, name="agent-api-call")
     _poll_count = 0
     while t.is_alive():
         t.join(timeout=0.3)
@@ -202,6 +202,14 @@ def interruptible_api_call(agent, api_kwargs: dict):
             )
             # Wait briefly for the thread to notice the closed connection.
             t.join(timeout=2.0)
+            if is_embedded_android_runtime() and t.is_alive():
+                agent.begin_owned_worker_shutdown(
+                    "Embedded Android provider call did not unwind after its stale timeout"
+                )
+                raise InterruptedError(
+                    "Embedded Android provider call did not unwind; retry is blocked "
+                    "until the owning worker exits"
+                )
             if result["error"] is None and result["response"] is None:
                 result["error"] = TimeoutError(
                     f"Non-streaming API call timed out after {int(_elapsed)}s "
@@ -1187,6 +1195,26 @@ def interruptible_streaming_api_call(agent, api_kwargs: dict, *, on_first_delta=
         finally:
             agent._codex_on_first_delta = None
 
+    if agent.api_mode == "chatgpt_web":
+        first_delta_fired = {"done": False}
+
+        def _chatgpt_web_stream_callback(text: str):
+            if not text:
+                return
+            if not first_delta_fired["done"] and on_first_delta:
+                first_delta_fired["done"] = True
+                try:
+                    on_first_delta()
+                except Exception:
+                    pass
+            agent._fire_stream_delta(text)
+
+        agent._chatgpt_web_on_delta = _chatgpt_web_stream_callback
+        try:
+            return agent._interruptible_api_call(api_kwargs)
+        finally:
+            agent._chatgpt_web_on_delta = None
+
     # Bedrock Converse uses boto3's converse_stream() with real-time delta
     # callbacks — same UX as Anthropic and chat_completions streaming.
     if agent.api_mode == "bedrock_converse":
@@ -1245,8 +1273,7 @@ def interruptible_streaming_api_call(agent, api_kwargs: dict, *, on_first_delta=
             except Exception as e:
                 result["error"] = e
 
-        t = threading.Thread(target=_bedrock_call, daemon=True)
-        t.start()
+        t = agent._start_owned_worker_thread(target=_bedrock_call, name="agent-bedrock-call")
         while t.is_alive():
             t.join(timeout=0.3)
             if agent._interrupt_requested:
@@ -1924,8 +1951,7 @@ def interruptible_streaming_api_call(agent, api_kwargs: dict, *, on_first_delta=
         else:
             _stream_stale_timeout = _stream_stale_timeout_base
 
-    t = threading.Thread(target=_call, daemon=True)
-    t.start()
+    t = agent._start_owned_worker_thread(target=_call, name="agent-stream-call")
     _last_heartbeat = time.time()
     _HEARTBEAT_INTERVAL = 30.0  # seconds between gateway activity touches
     while t.is_alive():

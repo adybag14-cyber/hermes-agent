@@ -1528,6 +1528,8 @@ class HermesDeviceDiagnosticsBridgeTest {
 
         assertTrue(result.getBoolean("success"))
         assertEquals("local_backend_runtime_report", result.getString("action"))
+        assertTrue(result.getString("report_scope").contains("AICore/NPU is unsupported"))
+        assertFalse(result.toString().contains("Use LiteRT-LM or AICore"))
         assertTrue(result.has("selected_on_device_backend"))
         assertTrue(result.has("offline_airplane_mode"))
         assertTrue(result.getJSONObject("current_local_backend").has("backend_kind"))

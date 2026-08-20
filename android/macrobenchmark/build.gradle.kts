@@ -14,7 +14,7 @@ val expectedVersionName = providers.gradleProperty("hermesBenchmarkExpectedVersi
 val expectedVersionCode = providers.gradleProperty("hermesBenchmarkExpectedVersionCode")
     .orElse("")
 val expectedLiteRtLmCoordinate = providers.gradleProperty("hermesBenchmarkExpectedLiteRtLmCoordinate")
-    .orElse("com.google.ai.edge.litertlm:litertlm-android:0.16.0")
+    .orElse("com.google.ai.edge.litertlm:litertlm-android:0.16.1")
 val expectedTargetApkSha256 = providers.gradleProperty("hermesBenchmarkTargetApkSha256")
     .orElse("")
 val expectedBenchmarkApkSha256 = providers.gradleProperty("hermesBenchmarkApkSha256")

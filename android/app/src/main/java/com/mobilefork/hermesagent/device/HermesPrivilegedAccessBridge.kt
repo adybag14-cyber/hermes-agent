@@ -42,6 +42,55 @@ data class HermesPrivilegedActionResult(
     val message: String,
 )
 
+internal class PrivilegedShellRetryGate {
+    private var unsafeDetail: String = ""
+
+    @Synchronized
+    fun blockedResultOrNull(): JSONObject? {
+        if (unsafeDetail.isBlank()) return null
+        return JSONObject()
+            .put("success", false)
+            .put("exit_code", 125)
+            .put("error", unsafeDetail)
+            .put("timed_out", false)
+            .put("process_unwind_verified", false)
+            .put("requires_service_restart", true)
+            .put("privilege_context", "shizuku_user_service")
+            .put("execution_mode", "blocked_unsafe_previous_privileged_execution")
+    }
+
+    @Synchronized
+    fun executeAdmitted(dispatch: () -> JSONObject): JSONObject {
+        blockedResultOrNull()?.let { return it }
+        val result = try {
+            dispatch()
+        } catch (error: Throwable) {
+            poison(
+                "the admitted Shizuku command ended with a binder or transport failure: " +
+                    (error.message ?: error.javaClass.simpleName),
+            )
+            throw error
+        }
+        if (result.optBoolean("requires_service_restart", false)) {
+            val reason = result.optString("error")
+                .lineSequence()
+                .firstOrNull()
+                .orEmpty()
+                .ifBlank { "the privileged process or stream cleanup was not verified" }
+            poison(reason)
+        }
+        return result
+    }
+
+    private fun poison(reason: String) {
+        unsafeDetail =
+            "A previous privileged shell command did not unwind safely ($reason). " +
+            "Hermes will not bind another Shizuku user service because stopping only the service PID " +
+            "cannot prove that its privileged descendants ended. Restart Shizuku, then force stop and " +
+            "reopen Hermes before retrying."
+    }
+}
+
 private val DEFAULT_PRIVILEGED_ACTIONS = listOf(
     "open_developer_options",
     "open_wireless_debugging_settings",
@@ -95,6 +144,7 @@ private val DEFAULT_PRIVILEGED_ACTIONS = listOf(
 )
 
 object HermesPrivilegedAccessBridge {
+    private val privilegedShellRetryGate = PrivilegedShellRetryGate()
     fun readStatus(context: Context): HermesPrivilegedAccessStatus {
         val appContext = context.applicationContext
         val binderAlive = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
@@ -301,6 +351,7 @@ object HermesPrivilegedAccessBridge {
             .toString()
     }
 
+    @Synchronized
     fun runShellCommandJson(context: Context, command: String, timeoutSeconds: Int = DEFAULT_SHELL_TIMEOUT_SECONDS): String {
         val status = readStatus(context)
         if (!status.shizukuBinderAlive) {
@@ -328,6 +379,11 @@ object HermesPrivilegedAccessBridge {
                 .put("success", false)
                 .put("exit_code", 2)
                 .put("error", "run_privileged_shell command must not contain NUL bytes")
+                .put("shizuku_privilege_label", status.shizukuPrivilegeLabel)
+                .toString()
+        }
+        privilegedShellRetryGate.blockedResultOrNull()?.let { blocked ->
+            return blocked
                 .put("shizuku_privilege_label", status.shizukuPrivilegeLabel)
                 .toString()
         }
@@ -377,12 +433,21 @@ object HermesPrivilegedAccessBridge {
                         .put("shizuku_privilege_label", status.shizukuPrivilegeLabel)
                         .toString()
                 }
-            val result = JSONObject(service.runCommand(command, timeoutSeconds))
+            val result = privilegedShellRetryGate.executeAdmitted {
+                JSONObject(service.runCommand(command, timeoutSeconds))
+            }
                 .put("shizuku_privilege_label", status.shizukuPrivilegeLabel)
             runCatching { Shizuku.unbindUserService(args, connection, true) }
             result.toString()
         }.getOrElse { error ->
             runCatching { Shizuku.unbindUserService(args, connection, true) }
+            privilegedShellRetryGate.blockedResultOrNull()?.let { blocked ->
+                return blocked
+                    .put("transport_error", error.message ?: error.javaClass.simpleName)
+                    .put("user_service_tag", serviceTag)
+                    .put("shizuku_privilege_label", status.shizukuPrivilegeLabel)
+                    .toString()
+            }
             JSONObject()
                 .put("success", false)
                 .put("exit_code", -1)

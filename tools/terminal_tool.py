@@ -47,6 +47,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+from hermes_android.runtime_identity import is_embedded_android_runtime
 from utils import env_var_enabled
 
 logger = logging.getLogger(__name__)
@@ -908,7 +909,10 @@ Foreground (default): Commands return INSTANTLY when done, even if the timeout i
 Background: Set background=true to get a session_id. Two patterns:
   (1) Long-lived processes that never exit (servers, watchers).
   (2) Long-running tasks with notify_on_complete=true — you can keep working on other things and the system auto-notifies you when the task finishes. Great for test suites, builds, deployments, or anything that takes more than a minute.
-For servers/watchers, do NOT use shell-level background wrappers (nohup/disown/setsid/trailing '&') in foreground mode. Use background=true so Hermes can track lifecycle and output.
+Embedded Android exception: TERMINAL_ENV=android_linux rejects background=true because
+Android cannot prove ownership of every detached descendant. Use a bounded foreground
+command or a native Hermes automation there.
+For servers/watchers outside the embedded Android runtime, do NOT use shell-level background wrappers (nohup/disown/setsid/trailing '&') in foreground mode. Use background=true so Hermes can track lifecycle and output. On embedded Android, split work into bounded foreground commands or use a native automation instead.
 After starting a server, verify readiness with a health check or log signal, then run tests in a separate terminal() call. Avoid blind sleep loops.
 Use process(action="poll") for progress checks, process(action="wait") to block until done.
 Working directory: Use 'workdir' for per-command cwd.
@@ -1346,6 +1350,12 @@ def _start_cleanup_thread():
     """Start the background cleanup thread if not already running."""
     global _cleanup_thread, _cleanup_running
 
+    # The embedded Android adapter retains every task ID and performs one
+    # verified final cleanup after its request executor is quiescent. A global
+    # daemon can otherwise pop an environment before that authority observes it.
+    if is_embedded_android_runtime():
+        return
+
     with _env_lock:
         if _cleanup_thread is None or not _cleanup_thread.is_alive():
             _cleanup_running = True
@@ -1355,13 +1365,28 @@ def _start_cleanup_thread():
 
 def _stop_cleanup_thread():
     """Stop the background cleanup thread."""
-    global _cleanup_running
-    _cleanup_running = False
-    if _cleanup_thread is not None:
-        try:
-            _cleanup_thread.join(timeout=5)
-        except (SystemExit, KeyboardInterrupt):
-            pass
+    try:
+        stop_cleanup_thread_verified(timeout=5.0)
+    except (RuntimeError, SystemExit, KeyboardInterrupt):
+        pass
+
+
+def stop_cleanup_thread_verified(timeout: float = 5.0) -> None:
+    """Stop and join the process-global environment cleanup worker."""
+    global _cleanup_running, _cleanup_thread
+    with _env_lock:
+        _cleanup_running = False
+        thread = _cleanup_thread
+    if thread is None:
+        return
+    if thread is threading.current_thread():
+        raise RuntimeError("terminal cleanup worker cannot join itself")
+    thread.join(timeout=max(timeout, 0.0))
+    if thread.is_alive():
+        raise RuntimeError("terminal cleanup worker did not stop within the shutdown deadline")
+    with _env_lock:
+        if _cleanup_thread is thread:
+            _cleanup_thread = None
 
 
 def get_active_env(task_id: str):
@@ -1417,7 +1442,7 @@ def cleanup_all_environments():
     return cleaned
 
 
-def cleanup_vm(task_id: str):
+def cleanup_vm(task_id: str, *, raise_on_error: bool = False):
     """Manually clean up a specific environment by task_id."""
     # Remove from tracking dicts while holding the lock, but defer the
     # actual (potentially slow) env.cleanup() call to outside the lock
@@ -1457,6 +1482,8 @@ def cleanup_vm(task_id: str):
             logger.info("Environment for task %s already cleaned up", task_id)
         else:
             logger.warning("Error cleaning up environment for task %s: %s", task_id, e)
+        if raise_on_error:
+            raise
 
 
 def _atexit_cleanup():
@@ -1751,14 +1778,37 @@ def terminal_tool(
         default_timeout = config["timeout"]
         effective_timeout = timeout or default_timeout
 
+        if background and env_type == "android_linux":
+            return json.dumps({
+                "output": "",
+                "exit_code": -1,
+                "error": (
+                    "Persistent terminal background commands are disabled in the "
+                    "embedded Android runtime because Android cannot prove ownership "
+                    "of every detached descendant. Run a bounded foreground command "
+                    "or use a native Hermes automation instead."
+                ),
+                "status": "unsupported",
+            }, ensure_ascii=False)
+
         # Reject foreground commands where the model explicitly requests
         # a timeout above FOREGROUND_MAX_TIMEOUT — nudge it toward background.
         if not background and timeout and timeout > FOREGROUND_MAX_TIMEOUT:
+            if env_type == "android_linux":
+                guidance = (
+                    "Split the work into bounded foreground commands or use a "
+                    "native Hermes automation; embedded Android background "
+                    "commands are disabled."
+                )
+            else:
+                guidance = (
+                    "Use background=true with notify_on_complete=true for "
+                    "long-running commands."
+                )
             return json.dumps({
                 "error": (
                     f"Foreground timeout {timeout}s exceeds the maximum of "
-                    f"{FOREGROUND_MAX_TIMEOUT}s. Use background=true with "
-                    f"notify_on_complete=true for long-running commands."
+                    f"{FOREGROUND_MAX_TIMEOUT}s. {guidance}"
                 ),
             }, ensure_ascii=False)
 
@@ -1767,6 +1817,13 @@ def terminal_tool(
         if not background:
             guidance = _foreground_background_guidance(command)
             if guidance:
+                if env_type == "android_linux":
+                    guidance = (
+                        "Long-lived or shell-detached commands are disabled in the "
+                        "embedded Android runtime because their full process lifetime "
+                        "cannot be certified. Use a bounded foreground command or a "
+                        "native Hermes automation instead."
+                    )
                 return json.dumps({
                     "output": "",
                     "exit_code": -1,
@@ -2336,12 +2393,12 @@ TERMINAL_SCHEMA = {
             },
             "background": {
                 "type": "boolean",
-                "description": "Run the command in the background. Two patterns: (1) Long-lived processes that never exit (servers, watchers). (2) Long-running tasks paired with notify_on_complete=true — you can keep working and get notified when the task finishes. For short commands, prefer foreground with a generous timeout instead.",
+                "description": "Run the command in the background. Two patterns: (1) Long-lived processes that never exit (servers, watchers). (2) Long-running tasks paired with notify_on_complete=true — you can keep working and get notified when the task finishes. For short commands, prefer foreground with a generous timeout instead. Unsupported when TERMINAL_ENV=android_linux because detached descendant ownership cannot be certified; use a bounded foreground command or native Hermes automation there.",
                 "default": False
             },
             "timeout": {
                 "type": "integer",
-                "description": f"Max seconds to wait (default: 180, foreground max: {FOREGROUND_MAX_TIMEOUT}). Returns INSTANTLY when command finishes — set high for long tasks, you won't wait unnecessarily. Foreground timeout above {FOREGROUND_MAX_TIMEOUT}s is rejected; use background=true for longer commands.",
+                "description": f"Max seconds to wait (default: 180, foreground max: {FOREGROUND_MAX_TIMEOUT}). Returns INSTANTLY when command finishes — set high for long tasks, you won't wait unnecessarily. Foreground timeout above {FOREGROUND_MAX_TIMEOUT}s is rejected; use background=true for longer commands outside embedded Android. On embedded Android, split work into bounded foreground commands or use a native automation.",
                 "minimum": 1
             },
             "workdir": {

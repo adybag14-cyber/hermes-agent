@@ -81,6 +81,71 @@ data class HermesStrings(
     val setPreferred: String,
     val remove: String,
 ) {
+    fun runningReadOnlyNativeCommand(): String = when (language) {
+        AppLanguage.CHINESE -> "正在运行只读本机命令…"
+        AppLanguage.SPANISH -> "Ejecutando un comando nativo de solo lectura…"
+        AppLanguage.GERMAN -> "Schreibgeschützter nativer Befehl wird ausgeführt…"
+        AppLanguage.PORTUGUESE -> "Executando um comando nativo somente leitura…"
+        AppLanguage.FRENCH -> "Exécution d’une commande native en lecture seule…"
+        AppLanguage.ENGLISH -> "Running read-only native command…"
+    }
+
+    fun readOnlyNativeCommandUnavailable(): String = when (language) {
+        AppLanguage.CHINESE -> "只读本机命令路由意外不可用"
+        AppLanguage.SPANISH -> "La ruta del comando nativo de solo lectura no está disponible"
+        AppLanguage.GERMAN -> "Die schreibgeschützte native Befehlsroute ist nicht verfügbar"
+        AppLanguage.PORTUGUESE -> "A rota do comando nativo somente leitura não está disponível"
+        AppLanguage.FRENCH -> "La route de commande native en lecture seule est indisponible"
+        AppLanguage.ENGLISH -> "The read-only native command route was unexpectedly unavailable"
+    }
+
+    fun nativeTerminalCommandFailed(detail: String): String = when (language) {
+        AppLanguage.CHINESE -> "本机终端命令失败：$detail"
+        AppLanguage.SPANISH -> "El comando de terminal nativo falló: $detail"
+        AppLanguage.GERMAN -> "Der native Terminalbefehl ist fehlgeschlagen: $detail"
+        AppLanguage.PORTUGUESE -> "O comando de terminal nativo falhou: $detail"
+        AppLanguage.FRENCH -> "La commande de terminal native a échoué : $detail"
+        AppLanguage.ENGLISH -> "Native terminal command failed: $detail"
+    }
+
+    fun nativeReadOnlyCommandCompleted(content: String, modelRequests: Int): String = when (language) {
+        AppLanguage.CHINESE -> "本机只读命令已完成\n$content\n模型请求数=$modelRequests"
+        AppLanguage.SPANISH -> "Comando nativo de solo lectura completado\n$content\nsolicitudes_al_modelo=$modelRequests"
+        AppLanguage.GERMAN -> "Schreibgeschützter nativer Befehl abgeschlossen\n$content\nModellanfragen=$modelRequests"
+        AppLanguage.PORTUGUESE -> "Comando nativo somente leitura concluído\n$content\nsolicitações_ao_modelo=$modelRequests"
+        AppLanguage.FRENCH -> "Commande native en lecture seule terminée\n$content\nrequêtes_modèle=$modelRequests"
+        AppLanguage.ENGLISH -> "Native read-only command completed\n$content\nmodel_requests=$modelRequests"
+    }
+
+    fun runningNativeAndroidDiagnostics(): String = chatStatusText("Running native Android diagnostics…")
+
+    fun nativeAndroidDiagnosticsFailed(detail: String): String = when (language) {
+        AppLanguage.CHINESE -> "原生 Android 诊断失败：$detail"
+        AppLanguage.SPANISH -> "Los diagnósticos nativos de Android fallaron: $detail"
+        AppLanguage.GERMAN -> "Die native Android-Diagnose ist fehlgeschlagen: $detail"
+        AppLanguage.PORTUGUESE -> "Os diagnósticos nativos do Android falharam: $detail"
+        AppLanguage.FRENCH -> "Les diagnostics Android natifs ont échoué : $detail"
+        AppLanguage.ENGLISH -> "Native Android diagnostics failed: $detail"
+    }
+
+    fun nativeAndroidDiagnosticsCompleted(content: String, modelRequests: Int): String = when (language) {
+        AppLanguage.CHINESE -> "原生 Android 诊断已完成\n$content\n模型请求数=$modelRequests"
+        AppLanguage.SPANISH -> "Diagnósticos nativos de Android completados\n$content\nsolicitudes_al_modelo=$modelRequests"
+        AppLanguage.GERMAN -> "Native Android-Diagnose abgeschlossen\n$content\nModellanfragen=$modelRequests"
+        AppLanguage.PORTUGUESE -> "Diagnósticos nativos do Android concluídos\n$content\nsolicitações_ao_modelo=$modelRequests"
+        AppLanguage.FRENCH -> "Diagnostics Android natifs terminés\n$content\nrequêtes_modèle=$modelRequests"
+        AppLanguage.ENGLISH -> "Native Android diagnostics completed\n$content\nmodel_requests=$modelRequests"
+    }
+
+    fun nativeAndroidDiagnosticsFailureResult(detail: String, modelRequests: Int): String = when (language) {
+        AppLanguage.CHINESE -> "原生 Android 诊断失败\n$detail\n模型请求数=$modelRequests"
+        AppLanguage.SPANISH -> "Los diagnósticos nativos de Android fallaron\n$detail\nsolicitudes_al_modelo=$modelRequests"
+        AppLanguage.GERMAN -> "Native Android-Diagnose fehlgeschlagen\n$detail\nModellanfragen=$modelRequests"
+        AppLanguage.PORTUGUESE -> "Os diagnósticos nativos do Android falharam\n$detail\nsolicitações_ao_modelo=$modelRequests"
+        AppLanguage.FRENCH -> "Échec des diagnostics Android natifs\n$detail\nrequêtes_modèle=$modelRequests"
+        AppLanguage.ENGLISH -> "Native Android diagnostics failed\n$detail\nmodel_requests=$modelRequests"
+    }
+
     fun sectionKanban(): String = kanbanTitle()
 
     fun sectionTerminal(): String = when (language) {
@@ -1787,12 +1852,12 @@ data class HermesStrings(
     }
 
     fun agentEndpointAcpHint(): String = when (language) {
-        AppLanguage.CHINESE -> "ACP/MCP 客户端可使用 LAN URL 和 API 密钥；MCP 服务器可在下方快速添加。"
-        AppLanguage.SPANISH -> "Clientes ACP/MCP pueden usar la URL LAN y la clave API; añade servidores MCP abajo."
-        AppLanguage.GERMAN -> "ACP/MCP-Clients können LAN-URL und API-Schlüssel nutzen; MCP-Server unten schnell hinzufügen."
-        AppLanguage.PORTUGUESE -> "Clientes ACP/MCP podem usar a URL LAN e a chave API; adicione servidores MCP abaixo."
-        AppLanguage.FRENCH -> "Les clients ACP/MCP peuvent utiliser l’URL LAN et la clé API ; ajoutez des serveurs MCP ci-dessous."
-        AppLanguage.ENGLISH -> "ACP/MCP clients can use the LAN URL and API key; add MCP servers quickly below."
+        AppLanguage.CHINESE -> "ACP 客户端可使用 LAN URL 和 API 密钥。外部 MCP 传输在此 Android 版本中已禁用。"
+        AppLanguage.SPANISH -> "Los clientes ACP pueden usar la URL LAN y la clave API. Los transportes MCP externos están desactivados en esta versión de Android."
+        AppLanguage.GERMAN -> "ACP-Clients können LAN-URL und API-Schlüssel nutzen. Externe MCP-Transporte sind in dieser Android-Version deaktiviert."
+        AppLanguage.PORTUGUESE -> "Clientes ACP podem usar a URL LAN e a chave API. Transportes MCP externos estão desativados nesta versão Android."
+        AppLanguage.FRENCH -> "Les clients ACP peuvent utiliser l’URL LAN et la clé API. Les transports MCP externes sont désactivés dans cette version Android."
+        AppLanguage.ENGLISH -> "ACP clients can use the LAN URL and API key. External MCP transports are disabled in this Android release."
     }
 
     fun agentEndpointRefresh(): String = when (language) {
@@ -1841,13 +1906,22 @@ data class HermesStrings(
     }
 
     fun mcpConfigurationDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "简单模式会检测并写入安全的原生工具配置。高级模式可编辑原始 MCP JSON 文件。"
-        AppLanguage.SPANISH -> "El modo simple detecta y escribe una configuración segura de herramientas nativas. El modo avanzado edita el JSON MCP sin procesar."
-        AppLanguage.GERMAN -> "Der einfache Modus erkennt und schreibt eine sichere Native-Tools-Konfiguration. Der erweiterte Modus bearbeitet die rohe MCP-JSON-Datei."
-        AppLanguage.PORTUGUESE -> "O modo simples detecta e grava uma configuração segura de ferramentas nativas. O modo avançado edita o JSON MCP bruto."
-        AppLanguage.FRENCH -> "Le mode simple détecte et écrit une configuration sûre d’outils natifs. Le mode avancé modifie le JSON MCP brut."
-        AppLanguage.ENGLISH -> "Simple mode auto-detects and writes a safe native-tools config. Advanced mode edits the raw MCP JSON file."
+        AppLanguage.CHINESE -> "外部 MCP stdio、SSE 和 HTTP 传输在 v0.13.148 的嵌入式 Android 运行时中不可用，因为其进程生命周期尚无法安全验证。"
+        AppLanguage.SPANISH -> "Los transportes MCP externos stdio, SSE y HTTP no están disponibles en el runtime Android integrado de v0.13.148 porque su ciclo de vida aún no puede verificarse de forma segura."
+        AppLanguage.GERMAN -> "Externe MCP-Transporte über stdio, SSE und HTTP sind in der eingebetteten Android-Laufzeit von v0.13.148 nicht verfügbar, da ihr Prozesslebenszyklus noch nicht sicher verifiziert werden kann."
+        AppLanguage.PORTUGUESE -> "Transportes MCP externos stdio, SSE e HTTP não estão disponíveis no runtime Android integrado da v0.13.148 porque o ciclo de vida deles ainda não pode ser verificado com segurança."
+        AppLanguage.FRENCH -> "Les transports MCP externes stdio, SSE et HTTP ne sont pas disponibles dans le runtime Android intégré de la v0.13.148, car leur cycle de vie ne peut pas encore être vérifié en toute sécurité."
+        AppLanguage.ENGLISH -> "External MCP stdio, SSE, and HTTP transports are unavailable in the v0.13.148 embedded Android runtime because their process lifetime cannot yet be verified safely."
     }
+
+    fun mcpStoredConfigNotExecuted(): String = tr(
+        "Any existing MCP JSON is retained at this path for export or migration only; Hermes does not load or execute it on Android.",
+        "现有 MCP JSON 仅保留在此路径以供导出或迁移；Hermes 不会在 Android 上加载或执行它。",
+        "El JSON MCP existente se conserva en esta ruta solo para exportarlo o migrarlo; Hermes no lo carga ni lo ejecuta en Android.",
+        "Vorhandenes MCP-JSON bleibt an diesem Pfad nur für Export oder Migration erhalten; Hermes lädt oder führt es unter Android nicht aus.",
+        "O JSON MCP existente é mantido neste caminho apenas para exportação ou migração; o Hermes não o carrega nem executa no Android.",
+        "Le JSON MCP existant est conservé à cet emplacement uniquement pour l’export ou la migration ; Hermes ne le charge ni ne l’exécute sur Android.",
+    )
 
     fun mcpSimpleMode(): String = when (language) {
         AppLanguage.CHINESE -> "简单"
@@ -2652,12 +2726,12 @@ data class HermesStrings(
 
     fun deviceGuideStep(index: Int): String = when (index) {
         1 -> when (language) {
-            AppLanguage.CHINESE -> "1. 请用自然语言提问，例如“运行 date 命令并告诉我时间”或“检查我的设备状态”。Hermes 会自动选择兼容且已启用的设备端工具；不支持结构化工具调用的模型可能只用文字回答，而不会实际运行工具。"
-            AppLanguage.SPANISH -> "1. Pídelo en lenguaje natural, por ejemplo, «Ejecuta date y dime la hora» o «Comprueba el estado de mi dispositivo». Hermes elige automáticamente una herramienta compatible habilitada en el dispositivo; los modelos sin llamadas estructuradas pueden responder en texto sin ejecutarla."
-            AppLanguage.GERMAN -> "1. Frage in natürlicher Sprache, etwa „Führe date aus und nenne mir die Uhrzeit“ oder „Prüfe meinen Gerätestatus“. Hermes wählt automatisch ein kompatibles, aktiviertes On-Device-Werkzeug; Modelle ohne strukturierte Werkzeugaufrufe antworten möglicherweise nur als Text."
-            AppLanguage.PORTUGUESE -> "1. Peça em linguagem natural, por exemplo, “Execute date e diga a hora” ou “Verifique o status do meu dispositivo”. O Hermes escolhe automaticamente uma ferramenta compatível ativada no dispositivo; modelos sem chamadas estruturadas podem responder em texto sem executá-la."
-            AppLanguage.FRENCH -> "1. Demandez en langage naturel, par exemple « Exécute date et donne-moi l’heure » ou « Vérifie l’état de mon appareil ». Hermes choisit automatiquement un outil compatible activé sur l’appareil ; les modèles sans appel structuré peuvent répondre en texte sans l’exécuter."
-            AppLanguage.ENGLISH -> "1. Ask in plain language, for example, “Run the date command and tell me the time” or “Check my device status.” Hermes automatically selects a compatible enabled on-device tool; models without structured tool-calling may answer in prose without running it."
+            AppLanguage.CHINESE -> "1. 请用自然语言提问，例如“运行 date 命令并告诉我时间”或“检查我的设备状态”。这两个精确示例会直接运行只读原生路由，无需模型。其他工具请求仍可能需要支持结构化工具调用的模型。"
+            AppLanguage.SPANISH -> "1. Pídelo en lenguaje natural, por ejemplo, «Ejecuta date y dime la hora» o «Comprueba el estado de mi dispositivo». Estos dos ejemplos exactos usan rutas nativas de solo lectura sin un modelo. Otras solicitudes pueden requerir un modelo con llamadas estructuradas."
+            AppLanguage.GERMAN -> "1. Frage in natürlicher Sprache, etwa „Führe date aus und nenne mir die Uhrzeit“ oder „Prüfe meinen Gerätestatus“. Diese beiden exakten Beispiele nutzen schreibgeschützte native Routen ohne Modell. Andere Werkzeuganfragen können ein Modell mit strukturierten Aufrufen erfordern."
+            AppLanguage.PORTUGUESE -> "1. Peça em linguagem natural, por exemplo, “Execute date e diga a hora” ou “Verifique o status do meu dispositivo”. Esses dois exemplos exatos usam rotas nativas somente leitura sem modelo. Outros pedidos podem exigir um modelo com chamadas estruturadas."
+            AppLanguage.FRENCH -> "1. Demandez en langage naturel, par exemple « Exécute date et donne-moi l’heure » ou « Vérifie l’état de mon appareil ». Ces deux exemples exacts utilisent des routes natives en lecture seule sans modèle. Les autres demandes peuvent exiger un modèle avec appels structurés."
+            AppLanguage.ENGLISH -> "1. Ask in plain language, for example, “Run the date command and tell me the time” or “Check my device status.” Those two exact examples use read-only native routes without a model. Other tool requests may require a model with structured tool-calling."
         }
         2 -> when (language) {
             AppLanguage.CHINESE -> "2. 如果你想让 Hermes 直接读取或编辑真实文件，请通过 Android 原生选择器授予共享文件夹访问权限，然后用自然语言说明要处理的文件。"
@@ -3311,6 +3385,30 @@ data class HermesStrings(
             AppLanguage.FRENCH -> "Petit modèle GGUF Unsloth pour des réponses visibles rapides, la création/suppression de fichiers et la validation des appels d’outils natifs sur téléphone."
             AppLanguage.ENGLISH -> fallback
         }
+        "minicpm5-1b-fable5-q4km-gguf" -> when (language) {
+            AppLanguage.CHINESE -> "面向嵌入式 llama.cpp 运行时的紧凑型 MiniCPM5 思维模型；采用 Q4_K_M 量化，以适应手机的实际内存限制。"
+            AppLanguage.SPANISH -> "Modelo de razonamiento MiniCPM5 compacto para el entorno llama.cpp integrado, elegido en Q4_K_M para un uso práctico de la memoria del teléfono."
+            AppLanguage.GERMAN -> "Kompaktes MiniCPM5-Denkmodell für die eingebettete llama.cpp-Laufzeit, mit Q4_K_M für einen praxistauglichen Telefonspeicherbedarf."
+            AppLanguage.PORTUGUESE -> "Modelo de raciocínio MiniCPM5 compacto para o runtime llama.cpp integrado, escolhido em Q4_K_M para uso prático da memória do telefone."
+            AppLanguage.FRENCH -> "Modèle de raisonnement MiniCPM5 compact pour le moteur llama.cpp intégré, choisi en Q4_K_M pour une utilisation réaliste de la mémoire du téléphone."
+            AppLanguage.ENGLISH -> fallback
+        }
+        "minicpm5-1b-web-litert-lm" -> when (language) {
+            AppLanguage.CHINESE -> "面向移动设备的 MiniCPM5 LiteRT-LM 工件，采用较短的网页缓存和 Android 安全聊天模板。"
+            AppLanguage.SPANISH -> "Artefacto MiniCPM5 LiteRT-LM orientado a móviles, con caché web más corta y una plantilla de chat segura para Android."
+            AppLanguage.GERMAN -> "Mobil ausgerichtetes MiniCPM5-LiteRT-LM-Artefakt mit kürzerem Web-Cache und Android-sicherer Chatvorlage."
+            AppLanguage.PORTUGUESE -> "Artefato MiniCPM5 LiteRT-LM voltado a dispositivos móveis, com cache web mais curto e modelo de chat seguro para Android."
+            AppLanguage.FRENCH -> "Artefact MiniCPM5 LiteRT-LM adapté au mobile, avec un cache web plus court et un modèle de discussion sûr pour Android."
+            AppLanguage.ENGLISH -> fallback
+        }
+        "vibethinker-3b-litert-lm" -> when (language) {
+            AppLanguage.CHINESE -> "为原生 LiteRT-LM 运行时转换的 30 亿参数推理模型；适用于高内存手机和模拟器。"
+            AppLanguage.SPANISH -> "Modelo de razonamiento de tres mil millones de parámetros convertido para el entorno LiteRT-LM nativo; destinado a teléfonos y emuladores con mucha RAM."
+            AppLanguage.GERMAN -> "Drei-Milliarden-Parameter-Denkmodell für die native LiteRT-LM-Laufzeit; vorgesehen für Telefone und Emulatoren mit viel RAM."
+            AppLanguage.PORTUGUESE -> "Modelo de raciocínio de três bilhões de parâmetros convertido para o runtime LiteRT-LM nativo; destinado a telefones e emuladores com muita RAM."
+            AppLanguage.FRENCH -> "Modèle de raisonnement de trois milliards de paramètres converti pour le moteur LiteRT-LM natif, destiné aux téléphones et émulateurs disposant de beaucoup de RAM."
+            AppLanguage.ENGLISH -> fallback
+        }
         "gemma4-e2b-litert-lm" -> when (language) {
             AppLanguage.CHINESE -> "Hermes 移动聊天的一等 Gemma 4 本地运行时目标，覆盖图像能力运行时管线、MTP 加速和 Android 代理工具。"
             AppLanguage.SPANISH -> "Objetivo local Gemma 4 de primera clase para chat móvil de Hermes, con canalización de imagen, aceleración MTP y herramientas de agente Android."
@@ -3347,6 +3445,30 @@ data class HermesStrings(
             AppLanguage.FRENCH -> "Appels d’outils sur téléphone avec Unsloth Q4_K_M"
             AppLanguage.ENGLISH -> fallback
         }
+        "minicpm5-1b-fable5-q4km-gguf" -> when (language) {
+            AppLanguage.CHINESE -> "MiniCPM5 llama.cpp 兼容性目标"
+            AppLanguage.SPANISH -> "Objetivo de compatibilidad MiniCPM5 con llama.cpp"
+            AppLanguage.GERMAN -> "MiniCPM5-Kompatibilitätsziel für llama.cpp"
+            AppLanguage.PORTUGUESE -> "Alvo de compatibilidade MiniCPM5 com llama.cpp"
+            AppLanguage.FRENCH -> "Cible de compatibilité MiniCPM5 avec llama.cpp"
+            AppLanguage.ENGLISH -> fallback
+        }
+        "minicpm5-1b-web-litert-lm" -> when (language) {
+            AppLanguage.CHINESE -> "MiniCPM5 移动版 LiteRT-LM 兼容性目标"
+            AppLanguage.SPANISH -> "Objetivo de compatibilidad MiniCPM5 móvil con LiteRT-LM"
+            AppLanguage.GERMAN -> "Mobiles MiniCPM5-Kompatibilitätsziel für LiteRT-LM"
+            AppLanguage.PORTUGUESE -> "Alvo de compatibilidade MiniCPM5 móvel com LiteRT-LM"
+            AppLanguage.FRENCH -> "Cible de compatibilité MiniCPM5 mobile avec LiteRT-LM"
+            AppLanguage.ENGLISH -> fallback
+        }
+        "vibethinker-3b-litert-lm" -> when (language) {
+            AppLanguage.CHINESE -> "VibeThinker LiteRT-LM 兼容性目标"
+            AppLanguage.SPANISH -> "Objetivo de compatibilidad VibeThinker con LiteRT-LM"
+            AppLanguage.GERMAN -> "VibeThinker-Kompatibilitätsziel für LiteRT-LM"
+            AppLanguage.PORTUGUESE -> "Alvo de compatibilidade VibeThinker com LiteRT-LM"
+            AppLanguage.FRENCH -> "Cible de compatibilité VibeThinker avec LiteRT-LM"
+            AppLanguage.ENGLISH -> fallback
+        }
         "gemma4-e2b-litert-lm", "gemma4-e4b-litert-lm" -> when (language) {
             AppLanguage.CHINESE -> "Edge Gallery 1.0.13 MTP 路径"
             AppLanguage.SPANISH -> "Ruta MTP de Edge Gallery 1.0.13"
@@ -3370,6 +3492,8 @@ data class HermesStrings(
         if (language == AppLanguage.ENGLISH || text.isBlank()) return text
         val replacements = when (language) {
             AppLanguage.CHINESE -> listOf(
+                "Release-certified" to "已通过发布认证",
+                "Experimental - not tested by Hermes" to "实验性 - 未经 Hermes 测试",
                 "Cleared Hugging Face token" to "已清除 Hugging Face 令牌",
                 "Saved Hugging Face token for private or gated model downloads" to "已保存用于私有或受限模型下载的 Hugging Face 令牌",
                 "Tap Refresh catalog to load signed model choices when needed." to "需要时点按刷新目录以加载已签名的模型选项。",
@@ -3410,6 +3534,8 @@ data class HermesStrings(
                 "resume depends on server support" to "能否续传取决于服务器支持"
             )
             AppLanguage.SPANISH -> listOf(
+                "Release-certified" to "Certificado para lanzamiento",
+                "Experimental - not tested by Hermes" to "Experimental - no probado por Hermes",
                 "Cleared Hugging Face token" to "Token de Hugging Face borrado",
                 "Saved Hugging Face token for private or gated model downloads" to "Token de Hugging Face guardado para descargas privadas o restringidas",
                 "Tap Refresh catalog to load signed model choices when needed." to "Toca Actualizar catálogo para cargar modelos firmados cuando sea necesario.",
@@ -3450,6 +3576,8 @@ data class HermesStrings(
                 "resume depends on server support" to "la reanudación depende del soporte del servidor"
             )
             AppLanguage.GERMAN -> listOf(
+                "Release-certified" to "Für die Veröffentlichung zertifiziert",
+                "Experimental - not tested by Hermes" to "Experimentell - nicht von Hermes getestet",
                 "Cleared Hugging Face token" to "Hugging-Face-Token gelöscht",
                 "Saved Hugging Face token for private or gated model downloads" to "Hugging-Face-Token für private oder beschränkte Modell-Downloads gespeichert",
                 "Tap Refresh catalog to load signed model choices when needed." to "Tippe bei Bedarf auf Katalog aktualisieren, um signierte Modelloptionen zu laden.",
@@ -3490,6 +3618,8 @@ data class HermesStrings(
                 "resume depends on server support" to "Fortsetzung hängt von Serverunterstützung ab"
             )
             AppLanguage.PORTUGUESE -> listOf(
+                "Release-certified" to "Certificado para lançamento",
+                "Experimental - not tested by Hermes" to "Experimental - não testado pelo Hermes",
                 "Cleared Hugging Face token" to "Token do Hugging Face apagado",
                 "Saved Hugging Face token for private or gated model downloads" to "Token do Hugging Face salvo para downloads privados ou restritos",
                 "Tap Refresh catalog to load signed model choices when needed." to "Toque em Atualizar catálogo para carregar modelos assinados quando necessário.",
@@ -3530,6 +3660,8 @@ data class HermesStrings(
                 "resume depends on server support" to "a retomada depende do suporte do servidor"
             )
             AppLanguage.FRENCH -> listOf(
+                "Release-certified" to "Certifié pour la publication",
+                "Experimental - not tested by Hermes" to "Expérimental - non testé par Hermes",
                 "Cleared Hugging Face token" to "Jeton Hugging Face effacé",
                 "Saved Hugging Face token for private or gated model downloads" to "Jeton Hugging Face enregistré pour les téléchargements privés ou restreints",
                 "Tap Refresh catalog to load signed model choices when needed." to "Touchez Actualiser le catalogue pour charger les modèles signés au besoin.",
@@ -4002,12 +4134,12 @@ data class HermesStrings(
     }
     fun streamableHttpMcpTitle(): String = "Streamable HTTP MCP"
     fun streamableHttpMcpDescription(): String = tr(
-        "Edge Gallery-style remote MCP: HTTPS URL that speaks Streamable HTTP. Optional API token is sent as Authorization.",
-        "Edge Gallery 风格的远程 MCP：使用 Streamable HTTP 的 HTTPS URL。可选 API 令牌将作为 Authorization 发送。",
-        "MCP remoto al estilo Edge Gallery: URL HTTPS con Streamable HTTP. El token API opcional se envía como Authorization.",
-        "Remote-MCP im Edge-Gallery-Stil: HTTPS-URL mit Streamable HTTP. Ein optionales API-Token wird als Authorization gesendet.",
-        "MCP remoto no estilo Edge Gallery: URL HTTPS com Streamable HTTP. O token de API opcional é enviado como Authorization.",
-        "MCP distant de type Edge Gallery : URL HTTPS en Streamable HTTP. Le jeton API facultatif est envoyé comme Authorization.",
+        "Streamable HTTP MCP is unavailable in the embedded Android runtime; stored URLs and tokens are not loaded or sent.",
+        "Streamable HTTP MCP 在嵌入式 Android 运行时中不可用；已存储的 URL 和令牌不会被加载或发送。",
+        "MCP Streamable HTTP no está disponible en el runtime Android integrado; las URL y los tokens guardados no se cargan ni se envían.",
+        "Streamable-HTTP-MCP ist in der eingebetteten Android-Laufzeit nicht verfügbar; gespeicherte URLs und Tokens werden weder geladen noch gesendet.",
+        "MCP Streamable HTTP não está disponível no runtime Android integrado; URLs e tokens salvos não são carregados nem enviados.",
+        "MCP Streamable HTTP n’est pas disponible dans le runtime Android intégré ; les URL et jetons enregistrés ne sont ni chargés ni envoyés.",
     )
     fun mcpServerUrlLabel(): String = tr("MCP server URL", "MCP 服务器 URL", "URL del servidor MCP", "MCP-Server-URL", "URL do servidor MCP", "URL du serveur MCP")
     fun optionalApiTokenLabel(): String = tr("API token (optional)", "API 令牌（可选）", "Token API (opcional)", "API-Token (optional)", "Token de API (opcional)", "Jeton API (facultatif)")

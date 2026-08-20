@@ -4,7 +4,11 @@ set -euo pipefail
 # Run inside the official F-Droid buildserver-trixie container with this
 # repository (or a fdroiddata checkout containing its metadata) at /workspace.
 APP_ID="${APP_ID:-com.mobilefork.hermesagent}"
-VERSION_CODE="${VERSION_CODE:-144790}"
+VERSION_NAME="${VERSION_NAME:-0.13.148}"
+VERSION_CODE="${VERSION_CODE:-144890}"
+readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+readonly HERMES_FDROID_TEMPLATE="${HERMES_FDROID_TEMPLATE:-${SCRIPT_DIR}/${APP_ID}.yml.template}"
+readonly HERMES_SOURCE_BINDING_HELPER="${HERMES_SOURCE_BINDING_HELPER:-${SCRIPT_DIR}/../scripts/android_fdroid_source_binding.py}"
 readonly BUILDSERVER_IMAGE="registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9bae53bb4ddbf8fa5bb7385bf2e62e7c6318f99ab0d25b2a551ad38abb528068"
 readonly BUILDSERVER_REVISION="4a8821a58659901c63315cb000b0e98525653bc5"
 readonly FDROIDSERVER_COMMIT="$BUILDSERVER_REVISION"
@@ -47,6 +51,10 @@ validate_toolchain_contract() {
     || fail "fdroidserver revision does not match the buildserver image revision"
   [[ "$GRADLE_MAX_WORKERS" =~ ^[1-9][0-9]*$ ]] \
     || fail "Gradle worker count must be a positive integer"
+  [[ "$VERSION_NAME" =~ ^0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] \
+    || fail "release version name must be an exact v0 semantic version without a v prefix"
+  [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] \
+    || fail "release version code must be a positive integer"
 }
 
 print_contract() {
@@ -59,9 +67,39 @@ print_contract() {
   printf 'GRADLEW_FDROID_COMMIT=%s\n' "$GRADLEW_FDROID_COMMIT"
   printf 'GRADLE_MAX_WORKERS=%s\n' "$GRADLE_MAX_WORKERS"
   printf 'GRADLE_OPTS=%s\n' "$GRADLE_OPTS"
+  printf 'VERSION_NAME=%s\n' "$VERSION_NAME"
+  printf 'VERSION_CODE=%s\n' "$VERSION_CODE"
+  printf 'SOURCE_BINDING_GRADLE_PROPERTY=hermesFdroidSourceBinding=true\n'
   printf 'VAGRANT_ENV_MODE=%s\n' "$VAGRANT_ENV_MODE"
   printf 'VAGRANT_ENV_REQUIRED_NAMES=%s\n' "$VAGRANT_ENV_REQUIRED_NAMES"
   printf 'VAGRANT_ENV_OPTIONAL_NAMES=%s\n' "$VAGRANT_ENV_OPTIONAL_NAMES"
+}
+
+run_metadata_preview_helper() {
+  local command="$1"
+  local metadata_file="$2"
+  local template_file="$3"
+
+  [[ -f "$HERMES_SOURCE_BINDING_HELPER" && ! -L "$HERMES_SOURCE_BINDING_HELPER" ]] \
+    || fail "source-binding helper is not a regular file: $HERMES_SOURCE_BINDING_HELPER"
+  [[ -f "$metadata_file" && ! -L "$metadata_file" ]] \
+    || fail "autoupdater metadata is not a regular file: $metadata_file"
+  [[ -f "$template_file" && ! -L "$template_file" ]] \
+    || fail "F-Droid metadata template is not a regular file: $template_file"
+  python3 "$HERMES_SOURCE_BINDING_HELPER" "$command" \
+    --metadata "$metadata_file" \
+    --template "$template_file" \
+    --version "$VERSION_NAME" \
+    --version-code "$VERSION_CODE"
+}
+
+render_metadata_preview() {
+  run_metadata_preview_helper "render-autoupdate-preview" "$1" "$2"
+  run_metadata_preview_helper "verify-autoupdate-preview" "$1" "$2"
+}
+
+verify_metadata_preview() {
+  run_metadata_preview_helper "verify-autoupdate-preview" "$1" "$2"
 }
 
 verify_buildserver_id() {
@@ -76,7 +114,10 @@ verify_buildserver_id() {
 }
 
 usage() {
-  printf 'Usage: %s [--print-contract | --verify-buildserver-id PATH]\n' "${0##*/}" >&2
+  printf '%s\n' \
+    "Usage: ${0##*/} [--print-contract | --verify-buildserver-id PATH |" \
+    "  --render-autoupdate-preview METADATA [TEMPLATE] |" \
+    "  --verify-autoupdate-preview METADATA [TEMPLATE]]" >&2
 }
 
 validate_toolchain_contract
@@ -91,6 +132,16 @@ case "${1:-}" in
     verify_buildserver_id "$2"
     exit 0
     ;;
+  --render-autoupdate-preview)
+    [[ "$#" -ge 2 && "$#" -le 3 ]] || { usage; exit 64; }
+    render_metadata_preview "$2" "${3:-$HERMES_FDROID_TEMPLATE}"
+    exit 0
+    ;;
+  --verify-autoupdate-preview)
+    [[ "$#" -ge 2 && "$#" -le 3 ]] || { usage; exit 64; }
+    verify_metadata_preview "$2" "${3:-$HERMES_FDROID_TEMPLATE}"
+    exit 0
+    ;;
   "")
     ;;
   *)
@@ -98,6 +149,12 @@ case "${1:-}" in
     exit 64
     ;;
 esac
+
+# The local autoupdater preview is the only metadata authority for this no-MR
+# run. Fail before any SDK, fdroidserver, source, or dependency download unless
+# its resolved release build contains the exact committed source-binding recipe.
+metadata_preview="/workspace/metadata/${APP_ID}.yml"
+verify_metadata_preview "$metadata_preview" "$HERMES_FDROID_TEMPLATE"
 
 # Fail before downloads if the caller used a different buildserver image.
 verify_buildserver_id "$BUILDSERVER_ID_FILE"

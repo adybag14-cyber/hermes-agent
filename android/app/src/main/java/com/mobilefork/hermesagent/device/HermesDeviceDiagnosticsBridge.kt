@@ -2803,7 +2803,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "local_backend_runtime_report")
-            .put("report_scope", "Passive local backend runtime health report for LiteRT-LM/AICore/llama.cpp readiness, accelerator visibility, and non-Snapdragon fallback policy.")
+            .put("report_scope", "Passive local backend runtime health report for LiteRT-LM/llama.cpp readiness, accelerator visibility, and non-Snapdragon fallback policy. AICore/NPU is unsupported.")
             .put("selected_on_device_backend", selectedBackend.persistedValue)
             .put("offline_airplane_mode", settings.offlineAirplaneMode)
             .put("current_local_backend", localBackendStatusJson(currentBackend))
@@ -10803,7 +10803,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = true,
                     valueLabel = "terminal workspace",
                     detail = "Hermes routes shell work through the terminal tool and app workspace while keeping Android host, root, and permission boundaries explicit.",
-                    recommendation = "Use terminal_tool for short workspace commands and prefer Android-native tools when device APIs provide structured data.",
+                    recommendation = "Use terminal_tool for bounded foreground workspace commands and prefer Android-native tools when device APIs provide structured data. Persistent terminal background commands are disabled because detached Android descendant ownership cannot be certified.",
                     fraction = 0.8f,
                     extra = JSONObject()
                         .put("tool_action", "terminal_tool")
@@ -20870,6 +20870,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("artifact_summary", status.artifactSummary.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
             .put("completion_verified", status.completionVerified)
             .put("completion_latency_ms", status.completionLatencyMs)
+            .put("requires_app_restart", status.requiresAppRestart)
             .put("health_url", status.baseUrl.takeIf { it.isNotBlank() }?.removeSuffix("/v1")?.plus("/health") ?: JSONObject.NULL)
     }
 
@@ -20880,7 +20881,7 @@ object HermesDeviceDiagnosticsBridge {
                 .put("status", "not_running")
                 .put("backend", "litert-lm")
                 .put("accelerator", JSONObject.NULL)
-                .put("gpu_policy", "LiteRT-LM proxy is not currently running; start a local LiteRT-LM/AICore backend to expose live /health accelerator fields.")
+                .put("gpu_policy", "LiteRT-LM proxy is not currently running; start the local LiteRT-LM backend to expose live /health accelerator fields. AICore/NPU is unsupported.")
     }
 
     private fun devicePerformanceProfileJson(context: Context): JSONObject {
@@ -22237,11 +22238,12 @@ object HermesDeviceDiagnosticsBridge {
     ): JSONArray {
         val healthAvailable = runtimeHealth.optString("status") == "ok"
         val healthBackendOrder = jsonStringList(runtimeHealth.optJSONArray("litert_backend_order"))
+        val selectedBackendReady = selectedBackend == BackendKind.LITERT_LM || selectedBackend == BackendKind.LLAMA_CPP
         val selectedLabel = when (selectedBackend) {
             BackendKind.NONE -> "remote provider"
             BackendKind.LLAMA_CPP -> "llama.cpp"
             BackendKind.LITERT_LM -> "LiteRT-LM"
-            BackendKind.AICORE -> "AICore"
+            BackendKind.AICORE -> "AICore (unsupported legacy selection)"
         }
         val currentLabel = when {
             currentBackend.started -> "${currentBackend.backendKind.persistedValue} running"
@@ -22253,11 +22255,11 @@ object HermesDeviceDiagnosticsBridge {
                 capabilityRow(
                     category = "runtime_backend",
                     label = "Selected on-device backend",
-                    ready = selectedBackend != BackendKind.NONE,
+                    ready = selectedBackendReady,
                     valueLabel = selectedLabel,
                     detail = "offline_airplane_mode=$offlineAirplaneMode | selected=${selectedBackend.persistedValue}",
-                    recommendation = "Use LiteRT-LM or AICore for Gemma Android local inference; use llama.cpp for GGUF models when selected.",
-                    fraction = if (selectedBackend != BackendKind.NONE) 0.9f else 0.35f,
+                    recommendation = "Use LiteRT-LM GPU/CPU for supported Android local inference or llama.cpp for GGUF models. AICore/NPU is not a Hermes backend.",
+                    fraction = if (selectedBackendReady) 0.9f else 0.35f,
                     extra = JSONObject().put("source_surface", "AppSettingsStore.onDeviceBackend"),
                 ),
             )
@@ -22326,7 +22328,7 @@ object HermesDeviceDiagnosticsBridge {
                         "runtime not started"
                     },
                     detail = listOf(
-                        runtimeHealth.optString("modality_policy").ifBlank { "Start LiteRT-LM/AICore to expose modality policy." },
+                        runtimeHealth.optString("modality_policy").ifBlank { "Start LiteRT-LM to expose modality policy; AICore/NPU is unsupported." },
                         "vision=${runtimeHealth.optString("vision_accelerator").ifBlank { "unknown" }}",
                         "audio=${runtimeHealth.optString("audio_accelerator").ifBlank { "unknown" }}",
                     ).joinToString(" | "),

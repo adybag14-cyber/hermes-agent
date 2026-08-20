@@ -59,8 +59,7 @@ object AuthRuntimeApplier {
     private fun restartRuntimeAsync(context: Context) {
         val appContext = context.applicationContext
         restartScope.launch {
-            HermesRuntimeManager.stop()
-            HermesRuntimeManager.ensureStarted(appContext)
+            HermesRuntimeManager.restartAfterRemoteStop(appContext)
         }
     }
 }

@@ -12,6 +12,9 @@ import org.json.JSONObject
 object HermesRuntimeManager {
     private val pythonStartLock = Any()
 
+    @Volatile
+    private var androidPythonIdentityReady = false
+
     data class RuntimeState(
         val started: Boolean,
         val baseUrl: String? = null,
@@ -26,6 +29,7 @@ object HermesRuntimeManager {
     internal sealed interface BackendRouteResult<out T> {
         data class LocalStarted(val status: LocalBackendStatus) : BackendRouteResult<Nothing>
         data class LocalFailed(val status: LocalBackendStatus) : BackendRouteResult<Nothing>
+        data class RemoteOwnershipFailed(val reason: String) : BackendRouteResult<Nothing>
         data class RemoteDisabled(val status: LocalBackendStatus) : BackendRouteResult<Nothing>
         data class Remote<T>(val value: T) : BackendRouteResult<T>
     }
@@ -40,8 +44,15 @@ object HermesRuntimeManager {
         remoteAllowed: Boolean,
         localLauncher: () -> LocalBackendStatus,
         remoteLauncher: () -> T,
+        remoteStopFailure: String? = null,
     ): BackendRouteResult<T> {
+        if (!remoteStopFailure.isNullOrBlank()) {
+            return BackendRouteResult.RemoteOwnershipFailed(remoteStopFailure)
+        }
         val localStatus = localLauncher()
+        if (localStatus.requiresAppRestart) {
+            return BackendRouteResult.LocalFailed(localStatus)
+        }
         if (localStatus.started) return BackendRouteResult.LocalStarted(localStatus)
         if (selectedLocalBackend != BackendKind.NONE) {
             return BackendRouteResult.LocalFailed(localStatus)
@@ -53,8 +64,11 @@ object HermesRuntimeManager {
     @Volatile
     private var currentState: RuntimeState = RuntimeState(started = false)
 
+    @Volatile
+    private var remoteStopFailureDetail: String? = null
+
     fun ensurePythonStarted(context: Context) {
-        if (Python.isStarted()) {
+        if (Python.isStarted() && androidPythonIdentityReady) {
             return
         }
 
@@ -68,14 +82,33 @@ object HermesRuntimeManager {
                 HermesLinuxSubsystemBridge.ensureInstalled(appContext)
                 Python.start(AndroidPlatform(appContext))
             }
+            if (!androidPythonIdentityReady) {
+                Python.getInstance()
+                    .getModule("hermes_android.runtime_env")
+                    .callAttr("prepare_runtime_env", appContext.filesDir.absolutePath)
+                androidPythonIdentityReady = true
+            }
         }
     }
 
     @Synchronized
     fun ensureStarted(context: Context): RuntimeState {
         val appContext = context.applicationContext
+        remoteStopFailureDetail?.let { detail ->
+            currentState = RuntimeState(
+                started = false,
+                hermesHome = File(appContext.filesDir, "hermes-home").absolutePath,
+                error = "$detail Force stop and reopen Hermes before starting another backend.",
+            )
+            return currentState
+        }
         val settings = AppSettingsStore(appContext).load()
         val selectedLocalBackend = BackendKind.fromPersistedValue(settings.onDeviceBackend)
+        val existingLocalStatus = OnDeviceBackendManager.currentStatus()
+        if (existingLocalStatus.requiresAppRestart) {
+            currentState = localFailureState(appContext, selectedLocalBackend, existingLocalStatus)
+            return currentState
+        }
         if (
             selectedLocalBackend == BackendKind.NONE &&
             currentState.started &&
@@ -96,10 +129,16 @@ object HermesRuntimeManager {
                     OnDeviceBackendManager.ensureConfigured(appContext, settings.onDeviceBackend)
                 },
                 remoteLauncher = { startRemoteRuntime(appContext, settings.provider, settings.model, settings.baseUrl) },
+                remoteStopFailure = remoteStopFailureDetail,
             )
             currentState = when (route) {
                 is BackendRouteResult.LocalStarted -> localRuntimeState(appContext, route.status)
                 is BackendRouteResult.LocalFailed -> localFailureState(appContext, selectedLocalBackend, route.status)
+                is BackendRouteResult.RemoteOwnershipFailed -> RuntimeState(
+                    started = false,
+                    hermesHome = File(appContext.filesDir, "hermes-home").absolutePath,
+                    error = "${route.reason} Force stop and reopen Hermes before starting another backend.",
+                )
                 is BackendRouteResult.RemoteDisabled -> RuntimeState(
                     started = false,
                     hermesHome = File(appContext.filesDir, "hermes-home").absolutePath,
@@ -143,12 +182,18 @@ object HermesRuntimeManager {
         val reason = status.statusMessage.ifBlank {
             "Selected local backend ${selectedLocalBackend.persistedValue} did not start."
         }
+        val failureBoundary = if (status.requiresAppRestart) {
+            "Remote provider startup was not attempted because the previous local runtime " +
+                "did not stop safely. Force stop and reopen Hermes before retrying."
+        } else {
+            "Remote provider startup was not attempted because a local backend is explicitly selected."
+        }
         return RuntimeState(
             started = false,
             hermesHome = File(context.filesDir, "hermes-home").absolutePath,
             modelName = status.modelName.ifBlank { null },
             probeResult = "native-android-${selectedLocalBackend.persistedValue}; started=false; remote_fallback=false",
-            error = "$reason Remote provider startup was not attempted because a local backend is explicitly selected.",
+            error = "$reason $failureBoundary",
         )
     }
 
@@ -188,35 +233,82 @@ object HermesRuntimeManager {
         if (!Python.isStarted()) {
             return
         }
-        runCatching {
+        synchronized(pythonStartLock) {
             Python.getInstance()
                 .getModule("hermes_android.runtime_env")
                 .callAttr("prepare_runtime_env", context.filesDir.absolutePath)
+            androidPythonIdentityReady = true
         }
     }
 
     @Synchronized
     fun stop(): RuntimeState {
+        val localStopStatus = OnDeviceBackendManager.stopAll()
+        if (localStopStatus.requiresAppRestart) {
+            currentState = RuntimeState(
+                started = false,
+                error = localStopStatus.statusMessage.ifBlank {
+                    "The local native runtime did not stop safely. Force stop and reopen Hermes."
+                },
+            )
+            return currentState
+        }
+        return stopRemoteRuntime()
+    }
+
+    /** Stop only the embedded Python/remote server, preserving any selected native model runtime. */
+    @Synchronized
+    fun stopRemoteRuntime(): RuntimeState {
         return try {
             if (Python.isStarted()) {
                 Python.getInstance()
                     .getModule("hermes_android.server_bridge")
                     .callAttr("stop_server")
             }
+            remoteStopFailureDetail = null
             currentState = RuntimeState(started = false)
             currentState
         } catch (exc: Throwable) {
-            currentState = RuntimeState(started = false, error = exc.message ?: exc.toString())
+            val detail = exc.message ?: exc.toString()
+            remoteStopFailureDetail = detail
+            currentState = RuntimeState(
+                started = false,
+                error = "$detail Force stop and reopen Hermes before starting another backend.",
+            )
             currentState
         }
     }
 
+    @Synchronized
+    fun restartAfterRemoteStop(context: Context): RuntimeState {
+        val stopState = stopRemoteRuntime()
+        return continueAfterSuccessfulRemoteStop(stopState) {
+            ensureStarted(context.applicationContext)
+        }
+    }
+
+    internal fun continueAfterSuccessfulRemoteStop(
+        stopState: RuntimeState,
+        restart: () -> RuntimeState,
+    ): RuntimeState {
+        if (stopState.error != null) return stopState
+        return restart()
+    }
+
     fun currentState(): RuntimeState = currentState
+
+    fun remoteStopRequiresAppRestart(): Boolean = !remoteStopFailureDetail.isNullOrBlank()
 
     internal fun localBackendFallbackWarning(
         selectedLocalBackend: BackendKind,
         localBackendStatus: LocalBackendStatus,
     ): String? {
+        if (localBackendStatus.requiresAppRestart) {
+            val reason = localBackendStatus.statusMessage.ifBlank {
+                "The previous local runtime did not stop safely."
+            }
+            return "$reason Remote fallback is disabled until Hermes is force stopped and reopened."
+        }
         if (selectedLocalBackend == BackendKind.NONE || localBackendStatus.started) {
             return null
         }

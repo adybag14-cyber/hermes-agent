@@ -70,7 +70,15 @@ data class LocalModelDownloadsUiState(
     val downloads: List<LocalModelDownloadItemUi> = emptyList(),
 )
 
-class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(application) {
+class LocalModelDownloadsViewModel internal constructor(
+    application: Application,
+    private val huggingFaceTokenLoader: () -> String,
+) : AndroidViewModel(application) {
+    constructor(application: Application) : this(
+        application = application,
+        huggingFaceTokenLoader = { SecureSecretsStore(application).loadApiKey("huggingface") },
+    )
+
     private val settingsStore = AppSettingsStore(application)
     private val secretsStore = SecureSecretsStore(application)
     private val downloadStore = LocalModelDownloadStore(application)
@@ -97,8 +105,9 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
             else -> "GGUF"
         }
         return LocalModelDownloadsUiState(
-            huggingFaceToken = secretsStore.loadApiKey("huggingface"),
+            huggingFaceToken = huggingFaceTokenLoader(),
             runtimeFlavor = initialRuntimeFlavor,
+            pendingAutoStartRecordId = downloadStore.pendingAutoStartRecordId(),
             workerCatalogStatus = "Tap Refresh catalog to load signed model choices when needed.",
         )
     }
@@ -199,7 +208,9 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
             runCatching {
                 withContext(Dispatchers.IO) {
                     val refreshed = HermesModelDownloadManager.refreshDownloads(context, downloadStore)
-                    val existing = refreshed.firstOrNull { record -> record.matchesPreset(preset) && record.status == "completed" }
+                    val existing = refreshed.firstOrNull { record ->
+                        record.status == "completed" && recordMatchesPreset(record, preset)
+                    }
                     if (existing != null) {
                         HermesModelDownloadManager.setPreferredDownload(downloadStore, existing.id)
                         existing
@@ -214,6 +225,7 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                     }
                 }
             }.onSuccess { record ->
+                downloadStore.setPendingAutoStartRecordId(record.id)
                 refreshDownloads()
                 _uiState.update {
                     it.copy(
@@ -228,6 +240,7 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                     )
                 }
             }.onFailure { error ->
+                downloadStore.setPendingAutoStartRecordId("")
                 _uiState.update {
                     it.copy(
                         inspectionStatus = error.message ?: error.javaClass.simpleName,
@@ -254,11 +267,10 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 }
             }.onSuccess { models ->
                 _uiState.update { state ->
-                    val selectedId = when {
-                        models.any { model -> model.id == state.selectedDetectedModelId } -> state.selectedDetectedModelId
-                        models.isNotEmpty() -> models.first().id
-                        else -> ""
-                    }
+                    val selectedId = HuggingFaceModelIndexClient.preferredDetectedModelId(
+                        models = models,
+                        currentSelectionId = state.selectedDetectedModelId,
+                    )
                     state.copy(
                         detectedModels = models,
                         selectedDetectedModelId = selectedId,
@@ -298,6 +310,7 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                     )
                 }
             }.onSuccess { record ->
+                downloadStore.setPendingAutoStartRecordId("")
                 refreshDownloads()
                 _uiState.update {
                     it.copy(
@@ -334,6 +347,16 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
 
     fun startDetectedModelDownload(dataSaverMode: Boolean) {
         val model = _uiState.value.detectedModels.firstOrNull { it.id == _uiState.value.selectedDetectedModelId } ?: return
+        if (!model.quickStartEligible) {
+            downloadStore.setPendingAutoStartRecordId("")
+            _uiState.update {
+                it.copy(
+                    pendingAutoStartRecordId = "",
+                    inspectionStatus = "Experimental catalog entries cannot auto-start. Use custom import after verifying the exact revision, size, and runtime compatibility.",
+                )
+            }
+            return
+        }
         val context = getApplication<Application>()
         _uiState.update {
             it.copy(
@@ -350,7 +373,9 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
             runCatching {
                 withContext(Dispatchers.IO) {
                     val refreshed = HermesModelDownloadManager.refreshDownloads(context, downloadStore)
-                    val existing = refreshed.firstOrNull { record -> record.matchesDetectedModel(model) && record.status == "completed" }
+                    val existing = refreshed.firstOrNull { record ->
+                        record.status == "completed" && recordMatchesDetectedModel(record, model)
+                    }
                     if (existing != null) {
                         HermesModelDownloadManager.setPreferredDownload(downloadStore, existing.id)
                         existing
@@ -365,6 +390,7 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                     }
                 }
             }.onSuccess { record ->
+                downloadStore.setPendingAutoStartRecordId(record.id)
                 refreshDownloads()
                 _uiState.update {
                     it.copy(
@@ -379,6 +405,7 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                     )
                 }
             }.onFailure { error ->
+                downloadStore.setPendingAutoStartRecordId("")
                 _uiState.update {
                     it.copy(
                         inspectionStatus = error.message ?: error.javaClass.simpleName,
@@ -482,7 +509,12 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
         val context = getApplication<Application>()
         viewModelScope.launch(Dispatchers.IO) {
             val refreshed = HermesModelDownloadManager.refreshDownloads(context, downloadStore)
-            _uiState.update { it.copy(downloads = refreshed.toUiItems(context, downloadStore.preferredDownloadId())) }
+            _uiState.update {
+                it.copy(
+                    downloads = refreshed.toUiItems(context, downloadStore.preferredDownloadId()),
+                    pendingAutoStartRecordId = downloadStore.pendingAutoStartRecordId(),
+                )
+            }
         }
     }
 
@@ -533,10 +565,31 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
         refreshDownloads()
         _uiState.update {
             it.copy(
+                inspectionStatus = "Preferred model is ready. Handing off to Hermes runtime…",
+            )
+        }
+    }
+
+    fun completePendingAutoStartHandoff(recordId: String, accepted: Boolean): Boolean {
+        if (recordId.isBlank() || _uiState.value.pendingAutoStartRecordId != recordId) {
+            return false
+        }
+        if (!accepted) {
+            _uiState.update {
+                it.copy(
+                    inspectionStatus = "The runtime start handoff was not accepted. Reopen Models to retry safely.",
+                )
+            }
+            return false
+        }
+        downloadStore.setPendingAutoStartRecordId("")
+        _uiState.update {
+            it.copy(
                 pendingAutoStartRecordId = "",
                 inspectionStatus = "Preferred model is ready. Starting Hermes runtime…",
             )
         }
+        return true
     }
 
     private fun candidateSummary(context: Application, inspection: ModelDownloadInspection): String {
@@ -581,30 +634,6 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
         )
     }
 
-    private fun LocalModelDownloadRecord.matchesPreset(preset: RecommendedLocalModelPreset): Boolean {
-        val exactFileMatches = preset.filePath.isNotBlank() &&
-            (filePath.equals(preset.filePath, ignoreCase = true) ||
-                destinationFileName.equals(preset.filePath.substringAfterLast('/'), ignoreCase = true) ||
-                destinationPath.substringAfterLast('/').equals(preset.filePath.substringAfterLast('/'), ignoreCase = true))
-        val repoMatches = repoOrUrl.equals(preset.repoOrUrl, ignoreCase = true)
-        val revisionMatches = preset.revision.equals("main", ignoreCase = true) ||
-            revision.equals(preset.revision, ignoreCase = true)
-        return runtimeFlavor.equals(preset.runtimeFlavor, ignoreCase = true) &&
-            revisionMatches &&
-            (exactFileMatches || repoMatches)
-    }
-
-    private fun LocalModelDownloadRecord.matchesDetectedModel(model: DetectedHfModel): Boolean {
-        val modelFileName = model.filePath.substringAfterLast('/')
-        val fileMatches = model.filePath.isNotBlank() &&
-            (filePath.equals(model.filePath, ignoreCase = true) ||
-                destinationFileName.equals(modelFileName, ignoreCase = true) ||
-                destinationPath.substringAfterLast('/').equals(modelFileName, ignoreCase = true))
-        val repoMatches = repoOrUrl.equals(model.repoOrUrl, ignoreCase = true)
-        return runtimeFlavor.equals(model.runtimeFlavor, ignoreCase = true) &&
-            (fileMatches || repoMatches)
-    }
-
     private fun List<LocalModelDownloadRecord>.toUiItems(
         context: Application,
         preferredId: String,
@@ -642,6 +671,64 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
     }
 
     companion object {
+        internal fun recordMatchesPreset(
+            record: LocalModelDownloadRecord,
+            preset: RecommendedLocalModelPreset,
+        ): Boolean {
+            val artifact = VerifiedLocalModelArtifacts.find(preset.repoOrUrl, preset.filePath) ?: return false
+            val presetIsExact = preset.revision.equals(artifact.revision, ignoreCase = true) &&
+                normalizedRuntime(preset.runtimeFlavor) == artifact.runtime &&
+                fileName(preset.filePath).equals(artifact.fileName, ignoreCase = true)
+            return presetIsExact && recordMatchesArtifact(record, artifact)
+        }
+
+        internal fun recordMatchesDetectedModel(
+            record: LocalModelDownloadRecord,
+            model: DetectedHfModel,
+        ): Boolean {
+            val artifact = VerifiedLocalModelArtifacts.find(model.repoOrUrl, model.filePath) ?: return false
+            val modelIsExact = model.quickStartEligible &&
+                model.releaseCertified &&
+                model.immutableRevision &&
+                model.revision.equals(artifact.revision, ignoreCase = true) &&
+                model.expectedBytes == artifact.expectedBytes &&
+                normalizedRuntime(model.runtimeFlavor) == artifact.runtime &&
+                fileName(model.filePath).equals(artifact.fileName, ignoreCase = true)
+            return modelIsExact && recordMatchesArtifact(record, artifact)
+        }
+
+        private fun recordMatchesArtifact(
+            record: LocalModelDownloadRecord,
+            artifact: VerifiedLocalModelArtifacts.Artifact,
+        ): Boolean {
+            val repoMatches = VerifiedLocalModelArtifacts.find(record.repoOrUrl, artifact.fileName)
+                ?.modelId == artifact.modelId
+            val selectedFileMatches = fileName(record.filePath).equals(artifact.fileName, ignoreCase = true)
+            val destinationNameMatches = fileName(record.destinationFileName)
+                .equals(artifact.fileName, ignoreCase = true)
+            val destinationPathMatches = record.destinationPath.isBlank() ||
+                fileName(record.destinationPath).equals(artifact.fileName, ignoreCase = true)
+            return repoMatches &&
+                selectedFileMatches &&
+                destinationNameMatches &&
+                destinationPathMatches &&
+                record.revision.equals(artifact.revision, ignoreCase = true) &&
+                normalizedRuntime(record.runtimeFlavor) == artifact.runtime &&
+                record.totalBytes == artifact.expectedBytes
+        }
+
+        private fun normalizedRuntime(value: String): String {
+            return when (value.trim().lowercase()) {
+                "gguf", "llama.cpp", "llama-cpp" -> "llama.cpp"
+                "litert-lm", "litertlm", "litert lm" -> "litert-lm"
+                else -> value.trim().lowercase()
+            }
+        }
+
+        private fun fileName(path: String): String {
+            return path.substringBefore('?').replace('\\', '/').substringAfterLast('/')
+        }
+
         val recommendedModelPresets = listOf(
             RecommendedLocalModelPreset(
                 id = "qwen35-08b-q4km-gguf",
@@ -694,35 +781,6 @@ class LocalModelDownloadsViewModel(application: Application) : AndroidViewModel(
                 ).revision,
                 runtimeFlavor = "LiteRT-LM",
                 testedLabel = "VibeThinker LiteRT-LM compatibility target",
-            ),
-            RecommendedLocalModelPreset(
-                id = "gemma4-e2b-litert-lm",
-                title = "Gemma 4 E2B (LiteRT-LM)",
-                description = "First-class Gemma 4 local runtime target for Hermes mobile chat, image-capable runtime plumbing, MTP acceleration, and Android agent tools.",
-                repoOrUrl = "litert-community/gemma-4-E2B-it-litert-lm",
-                filePath = "",
-                revision = "7fa1d78473894f7e736a21d920c3aa80f950c0db",
-                runtimeFlavor = "LiteRT-LM",
-                testedLabel = "Edge Gallery 1.0.13 MTP path",
-            ),
-            RecommendedLocalModelPreset(
-                id = "gemma4-e4b-litert-lm",
-                title = "Gemma 4 E4B (LiteRT-LM)",
-                description = "Larger Gemma 4 LiteRT-LM model under the 5 GB testing ceiling, using Google AI Edge Gallery's current MTP-updated artifact for higher quality local agent replies on high-RAM phones.",
-                repoOrUrl = "litert-community/gemma-4-E4B-it-litert-lm",
-                filePath = "",
-                revision = "9695417f248178c63a9f318c6e0c56cb917cb837",
-                runtimeFlavor = "LiteRT-LM",
-                testedLabel = "Edge Gallery 1.0.13 MTP path",
-            ),
-            RecommendedLocalModelPreset(
-                id = "gemma3-1b-litert-lm",
-                title = "Gemma 3 1B IT INT4 (LiteRT-LM)",
-                description = "Small Gemma 3 compatibility target for lower-memory devices and fast local runtime bring-up.",
-                repoOrUrl = "litert-community/Gemma3-1B-IT",
-                filePath = "",
-                runtimeFlavor = "LiteRT-LM",
-                testedLabel = "Small compatibility path",
             ),
         )
     }

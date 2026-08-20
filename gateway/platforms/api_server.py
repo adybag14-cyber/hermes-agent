@@ -33,9 +33,12 @@ import os
 import socket as _socket
 import re
 import sqlite3
+import threading
 import time
 import uuid
 from typing import Any, Dict, List, Optional
+
+from hermes_android.runtime_identity import is_embedded_android_runtime
 
 try:
     from aiohttp import web
@@ -577,8 +580,12 @@ class _IdempotencyCache:
 
         return await asyncio.shield(task)
 
-
-_idem_cache = _IdempotencyCache()
+    def cancel_inflight_for_shutdown(self) -> None:
+        """Cancel and forget loop-bound computations during adapter shutdown."""
+        tasks = list(self._inflight.values())
+        self._inflight.clear()
+        for task in tasks:
+            task.cancel()
 
 
 def _make_request_fingerprint(body: Dict[str, Any], keys: List[str]) -> str:
@@ -630,6 +637,7 @@ except ImportError:
 
 
 class APIServerAdapter(BasePlatformAdapter):
+    _ANDROID_REQUEST_WORKER_DRAIN_TIMEOUT_SECONDS = 5.0
     """
     OpenAI-compatible HTTP API server adapter.
 
@@ -663,6 +671,7 @@ class APIServerAdapter(BasePlatformAdapter):
         # Active run agent/task references for stop support
         self._active_run_agents: Dict[str, Any] = {}
         self._active_run_tasks: Dict[str, "asyncio.Task"] = {}
+        self._run_stop_events: Dict[str, threading.Event] = {}
         # Pollable run status for dashboards and external control-plane UIs.
         self._run_statuses: Dict[str, Dict[str, Any]] = {}
         # Active approval session key for each run_id.  The approval core
@@ -670,6 +679,19 @@ class APIServerAdapter(BasePlatformAdapter):
         # in-flight run by run_id.
         self._run_approval_sessions: Dict[str, str] = {}
         self._session_db: Optional[Any] = None  # Lazy-init SessionDB for session continuity
+        # Each adapter owns its idempotency tasks. A module-global cache could retain
+        # a Task bound to a stopped Android event loop and replay it into a replacement.
+        self._idempotency_cache = _IdempotencyCache()
+        # A request handler may be cancelled while its run_in_executor worker keeps
+        # executing AIAgent.run_conversation(). Track every live agent independently
+        # of request-local asyncio Tasks so the dedicated Android shutdown path can
+        # interrupt them before the loop drains its default executor.
+        self._owned_agent_lock = threading.Lock()
+        self._owned_agents: set[Any] = set()
+        self._owned_task_ids: set[str] = set()
+        self._owned_shutdown_requested = False
+        self._owned_runtime_failure_detail = ""
+        self._enforce_owned_runtime_shutdown = is_embedded_android_runtime()
 
     @staticmethod
     def _parse_cors_origins(value: Any) -> tuple[str, ...]:
@@ -874,30 +896,56 @@ class APIServerAdapter(BasePlatformAdapter):
         providers (e.g. Honcho) can scope their per-chat state correctly
         — matching the semantics of the native gateway's ``session_key``.
         """
+        with self._owned_agent_lock:
+            if self._owned_shutdown_requested:
+                raise RuntimeError(
+                    self._owned_runtime_failure_detail
+                    or "API server shutdown is already in progress; refusing to start agent work"
+                )
+        if self._enforce_owned_runtime_shutdown:
+            from tools.environments.android_linux import (
+                android_command_execution_requires_restart,
+            )
+
+            restart_detail = android_command_execution_requires_restart()
+            if restart_detail:
+                raise RuntimeError(restart_detail)
+
         from run_agent import AIAgent
         from gateway.run import _resolve_runtime_agent_kwargs, _resolve_gateway_model, _load_gateway_config, GatewayRunner
-        from hermes_cli.tools_config import _get_platform_tools
 
         runtime_kwargs = _resolve_runtime_agent_kwargs()
         reasoning_config = GatewayRunner._load_reasoning_config()
         model = _resolve_gateway_model()
 
         user_config = _load_gateway_config()
-        enabled_toolsets = sorted(_get_platform_tools(user_config, "api_server"))
-        if os.getenv("HERMES_ANDROID_BOOTSTRAP", "").strip():
+        if is_embedded_android_runtime():
             try:
-                from hermes_android.mobile_defaults import should_force_android_api_server_toolsets, resolved_android_api_server_toolsets
+                from hermes_android.mobile_defaults import resolved_android_api_server_toolsets
 
-                if should_force_android_api_server_toolsets(user_config):
-                    enabled_toolsets = resolved_android_api_server_toolsets(user_config)
+                # Never resolve the generic platform profile first: it implicitly
+                # appends every globally enabled MCP server. The embedded Android
+                # process only admits the exact built-in profile whose work is
+                # owned by this adapter's shutdown contract.
+                enabled_toolsets = resolved_android_api_server_toolsets(user_config)
             except Exception as exc:
-                logger.debug("Android API-server toolset fallback unavailable: %s", exc)
+                raise RuntimeError(
+                    "Android safe toolset policy is unavailable; refusing to construct an agent"
+                ) from exc
+        else:
+            from hermes_cli.tools_config import _get_platform_tools
+
+            enabled_toolsets = sorted(_get_platform_tools(user_config, "api_server"))
 
         max_iterations = parse_iteration_limit(os.getenv("HERMES_MAX_ITERATIONS", "90"), default=90)
 
         # Load fallback provider chain so the API server platform has the
         # same fallback behaviour as Telegram/Discord/Slack (fixes #4954).
         fallback_model = GatewayRunner._load_fallback_model()
+        if is_embedded_android_runtime():
+            from hermes_android.mobile_defaults import validate_android_provider_runtime
+
+            validate_android_provider_runtime(runtime_kwargs, fallback_model)
 
         agent = AIAgent(
             model=model,
@@ -918,7 +966,293 @@ class APIServerAdapter(BasePlatformAdapter):
             reasoning_config=reasoning_config,
             gateway_session_key=gateway_session_key,
         )
+        try:
+            if is_embedded_android_runtime():
+                # A completed Android request must not detach memory/skill review or
+                # next-turn prefetch work after its owner-side executor Future ends.
+                # Built-in synchronous memory tools remain available; external memory
+                # providers are not initialized for this embedded adapter.
+                agent._allow_background_post_turn_work = False
+            if not self._register_owned_agent(agent):
+                raise RuntimeError(
+                    "API server shutdown started while agent work was being prepared"
+                )
+        except BaseException:
+            if self._enforce_owned_runtime_shutdown:
+                # Construction can start agent-owned workers. Once AIAgent returns,
+                # every later publication failure must leave a strong reference for
+                # finalization, including KeyboardInterrupt/SystemExit paths.
+                with self._owned_agent_lock:
+                    self._owned_agents.add(agent)
+                try:
+                    begin_owned_shutdown = getattr(
+                        agent,
+                        "begin_owned_worker_shutdown",
+                        None,
+                    )
+                    if callable(begin_owned_shutdown):
+                        begin_owned_shutdown("API server agent publication failed")
+                    else:
+                        agent.interrupt("API server agent publication failed")
+                except BaseException:
+                    pass
+            raise
         return agent
+
+    def _run_with_owned_runtime(self, action):
+        """Run one embedded request under the Android native-work lease."""
+        if not self._enforce_owned_runtime_shutdown:
+            return action()
+        from tools.environments.android_linux import android_embedded_runtime_work_guard
+
+        self._require_owned_runtime_admission()
+        with android_embedded_runtime_work_guard():
+            self._require_owned_runtime_admission()
+            return action()
+
+    def _require_owned_runtime_admission(self) -> None:
+        with self._owned_agent_lock:
+            if self._owned_runtime_failure_detail:
+                raise RuntimeError(self._owned_runtime_failure_detail)
+            if self._owned_shutdown_requested:
+                raise RuntimeError(
+                    "API server shutdown is already in progress; refusing to start agent work"
+                )
+
+    def _poison_owned_runtime(self, detail: str) -> None:
+        with self._owned_agent_lock:
+            self._owned_runtime_failure_detail = detail
+            self._owned_shutdown_requested = True
+
+    def _run_conversation_with_owned_runtime(self, agent: Any, **kwargs: Any) -> Dict[str, Any]:
+        return self._run_with_owned_runtime(lambda: agent.run_conversation(**kwargs))
+
+    def _register_owned_agent(self, agent: Any) -> bool:
+        """Register an agent unless shutdown already owns admission."""
+        if not self._enforce_owned_runtime_shutdown:
+            return True
+        session_id = str(getattr(agent, "session_id", "") or "").strip()
+        self._register_owned_task_id(session_id)
+        with self._owned_agent_lock:
+            if self._owned_shutdown_requested:
+                # Construction itself can start owned work (for example the
+                # OpenRouter metadata prewarm). Retain the losing agent so the
+                # shutdown waiter and final resource cleanup still own it.
+                self._owned_agents.add(agent)
+                return False
+            self._owned_agents.add(agent)
+            return True
+
+    def _register_owned_task_id(self, task_id: str) -> None:
+        if not self._enforce_owned_runtime_shutdown:
+            return
+        normalized = str(task_id or "").strip()
+        if not normalized:
+            return
+        from tools.process_registry import process_registry
+
+        with self._owned_agent_lock:
+            self._owned_task_ids.add(normalized)
+            # Hold the adapter inventory lock through the registry publication so
+            # finalization cannot snapshot/release the ID before a concurrent
+            # retain completes. If retain raises after a partial side effect, the
+            # ID deliberately remains in the adapter inventory for final cleanup.
+            process_registry.retain_task_ownership(normalized)
+
+    def _complete_owned_agent(self, agent: Any, task_id: str) -> None:
+        """Release a completed request agent without losing shutdown authority."""
+        if not self._enforce_owned_runtime_shutdown:
+            return
+        self._register_owned_task_id(task_id)
+        try:
+            begin_owned_shutdown = getattr(agent, "begin_owned_worker_shutdown", None)
+            if callable(begin_owned_shutdown):
+                begin_owned_shutdown("API request completed")
+            else:
+                agent.interrupt("API request completed")
+            wait_for_owned_workers = getattr(agent, "wait_for_owned_workers", None)
+            if callable(wait_for_owned_workers):
+                live_workers = wait_for_owned_workers(
+                    self._ANDROID_REQUEST_WORKER_DRAIN_TIMEOUT_SECONDS,
+                )
+            else:
+                owned_worker_names = getattr(agent, "owned_worker_names", None)
+                live_workers = owned_worker_names() if callable(owned_worker_names) else []
+            if live_workers:
+                raise RuntimeError(
+                    "agent-owned worker thread(s) did not unwind: "
+                    + ", ".join(sorted(live_workers))
+                )
+            release_clients = getattr(agent, "release_clients", None)
+            if callable(release_clients):
+                release_clients()
+        except BaseException as exc:  # noqa: BLE001
+            # This runs before the Android runtime lease is released. Any
+            # unproven worker/client unwind permanently closes same-process
+            # request admission, preventing a second provider/tool turn from
+            # overlapping the retained agent. App/server restart performs the
+            # authoritative final cleanup.
+            detail = (
+                "The previous embedded Android API request did not unwind safely: "
+                f"{exc}. Force stop and reopen Hermes before sending another request."
+            )
+            self._poison_owned_runtime(detail)
+            raise RuntimeError(detail) from exc
+        with self._owned_agent_lock:
+            self._owned_agents.discard(agent)
+        # Keep every Android request/session ID pinned until adapter finalization.
+        # Foreground terminal/browser environments are keyed by task ID even when
+        # ProcessRegistry has no background session, so early release would lose
+        # the only complete cleanup inventory.
+
+    def begin_owned_shutdown(self) -> None:
+        """Close agent admission and interrupt every still-owned agent."""
+        with self._owned_agent_lock:
+            self._owned_shutdown_requested = True
+            agents = list(self._owned_agents)
+        for agent in agents:
+            try:
+                begin_owned_shutdown = getattr(agent, "begin_owned_worker_shutdown", None)
+                if callable(begin_owned_shutdown):
+                    begin_owned_shutdown("API server is shutting down")
+                else:
+                    agent.interrupt("API server is shutting down")
+            except Exception:
+                # Event-loop and default-executor quiescence remain the final
+                # ownership authority even if a vendor-specific interrupt fails.
+                pass
+
+    async def disconnect_owned_runtime(self, task_timeout: float = 5.0) -> None:
+        """Stop this dedicated adapter and cancel every loop-owned wrapper Task.
+
+        Executor workers are deliberately not considered stopped here: the Android
+        loop thread subsequently runs ``shutdown_default_executor`` and its bounded
+        join is the authority that no old agent/tool work can overlap a replacement.
+        """
+        deadline = asyncio.get_running_loop().time() + max(task_timeout, 0.0)
+        self.begin_owned_shutdown()
+        self._mark_disconnected()
+        if self._site:
+            await self._site.stop()
+            self._site = None
+
+        self._idempotency_cache.cancel_inflight_for_shutdown()
+        current = asyncio.current_task()
+        tasks = [
+            task
+            for task in asyncio.all_tasks()
+            if task is not current and not task.done()
+        ]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            _, pending = await asyncio.wait(
+                tasks,
+                timeout=max(deadline - asyncio.get_running_loop().time(), 0.0),
+            )
+            if pending:
+                raise TimeoutError(
+                    f"{len(pending)} API server task(s) did not unwind during shutdown"
+                )
+
+        while True:
+            with self._owned_agent_lock:
+                agents = list(self._owned_agents)
+            live_workers = []
+            for agent in agents:
+                owned_worker_names = getattr(agent, "owned_worker_names", None)
+                if callable(owned_worker_names):
+                    live_workers.extend(owned_worker_names())
+            if not live_workers:
+                break
+            if asyncio.get_running_loop().time() >= deadline:
+                raise TimeoutError(
+                    "API server agent-owned worker thread(s) did not unwind: "
+                    + ", ".join(sorted(live_workers))
+                )
+            await asyncio.sleep(0.01)
+
+        if self._runner:
+            await self._runner.cleanup()
+            self._runner = None
+        self._app = None
+        self._background_tasks.clear()
+        self._active_run_agents.clear()
+        self._active_run_tasks.clear()
+        for stop_event in self._run_stop_events.values():
+            stop_event.set()
+        self._run_approval_sessions.clear()
+        logger.info("[%s] API server stopped with owned work drained", self.name)
+
+    def finalize_owned_runtime_resources(self) -> None:
+        """Release session processes only after the loop executor is quiescent."""
+        with self._owned_agent_lock:
+            agents = list(self._owned_agents)
+            task_ids = set(self._owned_task_ids)
+        failures = []
+        live_workers = []
+        for agent in agents:
+            owned_worker_names = getattr(agent, "owned_worker_names", None)
+            if callable(owned_worker_names):
+                live_workers.extend(owned_worker_names())
+        if live_workers:
+            # An executor worker can finish constructing an agent after
+            # disconnect_owned_runtime() took its last snapshot. The agent is
+            # retained by _register_owned_agent(), but a constructor-started
+            # daemon (for example OpenRouter metadata prewarm) is not owned by
+            # asyncio's default executor. Never close beside it or certify the
+            # loop as quiescent.
+            raise RuntimeError(
+                "API server agent-owned worker thread(s) remained live after "
+                "executor shutdown: " + ", ".join(sorted(live_workers))
+            )
+        for agent in agents:
+            try:
+                agent.close()
+            except Exception as exc:
+                failures.append(f"agent close failed: {exc}")
+            session_id = str(getattr(agent, "session_id", "") or "").strip()
+            if session_id:
+                task_ids.add(session_id)
+
+        from tools.browser_tool import cleanup_browser
+        from tools.environments.android_linux import (
+            terminate_owned_android_command_processes_verified,
+        )
+        from tools.process_registry import process_registry
+        from tools.terminal_tool import cleanup_vm, stop_cleanup_thread_verified
+
+        try:
+            stop_cleanup_thread_verified(timeout=5.0)
+        except Exception as exc:
+            failures.append(f"terminal cleanup worker did not stop: {exc}")
+        try:
+            terminate_owned_android_command_processes_verified(timeout=5.0)
+        except Exception as exc:
+            failures.append(f"foreground command-process cleanup failed: {exc}")
+        if task_ids:
+            try:
+                process_registry.terminate_tasks_verified(task_ids, timeout=5.0)
+            except Exception as exc:
+                failures.append(f"verified background-process cleanup failed: {exc}")
+        for task_id in sorted(task_ids):
+            try:
+                cleanup_vm(task_id, raise_on_error=True)
+            except Exception as exc:
+                failures.append(f"terminal cleanup failed for session {task_id}: {exc}")
+            try:
+                cleanup_browser(task_id)
+            except Exception as exc:
+                failures.append(f"browser cleanup failed for session {task_id}: {exc}")
+
+        if failures:
+            raise RuntimeError("; ".join(failures))
+        for task_id in task_ids:
+            process_registry.release_task_ownership(task_id)
+        with self._owned_agent_lock:
+            self._owned_agents.clear()
+            self._owned_task_ids.clear()
+        self._run_stop_events.clear()
 
     # ------------------------------------------------------------------
     # HTTP Handlers
@@ -1254,7 +1588,7 @@ class APIServerAdapter(BasePlatformAdapter):
         if idempotency_key:
             fp = _make_request_fingerprint(body, keys=["model", "messages", "tools", "tool_choice", "stream"])
             try:
-                result, usage = await _idem_cache.get_or_set(idempotency_key, fp, _compute_completion)
+                result, usage = await self._idempotency_cache.get_or_set(idempotency_key, fp, _compute_completion)
             except Exception as e:
                 logger.error("Error running agent for chat completions: %s", e, exc_info=True)
                 return web.json_response(
@@ -2303,7 +2637,7 @@ class APIServerAdapter(BasePlatformAdapter):
                 keys=["input", "instructions", "previous_response_id", "conversation", "model", "tools"],
             )
             try:
-                result, usage = await _idem_cache.get_or_set(idempotency_key, fp, _compute_response)
+                result, usage = await self._idempotency_cache.get_or_set(idempotency_key, fp, _compute_response)
             except Exception as e:
                 logger.error("Error running agent for responses: %s", e, exc_info=True)
                 return web.json_response(
@@ -2765,39 +3099,67 @@ class APIServerAdapter(BasePlatformAdapter):
         another thread to stop in-progress LLM calls.
         """
         loop = asyncio.get_running_loop()
+        cancellation_requested = threading.Event()
 
         def _run():
-            agent = self._create_agent(
-                ephemeral_system_prompt=ephemeral_system_prompt,
-                session_id=session_id,
-                stream_delta_callback=stream_delta_callback,
-                tool_progress_callback=tool_progress_callback,
-                tool_start_callback=tool_start_callback,
-                tool_complete_callback=tool_complete_callback,
-                gateway_session_key=gateway_session_key,
-            )
-            if agent_ref is not None:
-                agent_ref[0] = agent
-            effective_task_id = session_id or str(uuid.uuid4())
-            result = agent.run_conversation(
-                user_message=user_message,
-                conversation_history=conversation_history,
-                task_id=effective_task_id,
-            )
-            usage = {
-                "input_tokens": getattr(agent, "session_prompt_tokens", 0) or 0,
-                "output_tokens": getattr(agent, "session_completion_tokens", 0) or 0,
-                "total_tokens": getattr(agent, "session_total_tokens", 0) or 0,
-            }
-            # Include the effective session ID in the result so callers
-            # (e.g. X-Hermes-Session-Id header) can track compression-
-            # triggered session rotations. (#16938)
-            _eff_sid = getattr(agent, "session_id", session_id)
-            if isinstance(_eff_sid, str) and _eff_sid:
-                result["session_id"] = _eff_sid
-            return result, usage
+            def _owned_request():
+                agent = None
+                effective_task_id = session_id or str(uuid.uuid4())
+                self._register_owned_task_id(effective_task_id)
+                try:
+                    if cancellation_requested.is_set():
+                        raise RuntimeError("API request was cancelled before agent construction")
+                    agent = self._create_agent(
+                        ephemeral_system_prompt=ephemeral_system_prompt,
+                        session_id=session_id,
+                        stream_delta_callback=stream_delta_callback,
+                        tool_progress_callback=tool_progress_callback,
+                        tool_start_callback=tool_start_callback,
+                        tool_complete_callback=tool_complete_callback,
+                        gateway_session_key=gateway_session_key,
+                    )
+                    if cancellation_requested.is_set():
+                        agent.interrupt("API request was cancelled before conversation start")
+                        raise RuntimeError("API request was cancelled before conversation start")
+                    if agent_ref is not None:
+                        agent_ref[0] = agent
+                    if cancellation_requested.is_set():
+                        agent.interrupt("API request was cancelled before conversation start")
+                        raise RuntimeError("API request was cancelled before conversation start")
+                    result = agent.run_conversation(
+                        user_message=user_message,
+                        conversation_history=conversation_history,
+                        task_id=effective_task_id,
+                    )
+                    usage = {
+                        "input_tokens": getattr(agent, "session_prompt_tokens", 0) or 0,
+                        "output_tokens": getattr(agent, "session_completion_tokens", 0) or 0,
+                        "total_tokens": getattr(agent, "session_total_tokens", 0) or 0,
+                    }
+                    # Include the effective session ID in the result so callers
+                    # (e.g. X-Hermes-Session-Id header) can track compression-
+                    # triggered session rotations. (#16938)
+                    _eff_sid = getattr(agent, "session_id", session_id)
+                    if isinstance(_eff_sid, str) and _eff_sid:
+                        result["session_id"] = _eff_sid
+                    return result, usage
+                finally:
+                    if agent is not None:
+                        self._complete_owned_agent(agent, effective_task_id)
 
-        return await loop.run_in_executor(None, _run)
+            return self._run_with_owned_runtime(_owned_request)
+
+        executor_future = loop.run_in_executor(None, _run)
+        try:
+            return await executor_future
+        except asyncio.CancelledError:
+            cancellation_requested.set()
+            if agent_ref is not None and agent_ref[0] is not None:
+                try:
+                    agent_ref[0].interrupt("API request was cancelled by its client")
+                except Exception:
+                    pass
+            raise
 
     # ------------------------------------------------------------------
     # /v1/runs — structured event streaming
@@ -2980,18 +3342,12 @@ class APIServerAdapter(BasePlatformAdapter):
             session_id=session_id,
             model=body.get("model", self._model_name),
         )
+        stop_event = threading.Event()
+        self._run_stop_events[run_id] = stop_event
 
         async def _run_and_close():
             try:
                 self._set_run_status(run_id, "running")
-                agent = self._create_agent(
-                    ephemeral_system_prompt=ephemeral_system_prompt,
-                    session_id=session_id,
-                    stream_delta_callback=_text_cb,
-                    tool_progress_callback=event_cb,
-                    gateway_session_key=gateway_session_key,
-                )
-                self._active_run_agents[run_id] = agent
 
                 def _approval_notify(approval_data: Dict[str, Any]) -> None:
                     event = dict(approval_data or {})
@@ -3020,44 +3376,70 @@ class APIServerAdapter(BasePlatformAdapter):
                         unregister_gateway_notify,
                     )
 
-                    effective_task_id = session_id or run_id
-                    approval_token = None
-                    session_tokens = []
-                    try:
-                        # Bind approval/session identity for this API run via
-                        # contextvars so concurrent runs do not share process
-                        # environment state.
-                        approval_token = set_current_session_key(approval_session_key)
-                        session_tokens = set_session_vars(
-                            platform="api_server",
-                            session_key=approval_session_key,
-                        )
-                        register_gateway_notify(approval_session_key, _approval_notify)
-                        r = agent.run_conversation(
-                            user_message=user_message,
-                            conversation_history=conversation_history,
-                            task_id=effective_task_id,
-                        )
-                    finally:
+                    def _owned_request():
+                        effective_task_id = session_id or run_id
+                        self._register_owned_task_id(effective_task_id)
+                        approval_token = None
+                        session_tokens = []
+                        agent = None
                         try:
-                            unregister_gateway_notify(approval_session_key)
+                            if stop_event.is_set():
+                                raise RuntimeError("Run stopped before agent construction")
+                            # Construct the agent only after the Android runtime
+                            # lease is held; constructor/configuration work cannot
+                            # race another request's native-command unwind.
+                            agent = self._create_agent(
+                                ephemeral_system_prompt=ephemeral_system_prompt,
+                                session_id=session_id,
+                                stream_delta_callback=_text_cb,
+                                tool_progress_callback=event_cb,
+                                gateway_session_key=gateway_session_key,
+                            )
+                            if stop_event.is_set():
+                                agent.interrupt("Stop requested before API run started")
+                                raise RuntimeError("Run stopped before conversation start")
+                            self._active_run_agents[run_id] = agent
+                            if stop_event.is_set():
+                                agent.interrupt("Stop requested before API run started")
+                                raise RuntimeError("Run stopped before conversation start")
+                            approval_token = set_current_session_key(approval_session_key)
+                            session_tokens = set_session_vars(
+                                platform="api_server",
+                                session_key=approval_session_key,
+                            )
+                            register_gateway_notify(approval_session_key, _approval_notify)
+                            r = agent.run_conversation(
+                                user_message=user_message,
+                                conversation_history=conversation_history,
+                                task_id=effective_task_id,
+                            )
+                            u = {
+                                "input_tokens": getattr(agent, "session_prompt_tokens", 0) or 0,
+                                "output_tokens": getattr(agent, "session_completion_tokens", 0) or 0,
+                                "total_tokens": getattr(agent, "session_total_tokens", 0) or 0,
+                            }
+                            return r, u
                         finally:
-                            if approval_token is not None:
-                                try:
-                                    reset_current_session_key(approval_token)
-                                except Exception:
-                                    pass
-                            if session_tokens:
-                                try:
-                                    clear_session_vars(session_tokens)
-                                except Exception:
-                                    pass
-                    u = {
-                        "input_tokens": getattr(agent, "session_prompt_tokens", 0) or 0,
-                        "output_tokens": getattr(agent, "session_completion_tokens", 0) or 0,
-                        "total_tokens": getattr(agent, "session_total_tokens", 0) or 0,
-                    }
-                    return r, u
+                            try:
+                                unregister_gateway_notify(approval_session_key)
+                            finally:
+                                if approval_token is not None:
+                                    try:
+                                        reset_current_session_key(approval_token)
+                                    except Exception:
+                                        pass
+                                if session_tokens:
+                                    try:
+                                        clear_session_vars(session_tokens)
+                                    except Exception:
+                                        pass
+                            if agent is not None:
+                                self._complete_owned_agent(agent, effective_task_id)
+                                if self._active_run_agents.get(run_id) is agent:
+                                    self._active_run_agents.pop(run_id, None)
+                            self._run_stop_events.pop(run_id, None)
+
+                    return self._run_with_owned_runtime(_owned_request)
 
                 result, usage = await asyncio.get_running_loop().run_in_executor(None, _run_sync)
                 # Check for structured failure (non-retryable client errors like
@@ -3324,6 +3706,7 @@ class APIServerAdapter(BasePlatformAdapter):
             return auth_err
 
         run_id = request.match_info["run_id"]
+        stop_event = self._run_stop_events.get(run_id)
         agent = self._active_run_agents.get(run_id)
         task = self._active_run_tasks.get(run_id)
 
@@ -3331,6 +3714,8 @@ class APIServerAdapter(BasePlatformAdapter):
             return web.json_response(_openai_error(f"Run not found: {run_id}", code="run_not_found"), status=404)
 
         self._set_run_status(run_id, "stopping", last_event="run.stopping")
+        if stop_event is not None:
+            stop_event.set()
 
         if agent is not None:
             try:

@@ -1,5 +1,6 @@
 package com.mobilefork.hermesagent.device
 
+import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
 import org.w3c.dom.Element
@@ -7,7 +8,6 @@ import org.w3c.dom.Node
 import java.io.ByteArrayInputStream
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
-import java.util.Base64
 import java.util.UUID
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -731,7 +731,7 @@ object HermesTaskerImportBridge {
     }
 
     private fun decodeBase64Text(value: String): String {
-        return String(Base64.getDecoder().decode(value.trim()), StandardCharsets.UTF_8)
+        return String(Base64.decode(value.trim(), Base64.DEFAULT), StandardCharsets.UTF_8)
     }
 
     private fun isSafeUri(uri: String): Boolean {

@@ -13,6 +13,8 @@ from __future__ import annotations
 import importlib.util
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 
 def _load_release_module(monkeypatch, tmp_root: Path):
@@ -111,3 +113,55 @@ def test_update_version_files_bumps_manifest_alongside_pyproject(
     )
     assert manifest["version"] == "0.14.0"
     assert manifest["distribution"]["uvx"]["package"] == "hermes-agent[acp]==0.14.0"
+
+
+def test_push_release_refs_scopes_authority_to_exact_tag(monkeypatch, tmp_path):
+    module = _load_release_module(monkeypatch, tmp_path)
+    git_result = Mock(return_value=SimpleNamespace(returncode=0, stderr=""))
+    monkeypatch.setattr(module, "git_result", git_result)
+
+    result = module.push_release_refs("v2026.8.14")
+
+    assert result.returncode == 0
+    git_result.assert_called_once_with("push", "origin", "HEAD", "v2026.8.14")
+
+
+def test_publish_stops_before_artifacts_or_github_release_when_push_fails(
+    monkeypatch,
+    tmp_path,
+):
+    module = _load_release_module(monkeypatch, tmp_path)
+    monkeypatch.setattr(
+        module,
+        "next_available_tag",
+        lambda _tag: ("v2026.8.14", "2026.8.14"),
+    )
+    monkeypatch.setattr(module, "get_current_version", lambda: "0.13.146")
+    monkeypatch.setattr(module, "get_last_tag", lambda: "v2026.8.13")
+    monkeypatch.setattr(
+        module,
+        "get_commits",
+        lambda since_tag: [{"github_author": "tester"}],
+    )
+    monkeypatch.setattr(module, "generate_changelog", lambda *args, **kwargs: "notes")
+    build_artifacts = Mock(return_value=[])
+    monkeypatch.setattr(module, "build_release_artifacts", build_artifacts)
+
+    calls = []
+
+    def git_result(*args, **kwargs):
+        calls.append(args)
+        if args[0] == "push":
+            return SimpleNamespace(returncode=1, stderr="denied")
+        return SimpleNamespace(returncode=0, stderr="")
+
+    monkeypatch.setattr(module, "git_result", git_result)
+    gh_run = Mock()
+    monkeypatch.setattr(module.subprocess, "run", gh_run)
+
+    module.main(["--publish"])
+
+    assert calls[-1] == ("push", "origin", "HEAD", "v2026.8.14")
+    build_artifacts.assert_not_called()
+    gh_run.assert_not_called()
+    assert not (tmp_path / ".release_notes.md").exists()

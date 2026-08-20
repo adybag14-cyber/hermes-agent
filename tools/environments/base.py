@@ -98,7 +98,12 @@ def get_sandbox_dir() -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _pipe_stdin(proc: subprocess.Popen, data: str) -> None:
+def _pipe_stdin(
+    proc: subprocess.Popen,
+    data: str,
+    *,
+    register: Callable[[threading.Thread], None] | None = None,
+) -> threading.Thread:
     """Write *data* to proc.stdin on a daemon thread to avoid pipe-buffer deadlocks.
 
     On Windows, text-mode stdin (``text=True`` / ``encoding="utf-8"``)
@@ -129,7 +134,11 @@ def _pipe_stdin(proc: subprocess.Popen, data: str) -> None:
         except (BrokenPipeError, OSError):
             pass
 
-    threading.Thread(target=_write, daemon=True).start()
+    writer = threading.Thread(target=_write, daemon=True)
+    if register is not None:
+        register(writer)
+    writer.start()
+    return writer
 
 
 def _popen_bash(
@@ -339,6 +348,33 @@ class BaseEnvironment(ABC):
         """
         raise NotImplementedError(f"{type(self).__name__} must implement _run_bash()")
 
+    def _cleanup_abandoned_process(self, proc: ProcessHandle) -> None:
+        """Own a child when control leaves between spawn and wait completion."""
+        self._kill_process(proc)
+
+    def _run_bash_and_wait(
+        self,
+        cmd_string: str,
+        *,
+        login: bool = False,
+        timeout: int = 120,
+        stdin_data: str | None = None,
+    ) -> dict:
+        """Atomically bind every successful spawn to a wait or cleanup path."""
+        proc = None
+        try:
+            proc = self._run_bash(
+                cmd_string,
+                login=login,
+                timeout=timeout,
+                stdin_data=stdin_data,
+            )
+            return self._wait_for_process(proc, timeout=timeout)
+        except BaseException:
+            if proc is not None:
+                self._cleanup_abandoned_process(proc)
+            raise
+
     @abstractmethod
     def cleanup(self):
         """Release backend resources (container, instance, connection)."""
@@ -385,8 +421,11 @@ class BaseEnvironment(ABC):
             f"printf '\\n{self._cwd_marker}%s{self._cwd_marker}\\n' \"$(pwd -P)\"\n"
         )
         try:
-            proc = self._run_bash(bootstrap, login=True, timeout=self._snapshot_timeout)
-            result = self._wait_for_process(proc, timeout=self._snapshot_timeout)
+            result = self._run_bash_and_wait(
+                bootstrap,
+                login=True,
+                timeout=self._snapshot_timeout,
+            )
             self._snapshot_ready = True
             self._update_cwd(result)
             logger.info(
@@ -585,6 +624,11 @@ class BaseEnvironment(ABC):
                     pass
 
         drain_thread = threading.Thread(target=_drain, daemon=True)
+        # Publish the reader before admission. Thread.start() is allowed to
+        # raise after the native thread has begun executing; retaining the
+        # object on the process lets ownership-aware backends join or poison
+        # that partially admitted reader instead of certifying false quiescence.
+        setattr(proc, "_hermes_stdout_drain_thread", drain_thread)
         drain_thread.start()
         deadline = time.monotonic() + timeout
         _now = time.monotonic()
@@ -694,10 +738,18 @@ class BaseEnvironment(ABC):
         # it means the non-blocking loop itself stopped cooperating.
         drain_thread.join(timeout=2)
 
+        # A timed join is not proof of termination. Closing a TextIOWrapper
+        # beside a still-running os.read() can block on the stream lock, so
+        # leave it open for an ownership-aware backend to retain and finalize.
         try:
-            proc.stdout.close()
-        except Exception:
-            pass
+            drain_is_alive = drain_thread.is_alive()
+        except RuntimeError:
+            drain_is_alive = True
+        if not drain_is_alive:
+            try:
+                proc.stdout.close()
+            except Exception:
+                pass
 
         if _DEBUG_INTERRUPT:
             logger.info(
@@ -820,10 +872,12 @@ class BaseEnvironment(ABC):
         # Use login shell if snapshot failed (so user's profile still loads)
         login = not self._snapshot_ready
 
-        proc = self._run_bash(
-            wrapped, login=login, timeout=effective_timeout, stdin_data=effective_stdin
+        result = self._run_bash_and_wait(
+            wrapped,
+            login=login,
+            timeout=effective_timeout,
+            stdin_data=effective_stdin,
         )
-        result = self._wait_for_process(proc, timeout=effective_timeout)
         self._update_cwd(result)
 
         return result

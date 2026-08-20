@@ -1,0 +1,109 @@
+name: Android Published-Latest LiteRT-LM Compatibility
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-published-latest-litertlm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  published-latest-compatibility:
+    name: Compile against Google's published-latest LiteRT-LM
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Set up Python 3.13 for Chaquopy
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.13'
+
+      - name: Resolve exact published-latest LiteRT-LM Android SDK
+        id: litertlm
+        shell: bash
+        run: |
+          version="$(python scripts/check_android_litertlm_version.py --print-latest)"
+          release_pin="$(python scripts/check_android_litertlm_version.py --print-declared)"
+          test -n "$version"
+          test -n "$release_pin"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          results="$RUNNER_TEMP/hermes-compatibility"
+          mkdir -p "$results"
+          printf '%s\n' \
+            "{\"artifact\":\"com.google.ai.edge.litertlm:litertlm-android\",\"published_latest\":\"$version\",\"release_pin\":\"$release_pin\",\"scope\":\"published-google-maven\"}" \
+            > "$results/litertlm-resolution.json"
+          {
+            echo "### LiteRT-LM published-latest compatibility"
+            echo ""
+            echo "- Exact Google Maven release tested: \`$version\`"
+            echo "- Hermes release pin (unchanged): \`$release_pin\`"
+            echo "- Scope: published Google Maven artifact; not upstream-main or a nightly AAR"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report llama.cpp upstream package drift (advisory)
+        continue-on-error: true
+        shell: bash
+        run: |
+          report="$RUNNER_TEMP/hermes-compatibility/llama-cpp-drift.json"
+          python scripts/report_android_llama_cpp_drift.py | tee "$report"
+          {
+            echo ""
+            echo "### llama.cpp upstream package drift (advisory)"
+            echo ""
+            echo "This report does not invalidate the content-addressed real-GGUF compatibility pin."
+            echo ""
+            echo '```json'
+            cat "$report"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Set up Java 21
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        with:
+          packages: platform-tools platforms;android-35 build-tools;35.0.0
+
+      - name: Ensure Gradle wrapper is executable
+        run: chmod +x android/gradlew
+
+      - name: Compile and test Hermes against the exact published-latest release
+        working-directory: android
+        env:
+          SOURCE_DATE_EPOCH: "315532800"
+        run: |
+          export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
+          ./gradlew --no-daemon --parallel --max-workers=12 \
+            :app:testDebugUnitTest \
+            :app:compileDebugAndroidTestKotlin \
+            -PskipHermesAndroidLinuxAssets=true \
+            -PhermesLiteRtLmVersion="${{ steps.litertlm.outputs.version }}"
+
+      - name: Enforce release pin freshness after compatibility proof
+        shell: bash
+        run: |
+          python scripts/check_android_litertlm_version.py \
+            | tee "$RUNNER_TEMP/hermes-compatibility/litertlm-pin-freshness.json"
+          echo "- Stable release pin freshness: passed" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload machine-readable compatibility reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hermes-android-published-latest-compatibility
+          path: ${{ runner.temp }}/hermes-compatibility/*.json
+          if-no-files-found: warn
+          retention-days: 14

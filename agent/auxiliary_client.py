@@ -1241,7 +1241,36 @@ class _CodexCompletionsAdapter:
             raise
         finally:
             if timeout_timer is not None:
-                timeout_timer.cancel()
+                timer_cleanup_error: Optional[BaseException] = None
+                try:
+                    timeout_timer.cancel()
+                except BaseException as exc:  # noqa: BLE001
+                    timer_cleanup_error = exc
+
+                from hermes_android.runtime_identity import is_embedded_android_runtime
+
+                if is_embedded_android_runtime():
+                    # Timer.start() can be interrupted after admitting the native
+                    # thread but before returning.  The Timer object itself is the
+                    # publication token, so do not rely on a post-start boolean:
+                    # keep joining until the watchdog is authoritatively dead.
+                    # The owning API request therefore cannot leave the adapter's
+                    # default executor while client-close work is still live.
+                    while True:
+                        try:
+                            if not timeout_timer.is_alive():
+                                break
+                        except BaseException as exc:  # noqa: BLE001
+                            if timer_cleanup_error is None:
+                                timer_cleanup_error = exc
+                        try:
+                            timeout_timer.join()
+                        except BaseException as exc:  # noqa: BLE001
+                            if timer_cleanup_error is None:
+                                timer_cleanup_error = exc
+                            continue
+                if timer_cleanup_error is not None:
+                    raise timer_cleanup_error
 
         content = "".join(text_parts).strip() or None
 
@@ -3243,8 +3272,8 @@ def _resolve_single_provider(
     client, resolved_model = resolve_provider_client(
         provider=provider,
         model=model,
-        base_url=base_url,
-        api_key=api_key,
+        explicit_base_url=base_url,
+        explicit_api_key=api_key,
     )
     return client
 
@@ -3480,6 +3509,23 @@ def resolve_provider_client(
     Returns:
         (client, resolved_model) or (None, None) if auth is unavailable.
     """
+    from hermes_android.runtime_identity import is_embedded_android_runtime
+
+    embedded_android = is_embedded_android_runtime()
+    if embedded_android:
+        from hermes_android.mobile_defaults import validate_android_provider_runtime
+
+        if main_runtime:
+            validate_android_provider_runtime(dict(main_runtime), None)
+        validate_android_provider_runtime(
+            {
+                "provider": provider,
+                "base_url": explicit_base_url,
+                "api_mode": api_mode,
+            },
+            None,
+        )
+
     _validate_proxy_env_urls()
     # Preserve the original provider name before alias normalization so a
     # user-declared ``custom_providers`` entry whose name coincidentally
@@ -3621,6 +3667,40 @@ def resolve_provider_client(
         return (_to_async_client(client, final_model, is_vision=is_vision) if async_mode
                 else (client, final_model))
 
+    # ── xAI Grok OAuth (OAuth → Responses API) ───────────────────────
+    if provider == "xai-oauth":
+        final_model = _normalize_resolved_model(model, provider)
+        if not final_model:
+            logger.warning(
+                "resolve_provider_client: xai-oauth requested without a "
+                "model; pass model explicitly (e.g. model.model in config.yaml "
+                "or auxiliary.<task>.model for per-task aux routing)."
+            )
+            return None, None
+
+        if raw_codex:
+            # The main agent loop consumes responses.stream() directly.
+            resolved = _resolve_xai_oauth_for_aux()
+            if resolved is None:
+                logger.warning(
+                    "resolve_provider_client: xai-oauth requested but no xAI "
+                    "OAuth token found (run: hermes auth add xai-oauth)"
+                )
+                return None, None
+            api_key, base_url = resolved
+            raw_client = OpenAI(api_key=api_key, base_url=base_url)
+            return raw_client, final_model
+
+        client, _ = _build_xai_oauth_aux_client(final_model)
+        if client is None:
+            logger.warning(
+                "resolve_provider_client: xai-oauth requested but no xAI "
+                "OAuth token found (run: hermes auth add xai-oauth)"
+            )
+            return None, None
+        return (_to_async_client(client, final_model, is_vision=is_vision) if async_mode
+                else (client, final_model))
+
     # ── ChatGPT Web (OAuth external) ─────────────────────────────────
     if provider == "chatgpt-web":
         try:
@@ -3742,6 +3822,8 @@ def resolve_provider_client(
         if custom_entry is None:
             custom_entry = _get_named_custom_provider(provider)
         if custom_entry:
+            if embedded_android:
+                validate_android_provider_runtime(dict(custom_entry), None)
             custom_base = custom_entry.get("base_url", "").strip()
             custom_key = custom_entry.get("api_key", "").strip()
             custom_key_env = (custom_entry.get("key_env") or custom_entry.get("api_key_env") or "").strip()
@@ -3982,6 +4064,19 @@ def resolve_provider_client(
                 else (client, final_model))
 
     if pconfig.auth_type == "external_process":
+        if embedded_android:
+            # Validate the canonical provider at the last safe boundary. This
+            # catches aliases such as ``custom:copilot-acp`` when no named HTTP
+            # custom entry exists, while still allowing a real audited custom
+            # entry with that explicit name to return from the branch above.
+            validate_android_provider_runtime(
+                {
+                    "provider": provider,
+                    "base_url": explicit_base_url,
+                    "api_mode": api_mode,
+                },
+                None,
+            )
         creds = resolve_external_process_provider_credentials(provider)
         final_model = _normalize_resolved_model(
             model
@@ -4060,8 +4155,6 @@ def resolve_provider_client(
             return resolve_provider_client("nous", model, async_mode)
         if provider == "openai-codex":
             return resolve_provider_client("openai-codex", model, async_mode)
-        if provider == "xai-oauth":
-            return resolve_provider_client("xai-oauth", model, async_mode)
         # Other OAuth providers not directly supported
         logger.warning("resolve_provider_client: OAuth provider %s not "
                        "directly supported, try 'auto'", provider)

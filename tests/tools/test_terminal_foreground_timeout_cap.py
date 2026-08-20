@@ -48,6 +48,19 @@ class TestForegroundTimeoutCap:
         assert str(FOREGROUND_MAX_TIMEOUT) in result["error"]
         assert "background=true" in result["error"]
 
+    def test_android_foreground_timeout_does_not_suggest_unsupported_background(self):
+        from tools.terminal_tool import terminal_tool
+
+        with patch(
+            "tools.terminal_tool._get_env_config",
+            return_value=_make_env_config(env_type="android_linux"),
+        ), patch("tools.terminal_tool._start_cleanup_thread"):
+            result = json.loads(terminal_tool(command="echo hello", timeout=9999))
+
+        assert "embedded Android background commands are disabled" in result["error"]
+        assert "bounded foreground commands" in result["error"]
+        assert "background=true" not in result["error"]
+
     def test_foreground_rejects_shell_level_background_wrappers(self):
         """Foreground nohup/disown/setsid commands should be redirected to background mode."""
         from tools.terminal_tool import terminal_tool
@@ -172,6 +185,45 @@ class TestForegroundTimeoutCap:
 
         # Background should NOT be rejected
         assert "error" not in result or result["error"] is None
+
+    def test_android_background_is_rejected_before_process_registry_spawn(self):
+        """Embedded Android cannot certify arbitrary detached descendants."""
+        from tools.terminal_tool import terminal_tool
+
+        with patch(
+            "tools.terminal_tool._get_env_config",
+            return_value=_make_env_config(env_type="android_linux"),
+        ), patch("tools.terminal_tool._start_cleanup_thread"), patch(
+            "tools.process_registry.process_registry"
+        ) as mock_registry:
+            result = json.loads(
+                terminal_tool(
+                    command="python server.py",
+                    background=True,
+                    notify_on_complete=True,
+                )
+            )
+
+        assert result["status"] == "unsupported"
+        assert result["exit_code"] == -1
+        assert "embedded Android runtime" in result["error"]
+        assert "cannot prove ownership" in result["error"]
+        mock_registry.spawn_local.assert_not_called()
+        mock_registry.spawn_via_env.assert_not_called()
+
+    def test_android_foreground_server_guidance_does_not_suggest_background(self):
+        from tools.terminal_tool import terminal_tool
+
+        with patch(
+            "tools.terminal_tool._get_env_config",
+            return_value=_make_env_config(env_type="android_linux"),
+        ), patch("tools.terminal_tool._start_cleanup_thread"):
+            result = json.loads(terminal_tool(command="pnpm dev"))
+
+        assert result["status"] == "error"
+        assert "embedded Android runtime" in result["error"]
+        assert "native Hermes automation" in result["error"]
+        assert "background=true" not in result["error"]
 
     def test_default_timeout_not_rejected(self):
         """Default timeout (180s) should not trigger rejection."""

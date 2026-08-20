@@ -43,6 +43,7 @@ import logging
 logger = logging.getLogger(__name__)
 import math
 import os
+from hermes_android.runtime_identity import is_embedded_android_runtime
 import random
 import re
 import ssl
@@ -100,6 +101,17 @@ if _loaded_env_paths:
         logger.info("Loaded environment variables from %s", _env_path)
 else:
     logger.info("No .env file found. Using system environment variables.")
+
+
+def _context_engine_name_for_runtime(agent_config: Any) -> str:
+    """Resolve context engine without admitting unowned Android plugin code."""
+    if is_embedded_android_runtime():
+        return "compressor"
+    try:
+        context_config = agent_config.get("context", {}) if isinstance(agent_config, dict) else {}
+        return context_config.get("engine", "compressor") or "compressor"
+    except Exception:
+        return "compressor"
 
 
 # Import our tool system
@@ -596,6 +608,14 @@ _MAX_TOOL_WORKERS = 8
 # exhaust the system thread limit (RuntimeError: can't start new thread).
 _openrouter_prewarm_done = threading.Event()
 
+
+def _constructor_background_work_allowed(platform_name: str | None) -> bool:
+    """Return whether AIAgent construction may start detached helper work."""
+    return not (
+        platform_name == "api_server"
+        and is_embedded_android_runtime()
+    )
+
 # Patterns that indicate a terminal command may modify/delete files.
 _DESTRUCTIVE_PATTERNS = re.compile(
     r"""(?:^|\s|&&|\|\||;|`)(?:
@@ -640,46 +660,23 @@ def _parse_tool_call_arguments(raw_args: Any) -> Optional[dict[str, Any]]:
 
 def _should_parallelize_tool_batch(tool_calls) -> bool:
     """Return True when a tool-call batch is safe to run concurrently."""
-    if len(tool_calls) <= 1:
-        return False
+    from agent.tool_dispatch_helpers import _should_parallelize_tool_batch as helper
 
-    tool_names = [tc.function.name for tc in tool_calls]
-    if any(name in _NEVER_PARALLEL_TOOLS for name in tool_names):
-        return False
+    return helper(tool_calls)
 
-    reserved_paths: list[Path] = []
-    for tool_call in tool_calls:
-        tool_name = tool_call.function.name
-        try:
-            function_args = json.loads(tool_call.function.arguments)
-        except Exception:
-            logging.debug(
-                "Could not parse args for %s — defaulting to sequential; raw=%s",
-                tool_name,
-                tool_call.function.arguments[:200],
-            )
-            return False
-        if not isinstance(function_args, dict):
-            logging.debug(
-                "Non-dict args for %s (%s) — defaulting to sequential",
-                tool_name,
-                type(function_args).__name__,
-            )
-            return False
 
-        if tool_name in _PATH_SCOPED_TOOLS:
-            scoped_path = _extract_parallel_scope_path(tool_name, function_args)
-            if scoped_path is None:
-                return False
-            if any(_paths_overlap(scoped_path, existing) for existing in reserved_paths):
-                return False
-            reserved_paths.append(scoped_path)
-            continue
+def _android_embedded_runtime_enabled() -> bool:
+    return is_embedded_android_runtime()
 
-        if tool_name not in _PARALLEL_SAFE_TOOLS:
-            return False
 
-    return True
+def _android_command_execution_restart_detail() -> str:
+    if not _android_embedded_runtime_enabled():
+        return ""
+    from tools.environments.android_linux import (
+        android_command_execution_requires_restart,
+    )
+
+    return android_command_execution_requires_restart()
 
 
 def _extract_parallel_scope_path(tool_name: str, function_args: dict) -> Path | None:
@@ -1548,6 +1545,12 @@ class AIAgent:
         # would mangle the escape sequences.  None = use builtins.print.
         self._print_fn = None
         self.background_review_callback = None  # Optional sync callback for gateway delivery
+        # RLock keeps test doubles whose Thread.start() runs the target inline
+        # from deadlocking when the wrapper removes itself during start().
+        self._owned_worker_lock = threading.RLock()
+        self._owned_worker_threads: set[threading.Thread] = set()
+        self._owned_worker_shutdown_requested = False
+        self._allow_background_post_turn_work = True
         self.skip_context_files = skip_context_files
         self.load_soul_identity = load_soul_identity
         self.pass_session_id = pass_session_id
@@ -1565,6 +1568,7 @@ class AIAgent:
             "codex_responses",
             "anthropic_messages",
             "bedrock_converse",
+            "codex_app_server",
             "chatgpt_web",
         }:
             self.api_mode = api_mode
@@ -1572,7 +1576,7 @@ class AIAgent:
             self.api_mode = "codex_responses"
         elif self.provider == "chatgpt-web":
             self.api_mode = "chatgpt_web"
-        elif self.provider == "xai":
+        elif self.provider in {"xai", "xai-oauth"}:
             self.api_mode = "codex_responses"
         elif (provider_name is None) and (
             self._base_url_hostname == "chatgpt.com"
@@ -1662,14 +1666,16 @@ class AIAgent:
         # AIAgent is created for every gateway request, so without the guard
         # each message leaks one OS thread and the process eventually exhausts
         # the system thread limit (RuntimeError: can't start new thread).
-        if (self.provider == "openrouter" or self._is_openrouter_url()) and \
-                not _openrouter_prewarm_done.is_set():
+        if (
+            _constructor_background_work_allowed(platform)
+            and (self.provider == "openrouter" or self._is_openrouter_url())
+            and not _openrouter_prewarm_done.is_set()
+        ):
             _openrouter_prewarm_done.set()
-            threading.Thread(
+            self._start_owned_worker_thread(
                 target=fetch_model_metadata,
-                daemon=True,
                 name="openrouter-prewarm",
-            ).start()
+            )
 
         self.tool_progress_callback = tool_progress_callback
         self.tool_start_callback = tool_start_callback
@@ -2023,6 +2029,10 @@ class AIAgent:
                 if base_url_host_matches(effective_base, "openrouter.ai"):
                     from agent.auxiliary_client import build_or_headers
                     client_kwargs["default_headers"] = build_or_headers()
+                elif base_url_host_matches(effective_base, "integrate.api.nvidia.com"):
+                    from agent.auxiliary_client import build_nvidia_nim_headers
+
+                    client_kwargs["default_headers"] = build_nvidia_nim_headers(effective_base)
                 elif base_url_host_matches(effective_base, "api.routermint.com"):
                     client_kwargs["default_headers"] = _routermint_headers()
                 elif base_url_host_matches(effective_base, "api.githubcopilot.com"):
@@ -2061,9 +2071,15 @@ class AIAgent:
                     }
                     if _provider_timeout is not None:
                         client_kwargs["timeout"] = _provider_timeout
-                    # Preserve any default_headers the router set
-                    if hasattr(_routed_client, '_default_headers') and _routed_client._default_headers:
-                        client_kwargs["default_headers"] = dict(_routed_client._default_headers)
+                    # Preserve provider-specific headers the router set. The
+                    # OpenAI SDK stores caller-provided default_headers in
+                    # _custom_headers; older/mocked clients may expose
+                    # _default_headers instead.
+                    _routed_headers = getattr(_routed_client, "_custom_headers", None)
+                    if not _routed_headers:
+                        _routed_headers = getattr(_routed_client, "_default_headers", None)
+                    if _routed_headers:
+                        client_kwargs["default_headers"] = dict(_routed_headers)
                 else:
                     # When the user explicitly chose a non-OpenRouter provider
                     # but no credentials were found, fail fast with a clear
@@ -2252,6 +2268,16 @@ class AIAgent:
             short_uuid = uuid.uuid4().hex[:6]
             self.session_id = f"{timestamp_str}_{short_uuid}"
 
+        # Expose the session identity to tools. ContextVar is authoritative
+        # for concurrent gateway sessions; os.environ remains the CLI fallback.
+        os.environ["HERMES_SESSION_ID"] = self.session_id
+        try:
+            from gateway.session_context import _SESSION_ID
+
+            _SESSION_ID.set(self.session_id)
+        except Exception:
+            pass
+
         # Session logs go into ~/.hermes/sessions/ alongside gateway sessions
         hermes_home = get_hermes_home()
         self.logs_dir = hermes_home / "sessions"
@@ -2337,7 +2363,9 @@ class AIAgent:
         # Memory provider plugin (external — one at a time, alongside built-in)
         # Reads memory.provider from config to select which plugin to activate.
         self._memory_manager = None
-        if not skip_memory:
+        if not skip_memory and not (
+            platform == "api_server" and is_embedded_android_runtime()
+        ):
             try:
                 _mem_provider_name = mem_config.get("provider", "") if mem_config else ""
 
@@ -2559,6 +2587,12 @@ class AIAgent:
             _custom_providers = _agent_cfg.get("custom_providers")
             if not isinstance(_custom_providers, list):
                 _custom_providers = []
+        # Runtime helpers (compression feasibility, fallback resolution, and
+        # switch_model) consume the normalized list from the agent instance.
+        # Keep the active monolithic initializer in parity with agent_init.py;
+        # otherwise the startup feasibility probe catches AttributeError and
+        # silently skips validation for every real AIAgent.
+        self._custom_providers = _custom_providers
 
         # Check custom_providers per-model context_length
         if _config_context_length is None and _custom_providers:
@@ -2623,12 +2657,7 @@ class AIAgent:
         # 3. Check general plugin system (user-installed plugins)
         # 4. Fall back to built-in ContextCompressor
         _selected_engine = None
-        _engine_name = "compressor"  # default
-        try:
-            _ctx_cfg = _agent_cfg.get("context", {}) if isinstance(_agent_cfg, dict) else {}
-            _engine_name = _ctx_cfg.get("engine", "compressor") or "compressor"
-        except Exception:
-            pass
+        _engine_name = _context_engine_name_for_runtime(_agent_cfg)
 
         if _engine_name != "compressor":
             # Try loading from plugins/context_engine/<name>/
@@ -3565,8 +3594,108 @@ class AIAgent:
             review_memory=review_memory,
             review_skills=review_skills,
         )
-        t = threading.Thread(target=target, daemon=True, name="bg-review")
-        t.start()
+        self._start_owned_worker_thread(target=target, name="bg-review")
+
+    def _start_owned_worker_thread(
+        self,
+        *,
+        target,
+        name: str | None = None,
+    ) -> threading.Thread:
+        """Start a daemon whose lifetime remains owned by this agent."""
+
+        # A few lightweight callers/tests construct AIAgent with object.__new__.
+        # Lazily initialize the ownership fields so the shared thread helper
+        # remains backwards-compatible without weakening real-agent tracking.
+        if not hasattr(self, "_owned_worker_lock"):
+            self._owned_worker_lock = threading.RLock()
+        if not hasattr(self, "_owned_worker_threads"):
+            self._owned_worker_threads = set()
+        if not hasattr(self, "_owned_worker_shutdown_requested"):
+            self._owned_worker_shutdown_requested = False
+
+        def _owned_target() -> None:
+            # Do not self-discard in the worker's finally block. There is a
+            # real tail window between returning from this callable and the OS
+            # thread becoming non-live; only an owner-side liveness sweep may
+            # remove the strong reference.
+            target()
+
+        worker = threading.Thread(target=_owned_target, daemon=True, name=name)
+        with self._owned_worker_lock:
+            # Admission is an owner-side observation point. Sweep only workers
+            # which the owner can now prove are no longer live; the worker
+            # wrapper intentionally keeps its reference through the small tail
+            # window between target return and native thread exit.
+            dead = [
+                thread
+                for thread in self._owned_worker_threads
+                if not thread.is_alive()
+            ]
+            for thread in dead:
+                self._owned_worker_threads.discard(thread)
+            if self._owned_worker_shutdown_requested:
+                raise InterruptedError("Agent shutdown forbids new background work")
+            self._owned_worker_threads.add(worker)
+            try:
+                worker.start()
+            except BaseException:
+                # Thread.start() may be interrupted after the native thread
+                # has already begun.  Retain any admitted worker so adapter
+                # shutdown cannot certify quiescence while it is still live;
+                # an owner-side liveness sweep removes it after actual exit.
+                if getattr(worker, "ident", None) is None and not worker.is_alive():
+                    self._owned_worker_threads.discard(worker)
+                raise
+        return worker
+
+    def begin_owned_worker_shutdown(self, reason: str = "Agent owner is shutting down") -> None:
+        """Forbid new child threads and interrupt all current agent work."""
+        if not hasattr(self, "_owned_worker_lock"):
+            self._owned_worker_lock = threading.RLock()
+        if not hasattr(self, "_owned_worker_threads"):
+            self._owned_worker_threads = set()
+        with self._owned_worker_lock:
+            self._owned_worker_shutdown_requested = True
+        self.interrupt(reason)
+        # Android API agents do not enable external memory providers, but other
+        # owned adapters may. Ask any configured provider to stop its queues.
+        self.shutdown_memory_provider()
+
+    def owned_worker_names(self) -> list[str]:
+        """Return live child-thread names for bounded owner-side polling."""
+        if not hasattr(self, "_owned_worker_lock"):
+            self._owned_worker_lock = threading.RLock()
+        if not hasattr(self, "_owned_worker_threads"):
+            self._owned_worker_threads = set()
+        with self._owned_worker_lock:
+            dead = [thread for thread in self._owned_worker_threads if not thread.is_alive()]
+            for thread in dead:
+                self._owned_worker_threads.discard(thread)
+            return sorted(
+                thread.name or f"thread-{thread.ident}"
+                for thread in self._owned_worker_threads
+                if thread.is_alive()
+            )
+
+    def wait_for_owned_workers(self, timeout: float) -> list[str]:
+        """Boundedly join every agent-owned worker and return any survivors."""
+        deadline = time.monotonic() + max(float(timeout), 0.0)
+        while True:
+            with self._owned_worker_lock:
+                dead = [thread for thread in self._owned_worker_threads if not thread.is_alive()]
+                for thread in dead:
+                    self._owned_worker_threads.discard(thread)
+                live = [thread for thread in self._owned_worker_threads if thread.is_alive()]
+            if not live:
+                return []
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return self.owned_worker_names()
+            for thread in live:
+                if thread is threading.current_thread():
+                    continue
+                thread.join(timeout=min(0.05, max(deadline - time.monotonic(), 0.0)))
 
     def _build_memory_write_metadata(
         self,
@@ -6761,7 +6890,7 @@ class AIAgent:
         from unittest.mock import Mock
 
         primary_client = self._ensure_primary_openai_client(reason=reason)
-        if isinstance(primary_client, Mock) or not hasattr(primary_client, "_client"):
+        if isinstance(primary_client, Mock):
             # Test doubles and lightweight in-memory stubs often don't expose the
             # real OpenAI SDK's underlying httpx client. Reuse the primary client
             # for those objects so per-request recreation doesn't reset their
@@ -6794,6 +6923,10 @@ class AIAgent:
 
     def _run_codex_stream(self, api_kwargs: dict, client: Any = None, on_first_delta: callable = None):
         """Execute one streaming Responses API request and return the final response."""
+        from agent.codex_runtime import run_codex_stream
+
+        return run_codex_stream(self, api_kwargs, client, on_first_delta)
+
         import httpx as _httpx
 
         active_client = client or self._ensure_primary_openai_client(reason="codex_stream_direct")
@@ -6919,6 +7052,10 @@ class AIAgent:
 
     def _run_codex_create_stream_fallback(self, api_kwargs: dict, client: Any = None):
         """Fallback path for stream completion edge cases on Codex-style Responses backends."""
+        from agent.codex_runtime import run_codex_create_stream_fallback
+
+        return run_codex_create_stream_fallback(self, api_kwargs, client)
+
         active_client = client or self._ensure_primary_openai_client(reason="codex_create_stream_fallback")
         fallback_kwargs = dict(api_kwargs)
         fallback_kwargs["stream"] = True
@@ -6996,15 +7133,51 @@ class AIAgent:
         raise RuntimeError("Responses create(stream=True) fallback did not emit a terminal response.")
 
     def _try_refresh_codex_client_credentials(self, *, force: bool = True) -> bool:
-        if self.api_mode != "codex_responses" or self.provider != "openai-codex":
+        if self.api_mode != "codex_responses" or self.provider not in {"openai-codex", "xai-oauth"}:
+            return False
+
+        # Only refresh singleton credentials when this agent is already using
+        # that singleton. Otherwise a manual pool entry could silently switch
+        # accounts mid-conversation; pool recovery owns that case.
+        try:
+            if self.provider == "openai-codex":
+                from hermes_cli.auth import resolve_codex_runtime_credentials
+
+                singleton_now = resolve_codex_runtime_credentials(
+                    refresh_if_expiring=False,
+                )
+            else:
+                from hermes_cli.auth import resolve_xai_oauth_runtime_credentials
+
+                singleton_now = resolve_xai_oauth_runtime_credentials(
+                    refresh_if_expiring=False,
+                )
+        except Exception as exc:
+            logger.debug("%s singleton read failed: %s", self.provider, exc)
+            return False
+
+        singleton_key = str(singleton_now.get("api_key") or "").strip()
+        active_key = str(self.api_key or "").strip()
+        if singleton_key and active_key and singleton_key != active_key:
+            logger.debug(
+                "%s singleton tokens differ from the active api_key; "
+                "skipping singleton force-refresh to avoid silent account swap. "
+                "Reactive credential rotation should go through the pool.",
+                self.provider,
+            )
             return False
 
         try:
-            from hermes_cli.auth import resolve_codex_runtime_credentials
+            if self.provider == "openai-codex":
+                from hermes_cli.auth import resolve_codex_runtime_credentials
 
-            creds = resolve_codex_runtime_credentials(force_refresh=force)
+                creds = resolve_codex_runtime_credentials(force_refresh=force)
+            else:
+                from hermes_cli.auth import resolve_xai_oauth_runtime_credentials
+
+                creds = resolve_xai_oauth_runtime_credentials(force_refresh=force)
         except Exception as exc:
-            logger.debug("Codex credential refresh failed: %s", exc)
+            logger.debug("%s credential refresh failed: %s", self.provider, exc)
             return False
 
         api_key = creds.get("api_key")
@@ -7019,7 +7192,7 @@ class AIAgent:
         self._client_kwargs["api_key"] = self.api_key
         self._client_kwargs["base_url"] = self.base_url
 
-        if not self._replace_primary_openai_client(reason="codex_credential_refresh"):
+        if not self._replace_primary_openai_client(reason=f"{self.provider}_credential_refresh"):
             return False
 
         return True
@@ -7152,6 +7325,10 @@ class AIAgent:
             self._client_kwargs["default_headers"] = build_or_headers()
         elif base_url_host_matches(base_url, "ai-gateway.vercel.sh"):
             self._client_kwargs["default_headers"] = dict(_AI_GATEWAY_HEADERS)
+        elif base_url_host_matches(base_url, "integrate.api.nvidia.com"):
+            from agent.auxiliary_client import build_nvidia_nim_headers
+
+            self._client_kwargs["default_headers"] = build_nvidia_nim_headers(base_url)
         elif base_url_host_matches(base_url, "api.routermint.com"):
             self._client_kwargs["default_headers"] = _routermint_headers()
         elif base_url_host_matches(base_url, "api.githubcopilot.com"):
@@ -7168,7 +7345,16 @@ class AIAgent:
                 self._client_kwargs.get("api_key", "")
             )
         else:
-            self._client_kwargs.pop("default_headers", None)
+            try:
+                from providers import get_provider_profile
+
+                profile = get_provider_profile(self.provider)
+                if profile and profile.default_headers:
+                    self._client_kwargs["default_headers"] = dict(profile.default_headers)
+                else:
+                    self._client_kwargs.pop("default_headers", None)
+            except Exception:
+                self._client_kwargs.pop("default_headers", None)
 
     def _swap_credential(self, entry) -> None:
         runtime_key = getattr(entry, "runtime_api_key", None) or getattr(entry, "access_token", "")
@@ -9938,6 +10124,10 @@ class AIAgent:
     @staticmethod
     def _extract_api_error_context(error: Exception) -> Dict[str, Any]:
         """Extract structured rate-limit details from provider errors."""
+        from agent.agent_runtime_helpers import extract_api_error_context
+
+        return extract_api_error_context(error)
+
         context: Dict[str, Any] = {}
 
         body = getattr(error, "body", None)
@@ -10494,12 +10684,24 @@ class AIAgent:
         Called when session_id rotates (e.g. /new, context compression);
         providers keep their state and continue running under the old
         session_id — they just flush pending extraction now."""
-        if not self._memory_manager:
-            return
-        try:
-            self._memory_manager.on_session_end(messages or [])
-        except Exception:
-            pass
+        session_messages = messages or []
+        if self._memory_manager:
+            try:
+                self._memory_manager.on_session_end(session_messages)
+            except Exception:
+                pass
+        # A context engine owns independent per-session state (for example,
+        # an LCM DAG or summary store).  A missing or failed memory provider
+        # must not suppress this lifecycle boundary when compression rotates
+        # the physical session ID.
+        if getattr(self, "context_compressor", None):
+            try:
+                self.context_compressor.on_session_end(
+                    self.session_id or "",
+                    session_messages,
+                )
+            except Exception:
+                pass
 
     def _sync_external_memory_for_turn(
         self,
@@ -10707,6 +10909,10 @@ class AIAgent:
         rebuilt after context compression events. This ensures the system prompt
         is stable across all turns in a session, maximizing prefix cache hits.
         """
+        from agent.system_prompt import build_system_prompt
+
+        return build_system_prompt(self, system_message=system_message)
+
         # Layers (in order):
         #   1. Agent identity — SOUL.md when available, else DEFAULT_AGENT_IDENTITY
         #   2. User / gateway system prompt (if provided)
@@ -11671,7 +11877,7 @@ class AIAgent:
         from unittest.mock import Mock
 
         primary_client = self._ensure_primary_openai_client(reason=reason)
-        if isinstance(primary_client, Mock) or not hasattr(primary_client, "_client"):
+        if isinstance(primary_client, Mock):
             # Test doubles and lightweight in-memory stubs often don't expose the
             # real OpenAI SDK's underlying httpx client. Reuse the primary client
             # for those objects so per-request recreation doesn't reset their
@@ -11704,6 +11910,10 @@ class AIAgent:
 
     def _run_codex_stream(self, api_kwargs: dict, client: Any = None, on_first_delta: callable = None):
         """Execute one streaming Responses API request and return the final response."""
+        from agent.codex_runtime import run_codex_stream
+
+        return run_codex_stream(self, api_kwargs, client, on_first_delta)
+
         import httpx as _httpx
 
         active_client = client or self._ensure_primary_openai_client(reason="codex_stream_direct")
@@ -11829,6 +12039,10 @@ class AIAgent:
 
     def _run_codex_create_stream_fallback(self, api_kwargs: dict, client: Any = None):
         """Fallback path for stream completion edge cases on Codex-style Responses backends."""
+        from agent.codex_runtime import run_codex_create_stream_fallback
+
+        return run_codex_create_stream_fallback(self, api_kwargs, client)
+
         active_client = client or self._ensure_primary_openai_client(reason="codex_create_stream_fallback")
         fallback_kwargs = dict(api_kwargs)
         fallback_kwargs["stream"] = True
@@ -11906,15 +12120,51 @@ class AIAgent:
         raise RuntimeError("Responses create(stream=True) fallback did not emit a terminal response.")
 
     def _try_refresh_codex_client_credentials(self, *, force: bool = True) -> bool:
-        if self.api_mode != "codex_responses" or self.provider != "openai-codex":
+        if self.api_mode != "codex_responses" or self.provider not in {"openai-codex", "xai-oauth"}:
+            return False
+
+        # Only refresh singleton credentials when this agent is already using
+        # that singleton. Otherwise a manual pool entry could silently switch
+        # accounts mid-conversation; pool recovery owns that case.
+        try:
+            if self.provider == "openai-codex":
+                from hermes_cli.auth import resolve_codex_runtime_credentials
+
+                singleton_now = resolve_codex_runtime_credentials(
+                    refresh_if_expiring=False,
+                )
+            else:
+                from hermes_cli.auth import resolve_xai_oauth_runtime_credentials
+
+                singleton_now = resolve_xai_oauth_runtime_credentials(
+                    refresh_if_expiring=False,
+                )
+        except Exception as exc:
+            logger.debug("%s singleton read failed: %s", self.provider, exc)
+            return False
+
+        singleton_key = str(singleton_now.get("api_key") or "").strip()
+        active_key = str(self.api_key or "").strip()
+        if singleton_key and active_key and singleton_key != active_key:
+            logger.debug(
+                "%s singleton tokens differ from the active api_key; "
+                "skipping singleton force-refresh to avoid silent account swap. "
+                "Reactive credential rotation should go through the pool.",
+                self.provider,
+            )
             return False
 
         try:
-            from hermes_cli.auth import resolve_codex_runtime_credentials
+            if self.provider == "openai-codex":
+                from hermes_cli.auth import resolve_codex_runtime_credentials
 
-            creds = resolve_codex_runtime_credentials(force_refresh=force)
+                creds = resolve_codex_runtime_credentials(force_refresh=force)
+            else:
+                from hermes_cli.auth import resolve_xai_oauth_runtime_credentials
+
+                creds = resolve_xai_oauth_runtime_credentials(force_refresh=force)
         except Exception as exc:
-            logger.debug("Codex credential refresh failed: %s", exc)
+            logger.debug("%s credential refresh failed: %s", self.provider, exc)
             return False
 
         api_key = creds.get("api_key")
@@ -11929,7 +12179,7 @@ class AIAgent:
         self._client_kwargs["api_key"] = self.api_key
         self._client_kwargs["base_url"] = self.base_url
 
-        if not self._replace_primary_openai_client(reason="codex_credential_refresh"):
+        if not self._replace_primary_openai_client(reason=f"{self.provider}_credential_refresh"):
             return False
 
         return True
@@ -11945,6 +12195,7 @@ class AIAgent:
                 min_key_ttl_seconds=max(60, int(os.getenv("HERMES_NOUS_MIN_KEY_TTL_SECONDS", "1800"))),
                 timeout_seconds=float(os.getenv("HERMES_NOUS_TIMEOUT_SECONDS", "15")),
                 force_mint=force,
+                inference_auth_mode="legacy",
             )
         except Exception as exc:
             logger.debug("Nous credential refresh failed: %s", exc)
@@ -12062,6 +12313,10 @@ class AIAgent:
             self._client_kwargs["default_headers"] = build_or_headers()
         elif base_url_host_matches(base_url, "ai-gateway.vercel.sh"):
             self._client_kwargs["default_headers"] = dict(_AI_GATEWAY_HEADERS)
+        elif base_url_host_matches(base_url, "integrate.api.nvidia.com"):
+            from agent.auxiliary_client import build_nvidia_nim_headers
+
+            self._client_kwargs["default_headers"] = build_nvidia_nim_headers(base_url)
         elif base_url_host_matches(base_url, "api.routermint.com"):
             self._client_kwargs["default_headers"] = _routermint_headers()
         elif base_url_host_matches(base_url, "api.githubcopilot.com"):
@@ -12078,7 +12333,16 @@ class AIAgent:
                 self._client_kwargs.get("api_key", "")
             )
         else:
-            self._client_kwargs.pop("default_headers", None)
+            try:
+                from providers import get_provider_profile
+
+                profile = get_provider_profile(self.provider)
+                if profile and profile.default_headers:
+                    self._client_kwargs["default_headers"] = dict(profile.default_headers)
+                else:
+                    self._client_kwargs.pop("default_headers", None)
+            except Exception:
+                self._client_kwargs.pop("default_headers", None)
 
     def _swap_credential(self, entry) -> None:
         runtime_key = getattr(entry, "runtime_api_key", None) or getattr(entry, "access_token", "")
@@ -12132,6 +12396,16 @@ class AIAgent:
         different status code, such as Anthropic returning HTTP 400 for
         "out of extra usage".
         """
+        from agent.agent_runtime_helpers import recover_with_credential_pool
+
+        return recover_with_credential_pool(
+            self,
+            status_code=status_code,
+            has_retried_429=has_retried_429,
+            classified_reason=classified_reason,
+            error_context=error_context,
+        )
+
         pool = self._credential_pool
         if pool is None:
             return False, has_retried_429
@@ -12627,8 +12901,7 @@ class AIAgent:
         _call_start = time.time()
         self._touch_activity("waiting for non-streaming API response")
 
-        t = threading.Thread(target=_call, daemon=True)
-        t.start()
+        t = self._start_owned_worker_thread(target=_call, name="agent-api-call")
         _poll_count = 0
         while t.is_alive():
             t.join(timeout=0.3)
@@ -12673,6 +12946,14 @@ class AIAgent:
                 )
                 # Wait briefly for the thread to notice the closed connection.
                 t.join(timeout=2.0)
+                if is_embedded_android_runtime() and t.is_alive():
+                    self.begin_owned_worker_shutdown(
+                        "Embedded Android provider call did not unwind after its stale timeout"
+                    )
+                    raise InterruptedError(
+                        "Embedded Android provider call did not unwind; retry is blocked "
+                        "until the owning worker exits"
+                    )
                 if result["error"] is None and result["response"] is None:
                     result["error"] = TimeoutError(
                         f"Non-streaming API call timed out after {int(_elapsed)}s "
@@ -12883,6 +13164,14 @@ class AIAgent:
         Falls back to _interruptible_api_call on provider errors indicating
         streaming is not supported.
         """
+        from agent.chat_completion_helpers import interruptible_streaming_api_call
+
+        return interruptible_streaming_api_call(
+            self,
+            api_kwargs,
+            on_first_delta=on_first_delta,
+        )
+
         if self._interrupt_requested:
             raise InterruptedError("Agent interrupted before streaming API call")
 
@@ -12974,8 +13263,7 @@ class AIAgent:
                 except Exception as e:
                     result["error"] = e
 
-            t = threading.Thread(target=_bedrock_call, daemon=True)
-            t.start()
+            t = self._start_owned_worker_thread(target=_bedrock_call, name="agent-bedrock-call")
             while t.is_alive():
                 t.join(timeout=0.3)
                 if self._interrupt_requested:
@@ -13636,8 +13924,7 @@ class AIAgent:
             else:
                 _stream_stale_timeout = _stream_stale_timeout_base
 
-        t = threading.Thread(target=_call, daemon=True)
-        t.start()
+        t = self._start_owned_worker_thread(target=_call, name="agent-stream-call")
         _last_heartbeat = time.time()
         _HEARTBEAT_INTERVAL = 30.0  # seconds between gateway activity touches
         while t.is_alive():
@@ -13845,6 +14132,14 @@ class AIAgent:
             "assistant": "assistant",
             "tool": "tool result",
         }.get(role, "user")
+        if is_embedded_android_runtime():
+            note = (
+                f"[The {role_label} attached an image. Image analysis is unavailable "
+                "in the embedded Android runtime because its auxiliary provider work "
+                "cannot yet be lifecycle-verified.]"
+            )
+            self._anthropic_image_fallback_cache[cache_key] = note
+            return note
         analysis_prompt = (
             "Describe everything visible in this image in thorough detail. "
             "Include any text, code, UI, data, objects, people, layout, colors, "
@@ -14714,6 +15009,33 @@ class AIAgent:
         # Allow _vprint during tool execution even with stream consumers
         self._executing_tools = True
         try:
+            if _android_embedded_runtime_enabled():
+                from tools.environments.android_linux import (
+                    AndroidRuntimeWorkRejected,
+                    android_embedded_runtime_work_guard,
+                )
+
+                try:
+                    # Embedded Android owns one native/tool mutation boundary.
+                    # Keep the entire batch ordered so a terminal cleanup result
+                    # is authoritative before any later tool can be admitted.
+                    with android_embedded_runtime_work_guard():
+                        return self._execute_tool_calls_sequential(
+                            assistant_message, messages, effective_task_id, api_call_count
+                        )
+                except AndroidRuntimeWorkRejected as exc:
+                    detail = str(exc)
+                    self.interrupt(detail)
+                    for tool_call in tool_calls:
+                        messages.append(
+                            {
+                                "role": "tool",
+                                "name": tool_call.function.name,
+                                "content": f"[Tool execution rejected — {detail}]",
+                                "tool_call_id": tool_call.id,
+                            }
+                        )
+                    return
             if not _should_parallelize_tool_batch(tool_calls):
                 return self._execute_tool_calls_sequential(
                     assistant_message, messages, effective_task_id, api_call_count
@@ -15169,6 +15491,24 @@ class AIAgent:
                 "tool_call_id": tc.id,
             }
             messages.append(tool_msg)
+
+            android_restart_detail = _android_command_execution_restart_detail()
+            if android_restart_detail:
+                self.interrupt(android_restart_detail)
+                for skipped_tc in assistant_message.tool_calls[i:]:
+                    skipped_name = skipped_tc.function.name
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "name": skipped_name,
+                            "content": (
+                                "[Tool execution rejected — "
+                                f"{android_restart_detail}]"
+                            ),
+                            "tool_call_id": skipped_tc.id,
+                        }
+                    )
+                break
 
             # ── Per-tool /steer drain ───────────────────────────────────
             # Same as the sequential path: drain between each collected
@@ -15642,6 +15982,24 @@ class AIAgent:
                 "tool_call_id": tool_call.id
             }
             messages.append(tool_msg)
+
+            android_restart_detail = _android_command_execution_restart_detail()
+            if android_restart_detail:
+                self.interrupt(android_restart_detail)
+                for skipped_tc in assistant_message.tool_calls[i:]:
+                    skipped_name = skipped_tc.function.name
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "name": skipped_name,
+                            "content": (
+                                "[Tool execution rejected — "
+                                f"{android_restart_detail}]"
+                            ),
+                            "tool_call_id": skipped_tc.id,
+                        }
+                    )
+                break
 
             # ── Per-tool /steer drain ───────────────────────────────────
             # Drain pending steer BETWEEN individual tool calls so the
@@ -16119,6 +16477,17 @@ class AIAgent:
             except Exception:
                 pass
 
+        # Optional opt-in Codex App Server runtime bypasses the regular Hermes
+        # chat-completions loop while preserving the shared turn setup above.
+        if self.api_mode == "codex_app_server":
+            return self._run_codex_app_server_turn(
+                user_message=user_message,
+                original_user_message=original_user_message,
+                messages=messages,
+                effective_task_id=effective_task_id,
+                should_review_memory=_should_review_memory,
+            )
+
         while (api_call_count < self.max_iterations and self.iteration_budget.remaining > 0) or self._budget_grace_call:
             # Reset per-turn checkpoint dedup so each iteration can take one snapshot
             self._checkpoint_mgr.new_turn()
@@ -16519,12 +16888,15 @@ class AIAgent:
                             "pre_api_request",
                             task_id=effective_task_id,
                             session_id=self.session_id or "",
+                            user_message=original_user_message,
+                            conversation_history=list(messages),
                             platform=self.platform or "",
                             model=self.model,
                             provider=self.provider,
                             base_url=self.base_url,
                             api_mode=self.api_mode,
                             api_call_count=api_call_count,
+                            request_messages=list(api_messages),
                             message_count=len(api_messages),
                             tool_count=len(self.tools or []),
                             approx_input_tokens=approx_tokens,
@@ -17546,13 +17918,17 @@ class AIAgent:
 
                     if (
                         self.api_mode == "codex_responses"
-                        and self.provider == "openai-codex"
+                        and self.provider in {"openai-codex", "xai-oauth"}
                         and status_code == 401
                         and not codex_auth_retry_attempted
                     ):
                         codex_auth_retry_attempted = True
                         if self._try_refresh_codex_client_credentials(force=True):
-                            self._vprint(f"{self.log_prefix}🔐 Codex auth refreshed after 401. Retrying request...")
+                            label = "xAI OAuth" if self.provider == "xai-oauth" else "Codex"
+                            self._vprint(
+                                f"{self.log_prefix}🔐 {label} auth refreshed after 401. "
+                                "Retrying request..."
+                            )
                             continue
                     if (
                         self.api_mode == "chat_completions"
@@ -18450,7 +18826,9 @@ class AIAgent:
                         finish_reason=finish_reason,
                         message_count=len(api_messages),
                         response_model=getattr(response, "model", None),
+                        response=response,
                         usage=self._usage_summary_for_api_request_hook(response),
+                        assistant_message=assistant_message,
                         assistant_content_chars=len(_assistant_text),
                         assistant_tool_call_count=len(_assistant_tool_calls),
                     )
@@ -19312,6 +19690,40 @@ class AIAgent:
                 )
             final_response = self._handle_max_iterations(messages, api_call_count)
 
+            # A kanban worker that exhausts its iteration budget cannot call
+            # kanban_block from the toolless summary request, so record the
+            # blocked outcome on its behalf.
+            _kanban_task = os.environ.get("HERMES_KANBAN_TASK")
+            if _kanban_task:
+                try:
+                    handle_function_call(
+                        "kanban_block",
+                        {
+                            "task_id": _kanban_task,
+                            "reason": (
+                                f"Iteration budget exhausted "
+                                f"({api_call_count}/{self.max_iterations}) — "
+                                "task could not complete within the allowed "
+                                "iterations"
+                            ),
+                        },
+                        task_id=effective_task_id,
+                    )
+                    logger.info(
+                        "kanban_block called for task %s after iteration "
+                        "exhaustion (%d/%d)",
+                        _kanban_task,
+                        api_call_count,
+                        self.max_iterations,
+                    )
+                except Exception:
+                    logger.warning(
+                        "Failed to call kanban_block after iteration "
+                        "exhaustion for task %s",
+                        _kanban_task,
+                        exc_info=True,
+                    )
+
         # Determine if conversation completed successfully
         completed = final_response is not None and api_call_count < self.max_iterations
 
@@ -19519,7 +19931,12 @@ class AIAgent:
 
         # Background memory/skill review — runs AFTER the response is delivered
         # so it never competes with the user's task for model attention.
-        if final_response and not interrupted and (_should_review_memory or _should_review_skills):
+        if (
+            self._allow_background_post_turn_work
+            and final_response
+            and not interrupted
+            and (_should_review_memory or _should_review_skills)
+        ):
             try:
                 self._spawn_background_review(
                     messages_snapshot=list(messages),

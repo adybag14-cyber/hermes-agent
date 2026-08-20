@@ -46,4 +46,22 @@ class HermesThemeTest {
     fun androidViewPaletteUsesTheSameHigherContrastChoiceForMidTones() {
         assertEquals(0xFF111318.toInt(), readableViewColor(0xFF909090.toInt()))
     }
+
+    @Test
+    fun frameworkViewCornerRadiiPreserveEverySavedShapeChoice() {
+        val square = hermesViewCornerRadiusDp("square")
+        val soft = hermesViewCornerRadiusDp("soft")
+        val rounded = hermesViewCornerRadiusDp("rounded")
+
+        assertTrue(square < soft)
+        assertTrue(soft < rounded)
+    }
+
+    @Test
+    fun frameworkViewPagesUseCompactPhoneAndTabletPaddingBuckets() {
+        assertEquals(12f, hermesViewHorizontalPaddingDp(320))
+        assertEquals(16f, hermesViewHorizontalPaddingDp(411))
+        assertEquals(24f, hermesViewHorizontalPaddingDp(800))
+        assertEquals(32f, hermesViewHorizontalPaddingDp(1_000))
+    }
 }

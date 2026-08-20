@@ -1637,6 +1637,35 @@ def test_auxiliary_client_routes_xai_oauth_through_responses_api(tmp_path, monke
     assert client.api_key == fresh
 
 
+def test_main_router_gets_raw_xai_oauth_responses_client(tmp_path, monkeypatch):
+    """The main agent needs direct ``responses.stream()`` access, not the
+    chat-completions compatibility wrapper used by auxiliary callers."""
+    from agent.auxiliary_client import (
+        CodexAuxiliaryClient,
+        resolve_provider_client,
+    )
+
+    hermes_home = tmp_path / "hermes"
+    fresh = _jwt_with_exp(int(time.time()) + 3600)
+    _setup_hermes_auth(hermes_home, access_token=fresh)
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    monkeypatch.delenv("HERMES_XAI_BASE_URL", raising=False)
+    monkeypatch.delenv("XAI_BASE_URL", raising=False)
+
+    client, model = resolve_provider_client(
+        "xai-oauth",
+        model="grok-4",
+        raw_codex=True,
+    )
+
+    assert client is not None
+    assert not isinstance(client, CodexAuxiliaryClient)
+    assert model == "grok-4"
+    assert str(client.base_url).rstrip("/") == DEFAULT_XAI_OAUTH_BASE_URL
+    assert client.api_key == fresh
+    assert client.responses is not None
+
+
 def test_auxiliary_client_xai_oauth_returns_none_when_unauthenticated(tmp_path, monkeypatch):
     """No xAI OAuth tokens in the auth store → ``resolve_provider_client``
     must return ``(None, None)`` so ``_resolve_auto`` falls through to the

@@ -33,9 +33,11 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import logging
+import os
 import sys
 from pathlib import Path
 
+from hermes_android.runtime_identity import is_embedded_android_runtime
 from providers.base import OMIT_TEMPERATURE, ProviderProfile  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -160,32 +162,32 @@ def _discover_providers() -> None:
                 continue
             _import_plugin_dir(child, "bundled")
 
-    # 2. User plugins — under $HERMES_HOME/plugins/model-providers/<name>/.
-    #    These can override any bundled profile of the same name (last-writer-wins
-    #    in register_provider()).
-    user_dir = _user_plugins_dir()
-    if user_dir is not None:
-        for child in sorted(user_dir.iterdir()):
-            if not child.is_dir() or child.name.startswith(("_", ".")):
-                continue
-            _import_plugin_dir(child, "user")
+    if not is_embedded_android_runtime():
+        # 2. User plugins — under $HERMES_HOME/plugins/model-providers/<name>/.
+        #    The embedded Android server intentionally excludes arbitrary import
+        #    side effects that it cannot own through shutdown.
+        user_dir = _user_plugins_dir()
+        if user_dir is not None:
+            for child in sorted(user_dir.iterdir()):
+                if not child.is_dir() or child.name.startswith(("_", ".")):
+                    continue
+                _import_plugin_dir(child, "user")
 
-    # 3. Legacy single-file profiles at providers/<name>.py. Kept for
-    #    back-compat — if someone drops a ``providers/foo.py`` into an
-    #    editable install, it still works without the plugin layout.
-    try:
-        import pkgutil
+        # 3. Legacy single-file profiles at providers/<name>.py. Kept for
+        #    back-compat outside the embedded Android process.
+        try:
+            import pkgutil
 
-        import providers as _pkg
+            import providers as _pkg
 
-        for _importer, modname, _ispkg in pkgutil.iter_modules(_pkg.__path__):
-            if modname.startswith("_") or modname == "base":
-                continue
-            try:
-                importlib.import_module(f"providers.{modname}")
-            except ImportError as exc:
-                logger.warning(
-                    "Failed to import legacy provider module %s: %s", modname, exc
-                )
-    except Exception:
-        pass
+            for _importer, modname, _ispkg in pkgutil.iter_modules(_pkg.__path__):
+                if modname.startswith("_") or modname == "base":
+                    continue
+                try:
+                    importlib.import_module(f"providers.{modname}")
+                except ImportError as exc:
+                    logger.warning(
+                        "Failed to import legacy provider module %s: %s", modname, exc
+                    )
+        except Exception:
+            pass

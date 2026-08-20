@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail CI when Hermes no longer pins Google's latest LiteRT-LM Android SDK."""
+"""Check the release LiteRT-LM pin or resolve Google's published-latest SDK."""
 
 from __future__ import annotations
 
@@ -51,6 +51,10 @@ def latest_release(metadata: bytes) -> str:
     version = release or latest
     if not version:
         raise ValueError("Google Maven metadata does not declare a latest release")
+    if not EXACT_VERSION_PATTERN.fullmatch(version):
+        raise ValueError(
+            f"Google Maven metadata must declare one exact release version, got {version!r}"
+        )
     return version
 
 
@@ -66,13 +70,28 @@ def download_metadata(url: str = MAVEN_METADATA_URL) -> bytes:
     return payload
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gradle-file", default=str(DEFAULT_GRADLE_FILE))
     parser.add_argument("--metadata-file", help="Use local Maven metadata instead of the live Google URL")
-    args = parser.parse_args()
+    output_mode = parser.add_mutually_exclusive_group()
+    output_mode.add_argument(
+        "--print-latest",
+        action="store_true",
+        help="Print Google's exact published-latest version without comparing the release pin",
+    )
+    output_mode.add_argument(
+        "--print-declared",
+        action="store_true",
+        help="Print the exact Hermes release pin without downloading Maven metadata",
+    )
+    args = parser.parse_args(argv)
 
     gradle_file = Path(args.gradle_file).expanduser().resolve()
+    if args.print_declared:
+        print(declared_version(gradle_file))
+        return
+
     if args.metadata_file:
         metadata_source = str(Path(args.metadata_file).expanduser().resolve())
         metadata = Path(metadata_source).read_bytes()
@@ -80,8 +99,12 @@ def main() -> None:
         metadata_source = MAVEN_METADATA_URL
         metadata = download_metadata()
 
-    declared = declared_version(gradle_file)
     latest = latest_release(metadata)
+    if args.print_latest:
+        print(latest)
+        return
+
+    declared = declared_version(gradle_file)
     result = {
         "artifact": "com.google.ai.edge.litertlm:litertlm-android",
         "declared": declared,

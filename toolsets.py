@@ -388,8 +388,6 @@ TOOLSETS = {
             "android_shared_folder_list", "android_shared_folder_read", "android_shared_folder_write",
             "android_ui_snapshot", "android_ui_action",
             "read_file", "search_files", "write_file", "patch",
-            "web_search", "web_extract",
-            "vision_analyze",
             "skills_list", "skill_view", "skill_manage",
             "todo", "memory", "session_search",
         ],

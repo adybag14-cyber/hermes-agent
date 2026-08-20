@@ -41,49 +41,24 @@ data class ModelSelectionPreset(
 object ProviderPresets {
     val firstClassLocalModels = listOf(
         ModelSelectionPreset(
-            id = "gemma-4-E2B-it",
-            label = "Gemma 4 E2B (LiteRT-LM)",
-            description = "Fast Gemma 4 local chat and Android tool-calling model.",
-        ),
-        ModelSelectionPreset(
-            id = "gemma-4-E4B-it",
-            label = "Gemma 4 E4B (LiteRT-LM)",
-            description = "Larger Gemma 4 local model under the 5 GB mobile test ceiling.",
-        ),
-        ModelSelectionPreset(
-            id = "gemma3-1b-it-int4",
-            label = "Gemma 3 1B IT INT4 (LiteRT-LM)",
-            description = "Small Gemma 3 text model for low-memory local checks.",
-        ),
-        ModelSelectionPreset(
-            id = "MiniCPM5-1B",
-            label = "MiniCPM 5 1B (LiteRT-LM)",
-            description = "Compact MiniCPM 1B LiteRT-LM package for on-device chat smoke tests.",
-        ),
-        ModelSelectionPreset(
-            id = "Qwen2.5-1.5B-Instruct",
-            label = "Qwen2.5 1.5B Instruct (LiteRT-LM)",
-            description = "Qwen2.5 1.5B LiteRT-LM for lightweight mobile chat and tool routing.",
-        ),
-        ModelSelectionPreset(
-            id = "Qwen3.5-0.8B-Q4_K_M",
+            id = "qwen3.5-0.8b-q4-k-m",
             label = "Qwen3.5 0.8B Q4_K_M (GGUF)",
-            description = "Very small Qwen GGUF for fast llama.cpp smoke tests.",
+            description = "Release-certified small GGUF for fast llama.cpp chat and native tool checks.",
         ),
         ModelSelectionPreset(
-            id = "gemma3-4b-it-int4-web",
-            label = "Gemma 3 4B IT Vision (.task)",
-            description = "Gemma 3 image-text model for LiteRT-LM vision requests.",
+            id = "minicpm5-1b-fable5-q4-k-m",
+            label = "MiniCPM5 1B Fable5 Q4_K_M (GGUF)",
+            description = "Release-certified compact thinking model for the embedded llama.cpp runtime.",
         ),
         ModelSelectionPreset(
-            id = "gemma-3n-E2B-it-int4",
-            label = "Gemma 3n E2B IT Vision (LiteRT-LM)",
-            description = "Gemma 3n multimodal model with image input support.",
+            id = "minicpm5-1b-web-litert-lm",
+            label = "MiniCPM 5 1B mobile (LiteRT-LM)",
+            description = "Release-certified mobile LiteRT-LM package with an Android-safe chat template.",
         ),
         ModelSelectionPreset(
-            id = "gemma-3n-E4B-it-int4",
-            label = "Gemma 3n E4B IT Vision (LiteRT-LM)",
-            description = "Larger Gemma 3n multimodal model with image input support.",
+            id = "vibethinker-3b-litert-lm",
+            label = "VibeThinker 3B (LiteRT-LM)",
+            description = "Release-certified LiteRT-LM reasoning model for high-memory devices.",
         ),
     )
 

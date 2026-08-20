@@ -177,6 +177,7 @@ _VALID_API_MODES = {
     "codex_responses",
     "anthropic_messages",
     "bedrock_converse",
+    "codex_app_server",
     "chatgpt_web",
 }
 
@@ -239,6 +240,12 @@ def _resolve_runtime_from_pool_entry(
     if provider == "openai-codex":
         api_mode = "codex_responses"
         base_url = base_url or DEFAULT_CODEX_BASE_URL
+    elif provider == "xai-oauth":
+        # xAI OAuth credentials are accepted by the Responses API only.
+        # Pool entries created from older auth-store state may not carry a
+        # base URL, so restore the canonical endpoint here as well.
+        api_mode = "codex_responses"
+        base_url = base_url or DEFAULT_XAI_OAUTH_BASE_URL
     elif provider == "chatgpt-web":
         api_mode = "chatgpt_web"
         base_url = base_url or DEFAULT_CHATGPT_WEB_BASE_URL

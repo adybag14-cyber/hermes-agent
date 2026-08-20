@@ -39,6 +39,9 @@ def fdroid_contract() -> dict[str, str]:
         "GRADLEW_FDROID_COMMIT",
         "GRADLE_MAX_WORKERS",
         "GRADLE_OPTS",
+        "VERSION_NAME",
+        "VERSION_CODE",
+        "SOURCE_BINDING_GRADLE_PROPERTY",
         "VAGRANT_ENV_MODE",
         "VAGRANT_ENV_REQUIRED_NAMES",
         "VAGRANT_ENV_OPTIONAL_NAMES",
@@ -90,6 +93,12 @@ def test_fdroid_toolchain_contract_is_immutable_coherent_and_parallel(fdroid_con
         "-Dorg.gradle.parallel=true",
     ]
     assert fdroid_contract["VAGRANT_ENV_MODE"] == "env-i"
+    assert fdroid_contract["VERSION_NAME"] == "0.13.148"
+    assert fdroid_contract["VERSION_CODE"] == "144890"
+    assert (
+        fdroid_contract["SOURCE_BINDING_GRADLE_PROPERTY"]
+        == "hermesFdroidSourceBinding=true"
+    )
     assert set(fdroid_contract["VAGRANT_ENV_REQUIRED_NAMES"].split(",")) == {
         "PATH",
         "PYTHONPATH",
@@ -153,6 +162,51 @@ def test_fdroid_toolchain_guide_matches_the_executable_contract(fdroid_contract)
         in guide
     )
     assert "org.gradle.parallel=true" in guide
+    assert "--render-autoupdate-preview" in guide
+    assert "--verify-autoupdate-preview" in guide
+    assert "without opening a GitLab merge request" in guide
+
+
+def test_fdroid_helper_renders_and_then_fail_closed_verifies_preview(tmp_path):
+    template = REPO_ROOT / "fdroid/com.mobilefork.hermesagent.yml.template"
+    metadata = tmp_path / "com.mobilefork.hermesagent.yml"
+    text = template.read_text(encoding="utf-8").replace(
+        "REPLACE_WITH_RELEASE_COMMIT_HASH",
+        "a" * 40,
+        1,
+    )
+    text = text.replace(
+        "    gradleprops:\n      - hermesFdroidSourceBinding=true\n",
+        "",
+        1,
+    )
+    text = text.replace(
+        "      - python3.13 ../../scripts/android_fdroid_source_binding.py prepare --repo-root\n"
+        "        ../.. --binding-file \"${GRADLE_USER_HOME:-$HOME/.gradle}/"
+        "hermes-android-fdroid-source-binding.properties\"\n"
+        "        --version \"$$VERSION$$\"\n",
+        "",
+        1,
+    )
+    metadata.write_text(text, encoding="utf-8")
+
+    rendered = _run_helper("--render-autoupdate-preview", metadata, template)
+    assert rendered.returncode == 0, rendered.stderr
+    assert "sourceCommit=" + "a" * 40 in rendered.stdout
+    verified = _run_helper("--verify-autoupdate-preview", metadata, template)
+    assert verified.returncode == 0, verified.stderr
+
+    metadata.write_text(
+        metadata.read_text(encoding="utf-8").replace(
+            "      - hermesFdroidSourceBinding=true\n",
+            "",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    rejected = _run_helper("--verify-autoupdate-preview", metadata, template)
+    assert rejected.returncode != 0
+    assert "gradleprops does not match" in rejected.stderr
 
 
 def test_fdroid_metadata_template_forbids_overwriting_live_build_history():

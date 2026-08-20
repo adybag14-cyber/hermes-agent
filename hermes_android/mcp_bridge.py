@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import logging
-from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
@@ -13,23 +10,7 @@ from hermes_android.python_path import prefer_hermes_package_root
 
 prefer_hermes_package_root()
 
-from hermes_cli.config import load_config, save_config
-
-logger = logging.getLogger(__name__)
-
-_LAST_SYNCED_HASH: str | None = None
-
-ANDROID_MCP_RELATIVE_PATH = Path("mcp") / "mcp_config.json"
 NATIVE_TRANSPORT = "native"
-
-
-def _config_hash(payload: dict[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _android_mcp_config_path(hermes_home: str | Path) -> Path:
-    return Path(hermes_home).expanduser().resolve() / ANDROID_MCP_RELATIVE_PATH
 
 
 def _enabled_servers(android_config: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -92,47 +73,18 @@ def sync_android_mcp_config(
     *,
     force: bool = False,
 ) -> dict[str, Any]:
-    global _LAST_SYNCED_HASH
+    _ = hermes_home, force
 
-    config_path = _android_mcp_config_path(hermes_home)
-    if not config_path.is_file():
-        return {"synced": False, "reason": "missing_config", "server_count": 0}
-
-    try:
-        android_config = json.loads(config_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as error:
-        return {"synced": False, "reason": f"invalid_json:{error}", "server_count": 0}
-
-    if not isinstance(android_config, dict):
-        return {"synced": False, "reason": "invalid_root", "server_count": 0}
-
-    runtime_servers = build_runtime_mcp_servers(android_config)
-    payload_hash = _config_hash(runtime_servers)
-    if not force and payload_hash == _LAST_SYNCED_HASH:
-        return {
-            "synced": False,
-            "reason": "unchanged",
-            "server_count": len(runtime_servers),
-        }
-
-    config = load_config()
-    config["mcp_servers"] = runtime_servers
-    save_config(config)
-    _LAST_SYNCED_HASH = payload_hash
-
-    registered: list[str] = []
-    try:
-        from tools.mcp_tool import register_mcp_servers
-
-        registered = register_mcp_servers(deepcopy(runtime_servers))
-    except Exception as error:  # noqa: BLE001 - runtime may not be ready yet
-        logger.debug("Deferred MCP registration after config sync: %s", error)
-
+    # This module is reached from the Android app before the embedded Python
+    # server has necessarily installed its bootstrap environment.  External
+    # MCP transports create global loops and subprocesses whose lifetime is not
+    # owned by the Android runtime, so the Android bridge must reject them by
+    # identity rather than by a late environment-variable check.
     return {
-        "synced": True,
-        "reason": "updated",
-        "server_count": len(runtime_servers),
-        "registered_tools": registered,
+        "synced": False,
+        "reason": "embedded_runtime_external_mcp_disabled",
+        "server_count": 0,
+        "registered_tools": [],
     }
 
 

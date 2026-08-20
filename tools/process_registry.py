@@ -153,6 +153,9 @@ class ProcessRegistry:
     def __init__(self):
         self._running: Dict[str, ProcessSession] = {}
         self._finished: Dict[str, ProcessSession] = {}
+        # Embedded runtimes can reserve task IDs so a wrapper-exited process
+        # record is not pruned before owner-side process-tree verification.
+        self._retained_task_ids: set[str] = set()
         self._lock = threading.Lock()
 
         # Side-channel for check_interval watchers (gateway reads after agent run)
@@ -568,7 +571,7 @@ class ProcessRegistry:
             stderr=subprocess.STDOUT,
             stdin=subprocess.PIPE,
             preexec_fn=None if _IS_WINDOWS else os.setsid,
-            creationflags=subprocess.CREATE_NO_WINDOW if _IS_WINDOWS else 0,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0) if _IS_WINDOWS else 0,
         )
 
         session.process = proc
@@ -1145,6 +1148,269 @@ class ProcessRegistry:
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
+    def terminate_tasks_verified(self, task_ids, timeout: float = 5.0) -> int:
+        """Stop task-owned host processes and prove their readers are quiescent.
+
+        This is intentionally stricter than the interactive ``kill_process``
+        command. It is used at an embedded-runtime ownership boundary where
+        marking a session exited after merely sending SIGTERM would permit a
+        replacement runtime to overlap a still-live process tree.
+        """
+
+        normalized = {str(task_id).strip() for task_id in task_ids if str(task_id).strip()}
+        if not normalized:
+            return 0
+        with self._lock:
+            sessions = list(self._running.values()) + list(self._finished.values())
+        targets = [session for session in sessions if session.task_id in normalized]
+        deadline = time.monotonic() + max(float(timeout), 0.0)
+        failures = []
+        stopped = 0
+        for session in targets:
+            error = self._terminate_session_verified(session, deadline)
+            if error:
+                failures.append(f"{session.id}: {error}")
+            else:
+                stopped += 1
+        if failures:
+            raise RuntimeError("; ".join(failures))
+        return stopped
+
+    def retain_task_ownership(self, task_id: str) -> None:
+        normalized = str(task_id or "").strip()
+        if not normalized:
+            return
+        with self._lock:
+            self._retained_task_ids.add(normalized)
+
+    def release_task_ownership(self, task_id: str) -> None:
+        normalized = str(task_id or "").strip()
+        if not normalized:
+            return
+        with self._lock:
+            self._retained_task_ids.discard(normalized)
+            self._prune_if_needed()
+
+    def has_tracked_sessions_for_task(self, task_id: str) -> bool:
+        normalized = str(task_id or "").strip()
+        if not normalized:
+            return False
+        with self._lock:
+            return any(
+                session.task_id == normalized
+                for session in (*self._running.values(), *self._finished.values())
+            )
+
+    def _terminate_session_verified(self, session: ProcessSession, deadline: float) -> str:
+        if session.process is not None:
+            error = self._terminate_local_process_verified(session, deadline)
+        elif session._pty is not None:
+            error = self._terminate_pty_process_verified(session, deadline)
+        elif session.detached and session.pid_scope == "host" and session.pid:
+            error = self._terminate_detached_host_process_verified(session, deadline)
+        elif session.env_ref is not None and session.pid:
+            # The environment abstraction exposes neither a waitable process
+            # tree nor a descendant inventory. Sending a signal and trusting
+            # the wrapper PID would be the same false proof this API exists to
+            # prevent. Keep shutdown poisoned rather than claim quiescence.
+            return "non-local process-tree termination cannot be verified"
+        elif session.exited:
+            return ""
+        else:
+            return "process has no verifiable ownership handle"
+        if error:
+            return error
+
+        reader = session._reader_thread
+        if reader is not None and reader is not threading.current_thread() and reader.is_alive():
+            reader.join(timeout=max(deadline - time.monotonic(), 0.0))
+        if reader is not None and reader.is_alive():
+            return "process exited but its output reader thread remained live"
+
+        with session._lock:
+            session.exited = True
+            if session.process is not None:
+                session.exit_code = session.process.poll()
+            elif session._pty is not None:
+                session.exit_code = getattr(session._pty, "exitstatus", None)
+        self._move_to_finished(session)
+        return ""
+
+    @staticmethod
+    def _snapshot_host_process_tree(pid: int):
+        try:
+            import psutil
+
+            parent = psutil.Process(pid)
+            return [parent, *parent.children(recursive=True)]
+        except Exception:
+            return []
+
+    @staticmethod
+    def _host_tree_is_alive(processes) -> bool:
+        if not processes:
+            return False
+        try:
+            import psutil
+        except ImportError:
+            return False
+        for process in processes:
+            try:
+                if process.is_running() and process.status() != psutil.STATUS_ZOMBIE:
+                    return True
+            except psutil.NoSuchProcess:
+                continue
+            except Exception:
+                return True
+        return False
+
+    @staticmethod
+    def _signal_host_tree(processes, *, force: bool) -> None:
+        for process in reversed(processes):
+            try:
+                if force:
+                    process.kill()
+                else:
+                    process.terminate()
+            except Exception:
+                pass
+
+    @staticmethod
+    def _posix_process_group_is_alive(process_group_id: int) -> bool:
+        if _IS_WINDOWS or not process_group_id:
+            return False
+        try:
+            os.killpg(process_group_id, 0)
+            return True
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        except OSError:
+            return False
+
+    @staticmethod
+    def _signal_local_process_group(process_group_id: int, *, force: bool) -> None:
+        if _IS_WINDOWS or not process_group_id:
+            return
+        try:
+            os.killpg(process_group_id, signal.SIGKILL if force else signal.SIGTERM)
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+
+    @staticmethod
+    def _wait_for_verified_exit(check_alive, deadline: float) -> bool:
+        while True:
+            if not check_alive():
+                return True
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return False
+            time.sleep(min(0.02, remaining))
+
+    def _terminate_local_process_verified(self, session: ProcessSession, deadline: float) -> str:
+        process = session.process
+        pid = int(session.pid or getattr(process, "pid", 0) or 0)
+        tree = self._snapshot_host_process_tree(pid) if pid else []
+
+        def alive() -> bool:
+            try:
+                parent_alive = process.poll() is None
+            except Exception:
+                parent_alive = True
+            return (
+                parent_alive
+                or self._posix_process_group_is_alive(pid)
+                or self._host_tree_is_alive(tree)
+            )
+
+        if not alive():
+            return ""
+        self._signal_local_process_group(pid, force=False)
+        self._signal_host_tree(tree, force=False)
+        try:
+            process.terminate()
+        except Exception:
+            pass
+        graceful_deadline = min(deadline, time.monotonic() + 1.0)
+        if self._wait_for_verified_exit(alive, graceful_deadline):
+            return ""
+
+        self._signal_local_process_group(pid, force=True)
+        self._signal_host_tree(tree, force=True)
+        try:
+            process.kill()
+        except Exception:
+            pass
+        if not self._wait_for_verified_exit(alive, deadline):
+            return "process tree remained alive after TERM and KILL"
+        return ""
+
+    def _terminate_pty_process_verified(self, session: ProcessSession, deadline: float) -> str:
+        pty = session._pty
+        pid = int(session.pid or getattr(pty, "pid", 0) or 0)
+        tree = self._snapshot_host_process_tree(pid) if pid else []
+
+        def alive() -> bool:
+            try:
+                pty_alive = bool(pty.isalive())
+            except Exception:
+                pty_alive = True
+            return (
+                pty_alive
+                or self._posix_process_group_is_alive(pid)
+                or self._host_tree_is_alive(tree)
+            )
+
+        if not alive():
+            return ""
+        try:
+            pty.terminate(force=False)
+        except Exception:
+            pass
+        self._signal_local_process_group(pid, force=False)
+        self._signal_host_tree(tree, force=False)
+        graceful_deadline = min(deadline, time.monotonic() + 1.0)
+        if self._wait_for_verified_exit(alive, graceful_deadline):
+            return ""
+        try:
+            pty.terminate(force=True)
+        except Exception:
+            pass
+        self._signal_local_process_group(pid, force=True)
+        self._signal_host_tree(tree, force=True)
+        if not self._wait_for_verified_exit(alive, deadline):
+            return "PTY process tree remained alive after TERM and KILL"
+        return ""
+
+    def _terminate_detached_host_process_verified(
+        self,
+        session: ProcessSession,
+        deadline: float,
+    ) -> str:
+        pid = int(session.pid or 0)
+        tree = self._snapshot_host_process_tree(pid)
+
+        def alive() -> bool:
+            return self._is_host_pid_alive(pid) or self._host_tree_is_alive(tree)
+
+        if not alive():
+            return ""
+        self._terminate_host_pid(pid)
+        self._signal_host_tree(tree, force=False)
+        graceful_deadline = min(deadline, time.monotonic() + 1.0)
+        if self._wait_for_verified_exit(alive, graceful_deadline):
+            return ""
+        self._signal_host_tree(tree, force=True)
+        if not _IS_WINDOWS:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError, OSError):
+                pass
+        if not self._wait_for_verified_exit(alive, deadline):
+            return "detached host process tree remained alive after TERM and KILL"
+        return ""
+
     def write_stdin(self, session_id: str, data: str) -> dict:
         """Send raw data to a running process's stdin (no newline appended)."""
         session = self.get(session_id)
@@ -1282,6 +1548,7 @@ class ProcessRegistry:
         expired = [
             sid for sid, s in self._finished.items()
             if (now - s.started_at) > FINISHED_TTL_SECONDS
+            and getattr(s, "task_id", "") not in self._retained_task_ids
         ]
         for sid in expired:
             del self._finished[sid]
@@ -1289,8 +1556,16 @@ class ProcessRegistry:
 
         # If still over limit, remove oldest finished
         total = len(self._running) + len(self._finished)
-        if total >= MAX_PROCESSES and self._finished:
-            oldest_id = min(self._finished, key=lambda sid: self._finished[sid].started_at)
+        prunable_finished = {
+            sid: session
+            for sid, session in self._finished.items()
+            if getattr(session, "task_id", "") not in self._retained_task_ids
+        }
+        if total >= MAX_PROCESSES and prunable_finished:
+            oldest_id = min(
+                prunable_finished,
+                key=lambda sid: prunable_finished[sid].started_at,
+            )
             del self._finished[oldest_id]
             self._completion_consumed.discard(oldest_id)
 
