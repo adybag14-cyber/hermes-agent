@@ -5,10 +5,11 @@ import hashlib
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 from contextlib import suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional
 
 try:
@@ -322,6 +323,8 @@ class _RunLaunch:
     request_profile: Any
     browser_control_principal: Any
     browser_control_transport_family: Any
+    stop_event: threading.Event = field(default_factory=threading.Event, repr=False)
+    agent: Any = field(default=None, repr=False)
 
     @property
     def approval_session_key(self) -> str:
@@ -344,7 +347,7 @@ def _forget_run(self, run_id: str, *tables) -> None:
 def _retire_live_run(self, run_id: str) -> None:
     """Retire agent/task/approval control state once the executor-backed task is done."""
     _forget_run(self, run_id, self._active_run_agents, self._active_run_tasks, self._run_approval_sessions,
-                self._stopping_run_ids)
+                self._stopping_run_ids, self._run_stop_events)
 
 
 def _drop_run_transport(self, run_id: str) -> None:
@@ -451,6 +454,7 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
         request_profile=_api_server._api_request_profile.get(),
         browser_control_principal=_api_server._api_request_browser_control_principal.get(),
         browser_control_transport_family=_api_server._api_request_browser_control_transport_family.get())
+    self._run_stop_events[run_id] = launch.stop_event
     self._activate_admitted_request()
     task = self._active_run_tasks[run_id] = asyncio.create_task(_execute_run(self, launch, _api_server=_api_server))
     with suppress(TypeError):
@@ -460,29 +464,26 @@ async def _handle_runs(self, request: "web.Request", *, _api_server) -> "web.Res
     return _accepted_response(run_id, "started", gateway_session_key, replayed=False)
 
 
-def _run_agent_sync(self, run: _RunLaunch, agent, approval_notify, *, _api_server):
-    """Executor-thread body of one run; returns ``(result, usage)``."""
+def _run_agent_sync(self, run: _RunLaunch, approval_notify, *, text_callback, progress_callback, _api_server):
+    """Construct and run under the executor's profile, session and native-work lease."""
     from gateway.session_context import clear_session_vars
     from gateway.hosted_room_execution_policy import (
         RoomExecutionPolicy, bind_room_execution_policy, reset_room_execution_policy)
-    # No eager slash-worker pre-warm: slash.exec spawns one on demand (its error path already relies on that
-    # respawn to recover from a dead worker). Each worker child runs its own MCP discovery (#61891), so
-    # pre-warming one per session forks the full stdio MCP fleet — ~20 OS processes per retained session on
-    # a config with a few stdio servers — even for sessions that never run a worker-routed command. Sessions
-    # held by a live transport are never reaped, so with the desktop app open for days those fleets
-    # accumulate until the OS refuses new process spawns.
     from tools.approval import register_gateway_notify, unregister_gateway_notify
     from tools.approval_context import reset_current_session_key, set_current_session_key
+
     session_id = run.session_id
     effective_task_id = session_id or run.run_id
-    # (token, reset) pairs unwound in the finally block; bound only once each step succeeds.
+    self._register_owned_task_id(effective_task_id)
+    cancelled = ({"interrupted": True, "completed": False, "final_response": ""},
+                 {key: 0 for key, _ in _USAGE_FIELDS})
+    if run.stop_event.is_set():
+        return cancelled
+    agent = None
     resets: list[tuple[Any, Callable]] = []
     with self._profile_scope(run.request_profile):
         try:
-            # Contextvars, not process env: concurrent runs must not share identity.
             resets.append((set_current_session_key(run.approval_session_key), reset_current_session_key))
-            # chat_id carries the raw session id like _run_agent() does; without it
-            # tools.async_delegation sees no HERMES_SESSION_CHAT_ID and forces delegations sync.
             session_tokens = self._bind_api_server_session(
                 chat_id=session_id or "", session_key=run.approval_session_key, session_id=session_id or "",
                 browser_control_principal=run.browser_control_principal,
@@ -492,27 +493,39 @@ def _run_agent_sync(self, run: _RunLaunch, agent, approval_notify, *, _api_serve
             if run.agent_kwargs["room_dispatch"] is not None:
                 policy = RoomExecutionPolicy.from_mapping(run.agent_kwargs["room_execution_policy"] or {})
                 resets.append((bind_room_execution_policy(policy), reset_room_execution_policy))
+            agent = self._create_agent(
+                stream_delta_callback=text_callback, tool_progress_callback=progress_callback, **run.agent_kwargs)
+            run.agent = agent
+            if run.stop_event.is_set():
+                return cancelled
+            self._active_run_agents[run.run_id] = agent
             register_gateway_notify(run.approval_session_key, approval_notify)
-            # /v1/runs owns its agent lifecycle (no TurnRunner): record process ownership
-            # so stop/cancel reaps only the background processes this run created.
             _api_server._publish_turn_process_ownership(agent, effective_task_id)
-            r = agent.run_conversation(
+            result = agent.run_conversation(
                 user_message=run.user_message, conversation_history=run.conversation_history,
                 task_id=effective_task_id)
+            return result, {key: getattr(agent, attr, 0) or 0 for key, attr in _USAGE_FIELDS}
         finally:
-            # Clear ownership now so a later stop can't reap work this run left running.
-            _api_server._clear_turn_process_ownership(agent)
-            # Declared-conversation binding, same precedence gate as _run_agent.
-            if run.declared_selected:
-                self._bind_declared_conversation(
-                    getattr(agent, "session_id", None) or session_id, run.gateway_session_key)
             try:
-                unregister_gateway_notify(run.approval_session_key)
+                if agent is not None:
+                    _api_server._clear_turn_process_ownership(agent)
+                    if run.declared_selected:
+                        self._bind_declared_conversation(
+                            getattr(agent, "session_id", None) or session_id, run.gateway_session_key)
             finally:
-                for token, reset in resets:
-                    with suppress(Exception):
-                        reset(token)
-        return r, {key: getattr(agent, attr, 0) or 0 for key, attr in _USAGE_FIELDS}
+                try:
+                    if agent is not None:
+                        self._complete_owned_agent(agent, effective_task_id)
+                finally:
+                    try:
+                        unregister_gateway_notify(run.approval_session_key)
+                    finally:
+                        for token, reset in resets:
+                            with suppress(Exception):
+                                reset(token)
+                        if self._enforce_owned_runtime_shutdown:
+                            self._active_run_agents.pop(run.run_id, None)
+                        self._run_stop_events.pop(run.run_id, None)
 
 
 def _make_approval_notify(self, run: _RunLaunch, *, _api_server) -> Callable[[Dict[str, Any]], None]:
@@ -562,14 +575,13 @@ async def _execute_run(self, run: _RunLaunch, *, _api_server) -> None:
         if run_id in self._stopping_run_ids:
             _finish("cancelled")
             return
-        with self._profile_scope(run.request_profile):
-            agent = self._create_agent(
-                stream_delta_callback=_text_cb, tool_progress_callback=self._make_run_event_callback(run_id, loop),
-                **run.agent_kwargs)
-        self._active_run_agents[run_id] = agent
         approval_notify = _make_approval_notify(self, run, _api_server=_api_server)
+        progress_callback = self._make_run_event_callback(run_id, loop)
         result, usage = await loop.run_in_executor(
-            None, lambda: _run_agent_sync(self, run, agent, approval_notify, _api_server=_api_server))
+            None, lambda: self._run_with_owned_runtime(lambda: _run_agent_sync(
+                self, run, approval_notify, text_callback=_text_cb,
+                progress_callback=progress_callback, _api_server=_api_server,
+            )))
         if not isinstance(result, dict):
             result = {}
         if run_id in self._stopping_run_ids and result.get("interrupted") is True:
@@ -582,6 +594,10 @@ async def _execute_run(self, run: _RunLaunch, *, _api_server) -> None:
             extra = {"pending_steer": result["pending_steer"]} if result.get("pending_steer") else {}
             _finish("completed", extra, output=result.get("final_response", ""), usage=usage)
     except asyncio.CancelledError:
+        run.stop_event.set()
+        if self._enforce_owned_runtime_shutdown and run.agent is not None:
+            with suppress(Exception):
+                _api_server.request_hard_interrupt(run.agent, "API run cancelled")
         _finish("cancelled")
         raise
     except _api_server._ProviderAuthResolutionError as exc:
@@ -813,6 +829,9 @@ async def _handle_stop_run(self, request: "web.Request", *, _api_server) -> "web
             code="run_not_active", status=409)
     self._set_run_status(run_id, "stopping", last_event="run.stopping")
     self._stopping_run_ids.add(run_id)
+    stop_event = self._run_stop_events.get(run_id)
+    if stop_event is not None:
+        stop_event.set()
     if agent is not None:
         with suppress(Exception):
             _api_server.request_hard_interrupt(agent, "Stop requested via API")

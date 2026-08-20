@@ -21,6 +21,8 @@ import os
 import re
 import sqlite3
 import sys
+from hermes_android.api_lifecycle import OwnedApiRuntimeMixin
+from hermes_android.runtime_identity import is_embedded_android_runtime
 import threading
 import time
 import uuid
@@ -993,7 +995,12 @@ class _IdempotencyCache:
         return await asyncio.shield(task)
 
 
-_idem_cache = _IdempotencyCache()
+    def cancel_inflight_for_shutdown(self) -> None:
+        """Cancel loop-bound computations belonging to this adapter only."""
+        tasks = list(self._inflight.values())
+        self._inflight.clear()
+        for task in tasks:
+            task.cancel()
 
 
 def _make_request_fingerprint(body: Dict[str, Any], keys: List[str]) -> str:
@@ -1099,7 +1106,7 @@ def _run_route_delegate(name: str):
     return _handler
 
 
-class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
+class APIServerAdapter(OwnedApiRuntimeMixin, OpenAICompatRoutesMixin, BasePlatformAdapter):
     """aiohttp server routing OpenAI-format requests through hermes-agent's AIAgent."""
 
     # Stateless request/response (``send()`` is a stub): async-delivery tools must not promise
@@ -1143,6 +1150,7 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         self._site: Optional["web.TCPSite"] = None
         self._response_store = ResponseStore()
         _api_runs._initialize_run_state(self, store_factory=RunIdempotencyStore)
+        self._initialize_owned_runtime(_IdempotencyCache())
         self._session_db: Optional[Any] = None  # explicit override (tests/manual wiring)
         self._session_dbs: Dict[str, Any] = {}  # per-profile-home SessionDB cache
         self._session_db_cache_lock = threading.Lock()
@@ -2109,11 +2117,18 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         ``gateway_session_key`` persists across transcripts (memory scope), unlike ``session_id``;
         ``route`` / ``session_model`` are mutually exclusive; ``confirmed_runtime_lock`` beats the
         session ``/model`` override, disables the fallback chain and fails closed."""
+        self._require_owned_runtime_admission()
+        if self._enforce_owned_runtime_shutdown:
+            from tools.environments.android_linux import android_command_execution_requires_restart
+
+            restart_detail = android_command_execution_requires_restart()
+            if restart_detail:
+                raise RuntimeError(restart_detail)
+
         from run_agent import AIAgent
         from gateway.run import (
             _checkpoint_agent_kwargs, _current_max_iterations, _resolve_runtime_agent_kwargs,
             _resolve_gateway_model, _load_gateway_config, GatewayRunner)
-        from hermes_cli.tools_config import _get_platform_tools
         # RuntimeError is caught ONLY here (sole provider-auth raiser); the typed subclass keeps
         # run_conversation() errors distinct.
         try:
@@ -2131,15 +2146,19 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             session_model=session_model, confirmed_runtime_lock=confirmed_runtime_lock,
             gateway_session_key=gateway_session_key, session_id=session_id)
         user_config = _load_gateway_config()
-        enabled_toolsets = sorted(_get_platform_tools(user_config, "api_server"))
-        if os.getenv("HERMES_ANDROID_BOOTSTRAP", "").strip():
+        if is_embedded_android_runtime():
             try:
-                from hermes_android.mobile_defaults import should_force_android_api_server_toolsets, resolved_android_api_server_toolsets
+                from hermes_android.mobile_defaults import resolved_android_api_server_toolsets
 
-                if should_force_android_api_server_toolsets(user_config):
-                    enabled_toolsets = resolved_android_api_server_toolsets(user_config)
+                # The generic platform resolver admits globally enabled MCP
+                # servers. Do not run it before the fixed Android policy.
+                enabled_toolsets = resolved_android_api_server_toolsets(user_config)
             except Exception as exc:
-                logger.debug("Android API-server toolset fallback unavailable: %s", exc)
+                raise RuntimeError("Android safe toolset policy is unavailable; refusing to construct an agent") from exc
+        else:
+            from hermes_cli.tools_config import _get_platform_tools
+
+            enabled_toolsets = sorted(_get_platform_tools(user_config, "api_server"))
 
         max_iterations = _current_max_iterations()
         if room_dispatch is not None:
@@ -2151,6 +2170,11 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         # after the precedence chain settles; an explicit request wins.
         if request_reasoning_config is None:
             request_reasoning_config = GatewayRunner._load_reasoning_config(model)
+        fallback_model = None if confirmed_runtime_lock else GatewayRunner._load_fallback_model()
+        if is_embedded_android_runtime():
+            from hermes_android.mobile_defaults import validate_android_provider_runtime
+
+            validate_android_provider_runtime(runtime_kwargs, fallback_model)
         agent_kwargs = {
             "model": model, **runtime_kwargs, **_checkpoint_agent_kwargs(user_config),
             "max_iterations": max_iterations, "quiet_mode": True, "verbose_logging": False,
@@ -2163,12 +2187,18 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
             "tool_complete_callback": tool_complete_callback,
             "session_db": self._ensure_session_db(),
             # Same fallback provider chain as Telegram/Discord/Slack.
-            "fallback_model": None if confirmed_runtime_lock else GatewayRunner._load_fallback_model(),
+            "fallback_model": fallback_model,
             "reasoning_config": request_reasoning_config,
             "gateway_session_key": gateway_session_key}
         if request_service_tier is not _REQUEST_OPTION_MISSING:
             agent_kwargs["service_tier"] = request_service_tier
+        if is_embedded_android_runtime():
+            from agent.skill_utils import parse_config_string_list
+
+            agent_options = user_config.get("agent") or {}
+            agent_kwargs["disabled_toolsets"] = parse_config_string_list(agent_options.get("disabled_toolsets") or [])
         agent = AIAgent(**agent_kwargs)
+        self._publish_prepared_agent(agent)
         route_source = (
             "session_model_lock" if confirmed_runtime_lock
             else "session_model_override" if session_override
@@ -3643,6 +3673,9 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         registers it in ``_active_run_agents``. Under a confirmed model lock the actual
         provider/model must match or the turn fails; ``runtime`` metadata is attached."""
         loop = asyncio.get_running_loop()
+        stop_event = threading.Event()
+        request_agent_ref = [None]
+        effective_task_id = session_id or str(uuid.uuid4())
         # ContextVars do not follow run_in_executor threads: capture here, re-enter in _run().
         request_profile = _api_request_profile.get()
         request_browser_control_principal = _api_request_browser_control_principal.get()
@@ -3650,6 +3683,9 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
 
         def _run():
             from gateway.session_context import clear_session_vars
+            self._register_owned_task_id(effective_task_id)
+            if stop_event.is_set():
+                raise InterruptedError("API request was cancelled before agent construction")
             with self._profile_scope(request_profile):
                 tokens = self._bind_api_server_session(
                     chat_id=session_id or "", session_key=gateway_session_key or session_id or "",
@@ -3665,11 +3701,13 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
                         gateway_session_key=gateway_session_key, requested_model=requested_model,
                         requested_provider=requested_provider, model_options=model_options, route=route,
                         session_model=session_model, confirmed_runtime_lock=confirmed_runtime_lock)
+                    request_agent_ref[0] = agent
+                    if stop_event.is_set():
+                        raise InterruptedError("API request was cancelled during agent construction")
                     if agent_ref is not None:
                         agent_ref[0] = agent
                     if active_run_id:
                         self._active_run_agents[active_run_id] = agent
-                    effective_task_id = session_id or str(uuid.uuid4())
                     # Process baseline for disconnect reaping (this surface bypasses TurnRunner)
                     # + shutdown-interrupt registration, once for every caller.
                     # Baseline for selective background-process reaping on SSE client disconnect — mirrors
@@ -3700,28 +3738,40 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
                          "api_calls": 0, "tools": []},
                         {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0})
                 finally:
-                    # Turn over (any outcome): clear ownership so a late disconnect can't reap
-                    # background work this turn deliberately left running.
-                    if active_run_id:
-                        self._active_run_agents.pop(active_run_id, None)
-                    if agent is not None:
-                        _clear_turn_process_ownership(agent)
-                        self._shutdown_interruptible_agents.pop(id(agent), None)
-                        # Bind the declared key to the row the turn actually ended on
-                        # (agent.session_id carries a mid-turn rotation). Opt-in per route.
-                        # Record the declared conversation on the row the turn actually ended on —
-                        # ``agent.session_id`` already carries a mid-turn compression rotation (#16938), so
-                        # the next reply resolves the live transcript rather than its retired parent.
-                        # Opt-in: only the routes that resolve their session id from the declared key
-                        # (/v1/responses, /v1/runs) record one, so no other caller's rows change shape.
-                        if bind_declared_conversation:
-                            self._bind_declared_conversation(
-                                getattr(agent, "session_id", None) or session_id, gateway_session_key)
-                    clear_session_vars(tokens)
+                    try:
+                        # Turn over (any outcome): clear ownership so a late disconnect can't reap
+                        # background work this turn deliberately left running.
+                        if active_run_id:
+                            self._active_run_agents.pop(active_run_id, None)
+                        if agent is not None:
+                            _clear_turn_process_ownership(agent)
+                            self._shutdown_interruptible_agents.pop(id(agent), None)
+                            # Bind the declared key to the row the turn actually ended on
+                            # (agent.session_id carries a mid-turn rotation). Opt-in per route.
+                            # Record the declared conversation on the row the turn actually ended on —
+                            # ``agent.session_id`` already carries a mid-turn compression rotation (#16938), so
+                            # the next reply resolves the live transcript rather than its retired parent.
+                            # Opt-in: only the routes that resolve their session id from the declared key
+                            # (/v1/responses, /v1/runs) record one, so no other caller's rows change shape.
+                            if bind_declared_conversation:
+                                self._bind_declared_conversation(
+                                    getattr(agent, "session_id", None) or session_id, gateway_session_key)
+                    finally:
+                        try:
+                            if agent is not None:
+                                self._complete_owned_agent(agent, effective_task_id)
+                        finally:
+                            clear_session_vars(tokens)
         self._activate_admitted_request()
         self._inflight_agent_runs += 1
         try:
-            return await loop.run_in_executor(None, _run)
+            return await loop.run_in_executor(None, lambda: self._run_with_owned_runtime(_run))
+        except BaseException:
+            stop_event.set()
+            agent = request_agent_ref[0]
+            if self._enforce_owned_runtime_shutdown and agent is not None:
+                agent.interrupt("API request cancelled or failed")
+            raise
         finally:
             self._inflight_agent_runs -= 1
 
@@ -3943,6 +3993,7 @@ class APIServerAdapter(OpenAICompatRoutesMixin, BasePlatformAdapter):
         failed reconnects and turns the whole gateway into a zombie (OSError: [Errno 24] Too many open
         files, #37011).
         """
+        self._idempotency_cache.cancel_inflight_for_shutdown()
         self._mark_disconnected()
         if self._response_store is not None:
             try:

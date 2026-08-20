@@ -38,11 +38,18 @@ data class LocalBackendStatus(
     val artifactSummary: String = "",
     val completionVerified: Boolean = false,
     val completionLatencyMs: Long = 0L,
+    val requiresAppRestart: Boolean = false,
 )
 
 object OnDeviceBackendManager {
     const val LLAMA_CPP_PORT = 15435
     const val LITERT_LM_PORT = 15436
+
+    internal data class ModelInputSupport(
+        val image: Boolean,
+        val audio: Boolean,
+        val policy: String,
+    )
 
     @Volatile
     private var currentStatus: LocalBackendStatus = LocalBackendStatus(
@@ -57,15 +64,7 @@ object OnDeviceBackendManager {
     fun ensureConfigured(context: Context, backendValue: String): LocalBackendStatus {
         return withBackgroundPriorityIfNeeded {
             when (BackendKind.fromPersistedValue(backendValue)) {
-                BackendKind.NONE -> {
-                    stopAll()
-                    currentStatus = LocalBackendStatus(
-                        backendKind = BackendKind.NONE,
-                        started = false,
-                        statusMessage = "Remote provider mode",
-                    )
-                    currentStatus
-                }
+                BackendKind.NONE -> stopAll()
                 BackendKind.LLAMA_CPP -> ensureLlamaCpp(context)
                 BackendKind.LITERT_LM -> ensureLiteRtLm(context)
                 BackendKind.AICORE -> ensureAICore(context)
@@ -74,14 +73,24 @@ object OnDeviceBackendManager {
     }
 
     @Synchronized
-    fun stopAll() {
-        LlamaCppServerController.stop()
-        LiteRtLmOpenAiProxy.stop()
-        currentStatus = LocalBackendStatus(
-            backendKind = BackendKind.NONE,
-            started = false,
-            statusMessage = "Local on-device backends stopped",
-        )
+    fun stopAll(): LocalBackendStatus {
+        val llamaStopFailure = LlamaCppServerController.stop()
+        val liteRtStopFailure = LiteRtLmOpenAiProxy.stop()
+        currentStatus = when {
+            llamaStopFailure != null -> llamaStopFailureStatus(BackendKind.NONE, llamaStopFailure)
+            liteRtStopFailure != null -> {
+                // Preserve the identity of the native runtime that could not be stopped.
+                // Callers can therefore distinguish a safe transition to NONE from a
+                // fail-closed result without parsing a human-readable message.
+                liteRtStopFailureStatus(BackendKind.LITERT_LM, liteRtStopFailure)
+            }
+            else -> LocalBackendStatus(
+                backendKind = BackendKind.NONE,
+                started = false,
+                statusMessage = "Local on-device backends stopped",
+            )
+        }
+        return currentStatus
     }
 
     fun preferredDownloadSummary(context: Context, backendValue: String): String {
@@ -94,10 +103,10 @@ object OnDeviceBackendManager {
     }
 
     private fun ensureLlamaCpp(context: Context): LocalBackendStatus {
-        LiteRtLmOpenAiProxy.stop()
+        stopLiteRtLmBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
         val preferred = preferredCompletedDownload(context)
             ?: run {
-                LlamaCppServerController.stop()
+                stopLlamaCppBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
                 return LocalBackendStatus(
                     backendKind = BackendKind.LLAMA_CPP,
                     started = false,
@@ -107,7 +116,7 @@ object OnDeviceBackendManager {
 
         val modelFile = File(preferred.destinationPath)
         if (!modelFile.isFile) {
-            LlamaCppServerController.stop()
+            stopLlamaCppBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
             return LocalBackendStatus(
                 backendKind = BackendKind.LLAMA_CPP,
                 started = false,
@@ -116,12 +125,12 @@ object OnDeviceBackendManager {
             ).also { currentStatus = it }
         }
         if (!preferred.matchesBackendArtifact(BackendKind.LLAMA_CPP)) {
-            LlamaCppServerController.stop()
+            stopLlamaCppBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
             return incompatiblePreferredDownloadStatus(preferred, BackendKind.LLAMA_CPP)
         }
         val artifactProof = verifyKnownArtifact(context, preferred, modelFile, BackendKind.LLAMA_CPP)
         if (artifactProof.error != null) {
-            LlamaCppServerController.stop()
+            stopLlamaCppBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
             return artifactVerificationFailure(preferred, BackendKind.LLAMA_CPP, artifactProof.error)
         }
 
@@ -136,10 +145,10 @@ object OnDeviceBackendManager {
     }
 
     private fun ensureLiteRtLm(context: Context): LocalBackendStatus {
-        LlamaCppServerController.stop()
+        stopLlamaCppBeforeTransition(BackendKind.LITERT_LM)?.let { return it }
         val preferred = preferredCompletedDownload(context)
             ?: run {
-                LiteRtLmOpenAiProxy.stop()
+                stopLiteRtLmBeforeTransition(BackendKind.LITERT_LM)?.let { return it }
                 return LocalBackendStatus(
                     backendKind = BackendKind.LITERT_LM,
                     started = false,
@@ -149,7 +158,7 @@ object OnDeviceBackendManager {
 
         val modelFile = File(preferred.destinationPath)
         if (!modelFile.isFile) {
-            LiteRtLmOpenAiProxy.stop()
+            stopLiteRtLmBeforeTransition(BackendKind.LITERT_LM)?.let { return it }
             return LocalBackendStatus(
                 backendKind = BackendKind.LITERT_LM,
                 started = false,
@@ -158,12 +167,12 @@ object OnDeviceBackendManager {
             ).also { currentStatus = it }
         }
         if (!preferred.matchesBackendArtifact(BackendKind.LITERT_LM)) {
-            LiteRtLmOpenAiProxy.stop()
+            stopLiteRtLmBeforeTransition(BackendKind.LITERT_LM)?.let { return it }
             return incompatiblePreferredDownloadStatus(preferred, BackendKind.LITERT_LM)
         }
         val artifactProof = verifyKnownArtifact(context, preferred, modelFile, BackendKind.LITERT_LM)
         if (artifactProof.error != null) {
-            LiteRtLmOpenAiProxy.stop()
+            stopLiteRtLmBeforeTransition(BackendKind.LITERT_LM)?.let { return it }
             return artifactVerificationFailure(preferred, BackendKind.LITERT_LM, artifactProof.error)
         }
 
@@ -178,65 +187,59 @@ object OnDeviceBackendManager {
         return status
     }
 
-    /**
-     * Ensure AICore backend is running with GPU/CPU fallback.
-     * AICore requires API 35+ and NPU hardware; gracefully falls back to GPU/CPU.
-     */
-    private fun ensureAICore(context: Context): LocalBackendStatus {
-        LlamaCppServerController.stop()
-        val preferred = preferredCompletedDownload(context)
-            ?: run {
-                LiteRtLmOpenAiProxy.stop()
-                return LocalBackendStatus(
-                    backendKind = BackendKind.AICORE,
-                    started = false,
-                    statusMessage = "No preferred local model is ready for AICore yet",
-                ).also { currentStatus = it }
-            }
-
-        val modelFile = java.io.File(preferred.destinationPath)
-        if (!modelFile.isFile) {
-            LiteRtLmOpenAiProxy.stop()
-            return LocalBackendStatus(
-                backendKind = BackendKind.AICORE,
-                started = false,
-                statusMessage = "Preferred local model is missing on disk: ${preferred.destinationPath}",
-                sourceModelPath = preferred.destinationPath,
-            ).also { currentStatus = it }
-        }
-        if (!preferred.matchesBackendArtifact(BackendKind.AICORE)) {
-            LiteRtLmOpenAiProxy.stop()
-            return incompatiblePreferredDownloadStatus(preferred, BackendKind.AICORE)
-        }
-        val artifactProof = verifyKnownArtifact(context, preferred, modelFile, BackendKind.AICORE)
-        if (artifactProof.error != null) {
-            LiteRtLmOpenAiProxy.stop()
-            return artifactVerificationFailure(preferred, BackendKind.AICORE, artifactProof.error)
-        }
-
-        // AICore uses same port as LiteRT-LM but with AICore-appropriate inference config
-        val inferenceConfig = AICoreBackendController.createAICoreInferenceConfig()
-            .copy(
-                supportImage = preferred.supportsImageInput(),
-                supportAudio = preferred.supportsAudioInput(),
-            )
-        val status = LiteRtLmOpenAiProxy.ensureRunning(
-            context = context,
-            modelPath = modelFile.absolutePath,
-            requestedModelName = preferred.title,
-            port = AICoreBackendController.AICORE_PORT,
-            inferenceConfig = inferenceConfig,
-        ).withArtifactProof(artifactProof.summary)
-
-        // Update status message to reflect actual backend used
-        val actualBackend = AICoreBackendController.getBackendDescription()
-        val finalStatus = status.copy(
+    /** Fail closed until Hermes ships and verifies a real Android NPU delegate. */
+    private fun ensureAICore(@Suppress("UNUSED_PARAMETER") context: Context): LocalBackendStatus {
+        stopLlamaCppBeforeTransition(BackendKind.AICORE)?.let { return it }
+        stopLiteRtLmBeforeTransition(BackendKind.AICORE)?.let { return it }
+        val status = LocalBackendStatus(
             backendKind = BackendKind.AICORE,
-            statusMessage = "AICore mode active: $actualBackend",
+            started = false,
+            statusMessage = AICoreBackendController.getBackendDescription(),
         )
-        currentStatus = finalStatus
-        return finalStatus
+        currentStatus = status
+        return status
     }
+
+    private fun stopLiteRtLmBeforeTransition(targetBackend: BackendKind): LocalBackendStatus? {
+        val failure = LiteRtLmOpenAiProxy.stop() ?: return null
+        return liteRtStopFailureStatus(targetBackend, failure).also { currentStatus = it }
+    }
+
+    private fun stopLlamaCppBeforeTransition(targetBackend: BackendKind): LocalBackendStatus? {
+        val failure = LlamaCppServerController.stop() ?: return null
+        return llamaStopFailureStatus(targetBackend, failure).also { currentStatus = it }
+    }
+
+    internal fun llamaStopFailureStatus(
+        targetBackend: BackendKind,
+        failure: Throwable,
+    ): LocalBackendStatus = LocalBackendStatus(
+        backendKind = BackendKind.LLAMA_CPP,
+        started = false,
+        statusMessage =
+            "The existing llama.cpp process did not stop safely " +
+                "(${failure.message?.lineSequence()?.firstOrNull().orEmpty().ifBlank { failure.javaClass.simpleName }}). " +
+                "Hermes did not start ${targetBackend.persistedValue} or report llama.cpp as stopped. " +
+                "Force stop and reopen Hermes before retrying.",
+        requiresAppRestart = true,
+    )
+
+    internal fun liteRtStopFailureStatus(
+        targetBackend: BackendKind,
+        failure: Throwable,
+    ): LocalBackendStatus = LocalBackendStatus(
+        // The requested target never started; the unsafe runtime still belongs to
+        // LiteRT-LM, and callers use that identity to distinguish this from a safe
+        // transition to NONE.
+        backendKind = BackendKind.LITERT_LM,
+        started = false,
+        statusMessage =
+            "The existing LiteRT-LM runtime did not stop safely " +
+                "(${failure.message?.lineSequence()?.firstOrNull().orEmpty().ifBlank { failure.javaClass.simpleName }}). " +
+                "Hermes did not start ${targetBackend.persistedValue} or report the native runtime as stopped. " +
+                "Force stop and reopen Hermes before retrying.",
+        requiresAppRestart = true,
+    )
 
     private fun preferredCompletedDownload(context: Context): LocalModelDownloadRecord? {
         val store = LocalModelDownloadStore(context)
@@ -276,6 +279,7 @@ object OnDeviceBackendManager {
         settings: AppSettings,
     ): LiteRtLmOpenAiProxy.InferenceConfig {
         val lower = preferred.modelIdentityText()
+        val inputSupport = inferredInputSupport(preferred)
         val modelBytes = runCatching { File(preferred.destinationPath).length() }.getOrDefault(0L)
         val modelDefaults = when {
             "gemma-4" in lower || "gemma4" in lower -> LiteRtLmOpenAiProxy.InferenceConfig(
@@ -328,8 +332,8 @@ object OnDeviceBackendManager {
                 .takeIf { it > 0 }
                 ?: modelDefaults.maxTokens,
             maxContextLength = modelDefaults.maxContextLength,
-            supportImage = preferred.supportsImageInput(),
-            supportAudio = preferred.supportsAudioInput(),
+            supportImage = inputSupport.image,
+            supportAudio = inputSupport.audio,
             preferredAccelerator = AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator),
             speculativeDecodingMode = speculativeDecodingModeFor(settings),
         )
@@ -351,20 +355,18 @@ object OnDeviceBackendManager {
         }
     }
 
-    private fun LocalModelDownloadRecord.supportsImageInput(): Boolean {
-        val lower = modelIdentityText()
-        return "gemma-4" in lower ||
-            "gemma4" in lower ||
-            "gemma-3n" in lower ||
-            "gemma3-4b" in lower ||
-            "gemma-3-4b" in lower ||
-            "vision" in lower ||
-            "image-text" in lower
-    }
-
-    private fun LocalModelDownloadRecord.supportsAudioInput(): Boolean {
-        val lower = modelIdentityText()
-        return "gemma-4" in lower || "gemma4" in lower || "gemma-3n" in lower || "audio" in lower
+    internal fun inferredInputSupport(preferred: LocalModelDownloadRecord): ModelInputSupport {
+        // Download records currently carry source identity and runtime flavor, but no
+        // content-addressed modality capability proof. Model names such as "gemma-4",
+        // "vision", or "audio" are not evidence that this exact bundle contains the
+        // corresponding adapters. Start every downloaded LiteRT-LM artifact text-only
+        // until the verified-artifact registry and headed release matrix explicitly bind
+        // image/audio support for the exact revision, byte count, and SHA-256.
+        return ModelInputSupport(
+            image = false,
+            audio = false,
+            policy = "text-only: exact image/audio adapter capabilities are not release-certified",
+        )
     }
 
     private fun LocalModelDownloadRecord.modelIdentityText(): String {

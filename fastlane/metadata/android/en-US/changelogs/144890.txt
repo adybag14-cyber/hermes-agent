@@ -1,0 +1,5 @@
+Completes liquid-glass UI across startup, provider, Tasker, phone, and tablet surfaces, with expanded English, Chinese, Spanish, German, Portuguese, and French coverage.
+
+Pins LiteRT-LM 0.16.1. Makes local-model startup, generation, shutdown, catalog selection, and provider transitions fail closed. Adds a published-LiteRT compatibility lane.
+
+Repairs one-click Debian PATH, native applets, certificates, and HTTPS curl, and improves direct read-only time and device-status routing.

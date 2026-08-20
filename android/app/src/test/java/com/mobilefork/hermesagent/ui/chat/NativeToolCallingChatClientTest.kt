@@ -295,6 +295,27 @@ class NativeToolCallingChatClientTest {
     }
 
     @Test
+    fun ordinaryTimeQuestionsRouteToTheReadOnlyDateCommandWithoutToolJargon() {
+        listOf(
+            "What time is it?",
+            "Tell me what time it is",
+            "Please show the current time",
+            "Run a command to tell me what time it is",
+        ).forEach { request ->
+            assertEquals(
+                "date",
+                NativeToolCallingChatClient.extractExactTerminalCommand(request),
+            )
+        }
+
+        assertNull(
+            NativeToolCallingChatClient.extractExactTerminalCommand(
+                "Write a story in which someone asks what time it is",
+            ),
+        )
+    }
+
+    @Test
     fun skipsLocalFollowUpAfterExternalActivityHandoff() {
         val result = JSONObject()
             .put("success", true)

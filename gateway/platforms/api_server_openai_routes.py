@@ -579,12 +579,12 @@ class OpenAICompatRoutesMixin:
         """Run ``compute()`` once per Idempotency-Key + body fingerprint ->
         ``((result, usage), None)`` or ``(None, 500 response)``."""
         from gateway.platforms.api_server import (
-            _error_response, _idem_cache, _make_request_fingerprint)
+            _error_response, _make_request_fingerprint)
         idempotency_key = request.headers.get("Idempotency-Key")
         try:
             if idempotency_key:
                 fp = _make_request_fingerprint(body, keys=fingerprint_keys)
-                result, usage = await _idem_cache.get_or_set(idempotency_key, fp, compute)
+                result, usage = await self._idempotency_cache.get_or_set(idempotency_key, fp, compute)
             else:
                 result, usage = await compute()
             return (result, usage), None

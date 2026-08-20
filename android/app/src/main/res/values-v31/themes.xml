@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Android 12+ always owns the pre-onCreate splash. Resource themes cannot read AppSettings,
+      so this is intentionally a static Hermes brand hand-off; MainActivity replaces it with the
+      persisted light/dark/custom palette as soon as application code runs.
+    -->
+    <style name="Theme.HermesAgent" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/hermes_background</item>
+        <item name="android:statusBarColor">@color/hermes_background</item>
+        <item name="android:navigationBarColor">@color/hermes_surface_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <!-- Android 12+ must be allowed to render the system-owned branded splash. -->
+        <item name="android:windowDisablePreview">false</item>
+        <item name="android:windowSplashScreenBackground">@color/hermes_startup_splash</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="android:windowSplashScreenAnimationDuration">200</item>
+    </style>
+</resources>

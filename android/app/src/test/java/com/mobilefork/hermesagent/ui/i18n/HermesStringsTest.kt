@@ -7,6 +7,21 @@ import org.junit.Test
 
 class HermesStringsTest {
     @Test
+    fun androidMcpSurfaceTruthfullyReportsExternalRuntimeUnavailable() {
+        AppLanguage.entries.forEach { language ->
+            val strings = hermesStringsFor(language)
+            assertFalse(strings.mcpConfigurationDescription().isBlank())
+            assertFalse(strings.mcpStoredConfigNotExecuted().isBlank())
+            assertFalse(strings.agentEndpointAcpHint().isBlank())
+        }
+        val english = hermesStringsFor(AppLanguage.ENGLISH)
+        assertTrue(english.mcpConfigurationDescription().contains("unavailable"))
+        assertTrue(english.mcpStoredConfigNotExecuted().contains("does not load or execute"))
+        assertFalse(english.agentEndpointAcpHint().contains("add MCP"))
+        assertTrue(english.streamableHttpMcpDescription().contains("not loaded or sent"))
+    }
+
+    @Test
     fun chineseLocalizesMcpActionStatusText() {
         val strings = hermesStringsFor(AppLanguage.CHINESE)
 
@@ -127,6 +142,8 @@ class HermesStringsTest {
     @Test
     fun localModelUiTextLocalizesCatalogAndDiskStatusForEveryNonEnglishLanguage() {
         val messages = listOf(
+            "Release-certified",
+            "Experimental - not tested by Hermes",
             "Tap Refresh catalog to load signed model choices when needed.",
             "Existing model file is present on disk",
             "Download file is present on disk",
@@ -225,6 +242,47 @@ class HermesStringsTest {
             val localized = hermesStringsFor(language).customEndpointConnectionHint()
             assertTrue("$language hint should not be blank", localized.isNotBlank())
             assertFalse("$language hint should not fall back to English", localized == english)
+        }
+    }
+
+    @Test
+    fun providerNeutralReadOnlyCommandTimelineLocalizesForEveryLanguage() {
+        val english = hermesStringsFor(AppLanguage.ENGLISH)
+        val englishValues = listOf(
+            english.runningReadOnlyNativeCommand(),
+            english.readOnlyNativeCommandUnavailable(),
+            english.nativeTerminalCommandFailed("probe"),
+            english.nativeReadOnlyCommandCompleted("2026", 0),
+            english.runningNativeAndroidDiagnostics(),
+            english.nativeAndroidDiagnosticsFailed("probe"),
+            english.nativeAndroidDiagnosticsCompleted("status", 0),
+            english.nativeAndroidDiagnosticsFailureResult("probe", 0),
+        )
+
+        AppLanguage.entries.forEach { language ->
+            val strings = hermesStringsFor(language)
+            val localized = listOf(
+                strings.runningReadOnlyNativeCommand(),
+                strings.readOnlyNativeCommandUnavailable(),
+                strings.nativeTerminalCommandFailed("probe"),
+                strings.nativeReadOnlyCommandCompleted("2026", 0),
+                strings.runningNativeAndroidDiagnostics(),
+                strings.nativeAndroidDiagnosticsFailed("probe"),
+                strings.nativeAndroidDiagnosticsCompleted("status", 0),
+                strings.nativeAndroidDiagnosticsFailureResult("probe", 0),
+            )
+            assertTrue("$language direct-command strings must not be blank", localized.all { it.isNotBlank() })
+            assertTrue(localized[3].contains("2026"))
+            assertTrue(localized[3].contains("0"))
+            assertTrue(localized[6].contains("status"))
+            assertTrue(localized[6].contains("0"))
+            assertTrue(localized[7].contains("probe"))
+            assertTrue(localized[7].contains("0"))
+            if (language != AppLanguage.ENGLISH) {
+                localized.zip(englishValues).forEach { (actual, fallback) ->
+                    assertFalse("$language should not use the English direct-command fallback", actual == fallback)
+                }
+            }
         }
     }
 

@@ -42,7 +42,7 @@ fun LocalModelDownloadsSection(
     onDataSaverModeChange: (Boolean) -> Unit,
     selectedBackend: String,
     onRuntimeFlavorSelected: (String) -> Unit,
-    onCompletedDownloadReady: (String) -> Unit,
+    onCompletedDownloadReady: (String) -> Boolean,
     importModelClickOverride: (() -> Unit)? = null,
     viewModel: LocalModelDownloadsViewModel = viewModel(),
 ) {
@@ -69,7 +69,10 @@ fun LocalModelDownloadsSection(
             if (completed != null) {
                 viewModel.promoteDownloadedModelForAutoStart(completed.id)
                 onRuntimeFlavorSelected(completed.runtimeFlavor)
-                onCompletedDownloadReady(completed.runtimeFlavor)
+                val handoffAccepted = runCatching {
+                    onCompletedDownloadReady(completed.runtimeFlavor)
+                }.getOrDefault(false)
+                viewModel.completePendingAutoStartHandoff(completed.id, handoffAccepted)
             }
         }
     }
@@ -193,7 +196,8 @@ fun LocalModelDownloadsSection(
                                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                             Text(model.title, style = MaterialTheme.typography.bodyMedium)
                                             Text(
-                                                "${model.runtimeFlavor} · ${model.repoOrUrl}",
+                                                "${strings.localModelUiText("Release-certified")} · " +
+                                                    "${model.expectedBytes?.div(1024L * 1024L)} MiB · ${model.runtimeFlavor}",
                                                 style = MaterialTheme.typography.labelSmall,
                                             )
                                         }
@@ -210,7 +214,9 @@ fun LocalModelDownloadsSection(
                     if (selectedDetectedModel != null) {
                         Text(strings.localModelUiText(selectedDetectedModel.summary), style = MaterialTheme.typography.bodySmall)
                         Text(
-                            "${selectedDetectedModel.runtimeFlavor} · ${selectedDetectedModel.repoOrUrl}",
+                            "${strings.localModelUiText("Release-certified")} · " +
+                                "${selectedDetectedModel.expectedBytes?.div(1024L * 1024L)} MiB · " +
+                                "${selectedDetectedModel.runtimeFlavor} · ${selectedDetectedModel.repoOrUrl}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.secondary,
                         )
@@ -232,7 +238,7 @@ fun LocalModelDownloadsSection(
                                     viewModel.startDetectedModelDownload(dataSaverMode)
                                 }
                             },
-                            enabled = selectedDetectedModel != null && !offlineAirplaneMode,
+                            enabled = selectedDetectedModel?.quickStartEligible == true && !offlineAirplaneMode,
                         ) {
                             Text(strings.downloadAndStart())
                         }

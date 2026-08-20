@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Callable, Iterable
 
 from hermes_constants import get_hermes_home
+from hermes_android.runtime_identity import is_embedded_android_runtime
 from tools.interrupt import is_interrupted, is_thread_interrupted
 from tools.environments.base_output import (
     ProcessHandle, _finalize_wait_result, _new_output_collector, _start_drain_thread,
@@ -186,6 +187,24 @@ class BaseEnvironment(ABC):
         """Spawn a bash process to run *cmd_string*; every backend overrides this."""
         raise NotImplementedError(f"{type(self).__name__} must implement _run_bash()")
 
+    def _cleanup_abandoned_process(self, proc: ProcessHandle) -> None:
+        """Own a child when control leaves between spawn and wait completion."""
+        self._kill_process(proc)
+
+    def _run_bash_and_wait(
+        self, cmd_string: str, *, login: bool = False, timeout: int = 120,
+        stdin_data: str | None = None, **wait_options,
+    ) -> dict:
+        """Bind each successful spawn to either a wait or a cleanup path."""
+        proc = None
+        try:
+            proc = self._run_bash(cmd_string, login=login, timeout=timeout, stdin_data=stdin_data)
+            return self._wait_for_process(proc, timeout=timeout, **wait_options)
+        except BaseException:
+            if proc is not None:
+                self._cleanup_abandoned_process(proc)
+            raise
+
     @abstractmethod
     def cleanup(self):
         """Release backend resources (container, instance, connection)."""
@@ -269,8 +288,7 @@ class BaseEnvironment(ABC):
         bootstrap = _snapshot_bootstrap_script(
             excluded_names=self._snapshot_excluded_passthrough_names(), **self._snapshot_script_kwargs(self.cwd))
         try:
-            proc = self._run_bash(bootstrap, login=True, timeout=self._snapshot_timeout)
-            result = self._wait_for_process(proc, timeout=self._snapshot_timeout)
+            result = self._run_bash_and_wait(bootstrap, login=True, timeout=self._snapshot_timeout)
             if int(result.get("returncode") or 0) != 0:
                 raise RuntimeError(f"snapshot bootstrap failed with exit code {result.get('returncode')}")
             self._snapshot_ready = True
@@ -293,8 +311,7 @@ class BaseEnvironment(ABC):
         """Run ``true`` under non-login bash; return ``(prefer_nonlogin, detail)``."""
         probe_timeout = min(15, self._snapshot_timeout)
         try:
-            probe = self._run_bash("true", login=False, timeout=probe_timeout)
-            probe_result = self._wait_for_process(probe, timeout=probe_timeout)
+            probe_result = self._run_bash_and_wait("true", login=False, timeout=probe_timeout)
             prefer_nonlogin = int(probe_result.get("returncode") or 0) == 0
             if not prefer_nonlogin:
                 detail = (probe_result.get("stdout") or detail).strip() or detail
@@ -399,9 +416,15 @@ class BaseEnvironment(ABC):
         # a long join here would itself indicate a bug in the drain loop.
         drain_thread.join(timeout=2)
         try:
-            proc.stdout.close()
-        except Exception:
-            pass
+            drain_is_alive = drain_thread.is_alive()
+        except RuntimeError:
+            drain_is_alive = True
+        # Never close a TextIOWrapper alongside a reader still holding its lock.
+        if not drain_is_alive:
+            try:
+                proc.stdout.close()
+            except Exception:
+                pass
         trace.natural_exit(proc.returncode)
 
         # Join the stdin writer before reading its error list: a child that exits without
@@ -496,6 +519,16 @@ class BaseEnvironment(ABC):
         # Login shell if the snapshot failed (so the user's profile still
         # loads), unless login itself is broken — then non-login is the only path.
         login = not self._snapshot_ready and not self._prefer_nonlogin
+
+        if is_embedded_android_runtime():
+            # Android's backend owns its native timeout and verified cleanup.
+            # The generic deadline worker below may be abandoned on expiry.
+            result = self._run_bash_and_wait(
+                wrapped, login=login, timeout=effective_timeout,
+                stdin_data=effective_stdin, bounded_capture=bounded_capture,
+            )
+            self._update_cwd(result)
+            return result
 
         parent_tid = threading.current_thread().ident
         # The activity callback is thread-local and the wait runs on the

@@ -11,7 +11,18 @@ plugins {
 val repoRoot = rootDir.parentFile
 val hermesVersionFile = repoRoot.resolve("hermes_cli/__init__.py")
 val releaseTag = System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()
-val hermesSourceDigest = System.getenv("HERMES_SOURCE_DIGEST")
+val fdroidSourceBindingFileName = "hermes-android-fdroid-source-binding.properties"
+val hermesFdroidSourceBinding = providers.gradleProperty("hermesFdroidSourceBinding")
+    .orNull
+    ?.trim()
+    ?.let { configured ->
+        require(configured == "true" || configured == "false") {
+            "hermesFdroidSourceBinding must be exactly true or false, got '$configured'"
+        }
+        configured.toBoolean()
+    }
+    ?: false
+val environmentHermesSourceDigest = System.getenv("HERMES_SOURCE_DIGEST")
     .orEmpty()
     .trim()
     .lowercase()
@@ -20,6 +31,74 @@ val hermesSourceDigest = System.getenv("HERMES_SOURCE_DIGEST")
             "HERMES_SOURCE_DIGEST must be one lowercase SHA-256 digest, got '$digest'"
         }
     }
+
+fun resolvedBuildPython(): String {
+    val configured = System.getenv("PYTHON_FOR_BUILD").orEmpty().trim()
+    if (configured.isNotBlank()) {
+        return configured
+    }
+    val osName = System.getProperty("os.name").lowercase()
+    return if (osName.contains("windows")) "python" else "python3"
+}
+
+fun runSourceDigestCommand(script: File, arguments: List<String>): String {
+    val identityOutput = ByteArrayOutputStream()
+    exec {
+        commandLine(listOf(resolvedBuildPython(), script.absolutePath) + arguments)
+        standardOutput = identityOutput
+    }.assertNormalExitValue()
+    return identityOutput
+        .toString(Charsets.UTF_8)
+        .lineSequence()
+        .singleOrNull { it.startsWith("sourceDigest=") }
+        ?.substringAfter('=')
+        ?.also { digest ->
+            require(Regex("[0-9a-f]{64}").matches(digest)) {
+                "Source identity command returned an invalid digest: '$digest'"
+            }
+        }
+        ?: error("Source identity command did not return exactly one sourceDigest")
+}
+
+val hermesSourceDigest = when {
+    hermesFdroidSourceBinding -> {
+        require(environmentHermesSourceDigest.isBlank()) {
+            "F-Droid source binding and HERMES_SOURCE_DIGEST are mutually exclusive authorities"
+        }
+        require(Regex("v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?").matches(releaseTag)) {
+            "F-Droid source binding requires an exact semantic HERMES_RELEASE_TAG, got '$releaseTag'"
+        }
+        runSourceDigestCommand(
+            repoRoot.resolve("scripts/android_fdroid_source_binding.py"),
+            listOf(
+                "verify",
+                "--repo-root",
+                repoRoot.absolutePath,
+                "--binding-file",
+                gradle.gradleUserHomeDir.resolve(fdroidSourceBindingFileName).absolutePath,
+                "--version",
+                releaseTag.removePrefix("v"),
+            ),
+        )
+    }
+    environmentHermesSourceDigest.isNotBlank() -> {
+        val actualSourceDigest = runSourceDigestCommand(
+            repoRoot.resolve("scripts/android_release_evidence.py"),
+            listOf(
+                "source-identity",
+                "--repo-root",
+                repoRoot.absolutePath,
+                "--require-clean",
+            ),
+        )
+        require(actualSourceDigest == environmentHermesSourceDigest) {
+            "HERMES_SOURCE_DIGEST does not match the clean committed source: " +
+                "expected $actualSourceDigest, got $environmentHermesSourceDigest"
+        }
+        environmentHermesSourceDigest
+    }
+    else -> ""
+}
 val generatedPythonBuildLibDir = repoRoot.resolve("build/lib")
 val hermesWheelDir = layout.buildDirectory.dir("hermes-wheel")
 val generatedHermesLinuxAssetsDir = layout.buildDirectory.dir("generated/hermes-linux-assets")
@@ -35,7 +114,7 @@ val keystoreProperties = Properties().apply {
     }
 }
 val hasReleaseKeystore = keystoreProperties.isNotEmpty()
-val liteRtLmStableVersion = "0.16.0"
+val liteRtLmStableVersion = "0.16.1"
 val liteRtLmVersion = providers.gradleProperty("hermesLiteRtLmVersion")
     .getOrElse(liteRtLmStableVersion)
     .trim()
@@ -109,15 +188,6 @@ fun hermesVersionCode(): Int {
     return "$year$month$day$seq".toInt()
 }
 
-fun resolvedBuildPython(): String {
-    val configured = System.getenv("PYTHON_FOR_BUILD").orEmpty().trim()
-    if (configured.isNotBlank()) {
-        return configured
-    }
-    val osName = System.getProperty("os.name").lowercase()
-    return if (osName.contains("windows")) "python" else "python3"
-}
-
 fun hermesWheelName(): String = "hermes_agent-${hermesVersionName()}-py3-none-any.whl"
 
 if (hermesSourceDigest.isNotBlank()) {
@@ -127,28 +197,6 @@ if (hermesSourceDigest.isNotBlank()) {
     require(liteRtLmVersion == liteRtLmStableVersion) {
         "A source-bound release-evidence build must use the release LiteRT-LM version " +
             "$liteRtLmStableVersion, got $liteRtLmVersion"
-    }
-    val identityOutput = ByteArrayOutputStream()
-    exec {
-        commandLine(
-            resolvedBuildPython(),
-            repoRoot.resolve("scripts/android_release_evidence.py").absolutePath,
-            "source-identity",
-            "--repo-root",
-            repoRoot.absolutePath,
-            "--require-clean",
-        )
-        standardOutput = identityOutput
-    }.assertNormalExitValue()
-    val actualSourceDigest = identityOutput
-        .toString(Charsets.UTF_8)
-        .lineSequence()
-        .singleOrNull { it.startsWith("sourceDigest=") }
-        ?.substringAfter('=')
-        .orEmpty()
-    require(actualSourceDigest == hermesSourceDigest) {
-        "HERMES_SOURCE_DIGEST does not match the clean committed source: " +
-            "expected $actualSourceDigest, got $hermesSourceDigest"
     }
 }
 
@@ -220,6 +268,11 @@ android {
             )
         }
         release {
+            buildConfigField(
+                "String",
+                "HERMES_SOURCE_DIGEST",
+                "\"${hermesSourceDigest.ifBlank { "unbound" }}\"",
+            )
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -562,7 +615,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation("org.json:json:20240303")
-    // Release/F-Droid builds use the exact stable default (0.16.0). Developers can compile
+    // Release/F-Droid builds use the exact stable default (0.16.1). Developers can compile
     // an upstream preview version or a locally built LiteRT-LM main-branch AAR
     // without weakening the reproducible release pin.
     if (liteRtLmLocalAar != null) {

@@ -58,8 +58,6 @@ private val DIRECT_OPENAI_COMPATIBLE_PROVIDERS = setOf(
     "bigmodel",
     "xai",
     "xai-oauth",
-    "openai-codex",
-    "chatgpt-web",
     "nous",
     "bigmodel",
     "groq",
@@ -72,6 +70,13 @@ private val DIRECT_OPENAI_COMPATIBLE_PROVIDERS = setOf(
 )
 private val RESPONSES_API_PROVIDERS = setOf("openai", "codex")
 private const val STREAM_PERSIST_INTERVAL_MS = 400L
+
+internal fun usesDirectOpenAiCompatibleTransport(providerId: String): Boolean {
+    // The OpenAI Codex OAuth runtime uses its Responses transport and ChatGPT Web
+    // uses the /conversation protocol inside the embedded Python runtime. Neither
+    // token may be sent to a fabricated <base>/v1/chat/completions endpoint.
+    return providerId.trim().lowercase() in DIRECT_OPENAI_COMPATIBLE_PROVIDERS
+}
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val conversationStore = ConversationStore(application)
@@ -1070,7 +1075,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             return null
         }
         val provider = settings.provider.trim().lowercase()
-        if (provider !in DIRECT_OPENAI_COMPATIBLE_PROVIDERS) {
+        if (!usesDirectOpenAiCompatibleTransport(provider)) {
             return null
         }
         val preset = ProviderPresets.find(provider)

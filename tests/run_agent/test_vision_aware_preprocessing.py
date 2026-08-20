@@ -77,6 +77,18 @@ class TestPrepareAnthropicMessages:
         # No more image parts.
         assert "image_url" not in content
 
+    def test_android_image_fallback_never_starts_auxiliary_vision_runtime(self, monkeypatch):
+        agent = _make_agent()
+        monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
+        with patch("run_agent.asyncio.run") as async_run:
+            result = agent._describe_image_for_anthropic_fallback(
+                "https://example.invalid/image.png",
+                "user",
+            )
+
+        assert "unavailable in the embedded Android runtime" in result
+        async_run.assert_not_called()
+
 
 # ─── _prepare_messages_for_non_vision_model ──────────────────────────────────
 

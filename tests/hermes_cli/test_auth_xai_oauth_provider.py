@@ -915,6 +915,7 @@ def test_auxiliary_client_routes_xai_oauth_through_responses_api(tmp_path, monke
     assert client.api_key == fresh
 
 
+
 def test_auxiliary_client_xai_oauth_requires_explicit_model(tmp_path, monkeypatch):
     """xAI's Responses API has no safe "cheap aux model" default —
     pinning one would silently rot the same way Codex's did.  Callers
@@ -990,3 +991,33 @@ def test_pool_sync_back_preserves_active_provider(tmp_path, monkeypatch):
     state = raw_after["providers"]["xai-oauth"]["tokens"]
     assert state["access_token"] == new_access
     assert state["refresh_token"] == "rt-rotated"
+
+def test_main_router_gets_raw_xai_oauth_responses_client(tmp_path, monkeypatch):
+    """The main agent needs direct ``responses.stream()`` access, not the
+    chat-completions compatibility wrapper used by auxiliary callers."""
+    from agent.auxiliary_client import (
+        CodexAuxiliaryClient,
+        resolve_provider_client,
+    )
+
+    hermes_home = tmp_path / "hermes"
+    from hermes_cli.auth import XAI_ACCESS_TOKEN_REFRESH_SKEW_SECONDS
+
+    fresh = _jwt_with_exp(int(time.time()) + XAI_ACCESS_TOKEN_REFRESH_SKEW_SECONDS + 3600)
+    _setup_hermes_auth(hermes_home, access_token=fresh)
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    monkeypatch.delenv("HERMES_XAI_BASE_URL", raising=False)
+    monkeypatch.delenv("XAI_BASE_URL", raising=False)
+
+    client, model = resolve_provider_client(
+        "xai-oauth",
+        model="grok-4",
+        raw_codex=True,
+    )
+
+    assert client is not None
+    assert not isinstance(client, CodexAuxiliaryClient)
+    assert model == "grok-4"
+    assert str(client.base_url).rstrip("/") == DEFAULT_XAI_OAUTH_BASE_URL
+    assert client.api_key == fresh
+    assert client.responses is not None

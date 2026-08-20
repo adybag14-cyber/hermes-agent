@@ -26,7 +26,15 @@ import android.widget.Toast
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.data.AuthSessionStore
 import com.mobilefork.hermesagent.data.HermesNetworkPolicy
+import com.mobilefork.hermesagent.ui.theme.applyHermesViewTree
+import com.mobilefork.hermesagent.ui.theme.applyHermesViewWindowTheme
+import com.mobilefork.hermesagent.ui.theme.hermesDp
+import com.mobilefork.hermesagent.ui.theme.hermesLocalizedContext
+import com.mobilefork.hermesagent.ui.theme.hermesScrollablePage
+import com.mobilefork.hermesagent.ui.theme.hermesViewBackdropDrawable
+import com.mobilefork.hermesagent.ui.theme.hermesViewButtonDrawable
 import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
+import com.mobilefork.hermesagent.ui.theme.hermesViewPanelDrawable
 
 @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
 class HermesProviderSetupWebActivity : Activity() {
@@ -38,8 +46,13 @@ class HermesProviderSetupWebActivity : Activity() {
     private var setupPageTitle = ""
     private val palette by lazy { hermesViewPalette(this) }
 
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase.hermesLocalizedContext())
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyHermesViewWindowTheme(palette)
 
         val requestedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
         val requestedTitle = intent.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank {
@@ -52,7 +65,7 @@ class HermesProviderSetupWebActivity : Activity() {
             return
         }
         if (HermesNetworkPolicy.isExternalNetworkBlocked(this, requestedUrl)) {
-            showFallback(requestedTitle, requestedUrl, HermesNetworkPolicy.offlineBlockedMessage("provider setup page"))
+            showFallback(requestedTitle, requestedUrl, getString(R.string.hermes_provider_setup_offline_blocked))
             return
         }
 
@@ -76,7 +89,7 @@ class HermesProviderSetupWebActivity : Activity() {
     private fun buildViewer(pageTitle: String, url: String) {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(palette.background)
+            background = hermesViewBackdropDrawable(palette)
             setPadding(0, statusBarInsetPx(), 0, 0)
         }
 
@@ -86,28 +99,50 @@ class HermesProviderSetupWebActivity : Activity() {
             setTextColor(palette.onBackground)
             setSingleLine(true)
             ellipsize = TextUtils.TruncateAt.END
-            setPadding(20, 16, 20, 4)
+            setPadding(hermesDp(20f), hermesDp(16f), hermesDp(20f), hermesDp(6f))
         }
         root.addView(titleText, fullWidthWrapParams())
 
         val toolbar = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(12, 4, 12, 12)
+            orientation = providerToolbarOrientation(resources.configuration.screenWidthDp)
+            val toolbarPadding = hermesDp(10f)
+            setPadding(toolbarPadding, hermesDp(4f), toolbarPadding, toolbarPadding)
+            background = hermesViewPanelDrawable(this@HermesProviderSetupWebActivity, palette)
         }
-        toolbar.addView(toolbarButton(getString(R.string.hermes_provider_setup_back)) { webView?.takeIf { it.canGoBack() }?.goBack() ?: finish() })
-        toolbar.addView(toolbarButton(getString(R.string.hermes_provider_setup_browser)) { openExternal(currentUrl()) })
-        toolbar.addView(toolbarButton(getString(R.string.hermes_provider_setup_copy)) { copyToClipboard(currentUrl()) })
-        toolbar.addView(toolbarButton(getString(R.string.hermes_provider_setup_close)) { finish() })
+        toolbar.addView(
+            toolbarButton(getString(R.string.hermes_provider_setup_back)) {
+                webView?.takeIf { it.canGoBack() }?.goBack() ?: finish()
+            },
+            toolbarButtonParams(toolbar.orientation),
+        )
+        toolbar.addView(
+            toolbarButton(getString(R.string.hermes_provider_setup_browser)) { openExternal(currentUrl()) },
+            toolbarButtonParams(toolbar.orientation),
+        )
+        toolbar.addView(
+            toolbarButton(getString(R.string.hermes_provider_setup_copy)) { copyToClipboard(currentUrl()) },
+            toolbarButtonParams(toolbar.orientation),
+        )
+        toolbar.addView(
+            toolbarButton(getString(R.string.hermes_provider_setup_close)) { finish() },
+            toolbarButtonParams(toolbar.orientation),
+        )
         root.addView(toolbar, fullWidthWrapParams())
 
         progressBar = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 100
             isIndeterminate = true
+            progressTintList = android.content.res.ColorStateList.valueOf(palette.primary)
+            indeterminateTintList = android.content.res.ColorStateList.valueOf(palette.primary)
         }
         root.addView(progressBar, fullWidthWrapParams())
 
         val currentWebView = runCatching { WebView(this) }.getOrElse { error ->
-            showFallback(pageTitle, url, "Android WebView could not start (${error::class.java.simpleName}).")
+            showFallback(
+                pageTitle,
+                url,
+                getString(R.string.hermes_provider_setup_webview_unavailable, error::class.java.simpleName),
+            )
             return
         }
         webView = currentWebView
@@ -121,6 +156,9 @@ class HermesProviderSetupWebActivity : Activity() {
             ),
         )
 
+        applyHermesViewTree(titleText, palette)
+        titleText.setTextColor(palette.onBackground)
+        applyHermesViewTree(toolbar, palette)
         setContentView(root)
         currentWebView.loadUrl(url)
     }
@@ -173,7 +211,7 @@ class HermesProviderSetupWebActivity : Activity() {
                 if (request.isForMainFrame) {
                     showLoadFailureFallback(
                         request.url?.toString().orEmpty().ifBlank { currentUrl() },
-                        "Setup page failed to load in Android WebView (${error.description}).",
+                        getString(R.string.hermes_provider_setup_webview_load_failed, error.description),
                     )
                 }
             }
@@ -186,7 +224,7 @@ class HermesProviderSetupWebActivity : Activity() {
                 if (request.isForMainFrame && errorResponse.statusCode >= 400) {
                     showLoadFailureFallback(
                         request.url?.toString().orEmpty().ifBlank { currentUrl() },
-                        "Setup page returned HTTP ${errorResponse.statusCode} in Android WebView.",
+                        getString(R.string.hermes_provider_setup_webview_http_error, errorResponse.statusCode),
                     )
                 }
             }
@@ -221,8 +259,9 @@ class HermesProviderSetupWebActivity : Activity() {
         }
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(28, 28 + statusBarInsetPx(), 28, 28)
-            setBackgroundColor(palette.background)
+            val panelPadding = hermesDp(20f)
+            setPadding(panelPadding, panelPadding, panelPadding, panelPadding)
+            background = hermesViewPanelDrawable(this@HermesProviderSetupWebActivity, palette, elevated = true)
         }
         root.addView(TextView(this).apply {
             text = pageTitle
@@ -233,12 +272,13 @@ class HermesProviderSetupWebActivity : Activity() {
             text = "$message\n\n$url"
             textSize = 16f
             setTextColor(palette.onSurface)
-            setPadding(0, 20, 0, 20)
+            setPadding(0, hermesDp(20f), 0, hermesDp(20f))
         }, fullWidthWrapParams())
         root.addView(toolbarButton(getString(R.string.hermes_provider_setup_open_browser)) { openExternal(url) }, fullWidthWrapParams())
         root.addView(toolbarButton(getString(R.string.hermes_provider_setup_copy_url)) { copyToClipboard(url) }, fullWidthWrapParams())
         root.addView(toolbarButton(getString(R.string.hermes_provider_setup_close)) { finish() }, fullWidthWrapParams())
-        setContentView(root)
+        applyHermesViewTree(root, palette)
+        setContentView(hermesScrollablePage(root, palette, topInsetPx = statusBarInsetPx()))
         if (url.isNotBlank()) {
             copyToClipboard(url, showToast = false)
         }
@@ -263,8 +303,23 @@ class HermesProviderSetupWebActivity : Activity() {
         return Button(this).apply {
             text = label
             setTextColor(palette.onPrimary)
-            setBackgroundColor(palette.primary)
+            background = hermesViewButtonDrawable(this@HermesProviderSetupWebActivity, palette)
+            isAllCaps = false
+            minHeight = hermesDp(44f)
             setOnClickListener { onClick() }
+        }
+    }
+
+    private fun toolbarButtonParams(orientation: Int): LinearLayout.LayoutParams {
+        val gap = hermesDp(4f)
+        return if (orientation == LinearLayout.VERTICAL) {
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, gap, 0, gap)
+            }
+        } else {
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(gap, 0, gap, 0)
+            }
         }
     }
 
@@ -359,7 +414,10 @@ class HermesProviderSetupWebActivity : Activity() {
             return Intent(context, HermesProviderSetupWebActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 putExtra(EXTRA_URL, uri.toString())
-                putExtra(EXTRA_TITLE, title.ifBlank { context.getString(R.string.hermes_provider_setup_title) })
+                putExtra(
+                    EXTRA_TITLE,
+                    title.ifBlank { context.hermesLocalizedContext().getString(R.string.hermes_provider_setup_title) },
+                )
             }
         }
 
@@ -404,4 +462,8 @@ class HermesProviderSetupWebActivity : Activity() {
 
         private val SUPPORTED_URI_SCHEMES = setOf("http", "https")
     }
+}
+
+internal fun providerToolbarOrientation(widthDp: Int): Int {
+    return if (widthDp < 480) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
 }

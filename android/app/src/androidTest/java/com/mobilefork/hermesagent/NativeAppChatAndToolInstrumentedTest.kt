@@ -15,6 +15,7 @@ import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridge
 import com.mobilefork.hermesagent.device.NativeAndroidShellTool
+import com.mobilefork.hermesagent.ui.chat.AgentEventType
 import com.mobilefork.hermesagent.ui.chat.ChatViewModel
 import com.mobilefork.hermesagent.ui.chat.NativeToolCallingChatClient
 import org.json.JSONObject
@@ -27,7 +28,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
+import java.net.ServerSocket
+import java.net.SocketTimeoutException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class NativeAppChatAndToolInstrumentedTest {
@@ -229,6 +235,132 @@ class NativeAppChatAndToolInstrumentedTest {
             statusResult.content.contains("available_system_actions") ||
                 statusResult.content.contains("System Actions") ||
                 statusResult.content.contains("Shizuku"),
+        )
+    }
+
+    @Test
+    fun plainLanguageTimeQuestionExecutesTheNativeDateCommandWithoutNamingATool() {
+        val result = NativeToolCallingChatClient(app).send(
+            baseUrl = "http://127.0.0.1:1",
+            modelName = "direct-native-routing-proof",
+            sessionId = "plain-language-time-proof",
+            userText = "Run a command to tell me what time it is.",
+        )
+
+        assertEquals("Expected one deterministic native tool execution", 1, result.executedToolCalls)
+        assertEquals("The safe direct route must not depend on a model HTTP request", 0, result.modelRequestCount)
+        assertFalse("Expected the date command to return visible output", result.content.isBlank())
+        assertTrue(
+            "Expected a year in native date output, got '${result.content}'",
+            Regex("""\b\d{4}\b""").containsMatchIn(result.content),
+        )
+    }
+
+    @Test
+    fun chatViewModelRunsIssueEightReadOnlyToolsBeforeAnyRemoteProviderRequest() {
+        val settingsStore = AppSettingsStore(app)
+        val originalSettings = settingsStore.load()
+        val remoteConnections = AtomicInteger(0)
+        val acceptConnections = AtomicBoolean(true)
+        val probeServer = ServerSocket(0).apply { soTimeout = 100 }
+        val probeThread = Thread {
+            while (acceptConnections.get()) {
+                try {
+                    probeServer.accept().use { remoteConnections.incrementAndGet() }
+                } catch (_: SocketTimeoutException) {
+                    // Keep polling until the direct route has completed.
+                } catch (_: IOException) {
+                    if (acceptConnections.get()) throw AssertionError("Remote probe server failed unexpectedly")
+                }
+            }
+        }.apply { start() }
+        HermesRuntimeManager.stop()
+        OnDeviceBackendManager.stopAll()
+        try {
+            settingsStore.save(
+                AppSettings(
+                    provider = "openai",
+                    baseUrl = "http://127.0.0.1:${probeServer.localPort}/v1",
+                    model = "network-must-not-be-contacted",
+                    onDeviceBackend = BackendKind.NONE.persistedValue,
+                )
+            )
+            val viewModel = ChatViewModel(app)
+            viewModel.startNewConversation()
+            viewModel.updateInput("Run a command to tell me what time it is.")
+            viewModel.sendMessage()
+
+            val reply = waitForAssistantReply(viewModel)
+            assertTrue(
+                "Expected the provider-neutral native date result, got '$reply'",
+                Regex("""\b\d{4}\b""").containsMatchIn(reply),
+            )
+            assertEquals("The remote endpoint must not be contacted", "", viewModel.uiState.value.error)
+            Thread.sleep(250L)
+            assertEquals("The provider-neutral date route must make zero remote TCP connections", 0, remoteConnections.get())
+            assertTrue(
+                "Expected a visible terminal tool-call event",
+                viewModel.uiState.value.messages.any {
+                    it.eventType == AgentEventType.ToolCall && it.content.contains("terminal_tool") && it.content.contains("date")
+                },
+            )
+            assertTrue(
+                "Expected a visible terminal result event bound to zero model requests",
+                viewModel.uiState.value.messages.any {
+                    it.eventType == AgentEventType.ToolResult && it.content.contains("model_requests=0")
+                },
+            )
+            assertPersistedDirectTimeline(toolName = "terminal_tool", action = "date")
+
+            viewModel.startNewConversation()
+            viewModel.updateInput("Check my device status")
+            viewModel.sendMessage()
+
+            val deviceReply = waitForAssistantReply(viewModel)
+            assertTrue("Expected native device status output, got '$deviceReply'", deviceReply.contains("\"status\""))
+            assertEquals("The direct device-status route must not report an endpoint error", "", viewModel.uiState.value.error)
+            Thread.sleep(250L)
+            assertEquals("Both provider-neutral routes must make zero remote TCP connections", 0, remoteConnections.get())
+            assertTrue(
+                "Expected a visible diagnostics tool-call event",
+                viewModel.uiState.value.messages.any {
+                    it.eventType == AgentEventType.ToolCall &&
+                        it.content.contains("android_device_diagnostics_tool") &&
+                        it.content.contains("status")
+                },
+            )
+            assertTrue(
+                "Expected a visible diagnostics result event bound to zero model requests",
+                viewModel.uiState.value.messages.any {
+                    it.eventType == AgentEventType.ToolResult && it.content.contains("model_requests=0")
+                },
+            )
+            assertPersistedDirectTimeline(toolName = "android_device_diagnostics_tool", action = "status")
+        } finally {
+            acceptConnections.set(false)
+            probeServer.close()
+            probeThread.join(1_000L)
+            HermesRuntimeManager.stop()
+            OnDeviceBackendManager.stopAll()
+            settingsStore.save(originalSettings)
+        }
+    }
+
+    private fun assertPersistedDirectTimeline(toolName: String, action: String) {
+        val messages = com.mobilefork.hermesagent.data.ConversationStore(app).currentConversationMessages()
+        val userIndex = messages.indexOfLast { it.role == "user" }
+        val toolCallIndex = messages.indexOfFirst { message ->
+            message.role == "tool_call" && message.content.contains(toolName) && message.content.contains(action)
+        }
+        val toolResultIndex = messages.indexOfFirst { message ->
+            message.role == "tool_result" && message.content.contains("model_requests=0")
+        }
+        val assistantIndex = messages.indexOfLast { it.role == "assistant" && it.content.isNotBlank() }
+        assertTrue(
+            "Expected durable user -> tool_call -> tool_result -> assistant ordering for $toolName/$action; " +
+                "roles=${messages.map { it.role }}",
+            userIndex >= 0 && userIndex < toolCallIndex && toolCallIndex < toolResultIndex &&
+                toolResultIndex < assistantIndex,
         )
     }
 

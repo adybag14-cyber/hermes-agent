@@ -178,6 +178,41 @@ def test_concurrent_requests_do_not_break_each_other_when_one_client_closes(monk
     assert len(factory.calls) == 2
 
 
+def test_android_stale_provider_worker_blocks_retry_until_it_exits(monkeypatch):
+    monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
+    started = threading.Event()
+    release = threading.Event()
+
+    def blocked_responder(**kwargs):
+        started.set()
+        release.wait(timeout=10)
+        return {"late": True}
+
+    request_client = FakeRequestClient(blocked_responder)
+    factory = OpenAIFactory([request_client])
+    monkeypatch.setattr("agent.process_bootstrap.OpenAI", factory)
+    agent = _build_agent()
+    agent._compute_non_stream_stale_timeout = lambda messages: 0.0
+    agent._touch_activity = lambda detail: None
+    agent._emit_status = lambda detail: None
+    agent.interrupt = lambda message=None: setattr(agent, "_interrupt_requested", True)
+    agent.shutdown_memory_provider = lambda: None
+
+    try:
+        with pytest.raises(InterruptedError, match="did not unwind"):
+            agent._interruptible_api_call({"model": agent.model, "messages": []})
+
+        assert started.is_set()
+        assert agent._owned_worker_shutdown_requested is True
+        assert agent.owned_worker_names() == ["agent-api-call"]
+        with pytest.raises(InterruptedError, match="shutdown forbids new background work"):
+            agent._interruptible_api_call({"model": agent.model, "messages": []})
+        assert len(factory.calls) == 1
+    finally:
+        release.set()
+        assert agent.wait_for_owned_workers(timeout=2.0) == []
+
+
 
 def test_streaming_call_recreates_closed_shared_client_before_request(monkeypatch):
     chunks = iter([

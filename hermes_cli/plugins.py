@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Set, Tuple, Union
 
 from hermes_constants import get_hermes_home, hermes_home_key
+from hermes_android.runtime_identity import is_embedded_android_runtime
 from registration_lifecycle import replacement_coordinator
 from hermes_cli.shared_utils import env_var_enabled
 from hermes_cli.config import load_config_readonly
@@ -1200,6 +1201,8 @@ class PluginManager(PluginLoaderMixin, PluginDispatchMixin, PluginLedgerMixin):
     def discover_and_load(self, force: bool = False) -> None:
         """Scan all plugin sources and load each plugin found; ``force`` unloads first so config
         changes / new bundled backends become visible in long-lived sessions."""
+        if is_embedded_android_runtime():
+            return
         with self._discovery_lock, _plugin_home_scope(self.home_path):
             if self._discovered and not force:
                 return
@@ -1557,6 +1560,8 @@ def has_enabled_agent_plugin_mcp(raw_config: Mapping[str, Any]) -> bool:
 def discover_plugins(force: bool = False) -> None:
     """Discover and load all plugins (idempotent; ``force=True`` rescans). Joins an in-flight
     background discovery instead of racing a second scan."""
+    if is_embedded_android_runtime():
+        return
     _join_background_discovery()
     get_plugin_manager().discover_and_load(force=force)
 
@@ -1569,6 +1574,8 @@ def start_background_plugin_discovery() -> None:
     """Run discovery in a daemon thread to overlap the rest of CLI startup (~150ms). Every
     synchronous consumer joins it via :func:`discover_plugins`, so no one sees a half-loaded
     registry. No-op when already done or in flight."""
+    if is_embedded_android_runtime():
+        return
     global _background_discovery_thread
     manager = get_plugin_manager()
     if manager._discovered:
@@ -1676,11 +1683,15 @@ def invoke_hook(hook_name: str, **kwargs: Any) -> List[Any]:
     ``discover_plugins()`` (gateway platform events, TUI slash workers, query mode, cron) still fire
     callbacks registered by user plugins (tracking #64178).
     """
+    if is_embedded_android_runtime():
+        return []
     return _delivery_manager().invoke_hook(hook_name, **kwargs)
 
 
 def render_system_prompt_sections(session_info: Mapping[str, Any]) -> List[RenderedPluginSystemPromptSection]:
     """Render plugin prompt sections after idempotent plugin discovery."""
+    if is_embedded_android_runtime():
+        return []
     return _ensure_plugins_discovered().render_system_prompt_sections(session_info)
 
 
@@ -1690,6 +1701,8 @@ def invoke_middleware(kind: str, **kwargs: Any) -> List[Any]:
     Lazy-discovers plugins on first use — same delivery-parity guarantee as :func:`invoke_hook` (tracking
     #64178).
     """
+    if is_embedded_android_runtime():
+        return []
     return _delivery_manager().invoke_middleware(kind, **kwargs)
 
 
@@ -1700,6 +1713,8 @@ def has_middleware(kind: str) -> bool:
     Lazy-discovers first: callers use this as a gate before :func:`invoke_middleware`, so a pre-discovery
     ``False`` here would silently skip delivery on surfaces that never ran discovery (#64178).
     """
+    if is_embedded_android_runtime():
+        return False
     manager = _delivery_manager()
     method = getattr(manager, "has_middleware", None)
     if callable(method):
@@ -1712,11 +1727,15 @@ def has_hook(hook_name: str) -> bool:
 
     Lazy-discovers first — same gate-before-invoke rationale as :func:`has_middleware` (tracking #64178).
     """
+    if is_embedded_android_runtime():
+        return False
     return _delivery_manager().has_hook(hook_name)
 
 
 def iter_hook_callbacks(hook_name: str) -> tuple[Callable, ...]:
     """Return a stable snapshot of callbacks registered for a hook."""
+    if is_embedded_android_runtime():
+        return ()
     return get_plugin_manager().iter_hook_callbacks(hook_name)
 
 
@@ -1966,11 +1985,15 @@ def _ensure_plugins_discovered(force: bool = False) -> PluginManager:
 
 def get_plugin_context_engine():
     """Return the plugin-registered context engine, or None."""
+    if is_embedded_android_runtime():
+        return None
     return _ensure_plugins_discovered()._context_engine
 
 
 def get_plugin_command_handler(name: str) -> Optional[Callable]:
     """Return the handler for a plugin-registered slash command, or ``None``."""
+    if is_embedded_android_runtime():
+        return None
     entry = _ensure_plugins_discovered()._plugin_commands.get(name)
     return entry["handler"] if entry else None
 

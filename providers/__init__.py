@@ -39,6 +39,7 @@ import sys
 from pathlib import Path
 
 from providers.base import ProviderProfile
+from hermes_android.runtime_identity import is_embedded_android_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -351,7 +352,9 @@ def _discover_providers() -> None:
     #    third-party package from silently hijacking a first-party provider
     #    name (e.g. ``openrouter``) while still letting pip packages add
     #    genuinely new providers.
-    _discover_entry_point_providers()
+    embedded_android = is_embedded_android_runtime()
+    if not embedded_android:
+        _discover_entry_point_providers()
 
     # 1. Bundled plugins — shipped with hermes-agent.
     if _BUNDLED_PLUGINS_DIR.is_dir():
@@ -359,6 +362,9 @@ def _discover_providers() -> None:
             if not child.is_dir() or child.name.startswith(("_", ".")):
                 continue
             _import_plugin_dir(child, "bundled")
+
+    if embedded_android:
+        return
 
     # 2. User plugins — under $HERMES_HOME/plugins/model-providers/<name>/.
     #    These can override any bundled profile of the same name (last-writer-wins

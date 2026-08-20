@@ -208,18 +208,6 @@ fun McpSettingsSection(
         modifier = modifier,
         uiState = uiState,
         selectedProviderId = selectedProviderId,
-        onModeChange = viewModel::selectMode,
-        onDetect = viewModel::detectExistingConfiguration,
-        onAutoFill = viewModel::autoFillSimpleConfiguration,
-        onAutoSetup = viewModel::autoSetupSimpleConfiguration,
-        onAddDraftServer = viewModel::addDraftServer,
-        onConfigTextChange = viewModel::updateAdvancedConfigText,
-        onSaveAdvanced = viewModel::saveAdvancedConfigAndReload,
-        onReloadServers = viewModel::reloadServers,
-        onQuickAddNativeTools = viewModel::quickAddNativeTools,
-        onQuickAddStdioServer = viewModel::quickAddStdioServer,
-        onQuickAddSseServer = viewModel::quickAddSseServer,
-        onQuickAddStreamableHttpServer = viewModel::quickAddStreamableHttpServer,
         onProviderPromptCacheResendChange = viewModel::updateProviderPromptCacheResend,
     )
 }
@@ -228,18 +216,6 @@ fun McpSettingsSection(
 fun McpSettingsCard(
     uiState: McpSettingsUiState,
     selectedProviderId: String,
-    onModeChange: (McpConfigurationMode) -> Unit,
-    onDetect: () -> Unit,
-    onAutoFill: () -> Unit,
-    onAutoSetup: () -> Unit,
-    onAddDraftServer: (String, String) -> Unit,
-    onConfigTextChange: (String) -> Unit,
-    onSaveAdvanced: () -> Unit,
-    onReloadServers: () -> Unit,
-    onQuickAddNativeTools: () -> Unit,
-    onQuickAddStdioServer: (String) -> Unit,
-    onQuickAddSseServer: (String) -> Unit,
-    onQuickAddStreamableHttpServer: (String, String) -> Unit = { _, _ -> },
     onProviderPromptCacheResendChange: (Boolean, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -260,66 +236,22 @@ fun McpSettingsCard(
             Text(
                 strings.mcpConfigurationDescription(),
                 style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag("McpExternalRuntimeUnavailable"),
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Button(
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("McpSimpleModeButton"),
-                    onClick = { onModeChange(McpConfigurationMode.SIMPLE) },
-                    enabled = uiState.mode != McpConfigurationMode.SIMPLE,
-                ) {
-                    McpButtonLabel(strings.mcpSimpleMode())
-                }
-                Button(
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("McpAdvancedModeButton"),
-                    onClick = { onModeChange(McpConfigurationMode.ADVANCED) },
-                    enabled = uiState.mode != McpConfigurationMode.ADVANCED,
-                ) {
-                    McpButtonLabel(strings.mcpAdvancedMode())
-                }
-            }
             Text(
                 strings.mcpConfigFile(uiState.configFilePath),
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag("McpConfigFilePath"),
             )
-            if (uiState.mode == McpConfigurationMode.SIMPLE) {
-                SimpleMcpOnboardingControls(
-                    configText = uiState.configText,
-                    onDetect = onDetect,
-                    onAutoFill = onAutoFill,
-                    onAutoSetup = onAutoSetup,
-                    onAddDraftServer = onAddDraftServer,
-                    onReloadServers = onReloadServers,
-                    onQuickAddNativeTools = onQuickAddNativeTools,
-                    onQuickAddStdioServer = onQuickAddStdioServer,
-                    onQuickAddSseServer = onQuickAddSseServer,
-                    onQuickAddStreamableHttpServer = onQuickAddStreamableHttpServer,
-                )
-            } else {
-                AdvancedMcpConfigEditor(
-                    configText = uiState.configText,
-                    onConfigTextChange = onConfigTextChange,
-                    onSaveAdvanced = onSaveAdvanced,
-                    onReloadServers = onReloadServers,
-                )
-            }
+            Text(
+                strings.mcpStoredConfigNotExecuted(),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag("McpStoredConfigNotExecuted"),
+            )
             ProviderPromptCacheControls(
                 enabled = uiState.providerPromptCacheResendEnabled,
                 selectedProviderId = selectedProviderId,
                 onChange = onProviderPromptCacheResendChange,
-            )
-            Text(
-                strings.mcpStatusText(uiState.statusMessage),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.testTag("McpStatusMessage"),
             )
         }
     }

@@ -296,6 +296,14 @@ _HERMES_BEHAVIORAL_VARS = frozenset({
     "HERMES_MANAGED_DIR",
     "HERMES_DEV",
     "HERMES_CONTAINER",
+    # Embedded Android identity and API binding are installed directly into
+    # os.environ by prepare_runtime_env().  Keep them in the per-test reset
+    # set so one Android host test cannot permanently switch an xdist worker
+    # into the embedded-runtime policy for unrelated provider/tool tests.
+    "HERMES_ANDROID_BOOTSTRAP",
+    "API_SERVER_HOST",
+    "API_SERVER_PORT",
+    "API_SERVER_MODEL_NAME",
     "HERMES_EPHEMERAL_SYSTEM_PROMPT",
     "HERMES_TIMEZONE",
     "HERMES_REDACT_SECRETS",

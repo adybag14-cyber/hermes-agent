@@ -20,6 +20,7 @@ import threading
 from typing import Optional
 
 from hermes_cli.shared_utils import env_var_enabled, is_truthy_value
+from hermes_android.runtime_identity import is_embedded_android_runtime
 from tools import approval_context
 from tools.approval_context import (
     _get_session_platform, _is_cron_approval_context,
@@ -959,6 +960,10 @@ def _tirith_scan(command: str) -> dict:
     """Tirith result for the interactive flow; an un-importable scanner allows
     (default) or, under fail-closed, synthesizes a HIGH warn finding that goes
     through the normal approval flow (#20733)."""
+    # The embedded runtime admits only owned workers. Tirith starts an external
+    # scanner; ordinary command detection and approval remain active below.
+    if is_embedded_android_runtime():
+        return {"action": "allow", "findings": [], "summary": ""}
     try:
         from tools.tirith_security import check_command_security
         return check_command_security(command)

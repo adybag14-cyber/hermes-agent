@@ -34,6 +34,7 @@ from agent.codex_headers import (
     codex_cloudflare_headers as _codex_cloudflare_headers,
     is_official_codex_base_url as _is_official_codex_base_url,
 )
+from hermes_android.runtime_identity import is_embedded_android_runtime
 
 # `openai.OpenAI` is imported lazily (~240 ms cold); `OpenAI` below is a proxy
 # so in-module calls, `auxiliary_client.OpenAI` reads and
@@ -1158,6 +1159,8 @@ class _CodexStreamGuard:
         self.timeout_release_pending = threading.Event()
         self.stream_finished = threading.Event()
         self._timer = None
+        self._watchdog_admission_lock = threading.RLock()
+        self._admitted_watchdogs = []
         # The owner may return on hard cancel while this attempt is still blocked in the SDK
         # stream. Timer threads don't inherit the worker's thread-local protection state, so
         # freeze the hard-cancel source before creating the timer.
@@ -1290,9 +1293,14 @@ class _CodexStreamGuard:
         self._close_client_on_timeout()
 
     def _arm_timer(self, delay: float) -> None:
-        self._timer = t = threading.Timer(delay, self._watchdog_fire)
+        t = threading.Timer(delay, self._watchdog_fire)
         t.daemon = True
-        t.start()
+        with self._watchdog_admission_lock:
+            if self.stream_finished.is_set():
+                return
+            self._timer = t
+            self._admitted_watchdogs.append(t)
+            t.start()
 
     def start(self) -> None:
         """Arm the watchdog (when a total timeout exists) and run the first cancel check."""
@@ -1316,13 +1324,22 @@ class _CodexStreamGuard:
 
     def finish(self) -> None:
         """Owner ``finally``: stop the watchdog and release FDs a stranger-thread timeout only shut down."""
-        self.stream_finished.set()
-        if self._timer is not None:
+        with self._watchdog_admission_lock:
+            self.stream_finished.set()
+            watchdogs = list(self._admitted_watchdogs)
+        timer_cleanup_error = None
+        if is_embedded_android_runtime():
+            from hermes_android.agent_lifecycle import cancel_and_join_owned_watchdogs
+
+            timer_cleanup_error = cancel_and_join_owned_watchdogs(watchdogs)
+        elif self._timer is not None:
             self._timer.cancel()
         # Gated on timeout_release_pending, NOT timed_out: after a hard-cancel the shared
         # client must stay usable for other sessions.
         if self.timeout_release_pending.is_set():
             _close_quietly(self._client, "owner-thread close after timeout failed")
+        if timer_cleanup_error is not None:
+            raise timer_cleanup_error
 
 
 class _CodexCompletionsAdapter:
@@ -4474,6 +4491,17 @@ def _resolve_openai_codex_branch(req: _ResolveRequest) -> _ResolveResult:
 def _resolve_xai_oauth_branch(req: _ResolveRequest) -> _ResolveResult:
     """xAI Grok OAuth (device code → Responses API). Without this branch xai-oauth falls to the generic
     oauth_external arm, returns (None, None), and silently re-routes every aux task to the Step-2 fallback."""
+    if req.raw_codex:
+        final_model = _normalize_resolved_model(req.model, req.provider)
+        if not final_model:
+            logger.warning("resolve_provider_client: raw xai-oauth requires an explicit model")
+            return None, None
+        resolved = _resolve_xai_oauth_for_aux()
+        if resolved is None:
+            logger.warning("resolve_provider_client: no xAI OAuth credential is available")
+            return None, None
+        token, base_url = resolved
+        return _create_openai_client(api_key=token, base_url=base_url), final_model
     client, default = _build_xai_oauth_aux_client(req.model)
     return _route_or_warn(req, client, default,
                           "resolve_provider_client: xai-oauth requested but no xAI "
@@ -4563,6 +4591,10 @@ def _resolve_named_custom_branch(req: _ResolveRequest) -> Optional[_ResolveResul
         custom_entry = _get_named_custom_provider(provider)
     if not custom_entry:
         return None
+    if is_embedded_android_runtime():
+        from hermes_android.mobile_defaults import validate_android_provider_runtime
+
+        validate_android_provider_runtime(dict(custom_entry), None)
     custom_base = (custom_entry.get("base_url") or "").strip()
     custom_key = _named_custom_api_key(custom_entry, provider, custom_base)
     if custom_key == "no-key-required":
@@ -4744,6 +4776,15 @@ def _resolve_registry_branch(req: _ResolveRequest) -> _ResolveResult:
     if auth_type == "api_key":
         return _resolve_api_key_branch(req, pconfig, resolve_api_key_provider_credentials)
     if auth_type == "external_process":
+        if is_embedded_android_runtime():
+            from hermes_android.mobile_defaults import validate_android_provider_runtime
+
+            # Validate after alias/named-custom resolution, before credentials
+            # or a process-backed profile can be constructed.
+            validate_android_provider_runtime({
+                "provider": provider, "base_url": req.explicit_base_url,
+                "api_mode": req.api_mode,
+            }, None)
         return _resolve_external_process_branch(req, resolve_external_process_provider_credentials(provider))
     if auth_type == "vertex":
         client, final_model = _build_vertex_client(provider, req.model)
@@ -4789,6 +4830,14 @@ def resolve_provider_client(
     (full auto-detection chain). ``model=None`` → provider's default aux model. ``raw_codex`` → bare OpenAI
     client for ``responses.stream()`` callers. ``api_mode`` forces "codex_responses"/"chat_completions"/
     "anthropic_messages" instead of auto-detect. Returns (client, resolved_model) or (None, None)."""
+    if is_embedded_android_runtime():
+        from hermes_android.mobile_defaults import validate_android_provider_runtime
+
+        if main_runtime:
+            validate_android_provider_runtime(dict(main_runtime), None)
+        validate_android_provider_runtime({
+            "provider": provider, "base_url": explicit_base_url, "api_mode": api_mode,
+        }, None)
     _validate_proxy_env_urls()
     # Keep the pre-alias name so a custom_providers entry named like a built-in alias
     # (e.g. "kimi" → "kimi-coding") is still reachable via the named-custom branch.

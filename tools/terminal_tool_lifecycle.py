@@ -100,7 +100,7 @@ def _cleanup_env(env: Any, *, force_remove: Optional[bool] = None) -> None:
         env.terminate()
 
 
-def _teardown_env(env: Any, task_id: str, *, force_remove: Optional[bool] = None, done_msg: str = "Cleaned up inactive environment for task: %s") -> None:
+def _teardown_env(env: Any, task_id: str, *, force_remove: Optional[bool] = None, done_msg: str = "Cleaned up inactive environment for task: %s", raise_on_error: bool = False) -> None:
     """``_cleanup_env`` plus outcome logging. A 404/"not found" error means the
     sandbox is already gone — logged at info."""
     try:
@@ -112,6 +112,8 @@ def _teardown_env(env: Any, task_id: str, *, force_remove: Optional[bool] = None
             logger.info("Environment for task %s already cleaned up", task_id)
         else:
             logger.warning("Error cleaning up environment for task %s: %s", task_id, e)
+        if raise_on_error:
+            raise
 
 
 def _clear_file_ops_cache(task_id: str) -> None:
@@ -284,7 +286,7 @@ def cleanup_all_environments():
     return cleaned
 
 
-def cleanup_vm(task_id: str, *, force_remove: bool = False):
+def cleanup_vm(task_id: str, *, force_remove: bool = False, raise_on_error: bool = False):
     """Manually clean up a specific environment by task_id.
 
     *force_remove* is forwarded to backends that accept it (currently only
@@ -302,7 +304,7 @@ def cleanup_vm(task_id: str, *, force_remove: bool = False):
     if env is None:
         return
     _teardown_env(
-        env, task_id, force_remove=force_remove,
+        env, task_id, force_remove=force_remove, raise_on_error=raise_on_error,
         done_msg="Manually cleaned up environment for task: %s",
     )
 

@@ -54,7 +54,7 @@ class HermesTaskerPluginBridgeTest {
             label = "Plugin smoke",
         )
         assertEquals(
-            "Run Hermes automation: Plugin smoke",
+            "Plugin smoke",
             resultIntent.getStringExtra(HermesTaskerPluginBridge.EXTRA_STRING_BLURB),
         )
         val bundle = HermesTaskerPluginBridge.bundleFromIntent(resultIntent)

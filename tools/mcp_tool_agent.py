@@ -95,6 +95,12 @@ def refresh_agent_mcp_tools(
     slot (schemas still refresh), a still-registered tool whose ``check_fn`` merely flapped is
     carried forward (``check_fn`` gates exposure, never invocation), a deregistered tool is
     dropped, new tools append at the tail. The caller owns the prompt-cache contract."""
+    from hermes_android.runtime_identity import is_embedded_android_runtime
+
+    # Android owns a fixed constructor-time tool surface until shutdown.
+    if is_embedded_android_runtime():
+        return set()
+
     from model_tools import get_tool_definitions
     from tools.registry import registry
     enabled, disabled = _resolve_refresh_toolsets(agent, enabled_override, disabled_override)

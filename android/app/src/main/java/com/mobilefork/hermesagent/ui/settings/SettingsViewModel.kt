@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.chaquo.python.Python
 import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.HermesRuntimeManager
+import com.mobilefork.hermesagent.backend.LocalBackendStatus
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
 import com.mobilefork.hermesagent.auth.ProviderSetupProbeResult
 import com.mobilefork.hermesagent.auth.ProviderSetupUrlProbe
@@ -184,13 +185,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val existing = settingsStore.load()
         settingsStore.save(existing.copy(offlineAirplaneMode = enabled))
         val strings = currentStrings()
-        if (enabled) {
-            HermesRuntimeManager.stop()
+        val remoteStopFailure = if (enabled) {
+            HermesRuntimeManager.stopRemoteRuntime().error
+        } else {
+            null
         }
         _uiState.update {
             it.copy(
                 offlineAirplaneMode = enabled,
-                status = strings.offlineAirplaneStatus(enabled),
+                status = remoteStopFailure ?: strings.offlineAirplaneStatus(enabled),
             )
         }
     }
@@ -672,8 +675,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 }
                 settingsStore.save(updatedSettings)
                 secretsStore.saveApiKey(snapshot.provider, apiKey)
-                HermesRuntimeManager.stop()
-                HermesRuntimeManager.ensureStarted(getApplication())
+                val runtimeState = HermesRuntimeManager.restartAfterRemoteStop(getApplication())
+                runtimeState.error?.let { throw IllegalStateException(it) }
             }.onSuccess {
                 _uiState.update {
                     it.copy(
@@ -710,11 +713,17 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun startLocalRuntimeForFlavor(runtimeFlavor: String) {
+    fun startLocalRuntimeForFlavor(runtimeFlavor: String): Boolean {
         val backendValue = when (runtimeFlavor) {
             "GGUF" -> BackendKind.LLAMA_CPP.persistedValue
             "LiteRT-LM" -> BackendKind.LITERT_LM.persistedValue
-            else -> BackendKind.NONE.persistedValue
+            else -> return false
+        }
+        if (!settingsStore.persistOnDeviceBackend(backendValue)) {
+            _uiState.update {
+                it.copy(status = currentStrings().settingsSaveFailed("storage"))
+            }
+            return false
         }
         _uiState.update {
             it.copy(
@@ -724,6 +733,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             )
         }
         save()
+        return true
     }
 
     fun selectLanguage(language: AppLanguage) {
@@ -777,14 +787,30 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     settingsStore.save(updatedSettings)
 
                     val app = getApplication<Application>()
-                    val localBackendStatus = OnDeviceBackendManager.ensureConfigured(app, snapshot.onDeviceBackend)
                     val backendKind = BackendKind.fromPersistedValue(snapshot.onDeviceBackend)
+                    val remoteStopState = HermesRuntimeManager.stopRemoteRuntime()
+                    remoteStopState.error?.let { failureMessage ->
+                        return@withContext SettingsSaveResult(
+                            apiKey = "",
+                            onDeviceSummary = failureMessage,
+                            statusMessage = failureMessage,
+                        )
+                    }
+
+                    val localBackendStatus = OnDeviceBackendManager.ensureConfigured(app, snapshot.onDeviceBackend)
+                    settingsSaveUnsafeTransitionMessage(localBackendStatus)?.let { failureMessage ->
+                        return@withContext SettingsSaveResult(
+                            apiKey = "",
+                            onDeviceSummary = failureMessage,
+                            statusMessage = failureMessage,
+                        )
+                    }
 
                     HermesRuntimeManager.ensurePythonStarted(app)
-                    val useLocalBackend = localBackendStatus.started
-                    val effectiveProvider = if (useLocalBackend) "custom" else snapshot.provider
-                    val effectiveModel = if (useLocalBackend) localBackendStatus.modelName else snapshot.model
-                    val effectiveBaseUrl = if (useLocalBackend) {
+                    val configuredLocalBackend = localBackendStatus.started
+                    val effectiveProvider = if (configuredLocalBackend) "custom" else snapshot.provider
+                    val effectiveModel = if (configuredLocalBackend) localBackendStatus.modelName else snapshot.model
+                    val effectiveBaseUrl = if (configuredLocalBackend) {
                         localBackendStatus.baseUrl
                     } else {
                         ProviderPresets.runtimeConfigBaseUrl(snapshot.provider, snapshot.baseUrl)
@@ -807,12 +833,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                             providerApiKey,
                         )
                     }
-                    HermesRuntimeManager.stop()
-                    HermesRuntimeManager.ensureStarted(app)
-                    val backendSummary = if (localBackendStatus.started) {
+                    val finalRuntimeState = HermesRuntimeManager.ensureStarted(app)
+                    val finalLocalBackendStatus = OnDeviceBackendManager.currentStatus()
+                    settingsRuntimeTransitionFailureMessage(
+                        backendKind = backendKind,
+                        offlineAirplaneMode = snapshot.offlineAirplaneMode,
+                        localBackendStatus = finalLocalBackendStatus,
+                        runtimeState = finalRuntimeState,
+                    )?.let { failureMessage ->
+                        return@withContext SettingsSaveResult(
+                            apiKey = providerApiKey,
+                            onDeviceSummary = failureMessage,
+                            statusMessage = failureMessage,
+                        )
+                    }
+                    val useLocalBackend = finalLocalBackendStatus.started
+                    val backendSummary = if (useLocalBackend) {
                         strings.localBackendReady(
-                            backend = localBackendStatus.backendKind.persistedValue,
-                            model = localBackendStatus.modelName,
+                            backend = finalLocalBackendStatus.backendKind.persistedValue,
+                            model = finalLocalBackendStatus.modelName,
                         )
                     } else {
                         OnDeviceBackendManager.preferredDownloadSummary(app, snapshot.onDeviceBackend)
@@ -820,9 +859,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     val statusMessage = when {
                         useLocalBackend -> strings.onDeviceBackendReady()
                         snapshot.offlineAirplaneMode ->
-                            strings.offlineAirplaneKeptRemoteFallbackDisabled(localBackendStatus.statusMessage)
+                            strings.offlineAirplaneKeptRemoteFallbackDisabled(finalLocalBackendStatus.statusMessage)
                         backendKind != BackendKind.NONE ->
-                            strings.stayedOnSavedRemoteProvider(localBackendStatus.statusMessage)
+                            strings.stayedOnSavedRemoteProvider(finalLocalBackendStatus.statusMessage)
                         parsedCredential.importedFromEnvLine ->
                             strings.settingsSavedImportedCredential(parsedCredential.sourceLabel)
                         snapshot.dataSaverMode -> strings.settingsSavedDataSaver()
@@ -873,6 +912,34 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             else -> "rounded"
         }
     }
+}
+
+internal fun settingsSaveUnsafeTransitionMessage(status: LocalBackendStatus): String? {
+    if (!status.requiresAppRestart) return null
+    return status.statusMessage.ifBlank {
+        "The previous local runtime did not stop safely. Force stop and reopen Hermes before switching providers."
+    }
+}
+
+internal fun settingsRuntimeTransitionFailureMessage(
+    backendKind: BackendKind,
+    offlineAirplaneMode: Boolean,
+    localBackendStatus: LocalBackendStatus,
+    runtimeState: HermesRuntimeManager.RuntimeState,
+): String? {
+    settingsSaveUnsafeTransitionMessage(localBackendStatus)?.let { return it }
+    if (backendKind != BackendKind.NONE && !localBackendStatus.started) {
+        return localBackendStatus.statusMessage.ifBlank {
+            runtimeState.error ?: "The selected local backend did not start."
+        }
+    }
+    if (backendKind != BackendKind.NONE && !runtimeState.started) {
+        return runtimeState.error ?: "The selected local backend was not published as ready."
+    }
+    if (backendKind == BackendKind.NONE && !offlineAirplaneMode && !runtimeState.started) {
+        return runtimeState.error ?: "The remote Hermes runtime did not start."
+    }
+    return null
 }
 
 data class AppearanceThemePreset(

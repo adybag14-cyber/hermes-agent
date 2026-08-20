@@ -19,6 +19,10 @@ import threading
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
+from hermes_android.runtime_identity import is_embedded_android_runtime
+from hermes_android.agent_lifecycle import (
+    _android_command_execution_restart_detail, require_android_worker_unwound,
+)
 
 from agent.display import (
     KawaiiSpinner,
@@ -576,6 +580,22 @@ def _run_tool_activity_heartbeat(
 def _run_with_activity_heartbeat(agent, function_name: str, fn):
     """Run ``fn()`` under the activity heartbeat; covers both executor paths."""
     stop = threading.Event()
+    if is_embedded_android_runtime():
+        thread = None
+        try:
+            thread = agent._start_owned_worker_thread(
+                target=propagate_context_to_thread(lambda: _run_tool_activity_heartbeat(
+                    agent, stop, f"tool running: {function_name}",
+                    interval=_TOOL_ACTIVITY_HEARTBEAT_INTERVAL_S,
+                )),
+                name=f"tool-activity-hb-{function_name[:24]}",
+            )
+            return fn()
+        finally:
+            stop.set()
+            if thread is not None:
+                thread.join(timeout=2.0)
+                require_android_worker_unwound(agent, thread)
     thread = threading.Thread(
         # Keep the gateway turn-inactivity watchdog from abandoning a turn whose tool call runs silently for
         # longer than the inactivity timeout (#84491): stamp activity periodically while the tool is in
@@ -818,7 +838,7 @@ def _run_sequential_tool_execution_middleware(
     timeout_s = _resolve_sequential_tool_timeout()
     ref = _ToolCallRef(function_name, function_args, effective_task_id, tool_call_id, middleware_trace)
     kwargs = dict(ref.middleware_kwargs(), execute=execute, scope_block=scope_block, display_index=display_index)
-    if function_name in _NEVER_PARALLEL_TOOLS:
+    if is_embedded_android_runtime() or function_name in _NEVER_PARALLEL_TOOLS:
         return _run_agent_tool_execution_middleware(agent, **kwargs)
 
     from tools.daemon_pool import DaemonThreadPoolExecutor
@@ -1387,6 +1407,13 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
     """Execute tool calls concurrently; results are appended in original call order.
     ``finalize=False`` skips end-of-batch budget enforcement and /steer injection (the
     segmented dispatcher owns turn-end work)."""
+    if is_embedded_android_runtime():
+        from tools.environments.android_linux import android_embedded_runtime_work_guard
+
+        with android_embedded_runtime_work_guard():
+            return execute_tool_calls_sequential(
+                agent, assistant_message, messages, effective_task_id, api_call_count, finalize=finalize,
+            )
     tool_calls = assistant_message.tool_calls
     num_tools = len(tool_calls)
     _tool_budget = _budget_for_agent(agent)  # once per turn, not per result
@@ -1641,6 +1668,17 @@ def _publish_sequential_result(agent, messages: list, ref: _ToolCallRef, managed
     return True
 
 
+def _cancel_android_tool_batch(agent, messages, tool_calls, effective_task_id, *, reason: str) -> None:
+    """Keep one canonical, persisted result per unstarted call after unsafe cleanup."""
+    agent.interrupt(reason)
+    escaped_reason = str(reason).replace("{", "{{").replace("}", "}}")
+    _append_skipped_tool_results(
+        agent, messages, tool_calls, effective_task_id,
+        content="[Tool execution cancelled — {name}: " + escaped_reason + "]",
+        flush_stage="Android cleanup rejection", stop_on_flush_failure=False,
+    )
+
+
 def execute_tool_calls_sequential(agent, assistant_message, messages: list, effective_task_id: str, api_call_count: int = 0, *, finalize: bool = True) -> None:
     """Execute tool calls sequentially (single calls or interactive tools). ``finalize=False``
     skips end-of-batch budget enforcement and /steer injection (the segmented dispatcher
@@ -1684,6 +1722,13 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
         if not _publish_sequential_result(agent, messages, ref, managed, tool_duration=tool_duration, index=i, budget=_tool_budget):
             return
 
+        android_restart_detail = _android_command_execution_restart_detail()
+        if android_restart_detail:
+            _cancel_android_tool_batch(
+                agent, messages, tool_calls[i:], effective_task_id, reason=android_restart_detail,
+            )
+            break
+
         if agent._interrupt_requested and i < len(tool_calls):
             if not _skip_remaining_sequential(
                 agent, messages, tool_calls[i:], effective_task_id,
@@ -1704,6 +1749,13 @@ def execute_tool_calls_segmented(agent, assistant_message, messages: list, effec
     boundaries exactly as fully-sequential execution. Turn-end work (budget + /steer) runs
     once here (segments run with ``finalize=False``); each segment executor checks the
     interrupt flag up front, so an interrupt drains later segments with one result per call."""
+    if is_embedded_android_runtime():
+        from tools.environments.android_linux import android_embedded_runtime_work_guard
+
+        with android_embedded_runtime_work_guard():
+            return execute_tool_calls_sequential(
+                agent, assistant_message, messages, effective_task_id, api_call_count,
+            )
     from types import SimpleNamespace
 
     if segments is None:

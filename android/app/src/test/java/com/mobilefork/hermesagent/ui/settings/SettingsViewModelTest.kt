@@ -2,6 +2,9 @@ package com.mobilefork.hermesagent.ui.settings
 
 import android.content.Intent
 import android.provider.Browser
+import com.mobilefork.hermesagent.backend.BackendKind
+import com.mobilefork.hermesagent.backend.HermesRuntimeManager
+import com.mobilefork.hermesagent.backend.LocalBackendStatus
 import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import org.junit.Assert.assertEquals
@@ -17,6 +20,88 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = android.app.Application::class)
 class SettingsViewModelTest {
+    @Test
+    fun settingsSaveSurfacesUnsafeLocalShutdownInsteadOfStartingRemoteRuntime() {
+        val message = "LiteRT-LM did not stop safely. Force stop and reopen Hermes."
+
+        assertEquals(
+            message,
+            settingsSaveUnsafeTransitionMessage(
+                LocalBackendStatus(
+                    backendKind = BackendKind.LITERT_LM,
+                    started = false,
+                    statusMessage = message,
+                    requiresAppRestart = true,
+                ),
+            ),
+        )
+        assertNull(
+            settingsSaveUnsafeTransitionMessage(
+                LocalBackendStatus(backendKind = BackendKind.NONE, started = false),
+            ),
+        )
+
+        assertEquals(
+            message,
+            settingsRuntimeTransitionFailureMessage(
+                backendKind = BackendKind.NONE,
+                offlineAirplaneMode = false,
+                localBackendStatus = LocalBackendStatus(
+                    backendKind = BackendKind.LITERT_LM,
+                    started = false,
+                    statusMessage = message,
+                    requiresAppRestart = true,
+                ),
+                runtimeState = HermesRuntimeManager.RuntimeState(
+                    started = true,
+                    baseUrl = "http://127.0.0.1:15436/v1",
+                ),
+            ),
+        )
+        assertEquals(
+            "Final local startup failed",
+            settingsRuntimeTransitionFailureMessage(
+                backendKind = BackendKind.LITERT_LM,
+                offlineAirplaneMode = false,
+                localBackendStatus = LocalBackendStatus(
+                    backendKind = BackendKind.LITERT_LM,
+                    started = false,
+                    statusMessage = "Final local startup failed",
+                ),
+                runtimeState = HermesRuntimeManager.RuntimeState(started = false),
+            ),
+        )
+        assertEquals(
+            "Remote restart failed",
+            settingsRuntimeTransitionFailureMessage(
+                backendKind = BackendKind.NONE,
+                offlineAirplaneMode = false,
+                localBackendStatus = LocalBackendStatus(backendKind = BackendKind.NONE, started = false),
+                runtimeState = HermesRuntimeManager.RuntimeState(
+                    started = false,
+                    error = "Remote restart failed",
+                ),
+            ),
+        )
+        assertEquals(
+            "Local runtime publication failed",
+            settingsRuntimeTransitionFailureMessage(
+                backendKind = BackendKind.LITERT_LM,
+                offlineAirplaneMode = false,
+                localBackendStatus = LocalBackendStatus(
+                    backendKind = BackendKind.LITERT_LM,
+                    started = true,
+                    modelName = "experimental-local-model",
+                    baseUrl = "http://127.0.0.1:15436/v1",
+                ),
+                runtimeState = HermesRuntimeManager.RuntimeState(
+                    started = false,
+                    error = "Local runtime publication failed",
+                ),
+            ),
+        )
+    }
+
     @Test
     fun saveAgentPersonaPersistsCustomSystemPromptWithoutSecrets() {
         val application = RuntimeEnvironment.getApplication()
@@ -45,7 +130,7 @@ class SettingsViewModelTest {
         viewModel.updateLocalModelTopK(72)
         viewModel.updateLocalModelTopP(0.85f)
         viewModel.updateLocalModelTemperature(0.6f)
-        viewModel.updateLocalModelAccelerator("npu")
+        viewModel.updateLocalModelAccelerator("gpu")
         viewModel.updateApiGenerationKnobsEnabled(true)
         viewModel.updateCustomSystemPrompt("Prefer concise local model replies.")
         viewModel.saveModelGenerationConfig()
@@ -55,10 +140,29 @@ class SettingsViewModelTest {
         assertEquals(72, reloaded.localModelTopK)
         assertEquals(0.85f, reloaded.localModelTopP, 0.0001f)
         assertEquals(0.6f, reloaded.localModelTemperature, 0.0001f)
-        assertEquals("npu", reloaded.localModelAccelerator)
+        assertEquals("gpu", reloaded.localModelAccelerator)
         assertTrue(reloaded.apiGenerationKnobsEnabled)
         assertEquals("Prefer concise local model replies.", reloaded.customSystemPrompt)
         assertTrue(viewModel.uiState.value.status.contains("Model configuration saved"))
+    }
+
+    @Test
+    fun completedDownloadRuntimeHandoffIsDurableBeforeTheMethodReturns() {
+        val application = RuntimeEnvironment.getApplication()
+        val store = AppSettingsStore(application)
+        val original = store.load()
+
+        try {
+            store.save(original.copy(onDeviceBackend = BackendKind.NONE.persistedValue))
+            val viewModel = SettingsViewModel(application)
+
+            assertTrue(viewModel.startLocalRuntimeForFlavor("LiteRT-LM"))
+
+            store.invalidateCache()
+            assertEquals(BackendKind.LITERT_LM.persistedValue, store.load().onDeviceBackend)
+        } finally {
+            store.save(original)
+        }
     }
 
     @Test

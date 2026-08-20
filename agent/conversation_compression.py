@@ -3140,7 +3140,7 @@ def _candidate_rejected(
     """
     # Aborted compression returns input unchanged: surface the error, skip rotation
     # (no session ended); auto-compress callers detect no-op via equal lengths.
-    if getattr(agent.context_compressor, "_last_compress_aborted", False):
+    if getattr(agent.context_compressor, "_last_compress_aborted", False) is True:
         _summary_error = getattr(agent.context_compressor, "_last_summary_error", None)
         _err = _summary_error or "unknown error"
         if getattr(agent, "_last_compression_summary_warning", None) != _err:

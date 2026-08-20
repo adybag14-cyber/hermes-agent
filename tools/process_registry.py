@@ -32,6 +32,7 @@ from hermes_cli.config import get_hermes_home
 
 from agent.redact import redact_sensitive_text
 from tools.process_registry_notifications import format_process_notification
+from tools.process_registry_owned import OwnedProcessRegistryMixin
 
 logger = logging.getLogger(__name__)
 
@@ -384,7 +385,7 @@ _CHECKPOINT_DEFAULTS = {
 }
 
 
-class ProcessRegistry:
+class ProcessRegistry(OwnedProcessRegistryMixin):
     """In-memory registry of running and finished background processes.
     Thread-safe: accessed from executor threads (terminal_tool, process handlers),
     the gateway asyncio loop (watchers, reset checks) and the cleanup thread."""
@@ -396,6 +397,7 @@ class ProcessRegistry:
     def __init__(self):
         self._running: Dict[str, ProcessSession] = {}
         self._finished: Dict[str, ProcessSession] = {}
+        self._retained_task_ids: set[str] = set()
         self._lock = threading.Lock()
         # Side-channel for check_interval watchers (gateway reads after agent run)
         self.pending_watchers: List[Dict[str, Any]] = []
@@ -1861,9 +1863,16 @@ class ProcessRegistry:
         """Drop expired finished sessions, then the oldest survivor while over
         MAX_PROCESSES. Must hold _lock."""
         now = time.time()
-        expired = [sid for sid, s in self._finished.items() if (now - s.started_at) > FINISHED_TTL_SECONDS]
+        expired = [
+            sid for sid, s in self._finished.items()
+            if (now - s.started_at) > FINISHED_TTL_SECONDS and not self._task_ownership_is_retained(s)
+        ]
         over_cap = len(self._running) + len(self._finished) - len(expired) >= MAX_PROCESSES
-        if over_cap and (survivors := [sid for sid in self._finished if sid not in expired]):
+        survivors = [
+            sid for sid, s in self._finished.items()
+            if sid not in expired and not self._task_ownership_is_retained(s)
+        ]
+        if over_cap and survivors:
             expired.append(min(survivors, key=lambda sid: self._finished[sid].started_at))
         for sid in expired:
             del self._finished[sid]

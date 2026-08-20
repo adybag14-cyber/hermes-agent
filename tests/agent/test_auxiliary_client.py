@@ -1504,7 +1504,7 @@ class TestForkAuxiliaryRoutingContracts:
         with (
             patch("agent.auxiliary_client._select_pool_entry", return_value=(False, None)),
             patch("agent.anthropic_adapter.build_anthropic_client", return_value=MagicMock()),
-            patch("agent.anthropic_adapter.resolve_anthropic_token", return_value="synthetic-key"),
+            patch("agent.anthropic_credentials.resolve_anthropic_token", return_value="synthetic-key"),
         ):
             client, model = resolve_provider_client("anthropic", model="claude-test")
 
@@ -1572,7 +1572,7 @@ class TestForkAuxiliaryRoutingContracts:
             },
         )
 
-        client, model = _resolve_auto(
+        client, model, resolved_provider = _resolve_auto_route(
             main_runtime={
                 "provider": "chatgpt-web",
                 "model": "gpt-5-4-thinking",
@@ -1583,6 +1583,7 @@ class TestForkAuxiliaryRoutingContracts:
         assert client is not None
         assert client.__class__.__name__ == "ChatGptWebAuxiliaryClient"
         assert model == "gpt-5-4-thinking"
+        assert resolved_provider == "chatgpt-web"
 
     def test_auto_prefers_live_runtime_over_persisted_config(self, monkeypatch, tmp_path):
         (tmp_path / "config.yaml").write_text(
@@ -1594,7 +1595,7 @@ class TestForkAuxiliaryRoutingContracts:
             "agent.auxiliary_client.resolve_provider_client",
             side_effect=lambda _provider, model=None, **_kwargs: (MagicMock(), model),
         ) as resolve:
-            client, model = _resolve_auto(main_runtime={
+            client, model, resolved_provider = _resolve_auto_route(main_runtime={
                 "provider": "openai-codex",
                 "model": "runtime-model",
                 "api_mode": "codex_responses",
@@ -1602,6 +1603,7 @@ class TestForkAuxiliaryRoutingContracts:
 
         assert client is not None
         assert model == "runtime-model"
+        assert resolved_provider == "openai-codex"
         assert resolve.call_args.args[:2] == ("openai-codex", "runtime-model")
         assert resolve.call_args.kwargs["api_mode"] == "codex_responses"
 

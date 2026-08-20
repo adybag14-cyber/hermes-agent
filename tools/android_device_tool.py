@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import json
-import os
-
 from hermes_android.device_bridge import (
     list_shared_folder_entries,
     perform_accessibility_action,
@@ -15,11 +13,12 @@ from hermes_android.device_bridge import (
     read_shared_folder_file,
     write_shared_folder_file,
 )
+from hermes_android.runtime_identity import is_embedded_android_runtime
 from tools.registry import registry
 
 
 def check_requirements() -> bool:
-    return bool(os.getenv("HERMES_ANDROID_BOOTSTRAP", "").strip())
+    return is_embedded_android_runtime()
 
 
 def android_device_status_tool(task_id: str | None = None) -> str:

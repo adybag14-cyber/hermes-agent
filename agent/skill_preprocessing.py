@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 
 from hermes_cli._subprocess_compat import IS_WINDOWS, windows_hide_flags
+from hermes_android.runtime_identity import is_embedded_android_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,6 @@ def preprocess_skill_content(
     cfg = skills_cfg if isinstance(skills_cfg, dict) else load_skills_config()
     if cfg.get("template_vars", True):
         content = substitute_template_vars(content, skill_dir, session_id)
-    if cfg.get("inline_shell", False):
+    if cfg.get("inline_shell", False) and not is_embedded_android_runtime():
         content = expand_inline_shell(content, skill_dir, int(cfg.get("inline_shell_timeout", 10) or 10))
     return content

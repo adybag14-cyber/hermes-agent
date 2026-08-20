@@ -5,9 +5,400 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
+import java.nio.file.Files
+import java.util.concurrent.FutureTask
 
 class NativeAndroidShellToolTest {
+    @Test
+    fun nonTerminatingNativeShellFailsClosedAfterGracefulAndForcedStop() {
+        val handle = object : NativeShellProcessStopHandle {
+            var gracefulStops = 0
+            var forcedStops = 0
+
+            override val supportsForceDestroy: Boolean = true
+
+            override fun exitValue(): Int = throw IllegalThreadStateException("still alive")
+
+            override fun destroy() {
+                gracefulStops += 1
+            }
+
+            override fun forceDestroy() {
+                forcedStops += 1
+            }
+        }
+
+        val result = NativeAndroidShellTool.terminateOwnedProcess(
+            current = handle,
+            gracefulTimeoutMs = 0L,
+            forcedTimeoutMs = 0L,
+        )
+
+        assertTrue(result.failure is IllegalStateException)
+        assertTrue(result.failure?.message.orEmpty().contains("remained alive"))
+        assertFalse(result.interrupted)
+        assertEquals(1, handle.gracefulStops)
+        assertEquals(1, handle.forcedStops)
+        assertTrue(runCatching { handle.exitValue() }.exceptionOrNull() is IllegalThreadStateException)
+    }
+
+    @Test
+    fun api24NonTerminatingNativeShellNeverCallsUnavailableForcedDestroyAndFailsClosed() {
+        val handle = object : NativeShellProcessStopHandle {
+            var gracefulStops = 0
+            var forcedStops = 0
+
+            override val supportsForceDestroy: Boolean = false
+
+            override fun exitValue(): Int = throw IllegalThreadStateException("still alive")
+
+            override fun destroy() {
+                gracefulStops += 1
+            }
+
+            override fun forceDestroy() {
+                forcedStops += 1
+            }
+        }
+
+        val result = NativeAndroidShellTool.terminateOwnedProcess(
+            current = handle,
+            gracefulTimeoutMs = 0L,
+            forcedTimeoutMs = 0L,
+        )
+
+        assertTrue(result.failure is IllegalStateException)
+        assertTrue(result.failure?.message.orEmpty().contains("requires Android 8.0 (API 26)"))
+        assertEquals(1, handle.gracefulStops)
+        assertEquals(0, handle.forcedStops)
+    }
+
+    @Test
+    fun api24GracefulDestroyUsesExitValuePollingAndCompletesWithoutForce() {
+        val handle = object : NativeShellProcessStopHandle {
+            var alive = true
+            var gracefulStops = 0
+            var forcedStops = 0
+
+            override val supportsForceDestroy: Boolean = false
+
+            override fun exitValue(): Int {
+                if (alive) throw IllegalThreadStateException("still alive")
+                return 0
+            }
+
+            override fun destroy() {
+                gracefulStops += 1
+                alive = false
+            }
+
+            override fun forceDestroy() {
+                forcedStops += 1
+            }
+        }
+
+        val result = NativeAndroidShellTool.terminateOwnedProcess(
+            current = handle,
+            gracefulTimeoutMs = 0L,
+            forcedTimeoutMs = 0L,
+        )
+
+        assertEquals(null, result.failure)
+        assertEquals(1, handle.gracefulStops)
+        assertEquals(0, handle.forcedStops)
+        assertEquals(0, handle.exitValue())
+    }
+
+    @Test
+    fun successfulParentDetachmentTerminatesOwnerMarkedChildBeforeUnwindIsVerified() {
+        val baseline = NativeAndroidShellTool.ProcessInventorySnapshot(
+            sameUidPids = setOf(100),
+            ownerMarkedPids = emptySet(),
+        )
+        val inventory = FakeOwnedProcessInventory(
+            sameUidPids = setOf(100, 200),
+            ownerMarkedPids = setOf(200),
+            exitOnGracefulSignal = true,
+        )
+
+        val result = NativeAndroidShellTool.containDetachedOwnedProcesses(
+            baseline = baseline,
+            ownerToken = "owner-token",
+            inventory = inventory,
+            gracefulTimeoutMs = 0L,
+            forcedTimeoutMs = 0L,
+        )
+
+        assertTrue(result.verified)
+        assertEquals(setOf(200), result.detectedOwnedPids)
+        assertEquals(setOf(200), result.terminatedOwnedPids)
+        assertTrue(result.remainingOwnedPids.isEmpty())
+        assertEquals(listOf(200 to false), inventory.signals)
+        assertEquals(
+            125,
+            NativeAndroidShellTool.nativeShellExitCode(
+                timedOut = false,
+                cleanupUnsafe = !result.verified,
+                detachedProcessDetected = result.detectedOwnedPids.isNotEmpty(),
+                processExitCode = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun survivingDetachedChildPreventsSuccessfulUnwindClaimAfterBoundedSignals() {
+        val baseline = NativeAndroidShellTool.ProcessInventorySnapshot(
+            sameUidPids = setOf(100),
+            ownerMarkedPids = emptySet(),
+        )
+        val inventory = FakeOwnedProcessInventory(
+            sameUidPids = setOf(100, 200),
+            ownerMarkedPids = setOf(200),
+        )
+
+        val result = NativeAndroidShellTool.containDetachedOwnedProcesses(
+            baseline = baseline,
+            ownerToken = "owner-token",
+            inventory = inventory,
+            gracefulTimeoutMs = 0L,
+            forcedTimeoutMs = 0L,
+        )
+
+        assertFalse(result.verified)
+        assertEquals(setOf(200), result.remainingOwnedPids)
+        assertTrue(result.failure?.message.orEmpty().contains("remained alive"))
+        assertEquals(listOf(200 to false, 200 to true), inventory.signals)
+    }
+
+    @Test
+    fun detachedChildIgnoringGracefulTimeoutCanBeForceStoppedAndRechecked() {
+        val baseline = NativeAndroidShellTool.ProcessInventorySnapshot(
+            sameUidPids = setOf(100),
+            ownerMarkedPids = emptySet(),
+        )
+        val inventory = FakeOwnedProcessInventory(
+            sameUidPids = setOf(100, 200),
+            ownerMarkedPids = setOf(200),
+            exitOnForcedSignal = true,
+        )
+
+        val result = NativeAndroidShellTool.containDetachedOwnedProcesses(
+            baseline = baseline,
+            ownerToken = "owner-token",
+            inventory = inventory,
+            gracefulTimeoutMs = 0L,
+            forcedTimeoutMs = 0L,
+        )
+
+        assertTrue(result.verified)
+        assertEquals(setOf(200), result.terminatedOwnedPids)
+        assertTrue(result.remainingOwnedPids.isEmpty())
+        assertEquals(listOf(200 to false, 200 to true), inventory.signals)
+    }
+
+    @Test
+    fun unmarkedNewSameUidSurvivorFailsClosedWithoutRiskingAnUnownedKill() {
+        val baseline = NativeAndroidShellTool.ProcessInventorySnapshot(
+            sameUidPids = setOf(100),
+            ownerMarkedPids = emptySet(),
+        )
+        val inventory = FakeOwnedProcessInventory(
+            sameUidPids = setOf(100, 201),
+            ownerMarkedPids = emptySet(),
+        )
+
+        val result = NativeAndroidShellTool.containDetachedOwnedProcesses(
+            baseline = baseline,
+            ownerToken = "owner-token",
+            inventory = inventory,
+            gracefulTimeoutMs = 0L,
+            forcedTimeoutMs = 0L,
+        )
+
+        assertFalse(result.verified)
+        assertEquals(setOf(201), result.ambiguousNewSameUidPids)
+        assertTrue(result.failure?.message.orEmpty().contains("without a verifiable owner marker"))
+        assertTrue(inventory.signals.isEmpty())
+    }
+
+    @Test
+    fun interruptedOwnershipAuditCompletesBeforeCallerInterruptIsRestored() {
+        val baseline = NativeAndroidShellTool.ProcessInventorySnapshot(
+            sameUidPids = setOf(100),
+            ownerMarkedPids = emptySet(),
+        )
+        val inventory = FakeOwnedProcessInventory(
+            sameUidPids = setOf(100),
+            ownerMarkedPids = emptySet(),
+        )
+
+        try {
+            Thread.currentThread().interrupt()
+
+            val result = NativeAndroidShellTool.containDetachedOwnedProcesses(
+                baseline = baseline,
+                ownerToken = "owner-token",
+                inventory = inventory,
+                gracefulTimeoutMs = 0L,
+                forcedTimeoutMs = 0L,
+            )
+
+            assertTrue(result.verified)
+            assertTrue(result.interrupted)
+            assertFalse(Thread.currentThread().isInterrupted)
+
+            NativeAndroidShellTool.restoreInterruptAfterOwnedCleanup(result.interrupted)
+            assertTrue(Thread.currentThread().isInterrupted)
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
+    fun nativeShellHandleAllocationFailureOccursBeforeProcessLaunch() {
+        var launchAttempts = 0
+        var cleanupCalls = 0
+
+        val failure = runCatching {
+            NativeAndroidShellTool.withNativeShellProcessOwnership(
+                start = {
+                    launchAttempts += 1
+                    FakeProcess()
+                },
+                action = { _, _ -> Unit },
+                cleanup = { _, _ -> cleanupCalls += 1 },
+                handleFactory = {
+                    throw OutOfMemoryError("injected handle allocation failure")
+                },
+            )
+        }.exceptionOrNull()
+
+        assertTrue(failure is OutOfMemoryError)
+        assertEquals(0, launchAttempts)
+        assertEquals(0, cleanupCalls)
+    }
+
+    @Test
+    fun injectedPostStartSetupFailureCleansParentAndDescendantBeforeRetryIsPoisoned() {
+        val process = FakeProcess()
+        val baseline = NativeAndroidShellTool.ProcessInventorySnapshot(
+            sameUidPids = setOf(100),
+            ownerMarkedPids = emptySet(),
+        )
+        val inventory = FakeOwnedProcessInventory(
+            sameUidPids = setOf(100, 200),
+            ownerMarkedPids = setOf(200),
+            exitOnGracefulSignal = true,
+        )
+        var cleanupResult: NativeAndroidShellTool.PostStartFailureCleanupResult? = null
+
+        val setupFailure = runCatching {
+            NativeAndroidShellTool.withNativeShellProcessOwnership(
+                start = { process },
+                action = { _, _ ->
+                    throw IllegalStateException("injected reader executor allocation failure")
+                },
+                cleanup = { _, processHandle ->
+                    cleanupResult = NativeAndroidShellTool.cleanupAfterPostStartFailure(
+                        current = processHandle,
+                        baseline = baseline,
+                        ownerToken = "owner-token",
+                        inventory = inventory,
+                        gracefulTimeoutMs = 0L,
+                        forcedTimeoutMs = 0L,
+                        detachedGracefulTimeoutMs = 0L,
+                        detachedForcedTimeoutMs = 0L,
+                    )
+                },
+            )
+        }.exceptionOrNull()
+        val cleanup = requireNotNull(cleanupResult)
+
+        assertTrue(setupFailure is IllegalStateException)
+        assertTrue(cleanup.verified)
+        assertFalse(process.alive)
+        assertEquals(1, process.gracefulStops)
+        assertEquals(setOf(200), cleanup.containment.terminatedOwnedPids)
+
+        val retryGate = PrivilegedShellRetryGate()
+        var admittedDispatches = 0
+        retryGate.executeAdmitted {
+            admittedDispatches += 1
+            JSONObject()
+                .put("success", false)
+                .put("exit_code", 125)
+                .put("error", "reader setup failed after process start")
+                .put("requires_service_restart", true)
+        }
+        val blockedRetry = retryGate.executeAdmitted {
+            admittedDispatches += 1
+            JSONObject().put("success", true)
+        }
+
+        assertEquals(1, admittedDispatches)
+        assertEquals(125, blockedRetry.optInt("exit_code"))
+        assertTrue(blockedRetry.optBoolean("requires_service_restart"))
+    }
+
+    @Test
+    fun preInterruptedCallerCompletesGracefulAndForcedOwnershipChecksBeforeRestoringInterrupt() {
+        val events = mutableListOf<String>()
+        val handle = object : NativeShellProcessStopHandle {
+            var alive = true
+
+            override val supportsForceDestroy: Boolean = true
+
+            override fun exitValue(): Int {
+                if (alive) throw IllegalThreadStateException("still alive")
+                return 0
+            }
+
+            override fun destroy() {
+                events += "destroy"
+            }
+
+            override fun forceDestroy() {
+                events += "forceDestroy"
+                alive = false
+            }
+        }
+
+        try {
+            Thread.currentThread().interrupt()
+
+            val result = NativeAndroidShellTool.terminateOwnedProcess(
+                current = handle,
+                gracefulTimeoutMs = 0L,
+                forcedTimeoutMs = 0L,
+            )
+
+            assertEquals(listOf("destroy", "forceDestroy"), events)
+            assertEquals(null, result.failure)
+            assertTrue(result.interrupted)
+            assertFalse(Thread.currentThread().isInterrupted)
+
+            NativeAndroidShellTool.restoreInterruptAfterOwnedCleanup(result.interrupted)
+            assertTrue(Thread.currentThread().isInterrupted)
+        } finally {
+            Thread.interrupted()
+        }
+    }
+
+    @Test
+    fun readerWhichNeverProducesEofReturnsBoundedIncompleteResult() {
+        val unread = FutureTask<String> { "unreachable" }
+
+        val result = NativeAndroidShellTool.readStreamWithin(unread, timeoutMs = 0L)
+
+        assertFalse(result.completed)
+        assertEquals("", result.text)
+    }
+
     @Test
     fun shellInvocationUsesLoginCommandForPackagedBash() {
         val invocation = NativeAndroidShellTool.shellInvocation(
@@ -79,7 +470,8 @@ class NativeAndroidShellToolTest {
     @Test
     fun linuxSandboxBridgeBuildsPackageUpdateCommands() {
         assertEquals(
-            "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade",
+            "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && " +
+                "DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install curl",
             HermesLinuxSandboxBridge.updateCommandFor("apt"),
         )
         assertEquals(
@@ -87,6 +479,88 @@ class NativeAndroidShellToolTest {
             HermesLinuxSandboxBridge.updateCommandFor("zypper"),
         )
         assertTrue(HermesLinuxSandboxBridge.updateCommandFor("").contains("command -v apt-get"))
+    }
+
+    @Test
+    fun linuxSandboxLifecycleUpdateKeepsFullTimeoutContract() {
+        assertEquals(120L, HermesLinuxSandboxBridge.commandTimeoutSeconds(900, useLifecycleTimeout = false))
+        assertEquals(900L, HermesLinuxSandboxBridge.commandTimeoutSeconds(900, useLifecycleTimeout = true))
+        assertEquals(180L, HermesLinuxSandboxBridge.commandTimeoutSeconds(180, useLifecycleTimeout = false))
+    }
+
+    @Test
+    fun linuxSandboxBridgeSeedsGuestTrustBundleFromAndroidPemRoots() {
+        val testRoot = Files.createTempDirectory("hermes-guest-ca-test").toFile()
+        try {
+            val source = File(testRoot, "android-cacerts").apply { mkdirs() }
+            File(source, "bbbbbbbb.0").writeText(
+                "ignored\n-----BEGIN CERTIFICATE-----\nBBBB\n-----END CERTIFICATE-----\n",
+            )
+            File(source, "aaaaaaaa.0").writeText(
+                "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n",
+            )
+            val rootfs = File(testRoot, "rootfs").apply { mkdirs() }
+
+            val result = HermesLinuxSandboxBridge.ensureGuestCaBundle(rootfs, listOf(source))
+
+            assertEquals(result.toString(2), 0, result.optInt("exit_code", -1))
+            assertEquals(2, result.optInt("certificate_count"))
+            assertEquals(source.absolutePath, result.optString("source"))
+            assertEquals(
+                "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n" +
+                    "-----BEGIN CERTIFICATE-----\nBBBB\n-----END CERTIFICATE-----\n",
+                File(rootfs, "etc/ssl/certs/ca-certificates.crt").readText(),
+            )
+
+            val destination = File(rootfs, "etc/ssl/certs/ca-certificates.crt")
+            destination.writeText("-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n")
+            val repaired = HermesLinuxSandboxBridge.ensureGuestCaBundle(rootfs, listOf(source))
+            assertEquals(repaired.toString(2), 0, repaired.optInt("exit_code", -1))
+            assertEquals(source.absolutePath, repaired.optString("source"))
+            assertEquals(2, repaired.optInt("certificate_count"))
+            assertEquals(2, repaired.optInt("android_certificate_count"))
+            assertEquals(1, repaired.optInt("previous_certificate_count"))
+            assertTrue(repaired.optBoolean("replaced_truncated_guest_bundle"))
+            assertEquals(
+                "-----BEGIN CERTIFICATE-----\nAAAA\n-----END CERTIFICATE-----\n" +
+                    "-----BEGIN CERTIFICATE-----\nBBBB\n-----END CERTIFICATE-----\n",
+                destination.readText(),
+            )
+
+            File(source, "aaaaaaaa.0").writeText("")
+            val preserved = HermesLinuxSandboxBridge.ensureGuestCaBundle(rootfs, listOf(source))
+            assertEquals(0, preserved.optInt("exit_code", -1))
+            assertEquals("existing_guest_bundle", preserved.optString("source"))
+            assertEquals(2, preserved.optInt("certificate_count"))
+            assertEquals(1, preserved.optInt("android_certificate_count"))
+
+            File(source, "bbbbbbbb.0").writeText("")
+            val unverified = HermesLinuxSandboxBridge.ensureGuestCaBundle(rootfs, listOf(source))
+            assertEquals(1, unverified.optInt("exit_code", -1))
+            assertEquals(2, unverified.optInt("existing_certificate_count"))
+            assertTrue(unverified.optString("error").contains("trust-root count"))
+            assertEquals(2, Regex("-----BEGIN CERTIFICATE-----").findAll(destination.readText()).count())
+        } finally {
+            testRoot.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun linuxSandboxFailedDeployReportsPreservedIncompleteStateForRetry() {
+        val result = HermesLinuxSandboxBridge.annotateDeployDisposition(
+            result = JSONObject().put("exit_code", 124),
+            failedPhase = "update",
+            sandboxExistedBefore = false,
+            sandboxPresentAfterDeploy = true,
+        )
+
+        assertFalse(result.optBoolean("deployment_completed", true))
+        assertEquals("update", result.optString("failed_phase"))
+        assertFalse(result.optBoolean("sandbox_existed_before", true))
+        assertTrue(result.optBoolean("sandbox_present_after_deploy"))
+        assertTrue(result.optBoolean("sandbox_preserved_for_retry"))
+        assertEquals("preserved_incomplete", result.optString("sandbox_state"))
+        assertTrue(result.optString("message").contains("new sandbox was preserved"))
     }
 
     @Test
@@ -136,6 +610,16 @@ class NativeAndroidShellToolTest {
         assertTrue(runCommand.contains("proot-distro run 'hermes-alpine'"))
         assertTrue(runCommand.contains("--emulator"))
         assertTrue(runCommand.contains("/bin/sh -lc"))
+        val guestPath = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        val guestCommand =
+            "PATH=${HermesLinuxSubsystemBridge.shellQuote(guestPath)}; " +
+                "export PATH; printf 'hello world'"
+        assertTrue(
+            runCommand.contains(
+                "/bin/sh -lc ${HermesLinuxSubsystemBridge.shellQuote(guestCommand)}",
+            ),
+        )
+        assertFalse(runCommand.contains("PATH=/data/user/0/com.mobilefork.hermesagent"))
         assertTrue(runCommand.contains("hermes-alpine/rootfs"))
         assertTrue(runCommand.contains("printf"))
         assertTrue(runCommand.contains("hello world"))
@@ -279,5 +763,64 @@ class NativeAndroidShellToolTest {
         assertTrue(hint.contains("writable prefix path"))
         assertTrue(hint.contains("cannot be made executable with chmod"))
         assertTrue(hint.contains("do not grant broad storage permission"))
+    }
+
+    private class FakeProcess : Process() {
+        var alive = true
+        var gracefulStops = 0
+        private val processInput = ByteArrayInputStream(ByteArray(0))
+        private val processError = ByteArrayInputStream(ByteArray(0))
+        private val processOutput = ByteArrayOutputStream()
+
+        override fun getOutputStream(): OutputStream = processOutput
+
+        override fun getInputStream(): InputStream = processInput
+
+        override fun getErrorStream(): InputStream = processError
+
+        override fun waitFor(): Int {
+            if (alive) throw IllegalThreadStateException("still alive")
+            return 0
+        }
+
+        override fun exitValue(): Int {
+            if (alive) throw IllegalThreadStateException("still alive")
+            return 0
+        }
+
+        override fun destroy() {
+            gracefulStops += 1
+            alive = false
+        }
+    }
+
+    private class FakeOwnedProcessInventory(
+        sameUidPids: Set<Int>,
+        ownerMarkedPids: Set<Int>,
+        private val exitOnGracefulSignal: Boolean = false,
+        private val exitOnForcedSignal: Boolean = false,
+    ) : NativeAndroidShellTool.OwnedProcessInventory {
+        private val currentSameUidPids = sameUidPids.toMutableSet()
+        private val currentOwnerMarkedPids = ownerMarkedPids.toMutableSet()
+        val signals = mutableListOf<Pair<Int, Boolean>>()
+
+        override fun snapshot(ownerToken: String): NativeAndroidShellTool.ProcessInventorySnapshot {
+            return NativeAndroidShellTool.ProcessInventorySnapshot(
+                sameUidPids = currentSameUidPids.toSet(),
+                ownerMarkedPids = currentOwnerMarkedPids.toSet(),
+            )
+        }
+
+        override fun signalIfOwned(pid: Int, ownerToken: String, force: Boolean): Throwable? {
+            if (pid !in currentOwnerMarkedPids) {
+                return IllegalStateException("PID $pid is no longer owner-marked")
+            }
+            signals += pid to force
+            if ((!force && exitOnGracefulSignal) || (force && exitOnForcedSignal)) {
+                currentOwnerMarkedPids -= pid
+                currentSameUidPids -= pid
+            }
+            return null
+        }
     }
 }

@@ -12,4 +12,10 @@
     <color name="hermes_on_surface">#F2F3F5</color>
     <color name="hermes_on_primary">#001F17</color>
     <color name="hermes_error">#FF6B6B</color>
+    <!--
+      Android's system-owned starting window cannot read the persisted Hermes palette before
+      Activity.onCreate. Use a deliberate brand colour for that brief static hand-off instead
+      of pretending it is the user's dynamic background.
+    -->
+    <color name="hermes_startup_splash">#24D6A3</color>
 </resources>

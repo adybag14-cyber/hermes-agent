@@ -547,11 +547,11 @@ class NativeToolCallingChatClient(
             return null
         }
         val match = FILE_WRITE_WITH_CONTENT_REGEX.find(userText) ?: return null
-        val path = listOfNotNull(match.groups["double"]?.value, match.groups["single"]?.value, match.groups["bare"]?.value)
+        val path = listOfNotNull(match.groups[1]?.value, match.groups[2]?.value, match.groups[3]?.value)
             .firstOrNull()
             ?.trim()
             .orEmpty()
-        val content = match.groups["content"]?.value
+        val content = match.groups[4]?.value
             ?.trim()
             ?.trim('"', '\'')
             .orEmpty()
@@ -559,6 +559,12 @@ class NativeToolCallingChatClient(
             return null
         }
         return ExplicitFileWriteRequest(path = path, content = content)
+    }
+
+    internal fun extractExplicitFileWriteRequestForTest(userText: String): Pair<String, String>? {
+        return extractExplicitFileWriteRequest(userText)?.let { request ->
+            request.path to request.content
+        }
     }
 
     private fun isExplicitAndroidSystemStatusRequest(userText: String): Boolean {
@@ -5624,7 +5630,7 @@ class NativeToolCallingChatClient(
             """\b(?:(?:pwd|whoami|date|id)(?:\s|$)|(?:mkdir|rm|ls|cat|python|uname)\s+)""",
         )
         private val FILE_WRITE_WITH_CONTENT_REGEX = Regex(
-            pattern = """(?is)\b(?:write|create|save)\s+(?:"(?<double>[^"]+)"|'(?<single>[^']+)'|(?<bare>[A-Za-z0-9._/-]+))\s+with\s+content\s+(?<content>.+?)(?:\.\s+(?:after|then)\b|$)""",
+            pattern = """(?is)\b(?:write|create|save)\s+(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9._/-]+))\s+with\s+content\s+(.+?)(?:\.\s+(?:after|then)\b|$)""",
         )
     }
 

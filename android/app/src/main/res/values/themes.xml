@@ -6,5 +6,7 @@
         <item name="android:navigationBarColor">@color/hermes_surface_dark</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
+        <!-- The Activity installs the saved palette before drawing; suppress the legacy preview. -->
+        <item name="android:windowDisablePreview">true</item>
     </style>
 </resources>

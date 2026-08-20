@@ -3,6 +3,8 @@ package com.mobilefork.hermesagent.device
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import com.mobilefork.hermesagent.R
+import com.mobilefork.hermesagent.ui.theme.hermesLocalizedContext
 import org.json.JSONObject
 import java.util.UUID
 
@@ -42,15 +44,15 @@ object HermesTaskerConditionBridge {
         val error: String = "",
     )
 
-    fun conditionChoices(): List<ConditionChoice> = listOf(
-        ConditionChoice(CONDITION_SHIZUKU_AVAILABLE, "Shizuku available"),
-        ConditionChoice(CONDITION_SHIZUKU_UNAVAILABLE, "Shizuku unavailable"),
-        ConditionChoice(CONDITION_AUTOMATION_ENABLED, "Automation enabled"),
-        ConditionChoice(CONDITION_AUTOMATION_DISABLED, "Automation disabled"),
-        ConditionChoice(CONDITION_AUTOMATION_LAST_SUCCESS, "Automation last run succeeded"),
-        ConditionChoice(CONDITION_AUTOMATION_LAST_FAILED, "Automation last run failed"),
-        ConditionChoice(CONDITION_VARIABLE_SET, "Hermes variable is set"),
-        ConditionChoice(CONDITION_VARIABLE_EQUALS, "Hermes variable equals"),
+    fun conditionChoices(context: Context): List<ConditionChoice> = listOf(
+        ConditionChoice(CONDITION_SHIZUKU_AVAILABLE, context.getString(R.string.hermes_tasker_condition_shizuku_available)),
+        ConditionChoice(CONDITION_SHIZUKU_UNAVAILABLE, context.getString(R.string.hermes_tasker_condition_shizuku_unavailable)),
+        ConditionChoice(CONDITION_AUTOMATION_ENABLED, context.getString(R.string.hermes_tasker_condition_automation_enabled)),
+        ConditionChoice(CONDITION_AUTOMATION_DISABLED, context.getString(R.string.hermes_tasker_condition_automation_disabled)),
+        ConditionChoice(CONDITION_AUTOMATION_LAST_SUCCESS, context.getString(R.string.hermes_tasker_condition_last_success)),
+        ConditionChoice(CONDITION_AUTOMATION_LAST_FAILED, context.getString(R.string.hermes_tasker_condition_last_failed)),
+        ConditionChoice(CONDITION_VARIABLE_SET, context.getString(R.string.hermes_tasker_condition_variable_set)),
+        ConditionChoice(CONDITION_VARIABLE_EQUALS, context.getString(R.string.hermes_tasker_condition_variable_equals)),
     )
 
     fun bundleFromIntent(intent: Intent): Bundle? = intent.getBundleExtra(EXTRA_BUNDLE)
@@ -81,6 +83,7 @@ object HermesTaskerConditionBridge {
             existingToken = existingToken,
         )
         val blurb = blurbFor(
+            context = context,
             conditionType = normalizedType,
             automationId = normalizedAutomationId,
             variableName = normalizedVariableName,
@@ -126,26 +129,46 @@ object HermesTaskerConditionBridge {
     }
 
     fun blurbFor(
+        context: Context,
         conditionType: String,
         automationId: String,
         variableName: String,
         expectedValue: String,
         label: String,
     ): String {
-        val custom = label.trim()
-        if (custom.isNotBlank()) {
-            return custom.take(MAX_LABEL_CHARS)
+        if (label.isNotBlank()) {
+            return label.take(MAX_LABEL_CHARS)
         }
+        val localized = context.hermesLocalizedContext()
         return when (conditionType) {
-            CONDITION_SHIZUKU_AVAILABLE -> "Hermes: Shizuku available"
-            CONDITION_SHIZUKU_UNAVAILABLE -> "Hermes: Shizuku unavailable"
-            CONDITION_AUTOMATION_ENABLED -> "Hermes automation enabled: $automationId"
-            CONDITION_AUTOMATION_DISABLED -> "Hermes automation disabled: $automationId"
-            CONDITION_AUTOMATION_LAST_SUCCESS -> "Hermes automation succeeded: $automationId"
-            CONDITION_AUTOMATION_LAST_FAILED -> "Hermes automation failed: $automationId"
-            CONDITION_VARIABLE_SET -> "Hermes variable set: %$variableName"
-            CONDITION_VARIABLE_EQUALS -> "Hermes variable %$variableName = $expectedValue"
-            else -> "Hermes condition"
+            CONDITION_SHIZUKU_AVAILABLE -> localized.getString(R.string.hermes_tasker_condition_blurb_shizuku_available)
+            CONDITION_SHIZUKU_UNAVAILABLE -> localized.getString(R.string.hermes_tasker_condition_blurb_shizuku_unavailable)
+            CONDITION_AUTOMATION_ENABLED -> localized.getString(
+                R.string.hermes_tasker_condition_blurb_automation_enabled,
+                automationId,
+            )
+            CONDITION_AUTOMATION_DISABLED -> localized.getString(
+                R.string.hermes_tasker_condition_blurb_automation_disabled,
+                automationId,
+            )
+            CONDITION_AUTOMATION_LAST_SUCCESS -> localized.getString(
+                R.string.hermes_tasker_condition_blurb_automation_succeeded,
+                automationId,
+            )
+            CONDITION_AUTOMATION_LAST_FAILED -> localized.getString(
+                R.string.hermes_tasker_condition_blurb_automation_failed,
+                automationId,
+            )
+            CONDITION_VARIABLE_SET -> localized.getString(
+                R.string.hermes_tasker_condition_blurb_variable_set,
+                "%$variableName",
+            )
+            CONDITION_VARIABLE_EQUALS -> localized.getString(
+                R.string.hermes_tasker_condition_blurb_variable_equals,
+                "%$variableName",
+                expectedValue,
+            )
+            else -> localized.getString(R.string.hermes_tasker_condition_blurb_default)
         }.take(MAX_LABEL_CHARS)
     }
 

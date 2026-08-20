@@ -129,7 +129,12 @@ def test_direct_session_db_flushes_share_marker_claim(agent):
             self.entered = threading.Event()
             self.release = threading.Event()
             self.calls = 0
+            self.token_flushes = 0
             self._lock = threading.Lock()
+
+        def flush_token_counts(self):
+            with self._lock:
+                self.token_flushes += 1
 
         def append_message(self, **kwargs):
             with self._lock:
@@ -181,6 +186,7 @@ def test_direct_session_db_flushes_share_marker_claim(agent):
     assert not normal.is_alive()
     assert not direct.is_alive()
     assert db.rows == ["exactly once"]
+    assert db.token_flushes == 1
 
 
 def test_malformed_memory_config_still_builds_default_store():
@@ -2012,6 +2018,48 @@ class TestRetryAfterCap:
 class TestConcurrentToolExecution:
     """Tests for _execute_tool_calls_concurrent and dispatch logic."""
 
+    def test_android_embedded_multiple_tools_force_process_wide_sequential_path(
+        self, agent, monkeypatch
+    ):
+        monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
+        tc1 = _mock_tool_call(name="web_search", arguments='{}', call_id="c1")
+        tc2 = _mock_tool_call(name="read_file", arguments='{"path":"x.py"}', call_id="c2")
+        mock_msg = _mock_assistant_msg(content="", tool_calls=[tc1, tc2])
+        messages = []
+
+        with patch.object(agent, "_execute_tool_calls_sequential") as mock_seq:
+            with patch.object(agent, "_execute_tool_calls_concurrent") as mock_con:
+                agent._execute_tool_calls(mock_msg, messages, "task-1")
+
+        mock_seq.assert_called_once()
+        mock_con.assert_not_called()
+
+
+    def test_android_poison_after_first_tool_rejects_remaining_dispatch(
+        self, agent, monkeypatch
+    ):
+        monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
+        tc1 = _mock_tool_call(name="web_search", arguments='{}', call_id="c1")
+        tc2 = _mock_tool_call(name="web_search", arguments='{}', call_id="c2")
+        mock_msg = _mock_assistant_msg(content="", tool_calls=[tc1, tc2])
+        messages = []
+
+        with (
+            patch("model_tools.handle_function_call", return_value='{"ok":true}') as invoke,
+            patch(
+                "agent.tool_executor._android_command_execution_restart_detail",
+                return_value="Force stop and reopen Hermes before more tool work",
+            ),
+        ):
+            agent._execute_tool_calls(mock_msg, messages, "task-1")
+
+        assert invoke.call_count == 1
+        assert [message["tool_call_id"] for message in messages] == ["c1", "c2"]
+        assert "Force stop and reopen Hermes" in messages[1]["content"]
+        assert agent._interrupt_requested is True
+
+
+
     def test_single_tool_uses_sequential_path(self, agent):
         """Single tool call should use sequential path, not concurrent."""
         tc = _mock_tool_call(name="web_search", arguments='{"q":"test"}', call_id="c1")
@@ -2022,6 +2070,7 @@ class TestConcurrentToolExecution:
                 agent._execute_tool_calls(mock_msg, messages, "task-1")
                 mock_seq.assert_called_once()
                 mock_con.assert_not_called()
+
 
 
 

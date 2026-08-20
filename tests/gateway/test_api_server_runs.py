@@ -13,6 +13,8 @@ import asyncio
 import hashlib
 import threading
 import time
+import time as _time
+from contextlib import contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -75,6 +77,11 @@ def _claim_run(adapter: APIServerAdapter, run_id: str) -> None:
     request = MagicMock()
     request.headers = {}
     adapter._run_owners[run_id] = adapter._run_idempotency_scope(request)
+def _release_adapter_task_pins(adapter: APIServerAdapter) -> None:
+    from tools.process_registry import process_registry
+
+    for task_id in list(adapter._owned_task_ids):
+        process_registry.release_task_ownership(task_id)
 
 
 def _create_runs_app(adapter: APIServerAdapter) -> web.Application:
@@ -835,6 +842,62 @@ class TestStopRun:
                 assert run_id not in adapter._active_run_tasks
                 assert adapter._run_statuses[run_id]["status"] == "completed"
                 assert adapter._run_statuses[run_id]["output"] == "late result"
+
+    @pytest.mark.asyncio
+    async def test_stop_queued_android_run_prevents_late_agent_construction(self, monkeypatch):
+        from tools.environments.android_linux import android_embedded_runtime_work_guard
+
+        monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
+        adapter = _make_adapter()
+        worker_waiting = threading.Event()
+        worker_admitted = threading.Event()
+        original_register = adapter._register_owned_task_id
+        real_guard = android_embedded_runtime_work_guard
+
+        @contextmanager
+        def observable_guard():
+            worker_waiting.set()
+            with real_guard():
+                yield
+
+        def register_task_id(task_id):
+            original_register(task_id)
+            worker_admitted.set()
+
+        app = _create_runs_app(adapter)
+        try:
+            async with TestClient(TestServer(app)) as cli:
+                with (
+                    patch.object(
+                        adapter,
+                        "_register_owned_task_id",
+                        side_effect=register_task_id,
+                    ),
+                    patch.object(adapter, "_create_agent") as create_agent,
+                    patch(
+                        "tools.environments.android_linux.android_embedded_runtime_work_guard",
+                        observable_guard,
+                    ),
+                ):
+                    with real_guard():
+                        response = await cli.post("/v1/runs", json={"input": "queued"})
+                        assert response.status == 202
+                        run_id = (await response.json())["run_id"]
+                        assert await asyncio.to_thread(worker_waiting.wait, 2.0)
+
+                        stop_response = await cli.post(f"/v1/runs/{run_id}/stop")
+                        assert stop_response.status == 200
+                        assert (await stop_response.json())["status"] == "stopping"
+
+                    assert await asyncio.to_thread(worker_admitted.wait, 2.0)
+                    create_agent.assert_not_called()
+                    for _ in range(100):
+                        if run_id not in adapter._run_stop_events:
+                            break
+                        await asyncio.sleep(0.01)
+                    assert run_id not in adapter._run_stop_events
+        finally:
+            _release_adapter_task_pins(adapter)
 
     @pytest.mark.asyncio
     async def test_stop_running_agent(self, adapter):

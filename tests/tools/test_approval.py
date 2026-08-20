@@ -223,6 +223,18 @@ class TestSafeCommand:
             assert key is None
             assert desc is None
 
+    def test_android_command_guard_skips_unowned_tirith_subprocess(self, monkeypatch):
+        monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
+        monkeypatch.setenv("HERMES_EXEC_ASK", "1")
+        with (
+            mock_patch("tools.approval._get_approval_mode", return_value="manual"),
+            mock_patch("tools.tirith_security.check_command_security") as tirith,
+        ):
+            result = approval_module.check_all_command_guards("echo hello", "local")
+
+        assert result == {"approved": True, "message": None}
+        tirith.assert_not_called()
+
 
 def _clear_session(key):
     """Clear session-scoped approval state for tests without touching globals beyond that session."""

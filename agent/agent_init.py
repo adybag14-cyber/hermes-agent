@@ -41,6 +41,11 @@ from hermes_cli.config import cfg_get
 from hermes_cli.route_identity import normalize_route_base_url
 from hermes_cli.timeouts import get_provider_request_timeout
 from hermes_constants import get_hermes_home
+from hermes_android.runtime_identity import is_embedded_android_runtime
+from hermes_android.agent_lifecycle import (
+    _constructor_background_work_allowed, _context_engine_name_for_runtime,
+    filter_android_tool_definitions,
+)
 from hermes_cli.shared_utils import base_url_host_matches, is_truthy_value
 
 # Same logger name as run_agent so caplog/patches on "run_agent" see our records.
@@ -476,12 +481,13 @@ def _finalize_routing(agent, api_mode, credential_pool):
 
     # Pre-warm the OpenRouter metadata cache (1h TTL) off-thread so the first pricing estimate
     # doesn't block. Process-level Event guard: an unguarded spawn leaks a thread per message.
-    if (agent.provider == "openrouter" or agent._is_openrouter_url()) and \
-            not _ra()._openrouter_prewarm_done.is_set():
+    if (
+        _constructor_background_work_allowed(agent.platform)
+        and (agent.provider == "openrouter" or agent._is_openrouter_url())
+        and not _ra()._openrouter_prewarm_done.is_set()
+    ):
         _ra()._openrouter_prewarm_done.set()
-        threading.Thread(
-            target=fetch_model_metadata, daemon=True, name="openrouter-prewarm",
-        ).start()
+        agent._start_owned_worker_thread(target=fetch_model_metadata, name="openrouter-prewarm")
 
 
 def _set_defaults(agent, table: Dict[str, Any]) -> None:
@@ -1055,10 +1061,14 @@ def _load_tools(agent, enabled_toolsets, disabled_toolsets):
     except Exception:
         agent._tool_snapshot_generation = 0
     import model_tools
+    android_tool_options = {"skip_tool_search_assembly": True} if is_embedded_android_runtime() else {}
     agent.tools = model_tools.get_tool_definitions(
         enabled_toolsets=enabled_toolsets, disabled_toolsets=disabled_toolsets,
         quiet_mode=agent.quiet_mode,
+        **android_tool_options,
     )
+    if is_embedded_android_runtime():
+        agent.tools = filter_android_tool_definitions(agent.tools)
 
     agent.valid_tool_names = {tool["function"]["name"] for tool in agent.tools} if agent.tools else set()
     # Kanban guidance is session-static (kanban_show iff HERMES_KANBAN_TASK); resolve once.
@@ -1272,7 +1282,7 @@ def _init_memory(agent, _agent_cfg, skip_memory, platform):
 
     # External memory provider plugin (one at a time, alongside built-in): memory.provider.
     agent._memory_manager = None
-    if not skip_memory:
+    if not skip_memory and not (platform == "api_server" and is_embedded_android_runtime()):
         try:
             _mem_provider_name = mem_config.get("provider", "") if mem_config else ""
             if _mem_provider_name and _mem_provider_name.strip():
@@ -1753,10 +1763,7 @@ def _resolve_context_length(agent, _agent_cfg, base_url):
 def _select_context_engine(_agent_cfg):
     """Config-driven context engine: ``context.engine`` → plugins/context_engine/<name>/ →
     general plugin system → None (built-in ContextCompressor)."""
-    _engine_name = "compressor"
-    with suppress(Exception):
-        _ctx_cfg = _agent_cfg.get("context", {}) if isinstance(_agent_cfg, dict) else {}
-        _engine_name = _ctx_cfg.get("engine", "compressor") or "compressor"
+    _engine_name = _context_engine_name_for_runtime(_agent_cfg)
     if _engine_name == "compressor":
         return None  # built-in; don't auto-activate plugins
     _selected_engine = None
@@ -1950,7 +1957,8 @@ def _inject_context_engine_tools(agent):
     # same local-model latency penalty.
     agent._context_engine_tool_names: set = set()
     if (
-        agent.context_compressor
+        not is_embedded_android_runtime()
+        and agent.context_compressor
         and agent.tools is not None
         and (agent.enabled_toolsets is None or "context_engine" in agent.enabled_toolsets)
     ):
@@ -2244,6 +2252,10 @@ def init_agent(
     # renderer (StdoutProxy would mangle them). None = builtins.print.
     agent._print_fn = None
     agent.background_review_callback = None  # Optional sync callback for gateway delivery
+    agent._owned_worker_lock = threading.RLock()
+    agent._owned_worker_threads = set()
+    agent._owned_worker_shutdown_requested = False
+    agent._allow_background_post_turn_work = True
     agent.memory_notifications = "on"  # Memory update notifications: "off", "on", "verbose"
     # Skips the end-of-turn review fork (~30K tokens/event); one switch for both review paths.
     agent.skip_background_review = bool(skip_background_review)

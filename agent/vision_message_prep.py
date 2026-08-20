@@ -96,6 +96,16 @@ class VisionMessagePrepMixin:
             return cached
 
         role_label = {"assistant": "assistant", "tool": "tool result"}.get(role, "user")
+        from hermes_android.runtime_identity import is_embedded_android_runtime
+
+        if is_embedded_android_runtime():
+            note = (
+                f"[The {role_label} attached an image. Image analysis is unavailable "
+                "in the embedded Android runtime because its auxiliary provider work "
+                "cannot yet be lifecycle-verified.]"
+            )
+            self._anthropic_image_fallback_cache[cache_key] = note
+            return note
         analysis_prompt = (
             "Describe everything visible in this image in thorough detail. "
             "Include any text, code, UI, data, objects, people, layout, colors, "

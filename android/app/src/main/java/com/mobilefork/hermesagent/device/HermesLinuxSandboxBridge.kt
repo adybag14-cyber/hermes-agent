@@ -14,6 +14,8 @@ import java.util.concurrent.TimeUnit
 object HermesLinuxSandboxBridge {
     private const val DEFAULT_TIMEOUT_SECONDS = 900L
     private const val RUN_TIMEOUT_SECONDS = 120L
+    private const val GUEST_COMMAND_PATH =
+        "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     private const val AGENT_CONTROL_FILE_NAME = "hermes-agent-shell-control.json"
     private val layerHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -278,6 +280,22 @@ object HermesLinuxSandboxBridge {
         }
         val packageManager = selected.optString("package_manager")
         val updateCommand = updateCommandFor(packageManager)
+        val guestCaBundle = if (packageManager == "apt") {
+            ensureGuestCaBundle(rootfsDir)
+        } else {
+            JSONObject().put("exit_code", 0).put("skipped", true)
+        }
+        if (guestCaBundle.optInt("exit_code", -1) != 0) {
+            return status(state, context)
+                .put("exit_code", 1)
+                .put("action", "update")
+                .put("sandbox_name", sandboxName)
+                .put("distro_id", selected.optString("id"))
+                .put("package_manager", packageManager)
+                .put("update_command", updateCommand)
+                .put("guest_ca_bundle", guestCaBundle)
+                .put("error", guestCaBundle.optString("error"))
+        }
         return runCommand(
             context = context,
             state = state,
@@ -286,11 +304,13 @@ object HermesLinuxSandboxBridge {
             command = updateCommand,
             timeoutSeconds = timeoutSeconds.coerceIn(60, DEFAULT_TIMEOUT_SECONDS),
             respectAgentControl = false,
+            useLifecycleTimeout = true,
         ).put("action", "update")
             .put("sandbox_name", sandboxName)
             .put("distro_id", selected.optString("id"))
             .put("package_manager", packageManager)
             .put("update_command", updateCommand)
+            .put("guest_ca_bundle", guestCaBundle)
     }
 
     private fun deploySandbox(
@@ -308,7 +328,8 @@ object HermesLinuxSandboxBridge {
         )
         val sandboxName = name.ifBlank { selected.optString("name").ifBlank { "hermes-debian" } }
         val rootfsDir = File(File(containersDir(state), sandboxName), "rootfs")
-        val installResult = if (!rootfsDir.isDirectory) {
+        val sandboxExistedBefore = rootfsDir.isDirectory
+        val installResult = if (!sandboxExistedBefore) {
             install(
                 context = context,
                 state = state,
@@ -325,7 +346,12 @@ object HermesLinuxSandboxBridge {
                 .put("message", "Sandbox already installed; continuing with start/update.")
         }
         if (installResult.optInt("exit_code", -1) != 0) {
-            return installResult.put("action", "deploy")
+            return annotateDeployDisposition(
+                result = installResult.put("action", "deploy"),
+                failedPhase = "install",
+                sandboxExistedBefore = sandboxExistedBefore,
+                sandboxPresentAfterDeploy = rootfsDir.isDirectory,
+            )
         }
         val startResult = startAgentShell(
             context = context,
@@ -334,7 +360,12 @@ object HermesLinuxSandboxBridge {
             name = sandboxName,
         )
         if (startResult.optInt("exit_code", -1) != 0) {
-            return startResult.put("action", "deploy")
+            return annotateDeployDisposition(
+                result = startResult.put("action", "deploy"),
+                failedPhase = "start",
+                sandboxExistedBefore = sandboxExistedBefore,
+                sandboxPresentAfterDeploy = rootfsDir.isDirectory,
+            )
         }
         val mirrorResult = if (mirrorProfile.isNotBlank()) {
             setMirror(
@@ -348,6 +379,21 @@ object HermesLinuxSandboxBridge {
         } else {
             JSONObject().put("exit_code", 0).put("action", "set_mirror").put("skipped", true)
         }
+        if (mirrorResult.optInt("exit_code", -1) != 0) {
+            return annotateDeployDisposition(
+                result = status(state, context)
+                    .put("action", "deploy")
+                    .put("sandbox_name", sandboxName)
+                    .put("distro_id", selected.optString("id"))
+                    .put("install_result", installResult)
+                    .put("start_result", startResult)
+                    .put("mirror_result", mirrorResult)
+                    .put("exit_code", mirrorResult.optInt("exit_code", -1)),
+                failedPhase = "set_mirror",
+                sandboxExistedBefore = sandboxExistedBefore,
+                sandboxPresentAfterDeploy = rootfsDir.isDirectory,
+            )
+        }
         val updateResult = updateSandbox(
             context = context,
             state = state,
@@ -355,7 +401,7 @@ object HermesLinuxSandboxBridge {
             name = sandboxName,
             timeoutSeconds = timeoutSeconds,
         )
-        return status(state, context)
+        val result = status(state, context)
             .put("action", "deploy")
             .put("sandbox_name", sandboxName)
             .put("distro_id", selected.optString("id"))
@@ -364,8 +410,44 @@ object HermesLinuxSandboxBridge {
             .put("mirror_result", mirrorResult)
             .put("update_result", updateResult)
             .put("exit_code", updateResult.optInt("exit_code", -1))
-            .put("message", "One-click Linux sandbox deployment completed.")
             .put("next_actions", JSONArray().put("run").put("update").put("set_mirror").put("stop").put("uninstall"))
+        return annotateDeployDisposition(
+            result = result,
+            failedPhase = if (updateResult.optInt("exit_code", -1) == 0) "" else "update",
+            sandboxExistedBefore = sandboxExistedBefore,
+            sandboxPresentAfterDeploy = rootfsDir.isDirectory,
+        )
+    }
+
+    internal fun annotateDeployDisposition(
+        result: JSONObject,
+        failedPhase: String,
+        sandboxExistedBefore: Boolean,
+        sandboxPresentAfterDeploy: Boolean,
+    ): JSONObject {
+        val completed = failedPhase.isBlank() && result.optInt("exit_code", -1) == 0
+        val sandboxState = when {
+            completed -> "ready"
+            sandboxPresentAfterDeploy -> "preserved_incomplete"
+            else -> "not_installed"
+        }
+        val message = when {
+            completed -> "One-click Linux sandbox deployment completed."
+            sandboxPresentAfterDeploy && sandboxExistedBefore ->
+                "One-click Linux sandbox deployment failed during $failedPhase. The existing sandbox was preserved for inspection and retry."
+            sandboxPresentAfterDeploy ->
+                "One-click Linux sandbox deployment failed during $failedPhase. The new sandbox was preserved in an incomplete state for inspection and retry."
+            else ->
+                "One-click Linux sandbox deployment failed during $failedPhase. No sandbox rootfs remains installed."
+        }
+        return result
+            .put("deployment_completed", completed)
+            .put("failed_phase", failedPhase)
+            .put("sandbox_existed_before", sandboxExistedBefore)
+            .put("sandbox_present_after_deploy", sandboxPresentAfterDeploy)
+            .put("sandbox_preserved_for_retry", !completed && sandboxPresentAfterDeploy)
+            .put("sandbox_state", sandboxState)
+            .put("message", message)
     }
 
     private fun setMirror(
@@ -484,6 +566,7 @@ object HermesLinuxSandboxBridge {
         command: String,
         timeoutSeconds: Long,
         respectAgentControl: Boolean = true,
+        useLifecycleTimeout: Boolean = false,
     ): JSONObject {
         val selected = selectDistro(distroId = distroId, name = name, image = "")
         val control = readAgentControl(context)
@@ -544,8 +627,7 @@ object HermesLinuxSandboxBridge {
             state = state,
             action = "run",
             command = shellCommand,
-            timeoutSeconds = timeoutSeconds.coerceIn(5, DEFAULT_TIMEOUT_SECONDS).takeIf { timeoutSeconds != DEFAULT_TIMEOUT_SECONDS }
-                ?: RUN_TIMEOUT_SECONDS,
+            timeoutSeconds = commandTimeoutSeconds(timeoutSeconds, useLifecycleTimeout),
             includeStatus = false,
         )
         return compactRunResult(
@@ -904,9 +986,95 @@ object HermesLinuxSandboxBridge {
             .joinToString("") { "%02x".format(it) }
     }
 
+    internal fun ensureGuestCaBundle(
+        rootfsDir: File,
+        androidCaDirs: List<File> = listOf(
+            File("/apex/com.android.conscrypt/cacerts"),
+            File("/system/etc/security/cacerts"),
+        ),
+    ): JSONObject {
+        val destination = File(rootfsDir, "etc/ssl/certs/ca-certificates.crt")
+        val existingCount = pemCertificatesIn(destination).size
+        val androidTrustRoots = androidCaDirs.asSequence().mapNotNull { source ->
+            if (!source.isDirectory) return@mapNotNull null
+            val certificates = source.listFiles()
+                .orEmpty()
+                .asSequence()
+                .filter { it.isFile && it.canRead() }
+                .sortedBy { it.name }
+                .flatMap { pemCertificatesIn(it).asSequence() }
+                .toList()
+            if (certificates.isEmpty()) null else source to certificates
+        }.firstOrNull()
+        if (androidTrustRoots == null) {
+            return JSONObject()
+                .put("exit_code", 1)
+                .put("path", destination.absolutePath)
+                .put("existing_certificate_count", existingCount)
+                .put("error", "Android system CA certificates are unavailable; refusing to provision curl without a trust-root count that can validate the guest bundle.")
+        }
+        val (sourceDir, certificates) = androidTrustRoots
+        if (existingCount >= certificates.size) {
+            return JSONObject()
+                .put("exit_code", 0)
+                .put("path", destination.absolutePath)
+                .put("source", "existing_guest_bundle")
+                .put("certificate_count", existingCount)
+                .put("android_certificate_count", certificates.size)
+                .put("sha256", sha256File(destination))
+        }
+
+        destination.parentFile?.mkdirs()
+        val temporary = File(destination.parentFile, ".${destination.name}.${System.nanoTime()}.tmp")
+        return try {
+            temporary.writeText(certificates.joinToString(separator = "\n", postfix = "\n"), Charsets.UTF_8)
+            temporary.setReadable(true, false)
+            temporary.setWritable(true, true)
+            if (destination.exists() && !destination.delete()) {
+                error("Unable to replace the guest CA bundle.")
+            }
+            if (!temporary.renameTo(destination)) {
+                error("Unable to promote the guest CA bundle.")
+            }
+            JSONObject()
+                .put("exit_code", 0)
+                .put("path", destination.absolutePath)
+                .put("source", sourceDir.absolutePath)
+                .put("certificate_count", certificates.size)
+                .put("android_certificate_count", certificates.size)
+                .put("replaced_truncated_guest_bundle", existingCount > 0)
+                .put("previous_certificate_count", existingCount)
+                .put("sha256", sha256File(destination))
+        } catch (error: Throwable) {
+            JSONObject()
+                .put("exit_code", 1)
+                .put("path", destination.absolutePath)
+                .put("source", sourceDir.absolutePath)
+                .put("error", error.message ?: error.javaClass.simpleName)
+        } finally {
+            temporary.delete()
+        }
+    }
+
+    private fun pemCertificatesIn(file: File): List<String> {
+        if (!file.isFile || !file.canRead()) return emptyList()
+        val content = runCatching { file.readText(Charsets.UTF_8) }.getOrElse { return emptyList() }
+        return PEM_CERTIFICATE.findAll(content).map { it.value.trim() }.toList()
+    }
+
     private val SHA256_DIGEST = Regex("""sha256:([0-9a-f]{64})""")
+    private val PEM_CERTIFICATE = Regex("""-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----""")
     private val DOCKER_REPO = Regex("""[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*""")
     private val DOCKER_TAG = Regex("""[a-z0-9_][a-z0-9_.-]{0,127}""")
+
+    internal fun commandTimeoutSeconds(timeoutSeconds: Long, useLifecycleTimeout: Boolean): Long {
+        val bounded = timeoutSeconds.coerceIn(5, DEFAULT_TIMEOUT_SECONDS)
+        return if (useLifecycleTimeout || timeoutSeconds != DEFAULT_TIMEOUT_SECONDS) {
+            bounded
+        } else {
+            RUN_TIMEOUT_SECONDS
+        }
+    }
 
     internal fun runCommandFor(prefixPath: String, sandboxName: String, command: String, qemuPath: String = ""): String {
         val normalizedPrefixPath = prefixPath.trimEnd('/')
@@ -914,10 +1082,12 @@ object HermesLinuxSandboxBridge {
         val emulatorArg = qemuPath.trim().takeIf { it.isNotBlank() }
             ?.let { " --emulator ${HermesLinuxSubsystemBridge.shellQuote(it)}" }
             .orEmpty()
+        val guestCommand =
+            "PATH=${HermesLinuxSubsystemBridge.shellQuote(GUEST_COMMAND_PATH)}; export PATH; $command"
         return "HERMES_SANDBOX_ROOTFS=${HermesLinuxSubsystemBridge.shellQuote(rootfsPath)}; " +
             "export HERMES_SANDBOX_ROOTFS; " +
             "proot-distro run ${HermesLinuxSubsystemBridge.shellQuote(sandboxName)}$emulatorArg -- " +
-            "/bin/sh -lc ${HermesLinuxSubsystemBridge.shellQuote(command)}"
+            "/bin/sh -lc ${HermesLinuxSubsystemBridge.shellQuote(guestCommand)}"
     }
 
     internal fun removeCommandFor(sandboxName: String): String {
@@ -926,7 +1096,8 @@ object HermesLinuxSandboxBridge {
 
     internal fun updateCommandFor(packageManager: String): String {
         return when (packageManager.trim().lowercase()) {
-            "apt" -> "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade"
+            "apt" -> "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y upgrade && " +
+                "DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install curl"
             "apk" -> "apk update && apk upgrade"
             "pacman" -> "pacman -Syu --noconfirm"
             "dnf" -> "dnf -y upgrade --refresh"

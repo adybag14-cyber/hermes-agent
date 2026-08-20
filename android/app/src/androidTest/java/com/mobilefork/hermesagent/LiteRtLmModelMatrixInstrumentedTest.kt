@@ -7,8 +7,14 @@ import android.util.Base64
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.LiteRtLmOpenAiProxy
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
+import com.mobilefork.hermesagent.data.AppSettings
+import com.mobilefork.hermesagent.data.AppSettingsStore
+import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
+import com.mobilefork.hermesagent.data.LocalModelDownloadStore
+import com.mobilefork.hermesagent.models.HermesModelDownloadManager
 import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -26,6 +32,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @RunWith(AndroidJUnit4::class)
@@ -39,9 +46,28 @@ class LiteRtLmModelMatrixInstrumentedTest {
         .readTimeout(15, TimeUnit.MINUTES)
         .build()
 
+    private var originalSettings: AppSettings? = null
+    private var originalDownloads: List<LocalModelDownloadRecord>? = null
+    private var originalPreferredDownloadId: String? = null
+
     @After
     fun tearDown() {
-        OnDeviceBackendManager.stopAll()
+        try {
+            val stopStatus = OnDeviceBackendManager.stopAll()
+            assertFalse(stopStatus.statusMessage, stopStatus.started)
+            assertFalse(stopStatus.statusMessage, stopStatus.requiresAppRestart)
+        } finally {
+            originalSettings?.let { AppSettingsStore(context).save(it) }
+            originalDownloads?.let { downloads ->
+                LocalModelDownloadStore(context).apply {
+                    saveDownloads(downloads)
+                    setPreferredDownloadId(originalPreferredDownloadId.orEmpty())
+                }
+            }
+            originalSettings = null
+            originalDownloads = null
+            originalPreferredDownloadId = null
+        }
     }
 
     @Test
@@ -56,6 +82,20 @@ class LiteRtLmModelMatrixInstrumentedTest {
         ).toLong()
         val expectedSha256 = args.getString("model_sha256", matrixArtifact?.sha256.orEmpty())
         val requireModel = args.getString("require_model", "false").toBoolean()
+        val exerciseBackendManager = args.getString("exercise_backend_manager", "false").toBoolean()
+        val publisherRepository = args.getString("model_repo", matrixArtifact?.repoId.orEmpty())
+        val publisherRevision = args.getString("model_revision", matrixArtifact?.revision.orEmpty())
+        val preferredAccelerator = args.getString("preferred_accelerator", "auto")
+            .trim()
+            .lowercase(Locale.US)
+            .also {
+                require(it in setOf("auto", "cpu", "gpu")) {
+                    "Unsupported preferred_accelerator '$it'; expected auto, cpu, or gpu"
+                }
+            }
+        val speculativeDecodingMode = parseSpeculativeDecodingMode(
+            args.getString("speculative_decoding", "auto"),
+        )
         val modelFile = provisionedModelFile(args.getString("model_path", ""), modelFileName)
 
         if (!modelFile.isFile && requireModel) {
@@ -79,13 +119,33 @@ class LiteRtLmModelMatrixInstrumentedTest {
         }
 
         val startedAt = System.nanoTime()
-        val status = LiteRtLmOpenAiProxy.ensureRunning(
-            context = context,
-            modelPath = modelFile.absolutePath,
-            requestedModelName = modelId,
-            port = OnDeviceBackendManager.LITERT_LM_PORT,
-        )
+        val status = if (exerciseBackendManager) {
+            seedProvisionedModelSelection(
+                modelId = modelId,
+                modelFile = modelFile,
+                publisherRepository = publisherRepository,
+                publisherRevision = publisherRevision,
+                preferredAccelerator = preferredAccelerator,
+                speculativeDecodingMode = speculativeDecodingMode,
+            )
+            OnDeviceBackendManager.ensureConfigured(
+                context = context,
+                backendValue = BackendKind.LITERT_LM.persistedValue,
+            )
+        } else {
+            LiteRtLmOpenAiProxy.ensureRunning(
+                context = context,
+                modelPath = modelFile.absolutePath,
+                requestedModelName = modelId,
+                port = OnDeviceBackendManager.LITERT_LM_PORT,
+                inferenceConfig = LiteRtLmOpenAiProxy.InferenceConfig(
+                    preferredAccelerator = preferredAccelerator,
+                    speculativeDecodingMode = speculativeDecodingMode,
+                ),
+            )
+        }
         assertTrue(status.statusMessage, status.started)
+        assertEquals(modelFile.absolutePath, status.sourceModelPath)
         assertTrue("LiteRT-LM must not report ready before a nonblank startup completion", status.completionVerified)
         assertTrue("Expected measured startup completion latency", status.completionLatencyMs > 0L)
 
@@ -101,6 +161,24 @@ class LiteRtLmModelMatrixInstrumentedTest {
         assertTrue(health.toString(), (health.optJSONArray("accelerator_attempts")?.length() ?: 0) > 0)
         assertTrue(health.toString(), health.optBoolean("completion_verified", false))
         assertTrue(health.toString(), health.optLong("completion_latency_ms", 0L) > 0L)
+        if (preferredAccelerator == "cpu") {
+            assertEquals(health.toString(), "cpu", health.optString("accelerator"))
+            assertFalse(health.toString(), health.optBoolean("gpu_attempted", true))
+        }
+        if (speculativeDecodingMode == LiteRtLmOpenAiProxy.SpeculativeDecodingMode.DISABLED) {
+            assertFalse(health.toString(), health.optBoolean("speculative_decoding", true))
+            assertTrue(
+                health.toString(),
+                health.optString("mtp_policy").startsWith("disabled:"),
+            )
+        }
+        if (
+            preferredAccelerator == "cpu" &&
+            speculativeDecodingMode == LiteRtLmOpenAiProxy.SpeculativeDecodingMode.DISABLED
+        ) {
+            assertFalse(health.toString(), health.optBoolean("image_input_supported", true))
+            assertFalse(health.toString(), health.optBoolean("audio_input_supported", true))
+        }
 
         val completion = executeJson(
             Request.Builder()
@@ -116,6 +194,9 @@ class LiteRtLmModelMatrixInstrumentedTest {
         assertFalse(completion.toString(), content.isBlank())
         val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt)
         assertTrue("Expected positive runtime elapsed time", elapsedMs > 0L)
+        val stopStatus = OnDeviceBackendManager.stopAll()
+        assertFalse(stopStatus.statusMessage, stopStatus.started)
+        assertFalse(stopStatus.statusMessage, stopStatus.requiresAppRestart)
         val evidenceFile = ModelMatrixEvidence.emit(
             context,
             ModelMatrixEvidence.Record(
@@ -123,8 +204,8 @@ class LiteRtLmModelMatrixInstrumentedTest {
                 instrumentationMethod =
                     "LiteRtLmModelMatrixInstrumentedTest#provisionedLiteRtLmModelLoadsAndAnswersLocally",
                 modelId = modelId,
-                publisherRepository = args.getString("model_repo", matrixArtifact?.repoId.orEmpty()),
-                publisherRevision = args.getString("model_revision", matrixArtifact?.revision.orEmpty()),
+                publisherRepository = publisherRepository,
+                publisherRevision = publisherRevision,
                 fileName = modelFileName,
                 devicePath = modelFile.absolutePath,
                 publisherExpectedBytes = expectedBytes,
@@ -139,7 +220,27 @@ class LiteRtLmModelMatrixInstrumentedTest {
                 statusMessage = status.statusMessage,
                 details = JSONObject()
                     .put("health_backend", health.optString("backend"))
+                    .put(
+                        "runtime_entrypoint",
+                        if (exerciseBackendManager) "on-device-backend-manager" else "direct-litert-proxy",
+                    )
+                    .put(
+                        "provisioning_method",
+                        if (exerciseBackendManager) {
+                            "content-addressed-preprovisioned-preferred-download-record"
+                        } else {
+                            "content-addressed-preprovisioned-runtime-file"
+                        },
+                    )
                     .put("accelerator_attempts", health.optJSONArray("accelerator_attempts") ?: JSONArray())
+                    .put("requested_accelerator", preferredAccelerator)
+                    .put("gpu_attempted", health.optBoolean("gpu_attempted", false))
+                    .put("requested_speculative_decoding", speculativeDecodingMode.name.lowercase(Locale.US))
+                    .put("speculative_decoding", health.optBoolean("speculative_decoding", false))
+                    .put("mtp_policy", health.optString("mtp_policy"))
+                    .put("image_input_supported", health.optBoolean("image_input_supported", false))
+                    .put("audio_input_supported", health.optBoolean("audio_input_supported", false))
+                    .put("clean_shutdown", true)
                     .put("completion_characters", content.length)
                     .put("artifact_summary", status.artifactSummary),
             ),
@@ -272,7 +373,11 @@ class LiteRtLmModelMatrixInstrumentedTest {
     }
 
     private fun provisionedModelFile(explicitPath: String, fileName: String): File {
-        return explicitPath.trim().takeIf { it.isNotEmpty() }?.let(::File)
+        explicitPath.trim().takeIf { it.isNotEmpty() }?.let { return File(it) }
+        return HermesModelDownloadManager.modelDiscoveryDirectories(context)
+            .asSequence()
+            .map { directory -> File(directory, fileName) }
+            .firstOrNull(File::isFile)
             ?: File(context.filesDir, "hermes-home/downloads/models/$fileName")
     }
 
@@ -290,8 +395,69 @@ class LiteRtLmModelMatrixInstrumentedTest {
         }
     }
 
+    private fun seedProvisionedModelSelection(
+        modelId: String,
+        modelFile: File,
+        publisherRepository: String,
+        publisherRevision: String,
+        preferredAccelerator: String,
+        speculativeDecodingMode: LiteRtLmOpenAiProxy.SpeculativeDecodingMode,
+    ) {
+        val store = LocalModelDownloadStore(context)
+        originalSettings = AppSettingsStore(context).load()
+        originalDownloads = store.loadDownloads()
+        originalPreferredDownloadId = store.preferredDownloadId()
+        val sourceUrl = if (publisherRepository.isNotBlank() && publisherRevision.isNotBlank()) {
+            "https://huggingface.co/$publisherRepository/resolve/$publisherRevision/${modelFile.name}"
+        } else {
+            modelFile.toURI().toString()
+        }
+        val record = LocalModelDownloadRecord(
+            id = BACKEND_MANAGER_RECORD_ID,
+            title = modelId,
+            sourceUrl = sourceUrl,
+            repoOrUrl = publisherRepository.ifBlank { modelFile.absolutePath },
+            filePath = modelFile.name,
+            revision = publisherRevision,
+            runtimeFlavor = "LiteRT-LM",
+            destinationFileName = modelFile.name,
+            destinationPath = modelFile.absolutePath,
+            downloadManagerId = -1L,
+            totalBytes = modelFile.length(),
+            downloadedBytes = modelFile.length(),
+            status = "completed",
+            statusMessage = "Provisioned for content-addressed model-matrix instrumentation",
+            supportsResume = false,
+        )
+        store.apply {
+            upsertDownload(record)
+            setPreferredDownloadId(record.id)
+        }
+        AppSettingsStore(context).save(
+            AppSettings(
+                provider = "custom",
+                model = modelId,
+                onDeviceBackend = BackendKind.LITERT_LM.persistedValue,
+                localModelAccelerator = preferredAccelerator,
+                liteRtLmSpeculativeDecodingMode = speculativeDecodingMode.name.lowercase(Locale.US),
+            ),
+        )
+    }
+
+    private fun parseSpeculativeDecodingMode(raw: String): LiteRtLmOpenAiProxy.SpeculativeDecodingMode {
+        return when (raw.trim().lowercase(Locale.US)) {
+            "auto" -> LiteRtLmOpenAiProxy.SpeculativeDecodingMode.AUTO
+            "enabled", "on", "force" -> LiteRtLmOpenAiProxy.SpeculativeDecodingMode.ENABLED
+            "disabled", "off" -> LiteRtLmOpenAiProxy.SpeculativeDecodingMode.DISABLED
+            else -> throw IllegalArgumentException(
+                "Unsupported speculative_decoding value '$raw'; expected auto, enabled, or disabled",
+            )
+        }
+    }
+
     private companion object {
         private const val DEFAULT_MODEL_ID = "gemma-4-E2B-it"
+        private const val BACKEND_MANAGER_RECORD_ID = "model-matrix-provisioned-litert-lm"
         private const val DEFAULT_MODEL_FILE_NAME = "gemma-4-E2B-it.litertlm"
         private const val DEFAULT_VISION_MODEL_ID = "gemma-3n-E2B-it-int4"
         private const val DEFAULT_VISION_MODEL_FILE_NAME = "gemma-3n-E2B-it-int4.litertlm"

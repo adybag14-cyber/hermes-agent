@@ -209,7 +209,9 @@ def _finalize_wait_result(collector: _BoundedOutputCollector, rendered: str, ret
 
 
 # --- Stdin / spawn helpers ---
-def _pipe_stdin(proc: subprocess.Popen, data: str) -> None:
+def _pipe_stdin(
+    proc: subprocess.Popen, data: str, *, register: Callable[[threading.Thread], None] | None = None,
+) -> threading.Thread:
     """Write *data* to proc.stdin on a daemon thread to avoid pipe-buffer deadlocks.
     Writes go through ``proc.stdin.buffer`` as UTF-8 bytes we encode ourselves: Windows
     text-mode stdin would translate ``\\n`` -> ``\\r\\n`` and corrupt every write_file/patch
@@ -247,7 +249,10 @@ def _pipe_stdin(proc: subprocess.Popen, data: str) -> None:
 
     thread = threading.Thread(target=_write, daemon=True)
     proc._hermes_stdin_thread = thread
+    if register is not None:
+        register(thread)
     thread.start()
+    return thread
 
 
 def _popen_bash(cmd: list[str], stdin_data: str | None = None, **kwargs) -> subprocess.Popen:
@@ -425,5 +430,6 @@ def _drain_fd_select(proc, fd: int, output: _BoundedOutputCollector, decoder) ->
 def _start_drain_thread(proc: ProcessHandle, output: _BoundedOutputCollector) -> threading.Thread:
     """Start the daemon thread running :func:`_drain_stdout`."""
     thread = threading.Thread(target=_drain_stdout, args=(proc, output), daemon=True)
+    proc._hermes_stdout_drain_thread = thread
     thread.start()
     return thread

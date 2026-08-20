@@ -69,6 +69,9 @@ class LocalModelDownloadStore(context: Context) {
         if (preferredDownloadId() == recordId) {
             setPreferredDownloadId("")
         }
+        if (pendingAutoStartRecordId() == recordId) {
+            setPendingAutoStartRecordId("")
+        }
     }
 
     fun findDownload(recordId: String): LocalModelDownloadRecord? {
@@ -81,6 +84,16 @@ class LocalModelDownloadStore(context: Context) {
 
     fun preferredDownloadId(): String {
         return preferences.getString(KEY_PREFERRED_DOWNLOAD_ID, "").orEmpty()
+    }
+
+    fun setPendingAutoStartRecordId(recordId: String) {
+        // commit() is intentional: a multi-gigabyte DownloadManager job may
+        // outlive this process, so recreation must observe the handoff intent.
+        preferences.edit().putString(KEY_PENDING_AUTO_START_RECORD_ID, recordId).commit()
+    }
+
+    fun pendingAutoStartRecordId(): String {
+        return preferences.getString(KEY_PENDING_AUTO_START_RECORD_ID, "").orEmpty()
     }
 
     private fun LocalModelDownloadRecord.toJson(): JSONObject {
@@ -135,5 +148,6 @@ class LocalModelDownloadStore(context: Context) {
         private const val PREFS_NAME = "hermes_android_local_model_downloads"
         private const val KEY_DOWNLOADS_JSON = "downloads_json"
         private const val KEY_PREFERRED_DOWNLOAD_ID = "preferred_download_id"
+        private const val KEY_PENDING_AUTO_START_RECORD_ID = "pending_auto_start_record_id"
     }
 }

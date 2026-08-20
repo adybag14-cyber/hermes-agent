@@ -6,6 +6,7 @@ import android.os.Build
 import android.system.Os
 import android.system.OsConstants
 import android.util.Log
+import androidx.annotation.RequiresApi
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -14,6 +15,107 @@ import java.io.InputStreamReader
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
+
+private const val OWNED_SHELL_PROCESS_POLL_INTERVAL_MS = 10L
+
+internal data class OwnedShellProcessWaitResult(
+    val finishedWithinTimeout: Boolean,
+    val waitFailure: Throwable?,
+    val cleanupFailure: Throwable?,
+    val interrupted: Boolean,
+) {
+    val processUnwindVerified: Boolean
+        get() = finishedWithinTimeout || cleanupFailure == null
+}
+
+internal fun awaitOwnedShellProcess(
+    current: NativeShellProcessStopHandle,
+    waitTimeoutMs: Long,
+    gracefulTimeoutMs: Long = 1_000L,
+    forcedTimeoutMs: Long = 1_000L,
+): OwnedShellProcessWaitResult {
+    var interrupted = false
+    var waitFailure: Throwable? = null
+    val finishedWithinTimeout = try {
+        waitForOwnedShellProcessExit(current, waitTimeoutMs)
+    } catch (error: Throwable) {
+        if (error is InterruptedException) {
+            interrupted = true
+        }
+        waitFailure = error
+        false
+    }
+    if (finishedWithinTimeout) {
+        return OwnedShellProcessWaitResult(
+            finishedWithinTimeout = true,
+            waitFailure = null,
+            cleanupFailure = null,
+            interrupted = interrupted,
+        )
+    }
+
+    val termination = NativeAndroidShellTool.terminateOwnedProcess(
+        current = current,
+        gracefulTimeoutMs = gracefulTimeoutMs,
+        forcedTimeoutMs = forcedTimeoutMs,
+    )
+    interrupted = interrupted || termination.interrupted
+    return OwnedShellProcessWaitResult(
+        finishedWithinTimeout = false,
+        waitFailure = waitFailure,
+        cleanupFailure = termination.failure,
+        interrupted = interrupted,
+    )
+}
+
+private fun waitForOwnedShellProcessExit(
+    current: NativeShellProcessStopHandle,
+    timeoutMs: Long,
+): Boolean {
+    val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs.coerceAtLeast(0L))
+    while (isOwnedShellProcessAlive(current)) {
+        val remainingNanos = deadlineNanos - System.nanoTime()
+        if (remainingNanos <= 0L) return false
+        Thread.sleep(ownedShellProcessPollSleepMillis(remainingNanos))
+    }
+    return true
+}
+
+private fun isOwnedShellProcessAlive(current: NativeShellProcessStopHandle): Boolean = try {
+    current.exitValue()
+    false
+} catch (_: IllegalThreadStateException) {
+    true
+}
+
+private fun ownedShellProcessPollSleepMillis(remainingNanos: Long): Long {
+    val roundedUpMs = (remainingNanos + 999_999L) / 1_000_000L
+    return roundedUpMs.coerceIn(1L, OWNED_SHELL_PROCESS_POLL_INTERVAL_MS)
+}
+
+internal fun ownedShellProcessStopHandle(process: Process): NativeShellProcessStopHandle {
+    return object : NativeShellProcessStopHandle {
+        override val supportsForceDestroy: Boolean
+            get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+
+        override fun exitValue(): Int = process.exitValue()
+
+        override fun destroy() = process.destroy()
+
+        override fun forceDestroy() {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                destroyOwnedShellProcessForciblyApi26(process)
+            } else {
+                error("forced process termination requires Android 8.0 (API 26)")
+            }
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+private fun destroyOwnedShellProcessForciblyApi26(process: Process) {
+    process.destroyForcibly()
+}
 
 object HermesLinuxSubsystemBridge {
     private const val ASSET_ROOT = "hermes-linux"
@@ -744,6 +846,7 @@ object HermesLinuxSubsystemBridge {
         manifest: JSONObject,
         linkMap: Map<String, String>,
     ): Pair<File, Int> {
+        val nativeExecRoot = File(installRoot, NATIVE_EXEC_ROOT_NAME)
         val candidates = linkedSetOf<String>()
         val files = manifest.optJSONArray("files") ?: JSONArray()
         for (index in 0 until files.length()) {
@@ -757,9 +860,21 @@ object HermesLinuxSubsystemBridge {
         candidates.sorted().forEach { relativePath ->
             val commandName = relativePath.substringAfterLast('/')
             if (!DIRECT_FUNCTION_NAME.matches(commandName) || commandName in SHELL_BUILTIN_NAMES) return@forEach
-            val target = directNativeExecutablePath(context, relativePath, linkMap)
-            if (target.isBlank() || !isElfFile(File(target))) return@forEach
-            functions.putIfAbsent(commandName, target)
+            val directTargetPath = directNativeExecutablePath(context, relativePath, linkMap)
+            val directTarget = File(directTargetPath)
+            val trustedShim = File(nativeExecRoot, relativePath)
+            if (
+                directTargetPath.isBlank() ||
+                !isElfFile(directTarget) ||
+                !shimResolvesTo(trustedShim, directTarget)
+            ) {
+                return@forEach
+            }
+            // Invoke through the trusted symlink so multicall tools such as
+            // coreutils retain the requested applet name in argv[0]. The
+            // symlink resolves to immutable APK-native code, never a writable
+            // prefix ELF.
+            functions.putIfAbsent(commandName, trustedShim.absolutePath)
         }
         val content = buildString {
             append("# Generated by Hermes. Source this file; do not execute it.\n")
@@ -1165,13 +1280,24 @@ object HermesLinuxSubsystemBridge {
                 .redirectErrorStream(true)
                 .apply { environment().putAll(environment) }
                 .start()
-            if (!process.waitFor(5, TimeUnit.SECONDS)) {
-                process.destroy()
-                if (!process.waitFor(1, TimeUnit.SECONDS)) {
-                    process.destroyForcibly()
+            val waitResult = awaitOwnedShellProcess(
+                current = ownedShellProcessStopHandle(process),
+                waitTimeoutMs = TimeUnit.SECONDS.toMillis(5L),
+            )
+            if (!waitResult.finishedWithinTimeout) {
+                val waitDetail = when (val failure = waitResult.waitFailure) {
+                    is InterruptedException -> "shell launch interrupted: $shellPath"
+                    null -> "shell launch timed out: $shellPath"
+                    else -> "shell launch wait failed for $shellPath: " +
+                        (failure.message ?: failure.javaClass.simpleName)
                 }
-                return@runCatching ShellLaunchProbe(false, "shell launch timed out: $shellPath")
+                val cleanupDetail = waitResult.cleanupFailure?.let { failure ->
+                    "; process cleanup failed: ${failure.message ?: failure.javaClass.simpleName}"
+                }.orEmpty()
+                NativeAndroidShellTool.restoreInterruptAfterOwnedCleanup(waitResult.interrupted)
+                return@runCatching ShellLaunchProbe(false, waitDetail + cleanupDetail)
             }
+            NativeAndroidShellTool.restoreInterruptAfterOwnedCleanup(waitResult.interrupted)
             val output = BufferedReader(InputStreamReader(process.inputStream)).use { reader ->
                 generateSequence { reader.readLine() }
                     .take(40)

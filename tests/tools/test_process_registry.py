@@ -1353,6 +1353,140 @@ class TestKillProcess:
         finally:
             registry._running.pop(s.id, None)
 
+    def test_verified_task_termination_escalates_and_reaps(self, registry):
+        class StubbornProcess:
+            pid = 987654321
+
+            def __init__(self):
+                self.running = True
+                self.terminate_calls = 0
+                self.kill_calls = 0
+
+            def poll(self):
+                return None if self.running else -9
+
+            def terminate(self):
+                self.terminate_calls += 1
+
+            def kill(self):
+                self.kill_calls += 1
+                self.running = False
+
+        process = StubbornProcess()
+        session = _make_session(sid="proc_stubborn", task_id="owned-task")
+        session.process = process
+        session.pid = process.pid
+        registry._running[session.id] = session
+
+        with (
+            patch.object(registry, "_snapshot_host_process_tree", return_value=[]),
+            patch.object(registry, "_posix_process_group_is_alive", return_value=False),
+            patch.object(registry, "_signal_local_process_group"),
+            patch.object(registry, "_is_host_pid_alive", return_value=False),
+        ):
+            assert registry.terminate_tasks_verified({"owned-task"}, timeout=0.05) == 1
+
+        assert process.terminate_calls == 1
+        assert process.kill_calls == 1
+        assert session.exited is True
+        assert session.id not in registry._running
+        assert registry._finished[session.id] is session
+
+    def test_verified_task_termination_keeps_unstoppable_process_owned(self, registry):
+        class UnstoppableProcess:
+            pid = 987654322
+
+            def poll(self):
+                return None
+
+            def terminate(self):
+                return None
+
+            def kill(self):
+                return None
+
+        session = _make_session(sid="proc_unstoppable", task_id="owned-task")
+        session.process = UnstoppableProcess()
+        session.pid = session.process.pid
+        registry._running[session.id] = session
+
+        with (
+            patch.object(registry, "_snapshot_host_process_tree", return_value=[]),
+            patch.object(registry, "_posix_process_group_is_alive", return_value=False),
+            patch.object(registry, "_signal_local_process_group"),
+            patch.object(registry, "_is_host_pid_alive", return_value=False),
+            pytest.raises(RuntimeError, match="remained alive after TERM and KILL"),
+        ):
+            registry.terminate_tasks_verified({"owned-task"}, timeout=0.03)
+
+        assert session.exited is False
+        assert registry._running[session.id] is session
+
+    def test_verified_task_termination_rejects_live_reader_after_process_exit(self, registry):
+        class ExitedProcess:
+            pid = 987654323
+
+            def poll(self):
+                return 0
+
+        release_reader = threading.Event()
+        reader_started = threading.Event()
+
+        def blocked_reader():
+            reader_started.set()
+            release_reader.wait(timeout=5.0)
+
+        reader = threading.Thread(target=blocked_reader, daemon=True)
+        reader.start()
+        assert reader_started.wait(timeout=1.0)
+        session = _make_session(sid="proc_reader", task_id="owned-task", exited=True)
+        session.process = ExitedProcess()
+        session.pid = session.process.pid
+        session._reader_thread = reader
+        registry._finished[session.id] = session
+        try:
+            with (
+                patch.object(registry, "_snapshot_host_process_tree", return_value=[]),
+                patch.object(registry, "_posix_process_group_is_alive", return_value=False),
+                patch.object(registry, "_signal_local_process_group"),
+                patch.object(registry, "_is_host_pid_alive", return_value=False),
+                pytest.raises(RuntimeError, match="reader thread remained live"),
+            ):
+                registry.terminate_tasks_verified({"owned-task"}, timeout=0.03)
+        finally:
+            release_reader.set()
+            reader.join(timeout=1.0)
+
+        assert not reader.is_alive()
+
+
+def test_retained_task_process_record_is_not_pruned_until_owner_releases(registry):
+    retained = _make_session(
+        sid="proc_retained",
+        task_id="android-owned-task",
+        exited=True,
+        started_at=time.time() - FINISHED_TTL_SECONDS - 60,
+    )
+    ordinary = _make_session(
+        sid="proc_ordinary",
+        task_id="ordinary-task",
+        exited=True,
+        started_at=time.time() - FINISHED_TTL_SECONDS - 60,
+    )
+    registry._finished[retained.id] = retained
+    registry._finished[ordinary.id] = ordinary
+    registry.retain_task_ownership("android-owned-task")
+
+    with registry._lock:
+        registry._prune_if_needed()
+
+    assert retained.id in registry._finished
+    assert ordinary.id not in registry._finished
+    assert registry.has_tracked_sessions_for_task("android-owned-task") is True
+
+    registry.release_task_ownership("android-owned-task")
+    assert retained.id not in registry._finished
+
 
 # =========================================================================
 # Tool handler

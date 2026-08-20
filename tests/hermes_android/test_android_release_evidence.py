@@ -26,6 +26,7 @@ VERSION_NAME = "0.1.2"
 VERSION_CODE = 10_290
 FINGERPRINT = "google/sdk_gphone64_x86_64/emu64xa:15/test/release-keys"
 MODEL = "sdk_gphone64_x86_64"
+LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.0"
 QEMU_RAW_COMMAND = (
     '"C:\\Users\\private-builder\\AppData\\Local\\Android\\Sdk\\emulator\\qemu\\'
     'windows-x86_64\\qemu-system-x86_64.exe" '
@@ -359,8 +360,7 @@ def _invocation_argv(profile: str) -> list[str]:
         f"-PhermesBenchmarkExpectedSourceDigest={SOURCE_DIGEST}",
         f"-PhermesBenchmarkExpectedVersionName={VERSION_NAME}",
         f"-PhermesBenchmarkExpectedVersionCode={VERSION_CODE}",
-        "-PhermesBenchmarkExpectedLiteRtLmCoordinate="
-        "com.google.ai.edge.litertlm:litertlm-android:0.16.0",
+        f"-PhermesBenchmarkExpectedLiteRtLmCoordinate={LITERTLM_COORDINATE}",
         f"-PhermesBenchmarkTargetApkSha256={BENCHMARK_TARGET_SHA}",
         f"-PhermesBenchmarkApkSha256={BENCHMARK_TEST_SHA}",
         f"-PhermesBenchmarkEvidenceRunId={RUN_ID}",
@@ -569,7 +569,7 @@ def _host_raw(profile: str, performance: dict) -> dict:
         "version_name": VERSION_NAME,
         "version_code": VERSION_CODE,
         "build_variant": "benchmark",
-        "litertlm_coordinate": "com.google.ai.edge.litertlm:litertlm-android:0.16.0",
+        "litertlm_coordinate": LITERTLM_COORDINATE,
         "records": records,
     }
 
@@ -669,7 +669,7 @@ def _write_performance(root: Path, profile: str) -> dict:
         "version_name": VERSION_NAME,
         "version_code": VERSION_CODE,
         "build_variant": "benchmark",
-        "litertlm_coordinate": "com.google.ai.edge.litertlm:litertlm-android:0.16.0",
+        "litertlm_coordinate": LITERTLM_COORDINATE,
         "recorded_at_epoch_ms": 1_780_000_000_000,
         "evidence_classification": {
             "environment": "headed-hardware-accelerated-avd",
@@ -764,7 +764,7 @@ def _model_record(artifact) -> dict:
         "version_name": VERSION_NAME,
         "version_code": VERSION_CODE,
         "build_variant": "debug",
-        "litertlm_coordinate": "com.google.ai.edge.litertlm:litertlm-android:0.16.0",
+        "litertlm_coordinate": LITERTLM_COORDINATE,
         "result": "passed",
         "evidence_complete": True,
         "content_addressed": True,
@@ -825,7 +825,7 @@ def _write_fixture(root: Path, module, artifacts) -> None:
                         f"version_name={VERSION_NAME}",
                         f"version_code={VERSION_CODE}",
                         "build_variant=debug",
-                        "litertlm_coordinate=com.google.ai.edge.litertlm:litertlm-android:0.16.0",
+                        f"litertlm_coordinate={LITERTLM_COORDINATE}",
                         "device_serial=emulator-5566",
                         "avd_name=Hermes_API_35",
                         f"device_boot_id={BOOT_ID}",

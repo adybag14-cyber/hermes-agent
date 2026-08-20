@@ -15,15 +15,31 @@ import com.mobilefork.hermesagent.device.DeviceStateWriter
 import com.mobilefork.hermesagent.device.HermesCrashLogStore
 import com.mobilefork.hermesagent.device.HermesLauncherShortcutBridge
 import com.mobilefork.hermesagent.ui.boot.BootScreen
+import com.mobilefork.hermesagent.ui.theme.hermesViewBackdropDrawable
+import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val startupPalette = hermesViewPalette(this)
+        window.setBackgroundDrawable(hermesViewBackdropDrawable(startupPalette))
+        val startupStatusBarStyle = if (startupPalette.lightCanvas) {
+            SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+        } else {
+            SystemBarStyle.dark(Color.TRANSPARENT)
+        }
+        val startupNavigationBarStyle = if (startupPalette.lightCanvas) {
+            // API 24-25 cannot draw dark navigation icons. Keep AndroidX's legacy dark scrim
+            // instead of placing always-light icons directly over a transparent light canvas.
+            SystemBarStyle.light(Color.TRANSPARENT, LEGACY_LIGHT_NAVIGATION_BAR_SCRIM)
+        } else {
+            SystemBarStyle.dark(Color.TRANSPARENT)
+        }
         enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+            statusBarStyle = startupStatusBarStyle,
+            navigationBarStyle = startupNavigationBarStyle,
         )
         super.onCreate(savedInstanceState)
         HermesCrashLogStore.install(applicationContext)
@@ -102,5 +118,6 @@ class MainActivity : ComponentActivity() {
         private var shizukuRefreshRegistered = false
         private var shizukuBinderReceivedListener: Shizuku.OnBinderReceivedListener? = null
         private var shizukuBinderDeadListener: Shizuku.OnBinderDeadListener? = null
+        private val LEGACY_LIGHT_NAVIGATION_BAR_SCRIM = Color.argb(0x80, 0x1B, 0x1B, 0x1B)
     }
 }

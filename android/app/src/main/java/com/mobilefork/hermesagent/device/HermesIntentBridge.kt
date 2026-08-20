@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Browser
 import androidx.core.content.FileProvider
+import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
 import org.json.JSONArray
 import org.json.JSONObject
@@ -84,10 +85,15 @@ object HermesIntentBridge {
             return null
         }
         val priorStatus = OnDeviceBackendManager.currentStatus()
-        OnDeviceBackendManager.stopAll()
+        val stoppedStatus = OnDeviceBackendManager.stopAll()
+        check(!stoppedStatus.requiresAppRestart) {
+            stoppedStatus.statusMessage.ifBlank {
+                "The local backend did not stop safely; external activity handoff was cancelled"
+            }
+        }
         DeviceStateWriter.write(context)
         return JSONObject()
-            .put("released", priorStatus.started)
+            .put("released", priorStatus.started && !stoppedStatus.requiresAppRestart)
             .put("backend", priorStatus.backendKind.persistedValue)
             .put("model", priorStatus.modelName)
             .put("base_url", priorStatus.baseUrl)

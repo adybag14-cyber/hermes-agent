@@ -24,6 +24,8 @@ from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
 from hermes_cli.timeouts import get_provider_request_timeout, get_provider_stale_timeout
+from hermes_android.runtime_identity import is_embedded_android_runtime
+from hermes_android.agent_lifecycle import require_android_worker_unwound
 from hermes_constants import PARTIAL_STREAM_STUB_ID, FINISH_REASON_LENGTH
 from agent.error_classifier import (FailoverReason, PROVIDER_STREAM_NON_JSON_ERROR_CODE)
 from agent.errors import EmptyStreamError
@@ -770,7 +772,7 @@ class _InlineRequest:
         self.lock = threading.Lock()
         self.abort_hook = self.abort  # single bound object: identity-checked on cleanup
         self._hb_stop = threading.Event()
-        self._hb = threading.Thread(target=self._activity_heartbeat, name="direct-api-activity-hb", daemon=True)
+        self._hb = None
         self._watchdog = None
 
     def _activity_heartbeat(self) -> None:
@@ -791,19 +793,41 @@ class _InlineRequest:
 
     def start_watchdogs(self) -> None:
         """Start the activity heartbeat and (for a finite budget) the stale timer."""
-        self._hb.start()
-        if math.isfinite(self.stale_timeout) and self.stale_timeout > 0:
-            self._watchdog = threading.Timer(self.stale_timeout, self._on_stale)
-            self._watchdog.name = "direct-api-stale-watchdog"
-            self._watchdog.daemon = True
-            self._watchdog.start()
+        try:
+            self._hb = self.agent._start_owned_worker_thread(
+                target=_context_thread_target(self._activity_heartbeat), name="direct-api-activity-hb"
+            )
+            if math.isfinite(self.stale_timeout) and self.stale_timeout > 0:
+                self._watchdog = threading.Timer(
+                    self.stale_timeout, _context_thread_target(self._on_stale)
+                )
+                self._watchdog.name = "direct-api-stale-watchdog"
+                self._watchdog.daemon = True
+                # Publish the handle before start: even a partial start failure
+                # must let request cleanup cancel this admitted timer.
+                self.agent._admit_and_start_owned_thread(self._watchdog)
+        except BaseException:
+            self.stop_watchdogs()
+            raise
 
     def stop_watchdogs(self) -> None:
-        if self._watchdog is not None:
-            self._watchdog.cancel()
         self.mark_done()
         self._hb_stop.set()
-        self._hb.join(timeout=2.0)
+        cleanup_error = None
+        if self._watchdog is not None:
+            try:
+                self._watchdog.cancel()
+            except BaseException as exc:
+                cleanup_error = exc
+        for worker in (self._watchdog, self._hb):
+            try:
+                if worker is not None and (worker.ident is not None or worker.is_alive()):
+                    worker.join(timeout=2.0)
+                    require_android_worker_unwound(self.agent, worker)
+            except BaseException as exc:
+                cleanup_error = cleanup_error or exc
+        if cleanup_error is not None:
+            raise cleanup_error
 
     def _abort_client(self, client, reason: str, log_msg: str) -> None:
         try:
@@ -1273,8 +1297,9 @@ class _NonStreamRequest:
             agent._codex_stream_last_progress_ts = None
         agent._touch_activity("waiting for non-streaming API response")
 
-        self.thread = t = threading.Thread(target=_context_thread_target(self._call), daemon=True)
-        t.start()
+        self.thread = t = agent._start_owned_worker_thread(
+            target=_context_thread_target(self._call), name="agent-api-call"
+        )
         poll_count = 0
         while t.is_alive():
             t.join(timeout=0.3)
@@ -1296,6 +1321,7 @@ class _NonStreamRequest:
                 break
             if agent._interrupt_requested:
                 self._interrupt(elapsed)
+        require_android_worker_unwound(agent, t)
         if self.result["error"] is not None:
             raise self.result["error"]
         # Success — the provider proved responsive: clear the breaker (#58962).
@@ -2634,8 +2660,9 @@ class _BedrockStream:
             f"— aborting stalled stream so the retry/fallback path can recover.")
 
     def _poll(self):
-        t = threading.Thread(target=_context_thread_target(self._worker), daemon=True)
-        t.start()
+        t = self.agent._start_owned_worker_thread(
+            target=_context_thread_target(self._worker), name="agent-bedrock-call"
+        )
         while t.is_alive():
             t.join(timeout=0.3)
             self._raise_if_interrupted("Agent interrupted during Bedrock API call", worker=t)
@@ -2646,6 +2673,7 @@ class _BedrockStream:
         # The Bedrock callback returns a PARTIAL response on interrupt without raising
         # (on_interrupt_check), so the in-loop raise may never fire. Re-check (#59999 area).
         self._raise_if_interrupted("Agent interrupted during Bedrock API call (post-worker)")
+        require_android_worker_unwound(self.agent, t)
         if self.result["error"] is not None:
             raise self.result["error"]
         # Success clears the cross-turn breaker (#58962).
@@ -3564,21 +3592,24 @@ class _StreamingCall:
         self._monitor_interrupted = {"yes": False}
         if should_use_direct_api_call(self.agent):
             self.worker = None
-            monitor = threading.Thread(
-                target=_context_thread_target(self._monitor_loop), name="stream-inline-monitor", daemon=True)
-            monitor.start()
+            monitor = self.agent._start_owned_worker_thread(
+                target=_context_thread_target(self._monitor_loop), name="stream-inline-monitor"
+            )
             try:
                 self._run_call()
             finally:
                 monitor.join(timeout=2.0)
+                require_android_worker_unwound(self.agent, monitor)
         else:
-            self.worker = threading.Thread(target=_context_thread_target(self._run_call), daemon=True)
-            self.worker.start()
+            self.worker = self.agent._start_owned_worker_thread(
+                target=_context_thread_target(self._run_call), name="agent-stream-call"
+            )
             self._monitor_loop()
         if self._monitor_interrupted["yes"]:
             raise InterruptedError("Agent interrupted during streaming API call")
         if self.agent._interrupt_requested:  # worker returned early before the monitor saw the flag
             raise InterruptedError("Agent interrupted during streaming API call (post-worker)")
+        require_android_worker_unwound(self.agent, self.worker, join_timeout=2.0)
         if self.result["error"] is not None:
             if self.deltas_were_sent["yes"]:
                 return self._partial_stream_stub()

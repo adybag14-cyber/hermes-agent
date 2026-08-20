@@ -27,6 +27,8 @@ from datetime import datetime
 from pathlib import Path
 
 from hermes_constants import get_hermes_home
+from hermes_android.runtime_identity import is_embedded_android_runtime
+from hermes_android.agent_lifecycle import OwnedAgentWorkerMixin
 
 
 def _launch_cwd_for_session(source: str) -> Optional[str]:
@@ -211,6 +213,7 @@ class _StreamErrorEvent(Exception):
 
 
 class AIAgent(
+    OwnedAgentWorkerMixin,
     IterationWarningsMixin,
     ChatGPTWebTransportMixin,
     ClientLifecycleMixin, StreamDeliveryMixin, StatusOutputMixin, ApiRequestHooksMixin, ApiErrorSummaryMixin,
@@ -747,6 +750,8 @@ class AIAgent(
         (/refine) is never deferred but does not touch the ``focus``-keyed delegate/enabled gates.
         """
         # Gates run at enqueue/spawn time; the idle dispatcher re-checks `enabled` at dispatch time.
+        if not getattr(self, "_allow_background_post_turn_work", True):
+            return
         if focus is None and getattr(self, "_delegate_depth", 0) > 0:
             return
         task_cfg = None
@@ -774,10 +779,12 @@ class AIAgent(
                                      task_cfg: Optional[Dict[str, Any]] = None, _requeue_attempts: int = 0) -> None:
         """Spawn the background memory/skill review thread.
 
-        ``threading.Thread`` is constructed here so tests patching ``run_agent.threading.Thread`` keep working.
+        The agent owns the worker through native termination, including idle-queue dispatch.
         ``focus`` is /refine steering text; ``task_cfg`` is the pre-loaded config block (None on direct calls).
         A deferred review preempted by a live turn is requeued (bounded) rather than lost.
         """
+        if not getattr(self, "_allow_background_post_turn_work", True):
+            return
         from agent.background_review import (
             finish_background_review_run, prepare_background_review_run, spawn_background_review_thread,
         )
@@ -800,7 +807,9 @@ class AIAgent(
 
             # Carry the active profile into the review thread so MEMORY.md / skill review writes land in the
             # right profile.
-            threading.Thread(target=propagate_context_to_thread(_target_with_requeue), daemon=True, name="bg-review").start()
+            self._start_owned_worker_thread(
+                target=propagate_context_to_thread(_target_with_requeue), name="bg-review"
+            )
         except Exception:
             finish_background_review_run(self, review_run)
             raise
@@ -1286,6 +1295,18 @@ class AIAgent(
         args = (assistant_message, messages, effective_task_id, api_call_count)
         self._executing_tools = True  # allow _vprint during tool execution even with stream consumers
         try:
+            if is_embedded_android_runtime():
+                from tools.environments.android_linux import (
+                    AndroidRuntimeWorkRejected, android_embedded_runtime_work_guard,
+                )
+                from agent.tool_executor import _cancel_android_tool_batch
+
+                try:
+                    with android_embedded_runtime_work_guard():
+                        return self._execute_tool_calls_sequential(*args)
+                except AndroidRuntimeWorkRejected as exc:
+                    _cancel_android_tool_batch(self, messages, tool_calls, effective_task_id, reason=str(exc))
+                    return
             if len(tool_calls) <= 1:
                 return self._execute_tool_calls_sequential(*args)
 

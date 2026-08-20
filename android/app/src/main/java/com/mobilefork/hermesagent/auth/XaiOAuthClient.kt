@@ -1,6 +1,7 @@
 package com.mobilefork.hermesagent.auth
 
 import android.net.Uri
+import android.util.Base64
 import com.mobilefork.hermesagent.data.AuthCatalog
 import com.mobilefork.hermesagent.data.AuthScope
 import com.mobilefork.hermesagent.data.AuthSession
@@ -179,13 +180,19 @@ object XaiOAuthClient {
 
     internal fun codeChallenge(verifier: String): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII))
-        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
+        return Base64.encodeToString(
+            digest,
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+        )
     }
 
     private fun createCodeVerifier(): String {
         val bytes = ByteArray(32)
         secureRandom.nextBytes(bytes)
-        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+        return Base64.encodeToString(
+            bytes,
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+        )
     }
 
     private fun failure(status: String, nowEpochMs: Long): AuthSession {

@@ -32,8 +32,8 @@ Repo: https://github.com/adybag14-cyber/hermes-agent.git
 Binaries: https://github.com/adybag14-cyber/hermes-agent/releases/download/v%v/hermes-agent-android-v%v-universal.apk
 
 Builds:
-  - versionName: 0.13.147
-    versionCode: 144790
+  - versionName: 0.13.148
+    versionCode: 144890
     commit: REPLACE_WITH_RELEASE_COMMIT_HASH
     subdir: android/app
     sudo:
@@ -41,7 +41,12 @@ Builds:
       - apt-get install -y python3-pip
     gradle:
       - yes
+    gradleprops:
+      - hermesFdroidSourceBinding=true
     prebuild:
+      - python3.13 ../../scripts/android_fdroid_source_binding.py prepare --repo-root
+        ../.. --binding-file "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-android-fdroid-source-binding.properties"
+        --version "$$VERSION$$"
       - sed -i -e 's/System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()/"v$$VERSION$$"/'
         build.gradle.kts
       - sed -i -e 's/return if (osName.contains("windows")) "python" else "python3"/return
@@ -52,5 +57,5 @@ AllowedAPKSigningKeys: 2cbdb94d6081413055af1e903d4c1d6714300b4240402d1d4c8182fda
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v0\.
 UpdateCheckData: fdroid/com.mobilefork.hermesagent.version|versionCode=(\d+)|.|versionName=(.*)
-CurrentVersion: 0.13.147
-CurrentVersionCode: 144790
+CurrentVersion: 0.13.148
+CurrentVersionCode: 144890
