@@ -15,6 +15,7 @@ import com.mobilefork.hermesagent.device.DeviceStateWriter
 import com.mobilefork.hermesagent.device.HermesCrashLogStore
 import com.mobilefork.hermesagent.device.HermesLauncherShortcutBridge
 import com.mobilefork.hermesagent.ui.boot.BootScreen
+import com.mobilefork.hermesagent.ui.theme.HERMES_LEGACY_LIGHT_NAVIGATION_BAR_SCRIM
 import com.mobilefork.hermesagent.ui.theme.hermesViewBackdropDrawable
 import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +34,7 @@ class MainActivity : ComponentActivity() {
         val startupNavigationBarStyle = if (startupPalette.lightCanvas) {
             // API 24-25 cannot draw dark navigation icons. Keep AndroidX's legacy dark scrim
             // instead of placing always-light icons directly over a transparent light canvas.
-            SystemBarStyle.light(Color.TRANSPARENT, LEGACY_LIGHT_NAVIGATION_BAR_SCRIM)
+            SystemBarStyle.light(Color.TRANSPARENT, HERMES_LEGACY_LIGHT_NAVIGATION_BAR_SCRIM)
         } else {
             SystemBarStyle.dark(Color.TRANSPARENT)
         }
@@ -118,6 +119,5 @@ class MainActivity : ComponentActivity() {
         private var shizukuRefreshRegistered = false
         private var shizukuBinderReceivedListener: Shizuku.OnBinderReceivedListener? = null
         private var shizukuBinderDeadListener: Shizuku.OnBinderDeadListener? = null
-        private val LEGACY_LIGHT_NAVIGATION_BAR_SCRIM = Color.argb(0x80, 0x1B, 0x1B, 0x1B)
     }
 }

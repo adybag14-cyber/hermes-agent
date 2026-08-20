@@ -74,6 +74,7 @@ import com.mobilefork.hermesagent.ui.theme.hermesLocalizedContext
 import com.mobilefork.hermesagent.ui.theme.hermesViewBackdropDrawable
 import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
 import com.mobilefork.hermesagent.ui.theme.hermesViewPanelDrawable
+import com.mobilefork.hermesagent.ui.theme.resolveHermesViewNavigationBarColor
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -1125,10 +1126,13 @@ class HermesUiCoverageInstrumentedTest {
         val decor = activity.window.decorView
         val rootInsets = ViewCompat.getRootWindowInsets(decor)
             ?: throw AssertionError("$evidencePage did not expose root window insets")
-        val statusBarInsets = rootInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+        val systemBarInsets = rootInsets.getInsets(WindowInsetsCompat.Type.systemBars())
         val displayCutoutInsets = rootInsets.getInsets(WindowInsetsCompat.Type.displayCutout())
         val tappableElementInsets = rootInsets.getInsets(WindowInsetsCompat.Type.tappableElement())
-        val safeTop = maxOf(statusBarInsets.top, displayCutoutInsets.top)
+        val safeInsets = rootInsets.getInsets(
+            WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+        )
+        val safeTop = safeInsets.top
         val usesGestureNavigation = tappableElementInsets.bottom == 0
         val platformEnforcesEdgeToEdge =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM &&
@@ -1140,11 +1144,13 @@ class HermesUiCoverageInstrumentedTest {
             palette.lightCanvas,
             insetsController.isAppearanceLightStatusBars,
         )
-        assertEquals(
-            "$evidencePage navigation-bar icon appearance must follow saved-theme lightCanvas=${palette.lightCanvas}",
-            palette.lightCanvas,
-            insetsController.isAppearanceLightNavigationBars,
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            assertEquals(
+                "$evidencePage navigation-bar icon appearance must follow saved-theme lightCanvas=${palette.lightCanvas}",
+                palette.lightCanvas,
+                insetsController.isAppearanceLightNavigationBars,
+            )
+        }
 
         if (platformEnforcesEdgeToEdge) {
             assertEquals(
@@ -1167,8 +1173,9 @@ class HermesUiCoverageInstrumentedTest {
                 activity.window.statusBarColor,
             )
             assertEquals(
-                "$evidencePage must use the saved-theme navigation colour before target/API 35 edge-to-edge",
-                palette.surface,
+                "$evidencePage must use the contrast-safe saved-theme navigation colour " +
+                    "before target/API 35 edge-to-edge",
+                resolveHermesViewNavigationBarColor(palette, Build.VERSION.SDK_INT),
                 activity.window.navigationBarColor,
             )
         }
@@ -1181,17 +1188,20 @@ class HermesUiCoverageInstrumentedTest {
         assertTrue("$evidencePage title '$expectedTitle' must have visible global bounds", title.getGlobalVisibleRect(titleBounds))
         val safeTopGlobal = decorBounds.top + safeTop
         if (platformEnforcesEdgeToEdge) {
-            assertTrue(
-                "$evidencePage themed ScrollView must begin behind the transparent status bar; " +
-                    "pageTop=${pageBounds.top}, safeTop=$safeTopGlobal, " +
-                    "statusInset=${statusBarInsets.top}, cutoutInset=${displayCutoutInsets.top}",
-                safeTop > 0 && pageBounds.top < safeTopGlobal,
+            assertEquals(
+                "$evidencePage themed ScrollView must exactly cover the decor behind transparent system bars; " +
+                    "decor=$decorBounds, page=$pageBounds, safeTop=$safeTopGlobal, " +
+                    "systemBars.top=${systemBarInsets.top}, cutout.top=${displayCutoutInsets.top}, " +
+                    "union.top=${safeInsets.top}",
+                decorBounds,
+                pageBounds,
             )
         }
         assertTrue(
             "$evidencePage title '$expectedTitle' must begin at or below the system-bar/cutout safe top; " +
                 "titleTop=${titleBounds.top}, safeTop=$safeTopGlobal, " +
-                "statusInset=${statusBarInsets.top}, cutoutInset=${displayCutoutInsets.top}",
+                "systemBars.top=${systemBarInsets.top}, cutout.top=${displayCutoutInsets.top}, " +
+                "union.top=${safeInsets.top}",
             titleBounds.top >= safeTopGlobal,
         )
     }

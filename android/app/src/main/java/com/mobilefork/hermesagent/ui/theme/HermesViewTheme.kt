@@ -6,6 +6,7 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -18,7 +19,11 @@ import android.widget.Spinner
 import android.widget.TextView
 import androidx.annotation.ColorInt
 import androidx.core.graphics.ColorUtils
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnAttach
 import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
@@ -94,6 +99,55 @@ internal fun hermesViewHorizontalPaddingDp(widthDp: Int): Float = when {
     else -> 16f
 }
 
+/** The exact AndroidX legacy fallback produced by Color.argb(0x80, 0x1B, 0x1B, 0x1B). */
+internal val HERMES_LEGACY_LIGHT_NAVIGATION_BAR_SCRIM: Int = 0x801B1B1B.toInt()
+
+internal fun resolveHermesViewNavigationBarColor(palette: HermesViewPalette, sdkInt: Int): Int {
+    return if (palette.lightCanvas && sdkInt < 26) {
+        HERMES_LEGACY_LIGHT_NAVIGATION_BAR_SCRIM
+    } else {
+        palette.surface
+    }
+}
+
+internal data class HermesScrollablePageLayout(
+    val contentWidthPx: Int,
+    val framePaddingLeftPx: Int,
+    val framePaddingTopPx: Int,
+    val framePaddingRightPx: Int,
+    val framePaddingBottomPx: Int,
+)
+
+internal fun resolveHermesScrollablePageLayout(
+    viewportWidthPx: Int,
+    outerPaddingPx: Int,
+    maxContentWidthPx: Int,
+    safeInsets: Insets,
+): HermesScrollablePageLayout {
+    val framePaddingLeft = outerPaddingPx + safeInsets.left
+    val framePaddingRight = outerPaddingPx + safeInsets.right
+    val availableWidth = (viewportWidthPx - framePaddingLeft - framePaddingRight).coerceAtLeast(1)
+    return HermesScrollablePageLayout(
+        contentWidthPx = minOf(availableWidth, maxContentWidthPx.coerceAtLeast(1)),
+        framePaddingLeftPx = framePaddingLeft,
+        framePaddingTopPx = outerPaddingPx + safeInsets.top,
+        framePaddingRightPx = framePaddingRight,
+        framePaddingBottomPx = outerPaddingPx + safeInsets.bottom,
+    )
+}
+
+internal fun View.setHermesSafeDrawingInsetsListener(onInsetsChanged: (Insets) -> Unit) {
+    ViewCompat.setOnApplyWindowInsetsListener(this) { _, windowInsets ->
+        onInsetsChanged(
+            windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+            ),
+        )
+        windowInsets
+    }
+    doOnAttach { ViewCompat.requestApplyInsets(it) }
+}
+
 /** A dependency-free gradient matching the Compose HermesBackdrop colour relationships. */
 fun hermesViewBackdropDrawable(palette: HermesViewPalette): GradientDrawable {
     return GradientDrawable(
@@ -139,9 +193,10 @@ fun hermesViewButtonDrawable(context: Context, palette: HermesViewPalette): Grad
 
 @Suppress("DEPRECATION")
 fun Activity.applyHermesViewWindowTheme(palette: HermesViewPalette) {
+    WindowCompat.setDecorFitsSystemWindows(window, false)
     window.setBackgroundDrawable(hermesViewBackdropDrawable(palette))
     window.statusBarColor = palette.background
-    window.navigationBarColor = palette.surface
+    window.navigationBarColor = resolveHermesViewNavigationBarColor(palette, Build.VERSION.SDK_INT)
     WindowCompat.getInsetsController(window, window.decorView).apply {
         isAppearanceLightStatusBars = palette.lightCanvas
         isAppearanceLightNavigationBars = palette.lightCanvas
@@ -185,28 +240,57 @@ fun applyHermesViewTree(root: View, palette: HermesViewPalette) {
 fun Context.hermesScrollablePage(
     content: View,
     palette: HermesViewPalette,
-    topInsetPx: Int = 0,
 ): ScrollView {
     val widthDp = resources.configuration.screenWidthDp
     val horizontalPaddingDp = hermesViewHorizontalPaddingDp(widthDp)
     val outerPadding = hermesDp(horizontalPaddingDp)
     val maxContentWidth = hermesDp(760f)
-    val availableWidth = (resources.displayMetrics.widthPixels - outerPadding * 2).coerceAtLeast(1)
-    val contentWidth = minOf(availableWidth, maxContentWidth)
-    val frame = FrameLayout(this).apply {
-        setPadding(outerPadding, topInsetPx + outerPadding, outerPadding, outerPadding)
-        addView(
-            content,
-            FrameLayout.LayoutParams(contentWidth, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
-                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            },
-        )
+    val initialLayout = resolveHermesScrollablePageLayout(
+        viewportWidthPx = resources.displayMetrics.widthPixels,
+        outerPaddingPx = outerPadding,
+        maxContentWidthPx = maxContentWidth,
+        safeInsets = Insets.NONE,
+    )
+    val contentLayoutParams = FrameLayout.LayoutParams(
+        initialLayout.contentWidthPx,
+        ViewGroup.LayoutParams.WRAP_CONTENT,
+    ).apply {
+        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
     }
-    return ScrollView(this).apply {
+    val frame = FrameLayout(this).apply {
+        setPadding(
+            initialLayout.framePaddingLeftPx,
+            initialLayout.framePaddingTopPx,
+            initialLayout.framePaddingRightPx,
+            initialLayout.framePaddingBottomPx,
+        )
+        addView(content, contentLayoutParams)
+    }
+    val page = ScrollView(this).apply {
         isFillViewport = true
         background = hermesViewBackdropDrawable(palette)
         addView(frame, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
     }
+    page.setHermesSafeDrawingInsetsListener { safeInsets ->
+        val viewportWidth = page.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+        val layout = resolveHermesScrollablePageLayout(
+            viewportWidthPx = viewportWidth,
+            outerPaddingPx = outerPadding,
+            maxContentWidthPx = maxContentWidth,
+            safeInsets = safeInsets,
+        )
+        frame.setPadding(
+            layout.framePaddingLeftPx,
+            layout.framePaddingTopPx,
+            layout.framePaddingRightPx,
+            layout.framePaddingBottomPx,
+        )
+        if (contentLayoutParams.width != layout.contentWidthPx) {
+            contentLayoutParams.width = layout.contentWidthPx
+            content.layoutParams = contentLayoutParams
+        }
+    }
+    return page
 }
 
 class HermesChoiceAdapter<T>(
