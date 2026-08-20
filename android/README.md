@@ -656,9 +656,11 @@ if ($traces.Count -ne 5) { throw 'Run-bound scratch does not contain five traces
 
 Do not assume the connected test task leaves either APK installed. Reinstall
 the same prehashed benchmark target and benchmark test APK pair explicitly with
-`adb install -r -t`, then prove their installed `pm path` bytes with
-`sha256sum`. Keep that AVD boot alive while the collector rechecks both APKs,
-device/QEMU/source identity, launch, PID, and memory before and after the run:
+`adb install -r -t`. Because reinstall can reset ART's compiler filter to
+`verify`, explicitly compile the measured target back to `speed`; the collector
+then proves both that compiler state and the installed `pm path` bytes. Keep
+that AVD boot alive while the collector rechecks both APKs, device/QEMU/source
+identity, launch, PID, and memory before and after the run:
 
 ```powershell
 Pop-Location
@@ -666,6 +668,8 @@ adb -s $serial install -r -t $benchmarkApk
 if ($LASTEXITCODE -ne 0) { throw 'Failed to reinstall the prehashed benchmark target APK' }
 adb -s $serial install -r -t $benchmarkTestApk.FullName
 if ($LASTEXITCODE -ne 0) { throw 'Failed to reinstall the prehashed benchmark test APK' }
+adb -s $serial shell cmd package compile -m speed -f com.mobilefork.hermesagent
+if ($LASTEXITCODE -ne 0) { throw 'Failed to restore the measured target speed compiler filter after reinstall' }
 $report = Resolve-Path $report
 $traceArgs = @($traces | ForEach-Object { @('--macrobenchmark-trace', $_.FullName) } |
     ForEach-Object { $_ })

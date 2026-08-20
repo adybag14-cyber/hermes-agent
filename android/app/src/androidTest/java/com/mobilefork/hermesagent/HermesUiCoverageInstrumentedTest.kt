@@ -19,6 +19,8 @@ import android.widget.TextView
 import androidx.compose.material3.Typography
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasTestTag
@@ -57,6 +59,7 @@ import com.mobilefork.hermesagent.ui.device.DevicePage
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.HermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
+import com.mobilefork.hermesagent.ui.settings.AppearanceThemePreset
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsViewModel
 import com.mobilefork.hermesagent.ui.settings.SettingsPage
 import com.mobilefork.hermesagent.ui.settings.appearanceThemePresets
@@ -172,18 +175,19 @@ class HermesUiCoverageInstrumentedTest {
         }
 
         openAppearancePage(strings)
-        appearanceThemePresets.forEachIndexed { index, preset ->
+        // Start with a palette that differs from the deterministic Hermes baseline and put Hermes
+        // last. That makes every apply/save predicate transition from false to true instead of
+        // letting the first iteration pass without proving either UI action executed.
+        val presetEvidenceOrder = appearanceThemePresets.drop(1) + appearanceThemePresets.first()
+        presetEvidenceOrder.forEachIndexed { index, preset ->
             val label = strings.appearancePresetLabel(preset.id, preset.label)
-            scrollSettingsToText(label)
-            composeRule.onNodeWithText(label).performClick()
-            saveAppearanceAndAwait {
-                it.themePrimaryHex.equals(preset.primaryHex, ignoreCase = true) &&
-                    it.themeSecondaryHex.equals(preset.secondaryHex, ignoreCase = true) &&
-                    it.themeBackgroundHex.equals(preset.backgroundHex, ignoreCase = true) &&
-                    it.themeSurfaceHex.equals(preset.surfaceHex, ignoreCase = true) &&
-                    it.themeSurfaceVariantHex.equals(preset.surfaceVariantHex, ignoreCase = true)
-            }
-            scrollSettingsToText(label)
+            val expected = preset.appearancePalette()
+            assertAppearancePreconditionDiffers(preset, expected)
+            selectAppearancePresetAndAwaitDraft(preset, expected)
+            saveAppearanceAndAwait(preset, expected)
+            composeRule.onNodeWithTag(appearancePresetTag(preset))
+                .performScrollTo()
+                .assertIsDisplayed()
             captureComposeEvidence(
                 identity = "appearance-preset:${preset.id}",
                 name = "$prefix-theme-preset-${index + 1}-${preset.id}",
@@ -286,6 +290,25 @@ class HermesUiCoverageInstrumentedTest {
 
         assertEvidenceManifest(expectedProfileEvidenceIdentities())
         writeInventory("$prefix-inventory.txt", "complete-current-profile", capturedEvidence)
+    }
+
+    @Test
+    fun legacyAppearancePresetVisiblyReplacesHermesDraftAndPersistsEveryPaletteField() {
+        prepareDeterministicBaseline(AppLanguage.ENGLISH)
+        setShellContent("appearance-preset-regression")
+        openAppearancePage(hermesStringsFor(AppLanguage.ENGLISH))
+
+        val legacy = appearanceThemePresets.single { it.id == "legacy" }
+        val expected = legacy.appearancePalette()
+        assertAppearancePreconditionDiffers(legacy, expected)
+        selectAppearancePresetAndAwaitDraft(legacy, expected)
+        saveAppearanceAndAwait(legacy, expected)
+
+        assertEquals(
+            "Legacy appearance preset did not remain durable after the visible Save action",
+            expected,
+            settingsStore.load().appearancePalette(),
+        )
     }
 
     @Test
@@ -491,11 +514,125 @@ class HermesUiCoverageInstrumentedTest {
         navigateToShellSection("HermesNavSettings")
     }
 
-    private fun saveAppearanceAndAwait(predicate: (AppSettings) -> Boolean) {
-        scrollSettingsToTag("SaveAppearanceButton")
-        composeRule.onNodeWithTag("SaveAppearanceButton").performClick()
-        composeRule.waitUntil(timeoutMillis = 5_000L) { predicate(settingsStore.load()) }
+    private fun assertAppearancePreconditionDiffers(
+        preset: AppearanceThemePreset,
+        expected: AppearancePalette,
+    ) {
+        val draft = appearanceDraftPalette()
+        val stored = settingsStore.load().appearancePalette()
+        assertTrue(
+            "Appearance preset ${preset.id} precondition was vacuous; " +
+                "expected=$expected draft=$draft stored=$stored",
+            draft != expected && stored != expected,
+        )
+    }
+
+    private fun selectAppearancePresetAndAwaitDraft(
+        preset: AppearanceThemePreset,
+        expected: AppearancePalette,
+    ) {
+        composeRule.onNodeWithTag(appearancePresetTag(preset))
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        awaitAppearancePalette("apply preset ${preset.id}", expected) { appearanceDraftPalette() }
+        assertEquals(
+            "Appearance preset ${preset.id} did not populate every visible palette field; " +
+                appearanceStateDiagnostic(expected),
+            expected,
+            appearanceDraftPalette(),
+        )
+    }
+
+    private fun saveAppearanceAndAwait(
+        preset: AppearanceThemePreset,
+        expected: AppearancePalette,
+    ) {
+        assertEquals(
+            "Refusing to save ${preset.id} before every visible palette field matches; " +
+                appearanceStateDiagnostic(expected),
+            expected,
+            appearanceDraftPalette(),
+        )
+        assertTrue(
+            "Appearance preset ${preset.id} was already persisted before Save; " +
+                appearanceStateDiagnostic(expected),
+            settingsStore.load().appearancePalette() != expected,
+        )
+        composeRule.onNodeWithTag("SaveAppearanceButton")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        awaitAppearancePalette("save preset ${preset.id}", expected) {
+            settingsStore.load().appearancePalette()
+        }
         composeRule.waitForIdle()
+        assertEquals(
+            "Saved appearance ${preset.id} was not reflected back into the visible fields; " +
+                appearanceStateDiagnostic(expected),
+            expected,
+            appearanceDraftPalette(),
+        )
+    }
+
+    private fun saveAppearanceAndAwait(predicate: (AppSettings) -> Boolean) {
+        composeRule.onNodeWithTag("SaveAppearanceButton")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        try {
+            composeRule.waitUntil(timeoutMillis = 5_000L) { predicate(settingsStore.load()) }
+        } catch (failure: Throwable) {
+            throw AssertionError(
+                "Appearance shape/font save timed out; stored=${settingsStore.load()}",
+                failure,
+            )
+        }
+        composeRule.waitForIdle()
+    }
+
+    private fun awaitAppearancePalette(
+        stage: String,
+        expected: AppearancePalette,
+        read: () -> AppearancePalette,
+    ) {
+        try {
+            composeRule.waitUntil(timeoutMillis = 5_000L) {
+                runCatching { read() == expected }.getOrDefault(false)
+            }
+        } catch (failure: Throwable) {
+            throw AssertionError(
+                "Appearance $stage timed out; ${appearanceStateDiagnostic(expected)}",
+                failure,
+            )
+        }
+        assertEquals(
+            "Appearance $stage completed with the wrong palette; ${appearanceStateDiagnostic(expected)}",
+            expected,
+            read(),
+        )
+    }
+
+    private fun appearanceStateDiagnostic(expected: AppearancePalette): String {
+        val draft = runCatching { appearanceDraftPalette().toString() }
+            .getOrElse { "<unavailable:${it::class.java.simpleName}>" }
+        val stored = runCatching { settingsStore.load().appearancePalette().toString() }
+            .getOrElse { "<unavailable:${it::class.java.simpleName}>" }
+        return "expected=$expected draft=$draft stored=$stored"
+    }
+
+    private fun appearanceDraftPalette(): AppearancePalette = AppearancePalette(
+        primary = editableAppearanceText("AppearancePrimaryHexField"),
+        secondary = editableAppearanceText("AppearanceSecondaryHexField"),
+        background = editableAppearanceText("AppearanceBackgroundHexField"),
+        surface = editableAppearanceText("AppearanceSurfaceHexField"),
+        surfaceVariant = editableAppearanceText("AppearanceSurfaceVariantHexField"),
+    )
+
+    private fun editableAppearanceText(testTag: String): String {
+        val semantics = composeRule.onNodeWithTag(testTag).fetchSemanticsNode().config
+        return semantics.getOrNull(SemanticsProperties.EditableText)?.text
+            ?: throw AssertionError("$testTag did not expose EditableText semantics")
     }
 
     private fun selectLanguage(language: AppLanguage, strings: HermesStrings) {
@@ -1137,6 +1274,8 @@ class HermesUiCoverageInstrumentedTest {
         assertTrue("At least one appearance preset is required", presetIds.isNotEmpty())
         assertTrue("Appearance preset IDs must be nonblank", presetIds.all { it.isNotBlank() })
         assertEquals("Appearance preset IDs must be unique", presetIds.size, presetIds.toSet().size)
+        val presetPalettes = appearanceThemePresets.map { it.appearancePalette() }
+        assertEquals("Appearance preset palettes must be unique", presetPalettes.size, presetPalettes.toSet().size)
         assertEquals(EXPECTED_LANGUAGE_TAGS, AppLanguage.entries.map { it.tag }.toSet())
     }
 
@@ -1220,6 +1359,32 @@ class HermesUiCoverageInstrumentedTest {
         val fontScale: Float,
         val fontLabel: String,
     )
+
+    private data class AppearancePalette(
+        val primary: String,
+        val secondary: String,
+        val background: String,
+        val surface: String,
+        val surfaceVariant: String,
+    )
+
+    private fun AppearanceThemePreset.appearancePalette(): AppearancePalette = AppearancePalette(
+        primary = primaryHex,
+        secondary = secondaryHex,
+        background = backgroundHex,
+        surface = surfaceHex,
+        surfaceVariant = surfaceVariantHex,
+    )
+
+    private fun AppSettings.appearancePalette(): AppearancePalette = AppearancePalette(
+        primary = themePrimaryHex,
+        secondary = themeSecondaryHex,
+        background = themeBackgroundHex,
+        surface = themeSurfaceHex,
+        surfaceVariant = themeSurfaceVariantHex,
+    )
+
+    private fun appearancePresetTag(preset: AppearanceThemePreset): String = "AppearancePreset-${preset.id}"
 
     private data class EvidenceArtifact(
         val identity: String,

@@ -147,6 +147,42 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun everyAppearancePresetPopulatesTheDraftAndPersistsAllFivePaletteFields() {
+        val application = RuntimeEnvironment.getApplication()
+        val store = AppSettingsStore(application)
+        val original = store.load()
+
+        try {
+            store.save(
+                original.copy(
+                    themePrimaryHex = "#123456",
+                    themeSecondaryHex = "#234567",
+                    themeBackgroundHex = "#345678",
+                    themeSurfaceHex = "#456789",
+                    themeSurfaceVariantHex = "#56789A",
+                ),
+            )
+            val viewModel = SettingsViewModel(application)
+
+            appearanceThemePresets.forEach { preset ->
+                assertTrue(
+                    "${preset.id} must start from a different persisted palette",
+                    !store.load().matchesPalette(preset),
+                )
+
+                viewModel.applyThemePreset(preset)
+                assertUiStateMatchesPalette("${preset.id} draft", preset, viewModel.uiState.value)
+
+                viewModel.saveAppearance()
+                store.invalidateCache()
+                assertSettingsMatchPalette("${preset.id} persisted", preset, store.load())
+            }
+        } finally {
+            store.save(original)
+        }
+    }
+
+    @Test
     fun completedDownloadRuntimeHandoffIsDurableBeforeTheMethodReturns() {
         val application = RuntimeEnvironment.getApplication()
         val store = AppSettingsStore(application)
@@ -187,5 +223,37 @@ class SettingsViewModelTest {
         )
         assertNull(wrapped?.`package`)
         assertTrue(viewModel.uiState.value.status.contains("in your browser"))
+    }
+
+    private fun assertUiStateMatchesPalette(
+        stage: String,
+        preset: AppearanceThemePreset,
+        state: SettingsUiState,
+    ) {
+        assertEquals("$stage primary", preset.primaryHex, state.themePrimaryHex)
+        assertEquals("$stage secondary", preset.secondaryHex, state.themeSecondaryHex)
+        assertEquals("$stage background", preset.backgroundHex, state.themeBackgroundHex)
+        assertEquals("$stage surface", preset.surfaceHex, state.themeSurfaceHex)
+        assertEquals("$stage surface variant", preset.surfaceVariantHex, state.themeSurfaceVariantHex)
+    }
+
+    private fun assertSettingsMatchPalette(
+        stage: String,
+        preset: AppearanceThemePreset,
+        settings: AppSettings,
+    ) {
+        assertEquals("$stage primary", preset.primaryHex, settings.themePrimaryHex)
+        assertEquals("$stage secondary", preset.secondaryHex, settings.themeSecondaryHex)
+        assertEquals("$stage background", preset.backgroundHex, settings.themeBackgroundHex)
+        assertEquals("$stage surface", preset.surfaceHex, settings.themeSurfaceHex)
+        assertEquals("$stage surface variant", preset.surfaceVariantHex, settings.themeSurfaceVariantHex)
+    }
+
+    private fun AppSettings.matchesPalette(preset: AppearanceThemePreset): Boolean {
+        return themePrimaryHex.equals(preset.primaryHex, ignoreCase = true) &&
+            themeSecondaryHex.equals(preset.secondaryHex, ignoreCase = true) &&
+            themeBackgroundHex.equals(preset.backgroundHex, ignoreCase = true) &&
+            themeSurfaceHex.equals(preset.surfaceHex, ignoreCase = true) &&
+            themeSurfaceVariantHex.equals(preset.surfaceVariantHex, ignoreCase = true)
     }
 }

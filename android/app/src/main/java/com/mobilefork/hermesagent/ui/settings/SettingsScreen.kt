@@ -1000,7 +1000,10 @@ private fun AppearanceCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 appearanceThemePresets.forEach { preset ->
-                    Button(onClick = { onApplyPreset(preset) }) {
+                    Button(
+                        modifier = Modifier.testTag("AppearancePreset-${preset.id}"),
+                        onClick = { onApplyPreset(preset) },
+                    ) {
                         Text(strings.appearancePresetLabel(preset.id, preset.label))
                     }
                 }
@@ -1009,35 +1012,35 @@ private fun AppearanceCard(
                 value = themePrimaryHex,
                 onValueChange = onPrimaryHexChange,
                 label = { Text(strings.accentHexLabel()) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("AppearancePrimaryHexField"),
                 singleLine = true,
             )
             OutlinedTextField(
                 value = themeSecondaryHex,
                 onValueChange = onSecondaryHexChange,
                 label = { Text(strings.secondaryAccentHexLabel()) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("AppearanceSecondaryHexField"),
                 singleLine = true,
             )
             OutlinedTextField(
                 value = themeBackgroundHex,
                 onValueChange = onBackgroundHexChange,
                 label = { Text(strings.backgroundHexLabel()) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("AppearanceBackgroundHexField"),
                 singleLine = true,
             )
             OutlinedTextField(
                 value = themeSurfaceHex,
                 onValueChange = onSurfaceHexChange,
                 label = { Text(strings.composerSurfaceHexLabel()) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("AppearanceSurfaceHexField"),
                 singleLine = true,
             )
             OutlinedTextField(
                 value = themeSurfaceVariantHex,
                 onValueChange = onSurfaceVariantHexChange,
                 label = { Text(strings.assistantPanelHexLabel()) },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().testTag("AppearanceSurfaceVariantHexField"),
                 singleLine = true,
             )
             Text(strings.cardsAndBoxesTitle(), style = MaterialTheme.typography.titleSmall)
