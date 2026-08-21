@@ -36,8 +36,8 @@ if str(SCRIPT_DIR) not in sys.path:
 
 BINDING_SCHEMA = "hermes-android-fdroid-source-binding-v1"
 BINDING_FILE_NAME = "hermes-android-fdroid-source-binding.properties"
-AUTUPDATE_VERSION_NAME = "0.13.148"
-AUTUPDATE_VERSION_CODE = "144890"
+AUTUPDATE_VERSION_NAME = "0.13.149"
+AUTUPDATE_VERSION_CODE = "144990"
 GRADLE_PATH = PurePosixPath("android/app/build.gradle.kts")
 FDROID_LOCAL_PROPERTIES = (
     PurePosixPath("local.properties"),
@@ -61,10 +61,9 @@ GRADLE_SIGNING_LINE_RES = (
     re.compile(r".*android\.signingConfigs\.[^{]*$"),
     re.compile(r".*release\.signingConfig *= *"),
 )
-GRADLE_PROJECT_MARKERS = frozenset(
-    {"build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts"}
+FDROID_SCANNER_REMOVED_GRADLE_NAMES = frozenset(
+    {"gradle-wrapper.jar", "gradlew", "gradlew.bat", "gradle-daemon-jvm.properties"}
 )
-GRADLE_WRAPPER_NAMES = frozenset({"gradlew", "gradlew.bat"})
 EXPECTED_BINDING_KEYS = frozenset(
     {
         "schema",
@@ -340,15 +339,19 @@ def _fdroid_signing_scrubbed_sources(repo_root: Path) -> dict[PurePosixPath, byt
     return scrubbed
 
 
-def _fdroid_deleted_wrappers(repo_root: Path) -> set[PurePosixPath]:
-    tracked = _head_tracked_paths(repo_root)
-    project_directories = {
-        path.parent for path in tracked if path.name in GRADLE_PROJECT_MARKERS
-    }
+def _fdroid_scanner_deleted_gradle_files(repo_root: Path) -> set[PurePosixPath]:
+    """Model the pinned fdroidserver scanner's unconditional Gradle cleanup.
+
+    fdroidserver removes these four exact basenames before Gradle configuration,
+    independent of scanignore/scandelete. Restricting the closed transformation
+    to the matching tracked paths preserves fail-closed detection for every
+    other deletion or edit while accepting the scanner's deterministic cleanup.
+    """
+
     return {
         path
-        for path in tracked
-        if path.name in GRADLE_WRAPPER_NAMES and path.parent in project_directories
+        for path in _head_tracked_paths(repo_root)
+        if path.name in FDROID_SCANNER_REMOVED_GRADLE_NAMES
     }
 
 
@@ -435,8 +438,8 @@ def _assert_fdroid_verify_state(repo_root: Path, version_name: str) -> None:
     expected[GRADLE_PATH] = expected_fdroid_gradle_source(
         _head_gradle_source(repo_root), version_name
     )
-    for wrapper in _fdroid_deleted_wrappers(repo_root):
-        expected[wrapper] = None
+    for scanner_deleted in _fdroid_scanner_deleted_gradle_files(repo_root):
+        expected[scanner_deleted] = None
     _assert_tracked_state(repo_root, expected, "post-metadata-prebuild")
 
 

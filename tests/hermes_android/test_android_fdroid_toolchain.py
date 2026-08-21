@@ -93,8 +93,8 @@ def test_fdroid_toolchain_contract_is_immutable_coherent_and_parallel(fdroid_con
         "-Dorg.gradle.parallel=true",
     ]
     assert fdroid_contract["VAGRANT_ENV_MODE"] == "env-i"
-    assert fdroid_contract["VERSION_NAME"] == "0.13.148"
-    assert fdroid_contract["VERSION_CODE"] == "144890"
+    assert fdroid_contract["VERSION_NAME"] == "0.13.149"
+    assert fdroid_contract["VERSION_CODE"] == "144990"
     assert (
         fdroid_contract["SOURCE_BINDING_GRADLE_PROPERTY"]
         == "hermesFdroidSourceBinding=true"

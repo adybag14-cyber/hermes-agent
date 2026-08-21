@@ -19,10 +19,10 @@ cd ~/fdroiddata-hermes
 ```
 
 Run that preview from a fresh clone of the live `fdroiddata` metadata after the
-GitHub tag exists. `--auto` must create the local 0.13.148/144890 build recipe
+GitHub tag exists. `--auto` must create the local 0.13.149/144990 build recipe
 and resolve its exact tag commit. The autoupdater copies the prior build recipe,
 so its output is not yet eligible for the pinned build. From the same WSL shell,
-render and verify the v0.13.148 source-binding fields from the committed Hermes
+render and verify the v0.13.149 source-binding fields from the committed Hermes
 template into that generated build:
 
 ```sh
@@ -40,7 +40,7 @@ git -C "$FDROIDDATA_ROOT" diff -- \
   metadata/com.mobilefork.hermesagent.yml
 ```
 
-The render transaction requires exactly one 0.13.148/144890 build, preserves
+The render transaction requires exactly one 0.13.149/144990 build, preserves
 the autoupdater-resolved full Git commit, every historical `Builds` entry, and
 all unrelated live metadata, and overlays only `gradleprops` plus `prebuild`.
 It then verifies that `hermesFdroidSourceBinding=true` and the leading
@@ -99,13 +99,17 @@ That phase first reproduces and validates the pinned fdroidserver's signing-key
 scrub plus its three generated SDK `local.properties` files, then stores the
 immutable `HEAD` commit/digest handoff under `GRADLE_USER_HOME`, outside the
 source tarball. The two historical `sed` transformations then set the release
-tag and Python 3.13 selection. Before system Gradle starts, fdroidserver also
-removes the checked-in Gradle wrapper scripts. Gradle's
+tag and Python 3.13 selection. Before system Gradle starts, the pinned
+fdroidserver scanner unconditionally removes tracked files with the exact
+basenames `gradle-wrapper.jar`, `gradlew`, `gradlew.bat`, and
+`gradle-daemon-jvm.properties`; this includes the canonical checked-in
+`android/gradle/wrapper/gradle-wrapper.jar`. Gradle's
 `hermesFdroidSourceBinding=true` path runs the script's `verify` phase, which
-accepts only that complete closed transformation set and places the prepared
-digest in the release `BuildConfig`. Any other tracked or untracked source
-change fails. The normal `HERMES_SOURCE_DIGEST` path still requires a fully
-clean checkout and cannot be combined with the F-Droid authority.
+accepts only those deterministic scanner deletions plus the declared source
+transformations and places the prepared digest in the release `BuildConfig`.
+Any other tracked or untracked source change fails. The normal
+`HERMES_SOURCE_DIGEST` path still requires a fully clean checkout and cannot be
+combined with the F-Droid authority.
 
 This handoff removes the prior `unbound` DEX difference; it does not by itself
 certify reproducibility. Certification still requires the pinned buildserver's

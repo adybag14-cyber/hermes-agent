@@ -1,0 +1,3 @@
+Preserves the complete v0.13.148 Android overhaul and fixes the fail-closed F-Droid source handoff to model the pinned scanner's exact Gradle-wrapper cleanup.
+
+Keeps all other source edits and deletions rejected, adds wrapper-JAR and unauthorized-deletion regressions, and retains LiteRT-LM 0.16.1, direct time/device tools, and the repaired Debian HTTPS sandbox.

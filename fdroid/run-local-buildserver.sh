@@ -4,8 +4,8 @@ set -euo pipefail
 # Run inside the official F-Droid buildserver-trixie container with this
 # repository (or a fdroiddata checkout containing its metadata) at /workspace.
 APP_ID="${APP_ID:-com.mobilefork.hermesagent}"
-VERSION_NAME="${VERSION_NAME:-0.13.148}"
-VERSION_CODE="${VERSION_CODE:-144890}"
+VERSION_NAME="${VERSION_NAME:-0.13.149}"
+VERSION_CODE="${VERSION_CODE:-144990}"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 readonly HERMES_FDROID_TEMPLATE="${HERMES_FDROID_TEMPLATE:-${SCRIPT_DIR}/${APP_ID}.yml.template}"
 readonly HERMES_SOURCE_BINDING_HELPER="${HERMES_SOURCE_BINDING_HELPER:-${SCRIPT_DIR}/../scripts/android_fdroid_source_binding.py}"
