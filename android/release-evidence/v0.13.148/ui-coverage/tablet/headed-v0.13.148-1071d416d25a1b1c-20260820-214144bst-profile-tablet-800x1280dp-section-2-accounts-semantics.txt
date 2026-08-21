@@ -1,0 +1,1357 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=section:Accounts
+artifact=headed-v0.13.148-1071d416d25a1b1c-20260820-214144bst-profile-tablet-800x1280dp-section-2-accounts
+coverage_kind=app-section
+page_id=Accounts
+profile=tablet-800x1280dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=800
+screen_height_dp=1280
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.148
+version_code=144890
+build_variant=debug
+source_digest=1071d416d25a1b1cf282eb401995efdd96fd9ea68bddf52eea9851bd0d02dc82
+candidate_apk_sha256=b48fef16586e46844000af3ae02cddff1c5a37994587da391ef2b9082863b098
+instrumentation_apk_sha256=124931df15aaf512e764c75a20bc8d3991d3c5c74cc2c735338e32390efef474
+evidence_run_id=v0.13.148-1071d416d25a1b1c-20260820-214144bst
+device_serial=emulator-5572
+avd_name=Hermes_Model_Test_API_35
+device_boot_id=aa0a9f9e-e1d0-4996-bc43-2bf3b29f931b
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=ca4581a0e7c9942c6c3447c6d70a5233f5a9130f824c74a26962b64d2a8ad159
+sentinel=Accounts
+sentinel=Corr3xt is used for app sign-in; providers use secure API keys or tokens in Settings.
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1600.0, b=2560.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1600.0, b=2560.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1600.0, b=2560.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=176.0, r=224.0, b=2496.0)px, Tag: 'HermesPersistentNavigation'
+       | IsTraversalGroup = 'true'
+       |  |-Node #14 at (l=0.0, t=232.0, r=224.0, b=2424.0)px
+       |    [SelectableGroup]
+       |     |-Node #15 at (l=78.0, t=256.0, r=146.0, b=324.0)px
+       |     | ContentDescription = '[Hermes Agent Fork logo]'
+       |     | Role = 'Image'
+       |     |-Node #17 at (l=0.0, t=380.0, r=224.0, b=2424.0)px
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+       |       Actions = [ScrollBy, ScrollByOffset]
+       |        |-Node #18 at (l=32.0, t=380.0, r=192.0, b=492.0)px, Tag: 'HermesRailHermes'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #26 at (l=43.0, t=450.0, r=180.0, b=482.0)px
+       |        |  | Text = '[Hermes Fork]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #23 at (l=90.0, t=390.0, r=134.0, b=434.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #24 at (l=90.0, t=390.0, r=134.0, b=434.0)px
+       |        |       ContentDescription = '[Hermes Fork]'
+       |        |       Role = 'Image'
+       |        |-Node #27 at (l=32.0, t=496.0, r=192.0, b=608.0)px, Tag: 'HermesRailAccounts'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'true'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #35 at (l=62.0, t=566.0, r=161.0, b=598.0)px
+       |        |  | Text = '[Accounts]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #32 at (l=90.0, t=506.0, r=134.0, b=550.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #33 at (l=90.0, t=506.0, r=134.0, b=550.0)px
+       |        |       ContentDescription = '[Accounts]'
+       |        |       Role = 'Image'
+       |        |-Node #36 at (l=32.0, t=612.0, r=192.0, b=724.0)px, Tag: 'HermesRailNousPortal'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #44 at (l=79.0, t=682.0, r=145.0, b=714.0)px
+       |        |  | Text = '[Portal]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #41 at (l=90.0, t=622.0, r=134.0, b=666.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #42 at (l=90.0, t=622.0, r=134.0, b=666.0)px
+       |        |       ContentDescription = '[Portal]'
+       |        |       Role = 'Image'
+       |        |-Node #45 at (l=32.0, t=728.0, r=192.0, b=840.0)px, Tag: 'HermesRailDevice'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #53 at (l=76.0, t=798.0, r=148.0, b=830.0)px
+       |        |  | Text = '[Device]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #50 at (l=90.0, t=738.0, r=134.0, b=782.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #51 at (l=90.0, t=738.0, r=134.0, b=782.0)px
+       |        |       ContentDescription = '[Device]'
+       |        |       Role = 'Image'
+       |        |-Node #54 at (l=32.0, t=844.0, r=192.0, b=956.0)px, Tag: 'HermesRailKanban'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #62 at (l=72.0, t=914.0, r=152.0, b=946.0)px
+       |        |  | Text = '[Kanban]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #59 at (l=90.0, t=854.0, r=134.0, b=898.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #60 at (l=90.0, t=854.0, r=134.0, b=898.0)px
+       |        |       ContentDescription = '[Kanban]'
+       |        |       Role = 'Image'
+       |        |-Node #63 at (l=32.0, t=960.0, r=192.0, b=1072.0)px, Tag: 'HermesRailTerminal'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #71 at (l=64.0, t=1030.0, r=159.0, b=1062.0)px
+       |        |  | Text = '[Terminal]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #68 at (l=90.0, t=970.0, r=134.0, b=1014.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #69 at (l=90.0, t=970.0, r=134.0, b=1014.0)px
+       |        |       ContentDescription = '[Terminal]'
+       |        |       Role = 'Image'
+       |        |-Node #72 at (l=32.0, t=1076.0, r=192.0, b=1188.0)px, Tag: 'HermesRailSettings'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #80 at (l=68.0, t=1146.0, r=156.0, b=1178.0)px
+       |        |  | Text = '[Settings]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #77 at (l=90.0, t=1086.0, r=134.0, b=1130.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #78 at (l=90.0, t=1086.0, r=134.0, b=1130.0)px
+       |        |       ContentDescription = '[Settings]'
+       |        |       Role = 'Image'
+       |        |-Node #799 at (l=32.0, t=1222.0, r=192.0, b=1334.0)px, Tag: 'HermesRailAction0'
+       |          Role = 'Tab'
+       |          Focused = 'false'
+       |          Selected = 'false'
+       |          Actions = [OnClick, RequestFocus]
+       |          MergeDescendants = 'true'
+       |           |-Node #807 at (l=70.0, t=1292.0, r=154.0, b=1324.0)px
+       |           | Text = '[Refresh]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #804 at (l=90.0, t=1232.0, r=134.0, b=1276.0)px
+       |             ClearAndSetSemantics = 'true'
+       |              |-Node #805 at (l=90.0, t=1232.0, r=134.0, b=1276.0)px
+       |                ContentDescription = '[Reload local Corr3xt and provider auth status.]'
+       |                Role = 'Image'
+       |-Node #81 at (l=224.0, t=176.0, r=1600.0, b=2496.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #205 at (l=224.0, t=176.0, r=1600.0, b=2496.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #207 at (l=224.0, t=176.0, r=1600.0, b=2496.0)px
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=10160.0, reverseScrolling=false)'
+       |       Actions = [ScrollBy, ScrollByOffset]
+       |        |-Node #208 at (l=256.0, t=200.0, r=1568.0, b=280.0)px
+       |        | Text = '[Configure a reachable Corr3xt URL to enable app sign-in; providers use secure API keys or tokens in Settings.]'
+       |        | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #209 at (l=256.0, t=304.0, r=1202.0, b=336.0)px
+       |        | Text = '[Corr3xt is used for app sign-in; providers use secure API keys or tokens in Settings.]'
+       |        | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #210 at (l=256.0, t=360.0, r=1568.0, b=488.0)px
+       |        | EditableText = ''
+       |        | TextSelectionRange = 'TextRange(0, 0)'
+       |        | IsEditable = 'true'
+       |        | ImeAction = 'Default'
+       |        | Focused = 'false'
+       |        | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #219 at (l=288.0, t=408.0, r=628.0, b=456.0)px
+       |        |    Text = '[Corr3xt auth base URL]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #222 at (l=256.0, t=520.0, r=538.0, b=600.0)px
+       |        | Focused = 'false'
+       |        | Role = 'Button'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #224 at (l=304.0, t=540.0, r=490.0, b=580.0)px
+       |        |    Text = '[Save auth URL]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #225 at (l=562.0, t=520.0, r=758.0, b=600.0)px
+       |        | Focused = 'false'
+       |        | Role = 'Button'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #227 at (l=610.0, t=540.0, r=710.0, b=580.0)px
+       |        |    Text = '[Refresh]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #228 at (l=256.0, t=632.0, r=1568.0, b=960.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #230 at (l=288.0, t=664.0, r=370.0, b=712.0)px
+       |        |  | Text = '[Email]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #231 at (l=288.0, t=728.0, r=1100.0, b=760.0)px
+       |        |  | Text = '[Sign in to the app through Corr3xt using an email link or password flow.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #232 at (l=288.0, t=776.0, r=458.0, b=816.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #235 at (l=288.0, t=840.0, r=473.0, b=920.0)px, Tag: 'AuthSignIn-email'
+       |        |    Role = 'Button'
+       |        |    [Disabled]
+       |        |    Actions = [OnClick]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #237 at (l=336.0, t=860.0, r=425.0, b=900.0)px
+       |        |       Text = '[Sign in]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #238 at (l=256.0, t=984.0, r=1568.0, b=1312.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #240 at (l=288.0, t=1016.0, r=393.0, b=1064.0)px
+       |        |  | Text = '[Google]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #241 at (l=288.0, t=1080.0, r=888.0, b=1112.0)px
+       |        |  | Text = '[Sign in to the app with a Google account via Corr3xt.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #242 at (l=288.0, t=1128.0, r=458.0, b=1168.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #245 at (l=288.0, t=1192.0, r=473.0, b=1272.0)px, Tag: 'AuthSignIn-google'
+       |        |    Role = 'Button'
+       |        |    [Disabled]
+       |        |    Actions = [OnClick]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #247 at (l=336.0, t=1212.0, r=425.0, b=1252.0)px
+       |        |       Text = '[Sign in]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #248 at (l=256.0, t=1336.0, r=1568.0, b=1664.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #250 at (l=288.0, t=1368.0, r=382.0, b=1416.0)px
+       |        |  | Text = '[Phone]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #251 at (l=288.0, t=1432.0, r=1060.0, b=1464.0)px
+       |        |  | Text = '[Sign in to the app with an SMS / phone verification flow via Corr3xt.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #252 at (l=288.0, t=1480.0, r=458.0, b=1520.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #255 at (l=288.0, t=1544.0, r=473.0, b=1624.0)px, Tag: 'AuthSignIn-phone'
+       |        |    Role = 'Button'
+       |        |    [Disabled]
+       |        |    Actions = [OnClick]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #257 at (l=336.0, t=1564.0, r=425.0, b=1604.0)px
+       |        |       Text = '[Sign in]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #258 at (l=256.0, t=1688.0, r=1568.0, b=2360.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #260 at (l=288.0, t=1720.0, r=463.0, b=1768.0)px
+       |        |  | Text = '[OpenRouter]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #261 at (l=288.0, t=1784.0, r=1067.0, b=1816.0)px
+       |        |  | Text = '[Use an OpenRouter API key for Hermes Android remote model calls.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #262 at (l=288.0, t=1832.0, r=458.0, b=1872.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #263 at (l=288.0, t=1888.0, r=617.0, b=1920.0)px
+       |        |  | Text = '[Hermes provider: openrouter]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #264 at (l=288.0, t=1936.0, r=1536.0, b=2104.0)px, Tag: 'AuthProviderCredential-openrouter'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #273 at (l=320.0, t=1984.0, r=548.0, b=2032.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #275 at (l=320.0, t=2072.0, r=1097.0, b=2104.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as OPENROUTER_API_KEY=...]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #278 at (l=288.0, t=2128.0, r=473.0, b=2208.0)px, Tag: 'AuthSignIn-openrouter'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #280 at (l=336.0, t=2148.0, r=425.0, b=2188.0)px
+       |        |  |    Text = '[Sign in]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #281 at (l=497.0, t=2128.0, r=656.0, b=2208.0)px, Tag: 'AuthProviderSaveCredential-openrouter'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #283 at (l=545.0, t=2148.0, r=608.0, b=2188.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #284 at (l=680.0, t=2128.0, r=1071.0, b=2208.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #286 at (l=728.0, t=2148.0, r=1023.0, b=2188.0)px
+       |        |  |    Text = '[Use API key in Settings]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #287 at (l=288.0, t=2240.0, r=759.0, b=2320.0)px, Tag: 'AuthProviderOpenSetup-openrouter'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #289 at (l=336.0, t=2260.0, r=711.0, b=2300.0)px
+       |        |  |    Text = '[Open OpenRouter setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #290 at (l=783.0, t=2240.0, r=1082.0, b=2320.0)px, Tag: 'AuthProviderCopySetup-openrouter'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #292 at (l=831.0, t=2260.0, r=1034.0, b=2300.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #293 at (l=1106.0, t=2240.0, r=1361.0, b=2320.0)px, Tag: 'AuthProviderCheckSetup-openrouter'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #295 at (l=1154.0, t=2260.0, r=1313.0, b=2300.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #296 at (l=256.0, t=2384.0, r=1568.0, b=3056.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #298 at (l=288.0, t=2416.0, r=397.0, b=2464.0)px
+       |        |  | Text = '[OpenAI]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #299 at (l=288.0, t=2480.0, r=1415.0, b=2512.0)px
+       |        |  | Text = '[Use an OpenAI API key for Hermes Android remote model calls. Opens setup in the in-app browser.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #300 at (l=288.0, t=2528.0, r=458.0, b=2568.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #301 at (l=288.0, t=2584.0, r=569.0, b=2616.0)px
+       |        |  | Text = '[Hermes provider: openai]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #302 at (l=288.0, t=2632.0, r=1536.0, b=2800.0)px, Tag: 'AuthProviderCredential-openai'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #311 at (l=320.0, t=2680.0, r=548.0, b=2728.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #313 at (l=320.0, t=2768.0, r=1026.0, b=2800.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as OPENAI_API_KEY=...]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #316 at (l=288.0, t=2824.0, r=447.0, b=2904.0)px, Tag: 'AuthProviderSaveCredential-openai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #318 at (l=336.0, t=2844.0, r=399.0, b=2884.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #319 at (l=471.0, t=2824.0, r=855.0, b=2904.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #321 at (l=519.0, t=2844.0, r=807.0, b=2884.0)px
+       |        |  |    Text = '[Set up OpenAI API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #322 at (l=879.0, t=2824.0, r=1293.0, b=2904.0)px, Tag: 'AuthProviderOpenSetup-openai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #324 at (l=927.0, t=2844.0, r=1245.0, b=2884.0)px
+       |        |  |    Text = '[Open OpenAI setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #325 at (l=288.0, t=2936.0, r=587.0, b=3016.0)px, Tag: 'AuthProviderCopySetup-openai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #327 at (l=336.0, t=2956.0, r=539.0, b=2996.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #328 at (l=611.0, t=2936.0, r=866.0, b=3016.0)px, Tag: 'AuthProviderCheckSetup-openai'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #330 at (l=659.0, t=2956.0, r=818.0, b=2996.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #331 at (l=256.0, t=3080.0, r=1568.0, b=3896.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #333 at (l=288.0, t=3112.0, r=686.0, b=3160.0)px
+       |        |  | Text = '[Codex / OpenAI Responses]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #334 at (l=288.0, t=3176.0, r=1521.0, b=3208.0)px
+       |        |  | Text = '[Sign in with ChatGPT (openai/codex OAuth: localhost:1455 PKCE, device-code fallback) or paste an API key.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #335 at (l=288.0, t=3224.0, r=458.0, b=3264.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #336 at (l=288.0, t=3280.0, r=646.0, b=3312.0)px
+       |        |  | Text = '[Hermes provider: openai-codex]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #337 at (l=288.0, t=3328.0, r=1536.0, b=3528.0)px, Tag: 'AuthProviderCredential-codex'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #346 at (l=320.0, t=3376.0, r=548.0, b=3424.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #348 at (l=320.0, t=3464.0, r=1504.0, b=3528.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as OPENAI_API_KEY=...; also accepts CODEX_API_KEY, CHATGPT_WEB_ACCESS_TOKEN.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #351 at (l=288.0, t=3552.0, r=473.0, b=3632.0)px, Tag: 'AuthSignIn-codex'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #353 at (l=336.0, t=3572.0, r=425.0, b=3612.0)px
+       |        |  |    Text = '[Sign in]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #354 at (l=497.0, t=3552.0, r=656.0, b=3632.0)px, Tag: 'AuthProviderSaveCredential-codex'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #356 at (l=545.0, t=3572.0, r=608.0, b=3612.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #357 at (l=680.0, t=3552.0, r=1071.0, b=3632.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #359 at (l=728.0, t=3572.0, r=1023.0, b=3612.0)px
+       |        |  |    Text = '[Use API key in Settings]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #360 at (l=288.0, t=3664.0, r=954.0, b=3744.0)px, Tag: 'AuthProviderOpenSetup-codex'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #362 at (l=336.0, t=3684.0, r=906.0, b=3724.0)px
+       |        |  |    Text = '[Open Codex / OpenAI Responses setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #363 at (l=978.0, t=3664.0, r=1277.0, b=3744.0)px, Tag: 'AuthProviderCopySetup-codex'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #365 at (l=1026.0, t=3684.0, r=1229.0, b=3724.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #366 at (l=288.0, t=3776.0, r=543.0, b=3856.0)px, Tag: 'AuthProviderCheckSetup-codex'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #368 at (l=336.0, t=3796.0, r=495.0, b=3836.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #369 at (l=256.0, t=3920.0, r=1568.0, b=4592.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #371 at (l=288.0, t=3952.0, r=421.0, b=4000.0)px
+       |        |  | Text = '[ChatGPT]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #372 at (l=288.0, t=4016.0, r=1491.0, b=4048.0)px
+       |        |  | Text = '[Sign in with ChatGPT subscription via official Codex OAuth (in-app browser) or paste a web access token.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #373 at (l=288.0, t=4064.0, r=458.0, b=4104.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #374 at (l=288.0, t=4120.0, r=633.0, b=4152.0)px
+       |        |  | Text = '[Hermes provider: chatgpt-web]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #375 at (l=288.0, t=4168.0, r=1536.0, b=4336.0)px, Tag: 'AuthProviderCredential-chatgpt'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #384 at (l=320.0, t=4216.0, r=548.0, b=4264.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #386 at (l=320.0, t=4304.0, r=1201.0, b=4336.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as CHATGPT_WEB_ACCESS_TOKEN=...]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #389 at (l=288.0, t=4360.0, r=473.0, b=4440.0)px, Tag: 'AuthSignIn-chatgpt'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #391 at (l=336.0, t=4380.0, r=425.0, b=4420.0)px
+       |        |  |    Text = '[Sign in]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #392 at (l=497.0, t=4360.0, r=656.0, b=4440.0)px, Tag: 'AuthProviderSaveCredential-chatgpt'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #394 at (l=545.0, t=4380.0, r=608.0, b=4420.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #395 at (l=680.0, t=4360.0, r=1071.0, b=4440.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #397 at (l=728.0, t=4380.0, r=1023.0, b=4420.0)px
+       |        |  |    Text = '[Use API key in Settings]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #398 at (l=1095.0, t=4360.0, r=1528.0, b=4440.0)px, Tag: 'AuthProviderOpenSetup-chatgpt'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #400 at (l=1143.0, t=4380.0, r=1480.0, b=4420.0)px
+       |        |  |    Text = '[Open ChatGPT setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #401 at (l=288.0, t=4472.0, r=587.0, b=4552.0)px, Tag: 'AuthProviderCopySetup-chatgpt'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #403 at (l=336.0, t=4492.0, r=539.0, b=4532.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #404 at (l=611.0, t=4472.0, r=866.0, b=4552.0)px, Tag: 'AuthProviderCheckSetup-chatgpt'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #406 at (l=659.0, t=4492.0, r=818.0, b=4532.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #407 at (l=256.0, t=4616.0, r=1568.0, b=5288.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #409 at (l=288.0, t=4648.0, r=553.0, b=4696.0)px
+       |        |  | Text = '[xAI / Grok API key]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #410 at (l=288.0, t=4712.0, r=1000.0, b=4744.0)px
+       |        |  | Text = '[Use an xAI Grok API key from console.x.ai (in-app setup page).]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #411 at (l=288.0, t=4760.0, r=458.0, b=4800.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #412 at (l=288.0, t=4816.0, r=525.0, b=4848.0)px
+       |        |  | Text = '[Hermes provider: xai]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #413 at (l=288.0, t=4864.0, r=1536.0, b=5032.0)px, Tag: 'AuthProviderCredential-xai'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #422 at (l=320.0, t=4912.0, r=548.0, b=4960.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #424 at (l=320.0, t=5000.0, r=1320.0, b=5032.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as XAI_API_KEY=...; also accepts GROK_API_KEY.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #427 at (l=288.0, t=5056.0, r=447.0, b=5136.0)px, Tag: 'AuthProviderSaveCredential-xai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #429 at (l=336.0, t=5076.0, r=399.0, b=5116.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #430 at (l=471.0, t=5056.0, r=993.0, b=5136.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #432 at (l=519.0, t=5076.0, r=945.0, b=5116.0)px
+       |        |  |    Text = '[Set up xAI / Grok API key API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #433 at (l=288.0, t=5168.0, r=839.0, b=5248.0)px, Tag: 'AuthProviderOpenSetup-xai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #435 at (l=336.0, t=5188.0, r=791.0, b=5228.0)px
+       |        |  |    Text = '[Open xAI / Grok API key setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #436 at (l=863.0, t=5168.0, r=1162.0, b=5248.0)px, Tag: 'AuthProviderCopySetup-xai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #438 at (l=911.0, t=5188.0, r=1114.0, b=5228.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #439 at (l=1186.0, t=5168.0, r=1441.0, b=5248.0)px, Tag: 'AuthProviderCheckSetup-xai'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #441 at (l=1234.0, t=5188.0, r=1393.0, b=5228.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #442 at (l=256.0, t=5312.0, r=1568.0, b=6128.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #444 at (l=288.0, t=5344.0, r=699.0, b=5392.0)px
+       |        |  | Text = '[xAI Grok OAuth (SuperGrok)]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #445 at (l=288.0, t=5408.0, r=1359.0, b=5440.0)px
+       |        |  | Text = '[Full Grok SuperGrok subscription OAuth (PKCE + local callback) in the Hermes in-app browser.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #446 at (l=288.0, t=5456.0, r=458.0, b=5496.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #447 at (l=288.0, t=5512.0, r=598.0, b=5544.0)px
+       |        |  | Text = '[Hermes provider: xai-oauth]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #448 at (l=288.0, t=5560.0, r=1536.0, b=5760.0)px, Tag: 'AuthProviderCredential-xai-oauth'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #457 at (l=320.0, t=5608.0, r=548.0, b=5656.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #459 at (l=320.0, t=5696.0, r=1504.0, b=5760.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as XAI_API_KEY=...; also accepts XAI_ACCESS_TOKEN, GROK_API_KEY.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #462 at (l=288.0, t=5784.0, r=473.0, b=5864.0)px, Tag: 'AuthSignIn-xai-oauth'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #464 at (l=336.0, t=5804.0, r=425.0, b=5844.0)px
+       |        |  |    Text = '[Sign in]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #465 at (l=497.0, t=5784.0, r=656.0, b=5864.0)px, Tag: 'AuthProviderSaveCredential-xai-oauth'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #467 at (l=545.0, t=5804.0, r=608.0, b=5844.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #468 at (l=680.0, t=5784.0, r=1071.0, b=5864.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #470 at (l=728.0, t=5804.0, r=1023.0, b=5844.0)px
+       |        |  |    Text = '[Use API key in Settings]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #471 at (l=288.0, t=5896.0, r=967.0, b=5976.0)px, Tag: 'AuthProviderOpenSetup-xai-oauth'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #473 at (l=336.0, t=5916.0, r=919.0, b=5956.0)px
+       |        |  |    Text = '[Open xAI Grok OAuth (SuperGrok) setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #474 at (l=991.0, t=5896.0, r=1290.0, b=5976.0)px, Tag: 'AuthProviderCopySetup-xai-oauth'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #476 at (l=1039.0, t=5916.0, r=1242.0, b=5956.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #477 at (l=288.0, t=6008.0, r=543.0, b=6088.0)px, Tag: 'AuthProviderCheckSetup-xai-oauth'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #479 at (l=336.0, t=6028.0, r=495.0, b=6068.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #480 at (l=256.0, t=6152.0, r=1568.0, b=6824.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #482 at (l=288.0, t=6184.0, r=462.0, b=6232.0)px
+       |        |  | Text = '[Nous Portal]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #483 at (l=288.0, t=6248.0, r=1221.0, b=6280.0)px
+       |        |  | Text = '[Sign in to Nous Portal with device code (opens verification in the in-app browser).]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #484 at (l=288.0, t=6296.0, r=458.0, b=6336.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #485 at (l=288.0, t=6352.0, r=547.0, b=6384.0)px
+       |        |  | Text = '[Hermes provider: nous]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #486 at (l=288.0, t=6400.0, r=1536.0, b=6568.0)px, Tag: 'AuthProviderCredential-nous'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #495 at (l=320.0, t=6448.0, r=548.0, b=6496.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #497 at (l=320.0, t=6536.0, r=1440.0, b=6568.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as NOUS_API_KEY=...; also accepts NOUS_ACCESS_TOKEN.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #500 at (l=288.0, t=6592.0, r=473.0, b=6672.0)px, Tag: 'AuthSignIn-nous'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #502 at (l=336.0, t=6612.0, r=425.0, b=6652.0)px
+       |        |  |    Text = '[Sign in]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #503 at (l=497.0, t=6592.0, r=656.0, b=6672.0)px, Tag: 'AuthProviderSaveCredential-nous'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #505 at (l=545.0, t=6612.0, r=608.0, b=6652.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #506 at (l=680.0, t=6592.0, r=1071.0, b=6672.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #508 at (l=728.0, t=6612.0, r=1023.0, b=6652.0)px
+       |        |  |    Text = '[Use API key in Settings]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #509 at (l=288.0, t=6704.0, r=758.0, b=6784.0)px, Tag: 'AuthProviderOpenSetup-nous'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #511 at (l=336.0, t=6724.0, r=710.0, b=6764.0)px
+       |        |  |    Text = '[Open Nous Portal setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #512 at (l=782.0, t=6704.0, r=1081.0, b=6784.0)px, Tag: 'AuthProviderCopySetup-nous'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #514 at (l=830.0, t=6724.0, r=1033.0, b=6764.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #515 at (l=1105.0, t=6704.0, r=1360.0, b=6784.0)px, Tag: 'AuthProviderCheckSetup-nous'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #517 at (l=1153.0, t=6724.0, r=1312.0, b=6764.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #518 at (l=256.0, t=6848.0, r=1568.0, b=7520.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #520 at (l=288.0, t=6880.0, r=391.0, b=6928.0)px
+       |        |  | Text = '[Claude]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #521 at (l=288.0, t=6944.0, r=1147.0, b=6976.0)px
+       |        |  | Text = '[Use an Anthropic / Claude API key for Hermes Android remote model calls.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #522 at (l=288.0, t=6992.0, r=458.0, b=7032.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #523 at (l=288.0, t=7048.0, r=600.0, b=7080.0)px
+       |        |  | Text = '[Hermes provider: anthropic]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #524 at (l=288.0, t=7096.0, r=1536.0, b=7264.0)px, Tag: 'AuthProviderCredential-claude'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #533 at (l=320.0, t=7144.0, r=548.0, b=7192.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #535 at (l=320.0, t=7232.0, r=1481.0, b=7264.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as ANTHROPIC_API_KEY=...; also accepts ANTHROPIC_TOKEN.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #538 at (l=288.0, t=7288.0, r=447.0, b=7368.0)px, Tag: 'AuthProviderSaveCredential-claude'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #540 at (l=336.0, t=7308.0, r=399.0, b=7348.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #541 at (l=471.0, t=7288.0, r=849.0, b=7368.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #543 at (l=519.0, t=7308.0, r=801.0, b=7348.0)px
+       |        |  |    Text = '[Set up Claude API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #544 at (l=873.0, t=7288.0, r=1281.0, b=7368.0)px, Tag: 'AuthProviderOpenSetup-claude'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #546 at (l=921.0, t=7308.0, r=1233.0, b=7348.0)px
+       |        |  |    Text = '[Open Claude setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #547 at (l=288.0, t=7400.0, r=587.0, b=7480.0)px, Tag: 'AuthProviderCopySetup-claude'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #549 at (l=336.0, t=7420.0, r=539.0, b=7460.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #550 at (l=611.0, t=7400.0, r=866.0, b=7480.0)px, Tag: 'AuthProviderCheckSetup-claude'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #552 at (l=659.0, t=7420.0, r=818.0, b=7460.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #553 at (l=256.0, t=7544.0, r=1568.0, b=8216.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #555 at (l=288.0, t=7576.0, r=393.0, b=7624.0)px
+       |        |  | Text = '[Gemini]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #556 at (l=288.0, t=7640.0, r=1215.0, b=7672.0)px
+       |        |  | Text = '[Use a Google AI Studio / Gemini API key for Hermes Android remote model calls.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #557 at (l=288.0, t=7688.0, r=458.0, b=7728.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #558 at (l=288.0, t=7744.0, r=569.0, b=7776.0)px
+       |        |  | Text = '[Hermes provider: gemini]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #559 at (l=288.0, t=7792.0, r=1536.0, b=7960.0)px, Tag: 'AuthProviderCredential-gemini'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #568 at (l=320.0, t=7840.0, r=548.0, b=7888.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #570 at (l=320.0, t=7928.0, r=1398.0, b=7960.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as GOOGLE_API_KEY=...; also accepts GEMINI_API_KEY.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #573 at (l=288.0, t=7984.0, r=447.0, b=8064.0)px, Tag: 'AuthProviderSaveCredential-gemini'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #575 at (l=336.0, t=8004.0, r=399.0, b=8044.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #576 at (l=471.0, t=7984.0, r=850.0, b=8064.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #578 at (l=519.0, t=8004.0, r=802.0, b=8044.0)px
+       |        |  |    Text = '[Set up Gemini API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #579 at (l=874.0, t=7984.0, r=1283.0, b=8064.0)px, Tag: 'AuthProviderOpenSetup-gemini'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #581 at (l=922.0, t=8004.0, r=1235.0, b=8044.0)px
+       |        |  |    Text = '[Open Gemini setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #582 at (l=288.0, t=8096.0, r=587.0, b=8176.0)px, Tag: 'AuthProviderCopySetup-gemini'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #584 at (l=336.0, t=8116.0, r=539.0, b=8156.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #585 at (l=611.0, t=8096.0, r=866.0, b=8176.0)px, Tag: 'AuthProviderCheckSetup-gemini'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #587 at (l=659.0, t=8116.0, r=818.0, b=8156.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #588 at (l=256.0, t=8240.0, r=1568.0, b=8912.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #590 at (l=288.0, t=8272.0, r=465.0, b=8320.0)px
+       |        |  | Text = '[Qwen Cloud]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #591 at (l=288.0, t=8336.0, r=1209.0, b=8368.0)px
+       |        |  | Text = '[Use a Qwen Cloud / DashScope API key for Hermes Android remote model calls.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #592 at (l=288.0, t=8384.0, r=458.0, b=8424.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #593 at (l=288.0, t=8440.0, r=574.0, b=8472.0)px
+       |        |  | Text = '[Hermes provider: alibaba]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #594 at (l=288.0, t=8488.0, r=1536.0, b=8656.0)px, Tag: 'AuthProviderCredential-qwen'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #603 at (l=320.0, t=8536.0, r=548.0, b=8584.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #605 at (l=320.0, t=8624.0, r=1432.0, b=8656.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as DASHSCOPE_API_KEY=...; also accepts QWEN_API_KEY.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #608 at (l=288.0, t=8680.0, r=447.0, b=8760.0)px, Tag: 'AuthProviderSaveCredential-qwen'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #610 at (l=336.0, t=8700.0, r=399.0, b=8740.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #611 at (l=471.0, t=8680.0, r=914.0, b=8760.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #613 at (l=519.0, t=8700.0, r=866.0, b=8740.0)px
+       |        |  |    Text = '[Set up Qwen Cloud API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #614 at (l=938.0, t=8680.0, r=1410.0, b=8760.0)px, Tag: 'AuthProviderOpenSetup-qwen'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #616 at (l=986.0, t=8700.0, r=1362.0, b=8740.0)px
+       |        |  |    Text = '[Open Qwen Cloud setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #617 at (l=288.0, t=8792.0, r=587.0, b=8872.0)px, Tag: 'AuthProviderCopySetup-qwen'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #619 at (l=336.0, t=8812.0, r=539.0, b=8852.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #620 at (l=611.0, t=8792.0, r=866.0, b=8872.0)px, Tag: 'AuthProviderCheckSetup-qwen'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #622 at (l=659.0, t=8812.0, r=818.0, b=8852.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #623 at (l=256.0, t=8936.0, r=1568.0, b=9640.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #625 at (l=288.0, t=8968.0, r=556.0, b=9016.0)px
+       |        |  | Text = '[Qwen Coding Plan]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #626 at (l=288.0, t=9032.0, r=1214.0, b=9064.0)px
+       |        |  | Text = '[Use a Qwen Coding Plan API key with the dedicated DashScope coding endpoint.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #627 at (l=288.0, t=9080.0, r=458.0, b=9120.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #628 at (l=288.0, t=9136.0, r=716.0, b=9168.0)px
+       |        |  | Text = '[Hermes provider: alibaba-coding-plan]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #629 at (l=288.0, t=9184.0, r=1536.0, b=9384.0)px, Tag: 'AuthProviderCredential-qwen-coding-plan'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #638 at (l=320.0, t=9232.0, r=548.0, b=9280.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #640 at (l=320.0, t=9320.0, r=1504.0, b=9384.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as BAILIAN_CODING_PLAN_API_KEY=...; also accepts ALIBABA_CODING_PLAN_API_KEY, DASHSCOPE_API_KEY.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #643 at (l=288.0, t=9408.0, r=447.0, b=9488.0)px, Tag: 'AuthProviderSaveCredential-qwen-coding-plan'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #645 at (l=336.0, t=9428.0, r=399.0, b=9468.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #646 at (l=471.0, t=9408.0, r=994.0, b=9488.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #648 at (l=519.0, t=9428.0, r=946.0, b=9468.0)px
+       |        |  |    Text = '[Set up Qwen Coding Plan API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #649 at (l=288.0, t=9520.0, r=841.0, b=9600.0)px, Tag: 'AuthProviderOpenSetup-qwen-coding-plan'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #651 at (l=336.0, t=9540.0, r=793.0, b=9580.0)px
+       |        |  |    Text = '[Open Qwen Coding Plan setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #652 at (l=865.0, t=9520.0, r=1164.0, b=9600.0)px, Tag: 'AuthProviderCopySetup-qwen-coding-plan'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #654 at (l=913.0, t=9540.0, r=1116.0, b=9580.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #655 at (l=1188.0, t=9520.0, r=1443.0, b=9600.0)px, Tag: 'AuthProviderCheckSetup-qwen-coding-plan'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #657 at (l=1236.0, t=9540.0, r=1395.0, b=9580.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #658 at (l=256.0, t=9664.0, r=1568.0, b=10400.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #660 at (l=288.0, t=9696.0, r=598.0, b=9744.0)px
+       |        |  | Text = '[Qwen OAuth (legacy)]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #661 at (l=288.0, t=9760.0, r=1536.0, b=9824.0)px
+       |        |  | Text = '[Reuse an existing Qwen OAuth / Qwen Chat token in Hermes Android; new Qwen OAuth sign-ins were discontinued on 2026-04-15, so use Qwen Cloud for new setup.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #662 at (l=288.0, t=9840.0, r=458.0, b=9880.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #663 at (l=288.0, t=9896.0, r=626.0, b=9928.0)px
+       |        |  | Text = '[Hermes provider: qwen-oauth]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #664 at (l=288.0, t=9944.0, r=1536.0, b=10144.0)px, Tag: 'AuthProviderCredential-qwen-oauth'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #673 at (l=320.0, t=9992.0, r=548.0, b=10040.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #675 at (l=320.0, t=10080.0, r=1504.0, b=10144.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as QWEN_ACCESS_TOKEN=...; also accepts QWEN_API_KEY, DASHSCOPE_API_KEY.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #678 at (l=288.0, t=10168.0, r=447.0, b=10248.0)px, Tag: 'AuthProviderSaveCredential-qwen-oauth'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #680 at (l=336.0, t=10188.0, r=399.0, b=10228.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #681 at (l=471.0, t=10168.0, r=1030.0, b=10248.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #683 at (l=519.0, t=10188.0, r=982.0, b=10228.0)px
+       |        |  |    Text = '[Set up Qwen OAuth (legacy) API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #684 at (l=288.0, t=10280.0, r=877.0, b=10360.0)px, Tag: 'AuthProviderOpenSetup-qwen-oauth'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #686 at (l=336.0, t=10300.0, r=829.0, b=10340.0)px
+       |        |  |    Text = '[Open Qwen OAuth (legacy) setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #687 at (l=901.0, t=10280.0, r=1200.0, b=10360.0)px, Tag: 'AuthProviderCopySetup-qwen-oauth'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #689 at (l=949.0, t=10300.0, r=1152.0, b=10340.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #690 at (l=1224.0, t=10280.0, r=1479.0, b=10360.0)px, Tag: 'AuthProviderCheckSetup-qwen-oauth'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #692 at (l=1272.0, t=10300.0, r=1431.0, b=10340.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #693 at (l=256.0, t=10424.0, r=1568.0, b=11128.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #695 at (l=288.0, t=10456.0, r=461.0, b=10504.0)px
+       |        |  | Text = '[Z.AI / Zhipu]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #696 at (l=288.0, t=10520.0, r=1077.0, b=10552.0)px
+       |        |  | Text = '[Use a Z.AI / Zhipu GLM API key. Opens console in the in-app browser.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #697 at (l=288.0, t=10568.0, r=458.0, b=10608.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #698 at (l=288.0, t=10624.0, r=525.0, b=10656.0)px
+       |        |  | Text = '[Hermes provider: zai]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #699 at (l=288.0, t=10672.0, r=1536.0, b=10872.0)px, Tag: 'AuthProviderCredential-zai'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #708 at (l=320.0, t=10720.0, r=548.0, b=10768.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #710 at (l=320.0, t=10808.0, r=1504.0, b=10872.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as GLM_API_KEY=...; also accepts ZAI_API_KEY, Z_AI_API_KEY, BIGMODEL_API_KEY.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #713 at (l=288.0, t=10896.0, r=447.0, b=10976.0)px, Tag: 'AuthProviderSaveCredential-zai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #715 at (l=336.0, t=10916.0, r=399.0, b=10956.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #716 at (l=471.0, t=10896.0, r=912.0, b=10976.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #718 at (l=519.0, t=10916.0, r=864.0, b=10956.0)px
+       |        |  |    Text = '[Set up Z.AI / Zhipu API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #719 at (l=936.0, t=10896.0, r=1407.0, b=10976.0)px, Tag: 'AuthProviderOpenSetup-zai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #721 at (l=984.0, t=10916.0, r=1359.0, b=10956.0)px
+       |        |  |    Text = '[Open Z.AI / Zhipu setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #722 at (l=288.0, t=11008.0, r=587.0, b=11088.0)px, Tag: 'AuthProviderCopySetup-zai'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #724 at (l=336.0, t=11028.0, r=539.0, b=11068.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #725 at (l=611.0, t=11008.0, r=866.0, b=11088.0)px, Tag: 'AuthProviderCheckSetup-zai'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #727 at (l=659.0, t=11028.0, r=818.0, b=11068.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #728 at (l=256.0, t=11152.0, r=1568.0, b=11856.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #730 at (l=288.0, t=11184.0, r=533.0, b=11232.0)px
+       |        |  | Text = '[Z.AI Coding Plan]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #731 at (l=288.0, t=11248.0, r=1073.0, b=11280.0)px
+       |        |  | Text = '[Use a Z.AI Coding Plan key with the dedicated GLM coding endpoint.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #732 at (l=288.0, t=11296.0, r=458.0, b=11336.0)px
+       |        |  | Text = '[Not signed in]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #733 at (l=288.0, t=11352.0, r=667.0, b=11384.0)px
+       |        |  | Text = '[Hermes provider: zai-coding-plan]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #734 at (l=288.0, t=11400.0, r=1536.0, b=11600.0)px, Tag: 'AuthProviderCredential-zai-coding-plan'
+       |        |  | EditableText = ''
+       |        |  | TextSelectionRange = 'TextRange(0, 0)'
+       |        |  | IsEditable = 'true'
+       |        |  | ImeAction = 'Default'
+       |        |  | Focused = 'false'
+       |        |  | [Password]
+       |        |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #743 at (l=320.0, t=11448.0, r=548.0, b=11496.0)px
+       |        |  |  | Text = '[API key / token]'
+       |        |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |  |-Node #745 at (l=320.0, t=11536.0, r=1504.0, b=11600.0)px
+       |        |  |    Text = '[Paste a raw key or a CLI env line such as GLM_CODING_PLAN_API_KEY=...; also accepts ZAI_CODING_PLAN_API_KEY, GLM_API_KEY, ZAI_API_KEY, Z_AI_API_KEY.]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #748 at (l=288.0, t=11624.0, r=447.0, b=11704.0)px, Tag: 'AuthProviderSaveCredential-zai-coding-plan'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #750 at (l=336.0, t=11644.0, r=399.0, b=11684.0)px
+       |        |  |    Text = '[Save]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #751 at (l=471.0, t=11624.0, r=975.0, b=11704.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #753 at (l=519.0, t=11644.0, r=927.0, b=11684.0)px
+       |        |  |    Text = '[Set up Z.AI Coding Plan API key]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #754 at (l=999.0, t=11624.0, r=1533.0, b=11704.0)px, Tag: 'AuthProviderOpenSetup-zai-coding-plan'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #756 at (l=1047.0, t=11644.0, r=1485.0, b=11684.0)px
+       |        |  |    Text = '[Open Z.AI Coding Plan setup page]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #757 at (l=288.0, t=11736.0, r=587.0, b=11816.0)px, Tag: 'AuthProviderCopySetup-zai-coding-plan'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #759 at (l=336.0, t=11756.0, r=539.0, b=11796.0)px
+       |        |  |    Text = '[Copy setup URL]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #760 at (l=611.0, t=11736.0, r=866.0, b=11816.0)px, Tag: 'AuthProviderCheckSetup-zai-coding-plan'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #762 at (l=659.0, t=11756.0, r=818.0, b=11796.0)px
+       |        |       Text = '[Check setup]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #763 at (l=256.0, t=11880.0, r=1568.0, b=12584.0)px
+       |          IsTraversalGroup = 'true'
+       |           |-Node #765 at (l=288.0, t=11912.0, r=576.0, b=11960.0)px
+       |           | Text = '[BigModel CN (智谱)]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #766 at (l=288.0, t=11976.0, r=1359.0, b=12008.0)px
+       |           | Text = '[Use open.bigmodel.cn API key for China-region Zhipu GLM. Setup opens in the in-app browser.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #767 at (l=288.0, t=12024.0, r=458.0, b=12064.0)px
+       |           | Text = '[Not signed in]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #768 at (l=288.0, t=12080.0, r=598.0, b=12112.0)px
+       |           | Text = '[Hermes provider: bigmodel]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #769 at (l=288.0, t=12128.0, r=1536.0, b=12328.0)px, Tag: 'AuthProviderCredential-bigmodel'
+       |           | EditableText = ''
+       |           | TextSelectionRange = 'TextRange(0, 0)'
+       |           | IsEditable = 'true'
+       |           | ImeAction = 'Default'
+       |           | Focused = 'false'
+       |           | [Password]
+       |           | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #778 at (l=320.0, t=12176.0, r=548.0, b=12224.0)px
+       |           |  | Text = '[API key / token]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #780 at (l=320.0, t=12264.0, r=1504.0, b=12328.0)px
+       |           |    Text = '[Paste a raw key or a CLI env line such as GLM_API_KEY=...; also accepts ZAI_API_KEY, Z_AI_API_KEY, BIGMODEL_API_KEY.]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #783 at (l=288.0, t=12352.0, r=447.0, b=12432.0)px, Tag: 'AuthProviderSaveCredential-bigmodel'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #785 at (l=336.0, t=12372.0, r=399.0, b=12412.0)px
+       |           |    Text = '[Save]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #786 at (l=471.0, t=12352.0, r=1011.0, b=12432.0)px
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #788 at (l=519.0, t=12372.0, r=963.0, b=12412.0)px
+       |           |    Text = '[Set up BigModel CN (智谱) API key]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #789 at (l=288.0, t=12464.0, r=858.0, b=12544.0)px, Tag: 'AuthProviderOpenSetup-bigmodel'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #791 at (l=336.0, t=12484.0, r=810.0, b=12524.0)px
+       |           |    Text = '[Open BigModel CN (智谱) setup page]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #792 at (l=882.0, t=12464.0, r=1181.0, b=12544.0)px, Tag: 'AuthProviderCopySetup-bigmodel'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #794 at (l=930.0, t=12484.0, r=1133.0, b=12524.0)px
+       |           |    Text = '[Copy setup URL]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #795 at (l=1205.0, t=12464.0, r=1460.0, b=12544.0)px, Tag: 'AuthProviderCheckSetup-bigmodel'
+       |             Focused = 'false'
+       |             Role = 'Button'
+       |             Actions = [OnClick, RequestFocus]
+       |             MergeDescendants = 'true'
+       |              |-Node #797 at (l=1253.0, t=12484.0, r=1412.0, b=12524.0)px
+       |                Text = '[Check setup]'
+       |                Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #192 at (l=0.0, t=0.0, r=1600.0, b=176.0)px
+         IsTraversalGroup = 'true'
+          |-Node #196 at (l=24.0, t=82.0, r=84.0, b=142.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #198 at (l=100.0, t=72.0, r=240.0, b=120.0)px
+          | Text = '[Accounts]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #199 at (l=100.0, t=120.0, r=505.0, b=152.0)px
+          | Text = '[Corr3xt sign-in and provider access]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #201 at (l=1383.0, t=88.0, r=1485.0, b=136.0)px
+          | IsTraversalGroup = 'true'
+          |  |-Node #202 at (l=1395.0, t=96.0, r=1473.0, b=128.0)px
+          |    Text = '[ALPHA]'
+          |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #203 at (l=1493.0, t=88.0, r=1576.0, b=136.0)px
+            IsTraversalGroup = 'true'
+             |-Node #204 at (l=1505.0, t=96.0, r=1564.0, b=128.0)px
+               Text = '[FORK]'
+               Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

@@ -1,0 +1,274 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=device:Controls
+artifact=headed-v0.13.148-1071d416d25a1b1c-20260820-214144bst-profile-phone-360x800dp-device-5-controls
+coverage_kind=device-subpage
+page_id=Controls
+profile=phone-360x800dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=360
+screen_height_dp=800
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.148
+version_code=144890
+build_variant=debug
+source_digest=1071d416d25a1b1cf282eb401995efdd96fd9ea68bddf52eea9851bd0d02dc82
+candidate_apk_sha256=b48fef16586e46844000af3ae02cddff1c5a37994587da391ef2b9082863b098
+instrumentation_apk_sha256=124931df15aaf512e764c75a20bc8d3991d3c5c74cc2c735338e32390efef474
+evidence_run_id=v0.13.148-1071d416d25a1b1c-20260820-214144bst
+device_serial=emulator-5580
+avd_name=Qitong_API_35_D
+device_boot_id=3ce38736-15f6-47ef-9319-64b25929f1f3
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=45787d70672eb6c626bde38774561e2fe4d89efc0ff2910765dcd06ce22e3118
+sentinel=HermesDevicePage_Controls
+sentinel=/device/controls
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #1826 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #1828 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=2320.0, reverseScrolling=false)'
+       |       Actions = [ScrollBy, ScrollByOffset]
+       |        |-Node #1829 at (l=48.0, t=388.0, r=1032.0, b=910.0)px, Tag: 'HermesDevicePageNavigation'
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1831 at (l=84.0, t=418.0, r=413.0, b=478.0)px
+       |        |  | Text = '[Device / Controls]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1834 at (l=84.0, t=526.0, r=328.0, b=622.0)px, Tag: 'HermesDevicePage_Overview'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1837 at (l=132.0, t=550.0, r=280.0, b=598.0)px
+       |        |  |    Text = '[Overview]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1838 at (l=346.0, t=526.0, r=528.0, b=622.0)px, Tag: 'HermesDevicePage_Linux'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1841 at (l=394.0, t=550.0, r=480.0, b=598.0)px
+       |        |  |    Text = '[Linux]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1842 at (l=546.0, t=526.0, r=842.0, b=622.0)px, Tag: 'HermesDevicePage_Connectivity'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1845 at (l=594.0, t=550.0, r=794.0, b=598.0)px
+       |        |  |    Text = '[Connectivity]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1846 at (l=84.0, t=688.0, r=256.0, b=784.0)px, Tag: 'HermesDevicePage_Files'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1849 at (l=132.0, t=712.0, r=208.0, b=760.0)px
+       |        |  |    Text = '[Files]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1850 at (l=274.0, t=688.0, r=508.0, b=784.0)px, Tag: 'HermesDevicePage_Controls'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'true'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1853 at (l=322.0, t=712.0, r=460.0, b=760.0)px
+       |        |  |    Text = '[Controls]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1854 at (l=526.0, t=688.0, r=828.0, b=784.0)px, Tag: 'HermesDevicePage_Automations'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1857 at (l=574.0, t=712.0, r=780.0, b=760.0)px
+       |        |  |    Text = '[Automations]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1858 at (l=84.0, t=832.0, r=350.0, b=880.0)px
+       |        |    Text = '[/device/controls]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #2025 at (l=48.0, t=946.0, r=1032.0, b=2836.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #2028 at (l=96.0, t=994.0, r=876.0, b=1066.0)px
+       |        |  | Text = '[Notifications + background runtime]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2029 at (l=96.0, t=1096.0, r=984.0, b=1192.0)px
+       |        |  | Text = '[Notification permission is not granted. Hermes background runtime is inactive.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2030 at (l=96.0, t=1222.0, r=467.0, b=1282.0)px
+       |        |  | Text = '[Overlay permission]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2031 at (l=96.0, t=1312.0, r=984.0, b=1408.0)px
+       |        |  | Text = '[Overlay permission is disabled. Open Android settings if you want future floating controls.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2032 at (l=96.0, t=1438.0, r=548.0, b=1498.0)px
+       |        |  | Text = '[Floating Hermes button]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2033 at (l=96.0, t=1528.0, r=984.0, b=1672.0)px
+       |        |  | Text = '[To keep the floating Hermes button available over other apps, allow Hermes to draw over other apps in Android settings.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2034 at (l=96.0, t=1702.0, r=599.0, b=1762.0)px
+       |        |  | Text = '[Resizable window support]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2035 at (l=96.0, t=1792.0, r=984.0, b=1936.0)px
+       |        |  | Text = '[Hermes declares resizable window support: enabled. Freeform/multi-window feature available on this device: no.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2038 at (l=96.0, t=1978.0, r=621.0, b=2098.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2040 at (l=168.0, t=2008.0, r=549.0, b=2068.0)px
+       |        |  |    Text = '[Enable notifications]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2041 at (l=96.0, t=2146.0, r=551.0, b=2266.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2043 at (l=168.0, t=2176.0, r=479.0, b=2236.0)px
+       |        |  |    Text = '[Overlay settings]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2044 at (l=96.0, t=2314.0, r=729.0, b=2434.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2046 at (l=168.0, t=2344.0, r=657.0, b=2404.0)px
+       |        |  |    Text = '[Start background runtime]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2047 at (l=96.0, t=2482.0, r=625.0, b=2602.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2049 at (l=168.0, t=2512.0, r=553.0, b=2572.0)px
+       |        |  |    Text = '[Start floating button]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2050 at (l=96.0, t=2644.0, r=984.0, b=2788.0)px
+       |        |    Text = '[Hermes background runtime keeps the local backend ready in the notification bar for longer sessions and later Android windowing modes.]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #2051 at (l=48.0, t=2872.0, r=1032.0, b=3418.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #2054 at (l=96.0, t=2920.0, r=463.0, b=2992.0)px
+       |        |  | Text = '[Diagnostics logs]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2055 at (l=96.0, t=3022.0, r=413.0, b=3070.0)px
+       |        |  | Text = '[No crash captured]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2056 at (l=96.0, t=3100.0, r=984.0, b=3196.0)px
+       |        |  | Text = '[Crash previews and exports redact keys, tokens, emails, phone numbers, and user paths.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2059 at (l=96.0, t=3238.0, r=459.0, b=3358.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2061 at (l=168.0, t=3268.0, r=387.0, b=3328.0)px
+       |        |  |    Text = '[Export logs]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2062 at (l=483.0, t=3238.0, r=926.0, b=3358.0)px
+       |        |    Role = 'Button'
+       |        |    [Disabled]
+       |        |    Actions = [OnClick]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #2064 at (l=555.0, t=3268.0, r=854.0, b=3328.0)px
+       |        |       Text = '[Clear last crash]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #2065 at (l=48.0, t=3454.0, r=1032.0, b=4456.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #2068 at (l=96.0, t=3502.0, r=545.0, b=3574.0)px
+       |        |  | Text = '[Accessibility control]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2069 at (l=96.0, t=3604.0, r=984.0, b=3892.0)px
+       |        |  | Text = '[Hermes accessibility is disabled. Enable it in Android settings to unlock quick device actions plus UI inspection/action targeting.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2070 at (l=96.0, t=3934.0, r=758.0, b=4054.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2072 at (l=168.0, t=3964.0, r=686.0, b=4024.0)px
+       |        |  |    Text = '[Open accessibility settings]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2075 at (l=96.0, t=4108.0, r=356.0, b=4228.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2077 at (l=168.0, t=4138.0, r=284.0, b=4198.0)px
+       |        |  |    Text = '[Home]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2078 at (l=380.0, t=4108.0, r=620.0, b=4228.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2080 at (l=452.0, t=4138.0, r=548.0, b=4198.0)px
+       |        |  |    Text = '[Back]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2081 at (l=644.0, t=4108.0, r=944.0, b=4228.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2083 at (l=716.0, t=4138.0, r=872.0, b=4198.0)px
+       |        |  |    Text = '[Recents]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2084 at (l=96.0, t=4276.0, r=488.0, b=4396.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2086 at (l=168.0, t=4306.0, r=416.0, b=4366.0)px
+       |        |  |    Text = '[Notifications]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2087 at (l=512.0, t=4276.0, r=931.0, b=4396.0)px
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #2089 at (l=584.0, t=4306.0, r=859.0, b=4366.0)px
+       |        |       Text = '[Quick settings]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1883 at (l=48.0, t=4492.0, r=959.0, b=4540.0)px
+       |          Text = '[Linux command suite ready for on-device commands]'
+       |          Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #147 at (l=0.0, t=0.0, r=1080.0, b=352.0)px
+         IsTraversalGroup = 'true'
+          |-Node #151 at (l=36.0, t=172.0, r=180.0, b=316.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #156 at (l=204.0, t=199.0, r=294.0, b=289.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #158 at (l=318.0, t=184.0, r=466.0, b=256.0)px
+          | Text = '[Device]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #159 at (l=318.0, t=256.0, r=957.0, b=304.0)px
+            Text = '[Files, Linux suite, and phone controls]'
+            Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

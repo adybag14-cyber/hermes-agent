@@ -1,0 +1,25 @@
+{
+  "contains_only_filtered_palette_state": true,
+  "identity": {
+    "avd_name": "Qitong_API_35_D",
+    "candidate_apk_sha256": "b48fef16586e46844000af3ae02cddff1c5a37994587da391ef2b9082863b098",
+    "device_boot_id": "3ce38736-15f6-47ef-9319-64b25929f1f3",
+    "device_serial": "emulator-5580",
+    "evidence_run_id": "v0.13.148-1071d416d25a1b1c-20260820-214144bst",
+    "instrumentation_apk_sha256": "124931df15aaf512e764c75a20bc8d3991d3c5c74cc2c735338e32390efef474",
+    "profile": "phone-360x800dp",
+    "source_digest": "1071d416d25a1b1cf282eb401995efdd96fd9ea68bddf52eea9851bd0d02dc82"
+  },
+  "palette": {
+    "card_shape": "rounded",
+    "theme_background": "#FAFBFF",
+    "theme_primary": "#1565C0",
+    "theme_secondary": "#8E24AA",
+    "theme_surface": "#FFFFFF",
+    "theme_surface_variant": "#E8EEF8",
+    "ui_font_scale": 1.0
+  },
+  "schema": "hermes-persisted-palette-state-v1",
+  "shared_preferences_xml_sha256": "ffc494f7b798c61622c199f8408b2f7de37a2c2fc7db75cf6debee1ea0357758",
+  "theme_id": "custom-light"
+}
