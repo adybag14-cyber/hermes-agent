@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<hermes-ui-evidence artifact="headed-v0.13.149-aece3b38ea8f205f-20260821-151753bst-localized-phone-360x800dp-lang-de-view-tasker-action" evidence-identity="framework:de:HermesTaskerPluginEditActivity" coverage-kind="framework-view-activity" page-id="HermesTaskerPluginEditActivity">
+  <metadata>
+    <entry key="profile" value="phone-360x800dp" />
+    <entry key="language" value="de" />
+    <entry key="theme_id" value="hermes" />
+    <entry key="theme_primary" value="#24D6A3" />
+    <entry key="theme_secondary" value="#F1B84B" />
+    <entry key="theme_background" value="#03090C" />
+    <entry key="theme_surface" value="#0A1418" />
+    <entry key="theme_surface_variant" value="#111E22" />
+    <entry key="card_shape" value="rounded" />
+    <entry key="ui_font_scale" value="1.0" />
+    <entry key="screen_width_dp" value="360" />
+    <entry key="screen_height_dp" value="800" />
+    <entry key="system_font_scale" value="1.0" />
+    <entry key="package_id" value="com.mobilefork.hermesagent" />
+    <entry key="version_name" value="0.13.149" />
+    <entry key="version_code" value="144990" />
+    <entry key="build_variant" value="debug" />
+    <entry key="source_digest" value="aece3b38ea8f205fd6ae1e03114de8dee51d4cee3ac53034564543f475730fec" />
+    <entry key="candidate_apk_sha256" value="2f4f83d538ac3737aae25b52855ba817fcf95f5729a32c60e9a2d42ebb8419d7" />
+    <entry key="instrumentation_apk_sha256" value="7f16b4e6de2d8718f876512e5bda864c1a06961c473bd1202481131fb6bca9a4" />
+    <entry key="evidence_run_id" value="v0.13.149-aece3b38ea8f205f-20260821-151753bst" />
+    <entry key="device_serial" value="emulator-5580" />
+    <entry key="avd_name" value="Qitong_API_35_D" />
+    <entry key="device_boot_id" value="9ec5d829-e3a2-4f8d-9d43-097b9c98aef3" />
+    <entry key="build_fingerprint" value="google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys" />
+    <entry key="screenshot_sha256" value="6afab0b1f863189f320b923d1ac162ffba73aa5cedc8b36958a4ec10bac00688" />
+    <sentinel value="Hermes-Automation ausführen" />
+    <sentinel value="Wähle eine gespeicherte Hermes-Automation, die Tasker über die Locale-Plugin-Aktion ausführt." />
+  </metadata>
+  <view-hierarchy>
+    <node class="com.android.internal.policy.DecorView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="android.graphics.drawable.GradientDrawable">
+      <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+        <node class="android.view.ViewStub" resource-id="android:id/action_mode_bar_stub" text="" hint="" content-desc="" visible="false" bounds="[0,0][0,0]" background="" />
+        <node class="android.widget.FrameLayout" resource-id="android:id/content" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+          <node class="android.widget.ScrollView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="android.graphics.drawable.GradientDrawable">
+            <node class="android.widget.FrameLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+              <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[36,172][1044,1612]" background="android.graphics.drawable.GradientDrawable">
+                <node class="android.widget.TextView" resource-id="" text="Hermes-Automation ausführen" hint="" content-desc="" visible="true" bounds="[90,226][990,391]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="Wähle eine gespeicherte Hermes-Automation, die Tasker über die Locale-Plugin-Aktion ausführt." hint="" content-desc="" visible="true" bounds="[90,391][990,654]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="Gespeicherte Automation" hint="" content-desc="" visible="true" bounds="[90,654][990,711]" background="" />
+                <node class="android.widget.Spinner" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[90,729][990,854]" background="android.graphics.drawable.GradientDrawable">
+                  <node class="android.widget.TextView" resource-id="android:id/text1" text="Keine gespeicherten Hermes-Automationen ()" hint="" content-desc="" visible="true" bounds="[90,729][990,854]" background="" />
+                </node>
+                <node class="android.widget.TextView" resource-id="" text="Automations-ID" hint="" content-desc="" visible="true" bounds="[90,854][990,971]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="ID einer vorhandenen Hermes-Automation" content-desc="" visible="true" bounds="[90,989][990,1125]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.TextView" resource-id="" text="Tasker-Aktionsbezeichnung" hint="" content-desc="" visible="true" bounds="[90,1125][990,1242]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="Optionale in Tasker angezeigte Bezeichnung" content-desc="" visible="true" bounds="[90,1260][990,1396]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.Button" resource-id="" text="Speichern" hint="" content-desc="" visible="true" bounds="[90,1414][990,1558]" background="android.graphics.drawable.GradientDrawable" />
+              </node>
+            </node>
+          </node>
+        </node>
+      </node>
+    </node>
+  </view-hierarchy>
+</hermes-ui-evidence>
