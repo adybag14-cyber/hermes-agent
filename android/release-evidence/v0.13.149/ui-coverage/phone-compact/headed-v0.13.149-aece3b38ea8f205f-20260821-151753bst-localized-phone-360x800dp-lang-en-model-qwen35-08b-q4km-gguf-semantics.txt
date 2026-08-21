@@ -1,0 +1,254 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=localized-model:en:qwen35-08b-q4km-gguf
+artifact=headed-v0.13.149-aece3b38ea8f205f-20260821-151753bst-localized-phone-360x800dp-lang-en-model-qwen35-08b-q4km-gguf
+coverage_kind=six-language-recommended-model
+page_id=Settings.Models.qwen35-08b-q4km-gguf
+profile=phone-360x800dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=360
+screen_height_dp=800
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.149
+version_code=144990
+build_variant=debug
+source_digest=aece3b38ea8f205fd6ae1e03114de8dee51d4cee3ac53034564543f475730fec
+candidate_apk_sha256=2f4f83d538ac3737aae25b52855ba817fcf95f5729a32c60e9a2d42ebb8419d7
+instrumentation_apk_sha256=7f16b4e6de2d8718f876512e5bda864c1a06961c473bd1202481131fb6bca9a4
+evidence_run_id=v0.13.149-aece3b38ea8f205f-20260821-151753bst
+device_serial=emulator-5580
+avd_name=Qitong_API_35_D
+device_boot_id=9ec5d829-e3a2-4f8d-9d43-097b9c98aef3
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=9820aa51f7ee63ead0db61821c4c23c5d2c05acb5438a6fcaae053a4fd8e3b7e
+sentinel=Qwen3.5 0.8B Q4_K_M (GGUF)
+sentinel=Small Unsloth GGUF model for fast visible chat replies, file creation, deletion, and native tool-calling validation on phones.
+sentinel=GGUF · Unsloth Q4_K_M phone tool-calling
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #160 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #162 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px, Tag: 'HermesSettingsContentList'
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=2995.0, maxValue=3095.0, reverseScrolling=false)'
+       |       CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@fafb7a0'
+       |       Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |        |-Node #345 at (l=48.0, t=-1107.0, r=1032.0, b=5367.0)px
+       |          IsTraversalGroup = 'true'
+       |           |-Node #347 at (l=96.0, t=-1059.0, r=919.0, b=-987.0)px
+       |           | Text = '[Hugging Face local model downloads]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #348 at (l=96.0, t=-951.0, r=984.0, b=-759.0)px
+       |           | Text = '[Download full model files directly to the phone, keep progress in Android’s system download manager, and resume safely after network loss or a phone restart.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #351 at (l=96.0, t=-723.0, r=420.0, b=-663.0)px
+       |           | Text = '[Data saver mode]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #352 at (l=96.0, t=-651.0, r=828.0, b=-507.0)px
+       |           | Text = '[When enabled, large model downloads wait for Wi‑Fi / unmetered connectivity so Hermes uses only minimal mobile data.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #353 at (l=828.0, t=-663.0, r=984.0, b=-567.0)px
+       |           | Role = 'Switch'
+       |           | Focused = 'false'
+       |           | ToggleableState = 'On'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |-Node #355 at (l=96.0, t=-471.0, r=984.0, b=-279.0)px
+       |           | EditableText = ''
+       |           | TextSelectionRange = 'TextRange(0, 0)'
+       |           | IsEditable = 'true'
+       |           | ImeAction = 'Default'
+       |           | Focused = 'false'
+       |           | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #364 at (l=144.0, t=-399.0, r=831.0, b=-327.0)px
+       |           |    Text = '[Hugging Face token (optional)]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #367 at (l=96.0, t=-231.0, r=451.0, b=-111.0)px
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #369 at (l=168.0, t=-201.0, r=379.0, b=-141.0)px
+       |           |    Text = '[Save token]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #370 at (l=96.0, t=-63.0, r=609.0, b=57.0)px
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #372 at (l=168.0, t=-33.0, r=537.0, b=27.0)px
+       |           |    Text = '[Refresh downloads]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #373 at (l=96.0, t=105.0, r=824.0, b=225.0)px, Tag: 'HermesImportModelButton'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #375 at (l=168.0, t=135.0, r=752.0, b=195.0)px
+       |           |    Text = '[Import model from phone files]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #376 at (l=96.0, t=273.0, r=984.0, b=369.0)px
+       |           | Text = '[Offline airplane mode is on, so Hermes will only use imported or already-downloaded local models.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #378 at (l=96.0, t=444.0, r=505.0, b=504.0)px
+       |           | Text = '[One-tap local models]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #379 at (l=96.0, t=540.0, r=984.0, b=684.0)px
+       |           | Text = '[Choose a validated mobile model. Hermes downloads it, marks it preferred, and starts the local runtime when the file is ready.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #380 at (l=96.0, t=720.0, r=984.0, b=1704.0)px
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #382 at (l=138.0, t=762.0, r=596.0, b=822.0)px
+       |           |  | Text = '[Detected model catalog]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #383 at (l=138.0, t=846.0, r=942.0, b=1038.0)px
+       |           |  | Text = '[Choose a model from the signed Cloudflare catalog. Hermes verifies the signature, then downloads the selected file from Hugging Face.]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #385 at (l=138.0, t=1074.0, r=942.0, b=1194.0)px
+       |           |  | Role = 'Button'
+       |           |  | [Disabled]
+       |           |  | Actions = [OnClick]
+       |           |  | MergeDescendants = 'true'
+       |           |  |  |-Node #387 at (l=312.0, t=1104.0, r=768.0, b=1164.0)px
+       |           |  |    Text = '[Choose detected model]'
+       |           |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #390 at (l=138.0, t=1242.0, r=585.0, b=1362.0)px
+       |           |  | Role = 'Button'
+       |           |  | [Disabled]
+       |           |  | Actions = [OnClick]
+       |           |  | MergeDescendants = 'true'
+       |           |  |  |-Node #392 at (l=210.0, t=1272.0, r=513.0, b=1332.0)px
+       |           |  |    Text = '[Refresh catalog]'
+       |           |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #393 at (l=138.0, t=1410.0, r=655.0, b=1530.0)px
+       |           |  | Role = 'Button'
+       |           |  | [Disabled]
+       |           |  | Actions = [OnClick]
+       |           |  | MergeDescendants = 'true'
+       |           |  |  |-Node #395 at (l=210.0, t=1440.0, r=583.0, b=1500.0)px
+       |           |  |    Text = '[Download and start]'
+       |           |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #396 at (l=138.0, t=1566.0, r=942.0, b=1662.0)px
+       |           |    Text = '[Tap Refresh catalog to load signed model choices when needed.]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #397 at (l=96.0, t=1740.0, r=984.0, b=2292.0)px, Tag: 'RecommendedLocalModelCard-qwen35-08b-q4km-gguf'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #399 at (l=138.0, t=1782.0, r=723.0, b=1842.0)px
+       |           |  | Text = '[Qwen3.5 0.8B Q4_K_M (GGUF)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #400 at (l=138.0, t=1866.0, r=942.0, b=2010.0)px
+       |           |  | Text = '[Small Unsloth GGUF model for fast visible chat replies, file creation, deletion, and native tool-calling validation on phones.]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #401 at (l=138.0, t=2034.0, r=879.0, b=2082.0)px
+       |           |  | Text = '[GGUF · Unsloth Q4_K_M phone tool-calling]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #402 at (l=138.0, t=2118.0, r=942.0, b=2238.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #404 at (l=354.0, t=2148.0, r=727.0, b=2208.0)px
+       |           |       Text = '[Download and start]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #405 at (l=96.0, t=2328.0, r=984.0, b=2988.0)px, Tag: 'RecommendedLocalModelCard-minicpm5-1b-fable5-q4km-gguf'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #407 at (l=138.0, t=2370.0, r=942.0, b=2490.0)px
+       |           |  | Text = '[MiniCPM5 1B Claude Opus Fable5 Q4_K_M (GGUF)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #408 at (l=138.0, t=2514.0, r=942.0, b=2658.0)px
+       |           |  | Text = '[Compact MiniCPM5 thinking model for the embedded llama.cpp runtime, selected at Q4_K_M for practical phone memory use.]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #409 at (l=138.0, t=2682.0, r=942.0, b=2778.0)px
+       |           |  | Text = '[GGUF · MiniCPM5 llama.cpp compatibility target]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #410 at (l=138.0, t=2814.0, r=942.0, b=2934.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #412 at (l=354.0, t=2844.0, r=727.0, b=2904.0)px
+       |           |       Text = '[Download and start]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #413 at (l=96.0, t=3024.0, r=984.0, b=3624.0)px, Tag: 'RecommendedLocalModelCard-minicpm5-1b-web-litert-lm'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #415 at (l=138.0, t=3066.0, r=777.0, b=3126.0)px
+       |           |  | Text = '[MiniCPM5 1B mobile (LiteRT-LM)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #416 at (l=138.0, t=3150.0, r=942.0, b=3294.0)px
+       |           |  | Text = '[Mobile-oriented MiniCPM5 LiteRT-LM artifact with the shorter web cache and Android-safe chat template.]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #417 at (l=138.0, t=3318.0, r=942.0, b=3414.0)px
+       |           |  | Text = '[LiteRT-LM · MiniCPM5 mobile LiteRT-LM compatibility target]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #418 at (l=138.0, t=3450.0, r=942.0, b=3570.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #420 at (l=354.0, t=3480.0, r=727.0, b=3540.0)px
+       |           |       Text = '[Download and start]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #421 at (l=96.0, t=3660.0, r=984.0, b=4260.0)px, Tag: 'RecommendedLocalModelCard-vibethinker-3b-litert-lm'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #423 at (l=138.0, t=3702.0, r=666.0, b=3762.0)px
+       |           |  | Text = '[VibeThinker 3B (LiteRT-LM)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #424 at (l=138.0, t=3786.0, r=942.0, b=3930.0)px
+       |           |  | Text = '[Three-billion-parameter reasoning model converted for the native LiteRT-LM runtime; intended for high-RAM phones and emulators.]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #425 at (l=138.0, t=3954.0, r=942.0, b=4050.0)px
+       |           |  | Text = '[LiteRT-LM · VibeThinker LiteRT-LM compatibility target]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #426 at (l=138.0, t=4086.0, r=942.0, b=4206.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #428 at (l=354.0, t=4116.0, r=727.0, b=4176.0)px
+       |           |       Text = '[Download and start]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #429 at (l=96.0, t=4296.0, r=984.0, b=4776.0)px
+       |           | Text = '[Enter any Hugging Face repo, hf:// repo, repo page URL, resolve URL, or direct file URL. Hermes will try to prefer a runtime-native file when it can infer one; if the repo does not expose a clear GGUF / LiteRT-LM artifact, Hermes falls back to another likely model artifact and lets the selected backend decide whether it can load it. If you want to pin an exact file, fill in the repo file path. Examples: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #431 at (l=96.0, t=4851.0, r=467.0, b=4911.0)px
+       |           | Text = '[Download manager]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #432 at (l=96.0, t=4947.0, r=984.0, b=5235.0)px
+       |           | Text = '[Unexpected connection loss is handled safely by Android DownloadManager. If the phone shuts down mid-download, Hermes reloads the saved progress after restart. If mobile data stays paused, open the system Downloads screen or restart below with mobile data / roaming allowed.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #433 at (l=96.0, t=5271.0, r=628.0, b=5319.0)px
+       |             Text = '[No local model downloads yet.]'
+       |             Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #147 at (l=0.0, t=0.0, r=1080.0, b=352.0)px
+         IsTraversalGroup = 'true'
+          |-Node #151 at (l=36.0, t=172.0, r=180.0, b=316.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #156 at (l=204.0, t=199.0, r=294.0, b=289.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #158 at (l=318.0, t=184.0, r=502.0, b=256.0)px
+          | Text = '[Settings]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #159 at (l=318.0, t=256.0, r=995.0, b=304.0)px
+            Text = '[Runtime provider and API configuration]'
+            Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
