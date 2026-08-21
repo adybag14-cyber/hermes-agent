@@ -46,7 +46,7 @@ there is no Play-only build.
    function/tool-calling training; describing a command in prose is not the
    same as emitting a tool call.
 
-The v0.13.148 embedded Android runtime deliberately exposes only its audited
+The embedded Android runtime deliberately exposes only its audited
 in-process tool profile. External MCP stdio/SSE/HTTP sessions, user plugin and
 context-engine code, process-backed ACP/Codex provider modes, and the async
 web/vision tools are unavailable because the app cannot yet prove that their
@@ -245,7 +245,7 @@ commit checked out, obtain the identity embedded into the headed debug
 candidate and build both APKs from the same process environment:
 
 ```powershell
-$tag = 'v0.13.148'
+$tag = 'v0.13.149'
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)
@@ -761,7 +761,7 @@ source tree is clean outside the evidence directory, then commit the evidence
 before creating the tag:
 
 ```powershell
-$tag = 'v0.13.148'
+$tag = 'v0.13.149'
 python scripts/android_release_evidence.py create --tag $tag
 git add "android/release-evidence/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
@@ -865,7 +865,7 @@ fdroid checkupdates --auto --allow-dirty com.mobilefork.hermesagent
 ```
 
 Run this from a fresh checkout of the live F-Droid metadata after the GitHub tag
-exists. The local diff must add exactly one 0.13.148/144890 build and resolve the
+exists. The local diff must add exactly one 0.13.149/144990 build and resolve the
 tag to its full Git commit. Before the pinned build, merge only the committed
 template's source-binding fields into that autoupdater-generated build and
 verify the result:

@@ -33,7 +33,7 @@ The issue-#16 lane is invalid if the Linux assets are skipped, so pass the
 explicit false property even though false is the default.
 
 ```powershell
-$tag = 'v0.13.148'
+$tag = 'v0.13.149'
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)

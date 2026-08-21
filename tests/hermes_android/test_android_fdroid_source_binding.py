@@ -9,8 +9,8 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-VERSION_NAME = "0.13.148"
-VERSION_CODE = "144890"
+VERSION_NAME = "0.13.149"
+VERSION_CODE = "144990"
 RESOLVED_RELEASE_COMMIT = "a" * 40
 GRADLE_RELATIVE = Path("android/app/build.gradle.kts")
 RELEASE_TAG_EXPRESSION = 'System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()'
@@ -130,6 +130,14 @@ def source_checkout(tmp_path: Path) -> Path:
         ).encode("utf-8")
     )
     (repo / "android/settings.gradle.kts").write_text("rootProject.name = \"fixture\"\n")
+    (repo / "android/gradle/wrapper").mkdir(parents=True)
+    (repo / "android/gradle/wrapper/gradle-wrapper.jar").write_bytes(
+        b"fixture Gradle wrapper JAR bytes\n"
+    )
+    (repo / "android/gradle/gradle-daemon-jvm.properties").write_text(
+        "toolchainVersion=21\n",
+        encoding="utf-8",
+    )
     (repo / "android/gradlew").write_text("#!/bin/sh\n", encoding="utf-8")
     (repo / "android/gradlew.bat").write_text("@echo off\r\n", encoding="utf-8")
     (repo / ".gitignore").write_text("android/local.properties\n", encoding="utf-8")
@@ -204,6 +212,8 @@ def _apply_declared_fdroid_transform(repo: Path) -> None:
 
 
 def _apply_fdroid_post_prebuild_cleanup(repo: Path) -> None:
+    (repo / "android/gradle/wrapper/gradle-wrapper.jar").unlink()
+    (repo / "android/gradle/gradle-daemon-jvm.properties").unlink()
     (repo / "android/gradlew").unlink()
     (repo / "android/gradlew.bat").unlink()
 
@@ -249,6 +259,45 @@ def test_prepare_rejects_a_checkout_already_changed_by_prebuild(
         )
 
 
+def test_prepare_rejects_scanner_cleanup_before_the_handoff(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    (source_checkout / "android/gradle/wrapper/gradle-wrapper.jar").unlink()
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="pre-metadata-prebuild tracked-source changes",
+    ):
+        binding_module.prepare_binding(
+            source_checkout,
+            tmp_path / binding_module.BINDING_FILE_NAME,
+            VERSION_NAME,
+        )
+
+
+def test_verify_rejects_a_scanner_managed_file_left_in_the_checkout(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    (source_checkout / "android/gradle/gradle-daemon-jvm.properties").unlink()
+    (source_checkout / "android/gradlew").unlink()
+    (source_checkout / "android/gradlew.bat").unlink()
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="post-metadata-prebuild tracked-source changes",
+    ):
+        binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
+
+
 def test_prepare_rejects_missing_buildserver_sdk_and_signing_preparation(
     source_checkout: Path,
     tmp_path: Path,
@@ -283,7 +332,10 @@ def test_verify_rejects_a_missing_prebuild_handoff(
         )
 
 
-@pytest.mark.parametrize("tamper", ["extra-source", "gradle-transform", "binding-digest"])
+@pytest.mark.parametrize(
+    "tamper",
+    ["extra-source", "extra-deletion", "gradle-transform", "binding-digest"],
+)
 def test_verify_rejects_every_change_outside_the_closed_fdroid_contract(
     source_checkout: Path,
     tmp_path: Path,
@@ -299,6 +351,9 @@ def test_verify_rejects_every_change_outside_the_closed_fdroid_contract(
     expected_message = ""
     if tamper == "extra-source":
         (source_checkout / "tracked.txt").write_text("tampered\n", encoding="utf-8")
+        expected_message = "post-metadata-prebuild tracked-source changes"
+    elif tamper == "extra-deletion":
+        (source_checkout / "tracked.txt").unlink()
         expected_message = "post-metadata-prebuild tracked-source changes"
     elif tamper == "gradle-transform":
         with (source_checkout / GRADLE_RELATIVE).open("a", encoding="utf-8") as stream:

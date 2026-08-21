@@ -1906,12 +1906,12 @@ data class HermesStrings(
     }
 
     fun mcpConfigurationDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "外部 MCP stdio、SSE 和 HTTP 传输在 v0.13.148 的嵌入式 Android 运行时中不可用，因为其进程生命周期尚无法安全验证。"
-        AppLanguage.SPANISH -> "Los transportes MCP externos stdio, SSE y HTTP no están disponibles en el runtime Android integrado de v0.13.148 porque su ciclo de vida aún no puede verificarse de forma segura."
-        AppLanguage.GERMAN -> "Externe MCP-Transporte über stdio, SSE und HTTP sind in der eingebetteten Android-Laufzeit von v0.13.148 nicht verfügbar, da ihr Prozesslebenszyklus noch nicht sicher verifiziert werden kann."
-        AppLanguage.PORTUGUESE -> "Transportes MCP externos stdio, SSE e HTTP não estão disponíveis no runtime Android integrado da v0.13.148 porque o ciclo de vida deles ainda não pode ser verificado com segurança."
-        AppLanguage.FRENCH -> "Les transports MCP externes stdio, SSE et HTTP ne sont pas disponibles dans le runtime Android intégré de la v0.13.148, car leur cycle de vie ne peut pas encore être vérifié en toute sécurité."
-        AppLanguage.ENGLISH -> "External MCP stdio, SSE, and HTTP transports are unavailable in the v0.13.148 embedded Android runtime because their process lifetime cannot yet be verified safely."
+        AppLanguage.CHINESE -> "外部 MCP stdio、SSE 和 HTTP 传输在嵌入式 Android 运行时中不可用，因为其进程生命周期尚无法安全验证。"
+        AppLanguage.SPANISH -> "Los transportes MCP externos stdio, SSE y HTTP no están disponibles en el runtime Android integrado porque su ciclo de vida aún no puede verificarse de forma segura."
+        AppLanguage.GERMAN -> "Externe MCP-Transporte über stdio, SSE und HTTP sind in der eingebetteten Android-Laufzeit nicht verfügbar, da ihr Prozesslebenszyklus noch nicht sicher verifiziert werden kann."
+        AppLanguage.PORTUGUESE -> "Transportes MCP externos stdio, SSE e HTTP não estão disponíveis no runtime Android integrado porque o ciclo de vida deles ainda não pode ser verificado com segurança."
+        AppLanguage.FRENCH -> "Les transports MCP externes stdio, SSE et HTTP ne sont pas disponibles dans le runtime Android intégré, car leur cycle de vie ne peut pas encore être vérifié en toute sécurité."
+        AppLanguage.ENGLISH -> "External MCP stdio, SSE, and HTTP transports are unavailable in the embedded Android runtime because their process lifetime cannot yet be verified safely."
     }
 
     fun mcpStoredConfigNotExecuted(): String = tr(
