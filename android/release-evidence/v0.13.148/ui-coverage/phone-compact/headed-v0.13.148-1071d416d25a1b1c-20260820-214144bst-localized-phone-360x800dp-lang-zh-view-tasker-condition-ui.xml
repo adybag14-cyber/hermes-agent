@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<hermes-ui-evidence artifact="headed-v0.13.148-1071d416d25a1b1c-20260820-214144bst-localized-phone-360x800dp-lang-zh-view-tasker-condition" evidence-identity="framework:zh:HermesTaskerConditionEditActivity" coverage-kind="framework-view-activity" page-id="HermesTaskerConditionEditActivity">
+  <metadata>
+    <entry key="profile" value="phone-360x800dp" />
+    <entry key="language" value="zh" />
+    <entry key="theme_id" value="hermes" />
+    <entry key="theme_primary" value="#24D6A3" />
+    <entry key="theme_secondary" value="#F1B84B" />
+    <entry key="theme_background" value="#03090C" />
+    <entry key="theme_surface" value="#0A1418" />
+    <entry key="theme_surface_variant" value="#111E22" />
+    <entry key="card_shape" value="rounded" />
+    <entry key="ui_font_scale" value="1.0" />
+    <entry key="screen_width_dp" value="360" />
+    <entry key="screen_height_dp" value="800" />
+    <entry key="system_font_scale" value="1.0" />
+    <entry key="package_id" value="com.mobilefork.hermesagent" />
+    <entry key="version_name" value="0.13.148" />
+    <entry key="version_code" value="144890" />
+    <entry key="build_variant" value="debug" />
+    <entry key="source_digest" value="1071d416d25a1b1cf282eb401995efdd96fd9ea68bddf52eea9851bd0d02dc82" />
+    <entry key="candidate_apk_sha256" value="b48fef16586e46844000af3ae02cddff1c5a37994587da391ef2b9082863b098" />
+    <entry key="instrumentation_apk_sha256" value="124931df15aaf512e764c75a20bc8d3991d3c5c74cc2c735338e32390efef474" />
+    <entry key="evidence_run_id" value="v0.13.148-1071d416d25a1b1c-20260820-214144bst" />
+    <entry key="device_serial" value="emulator-5580" />
+    <entry key="avd_name" value="Qitong_API_35_D" />
+    <entry key="device_boot_id" value="3ce38736-15f6-47ef-9319-64b25929f1f3" />
+    <entry key="build_fingerprint" value="google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys" />
+    <entry key="screenshot_sha256" value="df23a5e4e90ba69b3d8f8fec74e0fdf549e21c054a8104531f80d0f2460e8a00" />
+    <sentinel value="Hermes 条件" />
+    <sentinel value="选择 Tasker 配置文件可使用的 Hermes 或 Shizuku 状态。" />
+    <sentinel value="Shizuku 可用" />
+  </metadata>
+  <view-hierarchy>
+    <node class="com.android.internal.policy.DecorView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="android.graphics.drawable.GradientDrawable">
+      <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+        <node class="android.view.ViewStub" resource-id="android:id/action_mode_bar_stub" text="" hint="" content-desc="" visible="false" bounds="[0,0][0,0]" background="" />
+        <node class="android.widget.FrameLayout" resource-id="android:id/content" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+          <node class="android.widget.ScrollView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="android.graphics.drawable.GradientDrawable">
+            <node class="android.widget.FrameLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+              <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[36,172][1044,2373]" background="android.graphics.drawable.GradientDrawable">
+                <node class="android.widget.TextView" resource-id="" text="Hermes 条件" hint="" content-desc="" visible="true" bounds="[90,226][990,323]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="选择 Tasker 配置文件可使用的 Hermes 或 Shizuku 状态。" hint="" content-desc="" visible="true" bounds="[90,323][990,549]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="条件" hint="" content-desc="" visible="true" bounds="[90,549][990,611]" background="" />
+                <node class="android.widget.Spinner" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[90,629][990,759]" background="android.graphics.drawable.GradientDrawable">
+                  <node class="android.widget.TextView" resource-id="android:id/text1" text="Shizuku 可用" hint="" content-desc="" visible="true" bounds="[90,629][990,759]" background="" />
+                </node>
+                <node class="android.widget.TextView" resource-id="" text="已保存的自动化" hint="" content-desc="" visible="true" bounds="[90,759][990,881]" background="" />
+                <node class="android.widget.Spinner" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[90,899][990,1029]" background="android.graphics.drawable.GradientDrawable">
+                  <node class="android.widget.TextView" resource-id="android:id/text1" text="没有已保存的 Hermes 自动化 ()" hint="" content-desc="" visible="true" bounds="[90,899][990,1029]" background="" />
+                </node>
+                <node class="android.widget.TextView" resource-id="" text="自动化 ID" hint="" content-desc="" visible="true" bounds="[90,1029][990,1151]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="现有 Hermes 自动化 ID" content-desc="" visible="true" bounds="[90,1169][990,1311]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.TextView" resource-id="" text="Hermes 变量" hint="" content-desc="" visible="true" bounds="[90,1311][990,1433]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="变量名称，例如 %READY" content-desc="" visible="true" bounds="[90,1451][990,1593]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.TextView" resource-id="" text="预期值" hint="" content-desc="" visible="true" bounds="[90,1593][990,1715]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="仅“变量等于”需要" content-desc="" visible="true" bounds="[90,1733][990,1875]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.TextView" resource-id="" text="Tasker 条件标签" hint="" content-desc="" visible="true" bounds="[90,1875][990,1997]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="Tasker 中显示的可选标签" content-desc="" visible="true" bounds="[90,2015][990,2157]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.Button" resource-id="" text="保存" hint="" content-desc="" visible="true" bounds="[90,2175][990,2319]" background="android.graphics.drawable.GradientDrawable" />
+              </node>
+            </node>
+          </node>
+        </node>
+      </node>
+    </node>
+  </view-hierarchy>
+</hermes-ui-evidence>
