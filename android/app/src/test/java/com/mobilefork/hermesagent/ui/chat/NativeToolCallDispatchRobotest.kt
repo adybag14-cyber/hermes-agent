@@ -1,5 +1,7 @@
 package com.mobilefork.hermesagent.ui.chat
 
+import com.mobilefork.hermesagent.data.AppSettings
+import com.mobilefork.hermesagent.data.AppSettingsStore
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.json.JSONArray
@@ -20,17 +22,59 @@ import org.robolectric.annotation.Config
 class NativeToolCallDispatchRobotest {
     private lateinit var server: MockWebServer
     private lateinit var client: NativeToolCallingChatClient
+    private lateinit var settingsStore: AppSettingsStore
+    private lateinit var originalSettings: AppSettings
 
     @Before
     fun setUp() {
         server = MockWebServer()
         server.start()
-        client = NativeToolCallingChatClient(RuntimeEnvironment.getApplication())
+        val application = RuntimeEnvironment.getApplication()
+        settingsStore = AppSettingsStore(application)
+        originalSettings = settingsStore.load()
+        client = NativeToolCallingChatClient(application)
     }
 
     @After
     fun tearDown() {
+        settingsStore.save(originalSettings)
         server.shutdown()
+    }
+
+    @Test
+    fun turboQuantLlamaNativeChatUsesBearerAndSuppressesReasoningButLiteRtDoesNot() {
+        settingsStore.save(originalSettings.copy(llamaCppRuntimeLane = "turboquant"))
+        server.enqueue(jsonResponse(finalPayload("nanbeige visible answer")))
+
+        val llamaResult = client.send(
+            baseUrl = server.url("/v1/").toString().trimEnd('/'),
+            modelName = "nanbeige-model",
+            apiKey = "owned-loopback-token",
+            sessionId = "robotest-nanbeige-native-chat",
+            userText = "Say hello.",
+            providerId = "llama.cpp",
+        )
+
+        assertEquals("nanbeige visible answer", llamaResult.content)
+        val llamaRequest = server.takeRequest()
+        assertEquals("/v1/chat/completions", llamaRequest.path)
+        assertEquals("Bearer owned-loopback-token", llamaRequest.getHeader("Authorization"))
+        val llamaPayload = JSONObject(llamaRequest.body.readUtf8())
+        assertEquals("none", llamaPayload.getString("reasoning_format"))
+        assertFalse(
+            llamaPayload.getJSONObject("chat_template_kwargs").getBoolean("enable_thinking"),
+        )
+
+        server.enqueue(jsonResponse(finalPayload("litert visible answer")))
+        client.send(
+            baseUrl = server.url("/").toString().trimEnd('/'),
+            modelName = "litert-model",
+            sessionId = "robotest-litert-native-chat",
+            userText = "Say hello.",
+            providerId = "litert-lm",
+        )
+        val liteRtPayload = JSONObject(server.takeRequest().body.readUtf8())
+        assertFalse(liteRtPayload.has("reasoning_format"))
     }
 
     @Test

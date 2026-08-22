@@ -19,10 +19,10 @@ cd ~/fdroiddata-hermes
 ```
 
 Run that preview from a fresh clone of the live `fdroiddata` metadata after the
-GitHub tag exists. `--auto` must create the local 0.13.149/144990 build recipe
+GitHub tag exists. `--auto` must create the local 0.13.150/145090 build recipe
 and resolve its exact tag commit. The autoupdater copies the prior build recipe,
 so its output is not yet eligible for the pinned build. From the same WSL shell,
-render and verify the v0.13.149 source-binding fields from the committed Hermes
+render and verify the v0.13.150 source-binding fields from the committed Hermes
 template into that generated build:
 
 ```sh
@@ -40,10 +40,11 @@ git -C "$FDROIDDATA_ROOT" diff -- \
   metadata/com.mobilefork.hermesagent.yml
 ```
 
-The render transaction requires exactly one 0.13.149/144990 build, preserves
+The render transaction requires exactly one 0.13.150/145090 build, preserves
 the autoupdater-resolved full Git commit, every historical `Builds` entry, and
-all unrelated live metadata, and overlays only `gradleprops` plus `prebuild`.
-It then verifies that `hermesFdroidSourceBinding=true` and the leading
+all unrelated live metadata, and overlays the exact `sudo`, `ndk`, `gradle`,
+`gradleprops`, and `prebuild` fields. It then verifies that
+`hermesFdroidSourceBinding=true` and the leading
 `android_fdroid_source_binding.py prepare` handoff match the committed template
 exactly. A missing/duplicate target, unresolved tag, old two-`sed` recipe,
 changed template, or any path which could emit `unbound` fails closed.
@@ -87,6 +88,14 @@ and carries those settings through the `sudo` boundary into `fdroid build`.
 The Docker CPU allocation and the Gradle worker budget therefore agree instead
 of merely giving an otherwise serial build more idle CPUs.
 
+The experimental native lane is separately locked to Android SDK package
+`ndk;29.0.14206865` and package `cmake;3.31.6`, whose bundled executables must
+report exactly CMake 3.31.6 and Ninja 1.12.1. The metadata declares the NDK and
+installs the CMake package; the local helper installs both packages and verifies
+their package paths and versions before fdroidserver setup. Gradle also declares
+NDK 29.0.14206865 and the native preparation script refuses an ambient or
+mismatched CMake/Ninja pair before it downloads the pinned source archive.
+
 Both vagrant-user transitions use `sudo -u vagrant env -i`. The helper supplies
 only its explicit PATH, Python, home, Gradle, locale, Android SDK, and optional
 Java/SDK variables; inherited credentials, tokens, proxy settings, and other
@@ -124,9 +133,12 @@ bash fdroid/run-local-buildserver.sh --print-contract
 
 Mount the locally rendered fdroiddata checkout at `/workspace`, the repository
 `fdroid` directory and source-binding helper read-only, and retain the
-Gradle/build caches in named volumes. The helper verifies the rendered metadata
-again before the container downloads an SDK, fdroidserver, source, or
-dependency:
+Gradle/build caches in named volumes. The Gradle volume also retains the
+hash-verified TurboQuant source archive at
+`/home/vagrant/.gradle/caches/hermes-experimental-llama/source`; generated
+source-tree paths under `android/app/build` remain disposable. The helper
+verifies the rendered metadata again before the container downloads an SDK,
+fdroidserver, source, or dependency:
 
 ```powershell
 docker volume create hermes-fdroid-gradle

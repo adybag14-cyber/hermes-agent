@@ -79,6 +79,8 @@ internal object NativeToolChatSender {
         context: Context,
         baseUrl: String,
         modelName: String,
+        apiKey: String? = null,
+        providerId: String = "",
         sessionId: String,
         userText: String,
         userContentParts: List<ChatContentPart>,
@@ -92,6 +94,8 @@ internal object NativeToolChatSender {
             val result = client.send(
                 baseUrl = baseUrl,
                 modelName = modelName,
+                apiKey = apiKey,
+                providerId = providerId,
                 sessionId = sessionId,
                 userText = userText,
                 userContentParts = userContentParts,

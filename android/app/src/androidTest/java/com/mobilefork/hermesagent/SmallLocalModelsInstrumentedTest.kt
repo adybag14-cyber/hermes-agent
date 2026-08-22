@@ -191,7 +191,8 @@ class SmallLocalModelsInstrumentedTest {
         )
         assertTrue(status.statusMessage, status.started)
         assertEquals(BackendKind.LLAMA_CPP, status.backendKind)
-        val content = chatOnce(status.baseUrl, modelId)
+        assertTrue("Owned llama.cpp runtime must publish an ephemeral bearer token", status.apiKey.isNotBlank())
+        val content = chatOnce(status.baseUrl, modelId, status.apiKey)
         assertFalse(content, content.isBlank())
     }
 
@@ -266,7 +267,7 @@ class SmallLocalModelsInstrumentedTest {
         )
     }
 
-    private fun chatOnce(baseUrl: String, modelId: String): String {
+    private fun chatOnce(baseUrl: String, modelId: String, apiKey: String = ""): String {
         val body = JSONObject()
             .put("model", modelId)
             .put(
@@ -285,6 +286,11 @@ class SmallLocalModelsInstrumentedTest {
         val response = client.newCall(
             Request.Builder()
                 .url("$baseUrl/chat/completions")
+                .apply {
+                    if (apiKey.isNotBlank()) {
+                        header("Authorization", "Bearer $apiKey")
+                    }
+                }
                 .post(body)
                 .build(),
         ).execute()

@@ -371,7 +371,8 @@ class DeepAppUiVisualInstrumentedTest {
                     onDataSaverModeChange = {},
                     selectedBackend = BackendKind.LLAMA_CPP.persistedValue,
                     onRuntimeFlavorSelected = {},
-                    onCompletedDownloadReady = { true },
+                    onRequiredLlamaCppRuntimeLane = {},
+                    onCompletedDownloadReady = { _, _ -> true },
                     importModelClickOverride = {
                         openDocumentLaunched.set(true)
                         HermesModelDownloadManager.importLocalModelFile(

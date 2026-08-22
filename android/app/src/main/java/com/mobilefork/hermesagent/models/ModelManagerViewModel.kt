@@ -34,7 +34,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.util.Locale
 
 /**
@@ -98,8 +97,16 @@ data class ModelManagerUiState(
     val searchText: String = "",
 )
 
-internal fun isModelRuntimeReady(status: com.mobilefork.hermesagent.backend.LocalBackendStatus): Boolean {
-    return status.started && status.completionVerified
+internal fun isModelRuntimeReady(
+    status: com.mobilefork.hermesagent.backend.LocalBackendStatus,
+    expectedBackend: BackendKind? = null,
+    expectedModelPath: String? = null,
+): Boolean {
+    val backendMatches = expectedBackend == null || status.backendKind == expectedBackend
+    val pathMatches = expectedModelPath == null || runCatching {
+        java.io.File(status.sourceModelPath).canonicalPath == java.io.File(expectedModelPath).canonicalPath
+    }.getOrDefault(false)
+    return status.started && status.completionVerified && backendMatches && pathMatches
 }
 
 /** Filters for browsing the model catalog */
@@ -136,8 +143,8 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
     // =========================================================================
 
     /** Refresh all model states from disk and backend */
-    private suspend fun refreshState() {
-        withContext(Dispatchers.IO) {
+    private suspend fun refreshState(selectionGeneration: Long? = null) {
+        val (backend, managedModels) = withContext(Dispatchers.IO) {
             val settings = settingsStore.load()
             val backend = BackendKind.fromPersistedValue(settings.onDeviceBackend)
 
@@ -150,7 +157,9 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                     localFilePath = record?.destinationPath,
                 )
             }
-
+            backend to managedModels
+        }
+        val publish = {
             _uiState.update {
                 it.copy(
                     models = managedModels,
@@ -159,6 +168,11 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                     systemMessage = buildSystemMessage(backend, managedModels),
                 )
             }
+        }
+        if (selectionGeneration == null) {
+            publish()
+        } else {
+            LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration, publish)
         }
     }
 
@@ -207,6 +221,33 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
     /** Start downloading a model from the catalog */
     fun downloadModel(modelId: String) {
         val entry = catalog.find { it.id == modelId } ?: return
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+        val requirementFailure = runCatching {
+            entry.requiredLlamaCppRuntimeLane?.let { requiredLane ->
+                updateRuntimeSelectionSettings(settingsStore, selectionGeneration) { current ->
+                    if (current.llamaCppRuntimeLane == requiredLane) {
+                        current
+                    } else {
+                        current.copy(llamaCppRuntimeLane = requiredLane)
+                    }
+                }
+            }
+        }.exceptionOrNull()
+        if (requirementFailure is RuntimeSelectionSupersededException) return
+        if (requirementFailure != null) {
+            val message = requirementFailure.message ?: "Unable to persist the model runtime requirement"
+            _uiState.update {
+                it.copy(
+                    models = it.models.map { managed ->
+                        if (managed.catalogEntry.id == modelId) {
+                            managed.copy(state = ModelState.INIT_FAILED, errorMessage = message)
+                        } else managed
+                    },
+                    systemMessage = "Download not started: $message",
+                )
+            }
+            return
+        }
 
         _uiState.update {
             it.copy(
@@ -228,7 +269,7 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                         store = downloadStore,
                         draft = ModelDownloadDraft(
                             repoOrUrl = entry.repoId,
-                            filePath = "",
+                            filePath = entry.filePath,
                             revision = entry.revision,
                             runtimeFlavor = if (entry.supportedBackends.contains(ModelRuntimeBackend.LITERT_LM)) "LiteRT-LM" else "GGUF",
                         ),
@@ -328,17 +369,21 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
 
         if (model.localFilePath == null) return
         val entry = model.catalogEntry
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
 
-        _uiState.update {
-            it.copy(
-                models = it.models.map { m ->
-                    if (m.catalogEntry.id == modelId) {
-                        m.copy(state = ModelState.DOWNLOADING)
-                    } else m
-                },
-                systemMessage = "Initializing ${entry.displayName}…",
-            )
-        }
+        if (!LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                _uiState.update {
+                    it.copy(
+                        models = it.models.map { m ->
+                            if (m.catalogEntry.id == modelId) {
+                                m.copy(state = ModelState.DOWNLOADING)
+                            } else m
+                        },
+                        systemMessage = "Initializing ${entry.displayName}…",
+                    )
+                }
+            }
+        ) return
 
         viewModelScope.launch {
             val backendKind = if (entry.supportedBackends.contains(ModelRuntimeBackend.LITERT_LM)) {
@@ -346,60 +391,107 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
             } else {
                 BackendKind.LLAMA_CPP
             }
-            val status = withContext(Dispatchers.IO) {
-                val record = findDownloadRecordForModel(modelId)
-                    ?: return@withContext com.mobilefork.hermesagent.backend.LocalBackendStatus(
-                        backendKind = backendKind,
-                        started = false,
-                        statusMessage = "The completed download record for ${entry.displayName} is missing",
-                    )
-                downloadStore.setPreferredDownloadId(record.id)
-                settingsStore.save(settingsStore.load().copy(onDeviceBackend = backendKind.persistedValue))
-                val runtimeState = HermesRuntimeManager.restartAfterRemoteStop(app)
-                val localStatus = OnDeviceBackendManager.currentStatus()
-                if (runtimeState.started) {
-                    localStatus
-                } else {
-                    localStatus.copy(
-                        backendKind = backendKind,
-                        started = false,
-                        statusMessage = runtimeState.error
-                            ?: localStatus.statusMessage.ifBlank { "The local runtime did not start" },
-                        completionVerified = false,
-                    )
+            val statusResult = runCatching {
+                withContext(Dispatchers.IO) {
+                    val record = findDownloadRecordForModel(modelId)
+                        ?: return@withContext (
+                            com.mobilefork.hermesagent.backend.LocalBackendStatus(
+                                backendKind = backendKind,
+                                started = false,
+                                statusMessage = "The completed download record for ${entry.displayName} is missing",
+                            ) to null
+                            )
+                    check(
+                        persistPreferredModelRuntimeSelection(
+                            settingsStore = settingsStore,
+                            downloadStore = downloadStore,
+                            recordId = record.id,
+                            backendKind = backendKind,
+                            requiredLlamaCppRuntimeLane = entry.requiredLlamaCppRuntimeLane,
+                            selectionGeneration = selectionGeneration,
+                        ),
+                    ) {
+                        "The completed download record for ${entry.displayName} no longer exists"
+                    }
+                    val (runtimeState, localStatus) = LocalModelRuntimeSelectionAuthority.performLongIfCurrent(
+                        selectionGeneration,
+                    ) {
+                        HermesRuntimeManager.restartAfterRemoteStop(
+                            app,
+                            admissionCheck = {
+                                LocalModelRuntimeSelectionAuthority.requireCurrent(selectionGeneration)
+                            },
+                        ) to OnDeviceBackendManager.currentStatus()
+                    }
+                    if (runtimeState.started) {
+                        localStatus to record.destinationPath
+                    } else {
+                        localStatus.copy(
+                            backendKind = backendKind,
+                            started = false,
+                            statusMessage = runtimeState.error
+                                ?: localStatus.statusMessage.ifBlank { "The local runtime did not start" },
+                            completionVerified = false,
+                        ) to record.destinationPath
+                    }
                 }
             }
-            val success = isModelRuntimeReady(status)
+            val statusFailure = statusResult.exceptionOrNull()
+            if (statusFailure != null) {
+                if (statusFailure is RuntimeSelectionSupersededException) return@launch
+                val message = statusFailure.message ?: "Unable to persist the local model selection"
+                LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                    _uiState.update {
+                        it.copy(
+                            models = it.models.map { managed ->
+                                if (managed.catalogEntry.id == modelId) {
+                                    managed.copy(state = ModelState.INIT_FAILED, errorMessage = message)
+                                } else managed
+                            },
+                            activeModelId = null,
+                            selectedBackend = backendKind,
+                            systemMessage = "Failed to initialize ${entry.displayName}: $message",
+                        )
+                    }
+                }
+                return@launch
+            }
+            val (status, expectedModelPath) = statusResult.getOrThrow()
+            val success = isModelRuntimeReady(status, backendKind, expectedModelPath)
 
             if (success) {
-                _uiState.update {
-                    it.copy(
-                        models = it.models.map { m ->
-                            if (m.catalogEntry.id == modelId) {
-                                m.copy(state = ModelState.READY)
-                            } else m
-                        },
-                        activeModelId = modelId,
-                        selectedBackend = backendKind,
-                        systemMessage = "${entry.displayName} initialized and produced a verified completion",
-                    )
+                LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                    _uiState.update {
+                        it.copy(
+                            models = it.models.map { m ->
+                                if (m.catalogEntry.id == modelId) {
+                                    m.copy(state = ModelState.READY)
+                                } else m
+                            },
+                            activeModelId = modelId,
+                            selectedBackend = backendKind,
+                            systemMessage = "${entry.displayName} initialized and produced a verified completion",
+                        )
+                    }
                 }
             } else {
-                _uiState.update {
-                    it.copy(
-                        models = it.models.map { m ->
-                            if (m.catalogEntry.id == modelId) {
-                                m.copy(
-                                    state = ModelState.INIT_FAILED,
-                                    errorMessage = status.statusMessage.ifBlank { "Model initialization failed" },
-                                )
-                            } else m
-                        },
-                        activeModelId = null,
-                        selectedBackend = backendKind,
-                        systemMessage = "Failed to initialize ${entry.displayName}: " +
-                            status.statusMessage.ifBlank { "no completion-verified backend became ready" },
-                    )
+                LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                    _uiState.update {
+                        it.copy(
+                            models = it.models.map { m ->
+                                if (m.catalogEntry.id == modelId) {
+                                    m.copy(
+                                        state = ModelState.INIT_FAILED,
+                                        errorMessage = status.statusMessage.ifBlank { "Model initialization failed" },
+                                    )
+                                } else m
+                            },
+                            activeModelId = null,
+                            selectedBackend = backendKind,
+                            systemMessage = "Failed to initialize ${entry.displayName}: " +
+                                status.statusMessage.ifBlank { "no completion-verified backend became ready" },
+                        )
+                    }
                 }
             }
         }
@@ -408,26 +500,68 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
     /** Remove a model from the device */
     fun removeModel(modelId: String) {
         val model = _uiState.value.models.find { it.catalogEntry.id == modelId } ?: return
-
-        model.localFilePath?.let { path ->
-            kotlin.runCatching { File(path).delete() }
+        val record = findDownloadRecordForModel(modelId)
+        if (record == null) {
+            _uiState.update {
+                it.copy(systemMessage = "The download record for ${model.catalogEntry.displayName} no longer exists")
+            }
+            return
         }
-
-        _uiState.update {
-            it.copy(
-                models = it.models.map { m ->
-                    if (m.catalogEntry.id == modelId) {
-                        m.copy(
-                            state = ModelState.NOT_AVAILABLE,
-                            localFilePath = null,
-                            downloadProgress = null,
-                            errorMessage = null,
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+        LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+            _uiState.update { it.copy(systemMessage = "Stopping any active local runtime before removing ${model.catalogEntry.displayName}…") }
+        }
+        viewModelScope.launch {
+            val resultOutcome = runCatching {
+                withContext(Dispatchers.IO) {
+                    LocalModelRuntimeSelectionAuthority.performLongIfCurrent(selectionGeneration) {
+                        HermesModelDownloadManager.removeDownload(
+                            app,
+                            downloadStore,
+                            record.id,
+                            selectionGeneration = selectionGeneration,
                         )
-                    } else m
-                },
-                activeModelId = if (it.activeModelId == modelId) null else it.activeModelId,
-                systemMessage = "Removed ${model.catalogEntry.displayName}",
-            )
+                    }
+                }
+            }
+            val removalFailure = resultOutcome.exceptionOrNull()
+            if (removalFailure != null) {
+                if (removalFailure is RuntimeSelectionSupersededException) return@launch
+                LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                    _uiState.update {
+                        it.copy(
+                            systemMessage = removalFailure.message
+                                ?: "Hermes could not persist removal of ${model.catalogEntry.displayName}",
+                        )
+                    }
+                }
+                return@launch
+            }
+            val result = resultOutcome.getOrThrow()
+            if (!result.removed) {
+                LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                    _uiState.update { it.copy(systemMessage = result.statusMessage) }
+                }
+                return@launch
+            }
+            LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                _uiState.update {
+                    it.copy(
+                        models = it.models.map { managed ->
+                            if (managed.catalogEntry.id == modelId) {
+                                managed.copy(
+                                    state = ModelState.NOT_AVAILABLE,
+                                    localFilePath = null,
+                                    downloadProgress = null,
+                                    errorMessage = null,
+                                )
+                            } else managed
+                        },
+                        activeModelId = if (it.activeModelId == modelId) null else it.activeModelId,
+                        systemMessage = result.statusMessage,
+                    )
+                }
+            }
         }
     }
 
@@ -436,24 +570,47 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
         val entry = catalog.find { it.id == modelId } ?: return
         val record = findDownloadRecordForModel(modelId) ?: return
 
-        // Find the corresponding download record and mark it as preferred
-        downloadStore.setPreferredDownloadId(record.id)
-
         // Sync backend kind based on model
         val backendKind = if (entry.supportedBackends.contains(ModelRuntimeBackend.LITERT_LM)) {
             BackendKind.LITERT_LM
         } else {
             BackendKind.LLAMA_CPP
         }
-        settingsStore.save(
-            settingsStore.load().copy(onDeviceBackend = backendKind.persistedValue),
-        )
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+        val preferenceFailure = runCatching {
+            check(
+                persistPreferredModelRuntimeSelection(
+                    settingsStore = settingsStore,
+                    downloadStore = downloadStore,
+                    recordId = record.id,
+                    backendKind = backendKind,
+                    requiredLlamaCppRuntimeLane = entry.requiredLlamaCppRuntimeLane,
+                    selectionGeneration = selectionGeneration,
+                ),
+            ) {
+                "The download record for ${entry.displayName} no longer exists"
+            }
+        }.exceptionOrNull()
+        if (preferenceFailure != null) {
+            if (preferenceFailure is RuntimeSelectionSupersededException) return
+            LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                _uiState.update {
+                    it.copy(
+                        systemMessage = preferenceFailure.message
+                            ?: "Hermes could not persist the preferred model",
+                    )
+                }
+            }
+            return
+        }
 
-        _uiState.update {
-            it.copy(
-                selectedBackend = backendKind,
-                systemMessage = "${entry.displayName} set as preferred model",
-            )
+        LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+            _uiState.update {
+                it.copy(
+                    selectedBackend = backendKind,
+                    systemMessage = "${entry.displayName} set as preferred model",
+                )
+            }
         }
     }
 
@@ -473,36 +630,84 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
             _uiState.update { it.copy(systemMessage = "Model is not ready for inference") }
             return
         }
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+        if (!cancelPendingAutoStartForBackendAction(selectionGeneration)) return
 
-        _uiState.update {
-            it.copy(systemMessage = "Starting backend server…")
+        LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+            _uiState.update {
+                it.copy(systemMessage = "Starting backend server…")
+            }
         }
 
         viewModelScope.launch {
-            val runtimeState = withContext(Dispatchers.IO) {
-                HermesRuntimeManager.restartAfterRemoteStop(app)
+            val runtimeResult = runCatching {
+                withContext(Dispatchers.IO) {
+                    LocalModelRuntimeSelectionAuthority.performLongIfCurrent(selectionGeneration) {
+                        HermesRuntimeManager.restartAfterRemoteStop(
+                            app,
+                            admissionCheck = {
+                                LocalModelRuntimeSelectionAuthority.requireCurrent(selectionGeneration)
+                            },
+                        )
+                    }
+                }
             }
-            if (!runtimeState.started) {
-                _uiState.update {
-                    it.copy(systemMessage = runtimeState.error ?: "Backend server did not start")
+            val runtimeFailure = runtimeResult.exceptionOrNull()
+            if (runtimeFailure is RuntimeSelectionSupersededException) return@launch
+            if (runtimeFailure != null) {
+                LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                    _uiState.update { it.copy(systemMessage = runtimeFailure.message ?: "Backend server did not start") }
                 }
                 return@launch
             }
-            refreshState()
+            val runtimeState = runtimeResult.getOrThrow()
+            if (!runtimeState.started) {
+                LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                    _uiState.update {
+                        it.copy(systemMessage = runtimeState.error ?: "Backend server did not start")
+                    }
+                }
+                return@launch
+            }
+            refreshState(selectionGeneration)
         }
     }
 
     /** Stop the backend server */
     fun stopBackend() {
-        val status = OnDeviceBackendManager.stopAll()
-        _uiState.update {
-            if (!status.requiresAppRestart) {
-                it.copy(
-                    systemMessage = "Backend server stopped",
-                    activeModelId = null,
-                )
-            } else {
-                it.copy(systemMessage = status.statusMessage)
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+        if (!cancelPendingAutoStartForBackendAction(selectionGeneration)) return
+        LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+            _uiState.update { it.copy(systemMessage = "Stopping backend server…") }
+        }
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    LocalModelRuntimeSelectionAuthority.performLongIfCurrent(selectionGeneration) {
+                        HermesRuntimeManager.stopLocalRuntime(
+                            admissionCheck = {
+                                LocalModelRuntimeSelectionAuthority.requireCurrent(selectionGeneration)
+                            },
+                        )
+                    }
+                }
+            }
+            val failure = result.exceptionOrNull()
+            if (failure is RuntimeSelectionSupersededException) return@launch
+            LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                _uiState.update {
+                    val status = result.getOrNull()
+                    when {
+                        failure != null -> it.copy(
+                            systemMessage = failure.message ?: "Backend server did not stop",
+                        )
+                        status != null && !status.requiresAppRestart -> it.copy(
+                            systemMessage = "Backend server stopped",
+                            activeModelId = null,
+                        )
+                        else -> it.copy(systemMessage = status?.statusMessage ?: "Backend server did not stop")
+                    }
+                }
             }
         }
     }
@@ -511,9 +716,41 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
     // Internal Helpers
     // =========================================================================
 
+    private fun cancelPendingAutoStartForBackendAction(selectionGeneration: Long): Boolean {
+        val clearResult = runCatching {
+            clearPendingAutoStartForGeneration(downloadStore, selectionGeneration)
+        }
+        val failure = clearResult.exceptionOrNull()
+        if (failure is RuntimeSelectionSupersededException) return false
+        if (failure != null || clearResult.getOrDefault(false).not()) {
+            LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                _uiState.update {
+                    it.copy(
+                        systemMessage = failure?.message
+                            ?: "Hermes could not cancel the pending model handoff",
+                    )
+                }
+            }
+            return false
+        }
+        return true
+    }
+
     private fun findDownloadRecordForModel(modelId: String): LocalModelDownloadRecord? {
-        // Try to find by matching the repo ID or title pattern
         val entry = catalog.find { it.id == modelId } ?: return null
+        val verifiedArtifact = entry.filePath.takeIf { it.isNotBlank() }?.let { filePath ->
+            VerifiedLocalModelArtifacts.find(entry.repoId, filePath)
+        }
+        if (verifiedArtifact != null) {
+            return downloadStore.loadDownloads().find { record ->
+                VerifiedLocalModelArtifacts.find(record.repoOrUrl, record.filePath)?.modelId ==
+                    verifiedArtifact.modelId &&
+                    record.revision.equals(verifiedArtifact.revision, ignoreCase = true) &&
+                    record.destinationFileName.equals(verifiedArtifact.fileName, ignoreCase = true) &&
+                    record.totalBytes == verifiedArtifact.expectedBytes
+            }
+        }
+        // Preserve legacy fuzzy matching for unpinned catalog entries.
         return downloadStore.loadDownloads().find { record ->
             record.title.contains(entry.displayName, ignoreCase = true) ||
                 record.destinationPath.contains(entry.displayName.lowercase(Locale.US), true)
@@ -702,6 +939,8 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                     "Tdamre/MiniCPM5-1B-litert-lm",
                     "MiniCPM5-1B-web.litertlm",
                 ).revision,
+                filePath = "MiniCPM5-1B-web.litertlm",
+                sha256 = "a6d6d61fdfa0e04458fea344791d15ca304b54a40573e1b44ebab30c54d7bf1d",
                 supportedBackends = listOf(ModelRuntimeBackend.LITERT_LM),
                 approximateSizeBytes = 1_103_486_896,
                 recommendedRamBytes = 3_000_000_000,
@@ -719,6 +958,8 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                     "Tdamre/VibeThinker-3B-litert-lm",
                     "VibeThinker-3B.litertlm",
                 ).revision,
+                filePath = "VibeThinker-3B.litertlm",
+                sha256 = "4cd4a856ab9fb890223d927efd4ed37268ecd1fa78559a9d27bf21daa6b8c22f",
                 supportedBackends = listOf(ModelRuntimeBackend.LITERT_LM),
                 approximateSizeBytes = 3_446_780_848,
                 recommendedRamBytes = 8_000_000_000,
@@ -737,6 +978,8 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                     "unsloth/Qwen3.5-0.8B-GGUF",
                     "Qwen3.5-0.8B-Q4_K_M.gguf",
                 ).revision,
+                filePath = "Qwen3.5-0.8B-Q4_K_M.gguf",
+                sha256 = "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
                 supportedBackends = listOf(ModelRuntimeBackend.LLAMA_CPP),
                 approximateSizeBytes = 532_517_120,
                 recommendedRamBytes = 2_000_000_000,
@@ -744,6 +987,26 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                 author = "Qwen/Unsloth",
                 license = "Apache-2.0",
                 isMobileRecommended = true,
+            ),
+            ModelCatalogEntry(
+                id = "nanbeige4-2-3b-q4-k-m-gguf",
+                displayName = "Nanbeige4.2 3B Q4_K_M (GGUF · TurboQuant)",
+                description = "Exact Tdamre Nanbeige4.2 Q4_K_M artifact for the opt-in TurboQuant llama.cpp lane; Stable does not support its legacy nanbeige architecture metadata.",
+                repoId = "Tdamre/Nanbeige4.2-3B-GGUF",
+                revision = VerifiedLocalModelArtifacts.require(
+                    "Tdamre/Nanbeige4.2-3B-GGUF",
+                    "Nanbeige4.2-3B-Q4_K_M.gguf",
+                ).revision,
+                filePath = "Nanbeige4.2-3B-Q4_K_M.gguf",
+                sha256 = "99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489",
+                supportedBackends = listOf(ModelRuntimeBackend.LLAMA_CPP),
+                approximateSizeBytes = 2_574_807_840,
+                recommendedRamBytes = 6_000_000_000,
+                tags = listOf("nanbeige", "tdamre", "gguf", "q4-k-m", "3b", "turboquant"),
+                author = "Nanbeige/Tdamre",
+                license = "Apache-2.0",
+                isMobileRecommended = true,
+                requiredLlamaCppRuntimeLane = "turboquant",
             ),
             ModelCatalogEntry(
                 id = "minicpm5-1b-fable5-q4-k-m-gguf",
@@ -754,6 +1017,8 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                     "GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF",
                     "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf",
                 ).revision,
+                filePath = "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf",
+                sha256 = "b1c3bf2995e96cb792a0031e4e1497a500e9244c68ba17c24a7e6edf1fc59019",
                 supportedBackends = listOf(ModelRuntimeBackend.LLAMA_CPP),
                 approximateSizeBytes = 688_066_496,
                 recommendedRamBytes = 2_000_000_000,
@@ -833,7 +1098,9 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                 }
                 artifact.repoId.equals(entry.repoId, ignoreCase = true) &&
                     artifact.revision == entry.revision &&
+                    artifact.fileName.equals(entry.filePath, ignoreCase = true) &&
                     artifact.expectedBytes == entry.approximateSizeBytes &&
+                    artifact.sha256.equals(entry.sha256, ignoreCase = true) &&
                     backendMatches
             }
         }

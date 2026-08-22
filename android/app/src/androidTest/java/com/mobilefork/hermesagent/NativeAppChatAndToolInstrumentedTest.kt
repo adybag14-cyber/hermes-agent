@@ -192,6 +192,8 @@ class NativeAppChatAndToolInstrumentedTest {
         val result = NativeToolCallingChatClient(app).send(
             baseUrl = backendStatus.baseUrl.removeSuffix("/v1"),
             modelName = backendStatus.modelName,
+            apiKey = backendStatus.apiKey,
+            providerId = backendStatus.backendKind.persistedValue,
             sessionId = "qwen-gguf-instrumented-smoke",
             userText = "Use file_write_tool to write qwen-tool-probe.txt with content PHONE_QWEN_TOOL_OK. " +
                 "After the tool returns, reply with PHONE_QWEN_TOOL_OK.",
@@ -205,6 +207,8 @@ class NativeAppChatAndToolInstrumentedTest {
         val deleteResult = NativeToolCallingChatClient(app).send(
             baseUrl = backendStatus.baseUrl.removeSuffix("/v1"),
             modelName = backendStatus.modelName,
+            apiKey = backendStatus.apiKey,
+            providerId = backendStatus.backendKind.persistedValue,
             sessionId = "qwen-gguf-instrumented-smoke-delete",
             userText = "Use terminal_tool to run exactly: " +
                 "rm -f \"\$HOME/qwen-tool-probe.txt\" && " +
@@ -217,6 +221,8 @@ class NativeAppChatAndToolInstrumentedTest {
         val statusResult = NativeToolCallingChatClient(app).send(
             baseUrl = backendStatus.baseUrl.removeSuffix("/v1"),
             modelName = backendStatus.modelName,
+            apiKey = backendStatus.apiKey,
+            providerId = backendStatus.backendKind.persistedValue,
             sessionId = "qwen-gguf-instrumented-smoke-status",
             userText = "Use android_system_tool with action status to inspect phone capability state.",
         )
@@ -452,6 +458,7 @@ class NativeAppChatAndToolInstrumentedTest {
                     runtime.baseUrl.orEmpty().startsWith("http://127.0.0.1:") &&
                     backendStatus.started &&
                     backendStatus.baseUrl.startsWith("http://127.0.0.1:") &&
+                    backendStatus.apiKey.isNotBlank() &&
                     backendStatus.modelName.isNotBlank(),
             )
         }

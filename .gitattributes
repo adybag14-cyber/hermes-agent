@@ -1,3 +1,6 @@
 # Auto-generated files — collapse diffs and exclude from language stats
 web/package-lock.json linguist-generated=true
 android/pip-stubs/**/*.egg-info/PKG-INFO text eol=lf
+
+# Compatibility patches are byte-hashed; blank context lines retain their unified-diff marker.
+hermes_android/patches/*.patch text eol=lf whitespace=-blank-at-eol

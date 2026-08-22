@@ -97,6 +97,7 @@ class NativeToolCallingChatClient(
     fun send(
         baseUrl: String,
         modelName: String,
+        apiKey: String? = null,
         sessionId: String,
         userText: String,
         userContentParts: List<ChatContentPart> = emptyList(),
@@ -106,11 +107,19 @@ class NativeToolCallingChatClient(
         onEvent: (NativeAgentEvent) -> Unit = {},
     ): Result {
         cancelled = false
-        val normalizedBaseUrl = baseUrl.trimEnd('/')
+        val normalizedBaseUrl = normalizeNativeChatOrigin(baseUrl)
         require(normalizedBaseUrl.startsWith("http://") || normalizedBaseUrl.startsWith("https://")) {
             "Native tool chat requires a local HTTP base URL; got '${baseUrl.ifBlank { "<blank>" }}'."
         }
         activeOpenGuiMemorySessionId = sessionId
+        val appSettings = AppSettingsStore(appContext).load()
+        val reasoningFormat = if (
+            shouldSuppressLocalLlamaReasoning(providerId, appSettings.llamaCppRuntimeLane)
+        ) {
+            "none"
+        } else {
+            null
+        }
         executeExplicitDirectToolRequest(userText)?.let { result ->
             onEvent(NativeAgentEvent(AgentEventType.ToolCall, "Native action", userText))
             val inferredTools = inferredToolNames(userText)
@@ -125,6 +134,8 @@ class NativeToolCallingChatClient(
         executeExplicitHtmlBrowserToolRequest(
             normalizedBaseUrl = normalizedBaseUrl,
             modelName = modelName,
+            apiKey = apiKey,
+            reasoningFormat = reasoningFormat,
             sessionId = sessionId,
             userText = userText,
         )?.let { result ->
@@ -136,7 +147,7 @@ class NativeToolCallingChatClient(
         var executedToolCalls = 0
         var modelRequestCount = 0
         var latestToolResult = ""
-        val localModelToolMode = AppSettingsStore(appContext).load().localModelToolMode
+        val localModelToolMode = appSettings.localModelToolMode
         val guestLinuxIntent = isGuestLinuxSandboxIntent(userText)
         val contextRecoveryToolSpecs = compactToolSpecsFor(userText)
         // 27B Q1_0 llama.cpp cannot prefill the general Android tool catalog inside 15 minutes.
@@ -168,6 +179,8 @@ class NativeToolCallingChatClient(
         val initialResponse = postChatCompletionWithContextRecovery(
             normalizedBaseUrl = normalizedBaseUrl,
             modelName = modelName,
+            apiKey = apiKey,
+            reasoningFormat = reasoningFormat,
             sessionId = sessionId,
             messages = messages,
             toolSpecs = activeToolSpecs,
@@ -247,6 +260,8 @@ class NativeToolCallingChatClient(
                 val response = postChatCompletionWithContextRecovery(
                     normalizedBaseUrl = normalizedBaseUrl,
                     modelName = modelName,
+                    apiKey = apiKey,
+                    reasoningFormat = reasoningFormat,
                     sessionId = sessionId,
                     messages = messages,
                     toolSpecs = activeToolSpecs,
@@ -285,6 +300,13 @@ class NativeToolCallingChatClient(
             executedToolCalls = executedToolCalls,
             modelRequestCount = modelRequestCount,
         )
+    }
+
+    internal fun normalizeNativeChatOrigin(baseUrl: String): String {
+        val normalized = baseUrl.trim().trimEnd('/')
+        // LocalBackendStatus and ordinary OpenAI-compatible provider settings use a /v1 API
+        // base, while this client appends the concrete /v1/chat/completions route itself.
+        return normalized.removeSuffix("/v1")
     }
 
     private fun nativeVisibleReplyContent(
@@ -568,6 +590,8 @@ class NativeToolCallingChatClient(
     private fun executeExplicitHtmlBrowserToolRequest(
         normalizedBaseUrl: String,
         modelName: String,
+        apiKey: String?,
+        reasoningFormat: String?,
         sessionId: String,
         userText: String,
     ): Result? {
@@ -575,6 +599,8 @@ class NativeToolCallingChatClient(
         val generatedHtml = generateHtmlDocument(
             normalizedBaseUrl = normalizedBaseUrl,
             modelName = modelName,
+            apiKey = apiKey,
+            reasoningFormat = reasoningFormat,
             sessionId = sessionId,
             request = request,
         )
@@ -610,6 +636,8 @@ class NativeToolCallingChatClient(
     private fun generateHtmlDocument(
         normalizedBaseUrl: String,
         modelName: String,
+        apiKey: String?,
+        reasoningFormat: String?,
         sessionId: String,
         request: ExplicitHtmlBrowserRequest,
     ): String {
@@ -636,6 +664,8 @@ class NativeToolCallingChatClient(
             postChatCompletion(
                 normalizedBaseUrl = normalizedBaseUrl,
                 modelName = modelName,
+                apiKey = apiKey,
+                reasoningFormat = reasoningFormat,
                 sessionId = "${sessionId}_html",
                 messages = messages,
                 toolSpecs = null,
@@ -846,6 +876,8 @@ class NativeToolCallingChatClient(
     private fun postChatCompletionWithContextRecovery(
         normalizedBaseUrl: String,
         modelName: String,
+        apiKey: String?,
+        reasoningFormat: String?,
         sessionId: String,
         messages: JSONArray,
         toolSpecs: JSONArray?,
@@ -858,6 +890,8 @@ class NativeToolCallingChatClient(
                 assistant = postChatCompletion(
                     normalizedBaseUrl = normalizedBaseUrl,
                     modelName = modelName,
+                    apiKey = apiKey,
+                    reasoningFormat = reasoningFormat,
                     sessionId = sessionId,
                     messages = messages,
                     toolSpecs = toolSpecs,
@@ -885,6 +919,8 @@ class NativeToolCallingChatClient(
                 assistant = postChatCompletion(
                     normalizedBaseUrl = normalizedBaseUrl,
                     modelName = modelName,
+                    apiKey = apiKey,
+                    reasoningFormat = reasoningFormat,
                     sessionId = sessionId,
                     messages = recoveredMessages,
                     toolSpecs = recoveredToolSpecs,
@@ -899,6 +935,8 @@ class NativeToolCallingChatClient(
     private fun postChatCompletion(
         normalizedBaseUrl: String,
         modelName: String,
+        apiKey: String?,
+        reasoningFormat: String?,
         sessionId: String,
         messages: JSONArray,
         toolSpecs: JSONArray?,
@@ -913,6 +951,9 @@ class NativeToolCallingChatClient(
             .put("timeout_ms", timeoutMs)
             .put("chat_template_kwargs", JSONObject().put("enable_thinking", false))
             .put("messages", messages)
+        reasoningFormat?.takeIf { it.isNotBlank() }?.let { value ->
+            payload.put("reasoning_format", value)
+        }
         if (toolSpecs != null && toolSpecs.length() > 0) {
             payload.put("tools", toolSpecs)
         }
@@ -920,6 +961,11 @@ class NativeToolCallingChatClient(
         val request = Request.Builder()
             .url("$normalizedBaseUrl/v1/chat/completions")
             .header(HermesApiClient.SESSION_HEADER, sessionId)
+            .apply {
+                apiKey?.takeIf { it.isNotBlank() }?.let { key ->
+                    header("Authorization", "Bearer $key")
+                }
+            }
             .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
 

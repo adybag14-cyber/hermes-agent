@@ -38,6 +38,18 @@ import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 internal fun recommendedLocalModelCardTestTag(presetId: String): String =
     "RecommendedLocalModelCard-$presetId"
 
+internal fun dispatchAcceptedLocalModelRuntimeHandoff(
+    result: LocalModelRuntimeHandoffResult,
+    onAccepted: (
+        requiredLlamaCppRuntimeLane: String?,
+        selectionGeneration: Long,
+    ) -> Unit,
+): Boolean {
+    val accepted = result as? LocalModelRuntimeHandoffResult.Accepted ?: return false
+    onAccepted(accepted.requiredLlamaCppRuntimeLane, accepted.selectionGeneration)
+    return true
+}
+
 @Composable
 fun LocalModelDownloadsSection(
     dataSaverMode: Boolean,
@@ -45,7 +57,8 @@ fun LocalModelDownloadsSection(
     onDataSaverModeChange: (Boolean) -> Unit,
     selectedBackend: String,
     onRuntimeFlavorSelected: (String) -> Unit,
-    onCompletedDownloadReady: (String) -> Boolean,
+    onRequiredLlamaCppRuntimeLane: (String?) -> Unit,
+    onCompletedDownloadReady: (runtimeFlavor: String, selectionGeneration: Long) -> Boolean,
     importModelClickOverride: (() -> Unit)? = null,
     viewModel: LocalModelDownloadsViewModel = viewModel(),
 ) {
@@ -70,12 +83,17 @@ fun LocalModelDownloadsSection(
                 item.id == pendingId && item.statusLabel == "completed"
             }
             if (completed != null) {
-                viewModel.promoteDownloadedModelForAutoStart(completed.id)
-                onRuntimeFlavorSelected(completed.runtimeFlavor)
-                val handoffAccepted = runCatching {
-                    onCompletedDownloadReady(completed.runtimeFlavor)
-                }.getOrDefault(false)
-                viewModel.completePendingAutoStartHandoff(completed.id, handoffAccepted)
+                var runtimeHandoffAccepted = false
+                val promotionAccepted = dispatchAcceptedLocalModelRuntimeHandoff(
+                    result = viewModel.promoteDownloadedModelForAutoStart(completed.id),
+                ) { _, selectionGeneration ->
+                    runtimeHandoffAccepted = runCatching {
+                        onCompletedDownloadReady(completed.runtimeFlavor, selectionGeneration)
+                    }.getOrDefault(false)
+                }
+                if (promotionAccepted) {
+                    viewModel.completePendingAutoStartHandoff(completed.id, runtimeHandoffAccepted)
+                }
             }
         }
     }
@@ -208,7 +226,9 @@ fun LocalModelDownloadsSection(
                                     onClick = {
                                         detectedModelMenuExpanded = false
                                         onRuntimeFlavorSelected(model.runtimeFlavor)
-                                        viewModel.selectDetectedModel(model.id)
+                                        onRequiredLlamaCppRuntimeLane(
+                                            viewModel.selectDetectedModel(model.id),
+                                        )
                                     },
                                 )
                             }
@@ -238,7 +258,9 @@ fun LocalModelDownloadsSection(
                             onClick = {
                                 selectedDetectedModel?.let { model ->
                                     onRuntimeFlavorSelected(model.runtimeFlavor)
-                                    viewModel.startDetectedModelDownload(dataSaverMode)
+                                    onRequiredLlamaCppRuntimeLane(
+                                        viewModel.startDetectedModelDownload(dataSaverMode),
+                                    )
                                 }
                             },
                             enabled = selectedDetectedModel?.quickStartEligible == true && !offlineAirplaneMode,
@@ -268,6 +290,12 @@ fun LocalModelDownloadsSection(
                         Text(preset.title, style = MaterialTheme.typography.titleSmall)
                         Text(strings.recommendedLocalModelDescription(preset.id, preset.description), style = MaterialTheme.typography.bodySmall)
                         Text(
+                            "${preset.repoOrUrl} · ${preset.filePath}\n" +
+                                "Revision ${preset.revision}\n" +
+                                "${preset.expectedBytes} bytes · SHA-256 ${preset.sha256}",
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        Text(
                             "${preset.runtimeFlavor} · ${strings.recommendedLocalModelTestedLabel(preset.id, preset.testedLabel)}",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.secondary,
@@ -275,7 +303,9 @@ fun LocalModelDownloadsSection(
                         Button(
                             onClick = {
                                 onRuntimeFlavorSelected(preset.runtimeFlavor)
-                                viewModel.startRecommendedModelDownload(preset.id, dataSaverMode)
+                                onRequiredLlamaCppRuntimeLane(
+                                    viewModel.startRecommendedModelDownload(preset.id, dataSaverMode),
+                                )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !offlineAirplaneMode,
@@ -349,9 +379,11 @@ fun LocalModelDownloadsSection(
                                 if (item.statusLabel == "completed") {
                                     Button(
                                         onClick = {
-                                            viewModel.setPreferredDownload(item.id)
-                                            onRuntimeFlavorSelected(item.runtimeFlavor)
-                                            onCompletedDownloadReady(item.runtimeFlavor)
+                                            dispatchAcceptedLocalModelRuntimeHandoff(
+                                                result = viewModel.setPreferredDownload(item.id),
+                                            ) { _, selectionGeneration ->
+                                                onCompletedDownloadReady(item.runtimeFlavor, selectionGeneration)
+                                            }
                                         },
                                     ) {
                                         Text(if (item.isPreferred) strings.startRuntime() else strings.useAndStart())

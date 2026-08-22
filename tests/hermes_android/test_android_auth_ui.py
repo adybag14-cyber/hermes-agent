@@ -392,7 +392,8 @@ def test_settings_provider_switch_applies_selected_provider_defaults():
     assert 'val runtimeConfigBaseUrl = ProviderPresets.runtimeConfigBaseUrl(session.runtimeProvider, resolvedBaseUrl)' in auth_runtime_applier
     assert 'runtimeConfigBaseUrl,' in auth_runtime_applier
     assert "private val restartScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)" in auth_runtime_applier
-    assert "restartRuntimeAsync(appContext)" in auth_runtime_applier
+    assert "restartRuntimeAsync(appContext, selectionGeneration)" in auth_runtime_applier
+    assert "LocalModelRuntimeSelectionAuthority.performLongIfCurrent(selectionGeneration)" in auth_runtime_applier
     assert "restartScope.launch {" in auth_runtime_applier
 
 

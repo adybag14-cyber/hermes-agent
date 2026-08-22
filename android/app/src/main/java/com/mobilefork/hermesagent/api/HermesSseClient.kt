@@ -6,7 +6,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSource
-import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -32,18 +31,9 @@ class HermesSseClient(
         onStatus: (String) -> Unit = {},
     ) {
         try {
-            val payload = JSONObject().apply {
-                put("model", request.model)
-                put("stream", true)
-                put(
-                    "messages",
-                    JSONArray().apply {
-                        request.messages.forEach { msg ->
-                            put(msg.toJsonObject())
-                        }
-                    }
-                )
-            }
+            // Keep streaming and non-streaming retries on one request contract. In
+            // particular, local Nanbeige needs its non-thinking controls on both paths.
+            val payload = request.copy(stream = true).toChatCompletionPayload()
             val chatUrl = HermesEndpointUrl.chatCompletionsUrl(normalizedBaseUrl)
             onStatus("Opening endpoint stream at ${endpointLabel(chatUrl)}")
             networkGuard(chatUrl)

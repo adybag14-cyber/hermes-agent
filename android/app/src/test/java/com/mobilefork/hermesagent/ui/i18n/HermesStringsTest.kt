@@ -7,6 +7,70 @@ import org.junit.Test
 
 class HermesStringsTest {
     @Test
+    fun llamaCppAdvancedControlsHaveCompleteSixLanguageCopy() {
+        val keys = listOf(
+            "title",
+            "description",
+            "lane",
+            "stable",
+            "stable_description",
+            "experimental",
+            "experimental_description",
+            "cache_k",
+            "cache_v",
+            "q5_explanation",
+            "flash_attention",
+            "default",
+            "auto",
+            "on",
+            "off",
+            "turbo_requirement",
+            "additional_arguments",
+            "arguments_placeholder",
+            "arguments_description",
+            "effective",
+            "apply_restart",
+            "invalid_stable_turbo",
+            "invalid_turbo_flash_off",
+            "invalid_quantized_v_flash_off",
+            "invalid_arguments",
+            "saved",
+            "danger_title",
+            "danger_description",
+            "danger_button",
+            "danger_dialog_title",
+            "danger_dialog_body",
+            "cancel",
+            "confirm",
+            "danger_starting",
+            "danger_ready",
+            "danger_failed",
+        )
+        val english = keys.associateWith { key -> llamaCppAdvancedText(AppLanguage.ENGLISH, key) }
+
+        AppLanguage.entries.forEach { language ->
+            keys.forEach { key ->
+                val localized = llamaCppAdvancedText(language, key)
+                assertTrue("$language/$key must not be blank", localized.isNotBlank())
+                assertFalse("$language/$key must not expose its lookup key", localized == key)
+            }
+        }
+        val proseKeys = keys - setOf("flash_attention", "auto")
+        AppLanguage.entries.filterNot { it == AppLanguage.ENGLISH }.forEach { language ->
+            proseKeys.forEach { key ->
+                assertFalse(
+                    "$language should localize llama.cpp text for $key",
+                    llamaCppAdvancedText(language, key) == english.getValue(key),
+                )
+            }
+        }
+        assertTrue(english.getValue("q5_explanation").contains("q5_0"))
+        assertTrue(english.getValue("q5_explanation").contains("q5_1"))
+        assertTrue(english.getValue("turbo_requirement").contains("Turbo3"))
+        assertTrue(english.getValue("danger_description").contains("not saved or exported"))
+    }
+
+    @Test
     fun androidMcpSurfaceTruthfullyReportsExternalRuntimeUnavailable() {
         AppLanguage.entries.forEach { language ->
             val strings = hermesStringsFor(language)

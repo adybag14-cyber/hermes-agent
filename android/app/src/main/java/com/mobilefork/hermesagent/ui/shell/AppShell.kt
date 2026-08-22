@@ -1,5 +1,6 @@
 package com.mobilefork.hermesagent.ui.shell
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -59,6 +60,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.AppSettings
+import com.mobilefork.hermesagent.data.AppSettingsPersistenceException
 import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.ui.auth.AuthScreen
 import com.mobilefork.hermesagent.ui.auth.AuthViewModel
@@ -144,6 +146,20 @@ fun AppShellScreen(
         shellSettings = loadShellSettingsState(appSettingsStore)
     }
 
+    fun persistShellSettings(transform: (AppSettings) -> AppSettings): Boolean {
+        return try {
+            appSettingsStore.update(transform)
+            true
+        } catch (error: AppSettingsPersistenceException) {
+            Toast.makeText(
+                context,
+                "Unable to save Hermes settings: ${error.message ?: error::class.java.simpleName}",
+                Toast.LENGTH_LONG,
+            ).show()
+            false
+        }
+    }
+
     // Re-sync shell language/theme when returning to Settings or after external saves.
     LaunchedEffect(currentSection) {
         if (currentSection == AppSection.Settings) {
@@ -153,19 +169,19 @@ fun AppShellScreen(
 
     fun updateChatDisplayMode(value: String) {
         val normalized = normalizeShellChatDisplayMode(value)
-        appSettingsStore.save(appSettingsStore.load().copy(chatDisplayMode = normalized))
+        if (!persistShellSettings { current -> current.copy(chatDisplayMode = normalized) }) return
         refreshShellSettings()
     }
 
     fun applyProvider(providerId: String): Boolean {
         val preset = ProviderPresets.find(providerId) ?: return false
-        appSettingsStore.save(
-            appSettingsStore.load().copy(
+        if (!persistShellSettings { current ->
+            current.copy(
                 provider = preset.id,
                 baseUrl = preset.baseUrl,
                 model = preset.modelHint,
-            ),
-        )
+            )
+        }) return false
         refreshShellSettings()
         return true
     }
@@ -173,7 +189,7 @@ fun AppShellScreen(
     fun applyModel(modelName: String): Boolean {
         val normalized = modelName.trim()
         if (normalized.isBlank()) return false
-        appSettingsStore.save(appSettingsStore.load().copy(model = normalized))
+        if (!persistShellSettings { current -> current.copy(model = normalized) }) return false
         refreshShellSettings()
         return true
     }

@@ -662,6 +662,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         context = getApplication<Application>(),
                         baseUrl = endpoint.baseUrl,
                         modelName = endpoint.modelName,
+                        apiKey = endpoint.apiKey,
+                        providerId = endpoint.providerId,
                         sessionId = sessionId,
                         userText = text,
                         userContentParts = userContentParts,
@@ -760,6 +762,10 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 null
             }
+            val suppressLocalLlamaReasoning = shouldSuppressLocalLlamaReasoning(
+                providerId = endpoint.providerId,
+                runtimeLane = appSettings.llamaCppRuntimeLane,
+            )
             val request = ChatCompletionRequest(
                 model = endpoint.modelName,
                 messages = buildChatRequestMessages(
@@ -775,6 +781,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 maxTokens = apiMaxTokens,
                 topP = apiTopP,
                 temperature = apiTemperature,
+                reasoningFormat = if (suppressLocalLlamaReasoning) "none" else null,
+                chatTemplateEnableThinking = if (suppressLocalLlamaReasoning) false else null,
             )
             runCatching {
                 val onDelta: (String) -> Unit = { delta ->
@@ -1038,18 +1046,24 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (HermesRuntimeManager.remoteStopRequiresAppRestart()) {
             return null
         }
+        val selectedLocalBackend = BackendKind.fromPersistedValue(
+            AppSettingsStore(getApplication<Application>()).load().onDeviceBackend,
+        )
         val localBackend = OnDeviceBackendManager.currentStatus()
         if (!chatRuntimeRoutingAllowed(localBackend)) {
             return null
         }
-        if (localBackend.started && localBackend.baseUrl.isNotBlank() && localBackend.modelName.isNotBlank()) {
+        if (shouldPreferLocalChatEndpoint(selectedLocalBackend, localBackend)) {
             return ChatEndpoint(
                 baseUrl = HermesEndpointUrl.normalizeBaseUrl(localBackend.baseUrl),
-                apiKey = null,
                 modelName = localBackend.modelName,
+                apiKey = localBackend.apiKey.takeIf { it.isNotBlank() },
                 nativeToolCalling = true,
                 providerId = localBackend.backendKind.persistedValue,
             )
+        }
+        if (!runtimeCanProvideRemoteChatEndpoint(runtime)) {
+            return null
         }
         val runtimeBaseUrl = runtime.baseUrl?.takeIf { it.isNotBlank() } ?: return null
         val normalizedRuntimeBaseUrl = runCatching {
@@ -1101,10 +1115,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun ensureRuntimeReady(): HermesRuntimeManager.RuntimeState {
         val current = HermesRuntimeManager.currentState()
         val localStatus = OnDeviceBackendManager.currentStatus()
+        val selectedLocalBackend = BackendKind.fromPersistedValue(
+            AppSettingsStore(getApplication<Application>()).load().onDeviceBackend,
+        )
         if (
             shouldReuseCachedRuntime(
+                selectedLocalBackend = selectedLocalBackend,
                 localBackendStatus = localStatus,
                 runtimeStarted = current.started,
+                runtimeBaseUrl = current.baseUrl,
                 endpointAvailable = resolveChatEndpoint(current) != null,
             )
         ) {
@@ -1291,13 +1310,44 @@ internal fun chatRuntimeRoutingAllowed(localBackendStatus: LocalBackendStatus): 
     return !localBackendStatus.requiresAppRestart
 }
 
+internal fun shouldPreferLocalChatEndpoint(
+    selectedLocalBackend: BackendKind,
+    localBackendStatus: LocalBackendStatus,
+): Boolean {
+    return selectedLocalBackend != BackendKind.NONE &&
+        localBackendStatus.backendKind == selectedLocalBackend &&
+        localBackendStatus.started &&
+        localBackendStatus.baseUrl.isNotBlank() &&
+        localBackendStatus.modelName.isNotBlank()
+}
+
+internal fun runtimeCanProvideRemoteChatEndpoint(
+    runtimeState: HermesRuntimeManager.RuntimeState,
+): Boolean = runtimeState.localBackendKind == BackendKind.NONE
+
+internal fun shouldSuppressLocalLlamaReasoning(providerId: String, runtimeLane: String): Boolean {
+    return BackendKind.fromPersistedValue(providerId) == BackendKind.LLAMA_CPP &&
+        AppSettings.normalizeLlamaCppRuntimeLane(runtimeLane) == "turboquant"
+}
+
 internal fun shouldReuseCachedRuntime(
+    selectedLocalBackend: BackendKind,
     localBackendStatus: LocalBackendStatus,
     runtimeStarted: Boolean,
+    runtimeBaseUrl: String?,
     endpointAvailable: Boolean,
 ): Boolean {
-    return chatRuntimeRoutingAllowed(localBackendStatus) && runtimeStarted && endpointAvailable
+    if (!chatRuntimeRoutingAllowed(localBackendStatus) || !runtimeStarted || !endpointAvailable) {
+        return false
+    }
+    // Cached status cannot prove that a native child is still alive. Re-enter the
+    // backend controller for every selected-local send; it cheaply reuses only after
+    // checking its owned Process and authenticated /v1/models endpoint.
+    if (selectedLocalBackend != BackendKind.NONE) return false
+    return !localBackendStatus.started && runtimeBaseUrl.normalizedRuntimeIdentity().isNotBlank()
 }
+
+private fun String?.normalizedRuntimeIdentity(): String = orEmpty().trim().trimEnd('/')
 
 internal fun extractAssistantContentFromChatCompletion(rawBody: String): String {
     val root = JSONObject(rawBody)

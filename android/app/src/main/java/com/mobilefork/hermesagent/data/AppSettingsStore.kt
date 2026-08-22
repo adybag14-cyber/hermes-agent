@@ -1,6 +1,7 @@
 package com.mobilefork.hermesagent.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -14,6 +15,11 @@ data class AppSettings(
     val portalEnabled: Boolean = true,
     val onDeviceBackend: String = "none",
     val liteRtLmSpeculativeDecodingMode: String = "auto",
+    val llamaCppRuntimeLane: String = DEFAULT_LLAMA_CPP_RUNTIME_LANE,
+    val llamaCppCacheTypeK: String = DEFAULT_LLAMA_CPP_CACHE_TYPE,
+    val llamaCppCacheTypeV: String = DEFAULT_LLAMA_CPP_CACHE_TYPE,
+    val llamaCppFlashAttention: String = DEFAULT_LLAMA_CPP_FLASH_ATTENTION,
+    val llamaCppAdditionalArguments: List<String> = emptyList(),
     val localModelMaxTokens: Int = DEFAULT_LOCAL_MODEL_MAX_TOKENS,
     val localModelTopK: Int = DEFAULT_LOCAL_MODEL_TOP_K,
     val localModelTopP: Float = DEFAULT_LOCAL_MODEL_TOP_P,
@@ -44,6 +50,14 @@ data class AppSettings(
             .put("portal_enabled", portalEnabled)
             .put("on_device_backend", onDeviceBackend)
             .put("litert_lm_speculative_decoding_mode", liteRtLmSpeculativeDecodingMode)
+            .put("llama_cpp_runtime_lane", normalizeLlamaCppRuntimeLane(llamaCppRuntimeLane))
+            .put("llama_cpp_cache_type_k", normalizeLlamaCppCacheType(llamaCppCacheTypeK))
+            .put("llama_cpp_cache_type_v", normalizeLlamaCppCacheType(llamaCppCacheTypeV))
+            .put("llama_cpp_flash_attention", normalizeLlamaCppFlashAttention(llamaCppFlashAttention))
+            .put(
+                "llama_cpp_additional_arguments",
+                JSONArray(normalizeLlamaCppAdditionalArguments(llamaCppAdditionalArguments)),
+            )
             .put("local_model_max_tokens", normalizeLocalModelMaxTokens(localModelMaxTokens))
             .put("local_model_top_k", normalizeLocalModelTopK(localModelTopK))
             .put("local_model_top_p", normalizeLocalModelTopP(localModelTopP).toDouble())
@@ -81,6 +95,11 @@ data class AppSettings(
         const val MAX_LOCAL_MODEL_TEMPERATURE = 2.0f
         const val DEFAULT_LOCAL_MODEL_ACCELERATOR = "auto"
         const val DEFAULT_LOCAL_MODEL_TOOL_MODE = "general"
+        const val DEFAULT_LLAMA_CPP_RUNTIME_LANE = "stable"
+        const val DEFAULT_LLAMA_CPP_CACHE_TYPE = "default"
+        const val DEFAULT_LLAMA_CPP_FLASH_ATTENTION = "default"
+        const val MAX_LLAMA_CPP_ADDITIONAL_ARGUMENTS = 64
+        const val MAX_LLAMA_CPP_ARGUMENT_CHARS = 256
         const val DEFAULT_THEME_PRIMARY_HEX = "#24D6A3"
         const val DEFAULT_THEME_SECONDARY_HEX = "#F1B84B"
         const val DEFAULT_THEME_BACKGROUND_HEX = "#03090C"
@@ -99,6 +118,10 @@ data class AppSettings(
                 .put("cookie")
                 .put("authorization")
 
+        val EXCLUDED_PORTABLE_FIELDS: JSONArray
+            get() = JSONArray()
+                .put("llama_cpp_additional_arguments")
+
         fun fromJson(json: JSONObject, fallback: AppSettings = AppSettings()): AppSettings {
             return fallback.copy(
                 provider = json.optString("provider", fallback.provider).ifBlank { fallback.provider },
@@ -113,6 +136,21 @@ data class AppSettings(
                     "litert_lm_speculative_decoding_mode",
                     fallback.liteRtLmSpeculativeDecodingMode,
                 ).ifBlank { fallback.liteRtLmSpeculativeDecodingMode },
+                llamaCppRuntimeLane = normalizeLlamaCppRuntimeLane(
+                    json.optString("llama_cpp_runtime_lane", fallback.llamaCppRuntimeLane),
+                ),
+                llamaCppCacheTypeK = normalizeLlamaCppCacheType(
+                    json.optString("llama_cpp_cache_type_k", fallback.llamaCppCacheTypeK),
+                ),
+                llamaCppCacheTypeV = normalizeLlamaCppCacheType(
+                    json.optString("llama_cpp_cache_type_v", fallback.llamaCppCacheTypeV),
+                ),
+                llamaCppFlashAttention = normalizeLlamaCppFlashAttention(
+                    json.optString("llama_cpp_flash_attention", fallback.llamaCppFlashAttention),
+                ),
+                llamaCppAdditionalArguments = normalizeLlamaCppAdditionalArguments(
+                    optStringList(json, "llama_cpp_additional_arguments", fallback.llamaCppAdditionalArguments),
+                ),
                 localModelMaxTokens = normalizeLocalModelMaxTokens(
                     json.optInt("local_model_max_tokens", fallback.localModelMaxTokens),
                 ),
@@ -162,19 +200,34 @@ data class AppSettings(
         }
 
         fun exportBundle(settings: AppSettings, exportedAtEpochMs: Long = System.currentTimeMillis()): JSONObject {
-            val settingsJson = settings.toJson()
+            val settingsJson = settings.toJson().apply {
+                // Arbitrary expert argv can contain local paths, tokens, or device-specific
+                // switches. It remains durable on this device but is not portable export data.
+                remove("llama_cpp_additional_arguments")
+            }
             return JSONObject()
                 .put("kind", EXPORT_KIND)
                 .put("schema_version", EXPORT_SCHEMA_VERSION)
                 .put("exported_at_epoch_ms", exportedAtEpochMs)
                 .put("secrets_included", false)
+                .put("expert_arguments_included", false)
                 .put("portable_field_count", settingsJson.length())
                 .put("redacted_secret_fields", REDACTED_SECRET_FIELDS)
+                .put("excluded_portable_fields", EXCLUDED_PORTABLE_FIELDS)
                 .put("settings", settingsJson)
         }
 
         private fun optBoolean(json: JSONObject, key: String, fallback: Boolean): Boolean {
             return if (json.has(key) && !json.isNull(key)) json.optBoolean(key, fallback) else fallback
+        }
+
+        private fun optStringList(json: JSONObject, key: String, fallback: List<String>): List<String> {
+            val array = json.optJSONArray(key) ?: return fallback
+            return buildList {
+                repeat(array.length()) { index ->
+                    if (!array.isNull(index)) add(array.optString(index))
+                }
+            }
         }
 
         fun normalizeCustomSystemPrompt(value: String): String {
@@ -229,10 +282,49 @@ data class AppSettings(
                 else -> DEFAULT_LOCAL_MODEL_TOOL_MODE
             }
         }
+
+        fun normalizeLlamaCppRuntimeLane(value: String): String {
+            return when (value.trim().lowercase()) {
+                "turboquant", "experimental" -> "turboquant"
+                else -> DEFAULT_LLAMA_CPP_RUNTIME_LANE
+            }
+        }
+
+        fun normalizeLlamaCppCacheType(value: String): String {
+            val normalized = value.trim().lowercase()
+            return when (normalized) {
+                "default", "f32", "f16", "bf16", "q8_0", "q4_0", "q4_1", "iq4_nl",
+                "q5_0", "q5_1", "turbo2", "turbo3", "turbo4" -> normalized
+                else -> DEFAULT_LLAMA_CPP_CACHE_TYPE
+            }
+        }
+
+        fun normalizeLlamaCppFlashAttention(value: String): String {
+            return when (value.trim().lowercase()) {
+                "auto", "on", "off" -> value.trim().lowercase()
+                else -> DEFAULT_LLAMA_CPP_FLASH_ATTENTION
+            }
+        }
+
+        fun normalizeLlamaCppAdditionalArguments(values: List<String>): List<String> {
+            return values
+                .flatMap { value -> value.replace("\r\n", "\n").replace('\r', '\n').split('\n') }
+                .toList()
+        }
     }
 }
 
-class AppSettingsStore(context: Context) {
+class AppSettingsPersistenceException(
+    message: String,
+    cause: Throwable? = null,
+) : IllegalStateException(message, cause)
+
+class AppSettingsStore private constructor(
+    context: Context,
+    private val commitEditor: (SharedPreferences.Editor) -> Boolean,
+) {
+    constructor(context: Context) : this(context, { editor -> editor.commit() })
+
     private val preferences = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun load(): AppSettings {
@@ -249,52 +341,105 @@ class AppSettingsStore(context: Context) {
 
     fun save(settings: AppSettings) {
         synchronized(cacheLock) {
-            // Keep the process-wide view byte-for-byte equivalent to what we persist.
-            // Caching the caller's raw values made another AppSettingsStore observe
-            // out-of-range generation knobs until the process restarted.
-            processCache = settings.copy(
-                localModelMaxTokens = AppSettings.normalizeLocalModelMaxTokens(settings.localModelMaxTokens),
-                localModelTopK = AppSettings.normalizeLocalModelTopK(settings.localModelTopK),
-                localModelTopP = AppSettings.normalizeLocalModelTopP(settings.localModelTopP),
-                localModelTemperature = AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
-                localModelAccelerator = AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator),
-                localModelToolMode = AppSettings.normalizeLocalModelToolMode(settings.localModelToolMode),
-                customSystemPrompt = AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt),
-                uiFontScale = AppSettings.normalizeUiFontScale(settings.uiFontScale),
-            )
-            preferences.edit()
-                .putString(KEY_PROVIDER, settings.provider)
-                .putString(KEY_BASE_URL, settings.baseUrl)
-                .putString(KEY_MODEL, settings.model)
-                .putString(KEY_CORR3XT_BASE_URL, settings.corr3xtBaseUrl)
-                .putBoolean(KEY_DATA_SAVER_MODE, settings.dataSaverMode)
-                .putBoolean(KEY_OFFLINE_AIRPLANE_MODE, settings.offlineAirplaneMode)
-                .putBoolean(KEY_PORTAL_ENABLED, settings.portalEnabled)
-                .putString(KEY_ON_DEVICE_BACKEND, settings.onDeviceBackend)
-                .putString(KEY_LITERT_LM_SPECULATIVE_DECODING_MODE, settings.liteRtLmSpeculativeDecodingMode)
-                .putInt(KEY_LOCAL_MODEL_MAX_TOKENS, AppSettings.normalizeLocalModelMaxTokens(settings.localModelMaxTokens))
-                .putInt(KEY_LOCAL_MODEL_TOP_K, AppSettings.normalizeLocalModelTopK(settings.localModelTopK))
-                .putFloat(KEY_LOCAL_MODEL_TOP_P, AppSettings.normalizeLocalModelTopP(settings.localModelTopP))
-                .putFloat(
-                    KEY_LOCAL_MODEL_TEMPERATURE,
-                    AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
-                )
-                .putString(KEY_LOCAL_MODEL_ACCELERATOR, AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator))
-                .putString(KEY_LOCAL_MODEL_TOOL_MODE, AppSettings.normalizeLocalModelToolMode(settings.localModelToolMode))
-                .putBoolean(KEY_API_GENERATION_KNOBS_ENABLED, settings.apiGenerationKnobsEnabled)
-                .putString(KEY_LANGUAGE_TAG, settings.languageTag)
-                .putString(KEY_CUSTOM_SYSTEM_PROMPT, AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt))
-                .putString(KEY_CHAT_DISPLAY_MODE, settings.chatDisplayMode)
-                .putBoolean(KEY_KEYWORD_HIGHLIGHTING_ENABLED, settings.keywordHighlightingEnabled)
-                .putString(KEY_THEME_PRIMARY_HEX, settings.themePrimaryHex)
-                .putString(KEY_THEME_SECONDARY_HEX, settings.themeSecondaryHex)
-                .putString(KEY_THEME_BACKGROUND_HEX, settings.themeBackgroundHex)
-                .putString(KEY_THEME_SURFACE_HEX, settings.themeSurfaceHex)
-                .putString(KEY_THEME_SURFACE_VARIANT_HEX, settings.themeSurfaceVariantHex)
-                .putString(KEY_THEME_CARD_SHAPE, settings.themeCardShape)
-                .putFloat(KEY_UI_FONT_SCALE, AppSettings.normalizeUiFontScale(settings.uiFontScale))
-                // commit() so a subsequent load() from another store never races past apply().
-                .commit()
+            val current = processCache ?: readFromPreferences()
+            val normalized = normalizeForPersistence(settings)
+            commitNormalizedLocked(normalized, rollback = current)
+            processCache = normalized
+        }
+    }
+
+    /**
+     * Atomically mutate the latest process-wide settings snapshot.
+     *
+     * Callers must finish slow work before entering this callback. The transform and durable
+     * commit share [cacheLock], so a field-scoped writer cannot replace unrelated values from a
+     * snapshot captured before another AppSettingsStore instance committed its change.
+     */
+    fun update(transform: (AppSettings) -> AppSettings): AppSettings {
+        synchronized(cacheLock) {
+            val current = processCache ?: readFromPreferences()
+            val normalized = normalizeForPersistence(transform(current))
+            commitNormalizedLocked(normalized, rollback = current)
+            processCache = normalized
+            return normalized
+        }
+    }
+
+    private fun normalizeForPersistence(settings: AppSettings): AppSettings {
+        return settings.copy(
+            localModelMaxTokens = AppSettings.normalizeLocalModelMaxTokens(settings.localModelMaxTokens),
+            localModelTopK = AppSettings.normalizeLocalModelTopK(settings.localModelTopK),
+            localModelTopP = AppSettings.normalizeLocalModelTopP(settings.localModelTopP),
+            localModelTemperature = AppSettings.normalizeLocalModelTemperature(settings.localModelTemperature),
+            localModelAccelerator = AppSettings.normalizeLocalModelAccelerator(settings.localModelAccelerator),
+            localModelToolMode = AppSettings.normalizeLocalModelToolMode(settings.localModelToolMode),
+            llamaCppRuntimeLane = AppSettings.normalizeLlamaCppRuntimeLane(settings.llamaCppRuntimeLane),
+            llamaCppCacheTypeK = AppSettings.normalizeLlamaCppCacheType(settings.llamaCppCacheTypeK),
+            llamaCppCacheTypeV = AppSettings.normalizeLlamaCppCacheType(settings.llamaCppCacheTypeV),
+            llamaCppFlashAttention = AppSettings.normalizeLlamaCppFlashAttention(settings.llamaCppFlashAttention),
+            llamaCppAdditionalArguments = AppSettings.normalizeLlamaCppAdditionalArguments(
+                settings.llamaCppAdditionalArguments,
+            ),
+            customSystemPrompt = AppSettings.normalizeCustomSystemPrompt(settings.customSystemPrompt),
+            uiFontScale = AppSettings.normalizeUiFontScale(settings.uiFontScale),
+        )
+    }
+
+    private fun editorFor(settings: AppSettings): SharedPreferences.Editor {
+        return preferences.edit()
+            .putString(KEY_PROVIDER, settings.provider)
+            .putString(KEY_BASE_URL, settings.baseUrl)
+            .putString(KEY_MODEL, settings.model)
+            .putString(KEY_CORR3XT_BASE_URL, settings.corr3xtBaseUrl)
+            .putBoolean(KEY_DATA_SAVER_MODE, settings.dataSaverMode)
+            .putBoolean(KEY_OFFLINE_AIRPLANE_MODE, settings.offlineAirplaneMode)
+            .putBoolean(KEY_PORTAL_ENABLED, settings.portalEnabled)
+            .putString(KEY_ON_DEVICE_BACKEND, settings.onDeviceBackend)
+            .putString(KEY_LITERT_LM_SPECULATIVE_DECODING_MODE, settings.liteRtLmSpeculativeDecodingMode)
+            .putString(KEY_LLAMA_CPP_RUNTIME_LANE, settings.llamaCppRuntimeLane)
+            .putString(KEY_LLAMA_CPP_CACHE_TYPE_K, settings.llamaCppCacheTypeK)
+            .putString(KEY_LLAMA_CPP_CACHE_TYPE_V, settings.llamaCppCacheTypeV)
+            .putString(KEY_LLAMA_CPP_FLASH_ATTENTION, settings.llamaCppFlashAttention)
+            .putString(KEY_LLAMA_CPP_ADDITIONAL_ARGUMENTS, JSONArray(settings.llamaCppAdditionalArguments).toString())
+            .putInt(KEY_LOCAL_MODEL_MAX_TOKENS, settings.localModelMaxTokens)
+            .putInt(KEY_LOCAL_MODEL_TOP_K, settings.localModelTopK)
+            .putFloat(KEY_LOCAL_MODEL_TOP_P, settings.localModelTopP)
+            .putFloat(KEY_LOCAL_MODEL_TEMPERATURE, settings.localModelTemperature)
+            .putString(KEY_LOCAL_MODEL_ACCELERATOR, settings.localModelAccelerator)
+            .putString(KEY_LOCAL_MODEL_TOOL_MODE, settings.localModelToolMode)
+            .putBoolean(KEY_API_GENERATION_KNOBS_ENABLED, settings.apiGenerationKnobsEnabled)
+            .putString(KEY_LANGUAGE_TAG, settings.languageTag)
+            .putString(KEY_CUSTOM_SYSTEM_PROMPT, settings.customSystemPrompt)
+            .putString(KEY_CHAT_DISPLAY_MODE, settings.chatDisplayMode)
+            .putBoolean(KEY_KEYWORD_HIGHLIGHTING_ENABLED, settings.keywordHighlightingEnabled)
+            .putString(KEY_THEME_PRIMARY_HEX, settings.themePrimaryHex)
+            .putString(KEY_THEME_SECONDARY_HEX, settings.themeSecondaryHex)
+            .putString(KEY_THEME_BACKGROUND_HEX, settings.themeBackgroundHex)
+            .putString(KEY_THEME_SURFACE_HEX, settings.themeSurfaceHex)
+            .putString(KEY_THEME_SURFACE_VARIANT_HEX, settings.themeSurfaceVariantHex)
+            .putString(KEY_THEME_CARD_SHAPE, settings.themeCardShape)
+            .putFloat(KEY_UI_FONT_SCALE, settings.uiFontScale)
+    }
+
+    private fun commitNormalizedLocked(settings: AppSettings, rollback: AppSettings) {
+        val failure = runCatching {
+            if (commitEditor(editorFor(settings))) null else {
+                AppSettingsPersistenceException("Failed to commit Hermes app settings")
+            }
+        }.fold(
+            onSuccess = { it },
+            onFailure = { error ->
+                if (error is AppSettingsPersistenceException) error else {
+                    AppSettingsPersistenceException("Failed to commit Hermes app settings", error)
+                }
+            },
+        )
+        if (failure != null) {
+            // SharedPreferences.Editor.commit() updates the process-memory map before it
+            // reports the disk result. Restore the authoritative pre-commit snapshot so a
+            // false/throw cannot leak the rejected values through a fresh preferences read.
+            runCatching { editorFor(rollback).apply() }
+            throw failure
         }
     }
 
@@ -305,12 +450,20 @@ class AppSettingsStore(context: Context) {
      */
     fun persistOnDeviceBackend(onDeviceBackend: String): Boolean {
         synchronized(cacheLock) {
-            val committed = preferences.edit()
-                .putString(KEY_ON_DEVICE_BACKEND, onDeviceBackend)
-                .commit()
+            val current = processCache ?: readFromPreferences()
+            val committed = runCatching {
+                commitEditor(preferences.edit().putString(KEY_ON_DEVICE_BACKEND, onDeviceBackend))
+            }.getOrDefault(false)
             if (committed) {
-                val current = processCache ?: readFromPreferences()
                 processCache = current.copy(onDeviceBackend = onDeviceBackend)
+            } else {
+                // See commitNormalizedLocked: a failed commit can still have changed the
+                // in-memory SharedPreferences value visible to other store instances.
+                runCatching {
+                    preferences.edit()
+                        .putString(KEY_ON_DEVICE_BACKEND, current.onDeviceBackend)
+                        .apply()
+                }
             }
             return committed
         }
@@ -351,6 +504,31 @@ class AppSettingsStore(context: Context) {
                 KEY_LITERT_LM_SPECULATIVE_DECODING_MODE,
                 "auto",
             ).orEmpty(),
+            llamaCppRuntimeLane = AppSettings.normalizeLlamaCppRuntimeLane(
+                preferences.getString(KEY_LLAMA_CPP_RUNTIME_LANE, AppSettings.DEFAULT_LLAMA_CPP_RUNTIME_LANE).orEmpty(),
+            ),
+            llamaCppCacheTypeK = AppSettings.normalizeLlamaCppCacheType(
+                preferences.getString(KEY_LLAMA_CPP_CACHE_TYPE_K, AppSettings.DEFAULT_LLAMA_CPP_CACHE_TYPE).orEmpty(),
+            ),
+            llamaCppCacheTypeV = AppSettings.normalizeLlamaCppCacheType(
+                preferences.getString(KEY_LLAMA_CPP_CACHE_TYPE_V, AppSettings.DEFAULT_LLAMA_CPP_CACHE_TYPE).orEmpty(),
+            ),
+            llamaCppFlashAttention = AppSettings.normalizeLlamaCppFlashAttention(
+                preferences.getString(
+                    KEY_LLAMA_CPP_FLASH_ATTENTION,
+                    AppSettings.DEFAULT_LLAMA_CPP_FLASH_ATTENTION,
+                ).orEmpty(),
+            ),
+            llamaCppAdditionalArguments = AppSettings.normalizeLlamaCppAdditionalArguments(
+                runCatching {
+                    val array = JSONArray(preferences.getString(KEY_LLAMA_CPP_ADDITIONAL_ARGUMENTS, "[]").orEmpty())
+                    buildList {
+                        repeat(array.length()) { index ->
+                            if (!array.isNull(index)) add(array.optString(index))
+                        }
+                    }
+                }.getOrDefault(emptyList()),
+            ),
             localModelMaxTokens = AppSettings.normalizeLocalModelMaxTokens(
                 preferences.getInt(KEY_LOCAL_MODEL_MAX_TOKENS, AppSettings.DEFAULT_LOCAL_MODEL_MAX_TOKENS),
             ),
@@ -392,15 +570,34 @@ class AppSettingsStore(context: Context) {
 
     fun importBundleJson(bundle: JSONObject): AppSettings {
         val settingsJson = bundle.optJSONObject("settings") ?: bundle
-        val imported = AppSettings.fromJson(settingsJson, load())
-        save(imported)
-        return imported
+        val expertArgumentsExplicitlyExcluded = bundle.has("settings") && (
+            bundle.optBoolean("expert_arguments_included", true).not() ||
+                bundle.optJSONArray("excluded_portable_fields")?.let { excluded ->
+                    (0 until excluded.length()).any { index ->
+                        excluded.optString(index) == "llama_cpp_additional_arguments"
+                    }
+                } == true
+            )
+        return update { current ->
+            AppSettings.fromJson(settingsJson, current).let { parsed ->
+                if (expertArgumentsExplicitlyExcluded) {
+                    parsed.copy(llamaCppAdditionalArguments = emptyList())
+                } else {
+                    parsed
+                }
+            }
+        }
     }
 
     companion object {
         private val cacheLock = Any()
         @Volatile
         private var processCache: AppSettings? = null
+
+        internal fun withCommitterForTest(
+            context: Context,
+            commitEditor: (SharedPreferences.Editor) -> Boolean,
+        ): AppSettingsStore = AppSettingsStore(context, commitEditor)
 
         private const val PREFS_NAME = "hermes_android_settings"
         private const val KEY_PROVIDER = "provider"
@@ -412,6 +609,11 @@ class AppSettingsStore(context: Context) {
         private const val KEY_PORTAL_ENABLED = "portal_enabled"
         private const val KEY_ON_DEVICE_BACKEND = "on_device_backend"
         private const val KEY_LITERT_LM_SPECULATIVE_DECODING_MODE = "litert_lm_speculative_decoding_mode"
+        private const val KEY_LLAMA_CPP_RUNTIME_LANE = "llama_cpp_runtime_lane"
+        private const val KEY_LLAMA_CPP_CACHE_TYPE_K = "llama_cpp_cache_type_k"
+        private const val KEY_LLAMA_CPP_CACHE_TYPE_V = "llama_cpp_cache_type_v"
+        private const val KEY_LLAMA_CPP_FLASH_ATTENTION = "llama_cpp_flash_attention"
+        private const val KEY_LLAMA_CPP_ADDITIONAL_ARGUMENTS = "llama_cpp_additional_arguments"
         private const val KEY_LOCAL_MODEL_MAX_TOKENS = "local_model_max_tokens"
         private const val KEY_LOCAL_MODEL_TOP_K = "local_model_top_k"
         private const val KEY_LOCAL_MODEL_TOP_P = "local_model_top_p"

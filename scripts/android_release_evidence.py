@@ -145,6 +145,7 @@ class ArtifactSpec:
     runtime: str
     expected_bytes: int
     sha256: str
+    required_llama_cpp_runtime_lane: str | None = None
 
     @property
     def backend(self) -> str:
@@ -339,11 +340,22 @@ def _recommended_model_ids(source: str, context: str) -> tuple[str, ...]:
         raise EvidenceError(f"{context} does not declare recommendedModelPresets as a source list")
     opening = source.find("(", declaration.start())
     region = _balanced_kotlin_region(source, opening, "(", ")", context)
-    constructor_count = len(re.findall(r"\bRecommendedLocalModelPreset\s*\(", region))
+    # Recommended cards may use the verified factory so repository/revision/size/hash stay bound
+    # to VerifiedLocalModelArtifacts instead of being duplicated as drifting literals here.
+    preset_declaration_count = len(
+        re.findall(
+            r"\b(?:RecommendedLocalModelPreset|verifiedRecommendedModelPreset)\s*\(",
+            region,
+        )
+    )
     model_ids = tuple(
         re.findall(r'(?m)^\s*id\s*=\s*"([a-z0-9][a-z0-9._-]*)"\s*,\s*$', region)
     )
-    if not model_ids or constructor_count != len(model_ids) or len(model_ids) != len(set(model_ids)):
+    if (
+        not model_ids
+        or preset_declaration_count != len(model_ids)
+        or len(model_ids) != len(set(model_ids))
+    ):
         raise EvidenceError(
             f"{context} recommendedModelPresets must have one unique literal safe id per preset"
         )
@@ -558,11 +570,12 @@ def parse_registered_model_matrix(source: str) -> tuple[ArtifactSpec, ...]:
             "modelId", "repoId", "revision", "fileName", "runtime", "expectedBytes",
             "sha256", "validationEvidence", "remoteManifestMatches",
         }
-        if set(raw_fields) != required_fields:
+        optional_fields = {"requiredLlamaCppRuntimeLane"}
+        if not required_fields.issubset(raw_fields) or set(raw_fields) - required_fields - optional_fields:
             raise EvidenceError(
                 "Model registry Artifact fields do not match the canonical contract; "
                 f"missing={sorted(required_fields - set(raw_fields))}, "
-                f"unexpected={sorted(set(raw_fields) - required_fields)}"
+                f"unexpected={sorted(set(raw_fields) - required_fields - optional_fields)}"
             )
 
         def string_field(name: str) -> str:
@@ -577,6 +590,15 @@ def parse_registered_model_matrix(source: str) -> tuple[ArtifactSpec, ...]:
         if raw_fields["remoteManifestMatches"] not in {"true", "false"}:
             raise EvidenceError("Model registry Artifact remoteManifestMatches must be a boolean literal")
         string_field("validationEvidence")
+        required_lane = (
+            string_field("requiredLlamaCppRuntimeLane")
+            if "requiredLlamaCppRuntimeLane" in raw_fields
+            else None
+        )
+        if required_lane is not None and required_lane not in {"stable", "turboquant"}:
+            raise EvidenceError(
+                "Model registry Artifact requiredLlamaCppRuntimeLane must be 'stable' or 'turboquant'"
+            )
         artifact = ArtifactSpec(
             model_id=string_field("modelId"),
             repository=string_field("repoId"),
@@ -585,7 +607,12 @@ def parse_registered_model_matrix(source: str) -> tuple[ArtifactSpec, ...]:
             runtime=string_field("runtime"),
             expected_bytes=int(bytes_match.group(1).replace("_", "")),
             sha256=string_field("sha256").lower(),
+            required_llama_cpp_runtime_lane=required_lane,
         )
+        if artifact.required_llama_cpp_runtime_lane is not None and artifact.runtime != "llama.cpp":
+            raise EvidenceError(
+                "Model registry Artifact requiredLlamaCppRuntimeLane is valid only for llama.cpp"
+            )
         _validate_artifact_spec(artifact)
         artifacts.append(artifact)
 
@@ -3109,6 +3136,23 @@ def _validate_model_evidence(
     details = _nested_object(payload, "details", context)
     if _integer(details, "completion_characters", f"{context}.details", positive=True) <= 0:
         raise EvidenceError(f"{context}.details.completion_characters must be positive")
+    if artifact.required_llama_cpp_runtime_lane is not None:
+        required_lane_values = {
+            "runtime_lane": artifact.required_llama_cpp_runtime_lane,
+        }
+        if artifact.required_llama_cpp_runtime_lane == "turboquant":
+            required_lane_values.update(
+                {
+                    "cache_type_k": "turbo3",
+                    "cache_type_v": "turbo3",
+                    "flash_attention": "on",
+                }
+            )
+        for field, expected in required_lane_values.items():
+            if details.get(field) != expected:
+                raise EvidenceError(
+                    f"{context}.details.{field} must equal {expected!r}, got {details.get(field)!r}"
+                )
 
     model = _required_string(payload, "device_model", context)
     serial = _required_string(payload, "device_serial", context)
@@ -5236,6 +5280,15 @@ def validate_evidence_directory(
     )
 
 
+def _artifact_manifest_record(artifact: ArtifactSpec) -> dict[str, Any]:
+    """Serialize an artifact without rewriting older manifests with null fields."""
+
+    record = asdict(artifact)
+    if record["required_llama_cpp_runtime_lane"] is None:
+        del record["required_llama_cpp_runtime_lane"]
+    return record
+
+
 def build_manifest(
     *,
     tag: str,
@@ -5275,7 +5328,9 @@ def build_manifest(
             "only_suppressed_macrobenchmark_error": "EMULATOR",
             "requires_runtime_health_and_nonempty_completion": True,
         },
-        "registered_model_matrix": [asdict(artifact) for artifact in artifacts],
+        "registered_model_matrix": [
+            _artifact_manifest_record(artifact) for artifact in artifacts
+        ],
         "tested_binaries": {
             "ui_candidate_apk_sha256": evidence.ui_candidate_apk_sha256,
             "ui_instrumentation_apk_sha256": evidence.ui_instrumentation_apk_sha256,

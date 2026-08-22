@@ -10,8 +10,9 @@ buildserver cleanup, and accepts only that exact closed transformation set.
 
 The ``render-autoupdate-preview`` phase is a separate, local-only transaction.
 It preserves the autoupdater's resolved release commit and all unrelated live
-metadata while replacing only the target build's ``gradleprops`` and
-``prebuild`` fields with the exact repository template contract. The matching
+metadata while replacing only the target build's ``sudo``, ``ndk``, ``gradle``,
+``gradleprops``, and ``prebuild`` fields with the exact repository template
+contract. The matching
 ``verify-autoupdate-preview`` phase fails closed before a pinned buildserver run
 if that source-binding contract is missing, stale, or ambiguous.
 """
@@ -36,8 +37,8 @@ if str(SCRIPT_DIR) not in sys.path:
 
 BINDING_SCHEMA = "hermes-android-fdroid-source-binding-v1"
 BINDING_FILE_NAME = "hermes-android-fdroid-source-binding.properties"
-AUTUPDATE_VERSION_NAME = "0.13.149"
-AUTUPDATE_VERSION_CODE = "144990"
+AUTUPDATE_VERSION_NAME = "0.13.150"
+AUTUPDATE_VERSION_CODE = "145090"
 GRADLE_PATH = PurePosixPath("android/app/build.gradle.kts")
 FDROID_LOCAL_PROPERTIES = (
     PurePosixPath("local.properties"),
@@ -76,6 +77,17 @@ EXPECTED_BINDING_KEYS = frozenset(
         "excludedPrefix",
     }
 )
+EXPECTED_METADATA_SUDO = (
+    "    sudo:\n"
+    "      - apt-get update\n"
+    "      - apt-get install -y python3-pip\n"
+    '      - sdkmanager "cmake;3.31.6"\n'
+)
+EXPECTED_METADATA_NDK = "    ndk: 29.0.14206865\n"
+EXPECTED_METADATA_GRADLE = (
+    "    gradle:\n"
+    "      - yes\n"
+)
 EXPECTED_METADATA_GRADLEPROPS = (
     "    gradleprops:\n"
     "      - hermesFdroidSourceBinding=true\n"
@@ -94,7 +106,7 @@ EXPECTED_METADATA_PREBUILD = (
     "        if (osName.contains(\"windows\")) \"python\" else \"python3.13\"/' "
     "build.gradle.kts\n"
 )
-METADATA_OVERLAY_FIELDS = ("gradleprops", "prebuild")
+METADATA_OVERLAY_FIELDS = ("sudo", "ndk", "gradle", "gradleprops", "prebuild")
 YAML_BUILD_START_RE = re.compile(r"^  - (?P<key>[A-Za-z][A-Za-z0-9]*):(?:[ \t]*(?P<value>.*))?$")
 YAML_BUILD_FIELD_RE = re.compile(
     r"^    (?P<key>[A-Za-z][A-Za-z0-9]*):(?:[ \t]*(?P<value>.*))?$"
@@ -628,6 +640,9 @@ def _assert_template_metadata_contract(
         version_code,
     )
     expected = {
+        "sudo": EXPECTED_METADATA_SUDO,
+        "ndk": EXPECTED_METADATA_NDK,
+        "gradle": EXPECTED_METADATA_GRADLE,
         "gradleprops": EXPECTED_METADATA_GRADLEPROPS,
         "prebuild": EXPECTED_METADATA_PREBUILD,
     }

@@ -5,6 +5,8 @@ import com.chaquo.python.Python
 import com.chaquo.python.android.AndroidPlatform
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.ProviderPresets
+import com.mobilefork.hermesagent.models.PythonRuntimeWriteAuthority
+import com.mobilefork.hermesagent.models.RuntimeSelectionSupersededException
 import com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridge
 import java.io.File
 import org.json.JSONObject
@@ -20,6 +22,8 @@ object HermesRuntimeManager {
         val baseUrl: String? = null,
         val lanBaseUrl: String? = null,
         val apiKey: String? = null,
+        /** NONE identifies a remote/Python runtime; local states must retain their owner. */
+        val localBackendKind: BackendKind = BackendKind.NONE,
         val hermesHome: String? = null,
         val modelName: String? = null,
         val probeResult: String? = null,
@@ -42,14 +46,15 @@ object HermesRuntimeManager {
     internal fun <T> routeConfiguredBackend(
         selectedLocalBackend: BackendKind,
         remoteAllowed: Boolean,
-        localLauncher: () -> LocalBackendStatus,
+        dangerouslySkipRamChecks: Boolean = false,
+        localLauncher: (dangerouslySkipRamChecks: Boolean) -> LocalBackendStatus,
         remoteLauncher: () -> T,
         remoteStopFailure: String? = null,
     ): BackendRouteResult<T> {
         if (!remoteStopFailure.isNullOrBlank()) {
             return BackendRouteResult.RemoteOwnershipFailed(remoteStopFailure)
         }
-        val localStatus = localLauncher()
+        val localStatus = localLauncher(dangerouslySkipRamChecks)
         if (localStatus.requiresAppRestart) {
             return BackendRouteResult.LocalFailed(localStatus)
         }
@@ -92,7 +97,12 @@ object HermesRuntimeManager {
     }
 
     @Synchronized
-    fun ensureStarted(context: Context): RuntimeState {
+    fun ensureStarted(
+        context: Context,
+        dangerouslySkipRamChecks: Boolean = false,
+        admissionCheck: () -> Unit = {},
+    ): RuntimeState {
+        admissionCheck()
         val appContext = context.applicationContext
         remoteStopFailureDetail?.let { detail ->
             currentState = RuntimeState(
@@ -104,17 +114,26 @@ object HermesRuntimeManager {
         }
         val settings = AppSettingsStore(appContext).load()
         val selectedLocalBackend = BackendKind.fromPersistedValue(settings.onDeviceBackend)
-        val existingLocalStatus = OnDeviceBackendManager.currentStatus()
+        val observedLocalStatus = OnDeviceBackendManager.currentStatus()
+        if (observedLocalStatus.requiresAppRestart) {
+            currentState = localFailureState(appContext, selectedLocalBackend, observedLocalStatus)
+            return currentState
+        }
+        val existingLocalStatus = localStatusBeforeCachedRemoteReuse(
+            selectedLocalBackend = selectedLocalBackend,
+            observedLocalStatus = observedLocalStatus,
+            stopAllLocalBackends = OnDeviceBackendManager::stopAll,
+        )
         if (existingLocalStatus.requiresAppRestart) {
             currentState = localFailureState(appContext, selectedLocalBackend, existingLocalStatus)
             return currentState
         }
         if (
-            selectedLocalBackend == BackendKind.NONE &&
-            currentState.started &&
-            currentState.error == null &&
-            !currentState.baseUrl.isNullOrBlank() &&
-            !currentState.apiKey.isNullOrBlank()
+            shouldReuseCachedRemoteRuntime(
+                selectedLocalBackend = selectedLocalBackend,
+                localBackendStatus = existingLocalStatus,
+                runtimeState = currentState,
+            )
         ) {
             return currentState
         }
@@ -125,10 +144,24 @@ object HermesRuntimeManager {
             val route = routeConfiguredBackend(
                 selectedLocalBackend = selectedLocalBackend,
                 remoteAllowed = !settings.offlineAirplaneMode,
-                localLauncher = {
-                    OnDeviceBackendManager.ensureConfigured(appContext, settings.onDeviceBackend)
+                dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+                localLauncher = { oneShotRamAuthority ->
+                    OnDeviceBackendManager.ensureConfigured(
+                        appContext,
+                        settings.onDeviceBackend,
+                        dangerouslySkipRamChecks = oneShotRamAuthority,
+                        admissionCheck = admissionCheck,
+                    )
                 },
-                remoteLauncher = { startRemoteRuntime(appContext, settings.provider, settings.model, settings.baseUrl) },
+                remoteLauncher = {
+                    startRemoteRuntime(
+                        appContext,
+                        settings.provider,
+                        settings.model,
+                        settings.baseUrl,
+                        admissionCheck,
+                    )
+                },
                 remoteStopFailure = remoteStopFailureDetail,
             )
             currentState = when (route) {
@@ -148,8 +181,19 @@ object HermesRuntimeManager {
                 )
                 is BackendRouteResult.Remote -> route.value
             }
+            admissionCheck()
             currentState
         } catch (exc: Throwable) {
+            if (exc is RuntimeSelectionSupersededException) {
+                // The guard is checked while Hermes runtime ownership is still held. Remove any
+                // process produced by the stale load before a newer queued selection enters.
+                val localStop = OnDeviceBackendManager.stopAll()
+                currentState = runtimeStateAfterLocalOperation(currentState, localStop)
+                if (!localStop.requiresAppRestart) {
+                    stopRemoteRuntime()
+                }
+                throw exc
+            }
             currentState = RuntimeState(
                 started = false,
                 error = exc.message ?: exc.toString(),
@@ -167,6 +211,8 @@ object HermesRuntimeManager {
         return RuntimeState(
             started = true,
             baseUrl = status.baseUrl,
+            apiKey = status.apiKey.takeIf { it.isNotBlank() },
+            localBackendKind = status.backendKind,
             hermesHome = File(context.filesDir, "hermes-home").absolutePath,
             modelName = status.modelName,
             probeResult = "native-android-${status.backendKind.persistedValue}; " +
@@ -190,6 +236,7 @@ object HermesRuntimeManager {
         }
         return RuntimeState(
             started = false,
+            localBackendKind = selectedLocalBackend,
             hermesHome = File(context.filesDir, "hermes-home").absolutePath,
             modelName = status.modelName.ifBlank { null },
             probeResult = "native-android-${selectedLocalBackend.persistedValue}; started=false; remote_fallback=false",
@@ -202,16 +249,19 @@ object HermesRuntimeManager {
         provider: String,
         model: String,
         baseUrl: String,
+        admissionCheck: () -> Unit,
     ): RuntimeState {
         ensurePythonStarted(context)
         refreshPythonRuntimeEnvironment(context)
         val effectiveBaseUrl = ProviderPresets.runtimeConfigBaseUrl(provider, baseUrl)
-        Python.getInstance().getModule("hermes_android.config_bridge").callAttr(
-            "write_runtime_config",
-            provider,
-            model,
-            effectiveBaseUrl,
-        )
+        PythonRuntimeWriteAuthority.writeWithAdmissionCheck(admissionCheck) {
+            Python.getInstance().getModule("hermes_android.config_bridge").callAttr(
+                "write_runtime_config",
+                provider,
+                model,
+                effectiveBaseUrl,
+            )
+        }
         val probeResult = PythonBootProbe.readProbe(context.applicationContext)
         val statusJson = Python.getInstance()
             .getModule("hermes_android.server_bridge")
@@ -243,23 +293,62 @@ object HermesRuntimeManager {
 
     @Synchronized
     fun stop(): RuntimeState {
-        val localStopStatus = OnDeviceBackendManager.stopAll()
+        val localStopStatus = stopLocalRuntime()
         if (localStopStatus.requiresAppRestart) {
-            currentState = RuntimeState(
-                started = false,
-                error = localStopStatus.statusMessage.ifBlank {
-                    "The local native runtime did not stop safely. Force stop and reopen Hermes."
-                },
-            )
             return currentState
         }
         return stopRemoteRuntime()
     }
 
+    /**
+     * Stop only app-owned native backends and invalidate any local-origin URL/key atomically.
+     *
+     * Runtime-manager coordination is always acquired before OnDeviceBackendManager ownership.
+     * No callback holding the on-device monitor may call back into this object.
+    */
+    @Synchronized
+    fun stopLocalRuntime(admissionCheck: () -> Unit = {}): LocalBackendStatus {
+        admissionCheck()
+        val result = OnDeviceBackendManager.withSerializedLocalMutation(
+            mutation = { _, stopAllLocalBackends -> stopAllLocalBackends() },
+            afterMutationWhileOwned = { finalStatus ->
+                // Both ownership locks are still held here, so Settings cannot start a new
+                // backend between process shutdown and local URL/key invalidation.
+                currentState = runtimeStateAfterLocalOperation(currentState, finalStatus)
+            },
+        )
+        admissionCheck()
+        return result.value
+    }
+
+    /**
+     * Serialize a model-file/store mutation against backend startup using the same lock order as
+     * [ensureStarted]: HermesRuntimeManager, then OnDeviceBackendManager.
+     */
+    @Synchronized
+    internal fun <T> withSerializedLocalBackendMutation(
+        mutation: (
+            currentStatus: LocalBackendStatus,
+            stopAllLocalBackends: () -> LocalBackendStatus,
+        ) -> T,
+        admissionCheck: () -> Unit = {},
+    ): T {
+        admissionCheck()
+        val result = OnDeviceBackendManager.withSerializedLocalMutation(
+            mutation = mutation,
+            afterMutationWhileOwned = { finalStatus ->
+                currentState = runtimeStateAfterLocalOperation(currentState, finalStatus)
+            },
+        )
+        admissionCheck()
+        return result.value
+    }
+
     /** Stop only the embedded Python/remote server, preserving any selected native model runtime. */
     @Synchronized
-    fun stopRemoteRuntime(): RuntimeState {
-        return try {
+    fun stopRemoteRuntime(admissionCheck: () -> Unit = {}): RuntimeState {
+        admissionCheck()
+        val stopped = try {
             if (Python.isStarted()) {
                 Python.getInstance()
                     .getModule("hermes_android.server_bridge")
@@ -277,13 +366,24 @@ object HermesRuntimeManager {
             )
             currentState
         }
+        admissionCheck()
+        return stopped
     }
 
     @Synchronized
-    fun restartAfterRemoteStop(context: Context): RuntimeState {
-        val stopState = stopRemoteRuntime()
+    fun restartAfterRemoteStop(
+        context: Context,
+        dangerouslySkipRamChecks: Boolean = false,
+        admissionCheck: () -> Unit = {},
+    ): RuntimeState {
+        admissionCheck()
+        val stopState = stopRemoteRuntime(admissionCheck)
         return continueAfterSuccessfulRemoteStop(stopState) {
-            ensureStarted(context.applicationContext)
+            ensureStarted(
+                context.applicationContext,
+                dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+                admissionCheck = admissionCheck,
+            )
         }
     }
 
@@ -298,6 +398,61 @@ object HermesRuntimeManager {
     fun currentState(): RuntimeState = currentState
 
     fun remoteStopRequiresAppRestart(): Boolean = !remoteStopFailureDetail.isNullOrBlank()
+
+    internal fun runtimeStateAfterLocalOperation(
+        previous: RuntimeState,
+        localStatus: LocalBackendStatus,
+    ): RuntimeState {
+        if (localStatus.requiresAppRestart) {
+            return RuntimeState(
+                started = false,
+                localBackendKind = localStatus.backendKind,
+                error = localStatus.statusMessage.ifBlank {
+                    "The local native runtime did not stop safely. Force stop and reopen Hermes."
+                },
+            )
+        }
+        if (
+            localStatus.backendKind == BackendKind.NONE &&
+            !localStatus.started &&
+            previous.localBackendKind != BackendKind.NONE
+        ) {
+            return RuntimeState(started = false)
+        }
+        return previous
+    }
+
+    /**
+     * A NONE selection is an ownership transition, not merely a routing preference. Stop every
+     * app-owned native backend before a cached remote state can bypass normal backend routing.
+     */
+    internal fun localStatusBeforeCachedRemoteReuse(
+        selectedLocalBackend: BackendKind,
+        observedLocalStatus: LocalBackendStatus,
+        stopAllLocalBackends: () -> LocalBackendStatus,
+    ): LocalBackendStatus {
+        return if (selectedLocalBackend == BackendKind.NONE) {
+            stopAllLocalBackends()
+        } else {
+            observedLocalStatus
+        }
+    }
+
+    internal fun shouldReuseCachedRemoteRuntime(
+        selectedLocalBackend: BackendKind,
+        localBackendStatus: LocalBackendStatus,
+        runtimeState: RuntimeState,
+    ): Boolean {
+        return selectedLocalBackend == BackendKind.NONE &&
+            localBackendStatus.backendKind == BackendKind.NONE &&
+            !localBackendStatus.started &&
+            !localBackendStatus.requiresAppRestart &&
+            runtimeState.localBackendKind == BackendKind.NONE &&
+            runtimeState.started &&
+            runtimeState.error == null &&
+            !runtimeState.baseUrl.isNullOrBlank() &&
+            !runtimeState.apiKey.isNullOrBlank()
+    }
 
     internal fun localBackendFallbackWarning(
         selectedLocalBackend: BackendKind,

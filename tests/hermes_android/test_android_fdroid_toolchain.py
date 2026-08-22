@@ -1,8 +1,9 @@
-from pathlib import Path
+import json
 import re
 import shlex
 import shutil
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -39,6 +40,11 @@ def fdroid_contract() -> dict[str, str]:
         "GRADLEW_FDROID_COMMIT",
         "GRADLE_MAX_WORKERS",
         "GRADLE_OPTS",
+        "ANDROID_NDK_VERSION",
+        "ANDROID_NDK_PACKAGE",
+        "ANDROID_CMAKE_VERSION",
+        "ANDROID_CMAKE_PACKAGE",
+        "ANDROID_NINJA_VERSION",
         "VERSION_NAME",
         "VERSION_CODE",
         "SOURCE_BINDING_GRADLE_PROPERTY",
@@ -92,9 +98,14 @@ def test_fdroid_toolchain_contract_is_immutable_coherent_and_parallel(fdroid_con
         f"-Dorg.gradle.workers.max={workers}",
         "-Dorg.gradle.parallel=true",
     ]
+    assert fdroid_contract["ANDROID_NDK_VERSION"] == "29.0.14206865"
+    assert fdroid_contract["ANDROID_NDK_PACKAGE"] == "ndk;29.0.14206865"
+    assert fdroid_contract["ANDROID_CMAKE_VERSION"] == "3.31.6"
+    assert fdroid_contract["ANDROID_CMAKE_PACKAGE"] == "cmake;3.31.6"
+    assert fdroid_contract["ANDROID_NINJA_VERSION"] == "1.12.1"
     assert fdroid_contract["VAGRANT_ENV_MODE"] == "env-i"
-    assert fdroid_contract["VERSION_NAME"] == "0.13.149"
-    assert fdroid_contract["VERSION_CODE"] == "144990"
+    assert fdroid_contract["VERSION_NAME"] == "0.13.150"
+    assert fdroid_contract["VERSION_CODE"] == "145090"
     assert (
         fdroid_contract["SOURCE_BINDING_GRADLE_PROPERTY"]
         == "hermesFdroidSourceBinding=true"
@@ -165,6 +176,41 @@ def test_fdroid_toolchain_guide_matches_the_executable_contract(fdroid_contract)
     assert "--render-autoupdate-preview" in guide
     assert "--verify-autoupdate-preview" in guide
     assert "without opening a GitLab merge request" in guide
+    assert fdroid_contract["ANDROID_NDK_PACKAGE"] in guide
+    assert fdroid_contract["ANDROID_CMAKE_PACKAGE"] in guide
+    assert f"Ninja {fdroid_contract['ANDROID_NINJA_VERSION']}" in guide
+
+
+def test_native_toolchain_contract_matches_lock_gradle_and_fdroid_metadata(
+    fdroid_contract,
+):
+    lock = json.loads(
+        (REPO_ROOT / "hermes_android/experimental_llama_server.lock.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
+    metadata = (REPO_ROOT / "fdroid/com.mobilefork.hermesagent.yml.template").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        fdroid_contract["ANDROID_NDK_PACKAGE"]
+        == lock["toolchain"]["android_ndk_package"]
+    )
+    assert (
+        fdroid_contract["ANDROID_CMAKE_PACKAGE"]
+        == lock["toolchain"]["android_cmake_package"]
+    )
+    assert fdroid_contract["ANDROID_CMAKE_VERSION"] == lock["toolchain"]["cmake_version"]
+    assert fdroid_contract["ANDROID_NINJA_VERSION"] == lock["toolchain"]["ninja_version"]
+    assert (
+        f'val hermesExperimentalLlamaNdkVersion = "{fdroid_contract["ANDROID_NDK_VERSION"]}"'
+        in gradle
+    )
+    assert "ndkVersion = hermesExperimentalLlamaNdkVersion" in gradle
+    assert f'    ndk: {fdroid_contract["ANDROID_NDK_VERSION"]}' in metadata
+    assert f'      - sdkmanager "{fdroid_contract["ANDROID_CMAKE_PACKAGE"]}"' in metadata
 
 
 def test_fdroid_helper_renders_and_then_fail_closed_verifies_preview(tmp_path):

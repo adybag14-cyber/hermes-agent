@@ -3377,6 +3377,14 @@ data class HermesStrings(
     }
 
     fun recommendedLocalModelDescription(presetId: String, fallback: String): String = when (presetId) {
+        "nanbeige4.2-3b-q4-k-m" -> when (language) {
+            AppLanguage.CHINESE -> "Tdamre 发布的精确 Nanbeige4.2 3B Q4_K_M 工件。它必须使用并会选择可选的 TurboQuant llama.cpp 通道，因为 Stable 无法加载旧版 nanbeige 架构。"
+            AppLanguage.SPANISH -> "Artefacto exacto Nanbeige4.2 3B Q4_K_M publicado por Tdamre. Requiere y selecciona el canal opcional TurboQuant de llama.cpp porque Stable no puede cargar la arquitectura nanbeige heredada."
+            AppLanguage.GERMAN -> "Exaktes, von Tdamre veröffentlichtes Nanbeige4.2-3B-Q4_K_M-Artefakt. Es erfordert und wählt die optionale TurboQuant-Spur für llama.cpp, da Stable die ältere nanbeige-Architektur nicht laden kann."
+            AppLanguage.PORTUGUESE -> "Artefato Nanbeige4.2 3B Q4_K_M exato publicado pela Tdamre. Ele exige e seleciona a faixa opcional TurboQuant do llama.cpp porque a Stable não consegue carregar a arquitetura nanbeige legada."
+            AppLanguage.FRENCH -> "Artefact Nanbeige4.2 3B Q4_K_M exact publié par Tdamre. Il exige et sélectionne la voie llama.cpp TurboQuant optionnelle, car Stable ne peut pas charger l’ancienne architecture nanbeige."
+            AppLanguage.ENGLISH -> fallback
+        }
         "qwen35-08b-q4km-gguf" -> when (language) {
             AppLanguage.CHINESE -> "小型 Unsloth GGUF 模型，适合在手机上快速验证可见聊天回复、文件创建/删除以及原生工具调用。"
             AppLanguage.SPANISH -> "Modelo GGUF pequeño de Unsloth para respuestas visibles rápidas, creación y borrado de archivos, y validación de herramientas nativas en teléfonos."
@@ -3437,6 +3445,14 @@ data class HermesStrings(
     }
 
     fun recommendedLocalModelTestedLabel(presetId: String, fallback: String): String = when (presetId) {
+        "nanbeige4.2-3b-q4-k-m" -> when (language) {
+            AppLanguage.CHINESE -> "Tdamre 精确 Q4_K_M · 必须使用 TurboQuant"
+            AppLanguage.SPANISH -> "Q4_K_M exacto de Tdamre · TurboQuant obligatorio"
+            AppLanguage.GERMAN -> "Exaktes Tdamre Q4_K_M · TurboQuant erforderlich"
+            AppLanguage.PORTUGUESE -> "Q4_K_M exato da Tdamre · TurboQuant obrigatório"
+            AppLanguage.FRENCH -> "Q4_K_M exact de Tdamre · TurboQuant requis"
+            AppLanguage.ENGLISH -> fallback
+        }
         "qwen35-08b-q4km-gguf" -> when (language) {
             AppLanguage.CHINESE -> "Unsloth Q4_K_M 手机工具调用"
             AppLanguage.SPANISH -> "Herramientas en teléfono con Unsloth Q4_K_M"
@@ -4447,6 +4463,20 @@ data class HermesStrings(
         "Unable to save $label credential ($errorName).", "无法保存 $label 凭据（$errorName）。",
         "No se pudo guardar la credencial de $label ($errorName).", "$label-Zugangsdaten konnten nicht gespeichert werden ($errorName).",
         "Não foi possível salvar a credencial do $label ($errorName).", "Impossible d’enregistrer l’identifiant $label ($errorName).",
+    )
+
+    fun authSigningOut(label: String): String = tr(
+        "Signing out of $label…", "正在退出 $label…", "Cerrando la sesión de $label…",
+        "$label wird abgemeldet…", "Saindo do $label…", "Déconnexion de $label…",
+    )
+
+    fun authSignOutFailed(label: String, errorName: String): String = tr(
+        "Unable to sign out of $label ($errorName); credentials were kept so you can retry.",
+        "无法退出 $label（$errorName）；凭据已保留，您可以重试。",
+        "No se pudo cerrar la sesión de $label ($errorName); se conservaron las credenciales para que pueda volver a intentarlo.",
+        "$label konnte nicht abgemeldet werden ($errorName); die Zugangsdaten wurden für einen erneuten Versuch beibehalten.",
+        "Não foi possível sair do $label ($errorName); as credenciais foram mantidas para que você possa tentar novamente.",
+        "Impossible de se déconnecter de $label ($errorName) ; les identifiants ont été conservés pour permettre une nouvelle tentative.",
     )
 
     fun providerSetupUrlInvalid(): String = tr(

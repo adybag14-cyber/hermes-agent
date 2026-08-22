@@ -4,8 +4,8 @@ set -euo pipefail
 # Run inside the official F-Droid buildserver-trixie container with this
 # repository (or a fdroiddata checkout containing its metadata) at /workspace.
 APP_ID="${APP_ID:-com.mobilefork.hermesagent}"
-VERSION_NAME="${VERSION_NAME:-0.13.149}"
-VERSION_CODE="${VERSION_CODE:-144990}"
+VERSION_NAME="${VERSION_NAME:-0.13.150}"
+VERSION_CODE="${VERSION_CODE:-145090}"
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 readonly HERMES_FDROID_TEMPLATE="${HERMES_FDROID_TEMPLATE:-${SCRIPT_DIR}/${APP_ID}.yml.template}"
 readonly HERMES_SOURCE_BINDING_HELPER="${HERMES_SOURCE_BINDING_HELPER:-${SCRIPT_DIR}/../scripts/android_fdroid_source_binding.py}"
@@ -18,6 +18,11 @@ readonly FDROIDSERVER_ARCHIVE_SIZE_BYTES="8336107"
 readonly GRADLEW_FDROID_COMMIT="c7227d147483979bb5c408048cee3533a8814fb0"
 readonly GRADLE_MAX_WORKERS="12"
 readonly GRADLE_OPTS="-Dorg.gradle.workers.max=${GRADLE_MAX_WORKERS} -Dorg.gradle.parallel=true"
+readonly ANDROID_NDK_VERSION="29.0.14206865"
+readonly ANDROID_NDK_PACKAGE="ndk;${ANDROID_NDK_VERSION}"
+readonly ANDROID_CMAKE_VERSION="3.31.6"
+readonly ANDROID_CMAKE_PACKAGE="cmake;${ANDROID_CMAKE_VERSION}"
+readonly ANDROID_NINJA_VERSION="1.12.1"
 readonly BUILDSERVER_ID_FILE=/home/vagrant/buildserverid
 readonly VAGRANT_ENV_MODE="env-i"
 readonly VAGRANT_ENV_REQUIRED_NAMES="PATH,PYTHONPATH,PYTHONUNBUFFERED,HOME,GRADLE_USER_HOME,GRADLE_OPTS,TERM,LC_ALL,LANG,ANDROID_HOME"
@@ -51,6 +56,16 @@ validate_toolchain_contract() {
     || fail "fdroidserver revision does not match the buildserver image revision"
   [[ "$GRADLE_MAX_WORKERS" =~ ^[1-9][0-9]*$ ]] \
     || fail "Gradle worker count must be a positive integer"
+  [[ "$ANDROID_NDK_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] \
+    || fail "Android NDK revision must be one exact three-component version"
+  [[ "$ANDROID_NDK_PACKAGE" == "ndk;${ANDROID_NDK_VERSION}" ]] \
+    || fail "Android NDK package does not match its locked revision"
+  [[ "$ANDROID_CMAKE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] \
+    || fail "Android CMake revision must be one exact three-component version"
+  [[ "$ANDROID_CMAKE_PACKAGE" == "cmake;${ANDROID_CMAKE_VERSION}" ]] \
+    || fail "Android CMake package does not match its locked revision"
+  [[ "$ANDROID_NINJA_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] \
+    || fail "Android Ninja revision must be one exact three-component version"
   [[ "$VERSION_NAME" =~ ^0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] \
     || fail "release version name must be an exact v0 semantic version without a v prefix"
   [[ "$VERSION_CODE" =~ ^[1-9][0-9]*$ ]] \
@@ -67,6 +82,11 @@ print_contract() {
   printf 'GRADLEW_FDROID_COMMIT=%s\n' "$GRADLEW_FDROID_COMMIT"
   printf 'GRADLE_MAX_WORKERS=%s\n' "$GRADLE_MAX_WORKERS"
   printf 'GRADLE_OPTS=%s\n' "$GRADLE_OPTS"
+  printf 'ANDROID_NDK_VERSION=%s\n' "$ANDROID_NDK_VERSION"
+  printf 'ANDROID_NDK_PACKAGE=%s\n' "$ANDROID_NDK_PACKAGE"
+  printf 'ANDROID_CMAKE_VERSION=%s\n' "$ANDROID_CMAKE_VERSION"
+  printf 'ANDROID_CMAKE_PACKAGE=%s\n' "$ANDROID_CMAKE_PACKAGE"
+  printf 'ANDROID_NINJA_VERSION=%s\n' "$ANDROID_NINJA_VERSION"
   printf 'VERSION_NAME=%s\n' "$VERSION_NAME"
   printf 'VERSION_CODE=%s\n' "$VERSION_CODE"
   printf 'SOURCE_BINDING_GRADLE_PROPERTY=hermesFdroidSourceBinding=true\n'
@@ -161,8 +181,21 @@ verify_buildserver_id "$BUILDSERVER_ID_FILE"
 set -x
 
 source /etc/profile.d/bsenv.sh
-sdkmanager "build-tools;31.0.0"
-test -x /opt/android-sdk/build-tools/31.0.0/aapt
+sdkmanager "build-tools;31.0.0" "$ANDROID_NDK_PACKAGE" "$ANDROID_CMAKE_PACKAGE"
+[[ -n "${ANDROID_HOME:-}" ]] || fail "bsenv did not define ANDROID_HOME"
+android_sdk_root="${ANDROID_HOME%/}"
+ndk_root="${android_sdk_root}/ndk/${ANDROID_NDK_VERSION}"
+cmake_bin="${android_sdk_root}/cmake/${ANDROID_CMAKE_VERSION}/bin/cmake"
+ninja_bin="${android_sdk_root}/cmake/${ANDROID_CMAKE_VERSION}/bin/ninja"
+test -x "${android_sdk_root}/build-tools/31.0.0/aapt"
+test -r "${ndk_root}/source.properties"
+test "$(sed -n 's/^Pkg.Revision[[:space:]]*=[[:space:]]*//p' "${ndk_root}/source.properties")" = "$ANDROID_NDK_VERSION"
+test -x "$cmake_bin"
+test -x "$ninja_bin"
+test "$(LC_ALL=C "$cmake_bin" --version | sed -n '1p')" = "cmake version ${ANDROID_CMAKE_VERSION}"
+test "$(LC_ALL=C "$ninja_bin" --version | sed -n '1p')" = "$ANDROID_NINJA_VERSION"
+printf 'Verified Android native toolchain: %s, cmake %s, ninja %s\n' \
+  "$ANDROID_NDK_PACKAGE" "$ANDROID_CMAKE_VERSION" "$ANDROID_NINJA_VERSION"
 
 rm -rf "$FDROIDSERVER_DIR"
 mkdir -p "$FDROIDSERVER_DIR"
@@ -204,7 +237,6 @@ export PYTHONUNBUFFERED=true
 export GRADLE_USER_HOME=/home/vagrant/.gradle
 export TERM=dumb
 
-[[ -n "${ANDROID_HOME:-}" ]] || fail "bsenv did not define ANDROID_HOME"
 VAGRANT_ENV=(
   "PATH=$PATH"
   "PYTHONPATH=$PYTHONPATH"

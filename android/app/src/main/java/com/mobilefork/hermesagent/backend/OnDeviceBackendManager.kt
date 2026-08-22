@@ -39,6 +39,8 @@ data class LocalBackendStatus(
     val completionVerified: Boolean = false,
     val completionLatencyMs: Long = 0L,
     val requiresAppRestart: Boolean = false,
+    /** Ephemeral bearer token which identifies the owned loopback llama.cpp process. */
+    val apiKey: String = "",
 )
 
 object OnDeviceBackendManager {
@@ -60,15 +62,61 @@ object OnDeviceBackendManager {
 
     fun currentStatus(): LocalBackendStatus = currentStatus
 
-    @Synchronized
-    fun ensureConfigured(context: Context, backendValue: String): LocalBackendStatus {
-        return withBackgroundPriorityIfNeeded {
+    fun ensureConfigured(
+        context: Context,
+        backendValue: String,
+        dangerouslySkipRamChecks: Boolean = false,
+        admissionCheck: () -> Unit = {},
+    ): LocalBackendStatus = withLocalBackendOwnership {
+        admissionCheck()
+        val result = withBackgroundPriorityIfNeeded {
             when (BackendKind.fromPersistedValue(backendValue)) {
                 BackendKind.NONE -> stopAll()
-                BackendKind.LLAMA_CPP -> ensureLlamaCpp(context)
+                BackendKind.LLAMA_CPP -> ensureLlamaCpp(context, dangerouslySkipRamChecks)
                 BackendKind.LITERT_LM -> ensureLiteRtLm(context)
                 BackendKind.AICORE -> ensureAICore(context)
             }
+        }
+        try {
+            // If selection changed while a model loaded, discard that old process before
+            // releasing backend ownership; a newer queued action can then start cleanly.
+            admissionCheck()
+            result
+        } catch (error: Throwable) {
+            stopAll()
+            throw error
+        }
+    }
+
+    /**
+     * One monitor guards backend admission, shutdown, and model-file mutation.
+     *
+     * Lock order is HermesRuntimeManager first, then this OnDeviceBackendManager monitor.
+     * Code inside [block] must never call back into HermesRuntimeManager. This is internal so
+     * deterministic JVM tests can prove that startup admission cannot overlap model removal.
+     */
+    @Synchronized
+    internal fun <T> withLocalBackendOwnership(block: () -> T): T = block()
+
+    internal data class SerializedLocalMutation<T>(
+        val value: T,
+        val finalStatus: LocalBackendStatus,
+    )
+
+    internal fun <T> withSerializedLocalMutation(
+        mutation: (
+            currentStatus: LocalBackendStatus,
+            stopAllLocalBackends: () -> LocalBackendStatus,
+        ) -> T,
+        afterMutationWhileOwned: (finalStatus: LocalBackendStatus) -> Unit = {},
+    ): SerializedLocalMutation<T> = withLocalBackendOwnership {
+        try {
+            val value = mutation(currentStatus, ::stopAll)
+            SerializedLocalMutation(value = value, finalStatus = currentStatus)
+        } finally {
+            // A store/filesystem exception after a successful stop must not leave the old
+            // loopback URL or bearer published when this ownership monitor is released.
+            afterMutationWhileOwned(currentStatus)
         }
     }
 
@@ -102,7 +150,10 @@ object OnDeviceBackendManager {
         }
     }
 
-    private fun ensureLlamaCpp(context: Context): LocalBackendStatus {
+    internal fun ensureLlamaCpp(
+        context: Context,
+        dangerouslySkipRamChecks: Boolean = false,
+    ): LocalBackendStatus {
         stopLiteRtLmBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
         val preferred = preferredCompletedDownload(context)
             ?: run {
@@ -134,11 +185,21 @@ object OnDeviceBackendManager {
             return artifactVerificationFailure(preferred, BackendKind.LLAMA_CPP, artifactProof.error)
         }
 
+        val settings = AppSettingsStore(context).load()
+        val launchConfig = LlamaCppLaunchConfig.fromPersistedValues(
+            lane = settings.llamaCppRuntimeLane,
+            cacheTypeK = settings.llamaCppCacheTypeK,
+            cacheTypeV = settings.llamaCppCacheTypeV,
+            flashAttention = settings.llamaCppFlashAttention,
+            additionalArguments = settings.llamaCppAdditionalArguments,
+        )
         val status = LlamaCppServerController.ensureRunning(
             context = context,
             modelPath = modelFile.absolutePath,
             requestedModelName = preferred.title,
             port = LLAMA_CPP_PORT,
+            launchConfig = launchConfig,
+            dangerouslySkipRamChecks = dangerouslySkipRamChecks,
         ).withArtifactProof(artifactProof.summary)
         currentStatus = status
         return status

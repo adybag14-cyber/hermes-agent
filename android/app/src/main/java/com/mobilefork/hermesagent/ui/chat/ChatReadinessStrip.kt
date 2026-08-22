@@ -20,6 +20,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chaquo.python.Python
 import com.mobilefork.hermesagent.backend.BackendKind
+import com.mobilefork.hermesagent.backend.LocalBackendStatus
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
 import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
@@ -49,12 +50,63 @@ internal fun pythonReadinessLabel(
     else -> "idle"
 }
 
-class ChatReadinessViewModel(application: Application) : AndroidViewModel(application) {
+internal fun chatReadinessUiState(
+    settings: AppSettings,
+    local: LocalBackendStatus,
+    pythonReady: Boolean,
+    memoryCount: Int,
+    hasDirectCredential: Boolean,
+): ChatReadinessUiState {
+    val selectedBackend = BackendKind.fromPersistedValue(settings.onDeviceBackend)
+    val selectedLocalReady = selectedBackend != BackendKind.NONE &&
+        local.backendKind == selectedBackend &&
+        local.started &&
+        !local.requiresAppRestart
+    val staleLocalBlocksRoute = local.started && local.backendKind != selectedBackend
+    val backendLabel = when {
+        local.requiresAppRestart ->
+            "${local.backendKind.persistedValue}: ${local.statusMessage.ifBlank { "force stop and reopen Hermes" }}"
+        staleLocalBlocksRoute ->
+            "${selectedBackend.persistedValue}: waiting for ${local.backendKind.persistedValue} to stop"
+        selectedLocalReady ->
+            "${local.backendKind.persistedValue} · ${local.modelName.ifBlank { "model" }}"
+        selectedBackend != BackendKind.NONE ->
+            "${selectedBackend.persistedValue}: ${local.statusMessage.ifBlank { "not started" }}"
+        else -> "remote ${settings.provider.ifBlank { "provider" }} · ${settings.model.ifBlank { "model" }}"
+    }
+    val safeRemoteSelection = selectedBackend == BackendKind.NONE &&
+        !local.started &&
+        !local.requiresAppRestart
+    val remoteReadyWithoutPython = safeRemoteSelection &&
+        settings.provider.isNotBlank() &&
+        hasDirectCredential
+    val ready = selectedLocalReady ||
+        remoteReadyWithoutPython ||
+        (safeRemoteSelection && settings.provider.isNotBlank() && pythonReady)
+    val line = buildString {
+        append(if (ready) "Ready" else "Not ready")
+        append(" · ")
+        append(backendLabel)
+        append(" · Python ")
+        append(pythonReadinessLabel(pythonReady, remoteReadyWithoutPython))
+        append(" · memory ")
+        append(memoryCount.coerceAtLeast(0))
+    }
+    return ChatReadinessUiState(line = line, ready = ready)
+}
+
+class ChatReadinessViewModel internal constructor(
+    application: Application,
+    private val settingsLoader: () -> AppSettings,
+) : AndroidViewModel(application) {
+    constructor(application: Application) : this(
+        application = application,
+        settingsLoader = { AppSettingsStore(application).load() },
+    )
+
     private val _uiState = MutableStateFlow(ChatReadinessUiState())
     val uiState: StateFlow<ChatReadinessUiState> = _uiState.asStateFlow()
 
-    @Volatile
-    private var cachedSettings: AppSettings? = null
     @Volatile
     private var memoryCountCache: Int = -1
     @Volatile
@@ -65,7 +117,7 @@ class ChatReadinessViewModel(application: Application) : AndroidViewModel(applic
             val app = getApplication<Application>()
             // Lightweight status only — never cold-start backends from the strip poller.
             val snapshot = withContext(Dispatchers.Default) {
-                val settings = cachedSettings ?: AppSettingsStore(app).load().also { cachedSettings = it }
+                val settings = loadCurrentSettingsForRefresh()
                 val local = OnDeviceBackendManager.currentStatus()
                 val pythonReady = Python.isStarted()
                 memoryCountPolls += 1
@@ -79,41 +131,21 @@ class ChatReadinessViewModel(application: Application) : AndroidViewModel(applic
                     val providerId = settings.provider.ifBlank { "openrouter" }
                     secrets.loadApiKey(providerId).isNotBlank() ||
                         secrets.loadApiKey("openrouter").isNotBlank() ||
-                        settings.baseUrl.isNotBlank()
+                    settings.baseUrl.isNotBlank()
                 }.getOrDefault(settings.provider.isNotBlank())
-                val backendLabel = when {
-                    local.started -> "${local.backendKind.persistedValue} · ${local.modelName.ifBlank { "model" }}"
-                    settings.onDeviceBackend != BackendKind.NONE.persistedValue ->
-                        "${settings.onDeviceBackend}: ${local.statusMessage.ifBlank { "not started" }}"
-                    else -> "remote ${settings.provider.ifBlank { "provider" }} · ${settings.model.ifBlank { "model" }}"
-                }
-                // Direct OpenAI-compatible providers can chat without Python gateway when a key is present.
-                val remoteReadyWithoutPython =
-                    settings.onDeviceBackend == BackendKind.NONE.persistedValue &&
-                        settings.provider.isNotBlank() &&
-                        hasDirectCredential
-                val ready = when {
-                    local.started -> true
-                    remoteReadyWithoutPython -> true
-                    settings.onDeviceBackend == BackendKind.NONE.persistedValue &&
-                        settings.provider.isNotBlank() &&
-                        pythonReady -> true
-                    else -> false
-                }
-                val line = buildString {
-                    append(if (ready) "Ready" else "Not ready")
-                    append(" · ")
-                    append(backendLabel)
-                    append(" · Python ")
-                    append(pythonReadinessLabel(pythonReady, remoteReadyWithoutPython))
-                    append(" · memory ")
-                    append(memoryCountCache.coerceAtLeast(0))
-                }
-                ChatReadinessUiState(line = line, ready = ready)
+                chatReadinessUiState(
+                    settings = settings,
+                    local = local,
+                    pythonReady = pythonReady,
+                    memoryCount = memoryCountCache,
+                    hasDirectCredential = hasDirectCredential,
+                )
             }
             _uiState.value = snapshot
         }
     }
+
+    internal fun loadCurrentSettingsForRefresh(): AppSettings = settingsLoader()
 
     fun pollWhileBooting() {
         viewModelScope.launch {
@@ -133,9 +165,6 @@ class ChatReadinessViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun invalidateSettingsCache() {
-        cachedSettings = null
-    }
 }
 
 @Composable

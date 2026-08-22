@@ -46,6 +46,11 @@ object ProviderPresets {
             description = "Release-certified small GGUF for fast llama.cpp chat and native tool checks.",
         ),
         ModelSelectionPreset(
+            id = "nanbeige4.2-3b-q4-k-m",
+            label = "Nanbeige4.2 3B Q4_K_M (GGUF · TurboQuant)",
+            description = "Exact Tdamre publisher artifact; requires the opt-in TurboQuant llama.cpp lane.",
+        ),
+        ModelSelectionPreset(
             id = "minicpm5-1b-fable5-q4-k-m",
             label = "MiniCPM5 1B Fable5 Q4_K_M (GGUF)",
             description = "Release-certified compact thinking model for the embedded llama.cpp runtime.",

@@ -3,6 +3,7 @@ package com.mobilefork.hermesagent.ui.chat
 import com.mobilefork.hermesagent.api.ChatContentPart
 import com.mobilefork.hermesagent.api.ChatMessage
 import com.mobilefork.hermesagent.backend.BackendKind
+import com.mobilefork.hermesagent.backend.HermesRuntimeManager
 import com.mobilefork.hermesagent.backend.LocalBackendStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,6 +17,14 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ChatViewModelTest {
+    @Test
+    fun onlyTurboQuantLocalLlamaSuppressesReasoningContent() {
+        assertTrue(shouldSuppressLocalLlamaReasoning("llama.cpp", "turboquant"))
+        assertFalse(shouldSuppressLocalLlamaReasoning("llama.cpp", "stable"))
+        assertFalse(shouldSuppressLocalLlamaReasoning("litert-lm", "turboquant"))
+        assertFalse(shouldSuppressLocalLlamaReasoning("openrouter", "turboquant"))
+    }
+
     @Test
     fun specialCodexAndChatGptWebProtocolsNeverUseGenericDirectChatCompletions() {
         assertFalse(usesDirectOpenAiCompatibleTransport("openai-codex"))
@@ -36,14 +45,103 @@ class ChatViewModelTest {
         )
         assertFalse(
             shouldReuseCachedRuntime(
+                selectedLocalBackend = BackendKind.LITERT_LM,
                 localBackendStatus = restartRequired,
                 runtimeStarted = true,
+                runtimeBaseUrl = "http://127.0.0.1:15436/v1",
                 endpointAvailable = true,
             ),
         )
         assertTrue(
             chatRuntimeRoutingAllowed(
                 LocalBackendStatus(backendKind = BackendKind.NONE, started = false),
+            ),
+        )
+    }
+
+    @Test
+    fun explicitLocalSelectionNeverReusesAStaleRemoteRuntime() {
+        val failedLocal = LocalBackendStatus(
+            backendKind = BackendKind.LLAMA_CPP,
+            started = false,
+            statusMessage = "RAM admission rejected",
+        )
+        assertFalse(
+            shouldReuseCachedRuntime(
+                selectedLocalBackend = BackendKind.LLAMA_CPP,
+                localBackendStatus = failedLocal,
+                runtimeStarted = true,
+                runtimeBaseUrl = "https://remote.example/v1",
+                endpointAvailable = true,
+            ),
+        )
+
+        val startedLocal = failedLocal.copy(
+            started = true,
+            baseUrl = "http://127.0.0.1:18081/v1",
+        )
+        assertFalse(
+            shouldReuseCachedRuntime(
+                selectedLocalBackend = BackendKind.LLAMA_CPP,
+                localBackendStatus = startedLocal,
+                runtimeStarted = true,
+                runtimeBaseUrl = "https://remote.example/v1",
+                endpointAvailable = true,
+            ),
+        )
+        assertFalse(
+            shouldReuseCachedRuntime(
+                selectedLocalBackend = BackendKind.LLAMA_CPP,
+                localBackendStatus = startedLocal,
+                runtimeStarted = true,
+                runtimeBaseUrl = "http://127.0.0.1:18081/v1/",
+                endpointAvailable = true,
+            ),
+        )
+    }
+
+    @Test
+    fun remoteSelectionCanReuseAHealthyCachedRemoteRuntime() {
+        assertTrue(
+            shouldReuseCachedRuntime(
+                selectedLocalBackend = BackendKind.NONE,
+                localBackendStatus = LocalBackendStatus(backendKind = BackendKind.NONE, started = false),
+                runtimeStarted = true,
+                runtimeBaseUrl = "https://remote.example/v1",
+                endpointAvailable = true,
+            ),
+        )
+    }
+
+    @Test
+    fun remoteSelectionNeverPrefersAStaleStartedLocalEndpoint() {
+        val staleLocal = LocalBackendStatus(
+            backendKind = BackendKind.LLAMA_CPP,
+            started = true,
+            baseUrl = "http://127.0.0.1:15435/v1",
+            modelName = "stale-local",
+            apiKey = "local-process-key",
+        )
+
+        assertFalse(shouldPreferLocalChatEndpoint(BackendKind.NONE, staleLocal))
+        assertTrue(shouldPreferLocalChatEndpoint(BackendKind.LLAMA_CPP, staleLocal))
+        assertFalse(shouldPreferLocalChatEndpoint(BackendKind.LITERT_LM, staleLocal))
+
+        val postStopLocalState = HermesRuntimeManager.RuntimeState(
+            started = true,
+            baseUrl = staleLocal.baseUrl,
+            apiKey = staleLocal.apiKey,
+            localBackendKind = BackendKind.LLAMA_CPP,
+            modelName = staleLocal.modelName,
+        )
+        assertFalse(runtimeCanProvideRemoteChatEndpoint(postStopLocalState))
+        assertTrue(
+            runtimeCanProvideRemoteChatEndpoint(
+                HermesRuntimeManager.RuntimeState(
+                    started = true,
+                    baseUrl = "https://remote.example/v1",
+                    apiKey = "remote-key",
+                ),
             ),
         )
     }

@@ -22,6 +22,7 @@ object VerifiedLocalModelArtifacts {
         val sha256: String,
         val validationEvidence: String,
         val remoteManifestMatches: Boolean,
+        val requiredLlamaCppRuntimeLane: String? = null,
     )
 
     data class Verification(
@@ -32,6 +33,19 @@ object VerifiedLocalModelArtifacts {
     )
 
     val releaseMatrix: List<Artifact> = listOf(
+        Artifact(
+            modelId = "nanbeige4.2-3b-q4-k-m",
+            repoId = "Tdamre/Nanbeige4.2-3B-GGUF",
+            revision = "128d8e87d69f9c1a30c37e40530c69deda96475d",
+            fileName = "Nanbeige4.2-3B-Q4_K_M.gguf",
+            runtime = "llama.cpp",
+            expectedBytes = 2_574_807_840L,
+            sha256 = "99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489",
+            validationEvidence =
+                "content-addressed legacy-metadata Nanbeige TurboQuant Android fixture; current release-device completion required",
+            remoteManifestMatches = true,
+            requiredLlamaCppRuntimeLane = "turboquant",
+        ),
         Artifact(
             modelId = "minicpm5-1b-web-litert-lm",
             repoId = "Tdamre/MiniCPM5-1B-litert-lm",
