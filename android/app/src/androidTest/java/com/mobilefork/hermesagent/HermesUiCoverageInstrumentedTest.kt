@@ -367,10 +367,8 @@ class HermesUiCoverageInstrumentedTest {
         selectLanguage(AppLanguage.ENGLISH, strings)
         composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("HermesSettingsContentList")
-            .performScrollToIndex(MODELS_LOCAL_DOWNLOADS_ITEM_INDEX)
-
         val presets = LocalModelDownloadsViewModel.recommendedModelPresets
+        scrollSettingsToTag(recommendedLocalModelCardTestTag(presets.first().id))
         listOf(presets.first(), presets.last()).distinctBy { preset -> preset.id }.forEach { preset ->
             assertRecommendedModelCardVisible(
                 preset = preset,
@@ -409,8 +407,7 @@ class HermesUiCoverageInstrumentedTest {
             selectLanguage(language, strings)
             composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
             composeRule.waitForIdle()
-            composeRule.onNodeWithTag("HermesSettingsContentList")
-                .performScrollToIndex(MODELS_LOCAL_DOWNLOADS_ITEM_INDEX)
+            scrollSettingsToTag(recommendedLocalModelCardTestTag(targetPresets.first().id))
 
             targetPresets.forEach { preset ->
                 val description = strings.recommendedLocalModelDescription(preset.id, preset.description)
@@ -1890,7 +1887,6 @@ class HermesUiCoverageInstrumentedTest {
         private const val SHAPE_PROOF_SURFACE = "#000000"
         private const val SHAPE_PROOF_SURFACE_VARIANT = "#FFFFFF"
         private const val THEME_APPEARANCE_CARD_ITEM_INDEX = 1
-        private const val MODELS_LOCAL_DOWNLOADS_ITEM_INDEX = 3
         private const val APPEARANCE_CORNER_REFERENCE_INSET_DP = 8
         private const val APPEARANCE_CORNER_MAX_DEPTH_DP = 24
         private const val APPEARANCE_CORNER_COLOR_TOLERANCE = 42
