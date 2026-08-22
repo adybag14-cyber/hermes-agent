@@ -16,6 +16,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -44,6 +45,13 @@ TOOL_VERSION_PATTERN = re.compile(r"(?:0|[1-9][0-9]*)(?:\.(?:0|[1-9][0-9]*)){2}"
 NEEDED_PATTERN = re.compile(r"\(NEEDED\).*\[([^\]]+)\]")
 MAX_DOWNLOAD_ATTEMPTS = 3
 DOWNLOAD_CHUNK_BYTES = 1024 * 1024
+CANONICAL_SOURCE_PREFIX = "/usr/src/hermes-experimental-llama/source"
+CANONICAL_BUILD_PREFIX = "/usr/src/hermes-experimental-llama/build"
+PATH_PREFIX_MAP_OPTIONS = (
+    "-ffile-prefix-map",
+    "-fmacro-prefix-map",
+    "-fdebug-prefix-map",
+)
 
 
 def canonical_json_bytes(payload: Any) -> bytes:
@@ -620,6 +628,53 @@ def deterministic_build_environment(lock: dict[str, Any]) -> dict[str, str]:
     return environment
 
 
+def deterministic_compiler_path_map_options(source_dir: Path, build_dir: Path) -> tuple[str, ...]:
+    mappings = (
+        (source_dir.resolve().as_posix(), CANONICAL_SOURCE_PREFIX),
+        (build_dir.resolve().as_posix(), CANONICAL_BUILD_PREFIX),
+    )
+    options: list[str] = []
+    for local_root, canonical_root in mappings:
+        # Clang's prefix-map spelling uses '=' as its delimiter. Fail before
+        # configuration rather than silently generate an ambiguous mapping.
+        if "=" in local_root or any(character in local_root for character in "\0\r\n"):
+            raise RuntimeError(f"local compiler path cannot be represented safely: {local_root!r}")
+        options.extend(
+            f"{option}={local_root}={canonical_root}" for option in PATH_PREFIX_MAP_OPTIONS
+        )
+    return tuple(options)
+
+
+def cmake_compiler_flags(options: Iterable[str]) -> str:
+    arguments = list(options)
+    # CMAKE_<LANG>_FLAGS is a command-line string fragment, not a CMake list.
+    # Quote for the build host's native shell so roots containing whitespace or
+    # shell metacharacters remain one Clang argument without semicolon joining.
+    if os.name == "nt":
+        return subprocess.list2cmdline(arguments)
+    return shlex.join(arguments)
+
+
+def verify_no_local_path_leaks(binary: Path, roots: Iterable[Path]) -> None:
+    payload = binary.read_bytes().lower()
+    for root in roots:
+        resolved = root.resolve()
+        native = str(resolved)
+        spellings = {
+            native,
+            resolved.as_posix(),
+            native.replace("\\", "/"),
+            native.replace("/", "\\"),
+        }
+        for spelling in spellings:
+            for encoding in ("utf-8", "utf-16-le", "utf-16-be"):
+                needle = spelling.encode(encoding).lower()
+                if needle and needle in payload:
+                    raise RuntimeError(
+                        f"{binary} embeds non-reproducible local build path {spelling!r}"
+                    )
+
+
 def configure_and_build_abi(
     *,
     lock: dict[str, Any],
@@ -651,6 +706,15 @@ def configure_and_build_abi(
         f"-DANDROID_NDK={ndk_dir}",
     ]
     command.extend(f"-D{key}={value}" for key, value in sorted(build["cmake_defines"].items()))
+    path_map_flags = cmake_compiler_flags(
+        deterministic_compiler_path_map_options(source_dir, build_dir)
+    )
+    command.extend(
+        (
+            f"-DCMAKE_C_FLAGS={path_map_flags}",
+            f"-DCMAKE_CXX_FLAGS={path_map_flags}",
+        )
+    )
     subprocess.run(command, check=True, env=environment)
     verify_configured_build_identity(build_dir, lock)
     subprocess.run(
@@ -848,10 +912,11 @@ def build_experimental_server(
         artifacts: dict[str, dict[str, Any]] = {}
         for abi in android["abis"]:
             print(f"Configuring pinned experimental llama-server for {abi}...")
+            build_dir = work_dir / "build" / abi
             binary = configure_and_build_abi(
                 lock=lock,
                 source_dir=source_dir,
-                build_dir=work_dir / "build" / abi,
+                build_dir=build_dir,
                 abi=abi,
                 ndk_dir=ndk_dir,
                 cmake=cmake,
@@ -860,6 +925,7 @@ def build_experimental_server(
                 environment=environment,
             )
             subprocess.run([str(strip), "--strip-unneeded", str(binary)], check=True, env=environment)
+            verify_no_local_path_leaks(binary, (work_dir, source_dir, build_dir))
             elf = verify_android_elf(
                 binary,
                 abi=abi,
@@ -900,6 +966,10 @@ def build_experimental_server(
                 "source_date_epoch": environment["SOURCE_DATE_EPOCH"],
                 "cmake_version": actual_cmake_version,
                 "ninja_version": actual_ninja_version,
+                "compiler_path_prefixes": {
+                    "source": CANONICAL_SOURCE_PREFIX,
+                    "build": CANONICAL_BUILD_PREFIX,
+                },
             },
             "capabilities": lock["capabilities"],
             "license_artifacts": lock["license_artifacts"],
