@@ -264,6 +264,9 @@ class LlamaCppLaunchConfigTest {
             "--no-slots" to "endpoint, file, and privacy policy",
             "--no-skip-chat-parsing" to "chat and tool protocol",
             "--no-prefill-assistant" to "chat and tool protocol",
+            "-lcs" to "unpreflighted speculative cache loading",
+            "-lcd" to "unpreflighted speculative cache loading",
+            "-rea" to "chat and tool protocol",
         )
 
         rejected.forEach { (flag, expectedOwner) ->

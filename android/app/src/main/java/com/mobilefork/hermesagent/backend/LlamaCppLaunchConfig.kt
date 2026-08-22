@@ -452,10 +452,13 @@ internal data class LlamaCppLaunchConfig(
                 "--control-vector-layer-range",
                 "--override-kv",
             ).forEach { put(it, "additional model artifacts and model metadata") }
+            listOf("-lcs", "-lcd")
+                .forEach { put(it, "unpreflighted speculative cache loading") }
             listOf(
                 "--chat-template",
                 "--chat-template-file",
                 "--chat-template-kwargs",
+                "-rea",
                 "--reasoning-format",
                 "--reasoning-budget",
                 "--skip-chat-parsing",

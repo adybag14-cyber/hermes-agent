@@ -120,7 +120,7 @@ class LlamaCppAdvancedSettingsInstrumentedTest {
             // A trailing blank argv line must remain in the raw draft and disable Apply.
             composeRule.onNodeWithTag("LlamaCppAdditionalArguments")
                 .performScrollTo()
-                .performTextReplacement("--load-mode\n")
+                .performTextReplacement("--threads-batch\n")
             val argvValidation = llamaCppAdvancedText(language, "invalid_arguments")
             composeRule.onNodeWithTag("LlamaCppAdvancedValidationError")
                 .performScrollTo()
@@ -131,7 +131,7 @@ class LlamaCppAdvancedSettingsInstrumentedTest {
 
             composeRule.onNodeWithTag("LlamaCppAdditionalArguments")
                 .performScrollTo()
-                .performTextReplacement("--load-mode\nmmap")
+                .performTextReplacement("--threads-batch\n4")
             composeRule.onAllNodesWithTag("LlamaCppAdvancedValidationError").assertCountEquals(0)
             composeRule.onNodeWithTag("LlamaCppEffectiveArgumentsSummary")
                 .performScrollTo()

@@ -139,6 +139,99 @@ def test_locked_cmake_and_ninja_reject_version_mismatch_before_build(tmp_path, m
         experimental.resolve_locked_cmake_and_ninja(lock, str(cmake), str(ninja))
 
 
+def test_cmake_configuration_maps_random_source_and_build_roots_after_locked_defines(
+    tmp_path,
+    monkeypatch,
+):
+    lock = experimental.load_lock_file(LOCK_FILE)
+    source_dir = tmp_path / "random source root"
+    build_dir = tmp_path / "random build root"
+    source_dir.mkdir()
+    build_info = build_dir / "common" / "build-info.cpp"
+    build_info.parent.mkdir(parents=True)
+    build_info.write_text(
+        "int LLAMA_BUILD_NUMBER = "
+        + lock["build"]["cmake_defines"]["LLAMA_BUILD_NUMBER"]
+        + ";\nchar const * LLAMA_COMMIT = \""
+        + lock["source"]["commit"]
+        + "\";\n",
+        encoding="utf-8",
+    )
+    binary = build_dir / "bin" / "llama-server"
+    binary.parent.mkdir(parents=True)
+    binary.write_bytes(b"fixture")
+    commands = []
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        return SimpleNamespace(stdout="", stderr="", returncode=0)
+
+    monkeypatch.setattr(experimental.subprocess, "run", fake_run)
+
+    result = experimental.configure_and_build_abi(
+        lock=lock,
+        source_dir=source_dir,
+        build_dir=build_dir,
+        abi="arm64-v8a",
+        ndk_dir=tmp_path / "ndk",
+        cmake=tmp_path / "cmake",
+        ninja=tmp_path / "ninja",
+        jobs=12,
+        environment=experimental.deterministic_build_environment(lock),
+    )
+
+    assert result == binary
+    configure = commands[0]
+    options = experimental.deterministic_compiler_path_map_options(source_dir, build_dir)
+    assert options == tuple(
+        f"{option}={local_root}={canonical_root}"
+        for local_root, canonical_root in (
+            (source_dir.resolve().as_posix(), experimental.CANONICAL_SOURCE_PREFIX),
+            (build_dir.resolve().as_posix(), experimental.CANONICAL_BUILD_PREFIX),
+        )
+        for option in experimental.PATH_PREFIX_MAP_OPTIONS
+    )
+    rendered_flags = experimental.cmake_compiler_flags(options)
+    c_flags = f"-DCMAKE_C_FLAGS={rendered_flags}"
+    cxx_flags = f"-DCMAKE_CXX_FLAGS={rendered_flags}"
+    assert configure.count(c_flags) == 1
+    assert configure.count(cxx_flags) == 1
+    assert ";" not in rendered_flags
+    for option in options:
+        assert option in rendered_flags
+    last_locked_define = max(
+        configure.index(f"-D{key}={value}")
+        for key, value in lock["build"]["cmake_defines"].items()
+    )
+    assert last_locked_define < configure.index(c_flags) < configure.index(cxx_flags)
+
+
+@pytest.mark.parametrize("separator", ["/", "\\"])
+def test_local_path_leak_scan_rejects_case_and_separator_variants(tmp_path, separator):
+    root = tmp_path / "Random Build Root"
+    root.mkdir()
+    leaked = str(root.resolve()).replace("\\", separator).replace("/", separator).upper()
+    binary = tmp_path / "llama-server"
+    binary.write_bytes(b"ELF fixture\0" + leaked.encode("utf-8") + b"\0")
+
+    with pytest.raises(RuntimeError, match="non-reproducible local build path"):
+        experimental.verify_no_local_path_leaks(binary, (root,))
+
+
+def test_local_path_leak_scan_accepts_only_canonical_prefixes(tmp_path):
+    binary = tmp_path / "llama-server"
+    binary.write_bytes(
+        (experimental.CANONICAL_SOURCE_PREFIX + "\0" + experimental.CANONICAL_BUILD_PREFIX).encode(
+            "utf-8"
+        )
+    )
+
+    experimental.verify_no_local_path_leaks(
+        binary,
+        (tmp_path / "random-source", tmp_path / "random-build"),
+    )
+
+
 def test_verified_archive_cache_never_redownloads_matching_bytes(tmp_path, monkeypatch):
     payload = b"immutable source archive"
     archive = tmp_path / "source.tar.gz"
@@ -403,6 +496,21 @@ def test_packaged_manifest_excludes_the_ambient_git_banner():
     assert 'print(f"Using host Git patch tool (diagnostic only): {git_version}")' in build_body
     assert '"git_version"' not in manifest_body
     assert "command_version(git)" not in manifest_body
+    assert '"source": CANONICAL_SOURCE_PREFIX' in manifest_body
+    assert '"build": CANONICAL_BUILD_PREFIX' in manifest_body
+    assert "source_dir" not in manifest_body
+    assert "build_dir" not in manifest_body
+
+
+def test_local_path_scan_runs_after_strip_and_before_elf_attestation():
+    script = (REPO_ROOT / "scripts/prepare_android_experimental_llama_server.py").read_text(
+        encoding="utf-8"
+    )
+    build_body = script.split("def build_experimental_server(", 1)[1].split("\ndef main()", 1)[0]
+
+    assert build_body.index('"--strip-unneeded"') < build_body.index(
+        "verify_no_local_path_leaks"
+    ) < build_body.index("verify_android_elf")
 
 
 def test_build_environment_uses_locked_source_date_epoch_not_ambient(monkeypatch):
