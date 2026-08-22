@@ -38,4 +38,5 @@ android/pip-stubs/**/*.egg-info/PKG-INFO text eol=lf
 verification-screenshots/** -text -eol
 
 # Compatibility patches are byte-hashed; blank context lines retain their unified-diff marker.
-hermes_android/patches/*.patch text eol=lf whitespace=-blank-at-eol
+hermes_android/patches/*.patch text eol=lf
+hermes_android/patches/*.patch whitespace=-blank-at-eol
