@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
@@ -23,6 +25,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -52,6 +55,7 @@ import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
+import com.mobilefork.hermesagent.ui.i18n.llamaCppAdvancedText
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
 import java.util.Locale
 
@@ -187,6 +191,23 @@ fun SettingsScreen(
                         )
                     }
                     item {
+                        LlamaCppAdvancedCard(
+                            runtimeLane = uiState.llamaCppRuntimeLane,
+                            cacheTypeK = uiState.llamaCppCacheTypeK,
+                            cacheTypeV = uiState.llamaCppCacheTypeV,
+                            flashAttention = uiState.llamaCppFlashAttention,
+                            additionalArguments = uiState.llamaCppAdditionalArguments,
+                            onRuntimeLaneChange = viewModel::updateLlamaCppRuntimeLane,
+                            onCacheTypeKChange = viewModel::updateLlamaCppCacheTypeK,
+                            onCacheTypeVChange = viewModel::updateLlamaCppCacheTypeV,
+                            onFlashAttentionChange = viewModel::updateLlamaCppFlashAttention,
+                            onAdditionalArgumentsChange = viewModel::updateLlamaCppAdditionalArguments,
+                            onApplyAndRestart = viewModel::applyLlamaCppAdvancedSettings,
+                            onDangerousOneShotStart = viewModel::tryLlamaCppDespiteRamWarning,
+                            language = strings.language,
+                        )
+                    }
+                    item {
                         ModelGenerationConfigCard(
                             maxTokens = uiState.localModelMaxTokens,
                             topK = uiState.localModelTopK,
@@ -215,7 +236,8 @@ fun SettingsScreen(
                             onDataSaverModeChange = viewModel::updateDataSaverMode,
                             selectedBackend = uiState.onDeviceBackend,
                             onRuntimeFlavorSelected = viewModel::syncOnDeviceBackendWithRuntimeFlavor,
-                            onCompletedDownloadReady = viewModel::startLocalRuntimeForFlavor,
+                            onRequiredLlamaCppRuntimeLane = viewModel::syncPersistedRequiredLlamaCppRuntimeLane,
+                            onCompletedDownloadReady = viewModel::startAcceptedLocalRuntimeHandoff,
                         )
                     }
                     }
@@ -283,6 +305,319 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+}
+
+private val baseLlamaCppCacheTypes = listOf(
+    "default",
+    "f32",
+    "f16",
+    "bf16",
+    "q8_0",
+    "q4_0",
+    "q4_1",
+    "iq4_nl",
+    "q5_0",
+    "q5_1",
+)
+
+private val turboQuantCacheTypes = baseLlamaCppCacheTypes + listOf("turbo2", "turbo3", "turbo4")
+
+@Composable
+private fun LlamaCppAdvancedCard(
+    runtimeLane: String,
+    cacheTypeK: String,
+    cacheTypeV: String,
+    flashAttention: String,
+    additionalArguments: List<String>,
+    onRuntimeLaneChange: (String) -> Unit,
+    onCacheTypeKChange: (String) -> Unit,
+    onCacheTypeVChange: (String) -> Unit,
+    onFlashAttentionChange: (String) -> Unit,
+    onAdditionalArgumentsChange: (List<String>) -> Unit,
+    onApplyAndRestart: () -> Unit,
+    onDangerousOneShotStart: () -> Unit,
+    language: AppLanguage,
+) {
+    val normalizedLane = AppSettings.normalizeLlamaCppRuntimeLane(runtimeLane)
+    val normalizedK = AppSettings.normalizeLlamaCppCacheType(cacheTypeK)
+    val normalizedV = AppSettings.normalizeLlamaCppCacheType(cacheTypeV)
+    val normalizedFlash = AppSettings.normalizeLlamaCppFlashAttention(flashAttention)
+    val cacheTypes = if (normalizedLane == "turboquant") turboQuantCacheTypes else baseLlamaCppCacheTypes
+    val validationKey = llamaCppAdvancedValidationKey(
+        lane = normalizedLane,
+        cacheTypeK = normalizedK,
+        cacheTypeV = normalizedV,
+        flashAttention = normalizedFlash,
+        additionalArguments = additionalArguments,
+    )
+    var additionalArgumentsText by rememberSaveable {
+        mutableStateOf(additionalArguments.joinToString("\n"))
+    }
+    var showDangerConfirmation by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(additionalArguments) {
+        val draftTokens = llamaCppArgumentLines(additionalArgumentsText)
+        if (draftTokens != additionalArguments) {
+            additionalArgumentsText = additionalArguments.joinToString("\n")
+        }
+    }
+
+    if (showDangerConfirmation) {
+        AlertDialog(
+            modifier = Modifier.testTag("LlamaCppDangerousRamDialog"),
+            onDismissRequest = { showDangerConfirmation = false },
+            title = { Text(llamaCppAdvancedText(language, "danger_dialog_title")) },
+            text = { Text(llamaCppAdvancedText(language, "danger_dialog_body")) },
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.testTag("LlamaCppDangerousRamCancel"),
+                    onClick = { showDangerConfirmation = false },
+                ) {
+                    Text(llamaCppAdvancedText(language, "cancel"))
+                }
+            },
+            confirmButton = {
+                Button(
+                    modifier = Modifier.testTag("LlamaCppDangerousRamConfirm"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                    onClick = {
+                        showDangerConfirmation = false
+                        onDangerousOneShotStart()
+                    },
+                ) {
+                    Text(llamaCppAdvancedText(language, "confirm"))
+                }
+            },
+        )
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("LlamaCppAdvancedCard"),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(llamaCppAdvancedText(language, "title"), style = MaterialTheme.typography.titleMedium)
+            Text(llamaCppAdvancedText(language, "description"), style = MaterialTheme.typography.bodySmall)
+
+            Text(llamaCppAdvancedText(language, "lane"), style = MaterialTheme.typography.titleSmall)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                LlamaCppChoiceButton(
+                    value = "stable",
+                    label = llamaCppAdvancedText(language, "stable"),
+                    selectedValue = normalizedLane,
+                    testTagPrefix = "LlamaCppRuntimeLane",
+                    description = llamaCppAdvancedText(language, "lane"),
+                    onSelect = onRuntimeLaneChange,
+                )
+                LlamaCppChoiceButton(
+                    value = "turboquant",
+                    label = llamaCppAdvancedText(language, "experimental"),
+                    selectedValue = normalizedLane,
+                    testTagPrefix = "LlamaCppRuntimeLane",
+                    description = llamaCppAdvancedText(language, "lane"),
+                    onSelect = onRuntimeLaneChange,
+                )
+            }
+            Text(
+                llamaCppAdvancedText(
+                    language,
+                    if (normalizedLane == "turboquant") "experimental_description" else "stable_description",
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            LlamaCppCacheTypeSelector(
+                title = llamaCppAdvancedText(language, "cache_k"),
+                value = normalizedK,
+                choices = cacheTypes,
+                testTagPrefix = "LlamaCppCacheK",
+                language = language,
+                onSelect = onCacheTypeKChange,
+            )
+            LlamaCppCacheTypeSelector(
+                title = llamaCppAdvancedText(language, "cache_v"),
+                value = normalizedV,
+                choices = cacheTypes,
+                testTagPrefix = "LlamaCppCacheV",
+                language = language,
+                onSelect = onCacheTypeVChange,
+            )
+            Text(llamaCppAdvancedText(language, "q5_explanation"), style = MaterialTheme.typography.bodySmall)
+
+            Text(llamaCppAdvancedText(language, "flash_attention"), style = MaterialTheme.typography.titleSmall)
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf("default", "auto", "on", "off").forEach { value ->
+                    LlamaCppChoiceButton(
+                        value = value,
+                        label = llamaCppAdvancedText(language, value),
+                        selectedValue = normalizedFlash,
+                        testTagPrefix = "LlamaCppFlashAttention",
+                        description = llamaCppAdvancedText(language, "flash_attention"),
+                        onSelect = onFlashAttentionChange,
+                    )
+                }
+            }
+            Text(llamaCppAdvancedText(language, "turbo_requirement"), style = MaterialTheme.typography.bodySmall)
+
+            OutlinedTextField(
+                value = additionalArgumentsText,
+                onValueChange = { value ->
+                    additionalArgumentsText = value
+                    onAdditionalArgumentsChange(llamaCppArgumentLines(value))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("LlamaCppAdditionalArguments")
+                    .semantics {
+                        contentDescription = llamaCppAdvancedText(language, "additional_arguments")
+                    },
+                label = { Text(llamaCppAdvancedText(language, "additional_arguments")) },
+                placeholder = { Text(llamaCppAdvancedText(language, "arguments_placeholder")) },
+                minLines = 3,
+                maxLines = 8,
+            )
+            Text(llamaCppAdvancedText(language, "arguments_description"), style = MaterialTheme.typography.bodySmall)
+
+            Text(llamaCppAdvancedText(language, "effective"), style = MaterialTheme.typography.titleSmall)
+            Text(
+                text = "${llamaCppAdvancedText(language, "lane")}: $normalizedLane · " +
+                    "K=$normalizedK · V=$normalizedV · " +
+                    "${llamaCppAdvancedText(language, "flash_attention")}: $normalizedFlash · " +
+                    "${llamaCppAdvancedText(language, "additional_arguments")}: ${additionalArguments.size}",
+                modifier = Modifier.testTag("LlamaCppEffectiveArgumentsSummary"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            validationKey?.let { key ->
+                Text(
+                    text = llamaCppAdvancedText(language, key),
+                    modifier = Modifier
+                        .testTag("LlamaCppAdvancedValidationError")
+                        .semantics { contentDescription = llamaCppAdvancedText(language, key) },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("ApplyLlamaCppAdvancedSettingsButton"),
+                onClick = onApplyAndRestart,
+                enabled = validationKey == null,
+            ) {
+                Text(llamaCppAdvancedText(language, "apply_restart"))
+            }
+
+            Text(
+                llamaCppAdvancedText(language, "danger_title"),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Text(
+                llamaCppAdvancedText(language, "danger_description"),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("TryLlamaCppDespiteRamWarningButton")
+                    .semantics {
+                        contentDescription = llamaCppAdvancedText(language, "danger_button")
+                    },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                onClick = { showDangerConfirmation = true },
+                enabled = validationKey == null,
+            ) {
+                Text(llamaCppAdvancedText(language, "danger_button"))
+            }
+        }
+    }
+}
+
+internal fun llamaCppArgumentLines(value: String): List<String> {
+    if (value.isEmpty()) return emptyList()
+    return value.replace("\r\n", "\n").replace('\r', '\n').split('\n')
+}
+
+@Composable
+private fun LlamaCppCacheTypeSelector(
+    title: String,
+    value: String,
+    choices: List<String>,
+    testTagPrefix: String,
+    language: AppLanguage,
+    onSelect: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = "$title $value" },
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            choices.forEach { choice ->
+                LlamaCppChoiceButton(
+                    value = choice,
+                    label = if (choice == "default") {
+                        llamaCppAdvancedText(language, "default")
+                    } else {
+                        choice
+                    },
+                    selectedValue = value,
+                    testTagPrefix = testTagPrefix,
+                    description = title,
+                    onSelect = onSelect,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LlamaCppChoiceButton(
+    value: String,
+    label: String,
+    selectedValue: String,
+    testTagPrefix: String,
+    description: String,
+    onSelect: (String) -> Unit,
+) {
+    val isSelected = selectedValue == value
+    Button(
+        modifier = Modifier
+            .testTag("$testTagPrefix-$value")
+            .semantics {
+                selected = isSelected
+                contentDescription = "$description: $label"
+            },
+        onClick = { onSelect(value) },
+        enabled = !isSelected,
+    ) {
+        Text(if (isSelected) "✓ $label" else label)
     }
 }
 

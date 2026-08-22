@@ -21,6 +21,12 @@ data class ModelCatalogEntry(
     /** Branch or revision to download from */
     val revision: String = "main",
 
+    /** Exact publisher file for pinned catalog entries; blank keeps legacy repository discovery. */
+    val filePath: String = "",
+
+    /** Exact SHA-256 for a pinned publisher artifact; blank means no catalog digest is claimed. */
+    val sha256: String = "",
+
     /** Supported runtime backends */
     val supportedBackends: List<ModelRuntimeBackend>,
 
@@ -40,6 +46,9 @@ data class ModelCatalogEntry(
 
     /** Whether this model is recommended for mobile devices */
     val isMobileRecommended: Boolean = false,
+
+    /** Required llama.cpp implementation lane, or null when the model is lane-neutral. */
+    val requiredLlamaCppRuntimeLane: String? = null,
 
     /** Tags for filtering (e.g., "gemma", "qwen", "multilingual") */
     val tags: List<String> = emptyList(),

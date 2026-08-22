@@ -123,7 +123,8 @@ object HermesLinuxSubsystemBridge {
     private const val EXECUTION_MODE = "embedded_termux"
     private const val SYSTEM_SHELL_MODE = "android_system_shell"
     private const val SYSTEM_SHELL_PATH = "/system/bin/sh"
-    private const val RUNTIME_LAYOUT_VERSION = 7
+    private const val RUNTIME_LAYOUT_VERSION = 8
+    private const val EXPERIMENTAL_LLAMA_SERVER_LIBRARY = "libhermes_android_llama_server_experimental.so"
     private const val NATIVE_EXEC_ROOT_NAME = "native-exec"
     private const val NATIVE_COMMAND_ENV_NAME = "native-command-functions.sh"
     private const val PYTHON_BINARY_NAME = "python"
@@ -242,6 +243,9 @@ object HermesLinuxSubsystemBridge {
                     )
                     return@let
                 }
+                stateChanged = true
+            }
+            if (refreshExperimentalLlamaServerPath(context, state)) {
                 stateChanged = true
             }
             if (state.optInt("runtime_layout_version", 0) != RUNTIME_LAYOUT_VERSION) {
@@ -376,6 +380,7 @@ object HermesLinuxSubsystemBridge {
                 ?: prefixBashPath
             val llamaServerPath = nativeExecutablePath(context, "libhermes_android_llama_server.so")
             val bionicLlamaServerPath = nativeExecutablePath(context, "libhermes_android_llama_server_bionic_spawn.so")
+            val experimentalLlamaServerPath = experimentalLlamaServerPath(context)
             val binPath = listOf(nativeBinDir, File(prefixDir, "bin"))
                 .filter { it.isDirectory }
                 .joinToString(":") { it.absolutePath }
@@ -397,6 +402,7 @@ object HermesLinuxSubsystemBridge {
                 put("native_bash_path", nativeBashPath)
                 put("native_llama_server_path", llamaServerPath)
                 put("bionic_llama_server_path", bionicLlamaServerPath)
+                put("experimental_llama_server_path", experimentalLlamaServerPath)
                 put("native_bin_path", nativeBinDir.absolutePath)
                 put("native_libexec_path", nativeLibexecDir.absolutePath)
                 put("python_path", File(nativeBinDir, PYTHON_BINARY_NAME).absolutePath)
@@ -1002,6 +1008,7 @@ object HermesLinuxSubsystemBridge {
             ?: prefixBashPath
         val llamaServerPath = nativeExecutablePath(context, "libhermes_android_llama_server.so")
         val bionicLlamaServerPath = nativeExecutablePath(context, "libhermes_android_llama_server_bionic_spawn.so")
+        val experimentalLlamaServerPath = experimentalLlamaServerPath(context)
         val binPath = listOf(nativeBinDir, File(prefixDir, "bin"))
             .filter { it.isDirectory }
             .joinToString(":") { it.absolutePath }
@@ -1015,6 +1022,7 @@ object HermesLinuxSubsystemBridge {
             .put("native_bash_path", nativeBashPath)
             .put("native_llama_server_path", llamaServerPath)
             .put("bionic_llama_server_path", bionicLlamaServerPath)
+            .put("experimental_llama_server_path", experimentalLlamaServerPath)
             .put("native_bin_path", nativeBinDir.absolutePath)
             .put("native_libexec_path", nativeLibexecDir.absolutePath)
             .put("python_path", File(nativeBinDir, PYTHON_BINARY_NAME).absolutePath)
@@ -1152,6 +1160,7 @@ object HermesLinuxSubsystemBridge {
             put("native_bash_path", nativeExecutablePath(context, "libhermes_android_bash.so"))
             put("native_llama_server_path", nativeExecutablePath(context, "libhermes_android_llama_server.so"))
             put("bionic_llama_server_path", nativeExecutablePath(context, "libhermes_android_llama_server_bionic_spawn.so"))
+            put("experimental_llama_server_path", experimentalLlamaServerPath(context))
             put("python_path", "")
             put("bin_path", "/system/bin")
             put("lib_path", "")
@@ -1338,6 +1347,20 @@ object HermesLinuxSubsystemBridge {
                 .digest(payload.toByteArray(Charsets.UTF_8))
                 .joinToString("") { "%02x".format(it) }
         }.getOrDefault("")
+    }
+
+    fun experimentalLlamaServerPath(context: Context): String {
+        val path = nativeExecutablePath(context, EXPERIMENTAL_LLAMA_SERVER_LIBRARY)
+        return path.takeIf { it.isNotBlank() && File(it).isFile && File(it).canExecute() }.orEmpty()
+    }
+
+    private fun refreshExperimentalLlamaServerPath(context: Context, state: JSONObject): Boolean {
+        val path = experimentalLlamaServerPath(context)
+        if (state.optString("experimental_llama_server_path") == path) {
+            return false
+        }
+        state.put("experimental_llama_server_path", path)
+        return true
     }
 
     private fun nativeExecutablePath(context: Context, name: String): String {

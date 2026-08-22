@@ -194,6 +194,27 @@ class HermesApiClientTest {
     }
 
     @Test
+    fun chatCompletionPayloadIncludesOptionalLocalReasoningControls() {
+        val defaultPayload = ChatCompletionRequest(
+            model = "stable-model",
+            messages = listOf(ChatMessage("user", "hello")),
+        ).toChatCompletionPayload()
+        val nanbeigePayload = ChatCompletionRequest(
+            model = "nanbeige-model",
+            messages = listOf(ChatMessage("user", "hello")),
+            reasoningFormat = "none",
+            chatTemplateEnableThinking = false,
+        ).toChatCompletionPayload()
+
+        assertFalse(defaultPayload.has("reasoning_format"))
+        assertFalse(defaultPayload.has("chat_template_kwargs"))
+        assertEquals("none", nanbeigePayload.getString("reasoning_format"))
+        assertFalse(
+            nanbeigePayload.getJSONObject("chat_template_kwargs").getBoolean("enable_thinking"),
+        )
+    }
+
+    @Test
     fun responsesPayloadMapsMaxTokensToMaxOutputTokens() {
         val payload = ChatCompletionRequest(
             model = "model",

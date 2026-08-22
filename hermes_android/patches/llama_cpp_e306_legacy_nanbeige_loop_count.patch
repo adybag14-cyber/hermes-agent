@@ -1,0 +1,68 @@
+diff --git a/src/models/nanbeige.cpp b/src/models/nanbeige.cpp
+--- a/src/models/nanbeige.cpp
++++ b/src/models/nanbeige.cpp
+@@ -4,13 +4,62 @@ void llama_model_nanbeige::load_arch_hparams(llama_model_loader & ml) {
+     ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
+ 
+     uint32_t n_loops_u = 1;
+-    ml.get_key(LLM_KV_NUM_LOOPS, n_loops_u, false);
++    const bool has_num_loops = ml.get_key(LLM_KV_NUM_LOOPS, n_loops_u, false);
++
++    // Compatibility with GGUFs produced by the pre-upstream Nanbeige patch.
++    // That converter used `nanbeige.loop_count` and stored the logical block
++    // count, while the upstream converter uses `nanbeige.num_loops` and stores
++    // the physical block count.
++    uint32_t legacy_n_loops_u = 1;
++    const bool has_legacy_loop_count =
++            ml.get_key("nanbeige.loop_count", legacy_n_loops_u, false);
++
++    if (has_num_loops && has_legacy_loop_count) {
++        if (n_loops_u != legacy_n_loops_u) {
++            throw std::runtime_error("conflicting Nanbeige num_loops and loop_count metadata");
++        }
++    } else if (has_legacy_loop_count) {
++        n_loops_u = legacy_n_loops_u;
++    }
+     GGML_ASSERT(n_loops_u >= 1);
+ 
+     skip_loop_final_norm = false;
+     ml.get_key(LLM_KV_SKIP_LOOP_FINAL_NORM, skip_loop_final_norm, false);
+ 
+-    n_layer_phys = (int) hparams.n_layer();
++    const int n_layer_meta = (int) hparams.n_layer();
++    n_layer_phys = n_layer_meta;
++
++    if (has_legacy_loop_count) {
++        bool legacy_layout_resolved = false;
++
++        if ((uint32_t) n_layer_meta % n_loops_u == 0) {
++            const int candidate_n_layer_phys = n_layer_meta / (int) n_loops_u;
++            const std::string last_candidate =
++                    tn(LLM_TENSOR_ATTN_NORM, "weight", candidate_n_layer_phys - 1).str();
++            const std::string first_after_candidate =
++                    tn(LLM_TENSOR_ATTN_NORM, "weight", candidate_n_layer_phys).str();
++
++            if (candidate_n_layer_phys > 0 &&
++                ml.get_tensor_meta(last_candidate.c_str()) != nullptr &&
++                ml.get_tensor_meta(first_after_candidate.c_str()) == nullptr) {
++                n_layer_phys = candidate_n_layer_phys;
++                legacy_layout_resolved = true;
++                LLAMA_LOG_INFO("%s: legacy Nanbeige logical block_count: %d logical, %d physical layers\n",
++                        __func__, n_layer_meta, n_layer_phys);
++            }
++        }
++
++        if (!legacy_layout_resolved) {
++            const std::string last_metadata_layer =
++                    tn(LLM_TENSOR_ATTN_NORM, "weight", n_layer_meta - 1).str();
++            if (ml.get_tensor_meta(last_metadata_layer.c_str()) == nullptr) {
++                throw std::runtime_error(
++                        "legacy Nanbeige loop_count matches neither a logical nor physical block_count layout");
++            }
++            LLAMA_LOG_INFO("%s: legacy Nanbeige physical block_count: %d physical layers\n",
++                    __func__, n_layer_phys);
++        }
++    }
+ 
+     // Bound-check before casting: signed int mul can overflow and bypass the guard.
+     GGML_ASSERT((size_t) n_layer_phys * (size_t) n_loops_u <= (size_t) LLAMA_MAX_LAYERS);

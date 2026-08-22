@@ -9,6 +9,9 @@ import android.os.Build
 import android.os.Environment
 import android.provider.OpenableColumns
 import android.text.format.Formatter
+import com.mobilefork.hermesagent.backend.BackendKind
+import com.mobilefork.hermesagent.backend.HermesRuntimeManager
+import com.mobilefork.hermesagent.backend.LocalBackendStatus
 import com.mobilefork.hermesagent.data.HermesNetworkPolicy
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
@@ -43,9 +46,23 @@ data class ModelDownloadDraft(
     val runtimeFlavor: String,
 )
 
+data class ModelRemovalResult(
+    val removed: Boolean,
+    val statusMessage: String,
+    val removedRecordIds: Set<String> = emptySet(),
+    val requiresAppRestart: Boolean = false,
+)
+
 object HermesModelDownloadManager {
     private const val HUGGING_FACE_BASE = "https://huggingface.co"
     private const val HUGGING_FACE_API = "$HUGGING_FACE_BASE/api/models/"
+    /**
+     * Serializes model filesystem and DownloadManager mutations across every manager/store
+     * instance in this process. The only valid nested order is:
+     * HermesRuntimeManager -> OnDeviceBackendManager -> MODEL_EXTERNAL_IO_LOCK -> download store.
+     * Paths holding this lock must never enter HermesRuntimeManager or acquire runtime ownership.
+     */
+    private val MODEL_EXTERNAL_IO_LOCK = Any()
     private val LITERT_ALIAS_REPOS = mapOf(
         "google/gemma-4-e2b" to "litert-community/gemma-4-E2B-it-litert-lm",
         "google/gemma-4-e2b-it" to "litert-community/gemma-4-E2B-it-litert-lm",
@@ -150,7 +167,7 @@ object HermesModelDownloadManager {
         context: Context,
         store: LocalModelDownloadStore,
         sourceUri: Uri,
-    ): LocalModelDownloadRecord {
+    ): LocalModelDownloadRecord = withModelExternalIoOperation {
         val directory = modelsDirectory(context)
         val displayName = displayNameForUri(context, sourceUri)
         val targetFile = directory.resolve(uniqueFileName(directory, sanitizeFileName(displayName)))
@@ -179,8 +196,12 @@ object HermesModelDownloadManager {
             supportsResume = false,
             updatedAtEpochMs = now,
         )
-        store.upsertDownload(record)
-        store.setPreferredDownloadId(record.id)
+        try {
+            store.upsertDownload(record)
+        } catch (error: Throwable) {
+            runCatching { targetFile.delete() }
+            throw error
+        }
         return record
     }
 
@@ -229,7 +250,7 @@ object HermesModelDownloadManager {
         }
         val ramWarning = when {
             preflight != null && !preflight.allowed ->
-                "Not recommended on this device: ${preflight.detail} Downloading remains available, but Hermes will block unsafe runtime initialization."
+                "Not recommended on this device: ${preflight.detail} Downloading remains available, but a normal start will be blocked. Advanced llama.cpp settings offer an explicitly confirmed, dangerous one-shot RAM-check bypass for experiments; it does not bypass file, artifact, or backend compatibility checks."
             preflight?.level == "warning" -> "Memory warning: ${preflight.detail}"
             else -> ""
         }
@@ -267,7 +288,7 @@ object HermesModelDownloadManager {
         dataSaverMode: Boolean,
         allowMetered: Boolean = !dataSaverMode,
         allowRoaming: Boolean = false,
-    ): LocalModelDownloadRecord {
+    ): LocalModelDownloadRecord = withModelExternalIoOperation {
         val record = enqueueDownloadRecord(
             context = context,
             draft = draft,
@@ -276,7 +297,14 @@ object HermesModelDownloadManager {
             allowMetered = allowMetered,
             allowRoaming = allowRoaming,
         )
-        store.upsertDownload(record)
+        try {
+            store.upsertDownload(record)
+        } catch (error: Throwable) {
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            runCatching { downloadManager.remove(record.downloadManagerId) }
+            runCatching { File(record.destinationPath).delete() }
+            throw error
+        }
         return record
     }
 
@@ -286,26 +314,55 @@ object HermesModelDownloadManager {
         recordId: String,
         hfToken: String,
     ): LocalModelDownloadRecord? {
-        val existing = store.findDownload(recordId) ?: return null
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        runCatching { downloadManager.remove(existing.downloadManagerId) }
-        runCatching { File(existing.destinationPath).delete() }
-        val restarted = enqueueDownloadRecord(
-            context = context,
-            draft = ModelDownloadDraft(
-                repoOrUrl = existing.repoOrUrl,
-                filePath = existing.filePath,
-                revision = existing.revision,
-                runtimeFlavor = existing.runtimeFlavor,
-            ),
-            hfToken = hfToken,
-            dataSaverMode = false,
-            allowMetered = true,
-            allowRoaming = true,
-            recordId = existing.id,
+        return restartDownloadWithOperation(
+            store = store,
+            recordId = recordId,
+            removeSystemDownload = { downloadId -> downloadManager.remove(downloadId) },
+            deleteModelFile = File::delete,
+            enqueueReplacement = { existing ->
+                enqueueDownloadRecord(
+                    context = context,
+                    draft = ModelDownloadDraft(
+                        repoOrUrl = existing.repoOrUrl,
+                        filePath = existing.filePath,
+                        revision = existing.revision,
+                        runtimeFlavor = existing.runtimeFlavor,
+                    ),
+                    hfToken = hfToken,
+                    dataSaverMode = false,
+                    allowMetered = true,
+                    allowRoaming = true,
+                    recordId = existing.id,
+                )
+            },
         )
-        store.upsertDownload(restarted)
-        return restarted
+    }
+
+    internal fun restartDownloadWithOperation(
+        store: LocalModelDownloadStore,
+        recordId: String,
+        removeSystemDownload: (Long) -> Unit,
+        deleteModelFile: (File) -> Boolean,
+        enqueueReplacement: (LocalModelDownloadRecord) -> LocalModelDownloadRecord,
+    ): LocalModelDownloadRecord? = withModelExternalIoOperation {
+        val existing = store.findDownload(recordId) ?: return@withModelExternalIoOperation null
+        runCatching { removeSystemDownload(existing.downloadManagerId) }
+        runCatching { deleteModelFile(File(existing.destinationPath)) }
+        val restarted = enqueueReplacement(existing)
+        val replaced = try {
+            store.replaceDownloadIfPresent(restarted)
+        } catch (error: Throwable) {
+            runCatching { removeSystemDownload(restarted.downloadManagerId) }
+            runCatching { deleteModelFile(File(restarted.destinationPath)) }
+            throw error
+        }
+        if (!replaced) {
+            runCatching { removeSystemDownload(restarted.downloadManagerId) }
+            runCatching { deleteModelFile(File(restarted.destinationPath)) }
+            return@withModelExternalIoOperation null
+        }
+        restarted
     }
 
     private fun enqueueDownloadRecord(
@@ -371,13 +428,48 @@ object HermesModelDownloadManager {
     }
 
     fun refreshDownloads(context: Context, store: LocalModelDownloadStore): List<LocalModelDownloadRecord> {
-        val refreshed = importExistingModelFiles(
-            context = context,
-            records = store.loadDownloads().map { refreshRecord(context, it) },
-        )
-        store.saveDownloads(refreshed)
-        repairPreferredDownload(store, refreshed)
-        return refreshed
+        return withModelExternalIoOperation {
+            refreshDownloads(
+                store = store,
+                refreshSnapshot = { records ->
+                    importExistingModelFiles(
+                        context = context,
+                        records = records.map { refreshRecord(context, it) },
+                    )
+                },
+            )
+        }
+    }
+
+    /**
+     * Refresh work deliberately runs outside the store lock because DownloadManager queries and
+     * model-directory scans may block. The single compare-and-set commit includes records plus
+     * preferred/pending pointers. Any overlapping mutation advances the revision and forces a
+     * refresh from the new state, so a stale snapshot cannot resurrect a removed record.
+     */
+    internal fun refreshDownloads(
+        store: LocalModelDownloadStore,
+        refreshSnapshot: (List<LocalModelDownloadRecord>) -> List<LocalModelDownloadRecord>,
+        afterSnapshot: (List<LocalModelDownloadRecord>) -> Unit = {},
+    ): List<LocalModelDownloadRecord> {
+        while (true) {
+            val snapshot = store.snapshot()
+            afterSnapshot(snapshot.downloads)
+            val refreshed = refreshSnapshot(snapshot.downloads)
+            val preferredId = repairedPreferredDownloadId(
+                preferredId = snapshot.preferredDownloadId,
+                records = refreshed,
+            )
+            val committed = store.compareAndSetSnapshot(
+                expectedRevision = snapshot.revision,
+                downloads = refreshed,
+                preferredDownloadId = preferredId,
+                pendingAutoStartRecordId = snapshot.pendingAutoStartRecordId,
+            )
+            if (committed != null) {
+                return committed.downloads
+            }
+        }
     }
 
     fun refreshRecord(context: Context, record: LocalModelDownloadRecord): LocalModelDownloadRecord {
@@ -420,16 +512,192 @@ object HermesModelDownloadManager {
         return record
     }
 
-    fun removeDownload(context: Context, store: LocalModelDownloadStore, recordId: String) {
-        val existing = store.findDownload(recordId) ?: return
+    fun removeDownload(
+        context: Context,
+        store: LocalModelDownloadStore,
+        recordId: String,
+        selectionGeneration: Long? = null,
+    ): ModelRemovalResult {
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        runCatching { downloadManager.remove(existing.downloadManagerId) }
-        runCatching { File(existing.destinationPath).delete() }
-        store.removeDownload(recordId)
+        val admissionCheck = {
+            selectionGeneration?.let(LocalModelRuntimeSelectionAuthority::requireCurrent)
+            Unit
+        }
+        return removeDownloadWithOwnership(
+            store = store,
+            recordId = recordId,
+            selectionGeneration = selectionGeneration,
+            localMutationAuthority = { mutation ->
+                HermesRuntimeManager.withSerializedLocalBackendMutation(
+                    admissionCheck = admissionCheck,
+                    mutation = mutation,
+                )
+            },
+            removeSystemDownload = { downloadId -> downloadManager.remove(downloadId) },
+            deleteModelFile = File::delete,
+        )
     }
 
-    fun setPreferredDownload(store: LocalModelDownloadStore, recordId: String) {
-        store.setPreferredDownloadId(recordId)
+    internal fun removeDownloadWithOwnership(
+        store: LocalModelDownloadStore,
+        recordId: String,
+        selectionGeneration: Long? = null,
+        localMutationAuthority: (
+            mutation: (
+                currentStatus: LocalBackendStatus,
+                stopAllLocalBackends: () -> LocalBackendStatus,
+            ) -> ModelRemovalResult,
+        ) -> ModelRemovalResult,
+        removeSystemDownload: (Long) -> Unit,
+        deleteModelFile: (File) -> Boolean,
+    ): ModelRemovalResult {
+        return localMutationAuthority { currentStatus, stopAllLocalBackends ->
+            removeDownload(
+                store = store,
+                recordId = recordId,
+                selectionGeneration = selectionGeneration,
+                currentLocalStatus = { currentStatus },
+                stopAllLocalBackends = stopAllLocalBackends,
+                removeSystemDownload = removeSystemDownload,
+                deleteModelFile = deleteModelFile,
+            )
+        }
+    }
+
+    /**
+     * One removal authority for every model-management surface.
+     *
+     * Multiple historical DownloadManager records can refer to the same physical model. Remove
+     * that set in one store write so a duplicate completed record cannot resurrect a deleted model.
+     * A preferred or currently-owned model is first quiesced; an unsafe native stop preserves both
+     * the file and every record so the operator can force-stop the app and retry safely.
+     */
+    internal fun removeDownload(
+        store: LocalModelDownloadStore,
+        recordId: String,
+        selectionGeneration: Long? = null,
+        currentLocalStatus: () -> LocalBackendStatus,
+        stopAllLocalBackends: () -> LocalBackendStatus,
+        removeSystemDownload: (Long) -> Unit,
+        deleteModelFile: (File) -> Boolean,
+    ): ModelRemovalResult = withModelExternalIoOperation {
+        removeDownloadUnderOperation(
+            store = store,
+            recordId = recordId,
+            selectionGeneration = selectionGeneration,
+            currentLocalStatus = currentLocalStatus,
+            stopAllLocalBackends = stopAllLocalBackends,
+            removeSystemDownload = removeSystemDownload,
+            deleteModelFile = deleteModelFile,
+        )
+    }
+
+    private fun removeDownloadUnderOperation(
+        store: LocalModelDownloadStore,
+        recordId: String,
+        selectionGeneration: Long?,
+        currentLocalStatus: () -> LocalBackendStatus,
+        stopAllLocalBackends: () -> LocalBackendStatus,
+        removeSystemDownload: (Long) -> Unit,
+        deleteModelFile: (File) -> Boolean,
+    ): ModelRemovalResult {
+        val snapshot = store.snapshot()
+        val records = snapshot.downloads
+        val selected = records.firstOrNull { it.id == recordId }
+            ?: return ModelRemovalResult(
+                removed = false,
+                statusMessage = "The model download record no longer exists",
+            )
+        val selectedCanonicalPath = selected.destinationPath.canonicalPathOrNull()
+        val associatedRecords = records.filter { record ->
+            record.id == selected.id ||
+                (
+                    selectedCanonicalPath != null &&
+                        record.destinationPath.canonicalPathOrNull() == selectedCanonicalPath
+                    )
+        }
+        val associatedRecordIds = associatedRecords.mapTo(linkedSetOf()) { it.id }
+        val localStatus = currentLocalStatus()
+        val activeCanonicalPath = localStatus.sourceModelPath.canonicalPathOrNull()
+        val removesPreferred = snapshot.preferredDownloadId in associatedRecordIds
+        val removesActiveModel = selectedCanonicalPath != null && activeCanonicalPath == selectedCanonicalPath
+
+        if (removesPreferred || removesActiveModel) {
+            val stopped = if (localStatus.requiresAppRestart) localStatus else stopAllLocalBackends()
+            if (
+                stopped.requiresAppRestart ||
+                stopped.started ||
+                stopped.backendKind != BackendKind.NONE
+            ) {
+                return ModelRemovalResult(
+                    removed = false,
+                    statusMessage = stopped.statusMessage.ifBlank {
+                        "The active local runtime could not be stopped safely. Force stop and reopen Hermes before removing this model."
+                    },
+                    requiresAppRestart = true,
+                )
+            }
+        }
+
+        // Persist the fail-closed tombstone before canceling Android DownloadManager work or
+        // deleting the file. If this commit fails, the external artifacts remain untouched and
+        // the caller can safely retry. A later external cleanup failure may leave an orphaned
+        // file, but it cannot leave a durable preferred pointer targeting a deleted artifact.
+        val commitTombstone = {
+            store.removeDownloadsMatching { record ->
+                record.id in associatedRecordIds ||
+                    (
+                        selectedCanonicalPath != null &&
+                            record.destinationPath.canonicalPathOrNull() == selectedCanonicalPath
+                        )
+            }
+        }
+        val removedRecordIds = if (selectionGeneration == null) {
+            commitTombstone()
+        } else {
+            // Only this short durable tombstone shares the authority monitor. A newer Use/Start
+            // which commits first makes this token stale before deletion; if this tombstone wins,
+            // the newer selector observes the record missing. Slow cancel/delete remains outside.
+            LocalModelRuntimeSelectionAuthority.withCurrent(selectionGeneration, commitTombstone)
+        }
+
+        val downloadIds = associatedRecords
+            .map { it.downloadManagerId }
+            .filter { it >= 0L }
+            .distinct()
+        for (downloadId in downloadIds) {
+            val cancelFailure = runCatching { removeSystemDownload(downloadId) }.exceptionOrNull()
+            if (cancelFailure != null) {
+                return ModelRemovalResult(
+                    removed = true,
+                    statusMessage = "Removed the model selection, but Hermes could not cancel its Android download: " +
+                        (cancelFailure.message ?: cancelFailure.javaClass.simpleName),
+                    removedRecordIds = associatedRecordIds + removedRecordIds,
+                )
+            }
+        }
+
+        val modelFile = selected.destinationPath.takeIf { it.isNotBlank() }?.let(::File)
+        val fileRemoved = modelFile == null || !modelFile.exists() || runCatching {
+            deleteModelFile(modelFile) && !modelFile.exists()
+        }.getOrDefault(false)
+        if (!fileRemoved) {
+            return ModelRemovalResult(
+                removed = true,
+                statusMessage = "Removed the model selection, but Hermes could not delete " +
+                    modelFile?.name.orEmpty().ifBlank { "the model file" },
+                removedRecordIds = associatedRecordIds + removedRecordIds,
+            )
+        }
+        return ModelRemovalResult(
+            removed = true,
+            statusMessage = "Removed ${selected.title}",
+            removedRecordIds = associatedRecordIds + removedRecordIds,
+        )
+    }
+
+    fun setPreferredDownload(store: LocalModelDownloadStore, recordId: String): Boolean {
+        return store.setPreferredDownloadId(recordId)
     }
 
     private fun importExistingModelFiles(
@@ -485,17 +753,6 @@ object HermesModelDownloadManager {
         return current.sortedByDescending { it.updatedAtEpochMs }
     }
 
-    private fun repairPreferredDownload(
-        store: LocalModelDownloadStore,
-        records: List<LocalModelDownloadRecord>,
-    ) {
-        val preferredId = store.preferredDownloadId()
-        val repairedId = repairedPreferredDownloadId(preferredId, records)
-        if (repairedId != preferredId) {
-            store.setPreferredDownloadId(repairedId)
-        }
-    }
-
     internal fun repairedPreferredDownloadId(
         preferredId: String,
         records: List<LocalModelDownloadRecord>,
@@ -515,42 +772,9 @@ object HermesModelDownloadManager {
             return explicitPreferred.id
         }
 
-        return records.mapNotNull { record ->
-            if (!ready(record)) return@mapNotNull null
-            val artifact = VerifiedLocalModelArtifacts.find(record.repoOrUrl, record.filePath)
-                ?: return@mapNotNull null
-            val runtimeMatches = when (artifact.runtime) {
-                "litert-lm" -> record.runtimeFlavor.trim().lowercase(Locale.US) in
-                    setOf("litert-lm", "litert_lm", "litertlm")
-                "llama.cpp" -> record.runtimeFlavor.trim().lowercase(Locale.US) in
-                    setOf("llama.cpp", "llama-cpp", "llama_cpp", "gguf")
-                else -> false
-            }
-            val selectedFile = record.filePath.substringBefore('?').fileNamePart()
-            val destinationFile = record.destinationFileName.fileNamePart()
-            val destinationPathFile = record.destinationPath.fileNamePart()
-            val exactIdentity = record.revision.equals(artifact.revision, ignoreCase = true) &&
-                runtimeMatches &&
-                selectedFile.equals(artifact.fileName, ignoreCase = true) &&
-                destinationFile.equals(artifact.fileName, ignoreCase = true) &&
-                destinationPathFile.equals(artifact.fileName, ignoreCase = true) &&
-                record.totalBytes == artifact.expectedBytes &&
-                record.downloadedBytes == artifact.expectedBytes &&
-                observedFileBytes(record) == artifact.expectedBytes
-            if (!exactIdentity) return@mapNotNull null
-            Triple(
-                VerifiedLocalModelArtifacts.releaseMatrix.indexOf(artifact),
-                record.title.lowercase(Locale.US),
-                record,
-            )
-        }.sortedWith(
-            compareBy<Triple<Int, String, LocalModelDownloadRecord>> { it.first }
-                .thenBy { it.second },
-        )
-            .firstOrNull()
-            ?.third
-            ?.id
-            .orEmpty()
+        // A refresh may repair records, but it must never publish a new runtime selection.
+        // Backend/lane/preferred-model handoffs are owned by LocalModelRuntimeSelectionAuthority.
+        return ""
     }
 
     private fun File.isImportableModelFile(): Boolean {
@@ -1215,6 +1439,10 @@ object HermesModelDownloadManager {
             }
             else -> "unknown" to "Android reported an unknown download state"
         }
+    }
+
+    private inline fun <T> withModelExternalIoOperation(block: () -> T): T {
+        return synchronized(MODEL_EXTERNAL_IO_LOCK, block)
     }
 
     private data class HeadProbeResult(

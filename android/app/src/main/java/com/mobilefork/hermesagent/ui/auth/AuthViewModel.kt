@@ -19,6 +19,8 @@ import com.mobilefork.hermesagent.auth.ProviderSetupProbeResult
 import com.mobilefork.hermesagent.auth.ProviderSetupUrlProbe
 import com.mobilefork.hermesagent.auth.XaiLoopbackOAuthServer
 import com.mobilefork.hermesagent.auth.XaiOAuthClient
+import com.mobilefork.hermesagent.backend.HermesRuntimeManager
+import com.mobilefork.hermesagent.data.AppSettingsPersistenceException
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.AuthCatalog
 import com.mobilefork.hermesagent.data.AuthOption
@@ -28,9 +30,12 @@ import com.mobilefork.hermesagent.data.AuthSessionStore
 import com.mobilefork.hermesagent.data.PendingAuthRequest
 import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.data.ProviderSetupTarget
+import com.mobilefork.hermesagent.data.SecureSecretsStore
 import com.mobilefork.hermesagent.device.BrowserLaunchResult
 import com.mobilefork.hermesagent.device.HermesExternalBrowserLauncher
 import com.mobilefork.hermesagent.device.HermesProviderSetupWebActivity
+import com.mobilefork.hermesagent.models.LocalModelRuntimeSelectionAuthority
+import com.mobilefork.hermesagent.models.PythonRuntimeWriteAuthority
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.HermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
@@ -74,6 +79,22 @@ data class AuthUiState(
     val pendingStartUrl: String = "",
     val options: List<AuthOptionUiState> = emptyList(),
 )
+
+internal fun completeRuntimeProviderSignOut(
+    selectionGeneration: Long,
+    preparePython: () -> Unit,
+    clearPersistedPythonAuth: () -> Unit,
+    clearDurableSession: () -> Unit,
+) {
+    // Starting Chaquopy can be slow and must remain outside the bounded authoritative commit.
+    preparePython()
+    PythonRuntimeWriteAuthority.writeIfCurrent(selectionGeneration) {
+        // Clear Python state first. If that fails, the still-visible durable session tells the
+        // truth and lets the user retry instead of reporting sign-out with live credentials.
+        clearPersistedPythonAuth()
+        clearDurableSession()
+    }
+}
 
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
     private val appSettingsStore = AppSettingsStore(application)
@@ -133,12 +154,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
-        val existing = appSettingsStore.load()
-        appSettingsStore.save(
-            existing.copy(
-                corr3xtBaseUrl = normalized,
-            )
-        )
+        try {
+            appSettingsStore.update { current ->
+                current.copy(
+                    corr3xtBaseUrl = normalized,
+                )
+            }
+        } catch (error: AppSettingsPersistenceException) {
+            _uiState.update {
+                it.copy(globalStatus = error.message ?: error::class.java.simpleName)
+            }
+            return
+        }
         _uiState.update {
             it.copy(
                 corr3xtBaseUrl = normalized,
@@ -663,14 +690,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         if (option.runtimeProvider.isBlank()) {
             return
         }
-        val existing = appSettingsStore.load()
-        appSettingsStore.save(
-            existing.copy(
-                provider = option.runtimeProvider,
-                baseUrl = option.defaultBaseUrl,
-                model = option.defaultModel,
-            )
-        )
+        try {
+            appSettingsStore.update { current ->
+                current.copy(
+                    provider = option.runtimeProvider,
+                    baseUrl = option.defaultBaseUrl,
+                    model = option.defaultModel,
+                )
+            }
+        } catch (error: AppSettingsPersistenceException) {
+            _uiState.update {
+                it.copy(globalStatus = error.message ?: error::class.java.simpleName)
+            }
+            return
+        }
         _uiState.update {
             it.copy(
                 globalStatus = currentStrings().authApiKeySetupReady(option.label),
@@ -875,15 +908,59 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     fun signOut(methodId: String) {
         val session = authSessionStore.loadSession(methodId)
-        authSessionStore.clearSession(methodId)
-        if (session != null && session.runtimeProvider.isNotBlank()) {
+        if (session == null || session.runtimeProvider.isBlank()) {
+            val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+            LocalModelRuntimeSelectionAuthority.withCurrent(selectionGeneration) {
+                authSessionStore.clearSession(methodId)
+            }
+            refresh()
+            return
+        }
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginActionIf {
+            authSessionStore.loadSession(methodId) == session
+        } ?: return
+        val strings = currentStrings()
+        _uiState.update { it.copy(globalStatus = strings.authSigningOut(session.label)) }
+        viewModelScope.launch {
             runCatching {
-                val python = com.chaquo.python.Python.getInstance()
-                python.getModule("hermes_android.auth_bridge")
-                    .callAttr("clear_provider_auth_bundle", session.runtimeProvider)
+                withContext(Dispatchers.IO) {
+                    completeRuntimeProviderSignOut(
+                        selectionGeneration = selectionGeneration,
+                        preparePython = {
+                            HermesRuntimeManager.ensurePythonStarted(getApplication())
+                        },
+                        clearPersistedPythonAuth = {
+                            check(authSessionStore.loadSession(methodId) == session) {
+                                "The signed-in session changed before credentials could be cleared"
+                            }
+                            val python = com.chaquo.python.Python.getInstance()
+                            python.getModule("hermes_android.auth_bridge")
+                                .callAttr("clear_provider_auth_bundle", session.runtimeProvider)
+                        },
+                        clearDurableSession = {
+                            check(authSessionStore.loadSession(methodId) == session) {
+                                "The signed-in session changed while credentials were being cleared"
+                            }
+                            SecureSecretsStore(getApplication()).saveApiKey(session.runtimeProvider, "")
+                            authSessionStore.clearSession(methodId)
+                        },
+                    )
+                }
+            }.onSuccess {
+                refresh()
+            }.onFailure { error ->
+                if (error is com.mobilefork.hermesagent.models.RuntimeSelectionSupersededException) {
+                    refresh()
+                } else {
+                    _uiState.value = buildState().copy(
+                        globalStatus = currentStrings().authSignOutFailed(
+                            session.label,
+                            error.javaClass.simpleName,
+                        ),
+                    )
+                }
             }
         }
-        refresh()
     }
 
     private fun buildState(): AuthUiState {

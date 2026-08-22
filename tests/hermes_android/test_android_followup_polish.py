@@ -255,13 +255,13 @@ def test_settings_backend_toggles_sync_with_download_runtime_target_controls():
 
     assert 'selectedBackend = uiState.onDeviceBackend' in settings
     assert 'onRuntimeFlavorSelected = viewModel::syncOnDeviceBackendWithRuntimeFlavor' in settings
-    assert 'onCompletedDownloadReady = viewModel::startLocalRuntimeForFlavor' in settings
+    assert 'onCompletedDownloadReady = viewModel::startAcceptedLocalRuntimeHandoff' in settings
     assert 'LaunchedEffect(selectedBackend)' in downloads_section
     assert 'pendingAutoStartRecordId' in downloads_section
-    assert 'onRuntimeFlavorSelected(completed.runtimeFlavor)' in downloads_section
-    assert 'onCompletedDownloadReady(completed.runtimeFlavor)' in downloads_section
+    assert 'onCompletedDownloadReady(completed.runtimeFlavor, selectionGeneration)' in downloads_section
     assert 'fun syncOnDeviceBackendWithRuntimeFlavor(' in settings_view_model
     assert 'fun startLocalRuntimeForFlavor(' in settings_view_model
+    assert 'fun startAcceptedLocalRuntimeHandoff(' in settings_view_model
     assert 'fun syncSelectedBackend(' in downloads_view_model
     assert 'fun startRecommendedModelDownload(' in downloads_view_model
     assert 'fun promoteDownloadedModelForAutoStart(' in downloads_view_model

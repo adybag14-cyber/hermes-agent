@@ -5,8 +5,19 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.net.InetAddress
+import java.net.ServerSocket
 
 class LlamaCppServerControllerTest {
+    @Test
+    fun onlyAuthenticationRejectionsProveTheProtectedEndpointRequiresTheProcessKey() {
+        assertTrue(LlamaCppServerController.isApiKeyRejectionStatus(401))
+        assertTrue(LlamaCppServerController.isApiKeyRejectionStatus(403))
+        assertFalse(LlamaCppServerController.isApiKeyRejectionStatus(200))
+        assertFalse(LlamaCppServerController.isApiKeyRejectionStatus(400))
+        assertFalse(LlamaCppServerController.isApiKeyRejectionStatus(500))
+    }
+
     @Test
     fun androidSystemFallbackDoesNotLaunchLlamaThroughTermuxBash() {
         val state = JSONObject()
@@ -56,6 +67,54 @@ class LlamaCppServerControllerTest {
     }
 
     @Test
+    fun defaultLaunchBreadcrumbPreservesStableLaneDefaultsWithoutRawArgv() {
+        val config = LlamaCppLaunchConfig()
+
+        val breadcrumb = LlamaCppServerController.diagnosticsBreadcrumbFor(config)
+
+        assertEquals("stable", breadcrumb.lane)
+        assertEquals("default", breadcrumb.cacheTypeK)
+        assertEquals("default", breadcrumb.cacheTypeV)
+        assertEquals("default", breadcrumb.flashAttention)
+        assertEquals(config.fingerprint(), breadcrumb.launchFingerprintSha256)
+        assertEquals(0, breadcrumb.additionalArgvCount)
+        assertEquals(
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            breadcrumb.additionalArgvSha256,
+        )
+    }
+
+    @Test
+    fun nativeFailureRedactsExpertArgvFromReturnedStatusAndDiagnostics() {
+        val secretToken = "publisher-secret-token-9347"
+        val config = LlamaCppLaunchConfig(
+            additionalArguments = listOf("--logit-bias", secretToken),
+        )
+        val nativeFailure =
+            "llama.cpp parser rejected --logit-bias value $secretToken while loading the model"
+
+        val status = LlamaCppServerController.failureStatusAfterStop(
+            modelPath = "/models/model.gguf",
+            artifactSummary = "GGUF fixture",
+            detail = nativeFailure,
+            launchConfig = config,
+        )
+        val diagnosticsDetail = LlamaCppServerController.diagnosticsSafeDetail(
+            nativeFailure,
+            config,
+        )
+
+        assertFalse(status.statusMessage, status.statusMessage.contains(secretToken))
+        assertFalse(status.statusMessage, status.statusMessage.contains("--logit-bias"))
+        assertTrue(status.statusMessage, status.statusMessage.contains("<redacted-additional-argv>"))
+        assertTrue(status.statusMessage, status.statusMessage.contains("while loading the model"))
+        assertFalse(diagnosticsDetail, diagnosticsDetail.contains(secretToken))
+        assertFalse(diagnosticsDetail, diagnosticsDetail.contains("--logit-bias"))
+        assertTrue(diagnosticsDetail, diagnosticsDetail.contains("<redacted-additional-argv>"))
+        assertTrue(diagnosticsDetail, diagnosticsDetail.contains("while loading the model"))
+    }
+
+    @Test
     fun startupAndReleaseMatrixCompletionPayloadsDisableThinking() {
         val payloads = listOf(
             Triple(
@@ -88,6 +147,21 @@ class LlamaCppServerControllerTest {
     }
 
     @Test
+    fun turboQuantCompletionPayloadSuppressesReasoningContentButStablePayloadIsUnchanged() {
+        val stable = LlamaCppServerController.startupCompletionCanaryPayload("stable-model")
+        val turboQuant = LlamaCppServerController.startupCompletionCanaryPayload(
+            "nanbeige-model",
+            LlamaCppRuntimeLane.TURBOQUANT,
+        )
+
+        assertFalse(stable.has("reasoning_format"))
+        assertEquals("none", turboQuant.getString("reasoning_format"))
+        assertFalse(
+            turboQuant.getJSONObject("chat_template_kwargs").getBoolean("enable_thinking"),
+        )
+    }
+
+    @Test
     fun nonTerminatingOwnedProcessFailsClosedInsteadOfDroppingItsHandle() {
         val handle = object : LlamaProcessStopHandle {
             var destroyCalls = 0
@@ -117,6 +191,38 @@ class LlamaCppServerControllerTest {
         assertEquals(1, handle.destroyCalls)
         assertEquals(1, handle.forceCalls)
         assertTrue(runCatching { handle.exitValue() }.exceptionOrNull() is IllegalThreadStateException)
+    }
+
+    @Test
+    fun publicationLivenessDistinguishesRunningAndExitedOwnedProcesses() {
+        val running = object : LlamaProcessStopHandle {
+            override val supportsForceDestroy: Boolean = true
+            override fun exitValue(): Int = throw IllegalThreadStateException("still alive")
+            override fun destroy() = Unit
+            override fun forceDestroy() = Unit
+        }
+        val exited = object : LlamaProcessStopHandle {
+            override val supportsForceDestroy: Boolean = true
+            override fun exitValue(): Int = 1
+            override fun destroy() = Unit
+            override fun forceDestroy() = Unit
+        }
+
+        assertTrue(LlamaCppServerController.isOwnedProcessAlive(running))
+        assertFalse(LlamaCppServerController.isOwnedProcessAlive(exited))
+    }
+
+    @Test
+    fun launchRejectsAPortAlreadyOwnedByAnotherListener() {
+        val loopback = InetAddress.getByName("127.0.0.1")
+        val occupied = ServerSocket(0, 1, loopback)
+        val port = occupied.localPort
+        try {
+            assertFalse(LlamaCppServerController.isLoopbackPortAvailable(port))
+        } finally {
+            occupied.close()
+        }
+        assertTrue(LlamaCppServerController.isLoopbackPortAvailable(port))
     }
 
     @Test

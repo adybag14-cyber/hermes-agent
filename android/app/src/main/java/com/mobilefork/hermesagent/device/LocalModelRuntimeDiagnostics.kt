@@ -51,6 +51,23 @@ object LocalModelRuntimeDiagnostics {
         val detail: String,
     )
 
+    /**
+     * Non-secret identity for the effective native-runtime launch configuration.
+     *
+     * This type deliberately has no raw argv field. Expert arguments may contain private
+     * paths or backend-specific secrets, so diagnostics retain only their count and a
+     * deterministic SHA-256 identity.
+     */
+    internal data class RuntimeLaunchBreadcrumb(
+        val lane: String,
+        val cacheTypeK: String,
+        val cacheTypeV: String,
+        val flashAttention: String,
+        val launchFingerprintSha256: String,
+        val additionalArgvCount: Int,
+        val additionalArgvSha256: String,
+    )
+
     internal fun captureMemory(context: Context): MemorySnapshot {
         val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
         val info = ActivityManager.MemoryInfo()
@@ -82,6 +99,7 @@ object LocalModelRuntimeDiagnostics {
         modelBytes: Long,
         requestedContextTokens: Int,
         memory: MemorySnapshot,
+        dangerouslySkipRamChecks: Boolean = false,
     ): PreflightDecision {
         if (modelBytes <= 0L) {
             return PreflightDecision(
@@ -129,33 +147,42 @@ object LocalModelRuntimeDiagnostics {
             " Context is limited to $effectiveContext tokens."
         }
         if (memory.lowMemory) {
-            return PreflightDecision(
-                allowed = false,
-                effectiveContextTokens = effectiveContext,
-                estimatedAdditionalBytes = estimatedAdditional,
-                level = "blocked",
-                detail = "Android reports active low-memory pressure; local model initialization was stopped before native allocation.$contextNote",
+            return ramAdmissionDecision(
+                dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+                blocked = PreflightDecision(
+                    allowed = false,
+                    effectiveContextTokens = effectiveContext,
+                    estimatedAdditionalBytes = estimatedAdditional,
+                    level = "blocked",
+                    detail = "Android reports active low-memory pressure; local model initialization was stopped before native allocation.$contextNote",
+                ),
             )
         }
         if (memory.totalBytes > 0L && memory.totalBytes < requiredTotalBytes) {
-            return PreflightDecision(
-                allowed = false,
-                effectiveContextTokens = effectiveContext,
-                estimatedAdditionalBytes = estimatedAdditional,
-                level = "blocked",
-                detail = "This ${formatGb(modelBytes)} GB model needs about ${formatGb(requiredTotalBytes)} GB total RAM for $normalizedBackend, but Android reports ${formatGb(memory.totalBytes)} GB.$contextNote Choose a smaller artifact or a higher-memory device.",
+            return ramAdmissionDecision(
+                dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+                blocked = PreflightDecision(
+                    allowed = false,
+                    effectiveContextTokens = effectiveContext,
+                    estimatedAdditionalBytes = estimatedAdditional,
+                    level = "blocked",
+                    detail = "This ${formatGb(modelBytes)} GB model needs about ${formatGb(requiredTotalBytes)} GB total RAM for $normalizedBackend, but Android reports ${formatGb(memory.totalBytes)} GB.$contextNote Choose a smaller artifact or a higher-memory device.",
+                ),
             )
         }
         if (memory.availableBytes > 0L && memory.usableAvailableBytes < estimatedAdditional) {
             val severe = modelBytes >= LARGE_MODEL_BYTES ||
                 memory.usableAvailableBytes < saturatingMultiply(estimatedAdditional, 65L, 100L)
             if (severe) {
-                return PreflightDecision(
-                    allowed = false,
-                    effectiveContextTokens = effectiveContext,
-                    estimatedAdditionalBytes = estimatedAdditional,
-                    level = "blocked",
-                    detail = "Only ${formatGb(memory.usableAvailableBytes)} GB usable RAM is available; this $normalizedBackend start is estimated to need ${formatGb(estimatedAdditional)} GB in addition to Android's reserve.$contextNote Close memory-heavy apps or choose a smaller model.",
+                return ramAdmissionDecision(
+                    dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+                    blocked = PreflightDecision(
+                        allowed = false,
+                        effectiveContextTokens = effectiveContext,
+                        estimatedAdditionalBytes = estimatedAdditional,
+                        level = "blocked",
+                        detail = "Only ${formatGb(memory.usableAvailableBytes)} GB usable RAM is available; this $normalizedBackend start is estimated to need ${formatGb(estimatedAdditional)} GB in addition to Android's reserve.$contextNote Close memory-heavy apps or choose a smaller model.",
+                    ),
                 )
             }
             return PreflightDecision(
@@ -181,6 +208,21 @@ object LocalModelRuntimeDiagnostics {
         )
     }
 
+    private fun ramAdmissionDecision(
+        dangerouslySkipRamChecks: Boolean,
+        blocked: PreflightDecision,
+    ): PreflightDecision {
+        if (!dangerouslySkipRamChecks) return blocked
+        return blocked.copy(
+            allowed = true,
+            level = "dangerous_bypass",
+            detail =
+                "DANGEROUS RAM CHECK BYPASS ACTIVE: Hermes will attempt this native model even though " +
+                    "the RAM admission check would block it. Android may kill Hermes or destabilize other apps. " +
+                    "Original check: ${blocked.detail}",
+        )
+    }
+
     internal fun beginAttempt(
         context: Context,
         backend: String,
@@ -190,6 +232,7 @@ object LocalModelRuntimeDiagnostics {
         effectiveContextTokens: Int,
         memory: MemorySnapshot,
         preflight: PreflightDecision,
+        runtimeLaunch: RuntimeLaunchBreadcrumb? = null,
     ): String {
         val attemptId = UUID.randomUUID().toString()
         val previous = readSnapshot(context)
@@ -209,6 +252,16 @@ object LocalModelRuntimeDiagnostics {
             .put("preflight_level", preflight.level)
             .put("preflight_detail", preflight.detail)
             .put("estimated_additional_bytes", preflight.estimatedAdditionalBytes)
+        if (runtimeLaunch != null) {
+            payload
+                .put("runtime_lane", runtimeLaunch.lane)
+                .put("cache_type_k", runtimeLaunch.cacheTypeK)
+                .put("cache_type_v", runtimeLaunch.cacheTypeV)
+                .put("flash_attention", runtimeLaunch.flashAttention)
+                .put("launch_fingerprint_sha256", runtimeLaunch.launchFingerprintSha256)
+                .put("additional_argv_count", runtimeLaunch.additionalArgvCount.coerceAtLeast(0))
+                .put("additional_argv_sha256", runtimeLaunch.additionalArgvSha256)
+        }
         if (previous != null) {
             payload.put("previous_incomplete_attempt", previous)
         }

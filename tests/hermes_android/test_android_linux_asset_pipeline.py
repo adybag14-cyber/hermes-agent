@@ -454,7 +454,7 @@ def test_android_gguf_launchers_use_extracted_prefix_directory():
     assert 'optString("native_llama_server_path").ifBlank { "llama-server" }' in llama
     assert 'optString("bionic_llama_server_path")' in llama
     assert 'execution_mode") == "android_system_shell"' in llama
-    assert "selectLlamaServerPath(context, linuxState)" in llama
+    assert "selectLlamaServerPath(context, linuxState, launchConfig.lane)" in llama
     assert "ANDROID_16K_PAGE_SIZE_BYTES" in llama
     assert ".readTimeout(750, TimeUnit.MILLISECONDS)" in llama
     assert "LLAMA_CPP_READY_CHECKS = 720" in llama

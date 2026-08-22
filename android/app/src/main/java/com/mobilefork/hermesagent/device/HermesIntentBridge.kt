@@ -10,6 +10,7 @@ import android.net.Uri
 import android.provider.Browser
 import androidx.core.content.FileProvider
 import com.mobilefork.hermesagent.backend.BackendKind
+import com.mobilefork.hermesagent.backend.HermesRuntimeManager
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
 import org.json.JSONArray
 import org.json.JSONObject
@@ -85,7 +86,7 @@ object HermesIntentBridge {
             return null
         }
         val priorStatus = OnDeviceBackendManager.currentStatus()
-        val stoppedStatus = OnDeviceBackendManager.stopAll()
+        val stoppedStatus = HermesRuntimeManager.stopLocalRuntime()
         check(!stoppedStatus.requiresAppRestart) {
             stoppedStatus.statusMessage.ifBlank {
                 "The local backend did not stop safely; external activity handoff was cancelled"

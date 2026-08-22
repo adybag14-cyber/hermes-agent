@@ -7,6 +7,7 @@ import struct
 import subprocess
 import sys
 import zlib
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -910,6 +911,10 @@ def test_complete_v2_directory_validates_with_four_distinct_apk_hashes(
         tag=TAG, source=source, artifacts=artifacts, evidence=validated
     )
     assert manifest["schema"] == "hermes-android-release-evidence-manifest-v2"
+    assert all(
+        "required_llama_cpp_runtime_lane" not in artifact
+        for artifact in manifest["registered_model_matrix"]
+    )
     assert manifest["tested_binaries"] == {
         "ui_candidate_apk_sha256": UI_TARGET_SHA,
         "ui_instrumentation_apk_sha256": UI_TEST_SHA,
@@ -1505,6 +1510,7 @@ object VerifiedLocalModelArtifacts {
       sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       validationEvidence = "device",
       remoteManifestMatches = true,
+      requiredLlamaCppRuntimeLane = "turboquant",
     ),
     Artifact(
       modelId = "new-litert",
@@ -1527,6 +1533,90 @@ object VerifiedLocalModelArtifacts {
         next(artifact for artifact in parsed if artifact.model_id == "future-gguf").expected_bytes
         == 9_876_543
     )
+    assert (
+        next(artifact for artifact in parsed if artifact.model_id == "future-gguf")
+        .required_llama_cpp_runtime_lane
+        == "turboquant"
+    )
+    assert (
+        next(artifact for artifact in parsed if artifact.model_id == "new-litert")
+        .required_llama_cpp_runtime_lane
+        is None
+    )
+
+
+def _single_artifact_registry_source(*, runtime: str, runtime_lane: str) -> str:
+    file_name = "fixture.gguf" if runtime == "llama.cpp" else "fixture.litertlm"
+    return f"""
+object VerifiedLocalModelArtifacts {{
+  val releaseMatrix: List<Artifact> = listOf(
+    Artifact(
+      modelId = "fixture-model",
+      repoId = "org/fixture",
+      revision = "1111111111111111111111111111111111111111",
+      fileName = "{file_name}",
+      runtime = "{runtime}",
+      expectedBytes = 1_234L,
+      sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      validationEvidence = "device",
+      remoteManifestMatches = true,
+      requiredLlamaCppRuntimeLane = "{runtime_lane}",
+    ),
+  );
+}}
+"""
+
+
+def test_registry_parser_rejects_unsupported_required_llama_cpp_runtime_lane(
+    evidence_module,
+):
+    source = _single_artifact_registry_source(
+        runtime="llama.cpp",
+        runtime_lane="turbo5",
+    )
+    with pytest.raises(
+        evidence_module.EvidenceError,
+        match="requiredLlamaCppRuntimeLane must be 'stable' or 'turboquant'",
+    ):
+        evidence_module.parse_registered_model_matrix(source)
+
+
+def test_registry_parser_rejects_required_llama_cpp_lane_on_non_llama_artifact(
+    evidence_module,
+):
+    source = _single_artifact_registry_source(
+        runtime="litert-lm",
+        runtime_lane="turboquant",
+    )
+    with pytest.raises(
+        evidence_module.EvidenceError,
+        match=r"requiredLlamaCppRuntimeLane is valid only for llama\.cpp",
+    ):
+        evidence_module.parse_registered_model_matrix(source)
+
+
+def test_registry_parser_accepts_the_real_current_runtime_registry(evidence_module):
+    registry_path = (
+        REPO_ROOT
+        / "android/app/src/main/java/com/mobilefork/hermesagent/models/VerifiedLocalModelArtifacts.kt"
+    )
+    parsed = evidence_module.parse_registered_model_matrix(
+        registry_path.read_text(encoding="utf-8")
+    )
+
+    lane_bound_artifacts = [
+        artifact
+        for artifact in parsed
+        if artifact.required_llama_cpp_runtime_lane is not None
+    ]
+    assert lane_bound_artifacts
+    assert all(artifact.runtime == "llama.cpp" for artifact in lane_bound_artifacts)
+    nanbeige = next(
+        artifact
+        for artifact in lane_bound_artifacts
+        if artifact.file_name == "Nanbeige4.2-3B-Q4_K_M.gguf"
+    )
+    assert nanbeige.required_llama_cpp_runtime_lane == "turboquant"
 
 
 def test_bound_source_identity_rejects_dirty_or_untracked_build_inputs(
@@ -1598,6 +1688,71 @@ def test_model_matrix_requires_exact_registered_bytes_and_real_completion(
         evidence_module.validate_evidence_directory(
             evidence_root, artifacts, SOURCE_DIGEST, TAG
         )
+
+
+@pytest.mark.parametrize(
+    ("detail_field", "replacement", "remove"),
+    (
+        ("runtime_lane", None, True),
+        ("runtime_lane", "stable", False),
+        ("cache_type_k", None, True),
+        ("cache_type_k", "q5_k", False),
+        ("cache_type_v", None, True),
+        ("cache_type_v", "q5_v", False),
+        ("flash_attention", None, True),
+        ("flash_attention", "off", False),
+    ),
+)
+def test_turboquant_model_evidence_requires_exact_runtime_details(
+    evidence_root,
+    evidence_module,
+    artifacts,
+    detail_field,
+    replacement,
+    remove,
+):
+    turbo_artifact = replace(
+        artifacts[1],
+        required_llama_cpp_runtime_lane="turboquant",
+    )
+    turbo_artifacts = (artifacts[0], turbo_artifact)
+    target = evidence_root / "models" / f"{turbo_artifact.model_id}.json"
+    payload = json.loads(target.read_text(encoding="utf-8"))
+    payload["details"].update(
+        {
+            "runtime_lane": "turboquant",
+            "cache_type_k": "turbo3",
+            "cache_type_v": "turbo3",
+            "flash_attention": "on",
+        }
+    )
+    if remove:
+        del payload["details"][detail_field]
+    else:
+        payload["details"][detail_field] = replacement
+    target.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(
+        evidence_module.EvidenceError,
+        match=rf"details\.{detail_field} must equal",
+    ):
+        evidence_module.validate_evidence_directory(
+            evidence_root, turbo_artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_manifest_artifact_record_preserves_explicit_turboquant_lane(
+    evidence_module,
+    artifacts,
+):
+    turbo_artifact = replace(
+        artifacts[1],
+        required_llama_cpp_runtime_lane="turboquant",
+    )
+
+    record = evidence_module._artifact_manifest_record(turbo_artifact)
+
+    assert record["required_llama_cpp_runtime_lane"] == "turboquant"
 
 
 def test_reused_untranslated_ui_capture_is_rejected(

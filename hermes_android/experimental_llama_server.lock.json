@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "source": {
+    "repository": "https://github.com/TheTom/llama-cpp-turboquant",
+    "commit": "e30664a710b62aaf13c6b12e39e74500e6ce21ef",
+    "archive_url": "https://codeload.github.com/TheTom/llama-cpp-turboquant/tar.gz/e30664a710b62aaf13c6b12e39e74500e6ce21ef",
+    "archive_size_bytes": 37322331,
+    "archive_sha256": "35ed614e57e57c6f40f5757f5f13d9d033f13bbfb5eebdfde9fa2cae20aed4a3",
+    "license": "MIT"
+  },
+  "android": {
+    "ndk_version": "29.0.14206865",
+    "minimum_api": 24,
+    "abis": [
+      "arm64-v8a",
+      "x86_64"
+    ],
+    "maximum_parallel_jobs": 12,
+    "minimum_load_alignment_bytes": 16384,
+    "allowed_needed_libraries": [
+      "libc.so",
+      "libdl.so",
+      "libm.so"
+    ]
+  },
+  "toolchain": {
+    "android_ndk_package": "ndk;29.0.14206865",
+    "android_cmake_package": "cmake;3.31.6",
+    "cmake_version": "3.31.6",
+    "ninja_version": "1.12.1"
+  },
+  "build": {
+    "generator": "Ninja",
+    "configuration": "Release",
+    "source_date_epoch": 315532800,
+    "cmake_defines": {
+      "ANDROID_STL": "c++_static",
+      "BUILD_SHARED_LIBS": "OFF",
+      "GGML_LLAMAFILE": "OFF",
+      "GGML_NATIVE": "OFF",
+      "GGML_OPENMP": "OFF",
+      "LLAMA_BUILD_COMMIT": "e30664a710b62aaf13c6b12e39e74500e6ce21ef",
+      "LLAMA_BUILD_EXAMPLES": "OFF",
+      "LLAMA_BUILD_NUMBER": "10539",
+      "LLAMA_BUILD_SERVER": "ON",
+      "LLAMA_BUILD_TESTS": "OFF",
+      "LLAMA_BUILD_UI": "OFF",
+      "LLAMA_CURL": "OFF",
+      "LLAMA_USE_PREBUILT_UI": "OFF"
+    }
+  },
+  "source_patches": [
+    {
+      "path": "hermes_android/patches/llama_cpp_e306_legacy_nanbeige_loop_count.patch",
+      "size_bytes": 3226,
+      "sha256": "cb578cc9a087065a9d8ea16f6b1c5fb76fd06d81ce888258de7825c61bd5a601",
+      "purpose": "Accept legacy Nanbeige loop_count GGUF metadata only when tensor boundaries prove a logical or physical block layout, while preserving modern num_loops behavior.",
+      "files": [
+        {
+          "path": "src/models/nanbeige.cpp",
+          "source_sha256": "6d7f87e74cd982a8b327871625b4e3c95ffb11940d20cde6d1407416f8bbdcc2",
+          "patched_sha256": "1d39f06ce2473524574593d30991821e60cc8554105416e648c6edf6e9fde71a"
+        }
+      ]
+    }
+  ],
+  "artifact": {
+    "packaged_filename": "libhermes_android_llama_server_experimental.so",
+    "server_identity": "llama-cpp-turboquant-e30664a-android-static"
+  },
+  "license_artifacts": [
+    {
+      "source_path": "LICENSE",
+      "packaged_asset_path": "hermes-experimental-llama/LICENSE.txt",
+      "size_bytes": 1078,
+      "sha256": "94f29bbed6a22c35b992c5c6ebf0e7c92f13b836b90f36f461c9cf2f0f1d010d"
+    },
+    {
+      "source_path": "licenses/LICENSE-jsonhpp",
+      "packaged_asset_path": "hermes-experimental-llama/licenses/LICENSE-jsonhpp.txt",
+      "size_bytes": 1075,
+      "sha256": "c0d068392ea65358b798b8c165103560f06e9e3b38c4ab4e2d8810a7b931af86"
+    },
+    {
+      "source_path": "vendor/cpp-httplib/LICENSE",
+      "packaged_asset_path": "hermes-experimental-llama/licenses/LICENSE-cpp-httplib.txt",
+      "size_bytes": 1075,
+      "sha256": "4b45cbe16d7b71b89ae6127e26e0d90a029198ca5e958ad8e3d0b8bbed364d8b"
+    }
+  ],
+  "capabilities": {
+    "model_architectures": [
+      "nanbeige"
+    ],
+    "kv_cache_types": [
+      "f32",
+      "f16",
+      "bf16",
+      "q8_0",
+      "q4_0",
+      "q4_1",
+      "iq4_nl",
+      "q5_0",
+      "q5_1",
+      "turbo2",
+      "turbo3",
+      "turbo4"
+    ],
+    "flash_attention_modes": [
+      "auto",
+      "on",
+      "off"
+    ],
+    "turbo_cache_requires_flash_attention": true
+  }
+}

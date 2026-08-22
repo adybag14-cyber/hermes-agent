@@ -9,8 +9,8 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-VERSION_NAME = "0.13.149"
-VERSION_CODE = "144990"
+VERSION_NAME = "0.13.150"
+VERSION_CODE = "145090"
 RESOLVED_RELEASE_COMMIT = "a" * 40
 GRADLE_RELATIVE = Path("android/app/build.gradle.kts")
 RELEASE_TAG_EXPRESSION = 'System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()'
@@ -383,6 +383,8 @@ def test_fdroid_metadata_and_gradle_wire_prepare_before_sed_and_verify_afterward
     gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
 
     assert build["gradleprops"] == ["hermesFdroidSourceBinding=true"]
+    assert build["ndk"] == "29.0.14206865"
+    assert 'sdkmanager "cmake;3.31.6"' in build["sudo"]
     assert "android_fdroid_source_binding.py prepare" in prebuild[0]
     assert "${GRADLE_USER_HOME:-$HOME/.gradle}" in prebuild[0]
     assert RELEASE_TAG_EXPRESSION in prebuild[1]
@@ -402,7 +404,7 @@ def test_autoupdater_preview_rejects_the_prior_two_sed_recipe(tmp_path: Path):
 
     with pytest.raises(
         binding_module.FdroidSourceBindingError,
-        match="missing source-binding field 'gradleprops'",
+        match="sudo does not match the v0.13.150 source-binding template",
     ):
         binding_module.verify_autoupdate_metadata_preview(
             metadata,
@@ -448,14 +450,16 @@ def test_autoupdater_preview_render_preserves_commit_history_and_unrelated_metad
 
     before_target = dict(before["Builds"][1])
     after_target = dict(after["Builds"][1])
-    assert after_target.pop("gradleprops") == template_build["gradleprops"]
-    assert after_target.pop("prebuild") == template_build["prebuild"]
-    before_target.pop("prebuild")
+    for field_name in ("sudo", "ndk", "gradle", "gradleprops", "prebuild"):
+        assert after_target.pop(field_name) == template_build[field_name]
+        before_target.pop(field_name, None)
     assert after_target == before_target
     assert "historical-recipe-must-remain-byte-identical" in rendered_text
     assert "preserve this unrelated live metadata exactly" in rendered_text
     assert "android_fdroid_source_binding.py prepare" in rendered_text
     assert "hermesFdroidSourceBinding=true" in rendered_text
+    assert 'sdkmanager "cmake;3.31.6"' in rendered_text
+    assert "    ndk: 29.0.14206865" in rendered_text
     assert "unbound" not in "\n".join(template_build["prebuild"]).lower()
 
 

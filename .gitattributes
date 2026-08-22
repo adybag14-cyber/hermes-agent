@@ -36,3 +36,6 @@ android/pip-stubs/**/*.egg-info/PKG-INFO text eol=lf
 
 # Historical verification captures are evidence, not normalized source files.
 verification-screenshots/** -text -eol
+
+# Compatibility patches are byte-hashed; blank context lines retain their unified-diff marker.
+hermes_android/patches/*.patch text eol=lf whitespace=-blank-at-eol

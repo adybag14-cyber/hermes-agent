@@ -43,8 +43,8 @@ jobs:
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
           # Skip emulator meta-package; debug assemble/unit tests only need
-          # platform-tools, platforms, and build-tools.
-          packages: platform-tools platforms;android-35 build-tools;35.0.0
+          # platform-tools, platforms, build-tools, and the locked native toolchain.
+          packages: platform-tools platforms;android-35 build-tools;35.0.0 ndk;29.0.14206865 cmake;3.31.6
 
       - name: Install Python test dependencies
         run: |

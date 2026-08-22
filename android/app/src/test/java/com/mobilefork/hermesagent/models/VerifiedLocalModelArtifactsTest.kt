@@ -46,6 +46,23 @@ class VerifiedLocalModelArtifactsTest {
     }
 
     @Test
+    fun nanbeigePublisherQ4KmIdentityIsPinnedExactly() {
+        val artifact = VerifiedLocalModelArtifacts.require(
+            "https://huggingface.co/Tdamre/Nanbeige4.2-3B-GGUF",
+            "Nanbeige4.2-3B-Q4_K_M.gguf",
+        )
+
+        assertEquals("128d8e87d69f9c1a30c37e40530c69deda96475d", artifact.revision)
+        assertEquals(2_574_807_840L, artifact.expectedBytes)
+        assertEquals(
+            "99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489",
+            artifact.sha256,
+        )
+        assertEquals("llama.cpp", artifact.runtime)
+        assertTrue(artifact.remoteManifestMatches)
+    }
+
+    @Test
     fun verifierRejectsRightNameWithWrongBytesBeforeHashing() {
         val artifact = VerifiedLocalModelArtifacts.releaseMatrix.first()
         val directory = createTempDirectory("hermes-artifact-test-").toFile()

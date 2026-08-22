@@ -129,9 +129,8 @@ class NousPortalViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun setPortalEnabled(enabled: Boolean) {
-        val updated = settingsStore.load().copy(portalEnabled = enabled)
+        val updated = settingsStore.update { current -> current.copy(portalEnabled = enabled) }
         val strings = currentStrings()
-        settingsStore.save(updated)
         _uiState.value = _uiState.value.copy(
             portalEnabled = enabled,
             offlineAirplaneMode = updated.offlineAirplaneMode,

@@ -160,6 +160,89 @@ ready. They can be supported later through an explicit user-selected/family
 template path, but they are outside this release's chat-ready compatibility
 contract.
 
+## Stable and experimental llama.cpp lanes
+
+The default **Stable compatibility** lane preserves the v0.13.149 Termux
+`llama-cpp` b9784 runtime and its existing launch defaults. This avoids silently
+changing a release-tested native dependency graph for users who do not opt in.
+That build accepts the standard `f32`, `f16`, `bf16`, `q8_0`, `q4_0`, `q4_1`,
+`iq4_nl`, `q5_0`, and `q5_1` KV-cache types, but it predates official Nanbeige
+architecture support.
+
+The opt-in **Experimental TurboQuant / Nanbeige** lane is a separate,
+system-library-only Android executable built from
+`TheTom/llama-cpp-turboquant` commit
+`e30664a710b62aaf13c6b12e39e74500e6ce21ef` (build 10539). Its source archive,
+NDK 29.0.14206865, Android SDK CMake 3.31.6/Ninja 1.12.1 toolchain, ABI list,
+cache-type capabilities, and hashes are
+content-pinned in `hermes_android/experimental_llama_server.lock.json`. The
+stable b9784 executable and shared libraries remain untouched. The experimental
+lane adds Nanbeige plus the `turbo2`, `turbo3`, and `turbo4` KV-cache types, but
+it is CPU-only and may trade speed for KV-cache memory savings on phones.
+Selecting the exact Nanbeige recommended card or Model Manager catalog row
+persists TurboQuant before the download begins and reapplies that requirement
+when the completed file becomes preferred or auto-starts. Other model presets
+do not change the user's current lane.
+
+The Settings screen exposes K and V cache types independently. There are no
+llama.cpp cache formats called `q5_k` or `q5_v`: choose `q5_0` or `q5_1` in the
+K selector and independently in the V selector. Flash attention can be left at
+the server default or set to Auto, On, or Off. Quantized V caches require
+effective flash attention, and TurboQuant cache types cannot be combined with
+Flash Off; Hermes rejects those combinations before it starts a process.
+
+Expert additional arguments are stored as an argument list, one token per
+line. Hermes shell-quotes every token and rejects positional values,
+app-owned model/host/port options, API/TLS/download options, duplicate managed
+options, control characters, and oversized argument sets. It also checks the
+exact value count for a reviewed set of pinned-parser performance flags,
+while model, paging/RAM, device-placement, endpoint, and chat/tool-protocol
+overrides remain Hermes-owned. Other non-owned flags remain available for
+expert and forward-compatible use; the selected native parser performs their final
+per-flag semantic validation during the controlled restart. Because expert argv
+may contain device paths or secrets, it is intentionally omitted from portable
+settings exports; importing such a redacted bundle clears destination-local
+expert argv. Saving a changed lane or argument fingerprint stops only the owned
+server, restarts it, and reruns both readiness and the real completion canary.
+The displayed effective arguments are the authority for what was applied.
+
+Every owned llama.cpp process receives a fresh 256-bit loopback bearer token.
+The pinned server intentionally leaves `GET /health` and `GET /v1/models`
+public, so Hermes uses them only for readiness and model metadata. It separately
+proves that the data-bearing chat endpoint rejects an unkeyed request, then uses
+the token for the completion canary, streamed chat, and native tool chat. The
+controller checks that the port is free both before runtime discovery and
+immediately before spawning, retains the exact process handle, and confirms the
+owned process is still alive after readiness and completion. The token and raw
+expert argv are not written to diagnostics, portable exports, or user-visible
+failure status.
+
+The experimental Nanbeige request path adds `reasoning_format=none` for both
+streamed chat and the non-stream fallback and keeps native chat's
+`enable_thinking=false` template argument. This prevents a short generation
+from landing only in `reasoning_content` while assistant-visible `content`
+remains empty. The TurboQuant-only reasoning-format override is not sent
+through the Stable lane, LiteRT-LM, or remote providers.
+
+**Try once despite the RAM warning** is deliberately a one-shot action. It
+bypasses only Hermes' RAM admission estimate for that single llama.cpp start;
+it is never persisted or exported and does not bypass file/GGUF validation,
+content-addressed checks, executable validation, localhost ownership,
+readiness, the completion canary, or fail-closed process cleanup. Android may
+still kill the process or the native allocator may fail. Normal launches retain
+the bounded 1,024/2,048-token context defaults; importing a model which advertises
+a much larger training context does not make that full context a safe phone
+default.
+
+The Nanbeige artifact used for this lane's exact compatibility gate is
+`Tdamre/Nanbeige4.2-3B-GGUF` revision
+`128d8e87d69f9c1a30c37e40530c69deda96475d`, file
+`Nanbeige4.2-3B-Q4_K_M.gguf`, 2,574,807,840 bytes, SHA-256
+`99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489`.
+Do not call a renamed local file byte-identical until its on-device digest has
+been checked. As with every model, lane availability is not certification: a
+headed device run must still prove model load, health, and non-empty completion.
+
 ## LiteRT-LM stable and upstream-preview builds
 
 Normal and F-Droid builds use the exact `liteRtLmStableVersion` declared in
@@ -203,6 +286,21 @@ The debug APK is written beneath `android/app/build/outputs/apk/debug/`.
 Release builds additionally need `android/keystore.properties` and the
 corresponding signing keystore; neither belongs in Git.
 
+The experimental llama.cpp task pins the source archive, compatibility patch,
+NDK 29.0.14206865, the official Android SDK `cmake;3.31.6` package (CMake
+3.31.6 with Ninja 1.12.1), ABIs, build definitions, and `SOURCE_DATE_EPOCH`;
+every executed task validates those exact tool versions before downloading or
+building, then rechecks the Android ELF dependencies and 16 KB load alignment.
+The lock also hashes and packages the ggml/llama.cpp, nlohmann
+JSON, and cpp-httplib MIT notices under
+`assets/hermes-experimental-llama/`; a candidate missing any notice is not
+releasable. Normal builds resolve CMake and Ninja only from that exact Android
+SDK package; paired explicit overrides remain available for diagnostics but
+must report the same locked versions. The verified source archive cache lives
+under `GRADLE_USER_HOME/caches/hermes-experimental-llama/source`, so the named
+F-Droid Gradle volume can reuse the immutable download. A Windows build is
+still a verified candidate rather than a byte-reproducibility certification.
+
 For a disposable Windows build which avoids Chaquopy ACL/path problems, use the
 repository's pinned F-Droid Debian buildserver container described under
 `../fdroid/`. F-Droid reproducibility certification must use the pinned image,
@@ -245,7 +343,7 @@ commit checked out, obtain the identity embedded into the headed debug
 candidate and build both APKs from the same process environment:
 
 ```powershell
-$tag = 'v0.13.149'
+$tag = 'v0.13.150'
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)
@@ -761,7 +859,7 @@ source tree is clean outside the evidence directory, then commit the evidence
 before creating the tag:
 
 ```powershell
-$tag = 'v0.13.149'
+$tag = 'v0.13.150'
 python scripts/android_release_evidence.py create --tag $tag
 git add "android/release-evidence/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
@@ -823,6 +921,14 @@ Check the reported GGUF architecture/chat-template error, process exit code,
 and server log tail. Do not treat a successful `/v1/models` request alone as
 proof that the model can generate text.
 
+If the log says `unknown model architecture: 'nanbeige'`, the Stable b9784 lane
+was selected; this is a real native-backend compatibility error, not a graphical
+error. Select the Experimental TurboQuant / Nanbeige lane, apply and restart,
+then require the same health and non-empty-completion checks. If startup rejects
+a K/V-cache configuration, first restore Server default or enable flash
+attention for a quantized V cache. The dangerous RAM action cannot repair an
+unsupported architecture or invalid server arguments.
+
 ### Terminal commands return exit code 126
 
 Exit code 126 means Android found the target but could not execute it. Capture
@@ -865,7 +971,7 @@ fdroid checkupdates --auto --allow-dirty com.mobilefork.hermesagent
 ```
 
 Run this from a fresh checkout of the live F-Droid metadata after the GitHub tag
-exists. The local diff must add exactly one 0.13.149/144990 build and resolve the
+exists. The local diff must add exactly one 0.13.150/145090 build and resolve the
 tag to its full Git commit. Before the pinned build, merge only the committed
 template's source-binding fields into that autoupdater-generated build and
 verify the result:
@@ -882,8 +988,9 @@ bash fdroid/run-local-buildserver.sh \
 ```
 
 This transaction preserves the resolved commit, historical builds, and every
-unrelated live-metadata field. It overlays only `gradleprops` and `prebuild`,
-then requires `hermesFdroidSourceBinding=true` and the leading external-digest
+unrelated live-metadata field. It overlays the exact `sudo`, `ndk`, `gradle`,
+`gradleprops`, and `prebuild` contract, then requires
+`hermesFdroidSourceBinding=true` and the leading external-digest
 `prepare` handoff. An old two-`sed` recipe or any path which can produce
 `unbound` is rejected before the container downloads or builds anything. Do not
 copy the whole candidate template over live metadata. Do not add `--commit` or

@@ -30,6 +30,8 @@ data class ChatCompletionRequest(
     val maxTokens: Int? = null,
     val topP: Float? = null,
     val temperature: Float? = null,
+    val reasoningFormat: String? = null,
+    val chatTemplateEnableThinking: Boolean? = null,
 )
 
 data class ChatCompletionResult(
@@ -57,6 +59,10 @@ fun ChatCompletionRequest.toChatCompletionPayload(): JSONObject {
         maxTokens?.takeIf { it > 0 }?.let { put("max_tokens", it) }
         topP?.let { put("top_p", it.toDouble()) }
         temperature?.let { put("temperature", it.toDouble()) }
+        reasoningFormat?.takeIf { it.isNotBlank() }?.let { put("reasoning_format", it) }
+        chatTemplateEnableThinking?.let { enabled ->
+            put("chat_template_kwargs", JSONObject().put("enable_thinking", enabled))
+        }
         put(
             "messages",
             JSONArray().apply {

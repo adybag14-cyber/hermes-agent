@@ -26,12 +26,40 @@ class RecommendedLocalModelsTest {
         presetsByArtifact.values.forEach { (artifact, preset) ->
             assertEquals(artifact.revision, preset.revision)
             assertEquals(artifact.fileName, preset.filePath.substringAfterLast('/'))
+            assertEquals(artifact.expectedBytes, preset.expectedBytes)
+            assertEquals(artifact.sha256, preset.sha256)
             assertEquals(
                 if (artifact.runtime == "litert-lm") "LiteRT-LM" else "GGUF",
                 preset.runtimeFlavor,
             )
             assertTrue(preset.revision != "main")
         }
+    }
+
+    @Test
+    fun exactNanbeigePresetRequiresTurboQuantAndAllOtherPresetsAreLaneNeutral() {
+        val nanbeige = LocalModelDownloadsViewModel.recommendedModelPresets.single {
+            it.id == "nanbeige4.2-3b-q4-k-m"
+        }
+        val artifact = VerifiedLocalModelArtifacts.require(
+            "Tdamre/Nanbeige4.2-3B-GGUF",
+            "Nanbeige4.2-3B-Q4_K_M.gguf",
+        )
+
+        assertEquals(artifact.repoId, nanbeige.repoOrUrl)
+        assertEquals(artifact.fileName, nanbeige.filePath)
+        assertEquals("128d8e87d69f9c1a30c37e40530c69deda96475d", nanbeige.revision)
+        assertEquals(2_574_807_840L, nanbeige.expectedBytes)
+        assertEquals(
+            "99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489",
+            nanbeige.sha256,
+        )
+        assertEquals("turboquant", nanbeige.requiredLlamaCppRuntimeLane)
+        assertTrue(
+            LocalModelDownloadsViewModel.recommendedModelPresets
+                .filterNot { it.id == nanbeige.id }
+                .all { it.requiredLlamaCppRuntimeLane == null },
+        )
     }
 
     @Test

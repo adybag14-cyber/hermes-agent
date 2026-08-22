@@ -103,7 +103,13 @@ val generatedPythonBuildLibDir = repoRoot.resolve("build/lib")
 val hermesWheelDir = layout.buildDirectory.dir("hermes-wheel")
 val generatedHermesLinuxAssetsDir = layout.buildDirectory.dir("generated/hermes-linux-assets")
 val generatedHermesNativeLibsDir = layout.buildDirectory.dir("generated/hermes-native-libs")
+val generatedHermesExperimentalLlamaLibsDir = layout.buildDirectory.dir("generated/hermes-experimental-llama-libs")
+val generatedHermesExperimentalLlamaAssetsDir = layout.buildDirectory.dir("generated/hermes-experimental-llama-assets")
 val hermesLinuxAssetLockFile = repoRoot.resolve("hermes_android/termux_linux_assets.lock.json")
+val hermesExperimentalLlamaLockFile = repoRoot.resolve("hermes_android/experimental_llama_server.lock.json")
+val hermesExperimentalLlamaNdkVersion = "29.0.14206865"
+val hermesExperimentalLlamaPatchFile =
+    repoRoot.resolve("hermes_android/patches/llama_cpp_e306_legacy_nanbeige_loop_count.patch")
 val skipHermesAndroidLinuxAssets = providers.gradleProperty("skipHermesAndroidLinuxAssets")
     .map { it.equals("true", ignoreCase = true) }
     .getOrElse(false)
@@ -203,6 +209,7 @@ if (hermesSourceDigest.isNotBlank()) {
 android {
     namespace = "com.mobilefork.hermesagent"
     compileSdk = 35
+    ndkVersion = hermesExperimentalLlamaNdkVersion
 
     defaultConfig {
         applicationId = "com.mobilefork.hermesagent"
@@ -354,7 +361,9 @@ android {
         getByName("main") {
             if (!skipHermesAndroidLinuxAssets) {
                 assets.srcDir(generatedHermesLinuxAssetsDir)
+                assets.srcDir(generatedHermesExperimentalLlamaAssetsDir)
                 jniLibs.srcDir(generatedHermesNativeLibsDir)
+                jniLibs.srcDir(generatedHermesExperimentalLlamaLibsDir)
             }
         }
     }
@@ -485,10 +494,41 @@ val prepareHermesAndroidNativeLibs = tasks.register<Exec>("prepareHermesAndroidN
     )
 }
 
+val prepareHermesAndroidExperimentalLlamaServer = tasks.register<Exec>("prepareHermesAndroidExperimentalLlamaServer") {
+    group = "android"
+    description = "Build and verify the pinned experimental TurboQuant llama-server for Android."
+    val outputDir = generatedHermesExperimentalLlamaLibsDir.get().asFile
+    val assetsOutputDir = generatedHermesExperimentalLlamaAssetsDir.get().asFile
+    inputs.file(hermesExperimentalLlamaLockFile)
+    inputs.file(hermesExperimentalLlamaPatchFile)
+    inputs.file(repoRoot.resolve("scripts/prepare_android_experimental_llama_server.py"))
+    outputs.dir(outputDir)
+    outputs.dir(assetsOutputDir)
+    onlyIf { !skipHermesAndroidLinuxAssets }
+    doFirst {
+        outputDir.parentFile.mkdirs()
+    }
+    commandLine(
+        resolvedBuildPython(),
+        repoRoot.resolve("scripts/prepare_android_experimental_llama_server.py").absolutePath,
+        "--output-dir",
+        outputDir.absolutePath,
+        "--assets-output-dir",
+        assetsOutputDir.absolutePath,
+        "--lock-file",
+        hermesExperimentalLlamaLockFile.absolutePath,
+        "--cache-dir",
+        gradle.gradleUserHomeDir.resolve("caches/hermes-experimental-llama/source").absolutePath,
+        "--jobs",
+        "12",
+    )
+}
+
 if (!skipHermesAndroidLinuxAssets) {
     tasks.named("preBuild") {
         dependsOn(prepareHermesAndroidLinuxAssets)
         dependsOn(prepareHermesAndroidNativeLibs)
+        dependsOn(prepareHermesAndroidExperimentalLlamaServer)
     }
 }
 

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.mobilefork.hermesagent.backend.LlamaCppLaunchConfig
+import com.mobilefork.hermesagent.backend.LlamaCppRuntimeLane
 import com.mobilefork.hermesagent.backend.LlamaCppServerController
 import com.mobilefork.hermesagent.backend.OnDeviceBackendManager
 import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
@@ -62,29 +64,45 @@ class LlamaCppModelMatrixInstrumentedTest {
         assertEquals(artifact.sha256, verification.actualSha256)
 
         val startedAt = System.nanoTime()
+        val requiredLane = LlamaCppRuntimeLane.fromPersistedValue(
+            artifact.requiredLlamaCppRuntimeLane,
+        )
+        val launchConfig = when (requiredLane) {
+            LlamaCppRuntimeLane.TURBOQUANT -> LlamaCppLaunchConfig(
+                lane = requiredLane,
+                cacheTypeK = "turbo3",
+                cacheTypeV = "turbo3",
+                flashAttention = "on",
+            )
+            LlamaCppRuntimeLane.STABLE -> LlamaCppLaunchConfig(lane = requiredLane)
+        }
         val status = LlamaCppServerController.ensureRunning(
             context = context,
             modelPath = modelFile.absolutePath,
             requestedModelName = artifact.modelId,
             port = OnDeviceBackendManager.LLAMA_CPP_PORT,
+            launchConfig = launchConfig,
         )
         assertTrue(status.statusMessage, status.started)
         assertTrue(status.statusMessage, status.completionVerified)
         assertTrue(status.statusMessage, status.completionLatencyMs > 0L)
         assertEquals("cpu", status.accelerator)
+        assertTrue("Owned llama.cpp runtime must publish an ephemeral bearer token", status.apiKey.isNotBlank())
 
         val models = executeJson(
             Request.Builder()
                 .url("${status.baseUrl}/models")
+                .header("Authorization", "Bearer ${status.apiKey}")
                 .get()
                 .build(),
         )
         val servedModels = models.optJSONArray("data") ?: JSONArray()
         assertTrue("Expected a nonempty llama.cpp /v1/models response: $models", servedModels.length() > 0)
 
-        val requestJson = LlamaCppServerController.releaseMatrixCompletionPayload(status.modelName)
+        val requestJson = LlamaCppServerController.releaseMatrixCompletionPayload(status.modelName, launchConfig.lane)
         val request = Request.Builder()
             .url("${status.baseUrl}/chat/completions")
+            .header("Authorization", "Bearer ${status.apiKey}")
             .post(requestJson.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
         val completion = executeJson(request)
@@ -126,6 +144,10 @@ class LlamaCppModelMatrixInstrumentedTest {
                     .put("completion_characters", messageContent.length)
                     .put("startup_completion_canary_verified", status.completionVerified)
                     .put("startup_completion_canary_ms", status.completionLatencyMs)
+                    .put("runtime_lane", launchConfig.lane.persistedValue)
+                    .put("cache_type_k", launchConfig.cacheTypeK)
+                    .put("cache_type_v", launchConfig.cacheTypeV)
+                    .put("flash_attention", launchConfig.flashAttention)
                     .put("artifact_summary", status.artifactSummary),
             ),
         )
