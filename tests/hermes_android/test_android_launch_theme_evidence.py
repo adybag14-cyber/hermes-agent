@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import json
 from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -141,6 +142,176 @@ def test_palette_proof_is_bound_to_device_run_and_rendered_capture(tmp_path):
     wrong_capture = write_palette_proof(tmp_path / "wrong-capture.txt", evidence_identity="section:Hermes")
     with pytest.raises(MODULE.EvidenceError, match="appearance-custom-light"):
         MODULE.load_palette_proof(wrong_capture, valid_identity())
+
+
+class _FakeAdb:
+    def __init__(self, events: list[object]):
+        self.events = events
+        self.serial = "emulator-5554"
+
+    def argv(self, *args: str) -> list[str]:
+        argv = ["adb", "-s", self.serial, *args]
+        self.events.append(("argv", argv))
+        return argv
+
+    def text(self, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+        self.events.append(("text", args, check))
+        if args[0] == "pull":
+            Path(args[2]).write_bytes(b"captured launch video")
+        return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+
+
+class _FakeRecorder:
+    def __init__(self, events: list[object], *, time_out: bool = False):
+        self.events = events
+        self.time_out = time_out
+        self.returncode: int | None = None
+        self.communicate_calls = 0
+        self.kill_calls = 0
+
+    def communicate(self, timeout: float | None = None) -> tuple[bytes, bytes]:
+        self.communicate_calls += 1
+        self.events.append(("communicate", timeout))
+        if self.time_out and self.communicate_calls == 1:
+            raise subprocess.TimeoutExpired(cmd="screenrecord", timeout=timeout)
+        self.returncode = 0
+        return b"", b""
+
+    def kill(self) -> None:
+        self.kill_calls += 1
+        self.events.append(("kill",))
+        self.returncode = -9
+
+
+def test_record_launch_uses_long_capture_window_without_changing_artifact_contract(tmp_path, monkeypatch):
+    events: list[object] = []
+    adb = _FakeAdb(events)
+    recorder = _FakeRecorder(events)
+
+    def fake_popen(argv, *, stdout, stderr):
+        assert stdout is subprocess.PIPE
+        assert stderr is subprocess.PIPE
+        events.append(("popen", argv))
+        return recorder
+
+    def fake_sleep(seconds: float) -> None:
+        events.append(("sleep", seconds))
+
+    def fake_launch() -> subprocess.CompletedProcess[str]:
+        events.append(("launch",))
+        return subprocess.CompletedProcess([], 0, stdout="Starting: Intent", stderr="")
+
+    def fake_require_resumed(observed_adb) -> str:
+        assert observed_adb is adb
+        events.append(("require_resumed",))
+        return "mResumedActivity com.mobilefork.hermesagent/.MainActivity"
+
+    def fake_write_png(observed_adb, path: Path) -> None:
+        assert observed_adb is adb
+        events.append(("write_png", path.name))
+        path.write_bytes(b"synthetic settled png")
+
+    monkeypatch.setattr(MODULE.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(MODULE.time, "sleep", fake_sleep)
+    monkeypatch.setattr(MODULE, "require_resumed_main_activity", fake_require_resumed)
+    monkeypatch.setattr(MODULE, "write_verified_png", fake_write_png)
+
+    record = MODULE.record_launch(adb, tmp_path, "release-run", "cold-deep-link", fake_launch)
+
+    expected_remote = "/sdcard/release-run-cold-deep-link.mp4"
+    expected_video = str(tmp_path / "release-run-cold-deep-link.mp4")
+    assert events == [
+        ("text", ("shell", "am", "force-stop", MODULE.PACKAGE_ID), True),
+        ("text", ("shell", "input", "keyevent", "KEYCODE_HOME"), True),
+        ("text", ("shell", "rm", "-f", expected_remote), False),
+        (
+            "argv",
+            [
+                "adb",
+                "-s",
+                "emulator-5554",
+                "shell",
+                "screenrecord",
+                "--time-limit",
+                "10",
+                "--bit-rate",
+                "8000000",
+                expected_remote,
+            ],
+        ),
+        (
+            "popen",
+            [
+                "adb",
+                "-s",
+                "emulator-5554",
+                "shell",
+                "screenrecord",
+                "--time-limit",
+                "10",
+                "--bit-rate",
+                "8000000",
+                expected_remote,
+            ],
+        ),
+        ("sleep", 0.6),
+        ("launch",),
+        ("require_resumed",),
+        ("sleep", 1.0),
+        ("communicate", 18),
+        ("text", ("pull", expected_remote, expected_video), False),
+        ("text", ("shell", "rm", "-f", expected_remote), False),
+        ("write_png", "release-run-cold-deep-link-settled.png"),
+    ]
+    assert record == {
+        "label": "cold-deep-link",
+        "launch_stdout": "Starting: Intent",
+        "launch_stderr": "",
+        "video": "release-run-cold-deep-link.mp4",
+        "video_sha256": MODULE.sha256_file(tmp_path / "release-run-cold-deep-link.mp4"),
+        "settled_screenshot": "release-run-cold-deep-link-settled.png",
+        "settled_screenshot_sha256": MODULE.sha256_file(
+            tmp_path / "release-run-cold-deep-link-settled.png"
+        ),
+        "activity_dump": "release-run-cold-deep-link-activity.txt",
+        "activity_dump_sha256": MODULE.sha256_file(
+            tmp_path / "release-run-cold-deep-link-activity.txt"
+        ),
+        "automated_state_verdict": "main_activity_resumed_and_artifacts_decoded",
+        "visual_splash_verdict": "manual_review_required",
+    }
+
+
+def test_record_launch_kills_and_drains_timed_out_recorder(tmp_path, monkeypatch):
+    events: list[object] = []
+    adb = _FakeAdb(events)
+    recorder = _FakeRecorder(events, time_out=True)
+
+    monkeypatch.setattr(
+        MODULE.subprocess,
+        "Popen",
+        lambda argv, *, stdout, stderr: recorder,
+    )
+    monkeypatch.setattr(MODULE.time, "sleep", lambda _seconds: None)
+    monkeypatch.setattr(
+        MODULE,
+        "require_resumed_main_activity",
+        lambda _adb: "mResumedActivity com.mobilefork.hermesagent/.MainActivity",
+    )
+
+    with pytest.raises(subprocess.TimeoutExpired):
+        MODULE.record_launch(
+            adb,
+            tmp_path,
+            "release-run",
+            "cold-launcher-tap",
+            lambda: subprocess.CompletedProcess([], 0, stdout="", stderr=""),
+        )
+
+    assert recorder.kill_calls == 1
+    assert recorder.communicate_calls == 2
+    assert not any(event[0] == "write_png" for event in events)
+    assert not any(event[0] == "text" and event[1][0] == "pull" for event in events)
 
 
 def _write_review_fixture(root: Path) -> Path:

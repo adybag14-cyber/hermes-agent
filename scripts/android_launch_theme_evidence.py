@@ -58,6 +58,11 @@ PREFERENCE_KEYS = {
     "card_shape": "theme_card_shape",
     "ui_font_scale": "ui_font_scale",
 }
+SCREENRECORD_TIME_LIMIT_SECONDS = 10
+SCREENRECORD_STARTUP_DELAY_SECONDS = 0.6
+POST_RESUME_DELAY_SECONDS = 1.0
+SCREENRECORD_TIMEOUT_HEADROOM_SECONDS = 8
+SCREENRECORD_BIT_RATE = 8_000_000
 
 
 class EvidenceError(RuntimeError):
@@ -423,16 +428,26 @@ def record_launch(
     adb.text("shell", "input", "keyevent", "KEYCODE_HOME")
     adb.text("shell", "rm", "-f", remote_video, check=False)
     recorder = subprocess.Popen(
-        adb.argv("shell", "screenrecord", "--time-limit", "4", "--bit-rate", "8000000", remote_video),
+        adb.argv(
+            "shell",
+            "screenrecord",
+            "--time-limit",
+            str(SCREENRECORD_TIME_LIMIT_SECONDS),
+            "--bit-rate",
+            str(SCREENRECORD_BIT_RATE),
+            remote_video,
+        ),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
     try:
-        time.sleep(0.6)
+        time.sleep(SCREENRECORD_STARTUP_DELAY_SECONDS)
         launch_result = launch()
         activity_text = require_resumed_main_activity(adb)
-        time.sleep(1.0)
-        recorder_stdout, recorder_stderr = recorder.communicate(timeout=8)
+        time.sleep(POST_RESUME_DELAY_SECONDS)
+        recorder_stdout, recorder_stderr = recorder.communicate(
+            timeout=SCREENRECORD_TIME_LIMIT_SECONDS + SCREENRECORD_TIMEOUT_HEADROOM_SECONDS
+        )
     except BaseException:
         recorder.kill()
         recorder.communicate()
