@@ -1,0 +1,176 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=section:Kanban
+artifact=headed-v0.13.150-c40190cbda3c1a66-20260823-164235bst-profile-phone-360x800dp-section-5-kanban
+coverage_kind=app-section
+page_id=Kanban
+profile=phone-360x800dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=360
+screen_height_dp=800
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.150
+version_code=145090
+build_variant=debug
+source_digest=c40190cbda3c1a6620f857ded4d301760fdab11034d9e7cc86ad52051ce0647e
+candidate_apk_sha256=8c0815ab30e77b8980ac6acf655f713e7dc8abd4fbdffded8337bb9b18a22c00
+instrumentation_apk_sha256=f4e6746730191b44a5c3c2143fe0031de6cb0f0894beb42c798fdac5f38b2e65
+evidence_run_id=v0.13.150-c40190cbda3c1a66-20260823-164235bst
+device_serial=emulator-5580
+avd_name=Qitong_API_35_D
+device_boot_id=553b173a-043b-418c-9906-195557acc5b1
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=c14cf1974c60df9238f24dbe89859917290ab221fc7004db848a4cd31c012e42
+sentinel=Kanban
+sentinel=HermesKanbanScreen
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #983 at (l=36.0, t=376.0, r=1044.0, b=2304.0)px, Tag: 'HermesKanbanScreen'
+       |     |-Node #984 at (l=36.0, t=376.0, r=259.0, b=460.0)px
+       |     | Text = '[Kanban]'
+       |     | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #985 at (l=36.0, t=490.0, r=1044.0, b=586.0)px
+       |     | Text = '[Human board control for the shared Hermes kanban DB. Workers still need the gateway dispatcher.]'
+       |     | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #1044 at (l=36.0, t=616.0, r=679.0, b=664.0)px
+       |     | Text = '[Waiting for Hermes Python runtime…]'
+       |     | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #986 at (l=36.0, t=694.0, r=1044.0, b=838.0)px
+       |     | IsTraversalGroup = 'true'
+       |     | HorizontalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=1016.0, reverseScrolling=false)'
+       |     | Actions = [ScrollBy, ScrollByOffset]
+       |     |  |-Node #987 at (l=36.0, t=718.0, r=244.0, b=814.0)px, Tag: 'HermesKanbanFilter_all'
+       |     |  | Focused = 'false'
+       |     |  | Selected = 'true'
+       |     |  | Role = 'Checkbox'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #990 at (l=84.0, t=736.0, r=196.0, b=796.0)px
+       |     |  |    Text = '[all (0)]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #991 at (l=268.0, t=718.0, r=538.0, b=814.0)px, Tag: 'HermesKanbanFilter_ready'
+       |     |  | Focused = 'false'
+       |     |  | Selected = 'false'
+       |     |  | Role = 'Checkbox'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #994 at (l=316.0, t=736.0, r=490.0, b=796.0)px
+       |     |  |    Text = '[ready (0)]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #995 at (l=562.0, t=718.0, r=869.0, b=814.0)px, Tag: 'HermesKanbanFilter_running'
+       |     |  | Focused = 'false'
+       |     |  | Selected = 'false'
+       |     |  | Role = 'Checkbox'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #998 at (l=610.0, t=736.0, r=821.0, b=796.0)px
+       |     |  |    Text = '[running (0)]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #999 at (l=893.0, t=718.0, r=1207.0, b=814.0)px, Tag: 'HermesKanbanFilter_blocked'
+       |     |  | Focused = 'false'
+       |     |  | Selected = 'false'
+       |     |  | Role = 'Checkbox'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1002 at (l=941.0, t=736.0, r=1159.0, b=796.0)px
+       |     |  |    Text = '[blocked (0)]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1003 at (l=1231.0, t=718.0, r=1480.0, b=814.0)px, Tag: 'HermesKanbanFilter_todo'
+       |     |  | Focused = 'false'
+       |     |  | Selected = 'false'
+       |     |  | Role = 'Checkbox'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1006 at (l=1279.0, t=736.0, r=1432.0, b=796.0)px
+       |     |  |    Text = '[todo (0)]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1007 at (l=1504.0, t=718.0, r=1778.0, b=814.0)px, Tag: 'HermesKanbanFilter_triage'
+       |     |  | Focused = 'false'
+       |     |  | Selected = 'false'
+       |     |  | Role = 'Checkbox'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1010 at (l=1552.0, t=736.0, r=1730.0, b=796.0)px
+       |     |  |    Text = '[triage (0)]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1011 at (l=1802.0, t=718.0, r=2060.0, b=814.0)px, Tag: 'HermesKanbanFilter_done'
+       |     |    Focused = 'false'
+       |     |    Selected = 'false'
+       |     |    Role = 'Checkbox'
+       |     |    Actions = [OnClick, RequestFocus]
+       |     |    MergeDescendants = 'true'
+       |     |     |-Node #1014 at (l=1850.0, t=736.0, r=2012.0, b=796.0)px
+       |     |       Text = '[done (0)]'
+       |     |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #1015 at (l=36.0, t=868.0, r=1044.0, b=1672.0)px
+       |     | IsTraversalGroup = 'true'
+       |     |  |-Node #1017 at (l=72.0, t=904.0, r=251.0, b=964.0)px
+       |     |  | Text = '[New task]'
+       |     |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1018 at (l=72.0, t=988.0, r=1008.0, b=1180.0)px, Tag: 'HermesKanbanTitleInput'
+       |     |  | EditableText = ''
+       |     |  | TextSelectionRange = 'TextRange(0, 0)'
+       |     |  | IsEditable = 'true'
+       |     |  | ImeAction = 'Default'
+       |     |  | Focused = 'false'
+       |     |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1027 at (l=120.0, t=1060.0, r=221.0, b=1132.0)px
+       |     |  |    Text = '[Title]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1028 at (l=72.0, t=1204.0, r=1008.0, b=1468.0)px, Tag: 'HermesKanbanBodyInput'
+       |     |  | EditableText = ''
+       |     |  | TextSelectionRange = 'TextRange(0, 0)'
+       |     |  | IsEditable = 'true'
+       |     |  | ImeAction = 'Default'
+       |     |  | Focused = 'false'
+       |     |  | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1037 at (l=120.0, t=1276.0, r=514.0, b=1348.0)px
+       |     |  |    Text = '[Details (optional)]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1038 at (l=72.0, t=1504.0, r=436.0, b=1624.0)px, Tag: 'HermesKanbanCreateButton'
+       |     |    Role = 'Button'
+       |     |    [Disabled]
+       |     |    Actions = [OnClick]
+       |     |    MergeDescendants = 'true'
+       |     |     |-Node #1040 at (l=144.0, t=1534.0, r=364.0, b=1594.0)px
+       |     |       Text = '[Create task]'
+       |     |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #1041 at (l=36.0, t=1702.0, r=1044.0, b=2304.0)px, Tag: 'HermesKanbanTaskList'
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+       |       CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@c9020eb'
+       |       Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |-Node #147 at (l=0.0, t=0.0, r=1080.0, b=352.0)px
+         IsTraversalGroup = 'true'
+          |-Node #151 at (l=36.0, t=172.0, r=180.0, b=316.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #156 at (l=204.0, t=199.0, r=294.0, b=289.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #158 at (l=318.0, t=184.0, r=485.0, b=256.0)px
+          | Text = '[Kanban]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #159 at (l=318.0, t=256.0, r=1044.0, b=304.0)px
+            Text = '[Shared task board and human task control]'
+            Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

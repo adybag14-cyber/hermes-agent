@@ -2,10 +2,10 @@ language=pt
 screen_width_dp=360
 screen_height_dp=800
 font_scale=1.0
-release_source_digest=664a6a399910297ac10272a31a41634a9cd60dd7c34780b334503838b26620d7
-candidate_apk_sha256=b379be45e9ed4c58c1e915185178f8355f5eafea225124d05fa8ba7919bab0ed
-instrumentation_apk_sha256=d76030436e6a1d7a5a2cd79b29a75fff9b5edd2f316efc56f4f3c8d50c1d0287
-evidence_run_id=v0.13.150-664a6a399910297a-20260823-122455bst
+release_source_digest=c40190cbda3c1a6620f857ded4d301760fdab11034d9e7cc86ad52051ce0647e
+candidate_apk_sha256=8c0815ab30e77b8980ac6acf655f713e7dc8abd4fbdffded8337bb9b18a22c00
+instrumentation_apk_sha256=f4e6746730191b44a5c3c2143fe0031de6cb0f0894beb42c798fdac5f38b2e65
+evidence_run_id=v0.13.150-c40190cbda3c1a66-20260823-164235bst
 package_id=com.mobilefork.hermesagent
 version_name=0.13.150
 version_code=145090
@@ -13,9 +13,9 @@ build_variant=debug
 litertlm_coordinate=com.google.ai.edge.litertlm:litertlm-android:0.16.1
 device_serial=emulator-5580
 avd_name=Qitong_API_35_D
-device_boot_id=4f589b28-79e7-4807-8898-6dc8428344eb
+device_boot_id=553b173a-043b-418c-9906-195557acc5b1
 build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
-screenshot_sha256=7908796d0b3df841e7cee29451218210e5007b537c5014f33c4554edfbe2292f
+screenshot_sha256=aa2381282b02ff2ff76fb3b36e3718c1dd94e63c71af123c57d39d29c17a4795
 
 Printing with useUnmergedTree = 'true'
 Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
