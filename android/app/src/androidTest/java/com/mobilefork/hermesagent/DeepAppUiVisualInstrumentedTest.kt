@@ -244,13 +244,13 @@ class DeepAppUiVisualInstrumentedTest {
 
             // The same LazyColumn survives the Overview -> Models page swap and retains its
             // prior offset. Recompose the visible page navigation first, confirm Models is
-            // selected, then materialize the fixed Models-page config item directly.
+            // selected, then locate the config tab by its stable semantic identity. Models-page
+            // cards can be inserted without changing this navigation contract.
             composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(0)
             composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
             composeRule.waitForIdle()
             composeRule.onNodeWithTag("HermesSettingsPage_Models").assertIsNotEnabled()
-            composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(2)
-            composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").fetchSemanticsNode()
+            scrollSettingsToTag("LocalModelConfigTab-ToolGuidance")
             composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").performClick()
             composeRule.onNodeWithText(settingsGenerationText(language, "tool_guidance")).fetchSemanticsNode()
             composeRule.onNodeWithText(settingsGenerationText(language, "tool_mode_small")).fetchSemanticsNode()
