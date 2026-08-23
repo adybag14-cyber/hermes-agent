@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<hermes-ui-evidence artifact="headed-v0.13.150-664a6a399910297a-20260823-122455bst-profile-tablet-800x1280dp-view-tasker-event" evidence-identity="framework:en:HermesTaskerEventEditActivity" coverage-kind="framework-view-activity" page-id="HermesTaskerEventEditActivity">
+  <metadata>
+    <entry key="profile" value="tablet-800x1280dp" />
+    <entry key="language" value="en" />
+    <entry key="theme_id" value="custom-light" />
+    <entry key="theme_primary" value="#1565C0" />
+    <entry key="theme_secondary" value="#8E24AA" />
+    <entry key="theme_background" value="#FAFBFF" />
+    <entry key="theme_surface" value="#FFFFFF" />
+    <entry key="theme_surface_variant" value="#E8EEF8" />
+    <entry key="card_shape" value="rounded" />
+    <entry key="ui_font_scale" value="1.0" />
+    <entry key="screen_width_dp" value="800" />
+    <entry key="screen_height_dp" value="1280" />
+    <entry key="system_font_scale" value="1.0" />
+    <entry key="package_id" value="com.mobilefork.hermesagent" />
+    <entry key="version_name" value="0.13.150" />
+    <entry key="version_code" value="145090" />
+    <entry key="build_variant" value="debug" />
+    <entry key="source_digest" value="664a6a399910297ac10272a31a41634a9cd60dd7c34780b334503838b26620d7" />
+    <entry key="candidate_apk_sha256" value="b379be45e9ed4c58c1e915185178f8355f5eafea225124d05fa8ba7919bab0ed" />
+    <entry key="instrumentation_apk_sha256" value="d76030436e6a1d7a5a2cd79b29a75fff9b5edd2f316efc56f4f3c8d50c1d0287" />
+    <entry key="evidence_run_id" value="v0.13.150-664a6a399910297a-20260823-122455bst" />
+    <entry key="device_serial" value="emulator-5572" />
+    <entry key="avd_name" value="Hermes_Model_Test_API_35" />
+    <entry key="device_boot_id" value="6d28fabd-29b7-4f6b-b684-42543da60c04" />
+    <entry key="build_fingerprint" value="google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys" />
+    <entry key="screenshot_sha256" value="e84d78b9a7b2d1e85e4af8098fc06c36eab122e7534aacca58f9070165db14f8" />
+    <sentinel value="Hermes event" />
+    <sentinel value="Choose a Hermes automation or Shizuku event that Tasker can use in a profile." />
+    <sentinel value="Automation finished" />
+  </metadata>
+  <view-hierarchy>
+    <node class="com.android.internal.policy.DecorView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1600,2560]" background="android.graphics.drawable.GradientDrawable">
+      <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1600,2560]" background="">
+        <node class="android.view.ViewStub" resource-id="android:id/action_mode_bar_stub" text="" hint="" content-desc="" visible="false" bounds="[0,0][0,0]" background="" />
+        <node class="android.widget.FrameLayout" resource-id="android:id/content" text="" hint="" content-desc="" visible="true" bounds="[0,0][1600,2560]" background="">
+          <node class="android.widget.ScrollView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1600,2560]" background="android.graphics.drawable.GradientDrawable">
+            <node class="android.widget.FrameLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1600,2560]" background="">
+              <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[48,96][1552,1108]" background="android.graphics.drawable.GradientDrawable">
+                <node class="android.widget.TextView" resource-id="" text="Hermes event" hint="" content-desc="" visible="true" bounds="[84,132][1516,191]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="Choose a Hermes automation or Shizuku event that Tasker can use in a profile." hint="" content-desc="" visible="true" bounds="[84,191][1516,296]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="Event" hint="" content-desc="" visible="true" bounds="[84,296][1516,334]" background="" />
+                <node class="android.widget.Spinner" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[84,346][1516,429]" background="android.graphics.drawable.GradientDrawable">
+                  <node class="android.widget.TextView" resource-id="android:id/text1" text="Automation finished" hint="" content-desc="" visible="true" bounds="[84,346][1516,429]" background="" />
+                </node>
+                <node class="android.widget.TextView" resource-id="" text="Saved automation" hint="" content-desc="" visible="true" bounds="[84,429][1516,507]" background="" />
+                <node class="android.widget.Spinner" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[84,519][1516,602]" background="android.graphics.drawable.GradientDrawable">
+                  <node class="android.widget.TextView" resource-id="android:id/text1" text="No saved Hermes automations ()" hint="" content-desc="" visible="true" bounds="[84,519][1516,602]" background="" />
+                </node>
+                <node class="android.widget.TextView" resource-id="" text="Automation ID" hint="" content-desc="" visible="true" bounds="[84,602][1516,680]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="Existing Hermes automation id" content-desc="" visible="true" bounds="[84,692][1516,783]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.TextView" resource-id="" text="Tasker event label" hint="" content-desc="" visible="true" bounds="[84,783][1516,861]" background="" />
+                <node class="android.widget.EditText" resource-id="" text="" hint="Optional label shown in Tasker" content-desc="" visible="true" bounds="[84,873][1516,964]" background="android.graphics.drawable.InsetDrawable" />
+                <node class="android.widget.Button" resource-id="" text="Save" hint="" content-desc="" visible="true" bounds="[84,976][1516,1072]" background="android.graphics.drawable.GradientDrawable" />
+              </node>
+            </node>
+          </node>
+        </node>
+      </node>
+    </node>
+  </view-hierarchy>
+</hermes-ui-evidence>
