@@ -1,9 +1,9 @@
 {
   "schema": "hermes-model-evidence-v1",
-  "release_source_digest": "664a6a399910297ac10272a31a41634a9cd60dd7c34780b334503838b26620d7",
-  "candidate_apk_sha256": "b379be45e9ed4c58c1e915185178f8355f5eafea225124d05fa8ba7919bab0ed",
-  "instrumentation_apk_sha256": "d76030436e6a1d7a5a2cd79b29a75fff9b5edd2f316efc56f4f3c8d50c1d0287",
-  "evidence_run_id": "v0.13.150-664a6a399910297a-20260823-122455bst",
+  "release_source_digest": "c40190cbda3c1a6620f857ded4d301760fdab11034d9e7cc86ad52051ce0647e",
+  "candidate_apk_sha256": "8c0815ab30e77b8980ac6acf655f713e7dc8abd4fbdffded8337bb9b18a22c00",
+  "instrumentation_apk_sha256": "f4e6746730191b44a5c3c2143fe0031de6cb0f0894beb42c798fdac5f38b2e65",
+  "evidence_run_id": "v0.13.150-c40190cbda3c1a66-20260823-164235bst",
   "package_id": "com.mobilefork.hermesagent",
   "version_name": "0.13.150",
   "version_code": 145090,
@@ -18,7 +18,7 @@
   "publisher_repository": "litert-community\/gemma-4-E4B-it-litert-lm",
   "publisher_revision": "9695417f248178c63a9f318c6e0c56cb917cb837",
   "file_name": "gemma-4-E4B-it.litertlm",
-  "device_path": "\/data\/local\/tmp\/hermes-v150-664a6a399910297a-model-stage\/gemma-4-E4B-it.litertlm",
+  "device_path": "\/data\/local\/tmp\/hermes-v150-c40190cbda3c1a66-model-stage\/gemma-4-E4B-it.litertlm",
   "publisher_expected_bytes": 3654467584,
   "device_visible_bytes": 3654467584,
   "expected_sha256": "f335f2bfd1b758dc6476db16c0f41854bd6237e2658d604cbe566bcefd00a7bc",
@@ -26,17 +26,17 @@
   "runtime_started": true,
   "health_ok": true,
   "completion_nonempty": true,
-  "elapsed_ms": 6035,
+  "elapsed_ms": 6195,
   "accelerator": "cpu",
-  "status_message": "LiteRT-LM engine initialized and completion-verified with cpu acceleration. Memory preflight passed with 10.7 GB usable RAM. Context is limited to 2048 tokens.",
+  "status_message": "LiteRT-LM engine initialized and completion-verified with cpu acceleration. Memory preflight passed with 10.6 GB usable RAM. Context is limited to 2048 tokens.",
   "device_model": "sdk_gphone64_x86_64",
   "device_serial": "emulator-5572",
   "avd_name": "Hermes_Model_Test_API_35",
-  "device_boot_id": "6d28fabd-29b7-4f6b-b684-42543da60c04",
+  "device_boot_id": "b0691863-ab02-40c6-b1fc-837be22916dc",
   "build_fingerprint": "google\/sdk_gphone64_x86_64\/emu64xa:15\/AE3A.240806.043\/12960925:userdebug\/dev-keys",
   "android_sdk": 35,
   "supported_abis": "x86_64,arm64-v8a",
-  "recorded_at_epoch_ms": 1787487874666,
+  "recorded_at_epoch_ms": 1787504479641,
   "details": {
     "health_backend": "litert-lm",
     "runtime_entrypoint": "on-device-backend-manager",
@@ -45,7 +45,7 @@
       "OpenCL probe: skipped for cpu accelerator",
       "LiteRT-LM capabilities probe: skipped because speculative decoding is disabled",
       "cpu\/standard: starting",
-      "cpu\/standard: completion canary passed (1278 ms)"
+      "cpu\/standard: completion canary passed (1256 ms)"
     ],
     "requested_accelerator": "cpu",
     "gpu_attempted": false,
@@ -58,5 +58,5 @@
     "completion_characters": 2,
     "artifact_summary": "gemma-4-E4B-it.litertlm (3654467584 bytes, LiteRT-LM header verified)"
   },
-  "evidence_file": "\/data\/user\/0\/com.mobilefork.hermesagent\/files\/hermes-model-evidence\/litert-lm-gemma-4-E4B-it.litertlm-1787487874666.json"
+  "evidence_file": "\/data\/user\/0\/com.mobilefork.hermesagent\/files\/hermes-model-evidence\/litert-lm-gemma-4-E4B-it.litertlm-1787504479641.json"
 }
