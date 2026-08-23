@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -143,6 +144,9 @@ class LlamaCppAdvancedSettingsInstrumentedTest {
                 .assertTextContains(dangerousButton)
                 .assertContentDescriptionEquals(dangerousButton)
                 .performClick()
+            composeRule.waitUntil(timeoutMillis = 5_000) {
+                composeRule.onNodeWithTag("LlamaCppDangerousRamDialog").isDisplayed()
+            }
             composeRule.onNodeWithTag("LlamaCppDangerousRamDialog").assertIsDisplayed()
             composeRule.onNodeWithText(llamaCppAdvancedText(language, "danger_dialog_title")).assertIsDisplayed()
             composeRule.onNodeWithText(llamaCppAdvancedText(language, "danger_dialog_body")).assertIsDisplayed()
