@@ -1,0 +1,176 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=device:Files
+artifact=headed-v0.13.150-664a6a399910297a-20260823-122455bst-profile-phone-360x800dp-device-4-files
+coverage_kind=device-subpage
+page_id=Files
+profile=phone-360x800dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=360
+screen_height_dp=800
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.150
+version_code=145090
+build_variant=debug
+source_digest=664a6a399910297ac10272a31a41634a9cd60dd7c34780b334503838b26620d7
+candidate_apk_sha256=b379be45e9ed4c58c1e915185178f8355f5eafea225124d05fa8ba7919bab0ed
+instrumentation_apk_sha256=d76030436e6a1d7a5a2cd79b29a75fff9b5edd2f316efc56f4f3c8d50c1d0287
+evidence_run_id=v0.13.150-664a6a399910297a-20260823-122455bst
+device_serial=emulator-5580
+avd_name=Qitong_API_35_D
+device_boot_id=4f589b28-79e7-4807-8898-6dc8428344eb
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=43006e50b0ab80888c2c58a21aaeb704411da4355ed0e5c255a0fbe52d9f9fb6
+sentinel=HermesDevicePage_Files
+sentinel=/device/files
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #1947 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #1949 at (l=0.0, t=352.0, r=1080.0, b=2272.0)px
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+       |       Actions = [ScrollBy, ScrollByOffset]
+       |        |-Node #1950 at (l=48.0, t=388.0, r=1032.0, b=910.0)px, Tag: 'HermesDevicePageNavigation'
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1952 at (l=84.0, t=418.0, r=342.0, b=478.0)px
+       |        |  | Text = '[Device / Files]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1955 at (l=84.0, t=526.0, r=328.0, b=622.0)px, Tag: 'HermesDevicePage_Overview'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1958 at (l=132.0, t=550.0, r=280.0, b=598.0)px
+       |        |  |    Text = '[Overview]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1959 at (l=346.0, t=526.0, r=528.0, b=622.0)px, Tag: 'HermesDevicePage_Linux'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1962 at (l=394.0, t=550.0, r=480.0, b=598.0)px
+       |        |  |    Text = '[Linux]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1963 at (l=546.0, t=526.0, r=842.0, b=622.0)px, Tag: 'HermesDevicePage_Connectivity'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1966 at (l=594.0, t=550.0, r=794.0, b=598.0)px
+       |        |  |    Text = '[Connectivity]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1967 at (l=84.0, t=688.0, r=256.0, b=784.0)px, Tag: 'HermesDevicePage_Files'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'true'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1970 at (l=132.0, t=712.0, r=208.0, b=760.0)px
+       |        |  |    Text = '[Files]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1971 at (l=274.0, t=688.0, r=508.0, b=784.0)px, Tag: 'HermesDevicePage_Controls'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1974 at (l=322.0, t=712.0, r=460.0, b=760.0)px
+       |        |  |    Text = '[Controls]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1975 at (l=526.0, t=688.0, r=828.0, b=784.0)px, Tag: 'HermesDevicePage_Automations'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1978 at (l=574.0, t=712.0, r=780.0, b=760.0)px
+       |        |  |    Text = '[Automations]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1979 at (l=84.0, t=832.0, r=288.0, b=880.0)px
+       |        |    Text = '[/device/files]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #2123 at (l=48.0, t=946.0, r=1032.0, b=2080.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #2126 at (l=96.0, t=994.0, r=855.0, b=1066.0)px
+       |        |  | Text = '[Shared folder + workspace access]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2127 at (l=96.0, t=1096.0, r=984.0, b=1528.0)px
+       |        |  | Text = '[Grant a shared folder so Hermes can read and write the real files. Imports still create workspace copies when wanted; compatible models route general commands to terminal_tool automatically.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2128 at (l=96.0, t=1558.0, r=837.0, b=1606.0)px
+       |        |  | Text = '[Shared folder: No shared folder granted yet]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2131 at (l=96.0, t=1648.0, r=528.0, b=1768.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2133 at (l=212.0, t=1678.0, r=412.0, b=1738.0)px
+       |        |  |    Text = '[Import file]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2134 at (l=552.0, t=1648.0, r=984.0, b=1768.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2136 at (l=653.0, t=1678.0, r=883.0, b=1738.0)px
+       |        |  |    Text = '[Grant folder]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2139 at (l=96.0, t=1822.0, r=528.0, b=1942.0)px
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2141 at (l=237.0, t=1852.0, r=387.0, b=1912.0)px
+       |        |  |    Text = '[Refresh]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2142 at (l=552.0, t=1822.0, r=984.0, b=1942.0)px
+       |        |  | Role = 'Button'
+       |        |  | [Disabled]
+       |        |  | Actions = [OnClick]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2144 at (l=655.0, t=1852.0, r=881.0, b=1912.0)px
+       |        |  |    Text = '[Clear folder]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2145 at (l=96.0, t=1984.0, r=750.0, b=2032.0)px
+       |        |    Text = '[No files in the Hermes workspace yet.]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #2004 at (l=48.0, t=2116.0, r=959.0, b=2164.0)px
+       |          Text = '[Linux command suite ready for on-device commands]'
+       |          Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #147 at (l=0.0, t=0.0, r=1080.0, b=352.0)px
+         IsTraversalGroup = 'true'
+          |-Node #151 at (l=36.0, t=172.0, r=180.0, b=316.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #156 at (l=204.0, t=199.0, r=294.0, b=289.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #158 at (l=318.0, t=184.0, r=466.0, b=256.0)px
+          | Text = '[Device]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #159 at (l=318.0, t=256.0, r=957.0, b=304.0)px
+            Text = '[Files, Linux suite, and phone controls]'
+            Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

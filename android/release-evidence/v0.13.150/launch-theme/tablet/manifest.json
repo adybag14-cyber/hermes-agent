@@ -1,0 +1,85 @@
+{
+  "automated_verdict": "identity_bound_launch_capture_complete",
+  "captures": [
+    {
+      "activity_dump": "v0.13.150-664a6a399910297a-20260823-122455bst-tablet-custom-light-launch-theme-cold-launcher-tap-activity.txt",
+      "activity_dump_sha256": "b066ad97520c3703df346ef7930f7cf5d4b3e0e3b1bf2401eb2b16eae77c6e34",
+      "automated_state_verdict": "main_activity_resumed_and_artifacts_decoded",
+      "label": "cold-launcher-tap",
+      "launch_stderr": "",
+      "launch_stdout": "",
+      "settled_screenshot": "v0.13.150-664a6a399910297a-20260823-122455bst-tablet-custom-light-launch-theme-cold-launcher-tap-settled.png",
+      "settled_screenshot_sha256": "40dfd88e18b6c4f9f2ee97ea3af959a92eda36f88845af01e01bf58cc16b79f8",
+      "video": "v0.13.150-664a6a399910297a-20260823-122455bst-tablet-custom-light-launch-theme-cold-launcher-tap.mp4",
+      "video_sha256": "b3e6451e1db1ca06130d6f2859cabf2243bdb239be3978ec0fbd721a22b96ce0",
+      "visual_splash_verdict": "manual_review_required"
+    },
+    {
+      "activity_dump": "v0.13.150-664a6a399910297a-20260823-122455bst-tablet-custom-light-launch-theme-cold-deep-link-activity.txt",
+      "activity_dump_sha256": "3e8bf09e0b70da7f16073747a8930f904bfb19e0f46a67a060645ec4666d6d57",
+      "automated_state_verdict": "main_activity_resumed_and_artifacts_decoded",
+      "label": "cold-deep-link",
+      "launch_stderr": "",
+      "launch_stdout": "Starting: Intent { act=android.intent.action.VIEW cat=[android.intent.category.BROWSABLE] dat=hermesagent://auth/... cmp=com.mobilefork.hermesagent/.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 1486\nWaitTime: 1488\nComplete\n",
+      "settled_screenshot": "v0.13.150-664a6a399910297a-20260823-122455bst-tablet-custom-light-launch-theme-cold-deep-link-settled.png",
+      "settled_screenshot_sha256": "40dfd88e18b6c4f9f2ee97ea3af959a92eda36f88845af01e01bf58cc16b79f8",
+      "video": "v0.13.150-664a6a399910297a-20260823-122455bst-tablet-custom-light-launch-theme-cold-deep-link.mp4",
+      "video_sha256": "74b936f15fffc91487ede97d484ff29a4df246648fd6a3f692dff9339c84149b",
+      "visual_splash_verdict": "manual_review_required"
+    }
+  ],
+  "identity": {
+    "avd_name": "Hermes_Model_Test_API_35",
+    "build_fingerprint": "google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+    "candidate_apk_sha256": "b379be45e9ed4c58c1e915185178f8355f5eafea225124d05fa8ba7919bab0ed",
+    "device_boot_id": "6d28fabd-29b7-4f6b-b684-42543da60c04",
+    "evidence_run_id": "v0.13.150-664a6a399910297a-20260823-122455bst",
+    "expected_profile": "tablet",
+    "height_dp": 1280,
+    "installed_apk_path": "/data/app/~~wo4COgj4akk-4zoNnzmDrw==/com.mobilefork.hermesagent-uEOM7P8SauLZZqaj93gqGQ==/base.apk",
+    "installed_apk_sha256": "b379be45e9ed4c58c1e915185178f8355f5eafea225124d05fa8ba7919bab0ed",
+    "installed_instrumentation_apk_path": "/data/app/~~JSkzEdEIxAtMhMB1aBVKag==/com.mobilefork.hermesagent.test-FCGT-O2cKk-BEFQ62oc6Rw==/base.apk",
+    "installed_instrumentation_apk_sha256": "d76030436e6a1d7a5a2cd79b29a75fff9b5edd2f316efc56f4f3c8d50c1d0287",
+    "instrumentation_apk_sha256": "d76030436e6a1d7a5a2cd79b29a75fff9b5edd2f316efc56f4f3c8d50c1d0287",
+    "observed_avd_name": "Hermes_Model_Test_API_35",
+    "observed_profile": "tablet",
+    "sdk_int": 35,
+    "serial": "emulator-5572",
+    "source_digest": "664a6a399910297ac10272a31a41634a9cd60dd7c34780b334503838b26620d7",
+    "width_dp": 800
+  },
+  "manual_acceptance": [
+    "Inspect both MP4 files frame by frame; each must visibly show the Android 12+ static Hermes splash.",
+    "Reject any black, white, legacy preview, stale-task, or third-party frame before the first Hermes frame.",
+    "Verify the first Hermes frame hands off without a contrasting flash to the saved custom-light palette.",
+    "Match source digest, run ID, candidate/test APK hashes, AVD, profile, and boot ID to the headed UI inventory.",
+    "Use this script's review command to persist the human reviewer, UTC timestamp, and pass/fail decision; capture never self-certifies pixels."
+  ],
+  "palette": {
+    "card_shape": "rounded",
+    "persisted_state_file": "v0.13.150-664a6a399910297a-20260823-122455bst-tablet-custom-light-launch-theme-persisted-palette.json",
+    "persisted_state_file_sha256": "d96997c44ff42cef59c4be438fe7661c874a30899cecc84851dfe08991b61b1d",
+    "profile": "tablet-800x1280dp",
+    "proof_evidence_identity": "appearance-custom-light",
+    "proof_sha256": "13df8fce1a3f4405cfa2b488fbf8fc7f5d2d664c0f2255bcd25d33430710d2f9",
+    "shared_preferences_xml_sha256": "9b6a6250fb6742fa4a53a2ba9c53511ee677cfe2a9e0320298ba864934321e56",
+    "theme_background": "#FAFBFF",
+    "theme_id": "custom-light",
+    "theme_primary": "#1565C0",
+    "theme_secondary": "#8E24AA",
+    "theme_surface": "#FFFFFF",
+    "theme_surface_variant": "#E8EEF8",
+    "ui_font_scale": 1.0,
+    "verified_against_persisted_app_state": true
+  },
+  "schema": "hermes-host-launch-theme-evidence-v2",
+  "visual_review": {
+    "automated_pixel_certification": false,
+    "decision": "pass",
+    "method": "manual-frame-by-frame",
+    "notes": "Reviewed all 26 cold-deep-link and 20 cold-launcher-tap decoded frames plus both settled screenshots. Android window expansion and launcher icon morph were coherent; no black, white, wrong-theme, corrupt, or malformed frame.",
+    "reviewed_at_utc": "2026-08-23T12:34:27Z",
+    "reviewer": "OpenAI Codex release reviewer",
+    "status": "reviewed"
+  }
+}
