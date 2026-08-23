@@ -527,8 +527,26 @@ class LocalModelDownloadsViewModelTest {
             preferences = preferences,
             commitEditor = { editor -> editor.commit() },
         )
-        val olderPending = completedNanbeigeRecord("older-pending-nanbeige")
-        val newerManual = completedLaneNeutralRecord("newer-manual-model")
+        val olderModelFile = File.createTempFile(
+            "older-pending-nanbeige-",
+            ".gguf",
+            application.cacheDir,
+        ).apply {
+            writeBytes(byteArrayOf(1, 2, 3, 4))
+        }
+        val newerModelFile = File.createTempFile(
+            "newer-manual-model-",
+            ".gguf",
+            application.cacheDir,
+        ).apply {
+            writeBytes(byteArrayOf(5, 6, 7, 8))
+        }
+        val olderPending = completedNanbeigeRecord("older-pending-nanbeige").copy(
+            destinationPath = olderModelFile.absolutePath,
+        )
+        val newerManual = completedLaneNeutralRecord("newer-manual-model").copy(
+            destinationPath = newerModelFile.absolutePath,
+        )
 
         try {
             settingsStore.save(
@@ -562,7 +580,12 @@ class LocalModelDownloadsViewModelTest {
             assertEquals(BackendKind.LLAMA_CPP.persistedValue, settingsStore.load().onDeviceBackend)
             assertEquals("stable", settingsStore.load().llamaCppRuntimeLane)
         } finally {
-            settingsStore.save(originalSettings)
+            try {
+                settingsStore.save(originalSettings)
+            } finally {
+                olderModelFile.delete()
+                newerModelFile.delete()
+            }
         }
     }
 
