@@ -10,6 +10,20 @@ import java.net.ServerSocket
 
 class LlamaCppServerControllerTest {
     @Test
+    fun cachedReadyStatusRetainsCompletionCharactersAndLatency() {
+        assertEquals(
+            "llama.cpp Experimental TurboQuant lane is serving locally; " +
+                "GGUF metadata and a real chat completion canary are verified; " +
+                "completion canary passed with nonblank message.content (17 characters) in 321 ms",
+            LlamaCppServerController.cachedCompletionStatusMessage(
+                laneDisplayLabel = "Experimental TurboQuant",
+                completionDetail = "nonblank message.content (17 characters)",
+                completionLatencyMs = 321L,
+            ),
+        )
+    }
+
+    @Test
     fun onlyAuthenticationRejectionsProveTheProtectedEndpointRequiresTheProcessKey() {
         assertTrue(LlamaCppServerController.isApiKeyRejectionStatus(401))
         assertTrue(LlamaCppServerController.isApiKeyRejectionStatus(403))

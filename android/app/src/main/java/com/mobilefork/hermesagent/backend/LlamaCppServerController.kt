@@ -48,6 +48,7 @@ object LlamaCppServerController {
     @Volatile private var activeModelName: String = ""
     @Volatile private var recentLog: String = ""
     @Volatile private var activeCompletionVerified: Boolean = false
+    @Volatile private var activeCompletionDetail: String = ""
     @Volatile private var activeCompletionLatencyMs: Long = 0L
     @Volatile private var activeArtifactSummary: String = ""
     @Volatile private var activeLaunchFingerprint: String = ""
@@ -82,6 +83,7 @@ object LlamaCppServerController {
             activeModelPath == modelPath &&
             activeLaunchFingerprint == launchFingerprint &&
             activeCompletionVerified &&
+            activeCompletionDetail.isNotBlank() &&
             activeApiKey.isNotBlank() &&
             checkReady(port, activeApiKey)
         ) {
@@ -91,7 +93,11 @@ object LlamaCppServerController {
                 baseUrl = "http://127.0.0.1:$port/v1",
                 modelName = actualModelName(port, requestedModelName, activeApiKey),
                 sourceModelPath = modelPath,
-                statusMessage = "llama.cpp ${launchConfig.lane.displayLabel()} lane is serving locally; GGUF metadata and a real chat completion canary are verified",
+                statusMessage = cachedCompletionStatusMessage(
+                    laneDisplayLabel = launchConfig.lane.displayLabel(),
+                    completionDetail = activeCompletionDetail,
+                    completionLatencyMs = activeCompletionLatencyMs,
+                ),
                 accelerator = "cpu",
                 artifactSummary = activeArtifactSummary,
                 completionVerified = true,
@@ -392,6 +398,7 @@ object LlamaCppServerController {
                 return status
             }
             activeCompletionVerified = true
+            activeCompletionDetail = canary.detail
             activeCompletionLatencyMs = canary.elapsedMs
             activeArtifactSummary = inspection.summary
             val status = LocalBackendStatus(
@@ -458,6 +465,7 @@ object LlamaCppServerController {
         activeModelName = ""
         recentLog = ""
         activeCompletionVerified = false
+        activeCompletionDetail = ""
         activeCompletionLatencyMs = 0L
         activeArtifactSummary = ""
         activeLaunchFingerprint = ""
@@ -705,6 +713,14 @@ object LlamaCppServerController {
 
     internal fun isApiKeyRejectionStatus(statusCode: Int): Boolean =
         statusCode == 401 || statusCode == 403
+
+    internal fun cachedCompletionStatusMessage(
+        laneDisplayLabel: String,
+        completionDetail: String,
+        completionLatencyMs: Long,
+    ): String = "llama.cpp $laneDisplayLabel lane is serving locally; " +
+        "GGUF metadata and a real chat completion canary are verified; " +
+        "completion canary passed with $completionDetail in $completionLatencyMs ms"
 
     private data class CompletionCanary(
         val verified: Boolean,
