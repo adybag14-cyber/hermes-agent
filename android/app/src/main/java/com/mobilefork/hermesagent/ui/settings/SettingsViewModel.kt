@@ -1564,10 +1564,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     }
                     val useLocalBackend = finalLocalBackendStatus.started
                     val backendSummary = if (useLocalBackend) {
-                        strings.localBackendReady(
-                            backend = finalLocalBackendStatus.backendKind.persistedValue,
-                            model = finalLocalBackendStatus.modelName,
-                        )
+                        visibleReadyLocalBackendSummary(finalLocalBackendStatus) {
+                            strings.localBackendReady(
+                                backend = finalLocalBackendStatus.backendKind.persistedValue,
+                                model = finalLocalBackendStatus.modelName,
+                            )
+                        }
                     } else {
                         OnDeviceBackendManager.preferredDownloadSummary(app, snapshot.onDeviceBackend)
                     }
@@ -1732,6 +1734,14 @@ internal fun settingsSaveUnsafeTransitionMessage(status: LocalBackendStatus): St
         "The previous local runtime did not stop safely. Force stop and reopen Hermes before switching providers."
     }
 }
+
+/** Preserve measured controller readiness instead of replacing it with a generic ready label. */
+internal fun visibleReadyLocalBackendSummary(
+    status: LocalBackendStatus,
+    fallback: () -> String,
+): String = status.statusMessage.takeIf {
+    status.started && status.completionVerified && it.isNotBlank()
+} ?: fallback()
 
 internal fun settingsRuntimeTransitionFailureMessage(
     backendKind: BackendKind,
