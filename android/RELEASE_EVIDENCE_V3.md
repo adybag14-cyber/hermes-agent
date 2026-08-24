@@ -129,7 +129,10 @@ and verify every device byte count and SHA-256 against the extraction. Create
 private `home` and `tmp` children, make the wrapper executable, and launch from
 that directory through `/system/bin/env -i` with exactly `PATH=/system/bin`,
 `LANG=C`, `LC_ALL=C`, and
-candidate-bound `HOME`, `TMPDIR`, `LD_LIBRARY_PATH`, and `GGML_BACKEND_PATH`.
+candidate-bound `HOME`, `TMPDIR`, and `LD_LIBRARY_PATH`, plus
+`GGML_BACKEND_PATH` bound to the extracted `libggml-cpu.so` file. Passing the
+runtime directory itself is invalid for this llama.cpp revision because it is
+interpreted as a backend file and produces a loader warning before model load.
 The latter is mandatory because GGML discovers the CPU backend dynamically.
 Record the canonical environment JSON hash. Invoke the wrapper from that exact
 working directory with the closed argv below, commit the argv array in the

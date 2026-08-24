@@ -5038,7 +5038,7 @@ def _validate_physical_nanbeige_repair_evidence(
         f"{expected_runtime_directory}/{PHYSICAL_STABLE_RUNTIME_EXECUTABLE}"
     )
     expected_command_environment = {
-        "GGML_BACKEND_PATH": expected_runtime_directory,
+        "GGML_BACKEND_PATH": f"{expected_runtime_directory}/libggml-cpu.so",
         "HOME": f"{expected_runtime_directory}/home",
         "LANG": "C",
         "LC_ALL": "C",

@@ -74,7 +74,7 @@ def _physical_record(module) -> dict:
         ).encode("utf-8")
     ).hexdigest()
     command_environment = {
-        "GGML_BACKEND_PATH": stable_runtime_directory,
+        "GGML_BACKEND_PATH": f"{stable_runtime_directory}/libggml-cpu.so",
         "HOME": f"{stable_runtime_directory}/home",
         "LANG": "C",
         "LC_ALL": "C",
