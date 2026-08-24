@@ -339,13 +339,14 @@ class NativeAndroidShellToolTest {
             )
             // Use different bounded read timeouts for the two exact request clients. OkHttp call
             // cancellation is not guaranteed to wake a Windows SocketInputStream.read immediately;
-            // A's short timeout makes its cooperative cancellation observable without making B's
-            // independent blocked read finish before the isolation assertion.
+            // A's timeout remains longer than the exact cancel assertion, so the test cannot
+            // pass from a natural timeout. B's longer timeout keeps its independent blocked read
+            // alive through A's bounded Windows socket-unwind interval.
             val clientA = OkHttpClient.Builder()
-                .readTimeout(500, TimeUnit.MILLISECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
                 .build()
             val clientB = OkHttpClient.Builder()
-                .readTimeout(4, TimeUnit.SECONDS)
+                .readTimeout(15, TimeUnit.SECONDS)
                 .build()
             val targetA = File(root, "layer-a")
             val targetB = File(root, "layer-b")
@@ -393,7 +394,7 @@ class NativeAndroidShellToolTest {
             workerA.interrupt()
             assertTrue("Exact sandbox layer call A was not cancelled", callA.isCanceled())
             assertFalse("Cancelling A also cancelled sandbox layer call B", callB.isCanceled())
-            workerA.join(5_000L)
+            workerA.join(7_000L)
 
             assertFalse("Cancelled sandbox layer A remained alive", workerA.isAlive)
             assertTrue(failureA.get() != null)
@@ -406,7 +407,7 @@ class NativeAndroidShellToolTest {
             clientB.dispatcher.cancelAll()
             workerB.interrupt()
             assertTrue("Exact sandbox layer call B was not cancelled", callB.isCanceled())
-            workerB.join(5_000L)
+            workerB.join(17_000L)
             assertFalse(
                 "Cancelled sandbox layer B remained alive; state=${workerB.state}; " +
                     "runningCalls=${clientB.dispatcher.runningCallsCount()}; " +

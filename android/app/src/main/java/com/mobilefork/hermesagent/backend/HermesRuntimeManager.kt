@@ -6,10 +6,14 @@ import com.chaquo.python.android.AndroidPlatform
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.models.PythonRuntimeWriteAuthority
+import com.mobilefork.hermesagent.models.LocalModelRuntimeSelectionAuthority
 import com.mobilefork.hermesagent.models.RuntimeSelectionSupersededException
 import com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridge
 import java.io.File
 import org.json.JSONObject
+
+internal class ExpectedLocalBackendSupersededException :
+    IllegalStateException("The activity local-runtime selection changed before startup")
 
 object HermesRuntimeManager {
     private val pythonStartLock = Any()
@@ -35,6 +39,10 @@ object HermesRuntimeManager {
         data class LocalFailed(val status: LocalBackendStatus) : BackendRouteResult<Nothing>
         data class RemoteOwnershipFailed(val reason: String) : BackendRouteResult<Nothing>
         data class RemoteDisabled(val status: LocalBackendStatus) : BackendRouteResult<Nothing>
+        data class SelectionSuperseded(
+            val expected: BackendKind,
+            val observed: BackendKind,
+        ) : BackendRouteResult<Nothing>
         data class Remote<T>(val value: T) : BackendRouteResult<T>
     }
 
@@ -65,6 +73,46 @@ object HermesRuntimeManager {
         if (!remoteAllowed) return BackendRouteResult.RemoteDisabled(localStatus)
         return BackendRouteResult.Remote(remoteLauncher())
     }
+
+    /** A backend-bound route which has no remote-launch capability. */
+    internal fun routeExpectedLocalBackend(
+        selectedLocalBackend: BackendKind,
+        expectedLocalBackend: BackendKind,
+        dangerouslySkipRamChecks: Boolean = false,
+        localLauncher: (dangerouslySkipRamChecks: Boolean) -> LocalBackendStatus,
+    ): BackendRouteResult<Nothing> {
+        if (selectedLocalBackend != expectedLocalBackend) {
+            return BackendRouteResult.SelectionSuperseded(
+                expected = expectedLocalBackend,
+                observed = selectedLocalBackend,
+            )
+        }
+        val localStatus = localLauncher(dangerouslySkipRamChecks)
+        return when {
+            localStatus.requiresAppRestart -> BackendRouteResult.LocalFailed(localStatus)
+            localStatus.started -> BackendRouteResult.LocalStarted(localStatus)
+            else -> BackendRouteResult.LocalFailed(localStatus)
+        }
+    }
+
+    /** Atomically bind a passive launch to both its generation and persisted backend. */
+    internal fun validateExpectedLocalBackendAdmission(
+        expectedLocalBackend: BackendKind,
+        admissionCheck: () -> Unit,
+        loadPersistedBackend: () -> BackendKind,
+    ) {
+        LocalModelRuntimeSelectionAuthority.withAdmissionCheck(admissionCheck) {
+            if (loadPersistedBackend() != expectedLocalBackend) {
+                throw ExpectedLocalBackendSupersededException()
+            }
+        }
+    }
+
+    /** Retire a local result before a superseded passive launch can return or publish it. */
+    internal fun retireSupersededExpectedLocalBackend(
+        runtimeState: RuntimeState,
+        stopAllLocalBackends: () -> LocalBackendStatus,
+    ): RuntimeState = runtimeStateAfterLocalOperation(runtimeState, stopAllLocalBackends())
 
     @Volatile
     private var currentState: RuntimeState = RuntimeState(started = false)
@@ -101,9 +149,72 @@ object HermesRuntimeManager {
         context: Context,
         dangerouslySkipRamChecks: Boolean = false,
         admissionCheck: () -> Unit = {},
+    ): RuntimeState = ensureStartedLocked(
+        context = context,
+        dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+        admissionCheck = admissionCheck,
+        expectedLocalBackend = null,
+    )
+
+    /**
+     * Start only the supported local backend observed by an earlier foreground decision.
+     *
+     * Runtime ownership is held while the persisted selection is revalidated. A superseded
+     * selection is a no-op, and this path never has authority to launch the remote runtime.
+     */
+    @Synchronized
+    fun ensureExpectedLocalBackendStarted(
+        context: Context,
+        expectedLocalBackend: BackendKind,
+        selectionGeneration: Long,
     ): RuntimeState {
-        admissionCheck()
+        if (
+            expectedLocalBackend != BackendKind.LLAMA_CPP &&
+            expectedLocalBackend != BackendKind.LITERT_LM
+        ) {
+            return currentState
+        }
+        return try {
+            ensureStartedLocked(
+                context = context,
+                dangerouslySkipRamChecks = false,
+                admissionCheck = {
+                    LocalModelRuntimeSelectionAuthority.requireCurrent(selectionGeneration)
+                },
+                expectedLocalBackend = expectedLocalBackend,
+            )
+        } catch (_: ExpectedLocalBackendSupersededException) {
+            currentState
+        } catch (_: RuntimeSelectionSupersededException) {
+            currentState
+        }
+    }
+
+    private fun ensureStartedLocked(
+        context: Context,
+        dangerouslySkipRamChecks: Boolean,
+        admissionCheck: () -> Unit,
+        expectedLocalBackend: BackendKind?,
+    ): RuntimeState {
         val appContext = context.applicationContext
+        val effectiveAdmissionCheck = {
+            if (expectedLocalBackend != null) {
+                // Generation admission and the persisted-backend read are one authoritative
+                // transaction. A newer Settings/model action cannot land between them.
+                validateExpectedLocalBackendAdmission(
+                    expectedLocalBackend = expectedLocalBackend,
+                    admissionCheck = admissionCheck,
+                    loadPersistedBackend = {
+                        BackendKind.fromPersistedValue(
+                            AppSettingsStore(appContext).load().onDeviceBackend,
+                        )
+                    },
+                )
+            } else {
+                admissionCheck()
+            }
+        }
+        effectiveAdmissionCheck()
         remoteStopFailureDetail?.let { detail ->
             currentState = RuntimeState(
                 started = false,
@@ -141,29 +252,44 @@ object HermesRuntimeManager {
         return try {
             HermesLinuxSubsystemBridge.ensureInstalled(appContext)
             refreshPythonRuntimeEnvironment(appContext)
-            val route = routeConfiguredBackend(
-                selectedLocalBackend = selectedLocalBackend,
-                remoteAllowed = !settings.offlineAirplaneMode,
-                dangerouslySkipRamChecks = dangerouslySkipRamChecks,
-                localLauncher = { oneShotRamAuthority ->
-                    OnDeviceBackendManager.ensureConfigured(
-                        appContext,
-                        settings.onDeviceBackend,
-                        dangerouslySkipRamChecks = oneShotRamAuthority,
-                        admissionCheck = admissionCheck,
-                    )
-                },
-                remoteLauncher = {
-                    startRemoteRuntime(
-                        appContext,
-                        settings.provider,
-                        settings.model,
-                        settings.baseUrl,
-                        admissionCheck,
-                    )
-                },
-                remoteStopFailure = remoteStopFailureDetail,
-            )
+            val selectedBackendAtRouting = expectedLocalBackend?.let {
+                BackendKind.fromPersistedValue(
+                    AppSettingsStore(appContext).load().onDeviceBackend,
+                )
+            } ?: selectedLocalBackend
+            val localLauncher: (Boolean) -> LocalBackendStatus = { oneShotRamAuthority ->
+                OnDeviceBackendManager.ensureConfigured(
+                    appContext,
+                    expectedLocalBackend?.persistedValue ?: settings.onDeviceBackend,
+                    dangerouslySkipRamChecks = oneShotRamAuthority,
+                    admissionCheck = effectiveAdmissionCheck,
+                )
+            }
+            val route: BackendRouteResult<RuntimeState> = if (expectedLocalBackend != null) {
+                routeExpectedLocalBackend(
+                    selectedLocalBackend = selectedBackendAtRouting,
+                    expectedLocalBackend = expectedLocalBackend,
+                    dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+                    localLauncher = localLauncher,
+                )
+            } else {
+                routeConfiguredBackend(
+                    selectedLocalBackend = selectedBackendAtRouting,
+                    remoteAllowed = !settings.offlineAirplaneMode,
+                    dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+                    localLauncher = localLauncher,
+                    remoteLauncher = {
+                        startRemoteRuntime(
+                            appContext,
+                            settings.provider,
+                            settings.model,
+                            settings.baseUrl,
+                            effectiveAdmissionCheck,
+                        )
+                    },
+                    remoteStopFailure = remoteStopFailureDetail,
+                )
+            }
             currentState = when (route) {
                 is BackendRouteResult.LocalStarted -> localRuntimeState(appContext, route.status)
                 is BackendRouteResult.LocalFailed -> localFailureState(appContext, selectedLocalBackend, route.status)
@@ -179,17 +305,30 @@ object HermesRuntimeManager {
                         "Offline airplane mode is on and no on-device backend is ready."
                     },
                 )
+                is BackendRouteResult.SelectionSuperseded -> currentState
                 is BackendRouteResult.Remote -> route.value
             }
-            admissionCheck()
+            if (route !is BackendRouteResult.SelectionSuperseded) {
+                effectiveAdmissionCheck()
+            }
             currentState
         } catch (exc: Throwable) {
+            if (exc is ExpectedLocalBackendSupersededException) {
+                // A direct persisted-backend change may not carry the captured generation.
+                // Retire any local process which could have been created before the final
+                // expected-backend check, but never touch or launch a remote runtime here.
+                currentState = retireSupersededExpectedLocalBackend(
+                    runtimeState = currentState,
+                    stopAllLocalBackends = OnDeviceBackendManager::stopAll,
+                )
+                return currentState
+            }
             if (exc is RuntimeSelectionSupersededException) {
                 // The guard is checked while Hermes runtime ownership is still held. Remove any
                 // process produced by the stale load before a newer queued selection enters.
                 val localStop = OnDeviceBackendManager.stopAll()
                 currentState = runtimeStateAfterLocalOperation(currentState, localStop)
-                if (!localStop.requiresAppRestart) {
+                if (!localStop.requiresAppRestart && expectedLocalBackend == null) {
                     stopRemoteRuntime()
                 }
                 throw exc

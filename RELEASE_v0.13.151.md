@@ -15,6 +15,11 @@ response cleanup, and long-generation feedback.
   closed if that state cannot be committed. After startup, the Settings draft
   mirrors the authoritative persisted lane so the same screen cannot continue
   to display or reapply stale Stable state.
+- Starts an explicitly selected local backend automatically after the first UI
+  frame whenever a fresh app process opens. The process-scoped launch is bound
+  to the captured model-selection generation, admits only llama.cpp or
+  LiteRT-LM, and has no remote-fallback authority; a newer Settings/model action
+  cancels stale startup and retains ownership.
 - Keeps lane selection content-authoritative. The repair is applied only after
   the artifact's exact byte count and SHA-256 have been verified, while unknown,
   lane-neutral, and already-correct model files preserve the user's lane. A

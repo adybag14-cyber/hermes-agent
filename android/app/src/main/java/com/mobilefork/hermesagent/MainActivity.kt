@@ -48,7 +48,13 @@ class MainActivity : ComponentActivity() {
         handleAuthCallback(intent)
         handleShortcutIntent(intent)
         setContent {
-            BootScreen()
+            BootScreen(
+                onFirstFrame = {
+                    (application as HermesApplication)
+                        .localRuntimeAutoStarter
+                        .requestAfterFirstFrame()
+                },
+            )
         }
     }
 

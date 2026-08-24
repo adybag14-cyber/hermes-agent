@@ -1,5 +1,11 @@
 package com.mobilefork.hermesagent.backend
 
+import com.mobilefork.hermesagent.models.LocalModelRuntimeSelectionAuthority
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -7,6 +13,142 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HermesRuntimeManagerTest {
+    @Test
+    fun activityLocalAutoStart_generationAndPersistedBackendValidationAreAtomic() {
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+        val persistedBackend = AtomicReference(BackendKind.LLAMA_CPP)
+        val backendReadEntered = CountDownLatch(1)
+        val releaseBackendRead = CountDownLatch(1)
+        val newerSelectionCommitted = CountDownLatch(1)
+        val oldFailure = AtomicReference<Throwable?>(null)
+
+        val oldAutoStart = thread(name = "activity-local-autostart-admission") {
+            oldFailure.set(
+                runCatching {
+                    HermesRuntimeManager.validateExpectedLocalBackendAdmission(
+                        expectedLocalBackend = BackendKind.LLAMA_CPP,
+                        admissionCheck = {
+                            LocalModelRuntimeSelectionAuthority.requireCurrent(selectionGeneration)
+                        },
+                        loadPersistedBackend = {
+                            backendReadEntered.countDown()
+                            check(releaseBackendRead.await(5, TimeUnit.SECONDS))
+                            persistedBackend.get()
+                        },
+                    )
+                }.exceptionOrNull(),
+            )
+        }
+        assertTrue(backendReadEntered.await(5, TimeUnit.SECONDS))
+
+        val newerSelection = thread(name = "newer-runtime-selection") {
+            LocalModelRuntimeSelectionAuthority.beginAction()
+            persistedBackend.set(BackendKind.NONE)
+            newerSelectionCommitted.countDown()
+        }
+
+        assertFalse(
+            "A newer selection landed between generation admission and backend validation",
+            newerSelectionCommitted.await(100, TimeUnit.MILLISECONDS),
+        )
+        releaseBackendRead.countDown()
+        oldAutoStart.join(5_000L)
+        newerSelection.join(5_000L)
+
+        assertFalse(oldAutoStart.isAlive)
+        assertFalse(newerSelection.isAlive)
+        assertNull(oldFailure.get())
+        assertTrue(newerSelectionCommitted.await(0, TimeUnit.MILLISECONDS))
+        assertEquals(BackendKind.NONE, persistedBackend.get())
+    }
+
+    @Test
+    fun activityLocalAutoStart_finalBackendMismatchStopsStaleLocalBeforeNewOwner() {
+        val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+        val persistedBackend = AtomicReference(BackendKind.LLAMA_CPP)
+        val backendReadEntered = CountDownLatch(1)
+        val releaseBackendRead = CountDownLatch(1)
+        val stopInvocations = AtomicInteger(0)
+        val remoteInvocations = AtomicInteger(0)
+        val finalState = AtomicReference<HermesRuntimeManager.RuntimeState?>(null)
+        val staleLocal = HermesRuntimeManager.RuntimeState(
+            started = true,
+            baseUrl = "http://127.0.0.1:15435/v1",
+            apiKey = "stale-local-bearer",
+            localBackendKind = BackendKind.LLAMA_CPP,
+            modelName = "stale-model-a",
+        )
+
+        val oldAutoStart = thread(name = "activity-local-autostart-final-admission") {
+            val result = try {
+                HermesRuntimeManager.validateExpectedLocalBackendAdmission(
+                    expectedLocalBackend = BackendKind.LLAMA_CPP,
+                    admissionCheck = {
+                        LocalModelRuntimeSelectionAuthority.requireCurrent(selectionGeneration)
+                    },
+                    loadPersistedBackend = {
+                        backendReadEntered.countDown()
+                        check(releaseBackendRead.await(5, TimeUnit.SECONDS))
+                        persistedBackend.get()
+                    },
+                )
+                staleLocal
+            } catch (_: ExpectedLocalBackendSupersededException) {
+                HermesRuntimeManager.retireSupersededExpectedLocalBackend(
+                    runtimeState = staleLocal,
+                    stopAllLocalBackends = {
+                        stopInvocations.incrementAndGet()
+                        LocalBackendStatus(backendKind = BackendKind.NONE, started = false)
+                    },
+                )
+            }
+            finalState.set(result)
+        }
+        assertTrue(backendReadEntered.await(5, TimeUnit.SECONDS))
+
+        // Model a direct persisted-backend change which did not increment the selection epoch.
+        // The final expected-backend check must still retire the already-created local result.
+        persistedBackend.set(BackendKind.NONE)
+        releaseBackendRead.countDown()
+        oldAutoStart.join(5_000L)
+
+        assertFalse(oldAutoStart.isAlive)
+        assertEquals(1, stopInvocations.get())
+        assertEquals(0, remoteInvocations.get())
+        val retired = requireNotNull(finalState.get())
+        assertFalse(retired.started)
+        assertNull(retired.baseUrl)
+        assertNull(retired.apiKey)
+        assertEquals(BackendKind.NONE, retired.localBackendKind)
+
+        val newerGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+        assertTrue(newerGeneration > selectionGeneration)
+    }
+
+    @Test
+    fun activityLocalAutoStart_selectionChangedToNoneInvokesNeitherLauncher() {
+        var persistedBackend = BackendKind.LLAMA_CPP
+        val expectedAtActivityLaunch = persistedBackend
+        var localInvocations = 0
+
+        persistedBackend = BackendKind.NONE
+
+        val result = HermesRuntimeManager.routeExpectedLocalBackend(
+            selectedLocalBackend = persistedBackend,
+            expectedLocalBackend = expectedAtActivityLaunch,
+            localLauncher = {
+                localInvocations += 1
+                LocalBackendStatus(backendKind = BackendKind.LLAMA_CPP, started = true)
+            },
+        )
+
+        assertTrue(result is HermesRuntimeManager.BackendRouteResult.SelectionSuperseded)
+        val superseded = result as HermesRuntimeManager.BackendRouteResult.SelectionSuperseded
+        assertEquals(BackendKind.LLAMA_CPP, superseded.expected)
+        assertEquals(BackendKind.NONE, superseded.observed)
+        assertEquals(0, localInvocations)
+    }
+
     @Test
     fun routeConfiguredBackend_failedExplicitLocalSelectionNeverInvokesRemoteLauncher() {
         var localInvocations = 0

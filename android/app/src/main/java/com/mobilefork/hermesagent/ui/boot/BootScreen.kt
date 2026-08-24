@@ -28,12 +28,16 @@ import com.mobilefork.hermesagent.ui.theme.HermesTheme
 import com.mobilefork.hermesagent.ui.theme.HermesThemeConfig
 
 @Composable
-fun BootScreen() {
+fun BootScreen(onFirstFrame: () -> Unit = {}) {
     val appContext = LocalContext.current.applicationContext
     val startupSettings = remember(appContext) { AppSettingsStore(appContext).load() }
     var shellVisible by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         withFrameNanos { }
+        // The static startup frame has now been submitted. Queueing local-model work here keeps
+        // multi-gigabyte verification off the cold-frame path; the callback itself only hands
+        // ownership to the process-scoped application worker.
+        onFirstFrame()
         shellVisible = true
     }
     if (!shellVisible) {
