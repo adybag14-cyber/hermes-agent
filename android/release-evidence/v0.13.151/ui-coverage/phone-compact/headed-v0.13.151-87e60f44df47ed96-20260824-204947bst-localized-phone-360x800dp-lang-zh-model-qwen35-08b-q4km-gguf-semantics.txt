@@ -1,0 +1,298 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=localized-model:zh:qwen35-08b-q4km-gguf
+artifact=headed-v0.13.151-87e60f44df47ed96-20260824-204947bst-localized-phone-360x800dp-lang-zh-model-qwen35-08b-q4km-gguf
+coverage_kind=six-language-recommended-model
+page_id=Settings.Models.qwen35-08b-q4km-gguf
+profile=phone-360x800dp
+language=zh
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=360
+screen_height_dp=800
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.151
+version_code=145190
+build_variant=debug
+source_digest=87e60f44df47ed9629c50370a5e7ae29215424ad7285e92b0360fe3a3b8e434e
+candidate_apk_sha256=e45481a4b8e7027e4944b6c55c88cce95ff5e3cffd8972854eeb6ebf8a6c1f20
+instrumentation_apk_sha256=8da4e227875907085e0229b3c2abc3f7a83238ccc48ed5f7179468e8f791ecde
+evidence_run_id=v0.13.151-87e60f44df47ed96-20260824-204947bst
+device_serial=emulator-5580
+avd_name=Qitong_API_35_D
+device_boot_id=5cf47380-7af4-49c2-9a2e-afeafd528f0d
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=884fa7c6bc44c084a6cebae21c28e6aae77b3369cd6fc35475b741b52bda88a1
+sentinel=Qwen3.5 0.8B Q4_K_M (GGUF)
+sentinel=小型 Unsloth GGUF 模型，适合在手机上快速验证可见聊天回复、文件创建/删除以及原生工具调用。
+sentinel=GGUF · Unsloth Q4_K_M 手机工具调用
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #160 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #162 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px, Tag: 'HermesSettingsContentList'
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=3266.0, maxValue=3366.0, reverseScrolling=false)'
+       |       CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@b0ccf7e'
+       |       Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |        |-Node #1092 at (l=48.0, t=-878.0, r=1032.0, b=7452.0)px
+       |          IsTraversalGroup = 'true'
+       |           |-Node #1094 at (l=96.0, t=-830.0, r=704.0, b=-758.0)px
+       |           | Text = '[Hugging Face 本地模型下载]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1095 at (l=96.0, t=-722.0, r=984.0, b=-622.0)px
+       |           | Text = '[直接把完整模型文件下载到手机，使用 Android 系统下载管理器保存进度，并在断网或重启后安全恢复。]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1098 at (l=96.0, t=-586.0, r=266.0, b=-525.0)px
+       |           | Text = '[省流模式]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1099 at (l=96.0, t=-513.0, r=828.0, b=-413.0)px
+       |           | Text = '[启用后，大型模型下载会等待 Wi‑Fi / 非计费网络，以尽量减少移动数据使用。]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1100 at (l=828.0, t=-547.0, r=984.0, b=-451.0)px
+       |           | Role = 'Switch'
+       |           | Focused = 'false'
+       |           | ToggleableState = 'On'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |-Node #1102 at (l=96.0, t=-377.0, r=984.0, b=-185.0)px
+       |           | EditableText = ''
+       |           | TextSelectionRange = 'TextRange(0, 0)'
+       |           | IsEditable = 'true'
+       |           | ImeAction = 'Default'
+       |           | Focused = 'false'
+       |           | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1111 at (l=144.0, t=-305.0, r=767.0, b=-233.0)px
+       |           |    Text = '[Hugging Face 令牌（可选）]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1114 at (l=96.0, t=-137.0, r=410.0, b=-17.0)px
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1116 at (l=168.0, t=-107.0, r=338.0, b=-46.0)px
+       |           |    Text = '[保存令牌]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1117 at (l=434.0, t=-137.0, r=748.0, b=-17.0)px
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1119 at (l=506.0, t=-107.0, r=676.0, b=-46.0)px
+       |           |    Text = '[刷新下载]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1120 at (l=96.0, t=31.0, r=622.0, b=151.0)px, Tag: 'HermesImportModelButton'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1122 at (l=168.0, t=61.0, r=550.0, b=122.0)px
+       |           |    Text = '[从手机文件导入模型]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1123 at (l=96.0, t=199.0, r=984.0, b=299.0)px
+       |           | Text = '[离线飞行模式已开启，因此 Hermes 只会使用已导入或已下载的本地模型。]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1125 at (l=96.0, t=374.0, r=351.0, b=435.0)px
+       |           | Text = '[一键本地模型]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1126 at (l=96.0, t=471.0, r=984.0, b=571.0)px
+       |           | Text = '[选择已验证的移动模型。Hermes 会下载、设为首选，并在文件准备好后自动启动本地运行时。]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1127 at (l=96.0, t=607.0, r=984.0, b=1336.0)px
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #1129 at (l=138.0, t=649.0, r=435.0, b=710.0)px
+       |           |  | Text = '[已检测模型目录]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1130 at (l=138.0, t=734.0, r=942.0, b=882.0)px
+       |           |  | Text = '[从已签名的 Cloudflare 目录选择一个模型。Hermes 会验证签名，然后通过 Hugging Face 下载所选文件。]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1132 at (l=138.0, t=918.0, r=942.0, b=1038.0)px
+       |           |  | Role = 'Button'
+       |           |  | [Disabled]
+       |           |  | Actions = [OnClick]
+       |           |  | MergeDescendants = 'true'
+       |           |  |  |-Node #1134 at (l=370.0, t=948.0, r=710.0, b=1009.0)px
+       |           |  |    Text = '[选择检测到的模型]'
+       |           |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1137 at (l=138.0, t=1086.0, r=452.0, b=1206.0)px
+       |           |  | Role = 'Button'
+       |           |  | [Disabled]
+       |           |  | Actions = [OnClick]
+       |           |  | MergeDescendants = 'true'
+       |           |  |  |-Node #1139 at (l=210.0, t=1116.0, r=380.0, b=1177.0)px
+       |           |  |    Text = '[刷新目录]'
+       |           |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1140 at (l=476.0, t=1086.0, r=833.0, b=1206.0)px
+       |           |  | Role = 'Button'
+       |           |  | [Disabled]
+       |           |  | Actions = [OnClick]
+       |           |  | MergeDescendants = 'true'
+       |           |  |  |-Node #1142 at (l=548.0, t=1116.0, r=761.0, b=1177.0)px
+       |           |  |    Text = '[下载并启动]'
+       |           |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1143 at (l=138.0, t=1242.0, r=920.0, b=1294.0)px
+       |           |    Text = '[需要时点按刷新目录以加载已签名的模型选项。]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1144 at (l=96.0, t=1372.0, r=984.0, b=2292.0)px, Tag: 'RecommendedLocalModelCard-qwen35-08b-q4km-gguf'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #1146 at (l=138.0, t=1414.0, r=723.0, b=1474.0)px
+       |           |  | Text = '[Qwen3.5 0.8B Q4_K_M (GGUF)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1147 at (l=138.0, t=1498.0, r=942.0, b=1646.0)px
+       |           |  | Text = '[小型 Unsloth GGUF 模型，适合在手机上快速验证可见聊天回复、文件创建/删除以及原生工具调用。]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1148 at (l=138.0, t=1670.0, r=942.0, b=2006.0)px
+       |           |  | Text = '[unsloth/Qwen3.5-0.8B-GGUF · Qwen3.5-0.8B-Q4_K_M.gguf
+Revision 6ab461498e2023f6e3c1baea90a8f0fe38ab64d0
+532517120 bytes · SHA-256 bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1149 at (l=138.0, t=2030.0, r=791.0, b=2082.0)px
+       |           |  | Text = '[GGUF · Unsloth Q4_K_M 手机工具调用]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1150 at (l=138.0, t=2118.0, r=942.0, b=2238.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #1152 at (l=434.0, t=2148.0, r=647.0, b=2209.0)px
+       |           |       Text = '[下载并启动]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1153 at (l=96.0, t=2328.0, r=984.0, b=3404.0)px, Tag: 'RecommendedLocalModelCard-nanbeige4.2-3b-q4-k-m'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #1155 at (l=138.0, t=2370.0, r=942.0, b=2490.0)px
+       |           |  | Text = '[Nanbeige4.2 3B Q4_K_M (GGUF · TurboQuant)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1156 at (l=138.0, t=2514.0, r=942.0, b=2710.0)px
+       |           |  | Text = '[Tdamre 发布的精确 Nanbeige4.2 3B Q4_K_M 工件。它必须使用并会选择可选的 TurboQuant llama.cpp 通道，因为 Stable 无法加载旧版 nanbeige 架构。]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1157 at (l=138.0, t=2734.0, r=942.0, b=3070.0)px
+       |           |  | Text = '[Tdamre/Nanbeige4.2-3B-GGUF · Nanbeige4.2-3B-Q4_K_M.gguf
+Revision 128d8e87d69f9c1a30c37e40530c69deda96475d
+2574807840 bytes · SHA-256 99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1158 at (l=138.0, t=3094.0, r=942.0, b=3194.0)px
+       |           |  | Text = '[GGUF · Tdamre 精确 Q4_K_M · 必须使用 TurboQuant]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1159 at (l=138.0, t=3230.0, r=942.0, b=3350.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #1161 at (l=434.0, t=3260.0, r=647.0, b=3321.0)px
+       |           |       Text = '[下载并启动]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1162 at (l=96.0, t=3440.0, r=984.0, b=4564.0)px, Tag: 'RecommendedLocalModelCard-minicpm5-1b-fable5-q4km-gguf'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #1164 at (l=138.0, t=3482.0, r=942.0, b=3602.0)px
+       |           |  | Text = '[MiniCPM5 1B Claude Opus Fable5 Q4_K_M (GGUF)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1165 at (l=138.0, t=3626.0, r=942.0, b=3774.0)px
+       |           |  | Text = '[面向嵌入式 llama.cpp 运行时的紧凑型 MiniCPM5 思维模型；采用 Q4_K_M 量化，以适应手机的实际内存限制。]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1166 at (l=138.0, t=3798.0, r=942.0, b=4278.0)px
+       |           |  | Text = '[GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF · MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf
+Revision 5a4ed2c3605634e7b043e8b98fa01e504b0dfbed
+688066496 bytes · SHA-256 b1c3bf2995e96cb792a0031e4e1497a500e9244c68ba17c24a7e6edf1fc59019]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1167 at (l=138.0, t=4302.0, r=827.0, b=4354.0)px
+       |           |  | Text = '[GGUF · MiniCPM5 llama.cpp 兼容性目标]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1168 at (l=138.0, t=4390.0, r=942.0, b=4510.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #1170 at (l=434.0, t=4420.0, r=647.0, b=4481.0)px
+       |           |       Text = '[下载并启动]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1171 at (l=96.0, t=4600.0, r=984.0, b=5520.0)px, Tag: 'RecommendedLocalModelCard-minicpm5-1b-web-litert-lm'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #1173 at (l=138.0, t=4642.0, r=777.0, b=4702.0)px
+       |           |  | Text = '[MiniCPM5 1B mobile (LiteRT-LM)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1174 at (l=138.0, t=4726.0, r=942.0, b=4826.0)px
+       |           |  | Text = '[面向移动设备的 MiniCPM5 LiteRT-LM 工件，采用较短的网页缓存和 Android 安全聊天模板。]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1175 at (l=138.0, t=4850.0, r=942.0, b=5186.0)px
+       |           |  | Text = '[Tdamre/MiniCPM5-1B-litert-lm · MiniCPM5-1B-web.litertlm
+Revision 06e61f79c625f864391fbb33049b5b46d1bfd7a6
+1103486896 bytes · SHA-256 a6d6d61fdfa0e04458fea344791d15ca304b54a40573e1b44ebab30c54d7bf1d]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1176 at (l=138.0, t=5210.0, r=942.0, b=5310.0)px
+       |           |  | Text = '[LiteRT-LM · MiniCPM5 移动版 LiteRT-LM 兼容性目标]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1177 at (l=138.0, t=5346.0, r=942.0, b=5466.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #1179 at (l=434.0, t=5376.0, r=647.0, b=5437.0)px
+       |           |       Text = '[下载并启动]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1180 at (l=96.0, t=5556.0, r=984.0, b=6428.0)px, Tag: 'RecommendedLocalModelCard-vibethinker-3b-litert-lm'
+       |           | IsTraversalGroup = 'true'
+       |           |  |-Node #1182 at (l=138.0, t=5598.0, r=666.0, b=5658.0)px
+       |           |  | Text = '[VibeThinker 3B (LiteRT-LM)]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1183 at (l=138.0, t=5682.0, r=942.0, b=5782.0)px
+       |           |  | Text = '[为原生 LiteRT-LM 运行时转换的 30 亿参数推理模型；适用于高内存手机和模拟器。]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1184 at (l=138.0, t=5806.0, r=942.0, b=6142.0)px
+       |           |  | Text = '[Tdamre/VibeThinker-3B-litert-lm · VibeThinker-3B.litertlm
+Revision 9378fddbdce35a6ff818e0f08aa05dce6f1032aa
+3446780848 bytes · SHA-256 4cd4a856ab9fb890223d927efd4ed37268ecd1fa78559a9d27bf21daa6b8c22f]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1185 at (l=138.0, t=6166.0, r=936.0, b=6218.0)px
+       |           |  | Text = '[LiteRT-LM · VibeThinker LiteRT-LM 兼容性目标]'
+       |           |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |  |-Node #1186 at (l=138.0, t=6254.0, r=942.0, b=6374.0)px
+       |           |    Role = 'Button'
+       |           |    [Disabled]
+       |           |    Actions = [OnClick]
+       |           |    MergeDescendants = 'true'
+       |           |     |-Node #1188 at (l=434.0, t=6284.0, r=647.0, b=6345.0)px
+       |           |       Text = '[下载并启动]'
+       |           |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1189 at (l=96.0, t=6464.0, r=984.0, b=6900.0)px
+       |           | Text = '[输入任意 Hugging Face 仓库、hf:// 仓库、仓库页面 URL、resolve URL 或直接文件 URL。Hermes 会优先尝试推断与当前运行时匹配的文件；如果仓库里没有明显的 GGUF / LiteRT-LM 文件，就会退回到另一个看起来像模型工件的文件，并把最终是否可运行交给所选后端决定。若想固定具体文件，可填写仓库内文件路径。示例：GGUF 可用 `Qwen/Qwen2.5-1.5B-Instruct-GGUF`；LiteRT-LM 可用 `litert-community/Phi-4-mini-instruct`。]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1191 at (l=96.0, t=6975.0, r=309.0, b=7036.0)px
+       |           | Text = '[下载管理器]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1192 at (l=96.0, t=7072.0, r=984.0, b=7316.0)px
+       |           | Text = '[意外断线会由 Android DownloadManager 安全处理。如果手机在下载过程中关机，Hermes 会在重启后重新加载已保存的进度。若移动数据一直暂停，请打开系统下载界面，或使用下方按钮在允许移动数据 / 漫游后重新开始。]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1193 at (l=96.0, t=7352.0, r=468.0, b=7404.0)px
+       |             Text = '[还没有本地模型下载。]'
+       |             Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #147 at (l=0.0, t=0.0, r=1080.0, b=352.0)px
+         IsTraversalGroup = 'true'
+          |-Node #151 at (l=36.0, t=172.0, r=180.0, b=316.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[打开导航菜单]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #156 at (l=204.0, t=199.0, r=294.0, b=289.0)px
+          | ContentDescription = '[Hermes 标志]'
+          | Role = 'Image'
+          |-Node #158 at (l=318.0, t=182.0, r=416.0, b=254.0)px
+          | Text = '[设置]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #159 at (l=318.0, t=254.0, r=733.0, b=306.0)px
+            Text = '[运行时提供商与 API 配置]'
+            Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

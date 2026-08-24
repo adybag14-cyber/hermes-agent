@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<hermes-ui-evidence artifact="headed-v0.13.151-87e60f44df47ed96-20260824-204947bst-localized-phone-360x800dp-lang-pt-view-provider" evidence-identity="framework:pt:HermesProviderSetupWebActivity" coverage-kind="framework-view-activity" page-id="HermesProviderSetupWebActivity">
+  <metadata>
+    <entry key="profile" value="phone-360x800dp" />
+    <entry key="language" value="pt" />
+    <entry key="theme_id" value="hermes" />
+    <entry key="theme_primary" value="#24D6A3" />
+    <entry key="theme_secondary" value="#F1B84B" />
+    <entry key="theme_background" value="#03090C" />
+    <entry key="theme_surface" value="#0A1418" />
+    <entry key="theme_surface_variant" value="#111E22" />
+    <entry key="card_shape" value="rounded" />
+    <entry key="ui_font_scale" value="1.0" />
+    <entry key="screen_width_dp" value="360" />
+    <entry key="screen_height_dp" value="800" />
+    <entry key="system_font_scale" value="1.0" />
+    <entry key="package_id" value="com.mobilefork.hermesagent" />
+    <entry key="version_name" value="0.13.151" />
+    <entry key="version_code" value="145190" />
+    <entry key="build_variant" value="debug" />
+    <entry key="source_digest" value="87e60f44df47ed9629c50370a5e7ae29215424ad7285e92b0360fe3a3b8e434e" />
+    <entry key="candidate_apk_sha256" value="e45481a4b8e7027e4944b6c55c88cce95ff5e3cffd8972854eeb6ebf8a6c1f20" />
+    <entry key="instrumentation_apk_sha256" value="8da4e227875907085e0229b3c2abc3f7a83238ccc48ed5f7179468e8f791ecde" />
+    <entry key="evidence_run_id" value="v0.13.151-87e60f44df47ed96-20260824-204947bst" />
+    <entry key="device_serial" value="emulator-5580" />
+    <entry key="avd_name" value="Qitong_API_35_D" />
+    <entry key="device_boot_id" value="5cf47380-7af4-49c2-9a2e-afeafd528f0d" />
+    <entry key="build_fingerprint" value="google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys" />
+    <entry key="screenshot_sha256" value="89ca0a7598642ef0f26a2bdb362c94393148340721aa657402c97ab22a9d5010" />
+    <sentinel value="Configuração do provedor" />
+    <sentinel value="A URL deve começar com https:// ou http://" />
+  </metadata>
+  <view-hierarchy>
+    <node class="com.android.internal.policy.DecorView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="android.graphics.drawable.GradientDrawable">
+      <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+        <node class="android.view.ViewStub" resource-id="android:id/action_mode_bar_stub" text="" hint="" content-desc="" visible="false" bounds="[0,0][0,0]" background="" />
+        <node class="android.widget.FrameLayout" resource-id="android:id/content" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+          <node class="android.widget.ScrollView" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="android.graphics.drawable.GradientDrawable">
+            <node class="android.widget.FrameLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[0,0][1080,2400]" background="">
+              <node class="android.widget.LinearLayout" resource-id="" text="" hint="" content-desc="" visible="true" bounds="[36,172][1044,1168]" background="android.graphics.drawable.GradientDrawable">
+                <node class="android.widget.TextView" resource-id="" text="Configuração do provedor" hint="" content-desc="" visible="true" bounds="[96,232][984,320]" background="" />
+                <node class="android.widget.TextView" resource-id="" text="A URL deve começar com https:// ou http://
+
+" hint="" content-desc="" visible="true" bounds="[96,320][984,676]" background="" />
+                <node class="android.widget.Button" resource-id="" text="Abrir no navegador" hint="" content-desc="" visible="true" bounds="[96,676][984,820]" background="android.graphics.drawable.GradientDrawable" />
+                <node class="android.widget.Button" resource-id="" text="Copiar URL" hint="" content-desc="" visible="true" bounds="[96,820][984,964]" background="android.graphics.drawable.GradientDrawable" />
+                <node class="android.widget.Button" resource-id="" text="Fechar" hint="" content-desc="" visible="true" bounds="[96,964][984,1108]" background="android.graphics.drawable.GradientDrawable" />
+              </node>
+            </node>
+          </node>
+        </node>
+      </node>
+    </node>
+  </view-hierarchy>
+</hermes-ui-evidence>

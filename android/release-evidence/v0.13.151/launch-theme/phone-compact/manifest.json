@@ -1,0 +1,85 @@
+{
+  "automated_verdict": "identity_bound_launch_capture_complete",
+  "captures": [
+    {
+      "activity_dump": "v0.13.151-87e60f44df47ed96-20260824-204947bst-phone-custom-light-launch-theme-cold-launcher-tap-activity.txt",
+      "activity_dump_sha256": "0f82ec8563752b93ebe3ff3b8253cbf1ceb436215841430b42ae90966993fcac",
+      "automated_state_verdict": "main_activity_resumed_and_artifacts_decoded",
+      "label": "cold-launcher-tap",
+      "launch_stderr": "",
+      "launch_stdout": "",
+      "settled_screenshot": "v0.13.151-87e60f44df47ed96-20260824-204947bst-phone-custom-light-launch-theme-cold-launcher-tap-settled.png",
+      "settled_screenshot_sha256": "914c994ecd9da8bd5d94b326c312896ea51456a80cd1da1377c09bac89d2d5d0",
+      "video": "v0.13.151-87e60f44df47ed96-20260824-204947bst-phone-custom-light-launch-theme-cold-launcher-tap.mp4",
+      "video_sha256": "637ad7857ac09d1cb378964e3811a3709cde58d18473bb0b93d131a4a4079629",
+      "visual_splash_verdict": "manual_review_required"
+    },
+    {
+      "activity_dump": "v0.13.151-87e60f44df47ed96-20260824-204947bst-phone-custom-light-launch-theme-cold-deep-link-activity.txt",
+      "activity_dump_sha256": "d574318b72b91d71b66e056f9b114c90167f9155ef578a8872b79ba05c06eef8",
+      "automated_state_verdict": "main_activity_resumed_and_artifacts_decoded",
+      "label": "cold-deep-link",
+      "launch_stderr": "",
+      "launch_stdout": "Starting: Intent { act=android.intent.action.VIEW cat=[android.intent.category.BROWSABLE] dat=hermesagent://auth/... cmp=com.mobilefork.hermesagent/.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 1974\nWaitTime: 1977\nComplete\n",
+      "settled_screenshot": "v0.13.151-87e60f44df47ed96-20260824-204947bst-phone-custom-light-launch-theme-cold-deep-link-settled.png",
+      "settled_screenshot_sha256": "4c0412b844ec140ba1785728d8af188d227b0e3f7de0c827b52dc04343e54e17",
+      "video": "v0.13.151-87e60f44df47ed96-20260824-204947bst-phone-custom-light-launch-theme-cold-deep-link.mp4",
+      "video_sha256": "3218a04a3068ba3056613ee3781d7c49c41753a4ee3f78d11b6665741e72d5d3",
+      "visual_splash_verdict": "manual_review_required"
+    }
+  ],
+  "identity": {
+    "avd_name": "Qitong_API_35_D",
+    "build_fingerprint": "google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+    "candidate_apk_sha256": "e45481a4b8e7027e4944b6c55c88cce95ff5e3cffd8972854eeb6ebf8a6c1f20",
+    "device_boot_id": "5cf47380-7af4-49c2-9a2e-afeafd528f0d",
+    "evidence_run_id": "v0.13.151-87e60f44df47ed96-20260824-204947bst",
+    "expected_profile": "phone",
+    "height_dp": 800,
+    "installed_apk_path": "/data/app/~~dClKcK1YvtSBszB4vLq0Cw==/com.mobilefork.hermesagent-wcKIruT-nNXoqBlaFElvHg==/base.apk",
+    "installed_apk_sha256": "e45481a4b8e7027e4944b6c55c88cce95ff5e3cffd8972854eeb6ebf8a6c1f20",
+    "installed_instrumentation_apk_path": "/data/app/~~6JjdM2uwxNTRIcht004EJA==/com.mobilefork.hermesagent.test-2LxuHfSwedj1O4Mvyt61Cg==/base.apk",
+    "installed_instrumentation_apk_sha256": "8da4e227875907085e0229b3c2abc3f7a83238ccc48ed5f7179468e8f791ecde",
+    "instrumentation_apk_sha256": "8da4e227875907085e0229b3c2abc3f7a83238ccc48ed5f7179468e8f791ecde",
+    "observed_avd_name": "Qitong_API_35_D",
+    "observed_profile": "phone",
+    "sdk_int": 35,
+    "serial": "emulator-5580",
+    "source_digest": "87e60f44df47ed9629c50370a5e7ae29215424ad7285e92b0360fe3a3b8e434e",
+    "width_dp": 360
+  },
+  "manual_acceptance": [
+    "Inspect both MP4 files frame by frame; each must visibly show the Android 12+ static Hermes splash.",
+    "Reject any black, white, legacy preview, stale-task, or third-party frame before the first Hermes frame.",
+    "Verify the first Hermes frame hands off without a contrasting flash to the saved custom-light palette.",
+    "Match source digest, run ID, candidate/test APK hashes, AVD, profile, and boot ID to the headed UI inventory.",
+    "Use this script's review command to persist the human reviewer, UTC timestamp, and pass/fail decision; capture never self-certifies pixels."
+  ],
+  "palette": {
+    "card_shape": "rounded",
+    "persisted_state_file": "v0.13.151-87e60f44df47ed96-20260824-204947bst-phone-custom-light-launch-theme-persisted-palette.json",
+    "persisted_state_file_sha256": "9dc14257ffaab00ebf04f6cf2f9d31bad5305775c7b6bac49d3885f38412f834",
+    "profile": "phone-360x800dp",
+    "proof_evidence_identity": "appearance-custom-light",
+    "proof_sha256": "80c58ead8e25a108e770f968954f6cdead916d2738ba1f76804d1d499ab821d4",
+    "shared_preferences_xml_sha256": "9b6a6250fb6742fa4a53a2ba9c53511ee677cfe2a9e0320298ba864934321e56",
+    "theme_background": "#FAFBFF",
+    "theme_id": "custom-light",
+    "theme_primary": "#1565C0",
+    "theme_secondary": "#8E24AA",
+    "theme_surface": "#FFFFFF",
+    "theme_surface_variant": "#E8EEF8",
+    "ui_font_scale": 1.0,
+    "verified_against_persisted_app_state": true
+  },
+  "schema": "hermes-host-launch-theme-evidence-v2",
+  "visual_review": {
+    "automated_pixel_certification": false,
+    "decision": "pass",
+    "method": "manual-frame-by-frame",
+    "notes": "Every decoded frame in both phone launch sequences was manually reviewed; no blank, stale, corrupt, wrong-theme, crash, system-dialog, or mismatched-activity frame was observed.",
+    "reviewed_at_utc": "2026-08-24T21:19:31Z",
+    "reviewer": "OpenAI Codex release reviewer",
+    "status": "reviewed"
+  }
+}
