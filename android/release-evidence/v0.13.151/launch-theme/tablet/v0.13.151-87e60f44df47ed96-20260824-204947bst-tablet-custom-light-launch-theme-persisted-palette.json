@@ -1,0 +1,25 @@
+{
+  "contains_only_filtered_palette_state": true,
+  "identity": {
+    "avd_name": "Hermes_Model_Test_API_35",
+    "candidate_apk_sha256": "e45481a4b8e7027e4944b6c55c88cce95ff5e3cffd8972854eeb6ebf8a6c1f20",
+    "device_boot_id": "cb536988-2cb4-4c15-ad39-35bf26b582e8",
+    "device_serial": "emulator-5572",
+    "evidence_run_id": "v0.13.151-87e60f44df47ed96-20260824-204947bst",
+    "instrumentation_apk_sha256": "8da4e227875907085e0229b3c2abc3f7a83238ccc48ed5f7179468e8f791ecde",
+    "profile": "tablet-800x1280dp",
+    "source_digest": "87e60f44df47ed9629c50370a5e7ae29215424ad7285e92b0360fe3a3b8e434e"
+  },
+  "palette": {
+    "card_shape": "rounded",
+    "theme_background": "#FAFBFF",
+    "theme_primary": "#1565C0",
+    "theme_secondary": "#8E24AA",
+    "theme_surface": "#FFFFFF",
+    "theme_surface_variant": "#E8EEF8",
+    "ui_font_scale": 1.0
+  },
+  "schema": "hermes-persisted-palette-state-v1",
+  "shared_preferences_xml_sha256": "9b6a6250fb6742fa4a53a2ba9c53511ee677cfe2a9e0320298ba864934321e56",
+  "theme_id": "custom-light"
+}

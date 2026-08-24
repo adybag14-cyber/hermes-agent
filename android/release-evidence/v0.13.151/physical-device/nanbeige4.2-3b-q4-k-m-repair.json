@@ -1,0 +1,376 @@
+{
+  "schema": "hermes-android-physical-nanbeige-repair-v1",
+  "result": "passed",
+  "evidence_complete": true,
+  "recorded_at_epoch_ms": 1787604020013,
+  "release_identity": {
+    "release_source_digest": "87e60f44df47ed9629c50370a5e7ae29215424ad7285e92b0360fe3a3b8e434e",
+    "release_tag": "v0.13.151",
+    "package_id": "com.mobilefork.hermesagent",
+    "version_name": "0.13.151",
+    "version_code": 145190,
+    "build_variant": "release",
+    "candidate_artifact_name": "hermes-agent-android-v0.13.151-device-candidate.apk",
+    "candidate_apk_bytes": 259629001,
+    "candidate_apk_sha256": "89cf25687fa022a5c960070f5876785f39cd5b494eba313e2dac168543de778e",
+    "installed_base_apk_bytes": 259629001,
+    "installed_base_apk_sha256": "89cf25687fa022a5c960070f5876785f39cd5b494eba313e2dac168543de778e",
+    "candidate_apk_signer_sha256": "2cbdb94d6081413055af1e903d4c1d6714300b4240402d1d4c8182fda777d14e",
+    "installed_apk_signer_sha256": "2cbdb94d6081413055af1e903d4c1d6714300b4240402d1d4c8182fda777d14e",
+    "source_binding_verified": true,
+    "signer_verified": true
+  },
+  "device_identity": {
+    "physical_device": true,
+    "adb_transport": "usb",
+    "adb_serial_sha256": "6a87516685b58178d522021fac54b90f0a6d3a9df4f58019bd7a49bd20782ef5",
+    "model": "NX789J",
+    "manufacturer": "nubia",
+    "product": "NX789J-EEA",
+    "device": "NX789J",
+    "hardware": "qcom",
+    "build_fingerprint": "nubia/NX789J-EEA/NX789J:16/BQ2A.250705.001-BP2A.250605.031.A3/20260519.002456:user/release-keys",
+    "boot_id": "2f84005b-80a1-414e-babd-909768d2de11",
+    "android_sdk": 36,
+    "primary_abi": "arm64-v8a",
+    "supported_abis": [
+      "arm64-v8a"
+    ],
+    "ro_kernel_qemu": "0",
+    "avd_name": ""
+  },
+  "model_identity": {
+    "model_id": "nanbeige4.2-3b-q4-k-m",
+    "publisher_repository": "Tdamre/Nanbeige4.2-3B-GGUF",
+    "publisher_revision": "128d8e87d69f9c1a30c37e40530c69deda96475d",
+    "file_name": "Nanbeige4.2-3B-Q4_K_M.gguf",
+    "runtime": "llama.cpp",
+    "required_runtime_lane": "turboquant",
+    "expected_bytes": 2574807840,
+    "device_visible_bytes": 2574807840,
+    "expected_sha256": "99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489",
+    "device_sha256": "99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489",
+    "device_path": "/storage/emulated/0/Android/data/com.mobilefork.hermesagent/files/Download/models/nanbeige4.2-3b-q4_k_m.gguf",
+    "content_addressed_verification_passed": true
+  },
+  "stable_precondition": {
+    "capture_route": "adb-shell-extracted-stable-runtime",
+    "model_path": "/storage/emulated/0/Android/data/com.mobilefork.hermesagent/files/Download/models/nanbeige4.2-3b-q4_k_m.gguf",
+    "source_candidate_apk_sha256": "89cf25687fa022a5c960070f5876785f39cd5b494eba313e2dac168543de778e",
+    "runtime_directory_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable",
+    "runtime_closure": [
+      {
+        "apk_entry": "lib/arm64-v8a/libandroid-spawn.so",
+        "file_name": "libandroid-spawn.so",
+        "role": "process-spawn-support",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libandroid-spawn.so",
+        "dt_needed": [
+          "libc++_shared.so",
+          "libdl.so",
+          "libc.so"
+        ],
+        "extracted_bytes": 39792,
+        "extracted_sha256": "a119e73710fd6dc3bb85dc58df48a9262fa5cb3318c153b9b75c1c3b23fc0e10",
+        "device_bytes": 39792,
+        "device_sha256": "a119e73710fd6dc3bb85dc58df48a9262fa5cb3318c153b9b75c1c3b23fc0e10"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libc++_shared.so",
+        "file_name": "libc++_shared.so",
+        "role": "cxx-runtime",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libc++_shared.so",
+        "dt_needed": [
+          "libc.so",
+          "libm.so",
+          "libdl.so"
+        ],
+        "extracted_bytes": 1374336,
+        "extracted_sha256": "e09c2f45cf4cf8ae574f94b6c2650d99ead0d332d5396f6613f062a2d2d73540",
+        "device_bytes": 1374336,
+        "device_sha256": "e09c2f45cf4cf8ae574f94b6c2650d99ead0d332d5396f6613f062a2d2d73540"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libcrypto.so",
+        "file_name": "libcrypto.so",
+        "role": "tls-crypto",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libcrypto.so",
+        "dt_needed": [
+          "libdl.so",
+          "libc.so"
+        ],
+        "extracted_bytes": 5205472,
+        "extracted_sha256": "3d14fa2c350fbe98a67dc6e04045fc2d019df6bab9e1021ee89d2777fd0a8679",
+        "device_bytes": 5205472,
+        "device_sha256": "3d14fa2c350fbe98a67dc6e04045fc2d019df6bab9e1021ee89d2777fd0a8679"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libggml-base.so",
+        "file_name": "libggml-base.so",
+        "role": "ggml-core",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libggml-base.so",
+        "dt_needed": [
+          "libm.so",
+          "libdl.so",
+          "libc++_shared.so",
+          "libc.so"
+        ],
+        "extracted_bytes": 756240,
+        "extracted_sha256": "81461e8f090de944974ad4b82bcc0b56e97d46d4e42fb8adb71d8996f61c07f0",
+        "device_bytes": 756240,
+        "device_sha256": "81461e8f090de944974ad4b82bcc0b56e97d46d4e42fb8adb71d8996f61c07f0"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libggml-cpu.so",
+        "file_name": "libggml-cpu.so",
+        "role": "ggml-cpu-dlopen-backend",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libggml-cpu.so",
+        "dt_needed": [
+          "libggml-base.so",
+          "libc++_shared.so",
+          "libm.so",
+          "libdl.so",
+          "libc.so"
+        ],
+        "extracted_bytes": 873528,
+        "extracted_sha256": "4c82fe66d5c45b0f3b2aacfe1adb99608d7252923eff8dfda6f8d2acfa26b87d",
+        "device_bytes": 873528,
+        "device_sha256": "4c82fe66d5c45b0f3b2aacfe1adb99608d7252923eff8dfda6f8d2acfa26b87d"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libggml.so",
+        "file_name": "libggml.so",
+        "role": "ggml-backend-loader",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libggml.so",
+        "dt_needed": [
+          "libggml-base.so",
+          "libc++_shared.so",
+          "libdl.so",
+          "libc.so"
+        ],
+        "extracted_bytes": 61632,
+        "extracted_sha256": "fa993bd08560a03d7cd63f70687bcf3371836f18f211c0201778f816ad4f584d",
+        "device_bytes": 61632,
+        "device_sha256": "fa993bd08560a03d7cd63f70687bcf3371836f18f211c0201778f816ad4f584d"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libhermes_android_llama_server.so",
+        "file_name": "libhermes_android_llama_server.so",
+        "role": "server-executable",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libhermes_android_llama_server.so",
+        "dt_needed": [
+          "libllama-server-impl.so",
+          "libc.so"
+        ],
+        "extracted_bytes": 4352,
+        "extracted_sha256": "e452026a884bba280f319ba5582f4829c763a630af9e8da5529105cbd5ec3c83",
+        "device_bytes": 4352,
+        "device_sha256": "e452026a884bba280f319ba5582f4829c763a630af9e8da5529105cbd5ec3c83"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libllama-common.so",
+        "file_name": "libllama-common.so",
+        "role": "llama-common",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libllama-common.so",
+        "dt_needed": [
+          "libllama.so",
+          "libssl.so",
+          "libcrypto.so",
+          "libggml.so",
+          "libggml-base.so",
+          "libc.so",
+          "libc++_shared.so",
+          "libm.so",
+          "libdl.so"
+        ],
+        "extracted_bytes": 4280008,
+        "extracted_sha256": "a226bdd80f62f405d7f251e293954db85e5fb2b0f55ab69cfd65bb1a9f39408d",
+        "device_bytes": 4280008,
+        "device_sha256": "a226bdd80f62f405d7f251e293954db85e5fb2b0f55ab69cfd65bb1a9f39408d"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libllama-server-impl.so",
+        "file_name": "libllama-server-impl.so",
+        "role": "server-implementation",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libllama-server-impl.so",
+        "dt_needed": [
+          "libandroid-spawn.so",
+          "libc.so",
+          "libllama-common.so",
+          "libmtmd.so",
+          "libllama.so",
+          "libggml.so",
+          "libggml-base.so",
+          "libssl.so",
+          "libcrypto.so",
+          "libc++_shared.so",
+          "libm.so",
+          "libdl.so"
+        ],
+        "extracted_bytes": 6328688,
+        "extracted_sha256": "83156eb7d759a0c3d3fba2c3a5f4d5149a7b79d87b6f2c2d2df672df525d0d3b",
+        "device_bytes": 6328688,
+        "device_sha256": "83156eb7d759a0c3d3fba2c3a5f4d5149a7b79d87b6f2c2d2df672df525d0d3b"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libllama.so",
+        "file_name": "libllama.so",
+        "role": "llama-model-runtime",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libllama.so",
+        "dt_needed": [
+          "libggml.so",
+          "libggml-base.so",
+          "libc++_shared.so",
+          "libm.so",
+          "libdl.so",
+          "libc.so"
+        ],
+        "extracted_bytes": 2664040,
+        "extracted_sha256": "88c7b75f2061f4ba8269f0e624bca0740489850a93fc51798c6f3933b550b6a0",
+        "device_bytes": 2664040,
+        "device_sha256": "88c7b75f2061f4ba8269f0e624bca0740489850a93fc51798c6f3933b550b6a0"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libmtmd.so",
+        "file_name": "libmtmd.so",
+        "role": "multimodal-runtime",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libmtmd.so",
+        "dt_needed": [
+          "libandroid-spawn.so",
+          "libllama.so",
+          "libggml.so",
+          "libggml-base.so",
+          "libc.so",
+          "libc++_shared.so",
+          "libm.so",
+          "libdl.so"
+        ],
+        "extracted_bytes": 1030064,
+        "extracted_sha256": "9979c288d1f126461e625bb583bfc6b05ede33d7f5c165b6dfed572e5115a8b8",
+        "device_bytes": 1030064,
+        "device_sha256": "9979c288d1f126461e625bb583bfc6b05ede33d7f5c165b6dfed572e5115a8b8"
+      },
+      {
+        "apk_entry": "lib/arm64-v8a/libssl.so",
+        "file_name": "libssl.so",
+        "role": "tls-runtime",
+        "device_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libssl.so",
+        "dt_needed": [
+          "libcrypto.so",
+          "libc.so"
+        ],
+        "extracted_bytes": 875304,
+        "extracted_sha256": "1c7ca53a9048d3233ab90925ada4055360b74e630c29182cc3ded0ff0ecc19b9",
+        "device_bytes": 875304,
+        "device_sha256": "1c7ca53a9048d3233ab90925ada4055360b74e630c29182cc3ded0ff0ecc19b9"
+      }
+    ],
+    "runtime_closure_file_count": 12,
+    "runtime_closure_total_bytes": 23493456,
+    "runtime_closure_manifest_sha256": "c89e4932d8563573556dc0b9c20e72d895902e179d6b11879b779b966b334af1",
+    "system_library_allowlist": [
+      "libc.so",
+      "libm.so",
+      "libdl.so"
+    ],
+    "unresolved_non_system_dependencies": [],
+    "command_executable_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libhermes_android_llama_server.so",
+    "command_working_directory": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable",
+    "command_library_path": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable",
+    "command_model_path": "/storage/emulated/0/Android/data/com.mobilefork.hermesagent/files/Download/models/nanbeige4.2-3b-q4_k_m.gguf",
+    "command_environment": {
+      "GGML_BACKEND_PATH": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libggml-cpu.so",
+      "HOME": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/home",
+      "LANG": "C",
+      "LC_ALL": "C",
+      "LD_LIBRARY_PATH": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable",
+      "PATH": "/system/bin",
+      "TMPDIR": "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/tmp"
+    },
+    "command_environment_sha256": "8444f7c040caad74eb1a927654725ce7d768598b5ee2313eeb40227b7e5137a6",
+    "command_argv": [
+      "/data/local/tmp/hermes-v0.13.151-89cf25687fa022a5-llama-stable/libhermes_android_llama_server.so",
+      "--model",
+      "/storage/emulated/0/Android/data/com.mobilefork.hermesagent/files/Download/models/nanbeige4.2-3b-q4_k_m.gguf",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "18081"
+    ],
+    "selected_runtime_lane": "stable",
+    "exact_artifact_verified": true,
+    "runtime_process_spawned": true,
+    "ready": false,
+    "process_exit_code": 1,
+    "failure_stage": "model-load",
+    "unknown_model_architecture": "nanbeige",
+    "error_message": "0.00.109.616 E llama_model_load: error loading model: unknown model architecture: 'nanbeige'",
+    "loader_error_absent": true,
+    "command_argv_sha256": "9e393240523e69d7cc58b0b364347f6dec89dfdb5ee6b470a9106b569dd73480",
+    "device_runtime_cleanup_verified": true
+  },
+  "automatic_reconciliation": {
+    "capture_route": "app-managed-local-backend",
+    "model_path": "/storage/emulated/0/Android/data/com.mobilefork.hermesagent/files/Download/models/nanbeige4.2-3b-q4_k_m.gguf",
+    "trigger": "verified-artifact-prelaunch",
+    "automatic": true,
+    "exact_artifact_verified_before_reconciliation": true,
+    "settings_before_runtime_lane": "stable",
+    "required_runtime_lane": "turboquant",
+    "settings_after_runtime_lane": "turboquant",
+    "settings_save_succeeded": true,
+    "persisted_before_runtime_launch": true,
+    "runtime_launch_observed_after_persist": true,
+    "visible_settings_runtime_lane": "turboquant",
+    "visible_settings_matches_persisted_lane": true,
+    "visible_settings_observed_after_ready": true,
+    "user_reselected_lane": false
+  },
+  "readiness": {
+    "capture_route": "app-managed-local-backend",
+    "backend": "llama.cpp",
+    "runtime_lane": "turboquant",
+    "persisted_runtime_lane": "turboquant",
+    "model_path": "/storage/emulated/0/Android/data/com.mobilefork.hermesagent/files/Download/models/nanbeige4.2-3b-q4_k_m.gguf",
+    "controller_ready": true,
+    "health_endpoint_ok": true,
+    "completion_canary_nonempty": true,
+    "completion_canary_visible_characters": 21,
+    "ready_latency_ms": 4222,
+    "status_message": "Settings  ›  Models General Models Theme Tools /settings/models On-device inference Choose a local backend so Hermes can run models directly on the phone. llama.cpp (GGUF) LiteRT-LM Remote only Run the local agent with the embedded Linux suite and GGUF models. Load .litertlm models with Google’s LiteRT-LM Android runtime. Gemma 4 MTP Controls LiteRT-LM Gemma 4 multi-token prediction. Auto enables it on supported ARM64 devices and falls back if initialization fails. Auto On Off llama.cpp experimental TurboQuant lane is serving locally; GGUF metadata and a real chat completion canary are verified; completion canary passed with nonblank message.content (21 characters) in 4222 ms llama.cpp advanced Choose the runtime lane and arguments passed safely to llama-server. Changes take effect after applying and restarting the local runtime. Open navigation menu Hermes Agent Fork logo Settings Runtime provider and API configuration ALPHA FORK"
+  },
+  "ordinary_chat": {
+    "capture_route": "app-chat-ui",
+    "language_tag": "en",
+    "tool_mode": "general",
+    "tools_available": true,
+    "prompt": "Reply exactly NANBEIGE_OK",
+    "prompt_requested_tool": false,
+    "request_completed": true,
+    "visible_reply": "NANBEIGE_OK",
+    "visible_reply_characters": 11,
+    "visible_progress_observed": true,
+    "progress_event_count": 56,
+    "tool_call_count": 0,
+    "tool_result_count": 0,
+    "terminal_state": "completed",
+    "completion_latency_ms": 135655
+  },
+  "stop_control": {
+    "capture_route": "app-chat-ui",
+    "language_tag": "en",
+    "prompt": "Write a long numbered list, continuing until I press Stop.",
+    "stop_button_visible": true,
+    "visible_progress_observed_before_stop": true,
+    "stop_requested": true,
+    "stop_acknowledged": true,
+    "model_request_cancelled": true,
+    "terminal_state": "stopped",
+    "visible_terminal_message": "This reply was stopped by the user.",
+    "visible_terminal_message_characters": 35,
+    "nonterminal_placeholder": false,
+    "busy_after_stop": false,
+    "stop_button_visible_after_stop": false,
+    "stop_latency_ms": 2854
+  },
+  "validation_errors": []
+}
