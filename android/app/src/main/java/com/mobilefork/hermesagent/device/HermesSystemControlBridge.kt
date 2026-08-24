@@ -109,6 +109,18 @@ data class HermesSystemActionResult(
 )
 
 object HermesSystemControlBridge {
+    private val REQUEST_OWNED_PRIVILEGED_ACTIONS = setOf(
+        "run_privileged_shell",
+        "shizuku_shell",
+        "privileged_shell",
+    )
+
+    internal fun isUncancellablePrivilegedAction(action: String): Boolean {
+        val normalized = action.trim().lowercase()
+        return normalized in REQUEST_OWNED_PRIVILEGED_ACTIONS ||
+            HermesPrivilegedAccessBridge.handlesStructuredAction(normalized)
+    }
+
     fun readStatus(context: Context): HermesSystemStatus {
         val appContext = context.applicationContext
         val capabilityStore = DeviceCapabilityStore(appContext)
@@ -188,7 +200,80 @@ object HermesSystemControlBridge {
     }
 
     fun performAction(context: Context, action: String): HermesSystemActionResult {
+        return performAction(context, action, publicationGate = null)
+    }
+
+    fun performAction(
+        context: Context,
+        action: String,
+        publicationGate: AutomationPublicationGate?,
+    ): HermesSystemActionResult {
+        return performActionWithDerivedStateWriter(
+            context = context,
+            action = action,
+            publicationGate = publicationGate,
+            derivedDeviceStateWriter = DeviceStateWriter::write,
+        )
+    }
+
+    internal fun performActionWithDerivedStateWriter(
+        context: Context,
+        action: String,
+        publicationGate: AutomationPublicationGate?,
+        derivedDeviceStateWriter: (Context) -> Unit,
+    ): HermesSystemActionResult {
         val appContext = context.applicationContext
+        if (publicationGate != null && isUncancellablePrivilegedAction(action)) {
+            return HermesSystemActionResult(
+                success = false,
+                action = action,
+                message = "Shizuku-backed actions are blocked for request-owned execution because the privileged process cannot be cancelled safely.",
+            )
+        }
+        return publicationGate.publishValueIfActive(
+            cancelledValue = {
+                HermesSystemActionResult(
+                    success = false,
+                    action = action,
+                    message = "Android system action was stopped before its final commit.",
+                )
+            },
+            publication = {
+                // DeviceStateWriter assembles a broad derived snapshot. Request-owned chat keeps
+                // this gate around only the requested preference/service/intent commit; status is
+                // still read live, while legacy/manual calls retain the derived-file refresh.
+                performActionAtCommitBoundary(
+                    appContext = appContext,
+                    action = action,
+                    refreshDerivedDeviceState = publicationGate == null,
+                    derivedDeviceStateWriter = derivedDeviceStateWriter,
+                )
+            },
+        )
+    }
+
+    private fun performActionAtCommitBoundary(
+        appContext: Context,
+        action: String,
+        refreshDerivedDeviceState: Boolean,
+        derivedDeviceStateWriter: (Context) -> Unit,
+    ): HermesSystemActionResult {
+        fun launchIntent(
+            context: Context,
+            requestedAction: String,
+            intent: Intent,
+            successMessage: String,
+        ): HermesSystemActionResult {
+            return launchIntentAtCommitBoundary(
+                context = context,
+                action = requestedAction,
+                intent = intent,
+                successMessage = successMessage,
+                refreshDerivedDeviceState = refreshDerivedDeviceState,
+                derivedDeviceStateWriter = derivedDeviceStateWriter,
+            )
+        }
+
         return when (action) {
             "open_wifi_panel" -> launchIntent(appContext, action, wifiIntent(), "Opened Wi-Fi + internet controls")
             "open_mobile_network_settings" -> launchIntent(appContext, action, Intent(Settings.ACTION_NETWORK_OPERATOR_SETTINGS), "Opened mobile network settings")
@@ -264,19 +349,19 @@ object HermesSystemControlBridge {
             "start_background_runtime" -> {
                 DeviceCapabilityStore(appContext).saveBackgroundPersistenceEnabled(true)
                 HermesRuntimeService.start(appContext)
-                DeviceStateWriter.write(appContext)
+                if (refreshDerivedDeviceState) derivedDeviceStateWriter(appContext)
                 HermesSystemActionResult(success = true, action = action, message = "Started Hermes background runtime")
             }
             "stop_background_runtime" -> {
                 DeviceCapabilityStore(appContext).saveBackgroundPersistenceEnabled(false)
                 HermesRuntimeService.stop(appContext)
-                DeviceStateWriter.write(appContext)
+                if (refreshDerivedDeviceState) derivedDeviceStateWriter(appContext)
                 HermesSystemActionResult(success = true, action = action, message = "Stopped Hermes background runtime persistence")
             }
             "start_floating_button" -> {
                 if (!Settings.canDrawOverlays(appContext)) {
                     DeviceCapabilityStore(appContext).saveFloatingButtonEnabled(false)
-                    DeviceStateWriter.write(appContext)
+                    if (refreshDerivedDeviceState) derivedDeviceStateWriter(appContext)
                     HermesSystemActionResult(
                         success = false,
                         action = action,
@@ -285,7 +370,7 @@ object HermesSystemControlBridge {
                 } else {
                     val started = HermesFloatingButtonService.start(appContext)
                     DeviceCapabilityStore(appContext).saveFloatingButtonEnabled(started)
-                    DeviceStateWriter.write(appContext)
+                    if (refreshDerivedDeviceState) derivedDeviceStateWriter(appContext)
                     HermesSystemActionResult(
                         success = started,
                         action = action,
@@ -296,7 +381,7 @@ object HermesSystemControlBridge {
             "stop_floating_button" -> {
                 DeviceCapabilityStore(appContext).saveFloatingButtonEnabled(false)
                 HermesFloatingButtonService.stop(appContext)
-                DeviceStateWriter.write(appContext)
+                if (refreshDerivedDeviceState) derivedDeviceStateWriter(appContext)
                 HermesSystemActionResult(success = true, action = action, message = "Stopped Hermes floating button")
             }
             else -> HermesSystemActionResult(success = false, action = action, message = "Unsupported Android system action: $action")
@@ -315,10 +400,27 @@ object HermesSystemControlBridge {
         return actionToJson(performAction(HermesApplication.instance.applicationContext, action)).toString()
     }
 
-    private fun launchIntent(context: Context, action: String, intent: Intent, successMessage: String): HermesSystemActionResult {
+    fun performActionJson(action: String, publicationGate: AutomationPublicationGate): String {
+        return actionToJson(
+            performAction(
+                context = HermesApplication.instance.applicationContext,
+                action = action,
+                publicationGate = publicationGate,
+            ),
+        ).toString()
+    }
+
+    private fun launchIntentAtCommitBoundary(
+        context: Context,
+        action: String,
+        intent: Intent,
+        successMessage: String,
+        refreshDerivedDeviceState: Boolean,
+        derivedDeviceStateWriter: (Context) -> Unit,
+    ): HermesSystemActionResult {
         return runCatching {
             context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            DeviceStateWriter.write(context)
+            if (refreshDerivedDeviceState) derivedDeviceStateWriter(context)
             HermesSystemActionResult(success = true, action = action, message = successMessage)
         }.getOrElse { error ->
             HermesSystemActionResult(

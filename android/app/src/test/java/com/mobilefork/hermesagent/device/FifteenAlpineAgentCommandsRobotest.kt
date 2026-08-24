@@ -1,14 +1,9 @@
 package com.mobilefork.hermesagent.device
 
 import com.mobilefork.hermesagent.ui.chat.NativeToolCallingChatClient
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import org.json.JSONArray
-import org.json.JSONObject
-import org.junit.After
+import com.mobilefork.hermesagent.ui.chat.NativeDirectToolAuthorityParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -18,21 +13,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class FifteenAlpineAgentCommandsRobotest {
-    private lateinit var server: MockWebServer
-    private lateinit var client: NativeToolCallingChatClient
-
-    @Before
-    fun setUp() {
-        server = MockWebServer()
-        server.start()
-        client = NativeToolCallingChatClient(RuntimeEnvironment.getApplication())
-    }
-
-    @After
-    fun tearDown() {
-        server.shutdown()
-    }
-
     @Test
     fun catalogHasFifteenDistinctGuestCommands() {
         val commands = AlpineAgentCommandCatalog.release148Commands
@@ -54,113 +34,72 @@ class FifteenAlpineAgentCommandsRobotest {
     }
 
     @Test
-    fun fifteenDistinctMcpRunInProotCallsAreExecutedAndFedBack() {
+    fun fifteenDistinctTypedGuestRequestsFailClosedWithoutModelOrGuestDispatch() {
         val commands = AlpineAgentCommandCatalog.release148Commands
-        server.enqueue(jsonResponse(fifteenToolCallsPayload(commands)))
-        server.enqueue(jsonResponse(finalPayload("fifteen alpine commands processed")))
-
-        val result = client.send(
-            baseUrl = server.url("/").toString().trimEnd('/'),
-            modelName = "scripted-alpine-15",
-            sessionId = "robotest-alpine-15",
-            userText = AlpineAgentCommandCatalog.guestPrompt(
-                commands.joinToString("; ") { it.command },
-            ),
-        )
-
-        assertEquals(
-            "Each of the 15 Alpine commands must be a processed tool call, not a dropped one: $result",
-            15,
-            result.executedToolCalls,
-        )
-        assertEquals(2, result.modelRequestCount)
-
-        server.takeRequest()
-        val followUp = JSONObject(server.takeRequest().body.readUtf8())
-        val messages = followUp.getJSONArray("messages")
-        val toolMessages = (0 until messages.length())
-            .mapNotNull { messages.optJSONObject(it) }
-            .filter { it.optString("role") == "tool" }
-        assertEquals(15, toolMessages.size)
-
-        val seenCommands = mutableSetOf<String>()
-        val seenModes = mutableSetOf<String>()
-        toolMessages.forEach { message ->
-            val body = JSONObject(message.optString("content", "{}"))
-            assertEquals("proot_distro_qemu", body.optString("sandbox_execution_mode"))
-            assertEquals(AlpineAgentCommandCatalog.SANDBOX_NAME, body.optString("sandbox_name"))
-            val sandboxCommand = body.optString("sandbox_command")
-            assertTrue("Missing sandbox_command: $body", sandboxCommand.isNotBlank())
-            seenCommands += sandboxCommand
-            seenModes += body.optString("sandbox_execution_mode")
+        val expectedCommands = commands.map(AlpineAgentCommandCatalog::wrappedGuestCommand)
+        val dispatchedTools = mutableListOf<String>()
+        val parsedCommands = mutableListOf<String>()
+        val blockedBridgeResults = mutableListOf<String>()
+        val activeRequestGate = AutomationPublicationGate { publication ->
+            publication()
+            true
         }
-        assertEquals(15, seenCommands.size)
-        assertEquals(setOf("proot_distro_qemu"), seenModes)
-        commands.forEach { entry ->
+        val client = NativeToolCallingChatClient(
+            context = RuntimeEnvironment.getApplication(),
+            onToolDispatch = dispatchedTools::add,
+        )
+
+        expectedCommands.forEachIndexed { index, command ->
+            val prompt = exactTypedGuestPrompt(command)
+            val authority = NativeDirectToolAuthorityParser.parse(prompt)
+            assertTrue("Request ${index + 1} must use the closed typed grammar", authority.isTypedInvocation)
+            assertEquals("mcp_run_in_proot", authority.toolName)
+            assertEquals(command, authority.arguments().optString("command"))
+            assertEquals(AlpineAgentCommandCatalog.DISTRO_ID, authority.arguments().optString("distro_id"))
+            assertEquals(AlpineAgentCommandCatalog.SANDBOX_NAME, authority.arguments().optString("name"))
+            parsedCommands += authority.arguments().optString("command")
+
+            val blocked = HermesLinuxSandboxBridge.performAction(
+                context = RuntimeEnvironment.getApplication(),
+                action = "run",
+                distroId = AlpineAgentCommandCatalog.DISTRO_ID,
+                name = AlpineAgentCommandCatalog.SANDBOX_NAME,
+                command = command,
+                timeoutSeconds = 60,
+                publicationGate = activeRequestGate,
+            )
+            assertEquals("Request ${index + 1} bridge result: ${blocked.toString(2)}", 126, blocked.optInt("exit_code", -1))
+            assertTrue(blocked.toString(2), blocked.optBoolean("request_owned_operation_blocked"))
+            assertEquals("request_owned_proot_blocked", blocked.optString("sandbox_execution_mode"))
+            assertEquals("run", blocked.optString("action"))
+            assertEquals(command, blocked.optString("sandbox_command"))
+            blockedBridgeResults += blocked.optString("sandbox_execution_mode")
+
+            val result = client.send(
+                baseUrl = "http://127.0.0.1:9",
+                modelName = "unused-for-exact-typed-request",
+                sessionId = "robotest-alpine-blocked-${index + 1}",
+                userText = prompt,
+            )
+            assertEquals("Request ${index + 1} must resolve as one terminal tool result: $result", 1, result.executedToolCalls)
+            assertEquals("Exact typed requests must not delegate authority to a model", 0, result.modelRequestCount)
             assertTrue(
-                "Expected guest command ${entry.command} among processed tool results: $seenCommands",
-                seenCommands.contains(entry.command),
+                "Request ${index + 1} must report that guest dispatch was blocked: ${result.content}",
+                result.content.contains("blocked this chat-owned Linux guest process before dispatch"),
             )
         }
+
+        assertEquals(expectedCommands, parsedCommands)
+        assertEquals(15, parsedCommands.toSet().size)
+        assertEquals(List(15) { "mcp_run_in_proot" }, dispatchedTools)
+        assertEquals(List(15) { "request_owned_proot_blocked" }, blockedBridgeResults)
     }
 
-    private fun fifteenToolCallsPayload(commands: List<AlpineAgentCommandCatalog.GuestCommand>): JSONObject {
-        val toolCalls = JSONArray()
-        commands.forEachIndexed { index, entry ->
-            toolCalls.put(
-                JSONObject()
-                    .put("id", "call_alpine_${index + 1}")
-                    .put("type", "function")
-                    .put(
-                        "function",
-                        JSONObject()
-                            .put("name", "mcp_run_in_proot")
-                            .put(
-                                "arguments",
-                                JSONObject()
-                                    .put("distro_id", AlpineAgentCommandCatalog.DISTRO_ID)
-                                    .put("name", AlpineAgentCommandCatalog.SANDBOX_NAME)
-                                    .put("command", entry.command)
-                                    .toString(),
-                            ),
-                    ),
-            )
-        }
-        val message = JSONObject()
-            .put("role", "assistant")
-            .put("content", JSONObject.NULL)
-            .put("tool_calls", toolCalls)
-        return completionPayload(message, "tool_calls")
-    }
-
-    private fun finalPayload(content: String): JSONObject {
-        return completionPayload(
-            JSONObject().put("role", "assistant").put("content", content),
-            "stop",
-        )
-    }
-
-    private fun jsonResponse(body: JSONObject): MockResponse {
-        return MockResponse()
-            .setResponseCode(200)
-            .setHeader("Content-Type", "application/json")
-            .setBody(body.toString())
-    }
-
-    private fun completionPayload(message: JSONObject, finishReason: String): JSONObject {
-        return JSONObject()
-            .put("id", "chatcmpl-alpine-15")
-            .put("object", "chat.completion")
-            .put("created", 1)
-            .put("model", "scripted")
-            .put(
-                "choices",
-                JSONArray().put(
-                    JSONObject()
-                        .put("index", 0)
-                        .put("message", message)
-                        .put("finish_reason", finishReason),
-                ),
-            )
+    private fun exactTypedGuestPrompt(command: String): String {
+        return "mcp_run_in_proot " +
+            "command=\"$command\" " +
+            "distro_id=\"${AlpineAgentCommandCatalog.DISTRO_ID}\" " +
+            "name=\"${AlpineAgentCommandCatalog.SANDBOX_NAME}\" " +
+            "timeout_seconds=60"
     }
 }

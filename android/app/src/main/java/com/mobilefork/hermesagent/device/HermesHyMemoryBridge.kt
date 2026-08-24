@@ -9,7 +9,13 @@ object HermesHyMemoryBridge {
     private const val ANDROID_BACKEND = "android_local_hy_memory"
     private const val HY_MEMORY_PACKAGE_VERSION = "1.2.18"
 
-    fun performActionJson(context: Context, rawAction: String, arguments: JSONObject = JSONObject()): String {
+    fun performActionJson(
+        context: Context,
+        rawAction: String,
+        arguments: JSONObject = JSONObject(),
+        publicationGate: AutomationPublicationGate? = null,
+        reinforceRecall: Boolean = true,
+    ): String {
         val action = rawAction.trim().lowercase(Locale.US).ifBlank { "status" }
         val delegatedAction = when (action) {
             "hy_memory_status", "memory_status" -> "status"
@@ -25,6 +31,8 @@ object HermesHyMemoryBridge {
                     context = context.applicationContext,
                     rawAction = delegatedAction,
                     arguments = arguments,
+                    publicationGate = publicationGate,
+                    reinforceRecall = reinforceRecall,
                 ),
             ),
         ).toString()

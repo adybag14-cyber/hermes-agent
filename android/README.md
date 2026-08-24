@@ -181,8 +181,13 @@ lane adds Nanbeige plus the `turbo2`, `turbo3`, and `turbo4` KV-cache types, but
 it is CPU-only and may trade speed for KV-cache memory savings on phones.
 Selecting the exact Nanbeige recommended card or Model Manager catalog row
 persists TurboQuant before the download begins and reapplies that requirement
-when the completed file becomes preferred or auto-starts. Other model presets
-do not change the user's current lane.
+when the completed file becomes preferred or auto-starts. Starting a known
+catalog artifact also rechecks its exact byte count and SHA-256 at the final
+runtime boundary and persists its required lane before process launch. A stale
+Stable selection therefore cannot launch a verified Nanbeige artifact, and a
+failed lane commit stops startup instead of advertising a configuration which
+was not applied. Unknown imports and lane-neutral model presets do not change
+the user's current lane.
 
 The Settings screen exposes K and V cache types independently. There are no
 llama.cpp cache formats called `q5_k` or `q5_v`: choose `q5_0` or `q5_1` in the
@@ -286,6 +291,36 @@ The debug APK is written beneath `android/app/build/outputs/apk/debug/`.
 Release builds additionally need `android/keystore.properties` and the
 corresponding signing keystore; neither belongs in Git.
 
+When an upgrade must be exercised against an already-installed production-
+signed app before the release tag exists, first require the candidate commit to
+be the exact live default-branch head, then trigger the default-branch-only
+repository dispatch with both the upcoming tag and immutable commit:
+
+```powershell
+$tag = 'v0.13.151'
+$candidateSha = (git rev-parse 'HEAD^{commit}').Trim()
+$defaultBranch = (gh repo view adybag14-cyber/hermes-agent `
+    --json defaultBranchRef --jq '.defaultBranchRef.name').Trim()
+git fetch --no-tags origin "+refs/heads/$($defaultBranch):refs/remotes/origin/$($defaultBranch)"
+$remoteDefaultSha = (git rev-parse "origin/$defaultBranch").Trim()
+if ($candidateSha -ne $remoteDefaultSha) {
+    throw "Candidate is not the live default-branch head"
+}
+gh api --method POST repos/adybag14-cyber/hermes-agent/dispatches `
+    -f event_type=android-device-candidate `
+    -f "client_payload[release_tag]=$tag" `
+    -f "client_payload[candidate_sha]=$candidateSha"
+```
+
+`Android Signed Device Candidate` checks that SHA against the live default head
+before running repository build code, rechecks it immediately before restoring
+any signing secret, and checks it again after signing before upload. It then
+builds a clean source-bound release APK, signs it with the approved release
+certificate, verifies package/version/source identity, and uploads a short-lived
+Actions artifact. It never creates or edits a GitHub release. Use the artifact
+only for `adb install -r` device certification; the tag-triggered release
+workflow remains the publication authority.
+
 The experimental llama.cpp task pins the source archive, compatibility patch,
 NDK 29.0.14206865, the official Android SDK `cmake;3.31.6` package (CMake
 3.31.6 with Ninja 1.12.1), ABIs, build definitions, and `SOURCE_DATE_EPOCH`;
@@ -343,7 +378,7 @@ commit checked out, obtain the identity embedded into the headed debug
 candidate and build both APKs from the same process environment:
 
 ```powershell
-$tag = 'v0.13.150'
+$tag = 'v0.13.151'
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)
@@ -859,7 +894,7 @@ source tree is clean outside the evidence directory, then commit the evidence
 before creating the tag:
 
 ```powershell
-$tag = 'v0.13.150'
+$tag = 'v0.13.151'
 python scripts/android_release_evidence.py create --tag $tag
 git add "android/release-evidence/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
@@ -923,11 +958,15 @@ proof that the model can generate text.
 
 If the log says `unknown model architecture: 'nanbeige'`, the Stable b9784 lane
 was selected; this is a real native-backend compatibility error, not a graphical
-error. Select the Experimental TurboQuant / Nanbeige lane, apply and restart,
-then require the same health and non-empty-completion checks. If startup rejects
-a K/V-cache configuration, first restore Server default or enable flash
-attention for a quantized V cache. The dangerous RAM action cannot repair an
-unsupported architecture or invalid server arguments.
+error. v0.13.151 and later automatically reconcile the exact catalog-bound
+Nanbeige artifact to Experimental TurboQuant / Nanbeige immediately before
+launch. If the error remains, verify the file's expected byte count and SHA-256;
+an unknown or modified import has no catalog authority for an automatic lane
+change. After resolving that boundary, require the same health and non-empty-
+completion checks. If startup rejects a K/V-cache configuration, first restore
+Server default or enable flash attention for a quantized V cache. The dangerous
+RAM action cannot repair an unsupported architecture or invalid server
+arguments.
 
 ### Terminal commands return exit code 126
 
@@ -953,11 +992,22 @@ model-generated function call is required. `Check my device status` similarly
 selects native device diagnostics. Confirm the visible tool result or event;
 prose saying a tool ran is not execution evidence.
 
-For commands outside the built-in safe routes, verify that the selected model
-supports structured tool calling, enable the relevant tool profile, and ask
-for a concrete operation. The local runtime status must show that tool schemas
-were registered. Some general chat models will answer with prose even when
-tools are available.
+For commands outside the built-in safe routes, ask for one concrete affirmative
+operation. Ordinary non-action chat receives no native tool schema. A natural
+action request receives only the request-scoped tool/action schema inferred for
+that operation, with at most one dispatch across initial and context-recovery
+rounds. A validated typed invocation such as `terminal_tool command="pwd"`
+bypasses model startup and dispatches its carried arguments exactly once. An
+unknown tool, action, extra argument, changed bound value, multi-call response,
+or later replay is rejected before native side effects. Some general chat
+models can still answer with prose instead of using the single offered action.
+
+Raw Shizuku/privileged shell is deliberately unavailable from chat. The
+current Shizuku service protocol cannot cancel a remote shell once Binder has
+dispatched it, so chat does not advertise that action and rejects both direct
+privileged-shell calls and saved `useShizuku` shell automations before Binder.
+Use the explicit manual or background automation surface when that tradeoff is
+intentional.
 
 ## Release and F-Droid updater contract
 
@@ -971,7 +1021,7 @@ fdroid checkupdates --auto --allow-dirty com.mobilefork.hermesagent
 ```
 
 Run this from a fresh checkout of the live F-Droid metadata after the GitHub tag
-exists. The local diff must add exactly one 0.13.150/145090 build and resolve the
+exists. The local diff must add exactly one 0.13.151/145190 build and resolve the
 tag to its full Git commit. Before the pinned build, merge only the committed
 template's source-binding fields into that autoupdater-generated build and
 verify the result:

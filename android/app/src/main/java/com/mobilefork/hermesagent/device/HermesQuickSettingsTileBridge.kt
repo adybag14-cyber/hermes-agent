@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import okhttp3.OkHttpClient
 import org.json.JSONObject
 
 object HermesQuickSettingsTileBridge {
@@ -22,7 +23,7 @@ object HermesQuickSettingsTileBridge {
             .edit()
             .putString(KEY_AUTOMATION_ID, record.id)
             .putString(KEY_LABEL, label.take(MAX_TILE_LABEL_CHARS))
-            .apply()
+            .commit()
         requestTileListeningState(appContext)
         return JSONObject()
             .put("success", true)
@@ -55,7 +56,7 @@ object HermesQuickSettingsTileBridge {
             .edit()
             .remove(KEY_AUTOMATION_ID)
             .remove(KEY_LABEL)
-            .apply()
+            .commit()
         requestTileListeningState(appContext)
         return JSONObject()
             .put("success", true)
@@ -65,7 +66,11 @@ object HermesQuickSettingsTileBridge {
             .toString()
     }
 
-    fun runConfiguredAutomationJson(context: Context): String {
+    fun runConfiguredAutomationJson(
+        context: Context,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
         val appContext = context.applicationContext
         val config = configuredAutomation(appContext)
             ?: return errorJson("No Hermes automation is configured for the Quick Settings tile")
@@ -74,6 +79,8 @@ object HermesQuickSettingsTileBridge {
                 appContext,
                 config.automationId,
                 TRIGGER_QUICK_SETTINGS_TILE,
+                cancellationRequested,
+                requestHttpClient,
             ),
         )
         return result

@@ -9,6 +9,7 @@ import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.McpPromptCacheResendPolicy
 import com.mobilefork.hermesagent.data.McpSettingsStore
+import com.mobilefork.hermesagent.device.AutomationPublicationGate
 import com.mobilefork.hermesagent.device.HermesAccessibilityController
 import com.mobilefork.hermesagent.device.HermesAccessibilityUiBridge
 import com.mobilefork.hermesagent.device.HermesAppControlBridge
@@ -22,7 +23,9 @@ import com.mobilefork.hermesagent.device.HermesSystemControlBridge
 import com.mobilefork.hermesagent.device.HermesTermuxPackageManager
 import com.mobilefork.hermesagent.device.HermesWorkspaceFileBridge
 import com.mobilefork.hermesagent.device.NativeAndroidShellTool
+import com.mobilefork.hermesagent.device.publishValueIfActive
 import okhttp3.Call
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -40,20 +43,179 @@ class NativeToolCallingChatClient(
         .writeTimeout(30, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.MINUTES)
         .build(),
+    private val onToolDispatch: (String) -> Unit = {},
+    requestToolHttpClient: OkHttpClient? = null,
+    private val nativeShellRunner: (
+        Context,
+        String,
+        Long,
+        OkHttpClient,
+        () -> Boolean,
+    ) -> JSONObject = { runContext, command, timeoutSeconds, packageHttpClient, cancellationRequested ->
+        NativeAndroidShellTool.run(
+            context = runContext,
+            command = command,
+            timeoutSeconds = timeoutSeconds,
+            packageHttpClient = packageHttpClient,
+            cancellationRequested = cancellationRequested,
+        )
+    },
+    private val workspaceFileWriter: (
+        Context,
+        String,
+        String,
+        Boolean,
+        AutomationPublicationGate,
+    ) -> JSONObject =
+        { writeContext, path, content, append, publicationGate ->
+            HermesWorkspaceFileBridge.writeTextJson(
+                writeContext,
+                path,
+                content,
+                append,
+                publicationGate,
+            )
+        },
+    private val androidSystemActionRunner: (
+        Context,
+        String,
+        JSONObject,
+        AutomationPublicationGate,
+    ) -> String =
+        { _, action, _, publicationGate ->
+            HermesSystemControlBridge.performActionJson(action, publicationGate)
+        },
+    private val hyMemoryActionRunner: (
+        Context,
+        String,
+        JSONObject,
+        AutomationPublicationGate,
+    ) -> String =
+        { runContext, action, arguments, publicationGate ->
+            HermesHyMemoryBridge.performActionJson(
+                context = runContext,
+                rawAction = action,
+                arguments = arguments,
+                publicationGate = publicationGate,
+            )
+        },
+    private val linuxSandboxActionRunner: (
+        Context,
+        String,
+        JSONObject,
+        OkHttpClient,
+        () -> Boolean,
+        AutomationPublicationGate,
+    ) -> JSONObject =
+        { runContext, action, arguments, layerHttpClient, cancellationRequested, publicationGate ->
+            HermesLinuxSandboxBridge.performAction(
+                context = runContext,
+                action = action,
+                distroId = listOf("distro_id", "distro", "id")
+                    .firstNotNullOfOrNull { key -> arguments.optString(key).takeIf { it.isNotBlank() } }
+                    .orEmpty(),
+                name = listOf("name", "sandbox_name", "container")
+                    .firstNotNullOfOrNull { key -> arguments.optString(key).takeIf { it.isNotBlank() } }
+                    .orEmpty(),
+                image = listOf("image", "image_ref", "rootfs")
+                    .firstNotNullOfOrNull { key -> arguments.optString(key).takeIf { it.isNotBlank() } }
+                    .orEmpty(),
+                command = listOf("command", "cmd", "shell_command")
+                    .firstNotNullOfOrNull { key -> arguments.optString(key).takeIf { it.isNotBlank() } }
+                    .orEmpty(),
+                mirrorProfile = listOf("mirror_profile", "mirror", "mirror_id", "source_mirror")
+                    .firstNotNullOfOrNull { key -> arguments.optString(key).takeIf { it.isNotBlank() } }
+                    .orEmpty(),
+                timeoutSeconds = arguments.optLong("timeout_seconds", TOOL_TIMEOUT_SECONDS.toLong())
+                    .coerceIn(1, 900),
+                layerHttpClient = layerHttpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+            )
+        },
+    private val beforeAutomationPublication: () -> Unit = {},
 ) {
     private val appContext = context.applicationContext
     private val directToolKeyValueRegex = Regex("""([A-Za-z_][A-Za-z0-9_]*)\s*=\s*("[^"]*"|'[^']*'|[^\s,]+)""")
     private val openGuiWorkingMemoryPrefs = appContext.getSharedPreferences("hermes_opengui_working_memory", Context.MODE_PRIVATE)
     private var activeOpenGuiMemorySessionId: String = ""
     private val openGuiActionHistory = OpenGuiActionHistory()
+    private val cancellationLock = Any()
     @Volatile
     private var activeCall: Call? = null
     @Volatile
     private var cancelled: Boolean = false
+    private val requestToolHttpClient: OkHttpClient = (
+        requestToolHttpClient ?: OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.MINUTES)
+            .callTimeout(10, TimeUnit.MINUTES)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+        ).newBuilder()
+        // OkHttpClient.newBuilder() otherwise shares the base Dispatcher. Give every chat request
+        // an exact dispatcher so cancelling A cannot cancel B even if tests/integration supply the
+        // same base client instance to both request clients.
+        .dispatcher(Dispatcher())
+        .addInterceptor { chain ->
+            if (cancelled) {
+                throw InterruptedIOException("Native tool request was stopped before network dispatch")
+            }
+            chain.proceed(chain.request())
+        }
+        .build()
+    private val automationPublicationGate = AutomationPublicationGate { publication ->
+        // Test hook deliberately runs before the lock so a deterministic Stop can win any exact
+        // native publication/mutation boundary. Production uses the no-op default.
+        beforeAutomationPublication()
+        synchronized(cancellationLock) {
+            if (cancelled || Thread.currentThread().isInterrupted) {
+                false
+            } else {
+                publication()
+                true
+            }
+        }
+    }
+
+    internal fun requestOwnedToolHttpClientForTest(): OkHttpClient = requestToolHttpClient
 
     fun cancel() {
+        // Publish the sticky token without waiting behind a short publication commit. Stop must
+        // be able to signal cancellation immediately; its coordinator separately waits for this
+        // client's exact NativeToolChatOperation worker after interrupting runInterruptible.
         cancelled = true
         activeCall?.cancel()
+        // This client instance is request-owned. The sandbox fallback transport must be equally
+        // request-owned so Stop/onCleared can cancel Docker token/layer calls without affecting
+        // another chat or a manual sandbox session.
+        requestToolHttpClient.dispatcher.cancelAll()
+    }
+
+    private fun ensureNotCancelled() {
+        check(!cancelled) { "Agent task stopped by user." }
+    }
+
+    private fun <T : Any> publishClientMutation(
+        action: String,
+        publication: () -> T,
+    ): T {
+        return automationPublicationGate.publishValueIfActive(
+            cancelledValue = {
+                ensureNotCancelled()
+                throw InterruptedIOException("$action was interrupted before its final commit")
+            },
+            publication = publication,
+        )
+    }
+
+    private fun beforeToolDispatch(toolName: String) {
+        ensureNotCancelled()
+        onToolDispatch(toolName)
+        // An observer is normally a no-op, but keeping this second check makes the boundary
+        // deterministic in tests and closes cancellation which arrives during dispatch setup.
+        ensureNotCancelled()
     }
 
     data class Result(
@@ -63,8 +225,129 @@ class NativeToolCallingChatClient(
         val modelRequestCount: Int = 0,
     )
 
-    internal fun executeSafeNaturalTerminalRequest(userText: String): Result? {
-        val command = inferSafeNaturalTerminalCommand(userText) ?: return null
+    /**
+     * Request authority is separate from the model-facing schema. A schema is a hint; this scope
+     * is the actual authorization checked atomically before any native side effect. Each natural
+     * request gets at most one tool dispatch across every returned call and follow-up round.
+     */
+    private data class NativeToolCallConstraint(
+        val canonicalToolName: String,
+        val allowedActions: Set<String> = emptySet(),
+        val exactArguments: Map<String, Any> = emptyMap(),
+        val requiredArguments: Set<String> = emptySet(),
+        val allowedArguments: Set<String>? = null,
+    )
+
+    private inner class NativeToolRequestScope(
+        private val constraints: List<NativeToolCallConstraint>,
+    ) {
+        private val lock = Any()
+        private var remainingCalls = if (constraints.isEmpty()) 0 else 1
+
+        fun scopedToolSpecs(): JSONArray {
+            val names = constraints.mapTo(linkedSetOf()) { it.canonicalToolName }
+            val selected = compactToolSpecsForNames(names)
+            return JSONArray().apply {
+                for (index in 0 until selected.length()) {
+                    val source = selected.optJSONObject(index) ?: continue
+                    val spec = JSONObject(source.toString())
+                    val function = spec.optJSONObject("function") ?: continue
+                    val name = function.optString("name")
+                    val constraint = constraints.firstOrNull { it.canonicalToolName == name } ?: continue
+                    val parameters = function.optJSONObject("parameters") ?: JSONObject().also {
+                        function.put("parameters", it)
+                    }
+                    val sourceProperties = parameters.optJSONObject("properties") ?: JSONObject()
+                    val allowedKeys = constraint.allowedArguments
+                        ?: NativeDirectToolAuthorityParser.allowedArgumentKeys(name)
+                    val scopedProperties = JSONObject()
+                    sourceProperties.keys().asSequence().forEach { key ->
+                        if (key in allowedKeys) {
+                            scopedProperties.put(key, JSONObject(sourceProperties.getJSONObject(key).toString()))
+                        }
+                    }
+                    if (constraint.allowedActions.isNotEmpty()) {
+                        val actionProperty = scopedProperties.optJSONObject("action") ?: JSONObject()
+                        actionProperty.put("enum", JSONArray(constraint.allowedActions.toList()))
+                        scopedProperties.put("action", actionProperty)
+                    }
+                    constraint.exactArguments.forEach { (key, value) ->
+                        val property = scopedProperties.optJSONObject(key) ?: JSONObject()
+                        property.put("enum", JSONArray().put(value))
+                        scopedProperties.put(key, property)
+                    }
+                    parameters.put("properties", scopedProperties)
+                    parameters.put("additionalProperties", false)
+                    val required = linkedSetOf<String>()
+                    parameters.optJSONArray("required")?.let { existing ->
+                        for (requiredIndex in 0 until existing.length()) {
+                            existing.optString(requiredIndex).takeIf { it.isNotBlank() }?.let(required::add)
+                        }
+                    }
+                    required += constraint.requiredArguments
+                    required += constraint.exactArguments.keys
+                    if (constraint.allowedActions.isNotEmpty()) required += "action"
+                    parameters.put("required", JSONArray(required.toList()))
+                    put(spec)
+                }
+            }
+        }
+
+        /** Returns null only after atomically consuming authority for the complete batch. */
+        fun consumeBatch(toolCalls: List<ToolCall>): String? = synchronized(lock) {
+            if (toolCalls.size != 1) {
+                return@synchronized "Hermes requires exactly one authorized native action per request."
+            }
+            if (remainingCalls <= 0) {
+                return@synchronized "Hermes blocked a repeated native action for this request."
+            }
+            val call = toolCalls.single()
+            val normalizedRawName = call.name.trim().lowercase()
+            val canonicalName = canonicalToolName(call.name)
+            val matching = constraints.filter { it.canonicalToolName == canonicalName }
+            // Aliases are accepted only by the closed typed parser, which executes before the
+            // model. Once a canonical schema is offered, the returned function name itself must
+            // match that schema; canonicalizing an unsolicited alias here would widen authority.
+            if (normalizedRawName != canonicalName) {
+                return@synchronized "Hermes blocked a model-requested tool alias that was not explicitly offered."
+            }
+            if (matching.none { constraintMatches(it, call.arguments) }) {
+                return@synchronized "Hermes blocked a model-requested action outside this request's exact tool scope."
+            }
+            remainingCalls -= 1
+            null
+        }
+
+        private fun constraintMatches(
+            constraint: NativeToolCallConstraint,
+            arguments: JSONObject,
+        ): Boolean {
+            val allowedKeys = constraint.allowedArguments
+                ?: NativeDirectToolAuthorityParser.allowedArgumentKeys(constraint.canonicalToolName)
+            val actualKeys = arguments.keys().asSequence().toSet()
+            if (!allowedKeys.containsAll(actualKeys)) return false
+            if (constraint.requiredArguments.any { key ->
+                    !arguments.has(key) || arguments.optString(key).isBlank()
+                }
+            ) {
+                return false
+            }
+            if (constraint.allowedActions.isNotEmpty()) {
+                val action = arguments.optString("action").trim().lowercase()
+                if (action !in constraint.allowedActions) return false
+            }
+            return constraint.exactArguments.all { (key, expected) ->
+                arguments.has(key) && jsonAuthorityValueEquals(arguments.opt(key), expected)
+            }
+        }
+    }
+
+    internal fun executeSafeNaturalTerminalRequest(authority: NativeDirectToolAuthority): Result? {
+        ensureNotCancelled()
+        if (authority.source != NativeDirectToolAuthority.Source.CLOSED_NATURAL_READ_ONLY_TERMINAL) return null
+        if (!authority.allows("terminal_tool")) return null
+        val command = authority.arguments().optString("command").takeIf { it.isNotBlank() } ?: return null
+        beforeToolDispatch("terminal_tool")
         val toolResult = executeTerminalTool(
             ToolCall(
                 id = "direct_${UUID.randomUUID()}",
@@ -80,8 +363,16 @@ class NativeToolCallingChatClient(
         )
     }
 
-    internal fun executeExplicitLinuxSandboxRequest(userText: String): Result? {
-        val arguments = extractExplicitLinuxSandboxArguments(userText) ?: return null
+    internal fun executeExplicitLinuxSandboxRequest(authority: NativeDirectToolAuthority): Result? {
+        ensureNotCancelled()
+        if (!authority.isTypedInvocation) return null
+        if (!authority.allows("linux_sandbox_tool") && !authority.allows("mcp_run_in_proot")) return null
+        val arguments = authority.arguments()
+        if (!arguments.has("action") && arguments.optString("command").isNotBlank()) {
+            arguments.put("action", "run")
+        }
+        if (arguments.optString("action").isBlank()) return null
+        beforeToolDispatch("linux_sandbox_tool")
         val toolResult = executeLinuxSandboxTool(
             ToolCall(
                 id = "direct_${UUID.randomUUID()}",
@@ -107,7 +398,9 @@ class NativeToolCallingChatClient(
         providerId: String = "",
         onEvent: (NativeAgentEvent) -> Unit = {},
     ): Result {
-        cancelled = false
+        // NativeToolChatSender creates one client per request. Cancellation is intentionally
+        // sticky: clearing it here lets Stop in the claim-to-send gap be erased by this call.
+        ensureNotCancelled()
         val normalizedBaseUrl = normalizeNativeChatOrigin(baseUrl)
         require(normalizedBaseUrl.startsWith("http://") || normalizedBaseUrl.startsWith("https://")) {
             "Native tool chat requires a local HTTP base URL; got '${baseUrl.ifBlank { "<blank>" }}'."
@@ -121,43 +414,34 @@ class NativeToolCallingChatClient(
         } else {
             null
         }
-        executeExplicitDirectToolRequest(userText)?.let { result ->
+        ensureNotCancelled()
+        val directAuthority = NativeDirectToolAuthorityParser.parse(userText)
+        executeExplicitDirectToolRequest(directAuthority)?.let { result ->
             onEvent(NativeAgentEvent(AgentEventType.ToolCall, "Native action", userText))
-            val inferredTools = inferredToolNames(userText)
-            val resultType = when {
-                "terminal_tool" in inferredTools -> AgentEventType.ProcessLog
-                "file_write_tool" in inferredTools -> AgentEventType.FileAccess
+            val resultType = when (directAuthority.toolName) {
+                "terminal_tool" -> AgentEventType.ProcessLog
+                "file_write_tool" -> AgentEventType.FileAccess
                 else -> AgentEventType.ToolResult
             }
             onEvent(NativeAgentEvent(resultType, "Native action result", result.content))
             return result
         }
-        executeExplicitHtmlBrowserToolRequest(
-            normalizedBaseUrl = normalizedBaseUrl,
-            modelName = modelName,
-            apiKey = apiKey,
-            reasoningFormat = reasoningFormat,
-            sessionId = sessionId,
-            userText = userText,
-        )?.let { result ->
-            onEvent(NativeAgentEvent(AgentEventType.ToolCall, "File and browser action", userText))
-            onEvent(NativeAgentEvent(AgentEventType.FileAccess, "File and browser result", result.content))
-            return result
-        }
+        // Multi-tool HTML generation is intentionally not a pre-model shortcut. It proceeds
+        // through the offered schemas and the exact offered-name dispatch gate below, so prose
+        // cannot be reinterpreted by a second permissive parser as file/browser authority.
 
+        val requestToolScope = requestToolScopeFor(userText)
         var executedToolCalls = 0
         var modelRequestCount = 0
         var latestToolResult = ""
         val localModelToolMode = appSettings.localModelToolMode
-        val guestLinuxIntent = isGuestLinuxSandboxIntent(userText)
-        val contextRecoveryToolSpecs = compactToolSpecsFor(userText)
+        val isTurboQuantLlama = shouldSuppressLocalLlamaReasoning(providerId, appSettings.llamaCppRuntimeLane)
+        // Recovery must never widen authority. The same immutable request scope produces both
+        // TurboQuant's initial schema and every context-overflow retry schema.
+        val contextRecoveryToolSpecs = requestToolScope.scopedToolSpecs()
         // 27B Q1_0 llama.cpp cannot prefill the general Android tool catalog inside 15 minutes.
         // Guest Alpine run prompts already have a one-tool compact schema (mcp_run_in_proot).
-        var activeToolSpecs = if (guestLinuxIntent && contextRecoveryToolSpecs.length() > 0) {
-            contextRecoveryToolSpecs
-        } else {
-            toolSpecsFor(userText, localModelToolMode)
-        }
+        var activeToolSpecs = contextRecoveryToolSpecs
         val contextRecoverySystemMessage = systemMessage(
             toolSpecs = contextRecoveryToolSpecs,
             relevantMemoryContext = relevantMemoryContext,
@@ -194,7 +478,7 @@ class NativeToolCallingChatClient(
         var assistant = initialResponse.assistant
 
         repeat(MAX_NATIVE_TOOL_ROUNDS) {
-            check(!cancelled) { "Agent task stopped by user." }
+            ensureNotCancelled()
             if (assistant.toolCalls.isEmpty()) {
                 if (assistant.reasoning.isNotBlank()) {
                     onEvent(NativeAgentEvent(AgentEventType.Thought, "Reasoning", assistant.reasoning))
@@ -212,6 +496,42 @@ class NativeToolCallingChatClient(
                 )
             }
 
+            val offeredToolNames = offeredCanonicalToolNames(activeToolSpecs)
+            val unofferedToolNames = assistant.toolCalls
+                .map { canonicalToolName(it.name) }
+                .filterNot { it in offeredToolNames }
+                .distinct()
+            if (unofferedToolNames.isNotEmpty()) {
+                val blockedNames = unofferedToolNames.joinToString(", ")
+                onEvent(
+                    NativeAgentEvent(
+                        AgentEventType.ToolResult,
+                        "Blocked unoffered native action",
+                        "The model requested a tool that was not offered for this request: $blockedNames",
+                    ),
+                )
+                return Result(
+                    content = "Hermes blocked a model-requested action because it was not offered for this request.",
+                    executedToolCalls = executedToolCalls,
+                    modelRequestCount = modelRequestCount,
+                )
+            }
+
+            requestToolScope.consumeBatch(assistant.toolCalls)?.let { blockedReason ->
+                onEvent(
+                    NativeAgentEvent(
+                        AgentEventType.ToolResult,
+                        "Blocked out-of-scope native action",
+                        blockedReason,
+                    ),
+                )
+                return Result(
+                    content = blockedReason,
+                    executedToolCalls = executedToolCalls,
+                    modelRequestCount = modelRequestCount,
+                )
+            }
+
             val intermediateThought = listOf(assistant.reasoning, assistant.content)
                 .filter { it.isNotBlank() }
                 .joinToString("\n")
@@ -221,7 +541,7 @@ class NativeToolCallingChatClient(
             messages.put(assistant.toJsonMessage())
             var externalActivityHandoff = false
             for (toolCall in assistant.toolCalls) {
-                check(!cancelled) { "Agent task stopped by user." }
+                ensureNotCancelled()
                 onEvent(
                     NativeAgentEvent(
                         AgentEventType.ToolCall,
@@ -345,115 +665,47 @@ class NativeToolCallingChatClient(
         return stripped.startsWith("compressed_from=") && stripped.endsWith("chars")
     }
 
-    private fun executeExplicitDirectToolRequest(userText: String): Result? {
-        extractExplicitFileWriteRequest(userText)?.let { request ->
-            val toolResult = executeFileWriteTool(
-                ToolCall(
-                    id = "direct_${UUID.randomUUID()}",
-                    name = "file_write_tool",
-                    arguments = JSONObject()
-                        .put("path", request.path)
-                        .put("content", request.content),
-                )
-            )
-            return Result(
-                content = toolCompletionReply(toolResult),
-                executedToolCalls = 1,
-                lastToolResult = toolResult,
-            )
+    internal fun executeExplicitDirectToolRequest(authority: NativeDirectToolAuthority): Result? {
+        val toolName = authority.toolName ?: return null
+        val arguments = authority.arguments()
+        if (toolName == "terminal_tool" && arguments.optString("command").isNotBlank()) {
+            val terminalArguments = JSONObject(arguments.toString())
+            if (!terminalArguments.has("timeout_seconds")) {
+                terminalArguments.put("timeout_seconds", TOOL_TIMEOUT_SECONDS)
+            }
+            arguments.put("timeout_seconds", terminalArguments.optInt("timeout_seconds"))
         }
 
-        if (isExplicitAndroidSystemStatusRequest(userText)) {
-            val toolResult = executeAndroidSystemTool(
-                ToolCall(
-                    id = "direct_${UUID.randomUUID()}",
-                    name = "android_system_tool",
-                    arguments = JSONObject().put("action", "status"),
-                )
-            )
-            return Result(
-                content = toolCompletionReply(toolResult),
-                executedToolCalls = 1,
-                lastToolResult = toolResult,
-            )
+        if (toolName == "mcp_run_in_proot" && arguments.optString("command").isNotBlank()) {
+            if (!arguments.has("action") && arguments.optString("command").isNotBlank()) {
+                arguments.put("action", "run")
+            }
         }
 
-        extractExplicitAndroidDiagnosticsArguments(userText)?.let { arguments ->
-            val toolResult = executeAndroidDeviceDiagnosticsTool(
-                ToolCall(
-                    id = "direct_${UUID.randomUUID()}",
-                    name = "android_device_diagnostics_tool",
-                    arguments = arguments,
-                )
+        // Every typed invocation has already passed the single closed parser and exact per-tool
+        // key grammar. Execute that carried tool call exactly once, rather than handing the same
+        // broad tool family to a model which could widen status/screenshot/list/recall into a
+        // privileged action. Closed natural authorities are limited by the parser to diagnostics
+        // and the fixed read-only terminal allowlist.
+        if (!authority.isTypedInvocation && authority.source !in setOf(
+                NativeDirectToolAuthority.Source.CLOSED_NATURAL_DIAGNOSTIC,
+                NativeDirectToolAuthority.Source.CLOSED_NATURAL_READ_ONLY_TERMINAL,
             )
-            return Result(
-                content = toolCompletionReply(toolResult),
-                executedToolCalls = 1,
-                lastToolResult = toolResult,
-            )
+        ) {
+            return null
         }
-
-        extractImplicitSignalEvidenceArguments(userText)?.let { arguments ->
-            val toolResult = executeAndroidDeviceDiagnosticsTool(
-                ToolCall(
-                    id = "direct_${UUID.randomUUID()}",
-                    name = "android_device_diagnostics_tool",
-                    arguments = arguments,
-                )
-            )
-            return Result(
-                content = toolCompletionReply(toolResult),
-                executedToolCalls = 1,
-                lastToolResult = toolResult,
-            )
-        }
-
-        extractImplicitAndroidDiagnosticsArguments(userText)?.let { arguments ->
-            val toolResult = executeAndroidDeviceDiagnosticsTool(
-                ToolCall(
-                    id = "direct_${UUID.randomUUID()}",
-                    name = "android_device_diagnostics_tool",
-                    arguments = arguments,
-                )
-            )
-            return Result(
-                content = toolCompletionReply(toolResult),
-                executedToolCalls = 1,
-                lastToolResult = toolResult,
-            )
-        }
-
-        extractExactTerminalCommand(userText)?.let { command ->
-            val toolResult = executeTerminalTool(
-                ToolCall(
-                    id = "direct_${UUID.randomUUID()}",
-                    name = "terminal_tool",
-                    arguments = JSONObject()
-                        .put("command", command)
-                        .put("timeout_seconds", TOOL_TIMEOUT_SECONDS),
-                )
-            )
-            return Result(
-                content = toolCompletionReply(toolResult),
-                executedToolCalls = 1,
-            )
-        }
-
-        extractExplicitLinuxSandboxArguments(userText)?.let { arguments ->
-            val toolResult = executeLinuxSandboxTool(
-                ToolCall(
-                    id = "direct_${UUID.randomUUID()}",
-                    name = "linux_sandbox_tool",
-                    arguments = arguments,
-                )
-            )
-            return Result(
-                content = toolCompletionReply(toolResult),
-                executedToolCalls = 1,
-            )
-        }
-
-        return null
+        val toolResult = executeToolCall(
+            ToolCall(
+                id = "direct_${UUID.randomUUID()}",
+                name = toolName,
+                arguments = arguments,
+            ),
+        )
+        return Result(
+            content = toolCompletionReply(toolResult),
+            executedToolCalls = 1,
+            lastToolResult = toolResult,
+        )
     }
 
     private fun extractExplicitLinuxSandboxArguments(userText: String): JSONObject? {
@@ -589,64 +841,6 @@ class NativeToolCallingChatClient(
         }
     }
 
-    private fun isExplicitAndroidSystemStatusRequest(userText: String): Boolean {
-        val lower = userText.lowercase()
-        return "android_system_tool" in lower &&
-            "status" in lower &&
-            "run_privileged_shell" !in lower &&
-            "privileged_shell" !in lower
-    }
-
-    private fun executeExplicitHtmlBrowserToolRequest(
-        normalizedBaseUrl: String,
-        modelName: String,
-        apiKey: String?,
-        reasoningFormat: String?,
-        sessionId: String,
-        userText: String,
-    ): Result? {
-        val request = extractExplicitHtmlBrowserRequest(userText) ?: return null
-        val generatedHtml = generateHtmlDocument(
-            normalizedBaseUrl = normalizedBaseUrl,
-            modelName = modelName,
-            apiKey = apiKey,
-            reasoningFormat = reasoningFormat,
-            sessionId = sessionId,
-            request = request,
-        )
-        val writeResult = executeFileWriteTool(
-            ToolCall(
-                id = "direct_${UUID.randomUUID()}",
-                name = "file_write_tool",
-                arguments = JSONObject()
-                    .put("path", request.path)
-                    .put("content", generatedHtml),
-            )
-        )
-        val writeJson = runCatching { JSONObject(writeResult) }.getOrDefault(JSONObject())
-        if (!writeJson.optBoolean("success", writeJson.optInt("exit_code", 0) == 0)) {
-            return Result(
-                content = toolCompletionReply(writeResult),
-                executedToolCalls = 1,
-                lastToolResult = writeResult,
-            )
-        }
-
-        val openResult = executeAndroidAutomationTool(
-            ToolCall(
-                id = "direct_${UUID.randomUUID()}",
-                name = "android_automation_tool",
-                arguments = JSONObject()
-                    .put("action", "open_uri")
-                    .put("data_uri", request.path),
-            )
-        )
-        return Result(
-            content = toolCompletionReply(openResult),
-            executedToolCalls = 2,
-            lastToolResult = openResult,
-        )
-    }
 
     private fun generateHtmlDocument(
         normalizedBaseUrl: String,
@@ -958,6 +1152,7 @@ class NativeToolCallingChatClient(
         maxTokens: Int,
         timeoutMs: Long = NATIVE_TOOL_GENERATION_TIMEOUT_MS,
     ): AssistantMessage {
+        ensureNotCancelled()
         val payload = JSONObject()
             .put("model", modelName)
             .put("stream", false)
@@ -985,7 +1180,18 @@ class NativeToolCallingChatClient(
             .build()
 
         val call = httpClient.newCall(request)
-        activeCall = call
+        val registered = synchronized(cancellationLock) {
+            if (cancelled) {
+                false
+            } else {
+                activeCall = call
+                true
+            }
+        }
+        if (!registered) {
+            call.cancel()
+            ensureNotCancelled()
+        }
         try {
             call.execute().use { response ->
                 val body = response.body?.string().orEmpty()
@@ -1000,7 +1206,9 @@ class NativeToolCallingChatClient(
                 return AssistantMessage.fromJson(message)
             }
         } finally {
-            if (activeCall === call) activeCall = null
+            synchronized(cancellationLock) {
+                if (activeCall === call) activeCall = null
+            }
         }
     }
 
@@ -1025,6 +1233,7 @@ class NativeToolCallingChatClient(
     }
 
     private fun executeToolCall(toolCall: ToolCall): String {
+        beforeToolDispatch(toolCall.name)
         return when (toolCall.name) {
             "terminal_tool", "terminal", "shell", "mcp_send_terminal_input" -> executeTerminalTool(toolCall)
             "mcp_run_in_proot" -> executeProotAliasTool(toolCall)
@@ -1051,6 +1260,47 @@ class NativeToolCallingChatClient(
         }
     }
 
+    private fun offeredCanonicalToolNames(toolSpecs: JSONArray): Set<String> = buildSet {
+        for (index in 0 until toolSpecs.length()) {
+            val offeredName = toolSpecs
+                .optJSONObject(index)
+                ?.optJSONObject("function")
+                ?.optString("name")
+                .orEmpty()
+            if (offeredName.isNotBlank()) add(canonicalToolName(offeredName))
+        }
+    }
+
+    private fun canonicalToolName(toolName: String): String = when (toolName.trim().lowercase()) {
+        "terminal_tool", "terminal", "shell", "mcp_send_terminal_input" -> "terminal_tool"
+        "mcp_run_in_proot" -> "mcp_run_in_proot"
+        "linux_sandbox_tool", "linux_sandbox", "proot_distro_tool", "proot-distro", "proot_distro" ->
+            "linux_sandbox_tool"
+        "linux_host_pkg_tool", "host_pkg_tool", "termux_pkg_tool", "pkg_tool", "hermes_pkg_tool" ->
+            "linux_host_pkg_tool"
+        "file_write_tool", "write_file", "file_tool" -> "file_write_tool"
+        "android_system_tool", "android_system_action", "system_tool", "settings_tool", "phone_tool" ->
+            "android_system_tool"
+        "android_device_diagnostics_tool", "device_diagnostics_tool", "diagnostics_tool", "resource_tool",
+        "wifi_analyzer_tool", "bluetooth_scanner_tool", "bluetooth_analyzer_tool", "sensor_tool",
+        "sensor_analyzer_tool", "camera_tool", "radio_signal_tool", "rf_coexistence_tool",
+        "soc_backend_tool", "runtime_stability_tool", "device_performance_tool", "mcp_tool_server_tool",
+        "mcp_registry_tool" -> "android_device_diagnostics_tool"
+        "hy_memory_tool", "hymemory_tool", "hindsight_memory_tool", "memory_tool", "recall_tool",
+        "retain_tool" -> "hy_memory_tool"
+        "memory_search" -> "memory_search"
+        "memory_add" -> "memory_add"
+        "memory_delete" -> "memory_delete"
+        "memory_list" -> "memory_list"
+        "android_automation_tool", "automation_tool", "tasker_tool", "kai_task_tool" ->
+            "android_automation_tool"
+        "schedule_task" -> "schedule_task"
+        "list_tasks" -> "list_tasks"
+        "cancel_task" -> "cancel_task"
+        "android_ui_tool", "ui_tool", "screen_tool", "accessibility_tool" -> "android_ui_tool"
+        else -> toolName.trim().lowercase()
+    }
+
     private fun executeProotAliasTool(toolCall: ToolCall): String {
         val arguments = JSONObject(toolCall.arguments.toString())
         if (!arguments.has("action") && !arguments.has("command_action") && !arguments.has("input")) {
@@ -1073,11 +1323,20 @@ class NativeToolCallingChatClient(
                 .put("error", "terminal_tool requires a command argument")
                 .toString()
 
-        val result = NativeAndroidShellTool.run(
-            context = appContext,
-            command = command,
-            timeoutSeconds = TOOL_TIMEOUT_SECONDS.toLong(),
+        val timeoutSeconds = toolCall.arguments.optInt("timeout_seconds", TOOL_TIMEOUT_SECONDS)
+            .coerceIn(1, 900)
+            .toLong()
+        if (HermesTermuxPackageManager.isPkgCommand(command)) {
+            return executeHostPackageCli(command)
+        }
+        val result = nativeShellRunner(
+            appContext,
+            command,
+            timeoutSeconds,
+            requestToolHttpClient,
+            { cancelled },
         )
+        ensureNotCancelled()
         return JSONObject()
             .put("exit_code", result.optInt("exit_code", -1))
             .put("output", truncate(result.optString("output")))
@@ -1126,35 +1385,48 @@ class NativeToolCallingChatClient(
             query = listOf("query", "search", "q")
                 .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
                 .orEmpty(),
+            httpClient = requestToolHttpClient,
+            cancellationRequested = { cancelled },
+            publicationGate = automationPublicationGate,
+            requestOwned = true,
         )
+        ensureNotCancelled()
         return result.toString()
+    }
+
+    private fun executeHostPackageCli(command: String): String {
+        val result = HermesTermuxPackageManager.performCliCommand(
+            context = appContext,
+            commandLine = command,
+            httpClient = requestToolHttpClient,
+            cancellationRequested = { cancelled },
+            publicationGate = automationPublicationGate,
+            requestOwned = true,
+        )
+        ensureNotCancelled()
+        val message = result.optString("message")
+            .ifBlank { result.optString("error") }
+            .ifBlank { result.toString() }
+        return JSONObject(result.toString())
+            .put("exit_code", result.optInt("exit_code", if (result.optBoolean("ok", false)) 0 else 1))
+            .put("output", message)
+            .put("execution_mode", "host_pkg_manager")
+            .toString()
     }
 
     private fun executeLinuxSandboxTool(toolCall: ToolCall): String {
         val action = listOf("action", "command_action", "input")
             .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
             ?: "status"
-        val result = HermesLinuxSandboxBridge.performAction(
-            context = appContext,
-            action = action,
-            distroId = listOf("distro_id", "distro", "id")
-                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
-                .orEmpty(),
-            name = listOf("name", "sandbox_name", "container")
-                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
-                .orEmpty(),
-            image = listOf("image", "image_ref", "rootfs")
-                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
-                .orEmpty(),
-            command = listOf("command", "cmd", "shell_command")
-                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
-                .orEmpty(),
-            mirrorProfile = listOf("mirror_profile", "mirror", "mirror_id", "source_mirror")
-                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
-                .orEmpty(),
-            timeoutSeconds = toolCall.arguments.optLong("timeout_seconds", TOOL_TIMEOUT_SECONDS.toLong())
-                .coerceIn(1, 900),
+        val result = linuxSandboxActionRunner(
+            appContext,
+            action,
+            JSONObject(toolCall.arguments.toString()),
+            requestToolHttpClient,
+            { cancelled },
+            automationPublicationGate,
         )
+        ensureNotCancelled()
         return result.toString()
     }
 
@@ -1181,33 +1453,44 @@ class NativeToolCallingChatClient(
                 .toString()
         val append = toolCall.arguments.optBoolean("append", false)
 
-        return HermesWorkspaceFileBridge.writeTextJson(appContext, rawPath, content, append).toString()
+        val result = workspaceFileWriter(
+            appContext,
+            rawPath,
+            content,
+            append,
+            automationPublicationGate,
+        ).toString()
+        ensureNotCancelled()
+        return result
     }
 
     private fun executeAndroidSystemTool(toolCall: ToolCall): String {
         val action = listOf("action", "operation", "name")
             .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
             ?.trim()
+            ?.lowercase()
             .orEmpty()
         return if (action.isBlank() || action == "status" || action == "read_status") {
             HermesSystemControlBridge.statusJson()
-        } else if (action == "run_privileged_shell" || action == "shizuku_shell" || action == "privileged_shell") {
-            val command = listOf("command", "cmd", "input")
-                .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
-                .orEmpty()
-            HermesPrivilegedAccessBridge.runShellCommandJson(
-                context = appContext,
-                command = command,
-                timeoutSeconds = toolCall.arguments.optInt("timeout_seconds", PRIVILEGED_TOOL_TIMEOUT_SECONDS),
-            )
-        } else if (HermesPrivilegedAccessBridge.handlesStructuredAction(action)) {
-            HermesPrivilegedAccessBridge.performStructuredActionJson(
-                context = appContext,
-                action = action,
-                arguments = toolCall.arguments,
-            )
+        } else if (HermesSystemControlBridge.isUncancellablePrivilegedAction(action)) {
+            JSONObject()
+                .put("success", false)
+                .put("exit_code", 126)
+                .put("action", action)
+                .put(
+                    "error",
+                    "Shizuku-backed actions are blocked in chat because that privileged process cannot be cancelled safely. Use the manual privileged-action surface instead.",
+                )
+                .toString()
         } else {
-            HermesSystemControlBridge.performActionJson(action)
+            val result = androidSystemActionRunner(
+                appContext,
+                action,
+                toolCall.arguments,
+                automationPublicationGate,
+            )
+            ensureNotCancelled()
+            result
         }
     }
 
@@ -1216,7 +1499,13 @@ class NativeToolCallingChatClient(
             .firstNotNullOfOrNull { key -> toolCall.arguments.optString(key).takeIf { it.isNotBlank() } }
             ?.trim()
             .orEmpty()
-        return HermesDeviceDiagnosticsBridge.performActionJson(appContext, action, toolCall.arguments)
+        return HermesDeviceDiagnosticsBridge.performActionJson(
+            context = appContext,
+            action = action,
+            arguments = toolCall.arguments,
+            cancellationRequested = { cancelled },
+            publicationGate = automationPublicationGate,
+        )
     }
 
     private fun executeHyMemoryTool(toolCall: ToolCall): String {
@@ -1227,7 +1516,14 @@ class NativeToolCallingChatClient(
                 "memory_search", "memory_add", "memory_delete", "memory_list" -> toolCall.name
                 else -> ""
             }
-        return HermesHyMemoryBridge.performActionJson(appContext, action, toolCall.arguments)
+        val result = hyMemoryActionRunner(
+            appContext,
+            action,
+            toolCall.arguments,
+            automationPublicationGate,
+        )
+        ensureNotCancelled()
+        return result
     }
 
     private fun executeAndroidAutomationTool(toolCall: ToolCall): String {
@@ -1236,13 +1532,29 @@ class NativeToolCallingChatClient(
             ?.trim()
             ?.lowercase()
             .orEmpty()
-        return HermesAutomationBridge.performActionJson(appContext, action, toolCall.arguments)
+        return HermesAutomationBridge.performActionJson(
+            context = appContext,
+            action = action,
+            arguments = toolCall.arguments,
+            cancellationRequested = { cancelled },
+            requestHttpClient = requestToolHttpClient,
+            allowUncancellablePrivilegedShell = false,
+            publicationGate = automationPublicationGate,
+        )
     }
 
     private fun executeAndroidAutomationAliasTool(toolCall: ToolCall, action: String): String {
         val arguments = JSONObject(toolCall.arguments.toString())
             .put("action", action)
-        return HermesAutomationBridge.performActionJson(appContext, action, arguments)
+        return HermesAutomationBridge.performActionJson(
+            context = appContext,
+            action = action,
+            arguments = arguments,
+            cancellationRequested = { cancelled },
+            requestHttpClient = requestToolHttpClient,
+            allowUncancellablePrivilegedShell = false,
+            publicationGate = automationPublicationGate,
+        )
     }
 
     private fun executeAndroidUiTool(toolCall: ToolCall): String {
@@ -1251,7 +1563,7 @@ class NativeToolCallingChatClient(
             ?.trim()
             .orEmpty()
         val action = rawAction.lowercase()
-        return when (action.ifBlank { "status" }) {
+        val result = when (action.ifBlank { "status" }) {
             "status", "read_status" -> androidUiStatusJson()
             "sense", "opengui_sense", "open_gui_sense", "perception_status", "sense_status" -> executeOpenGuiSenseTool(toolCall)
             "snapshot", "screen_snapshot", "read_screen", "a11y_tree", "accessibility_tree" -> executeAndroidSnapshotTool(toolCall)
@@ -1266,7 +1578,9 @@ class NativeToolCallingChatClient(
             "action_history" -> openGuiActionHistory.snapshotJson().toString()
             "clear_opengui_history",
             "clear_open_gui_history",
-            "reset_gui_history" -> openGuiActionHistory.clearJson().toString()
+            "reset_gui_history" -> publishClientMutation("clear_opengui_history") {
+                openGuiActionHistory.clearJson().toString()
+            }
             "parse_opengui_action",
             "parse_open_gui_action",
             "parse_gui_action" -> executeOpenGuiActionTool(toolCall, parseOnly = true)
@@ -1301,6 +1615,7 @@ class NativeToolCallingChatClient(
                 packageName = toolCall.arguments.optString("package_name"),
                 className = toolCall.arguments.optString("class_name"),
                 index = toolCall.arguments.optInt("index", 0),
+                publicationGate = automationPublicationGate,
             )
             "click" -> if (hasCoordinateGestureArguments(toolCall.arguments)) {
                 executeAndroidCoordinateGesture(toolCall, "tap")
@@ -1312,11 +1627,26 @@ class NativeToolCallingChatClient(
             "scroll_forward",
             "scroll_backward",
             "set_text" -> executeAndroidSelectorAction(toolCall, action)
-            "back", "global_back", "press_back" -> HermesAccessibilityUiBridge.performGlobalActionJson("back")
-            "home", "global_home", "press_home" -> HermesAccessibilityUiBridge.performGlobalActionJson("home")
-            "recents", "global_recents" -> HermesAccessibilityUiBridge.performGlobalActionJson("recents")
-            "notifications", "global_notifications" -> HermesAccessibilityUiBridge.performGlobalActionJson("notifications")
-            "quick_settings", "global_quick_settings" -> HermesAccessibilityUiBridge.performGlobalActionJson("quick_settings")
+            "back", "global_back", "press_back" -> HermesAccessibilityUiBridge.performGlobalActionJson(
+                "back",
+                automationPublicationGate,
+            )
+            "home", "global_home", "press_home" -> HermesAccessibilityUiBridge.performGlobalActionJson(
+                "home",
+                automationPublicationGate,
+            )
+            "recents", "global_recents" -> HermesAccessibilityUiBridge.performGlobalActionJson(
+                "recents",
+                automationPublicationGate,
+            )
+            "notifications", "global_notifications" -> HermesAccessibilityUiBridge.performGlobalActionJson(
+                "notifications",
+                automationPublicationGate,
+            )
+            "quick_settings", "global_quick_settings" -> HermesAccessibilityUiBridge.performGlobalActionJson(
+                "quick_settings",
+                automationPublicationGate,
+            )
             "open_app", "launch_app" -> HermesAppControlBridge.launchApp(
                 context = appContext,
                 packageName = stringArgument(
@@ -1328,8 +1658,12 @@ class NativeToolCallingChatClient(
                     "application_id",
                 ).orEmpty(),
                 appName = stringArgument(toolCall.arguments, "app_name", "appName", "application_name", "label").orEmpty(),
+                publicationGate = automationPublicationGate,
             ).toString()
-            "open_accessibility_settings" -> HermesSystemControlBridge.performActionJson("open_accessibility_settings")
+            "open_accessibility_settings" -> HermesSystemControlBridge.performActionJson(
+                "open_accessibility_settings",
+                automationPublicationGate,
+            )
             else -> if (rawAction.looksLikeOpenGuiAction()) {
                 executeOpenGuiActionTool(toolCall, parseOnly = false, fallbackRawAction = rawAction)
             } else {
@@ -1340,6 +1674,8 @@ class NativeToolCallingChatClient(
                     .toString()
             }
         }
+        ensureNotCancelled()
+        return result
     }
 
     private fun executeOpenGuiSenseTool(toolCall: ToolCall): String {
@@ -1398,6 +1734,7 @@ class NativeToolCallingChatClient(
             saveFile = optionalBooleanArgument(arguments, "save_file", "save", "persist") ?: true,
             includeBase64 = optionalBooleanArgument(arguments, "include_base64", "base64", "inline_image") ?: false,
             maxImageEdgePx = optionalIntArgument(arguments, "max_image_edge_px", "max_edge_px", "max_edge") ?: 0,
+            publicationGate = automationPublicationGate,
         )
         rememberOpenGuiScreenHashFromResult(result)
         return result
@@ -1480,14 +1817,22 @@ class NativeToolCallingChatClient(
                 packageName = "",
                 className = "",
                 index = 0,
+                publicationGate = automationPublicationGate,
             )
             "open_app" -> HermesAppControlBridge.launchApp(
                 context = appContext,
                 packageName = parsed.packageName,
                 appName = parsed.appName,
+                publicationGate = automationPublicationGate,
             ).toString()
-            "press_back" -> HermesAccessibilityUiBridge.performGlobalActionJson("back")
-            "press_home" -> HermesAccessibilityUiBridge.performGlobalActionJson("home")
+            "press_back" -> HermesAccessibilityUiBridge.performGlobalActionJson(
+                "back",
+                automationPublicationGate,
+            )
+            "press_home" -> HermesAccessibilityUiBridge.performGlobalActionJson(
+                "home",
+                automationPublicationGate,
+            )
             "wait" -> executeParsedOpenGuiWait(parsed)
             "finished" -> JSONObject()
                 .put("success", true)
@@ -1495,11 +1840,13 @@ class NativeToolCallingChatClient(
                 .put("terminal", true)
                 .put("message", "OpenGUI action marked the mobile task finished.")
                 .toString()
-            "call_user" -> OpenGuiUserHandoff.execute(
-                context = appContext,
-                parsed = parsed,
-                sessionId = activeOpenGuiMemorySessionId,
-            ).toString()
+            "call_user" -> publishClientMutation("opengui_call_user") {
+                OpenGuiUserHandoff.execute(
+                    context = appContext,
+                    parsed = parsed,
+                    sessionId = activeOpenGuiMemorySessionId,
+                ).toString()
+            }
             "update_working_memory" -> executeParsedOpenGuiWorkingMemoryUpdate(parsed)
             "get_working_memory" -> executeParsedOpenGuiWorkingMemoryRead()
             "request_visual",
@@ -1528,11 +1875,15 @@ class NativeToolCallingChatClient(
     }
 
     private fun rememberOpenGuiScreenHash(hash: String) {
-        openGuiActionHistory.rememberScreenHash(hash)
+        publishClientMutation("opengui_screen_history") {
+            openGuiActionHistory.rememberScreenHash(hash)
+        }
     }
 
     private fun recordOpenGuiAction(parsed: ParsedOpenGuiAction) {
-        openGuiActionHistory.recordAction(parsed)
+        publishClientMutation("opengui_action_history") {
+            openGuiActionHistory.recordAction(parsed)
+        }
     }
 
     private fun executeParsedOpenGuiTap(parsed: ParsedOpenGuiAction, action: String): String {
@@ -1551,6 +1902,7 @@ class NativeToolCallingChatClient(
             y2 = null,
             durationMs = parsed.durationMs ?: 0L,
             coordinateSpace = "normalized",
+            publicationGate = automationPublicationGate,
         )
     }
 
@@ -1575,6 +1927,7 @@ class NativeToolCallingChatClient(
             y2 = end.y,
             durationMs = parsed.durationMs ?: 0L,
             coordinateSpace = "normalized",
+            publicationGate = automationPublicationGate,
         )
     }
 
@@ -1587,6 +1940,7 @@ class NativeToolCallingChatClient(
             distancePx = null,
             durationMs = parsed.durationMs ?: 0L,
             coordinateSpace = if (start != null) "normalized" else "",
+            publicationGate = automationPublicationGate,
         )
     }
 
@@ -1637,7 +1991,9 @@ class NativeToolCallingChatClient(
             .filter { it.isNotBlank() }
             .joinToString("\n")
             .takeLast(MAX_OPEN_GUI_WORKING_MEMORY_CHARS)
-        openGuiWorkingMemoryPrefs.edit().putString(key, next).apply()
+        publishClientMutation("update_working_memory") {
+            openGuiWorkingMemoryPrefs.edit().putString(key, next).apply()
+        }
         return JSONObject()
             .put("success", true)
             .put("action", "update_working_memory")
@@ -1675,6 +2031,7 @@ class NativeToolCallingChatClient(
             y2 = optionalDoubleArgument(arguments, "y2", "end_y", "to_y"),
             durationMs = optionalLongArgument(arguments, "duration_ms", "duration", "gesture_duration_ms") ?: 0L,
             coordinateSpace = stringArgument(arguments, "coordinate_space", "coordinates", "coord_space").orEmpty(),
+            publicationGate = automationPublicationGate,
         )
     }
 
@@ -1695,6 +2052,7 @@ class NativeToolCallingChatClient(
             className = toolCall.arguments.optString("class_name"),
             value = toolCall.arguments.optString("value"),
             index = toolCall.arguments.optInt("index", 0),
+            publicationGate = automationPublicationGate,
         )
     }
 
@@ -1714,6 +2072,7 @@ class NativeToolCallingChatClient(
             distancePx = optionalDoubleArgument(arguments, "distance_px", "distance", "scroll_distance_px"),
             durationMs = optionalLongArgument(arguments, "duration_ms", "duration", "gesture_duration_ms") ?: 0L,
             coordinateSpace = stringArgument(arguments, "coordinate_space", "coordinates", "coord_space").orEmpty(),
+            publicationGate = automationPublicationGate,
         )
     }
 
@@ -1910,10 +2269,9 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_system_tool",
-                    description = "Read phone state, open safe settings panels, or run explicit Shizuku/Sui actions.",
+                    description = "Read phone state, open safe settings panels, or run explicit structured Shizuku/Sui actions.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, run_privileged_shell, open_*_settings, grant/revoke permission, force_stop_app, clear_app_data, enable/disable app, connectivity/DND/power/profile/custom-setting actions."))
-                        .put("command", stringProp("Command for run_privileged_shell."))
+                        .put("action", stringProp("status, open_*_settings, grant/revoke permission, force_stop_app, clear_app_data, enable/disable app, connectivity/DND/power/profile/custom-setting actions."))
                         .put("package_name", stringProp("Android package name."))
                         .put("permission", stringProp("Android permission."))
                         .put("enabled", boolProp("Desired enabled state."))
@@ -1923,8 +2281,7 @@ class NativeToolCallingChatClient(
                         .put("dnd_mode", stringProp("DND mode."))
                         .put("user_id", stringProp("Android user/profile id."))
                         .put("network_types_bitmask", stringProp("Mobile network bitmask."))
-                        .put("slot_id", stringProp("SIM slot id."))
-                        .put("timeout_seconds", intProp("Optional timeout.")),
+                        .put("slot_id", stringProp("SIM slot id.")),
                     required = JSONArray().put("action"),
                 ),
             )
@@ -2165,10 +2522,380 @@ class NativeToolCallingChatClient(
             )
     }
 
+    private fun requestToolScopeFor(userText: String): NativeToolRequestScope {
+        val directAuthority = NativeDirectToolAuthorityParser.parse(userText)
+        directAuthority.toolName?.let { toolName ->
+            val arguments = directAuthority.arguments()
+            val exactArguments = arguments.keys().asSequence().associateWith { key -> arguments.get(key) }
+            val action = arguments.optString("action").trim().lowercase()
+            return NativeToolRequestScope(
+                listOf(
+                    NativeToolCallConstraint(
+                        canonicalToolName = toolName,
+                        allowedActions = action.takeIf { it.isNotBlank() }?.let(::setOf).orEmpty(),
+                        exactArguments = exactArguments,
+                        requiredArguments = NativeDirectToolAuthorityParser.requiredArgumentKeys(toolName),
+                    ),
+                ),
+            )
+        }
+
+        val actionText = normalizedActionIntentText(userText)
+        if (!isAffirmativeActionRequest(actionText)) return NativeToolRequestScope(emptyList())
+        val requestedNames = highConfidenceNaturalLanguageActionToolNames(userText)
+        val constraints = requestedNames.mapNotNull { toolName ->
+            naturalToolCallConstraint(toolName, actionText)
+        }.distinctBy { constraint ->
+            listOf(
+                constraint.canonicalToolName,
+                constraint.allowedActions.sorted().joinToString(","),
+                constraint.exactArguments.entries.sortedBy { it.key }.joinToString(",") { "${it.key}=${it.value}" },
+            ).joinToString("|")
+        }
+        return NativeToolRequestScope(constraints)
+    }
+
+    private fun naturalToolCallConstraint(
+        toolName: String,
+        actionText: String,
+    ): NativeToolCallConstraint? {
+        fun constraint(
+            canonicalName: String = toolName,
+            actions: Set<String> = emptySet(),
+            exact: Map<String, Any> = emptyMap(),
+            extraRequired: Set<String> = emptySet(),
+            allowedArguments: Set<String>? = null,
+        ) = NativeToolCallConstraint(
+            canonicalToolName = canonicalName,
+            allowedActions = actions,
+            exactArguments = exact,
+            requiredArguments = NativeDirectToolAuthorityParser.requiredArgumentKeys(canonicalName) + extraRequired,
+            allowedArguments = allowedArguments,
+        )
+
+        return when (toolName) {
+            "file_write_tool" -> {
+                val path = explicitNaturalFilePath(actionText) ?: return null
+                constraint(
+                    exact = mapOf("path" to path, "append" to isNaturalAppendRequest(actionText)),
+                    allowedArguments = setOf("path", "content", "append"),
+                )
+            }
+            "schedule_task" -> {
+                // Hermes' scheduler currently accepts clock times, not relative dates. Failing
+                // closed here avoids offering a schema which would deterministically error (or
+                // silently become a manual task) for "tomorrow"/"mañana" style prompts.
+                val time = explicitReminderTime(actionText) ?: return null
+                val exact = linkedMapOf<String, Any>(
+                    "task" to actionText,
+                    "time" to time,
+                )
+                constraint(
+                    exact = exact,
+                    allowedArguments = exact.keys,
+                )
+            }
+            "list_tasks" -> constraint(allowedArguments = setOf("limit"))
+            "cancel_task" -> {
+                val id = Regex("""\b(?:task(?:_id)?\s*[#:=]?\s*)?(\d+)\b""")
+                    .find(actionText)
+                    ?.groupValues
+                    ?.getOrNull(1)
+                    .orEmpty()
+                if (id.isBlank()) null else constraint(
+                    exact = mapOf("task_id" to id),
+                    allowedArguments = setOf("task_id"),
+                )
+            }
+            "android_system_tool" -> {
+                val action = when {
+                    "wifi" in actionText || "wi-fi" in actionText -> "open_wifi_panel"
+                    "bluetooth" in actionText -> "open_bluetooth_settings"
+                    else -> "open_all_settings"
+                }
+                constraint(actions = setOf(action), allowedArguments = setOf("action"))
+            }
+            "android_ui_tool" -> when {
+                Regex("""\b(?:screenshot|screen snapshot|capture)\b|截屏|截图""").containsMatchIn(actionText) ->
+                    constraint(
+                        actions = setOf("screenshot", "screen_image", "visual_snapshot", "capture_screenshot"),
+                        allowedArguments = setOf("action"),
+                    )
+                Regex("""^(?:tap|click|press)\b""").containsMatchIn(actionText) -> {
+                    val label = Regex("""^(?:tap|click|press)(?:\s+on)?(?:\s+the)?\s+(.+?)(?:\s+button)?[.!?]?$""")
+                        .matchEntire(actionText)
+                        ?.groupValues
+                        ?.getOrNull(1)
+                        ?.trim()
+                        .orEmpty()
+                    if (label.isBlank()) null else constraint(
+                        actions = setOf("click"),
+                        exact = mapOf("text_contains" to label),
+                        allowedArguments = setOf("action", "text_contains"),
+                    )
+                }
+                else -> null
+            }
+            "android_automation_tool" -> {
+                val url = Regex("""https?://[^\s\])}>]+""", RegexOption.IGNORE_CASE)
+                    .find(actionText)
+                    ?.value
+                    ?.trimEnd('.', ',', ';', '!', '?')
+                    .orEmpty()
+                if (url.isBlank()) return null
+                constraint(
+                    actions = setOf("open_uri", "open_url", "browse_url", "open_browser", "launch_browser"),
+                    exact = mapOf("data_uri" to url),
+                    allowedArguments = setOf("action", "data_uri"),
+                )
+            }
+            "android_device_diagnostics_tool" -> {
+                val action = when {
+                    Regex("""\btop\s+apps?\b""").containsMatchIn(actionText) -> "top_apps"
+                    Regex("""\bwi-?fi\b""").containsMatchIn(actionText) -> "wifi_scan"
+                    Regex("""\bbluetooth\b""").containsMatchIn(actionText) -> "bluetooth_scan"
+                    Regex("""\b(?:sensor|accelerometer|gyroscope)""").containsMatchIn(actionText) -> "sensor_snapshot"
+                    else -> "status"
+                }
+                constraint(actions = setOf(action), allowedArguments = setOf("action"))
+            }
+            "linux_host_pkg_tool" -> {
+                val action = when {
+                    Regex("""\b(?:install)\b""").containsMatchIn(actionText) -> "install"
+                    Regex("""\b(?:upgrade)\b""").containsMatchIn(actionText) -> "upgrade"
+                    Regex("""\b(?:update|refresh)\b""").containsMatchIn(actionText) -> "update"
+                    Regex("""\b(?:search|find)\b""").containsMatchIn(actionText) -> "search"
+                    Regex("""\b(?:list|show)\b""").containsMatchIn(actionText) -> "list"
+                    else -> "status"
+                }
+                val exact = linkedMapOf<String, Any>()
+                when (action) {
+                    "install" -> explicitHostPackage(actionText)?.let { exact["package"] = it }
+                        ?: return null
+                    "search" -> explicitHostPackageQuery(actionText)?.let { exact["query"] = it }
+                        ?: return null
+                }
+                constraint(
+                    actions = setOf(action),
+                    exact = exact,
+                    allowedArguments = setOf("action") + exact.keys,
+                )
+            }
+            "linux_sandbox_tool", "mcp_run_in_proot" -> naturalSandboxConstraint(toolName, actionText)
+            "hy_memory_tool" -> {
+                when {
+                    Regex("""^(?:remember|retain)|^记住|^recuerda|^merke|^behalte|^lembre|^guarde|^souviens|^mémorise|^memorise""").containsMatchIn(actionText) ->
+                        explicitMemoryContent(actionText)?.let { content ->
+                            constraint(
+                                canonicalName = "memory_add",
+                                exact = mapOf("content" to content),
+                                extraRequired = setOf("content"),
+                                allowedArguments = setOf("content"),
+                            )
+                        }
+                    Regex("""^(?:delete|forget)|^删除|^elimina|^lösche|^loesche|^exclua|^supprime""").containsMatchIn(actionText) ->
+                        explicitMemoryId(actionText)?.let { memoryId ->
+                            constraint(
+                                canonicalName = "memory_delete",
+                                exact = mapOf("memory_id" to memoryId),
+                                extraRequired = setOf("memory_id"),
+                                allowedArguments = setOf("memory_id"),
+                            )
+                        }
+                    explicitMemoryQuery(actionText) != null -> {
+                        val query = requireNotNull(explicitMemoryQuery(actionText))
+                        constraint(
+                            canonicalName = "memory_search",
+                            exact = mapOf("query" to query),
+                            extraRequired = setOf("query"),
+                            allowedArguments = setOf("query"),
+                        )
+                    }
+                    Regex("""^(?:list|show)|^what\s+(?:do|have)|^memory\s+list""").containsMatchIn(actionText) ->
+                        constraint(canonicalName = "memory_list", allowedArguments = setOf("limit"))
+                    else -> null
+                }
+            }
+            "memory_search" -> constraint(extraRequired = setOf("query"), allowedArguments = setOf("query", "limit"))
+            "memory_add" -> constraint(extraRequired = setOf("content"), allowedArguments = setOf("content", "tags", "category", "source"))
+            "memory_delete" -> constraint(extraRequired = setOf("memory_id"), allowedArguments = setOf("memory_id"))
+            "memory_list" -> constraint(allowedArguments = setOf("limit"))
+            else -> null
+        }
+    }
+
+    private fun naturalSandboxConstraint(
+        toolName: String,
+        actionText: String,
+    ): NativeToolCallConstraint? {
+        val readOnlyRun = Regex(
+            """^run\s+(pwd|whoami|date|id|ls\s+-la|uname\s+-a)\s+(?:inside|in)\b""",
+            RegexOption.IGNORE_CASE,
+        ).find(actionText)?.groupValues?.getOrNull(1)?.replace(Regex("""\s+"""), " ")
+        if (readOnlyRun != null) {
+            return if (toolName == "mcp_run_in_proot") {
+                NativeToolCallConstraint(
+                    canonicalToolName = "mcp_run_in_proot",
+                    exactArguments = mapOf("command" to readOnlyRun),
+                    requiredArguments = setOf("command"),
+                    allowedArguments = setOf("command"),
+                )
+            } else {
+                null
+            }
+        }
+        if (toolName == "mcp_run_in_proot") return null
+        val action = when {
+            Regex("""^(?:deploy)\b""").containsMatchIn(actionText) -> "deploy"
+            Regex("""^(?:install|download)\b""").containsMatchIn(actionText) ->
+                if (actionText.startsWith("download")) "download" else "install"
+            Regex("""^(?:start|restart)\b""").containsMatchIn(actionText) -> "start"
+            Regex("""^(?:stop)\b""").containsMatchIn(actionText) -> "stop"
+            Regex("""^(?:update|upgrade)\b""").containsMatchIn(actionText) -> "update"
+            Regex("""^(?:uninstall|remove)\b""").containsMatchIn(actionText) -> "uninstall"
+            actionText.trimEnd('.', '!', '?') in setOf(
+                "sandbox status", "linux sandbox status", "alpine sandbox status",
+            ) -> "status"
+            else -> return null
+        }
+        val distroId = explicitNaturalDistroId(actionText)
+        if (action in setOf("deploy", "install", "download", "start", "stop", "update", "uninstall") && distroId == null) {
+            return null
+        }
+        val exact = distroId?.let { mapOf("distro_id" to it) }.orEmpty()
+        return NativeToolCallConstraint(
+            canonicalToolName = "linux_sandbox_tool",
+            allowedActions = setOf(action),
+            exactArguments = exact,
+            requiredArguments = setOf("action"),
+            allowedArguments = setOf("action") + exact.keys,
+        )
+    }
+
+    private fun explicitReminderTime(actionText: String): String? {
+        return Regex("""(?:^|\b)(?:at|a\s+las|um|às|as|à|a)?\s*([01]?\d|2[0-3])[:.]([0-5]\d)(?:\b|$)""", RegexOption.IGNORE_CASE)
+            .find(actionText)
+            ?.let { match ->
+                "%02d:%02d".format(match.groupValues[1].toInt(), match.groupValues[2].toInt())
+            }
+    }
+
+    private fun explicitHostPackage(actionText: String): String? {
+        return Regex("""\binstall\s+([A-Za-z0-9][A-Za-z0-9+._-]*)\b""", RegexOption.IGNORE_CASE)
+            .find(actionText)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.takeUnless { it in setOf("the", "host", "termux", "embedded") }
+    }
+
+    private fun explicitHostPackageQuery(actionText: String): String? {
+        return Regex("""\b(?:search|find)\s+(?:for\s+)?([A-Za-z0-9][A-Za-z0-9+._-]*)\b""", RegexOption.IGNORE_CASE)
+            .find(actionText)
+            ?.groupValues
+            ?.getOrNull(1)
+    }
+
+    private fun explicitNaturalDistroId(actionText: String): String? {
+        Regex("""\bdistro_id\s*=\s*([A-Za-z0-9._-]+)\b""", RegexOption.IGNORE_CASE)
+            .find(actionText)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let { return it }
+        val alpineVersion = Regex("""\balpine\s+(\d+)\.(\d+)\b""", RegexOption.IGNORE_CASE)
+            .find(actionText)
+        if (alpineVersion != null) {
+            return "alpine-${alpineVersion.groupValues[1]}-${alpineVersion.groupValues[2]}"
+        }
+        return null
+    }
+
+    private fun explicitNaturalFilePath(actionText: String): String? {
+        val named = Regex(
+            """(?:named|called|llamado|llamada|namens|chamado|chamada|nommé|nommée|nomeado|nomeada)\s+[\"']?([^\s\"',;!?]+\.[A-Za-z0-9]{1,12})""",
+            RegexOption.IGNORE_CASE,
+        ).find(actionText)?.groupValues?.getOrNull(1)
+        if (!named.isNullOrBlank()) return named
+        return Regex("""(?:^|\s)[\"']?([A-Za-z0-9][A-Za-z0-9._/-]*\.[A-Za-z0-9]{1,12})[\"']?(?=\s|[.!?,;。！？，；]|$)""")
+            .find(actionText)
+            ?.groupValues
+            ?.getOrNull(1)
+    }
+
+    private fun isNaturalAppendRequest(actionText: String): Boolean {
+        return listOf(
+            "append to file", "append to the file",
+            "追加到文件",
+            "añade al archivo", "anade al archivo",
+            "hänge an die datei", "haenge an die datei",
+            "adicione ao arquivo",
+            "ajoute au fichier",
+        ).any(actionText::startsWith)
+    }
+
+    private fun explicitMemoryQuery(actionText: String): String? {
+        return Regex("""\babout\s+(.+?)[.!?]?$""", RegexOption.IGNORE_CASE)
+            .find(actionText)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun explicitMemoryContent(actionText: String): String? {
+        return listOf(
+            Regex("""^(?:remember|retain)(?:\s+this)?\s*[:,-]?\s+(.+?)[.!?]?$""", RegexOption.IGNORE_CASE),
+            Regex("""^memory\s+add\s+(.+?)[.!?]?$""", RegexOption.IGNORE_CASE),
+            Regex("""^(?:记住(?:这个|这件事)?|recuerda|guarda|merke\s+dir|behalte|lembre-se|guarde|souviens-toi|mémorise|memorise)\s+(.+?)[.!?]?$""", RegexOption.IGNORE_CASE),
+        ).firstNotNullOfOrNull { pattern ->
+            pattern.find(actionText)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.trim()
+                ?.takeIf { it.isNotBlank() && it !in setOf("this", "this memory") }
+        }
+    }
+
+    private fun explicitMemoryId(actionText: String): String? {
+        return Regex("""\b(?:memory(?:_id)?\s*[#:=]?\s*)([A-Za-z0-9_-]+)\b""", RegexOption.IGNORE_CASE)
+            .find(actionText)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun jsonAuthorityValueEquals(actual: Any?, expected: Any): Boolean {
+        if (actual == null || actual == JSONObject.NULL) {
+            return expected == false || expected == ""
+        }
+        return when (expected) {
+            is Boolean -> when (actual) {
+                is Boolean -> actual == expected
+                else -> actual.toString().equals(expected.toString(), ignoreCase = true)
+            }
+            is Number -> actual.toString().toDoubleOrNull() == expected.toString().toDoubleOrNull()
+            else -> actual.toString() == expected.toString()
+        }
+    }
+
     internal fun compactToolSpecsFor(userText: String): JSONArray {
         val selectedNames = explicitlyRequestedToolNames(userText)
             .ifEmpty { inferredToolNames(userText) }
             .toMutableSet()
+        return compactToolSpecsForNames(selectedNames)
+    }
+
+    private fun conservativeTurboToolSpecsFor(userText: String): JSONArray {
+        return requestToolScopeFor(userText).scopedToolSpecs()
+    }
+
+    private fun conservativeRequestedToolNames(userText: String): Set<String> = buildSet {
+        explicitlyRequestedToolNames(userText).forEach { explicitName ->
+            add(canonicalToolName(explicitName))
+        }
+        addAll(highConfidenceNaturalLanguageActionToolNames(userText))
+    }
+
+    private fun compactToolSpecsForNames(selectedNames: Set<String>): JSONArray {
         if (selectedNames.isEmpty()) {
             return JSONArray()
         }
@@ -2206,6 +2933,18 @@ class NativeToolCallingChatClient(
         appendSelectedToolSpecs(result, curatedGeneralToolSpecs(), selectedNames, seen)
         appendSelectedToolSpecs(result, compactToolSpecs(), selectedNames, seen)
         return result
+    }
+
+    internal fun initialToolSpecsFor(
+        userText: String,
+        mode: String,
+        providerId: String,
+        llamaCppRuntimeLane: String,
+    ): JSONArray {
+        // Tool schemas are capability descriptions, not authority. Publish only the exact
+        // request scope for every lane so stable/large modes and context recovery cannot widen a
+        // natural request merely because their historic catalog was larger.
+        return requestToolScopeFor(userText).scopedToolSpecs()
     }
 
     private fun appendSelectedToolSpecs(
@@ -2274,10 +3013,9 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_system_tool",
-                    description = "Inspect Android state, open a safe settings panel, or perform an explicitly requested privileged action.",
+                    description = "Inspect Android state, open a safe settings panel, or perform an explicitly requested structured privileged action.",
                     properties = JSONObject()
-                        .put("action", stringProp("status, open_*_settings, run_privileged_shell, grant_permission, revoke_permission, or force_stop_app."))
-                        .put("command", stringProp("Command for run_privileged_shell."))
+                        .put("action", stringProp("status, open_*_settings, grant_permission, revoke_permission, or force_stop_app."))
                         .put("package_name", stringProp("Target Android package."))
                         .put("permission", stringProp("Target Android permission.")),
                     required = JSONArray().put("action"),
@@ -2322,9 +3060,357 @@ class NativeToolCallingChatClient(
             )
     }
 
+    /**
+     * High-confidence natural-language actions used by the TurboQuant no-tools fast path.
+     *
+     * This deliberately matches verb phrases rather than isolated nouns. For example, a user
+     * asking Hermes to create a reminder keeps the scheduling schema, while a conversation about
+     * reminder apps remains ordinary chat. Keep the six language groups aligned with AppLanguage.
+     */
+    private fun localizedNaturalLanguageActionToolNames(userText: String): Set<String> {
+        val lower = userText
+            .lowercase()
+            .replace('\u2010', '-')
+            .replace('\u2011', '-')
+            .replace('\u2013', '-')
+            .replace('\u2019', '\'')
+
+        fun startsWithAny(vararg phrases: String): Boolean = phrases.any { lower.startsWith(it) }
+
+        return buildSet {
+            if (
+                startsWithAny(
+                    // English
+                    "write a file", "create a file", "save this file", "append to file", "append to the file",
+                    // Chinese
+                    "创建文件", "创建一个文件", "写入文件", "保存文件", "追加到文件",
+                    // Spanish
+                    "crea un archivo", "escribe un archivo", "guarda este archivo", "añade al archivo",
+                    // German
+                    "erstelle eine datei", "schreibe eine datei", "speichere diese datei",
+                    "hänge an die datei", "haenge an die datei",
+                    // Portuguese
+                    "crie um arquivo", "escreva um arquivo", "salve este arquivo", "adicione ao arquivo",
+                    // French
+                    "crée un fichier", "cree un fichier", "écris un fichier", "ecris un fichier",
+                    "enregistre ce fichier", "ajoute au fichier",
+                )
+            ) {
+                add("file_write_tool")
+            }
+            if (
+                startsWithAny(
+                    "run the command", "execute the command", "run a shell command", "list the files",
+                    "run pwd", "run whoami", "run date", "run uname",
+                    "运行命令", "执行命令", "列出文件",
+                    "ejecuta el comando", "ejecute el comando", "lista los archivos",
+                    "führe den befehl", "führ den befehl", "liste die dateien",
+                    "execute o comando", "executa o comando", "liste os arquivos",
+                    "exécute la commande", "execute la commande", "liste les fichiers",
+                ) || NATURAL_TERMINAL_ACTION_REGEX.matches(lower.trim())
+            ) {
+                add("terminal_tool")
+            }
+            if (
+                startsWithAny(
+                    "take a screenshot", "tap on ", "click on ", "type into ",
+                    "截屏", "截图", "点击", "点按",
+                    "haz una captura", "toma una captura", "pulsa ", "toca ",
+                    "mache einen screenshot", "tippe auf ", "klicke auf ",
+                    "faça uma captura", "faca uma captura", "tire uma captura", "toque em ", "clique em ",
+                    "fais une capture", "prends une capture", "appuie sur ", "clique sur ",
+                )
+            ) {
+                add("android_ui_tool")
+            }
+            if (
+                startsWithAny(
+                    "open the settings", "open phone settings", "open android settings",
+                    "打开设置", "打开手机设置",
+                    "abre los ajustes", "abre la configuración", "abre la configuracion",
+                    "öffne die einstellungen", "offne die einstellungen",
+                    "abra as configurações", "abra as configuracoes",
+                    "ouvre les réglages", "ouvre les reglages", "ouvre les paramètres", "ouvre les parametres",
+                )
+            ) {
+                add("android_system_tool")
+            }
+            if (
+                startsWithAny(
+                    "remind me", "set a reminder", "create a reminder", "schedule a reminder", "schedule a task",
+                    "提醒我", "设置提醒", "设个提醒", "创建提醒", "安排任务",
+                    "recuérdame", "recuerdame", "crea un recordatorio", "configura un recordatorio",
+                    "programa un recordatorio", "programa una tarea",
+                    "erinnere mich", "stelle eine erinnerung", "erstelle eine erinnerung", "plane eine aufgabe",
+                    "lembre-me", "lembre me", "crie um lembrete", "defina um lembrete",
+                    "agende um lembrete", "agende uma tarefa",
+                    "rappelle-moi", "rappelle moi", "crée un rappel", "cree un rappel", "définis un rappel",
+                    "definis un rappel", "programme un rappel", "programme une tâche", "programme une tache",
+                )
+            ) {
+                add("schedule_task")
+            }
+            if (
+                startsWithAny(
+                    "list my tasks", "show my scheduled tasks",
+                    "列出我的任务", "显示已安排的任务",
+                    "lista mis tareas", "muestra mis tareas programadas",
+                    "liste meine aufgaben", "zeige meine geplanten aufgaben",
+                    "liste minhas tarefas", "mostre minhas tarefas agendadas",
+                    "liste mes tâches", "liste mes taches", "affiche mes tâches planifiées",
+                    "affiche mes taches planifiees",
+                )
+            ) {
+                add("list_tasks")
+            }
+            if (
+                startsWithAny(
+                    "cancel my task", "delete my scheduled task",
+                    "取消我的任务", "取消任务", "删除已安排的任务",
+                    "cancela mi tarea", "elimina mi tarea programada",
+                    "storniere meine aufgabe", "lösche meine geplante aufgabe",
+                    "cancele minha tarefa", "exclua minha tarefa agendada",
+                    "annule ma tâche", "annule ma tache", "supprime ma tâche planifiée",
+                    "supprime ma tache planifiee",
+                )
+            ) {
+                add("cancel_task")
+            }
+            if (
+                startsWithAny(
+                    "open the browser", "open this url", "open this link",
+                    "打开浏览器", "打开这个网址", "打开这个链接",
+                    "abre el navegador", "abre esta url", "abre este enlace",
+                    "öffne den browser", "offne den browser", "öffne diese url", "offne diese url",
+                    "abra o navegador", "abra esta url", "abra este link",
+                    "ouvre le navigateur", "ouvre cette url", "ouvre ce lien",
+                )
+            ) {
+                add("android_automation_tool")
+            }
+            if (
+                startsWithAny(
+                    "remember this", "retain this memory",
+                    "记住这个", "记住这件事",
+                    "recuerda esto", "guarda este recuerdo",
+                    "merke dir das", "behalte das in erinnerung",
+                    "lembre-se disto", "guarde esta memória", "guarde esta memoria",
+                    "souviens-toi de ceci", "mémorise ceci", "memorise ceci",
+                )
+            ) {
+                add("hy_memory_tool")
+            }
+        }
+    }
+
+    private fun normalizedActionIntentText(userText: String): String {
+        return userText
+            .lowercase()
+            .replace('\u2010', '-')
+            .replace('\u2011', '-')
+            .replace('\u2013', '-')
+            .replace('\u2019', '\'')
+            .trim()
+            .replace(Regex("""^(?:hey\s+)?(?:hermes[,:]\s*)?"""), "")
+            .replace(Regex("""^(?:(?:please|kindly)\s+|(?:can|could|would|will)\s+you\s+)"""), "")
+            .replace(Regex("""^(?:please|kindly)\s+"""), "")
+            .replace(Regex("""^(?:today|tomorrow|tonight|later|现在|今天|明天|后天|今晚|稍后)\s*[,，:]?\s*"""), "")
+            .replace(Regex("""```[\s\S]*?```"""), " ")
+            .replace(Regex("""`[^`\r\n]+`"""), " ")
+            .replace(Regex("""[\"“][^\"”]*[\"”]"""), " ")
+            .replace(Regex("""‘[^’]*’"""), " ")
+            .replace(Regex("""(^|\s)'[^'\r\n]+'(?=$|\s|[.,!?])""")) { match ->
+                match.groupValues[1]
+            }
+            .let { value ->
+                if (value.length >= 2 && value.first() == '\'' && value.last() == '\'') "" else value
+            }
+            .replace(Regex("""\s+"""), " ")
+            .trim()
+    }
+
+    private fun isDeniedOrMetaActionText(actionText: String): Boolean {
+        val governingDenial = listOf(
+            Regex("""^(?:please\s+)?(?:do\s+not|don't|dont|never|avoid)\b"""),
+            Regex("""^i\s+(?:do\s+not|don't|dont|cannot|can't)\b"""),
+            Regex("""^(?:por\s+favor\s+)?(?:no|nunca)\b"""),
+            Regex("""^(?:bitte\s+)?(?:nicht|nie|nein)\b"""),
+            Regex("""^(?:por\s+favor\s+)?(?:não|nao|nunca)\b"""),
+            Regex("""^(?:s'il\s+vous\s+plaît\s+|s'il\s+vous\s+plait\s+)?(?:non\b|ne\b|n'|jamais\b)"""),
+            Regex("""^(?:请)?(?:不要|别|不应|不能|绝不)"""),
+        ).any { it.containsMatchIn(actionText) }
+        if (governingDenial) {
+            return true
+        }
+
+        val metaRequest = listOf(
+            Regex("""^(?:do\s+not|don't|dont|never|avoid|i\s+(?:do\s+not|don't|dont)\b)"""),
+            Regex("""^(?:explain|describe|compare|discuss|define|translate|quote|tell\s+me\s+how|show\s+me\s+(?:how|what\b.{0,80}\b(?:said|meant))|how\s+(?:do|does|can|would)|why|the\s+phrase)\b"""),
+            Regex("""^(?:请)?(?:不要|别|解释|说明|比较|讨论)"""),
+            Regex("""^(?:por\s+favor\s+)?(?:no|nunca|explica|explique|describe|compara|discute)\b"""),
+            Regex("""^(?:bitte\s+)?(?:nicht|nie|erkläre|erklaere|beschreibe|vergleiche|diskutiere)\b"""),
+            Regex("""^(?:por\s+favor\s+)?(?:não|nao|nunca|explique|descreva|compare|discuta)\b"""),
+            Regex("""^(?:s'il\s+vous\s+plaît\s+|s'il\s+vous\s+plait\s+)?(?:ne\b|n'|jamais\b|explique\b|décris\b|decris\b|compare\b|discute\b)"""),
+        ).any { it.containsMatchIn(actionText) }
+        if (metaRequest) return true
+
+        // "Remind me not to forget ..." is an affirmative reminder whose embedded negation is
+        // the content to preserve, not authority to cancel the reminder. Keep that exception
+        // narrow and leading; governing denials above still reject "Do not remind me ...".
+        val embeddedReminderIdioms = listOf(
+            Regex("""\bnot\s+to\s+forget\b"""),
+            Regex("""不要忘记"""),
+            Regex("""\bno\s+olvidar\b"""),
+            Regex("""\bnicht\s+zu\s+vergessen\b"""),
+            Regex("""\b(?:não|nao)\s+esquecer\b"""),
+            Regex("""\bne\s+pas\s+oublier\b"""),
+        )
+        val hasAffirmativeReminderPrefix = listOf(
+            Regex("""^remind\s+me\b"""),
+            Regex("""^提醒我"""),
+            Regex("""^recuérdame\b|^recuerdame\b"""),
+            Regex("""^erinnere\s+mich\b"""),
+            Regex("""^lembre(?:-me|\s+me)\b"""),
+            Regex("""^rappelle(?:-moi|\s+moi)\b"""),
+        ).any { it.containsMatchIn(actionText) }
+        val denialScanText = (if (hasAffirmativeReminderPrefix) {
+            embeddedReminderIdioms.fold(actionText) { text, idiom -> idiom.replace(text, " ") }
+        } else {
+            actionText
+        })
+            // A denial word inside a literal filename or URL is data, not a governing clause.
+            // Keep the boundary narrow to structurally recognizable tokens so prose such as
+            // "create it, but not now" remains denied while `cannot-connect.md` stays usable.
+            .replace(Regex("""https?://\S+"""), " ")
+            .replace(
+                Regex("""(?:^|\s)[\"']?[A-Za-z0-9][A-Za-z0-9._/-]*\.[A-Za-z0-9]{1,12}[\"']?(?=\s|[.!?,;。！？，；]|$)"""),
+                " ",
+            )
+
+        // For every other action family, a standalone denial anywhere in the unquoted request
+        // removes authority. This is intentionally global: free prose after an affirmative verb
+        // ("but please do not", "and do not", "without doing so") cannot re-authorize a tool.
+        return listOf(
+            Regex("""\b(?:no|not|never|avoid|don't|dont|cannot|can't|must\s+not|should\s+not|do\s+not|without)\b"""),
+            Regex("""\b(?:no|nunca)\b"""),
+            Regex("""\b(?:nein|nicht|nie)\b"""),
+            Regex("""\b(?:não|nao|nunca)\b"""),
+            Regex("""\b(?:non|ne|pas|jamais)\b|(?:^|\s)n'"""),
+            Regex("""(?:不要|别|不应|不能|绝不)"""),
+        ).any { it.containsMatchIn(denialScanText) }
+    }
+
+    private fun isAffirmativeActionRequest(actionText: String): Boolean {
+        if (actionText.isBlank() || isDeniedOrMetaActionText(actionText)) return false
+        if (NATURAL_TERMINAL_ACTION_REGEX.matches(actionText)) return true
+        return listOf(
+            Regex("""^(?:(?:use|run|call|execute|invoke)\s+(?:the\s+)?)?(?:terminal_tool|mcp_send_terminal_input|linux_sandbox_tool|mcp_run_in_proot|proot_distro_tool|linux_host_pkg_tool|host_pkg_tool|termux_pkg_tool|hermes_pkg_tool|file_write_tool|write_file|android_system_tool|settings_tool|phone_tool|android_device_diagnostics_tool|device_diagnostics_tool|diagnostics_tool|wifi_analyzer_tool|bluetooth_scanner_tool|bluetooth_analyzer_tool|sensor_tool|sensor_analyzer_tool|camera_tool|radio_signal_tool|soc_backend_tool|runtime_stability_tool|device_performance_tool|hy_memory_tool|hymemory_tool|hindsight_memory_tool|memory_tool|memory_search|memory_add|memory_delete|memory_list|recall_tool|retain_tool|android_ui_tool|screen_tool|accessibility_tool|android_automation_tool|tasker_tool|kai_task_tool|schedule_task|list_tasks|cancel_task)\b"""),
+            Regex("""^(?:(?:i\s+(?:want|need)\s+you\s+to|i(?:'d|\s+would)\s+like\s+you\s+to)\s+)?(?:write|create|save|append|edit|delete|remove|run|execute|list|show|take|capture|grab|tap|click|press|type|open|launch|remind|set|schedule|cancel|remember|retain|recall|search|forget|reflect|install|update|upgrade|refresh|find|deploy|download|start|stop|restart|uninstall|manage|inspect|report|scan|analy[sz]e)\b"""),
+            Regex("""^(?:what\s+do\s+you\s+remember|what\s+have\s+you\s+remembered|what(?:'s|\s+is)\b|which\b|who\s+is\b|where\s+am\s+i\b)"""),
+            Regex("""^(?:sandbox status|linux sandbox status|alpine sandbox status|screenshot|screen snapshot|visible ui snapshot|device status|phone status|top apps|wifi scan|wi-fi scan|sensor snapshot|bluetooth scan)\s*[.!?]?$"""),
+            Regex("""^(?:(?:请|请帮我|帮我|现在|今天|明天|后天|今晚|稍后)\s*)*(?:创建|写入|保存|追加|编辑|删除|运行|执行|列出|截屏|截图|点击|点按|打开|提醒我|设置提醒|设个提醒|创建提醒|安排任务|取消|记住)"""),
+            Regex("""^(?:crea|escribe|guarda|añade|anade|edita|elimina|ejecuta|ejecute|lista|muestra|haz|toma|pulsa|toca|abre|recuérdame|recuerdame|configura|programa|cancela|recuerda)\b"""),
+            Regex("""^(?:erstelle|schreibe|speichere|hänge|haenge|bearbeite|lösche|loesche|führe|fuehre|führ|liste|zeige|mache|tippe|klicke|öffne|offne|erinnere|stelle|plane|storniere|merke|behalte)\b"""),
+            Regex("""^(?:crie|escreva|salve|adicione|edite|exclua|remova|execute|executa|liste|mostre|faça|faca|tire|toque|clique|abra|lembre|defina|agende|cancele|guarde)\b"""),
+            Regex("""^(?:crée|cree|écris|ecris|enregistre|ajoute|modifie|supprime|exécute|execute|liste|affiche|fais|prends|appuie|clique|ouvre|rappelle|définis|definis|programme|annule|souviens|mémorise|memorise)\b"""),
+            Regex("""^(?:inside|in)\b.{0,80}\b(?:sandbox|guest|alpine|debian|ubuntu|proot)\b"""),
+        ).any { it.containsMatchIn(actionText) }
+    }
+
+    /**
+     * Conservative action/query contract for TurboQuant's no-tools fast path.
+     *
+     * The broader legacy inference below intentionally recognizes many domain nouns so compact
+     * tool routing remains backwards compatible. TurboQuant must not use those nouns alone as a
+     * reason to spend context on schemas, but it must keep schemas for clear commands and live
+     * state queries. This contract is therefore anchored on an action phrase (or a small set of
+     * unambiguous direct queries) and is shared with [inferredToolNames] so the gate and schema
+     * selector cannot disagree.
+     */
+    private fun highConfidenceNaturalLanguageActionToolNames(userText: String): Set<String> {
+        val unquotedActionText = normalizedActionIntentText(userText)
+        if (!isAffirmativeActionRequest(unquotedActionText)) return emptySet()
+
+        val directQuery = unquotedActionText.trimEnd('.', '!', '?')
+
+        fun actionMatches(pattern: String): Boolean = Regex(pattern).containsMatchIn(unquotedActionText)
+        return buildSet {
+            addAll(localizedNaturalLanguageActionToolNames(unquotedActionText))
+
+            if (
+                actionMatches("""^(?:write|create|save|append)\s+(?:(?:to\s+)?(?:a|the|this)\s+)?files?\b.*$""")
+            ) {
+                add("file_write_tool")
+            }
+
+            if (actionMatches("""^(?:show|list)(?:\s+(?:me|my|the|scheduled))*\s+tasks?\b.*$""")) {
+                add("list_tasks")
+            }
+
+            if (actionMatches("""^(?:cancel|delete|remove)\s+(?:(?:my|the|scheduled)\s+)?tasks?\b.*$""")) {
+                add("cancel_task")
+            }
+
+            if (
+                actionMatches("""^(?:open|launch)\s+(?:(?:the\s+)?browser(?:\s+.*)?|https?://\S+)\s*[.!?]?$""")
+            ) {
+                add("android_automation_tool")
+            }
+
+            if (
+                actionMatches("""^(?:recall|search|show|list|delete|forget|reflect\s+on)\b.{0,48}\bmemor(?:y|ies)\b""") ||
+                actionMatches("""^(?:what\s+do\s+you\s+remember|what\s+have\s+you\s+remembered)\b""") ||
+                actionMatches("""^memory\s+recall(?:\b|$)""")
+            ) {
+                add("hy_memory_tool")
+            }
+
+            if (
+                actionMatches("""^(?:run\s+)?pkg\s+(?:install|update|upgrade|search)\b""") ||
+                actionMatches("""^(?:install|update|upgrade|refresh|search|find|list|show)\b.{0,48}\b(?:host|termux|embedded)\b.{0,24}\bpackages?\b""") ||
+                actionMatches("""^(?:install|update|upgrade)\s+proot\b""") ||
+                actionMatches("""^(?:refresh|update|upgrade)\s+(?:the\s+)?host\s+linux\b""")
+            ) {
+                add("linux_host_pkg_tool")
+            }
+
+            if (
+                actionMatches("""^(?:deploy|install|download|start|stop|restart|run|update|upgrade|uninstall|remove|manage|inspect|list)\b.{0,80}\b(?:sandbox|guest|alpine|debian|ubuntu|proot)\b""") ||
+                actionMatches("""^run\b.{0,80}\b(?:inside|in)\b.{0,32}\b(?:sandbox|guest|alpine|debian|ubuntu|proot)\b""") ||
+                actionMatches("""^(?:inside|in)\b.{0,40}\b(?:sandbox|guest|alpine|debian|ubuntu|proot)\b.{0,48}\brun\b""") ||
+                directQuery in setOf("sandbox status", "linux sandbox status", "alpine sandbox status")
+            ) {
+                add("linux_sandbox_tool")
+                add("mcp_run_in_proot")
+            }
+
+            if (
+                actionMatches("""^(?:take|capture|grab|show)\b.{0,32}\bscreenshots?\b""") ||
+                actionMatches("""^(?:tap|click|press)\s+(?:on\s+)?(?:the\s+)?\S+""") ||
+                actionMatches("""^type\b.{0,64}\b(?:into|in)\b""") ||
+                actionMatches("""^(?:show|inspect|read)\b.{0,32}\b(?:current\s+)?(?:screen|visible\s+ui)\b""") ||
+                directQuery in setOf("screenshot", "screen snapshot", "visible ui snapshot")
+            ) {
+                add("android_ui_tool")
+            }
+
+            if (
+                actionMatches("""^(?:show|check|get|inspect|report|run|scan|list|analy[sz]e)\b.{0,64}\b(?:device\s+status|phone\s+status|top\s+apps?|wi-?fi|sensors?|accelerometer|gyroscope|bluetooth)\b""") ||
+                actionMatches("""^(?:what(?:'s|\s+is)|which)\b.{0,64}\b(?:device\s+status|phone\s+status|apps?\s+are\s+using|sensors?\s+are\s+available|wi-?fi\s+networks?)\b""") ||
+                directQuery in setOf(
+                    "device status", "phone status", "top apps", "wifi scan", "wi-fi scan",
+                    "sensor snapshot", "bluetooth scan",
+                )
+            ) {
+                add("android_device_diagnostics_tool")
+            }
+        }
+    }
+
     private fun inferredToolNames(userText: String): Set<String> {
         val lower = userText.lowercase()
         return buildSet {
+            addAll(highConfidenceNaturalLanguageActionToolNames(userText))
             if (
                 listOf(
                     "write file",
@@ -2748,89 +3834,8 @@ class NativeToolCallingChatClient(
     }
 
     private fun explicitlyRequestedToolNames(userText: String): Set<String> {
-        val lower = userText.lowercase()
-        return buildSet {
-            if ("terminal_tool" in lower || "mcp_send_terminal_input" in lower || "shell tool" in lower) {
-                add("terminal_tool")
-                add("mcp_send_terminal_input")
-            }
-            if ("linux_sandbox_tool" in lower || "mcp_run_in_proot" in lower || "proot_distro_tool" in lower) {
-                add("linux_sandbox_tool")
-                add("mcp_run_in_proot")
-            }
-            if (
-                "linux_host_pkg_tool" in lower ||
-                "host_pkg_tool" in lower ||
-                "termux_pkg_tool" in lower ||
-                "hermes_pkg_tool" in lower
-            ) {
-                add("linux_host_pkg_tool")
-            }
-            if ("file_write_tool" in lower || "write_file" in lower) {
-                add("file_write_tool")
-            }
-            if ("android_system_tool" in lower || "settings_tool" in lower || "phone_tool" in lower) {
-                add("android_system_tool")
-            }
-            if (
-                "android_device_diagnostics_tool" in lower ||
-                "device_diagnostics_tool" in lower ||
-                "diagnostics_tool" in lower ||
-                "wifi_analyzer_tool" in lower ||
-                "bluetooth_scanner_tool" in lower ||
-                "bluetooth_analyzer_tool" in lower ||
-                "sensor_tool" in lower ||
-                "sensor_analyzer_tool" in lower ||
-                "camera_tool" in lower ||
-                "radio_signal_tool" in lower ||
-                "soc_backend_tool" in lower ||
-                "runtime_stability_tool" in lower ||
-                "device_performance_tool" in lower
-            ) {
-                add("android_device_diagnostics_tool")
-            }
-            if (
-                "hy_memory_tool" in lower ||
-                "hymemory_tool" in lower ||
-                "hindsight_memory_tool" in lower ||
-                "memory_tool" in lower ||
-                "memory_search" in lower ||
-                "memory_add" in lower ||
-                "memory_delete" in lower ||
-                "memory_list" in lower ||
-                "recall_tool" in lower ||
-                "retain_tool" in lower
-            ) {
-                add("hy_memory_tool")
-                if ("memory_search" in lower) {
-                    add("memory_search")
-                }
-                if ("memory_add" in lower) {
-                    add("memory_add")
-                }
-                if ("memory_delete" in lower) {
-                    add("memory_delete")
-                }
-                if ("memory_list" in lower) {
-                    add("memory_list")
-                }
-            }
-            if ("android_ui_tool" in lower || "screen_tool" in lower || "accessibility_tool" in lower) {
-                add("android_ui_tool")
-            }
-            if ("android_automation_tool" in lower || "tasker_tool" in lower || "kai_task_tool" in lower) {
-                add("android_automation_tool")
-            }
-            if ("schedule_task" in lower) {
-                add("schedule_task")
-            }
-            if ("list_tasks" in lower) {
-                add("list_tasks")
-            }
-            if ("cancel_task" in lower) {
-                add("cancel_task")
-            }
-        }
+        val authority = NativeDirectToolAuthorityParser.parse(userText)
+        return if (authority.isTypedInvocation) authority.toolNames else emptySet()
     }
 
     private fun functionSpec(
@@ -3980,14 +4985,8 @@ class NativeToolCallingChatClient(
                                                     .put("type", "string")
                                                     .put(
                                                         "description",
-                                                        "Use status to read device state, run_privileged_shell with a command argument, grant_runtime_permission/revoke_runtime_permission with package_name and permission, force_stop_app/clear_app_data/enable_app/disable_app/set_app_enabled with package_name, Shizuku connectivity toggles such as set_wifi_enabled/set_bluetooth_enabled/set_mobile_data_enabled/set_airplane_mode_enabled, set_wifi_tethering_enabled with enabled/state, set_dnd_mode with dnd_mode, set_power_save_mode with enabled/state, turn_screen_off, end_call, global navigation/statusbar actions, set_mobile_network_type with network_types_bitmask and optional slot_id, user/work-profile actions with user_id, custom setting actions set_custom_setting/get_custom_setting/delete_custom_setting with setting_namespace and setting_name, or one of the available actions returned in status.",
+                                                        "Use status to read device state, grant_runtime_permission/revoke_runtime_permission with package_name and permission, force_stop_app/clear_app_data/enable_app/disable_app/set_app_enabled with package_name, Shizuku connectivity toggles such as set_wifi_enabled/set_bluetooth_enabled/set_mobile_data_enabled/set_airplane_mode_enabled, set_wifi_tethering_enabled with enabled/state, set_dnd_mode with dnd_mode, set_power_save_mode with enabled/state, turn_screen_off, end_call, global navigation/statusbar actions, set_mobile_network_type with network_types_bitmask and optional slot_id, user/work-profile actions with user_id, custom setting actions set_custom_setting/get_custom_setting/delete_custom_setting with setting_namespace and setting_name, or one of the available actions returned in status.",
                                                     ),
-                                            )
-                                            .put(
-                                                "command",
-                                                JSONObject()
-                                                    .put("type", "string")
-                                                    .put("description", "Shell command for action run_privileged_shell. Requires running Shizuku/Sui and user-granted Hermes permission."),
                                             )
                                             .put(
                                                 "package_name",
@@ -4049,12 +5048,6 @@ class NativeToolCallingChatClient(
                                                     .put("type", "string")
                                                     .put("description", "Optional SIM slot id for set_mobile_network_type."),
                                             )
-                                            .put(
-                                                "timeout_seconds",
-                                                JSONObject()
-                                                    .put("type", "integer")
-                                                    .put("description", "Optional timeout for run_privileged_shell and Shizuku-backed package-manager, setting, tethering, connectivity, DND, power, profile, mobile-network, or global navigation actions, clamped by Hermes."),
-                                            )
                                     )
                                     .put("required", JSONArray().put("action")),
                             ),
@@ -4101,7 +5094,7 @@ class NativeToolCallingChatClient(
                 pattern = """(?i)\b(?:name|tool|function)=["']([^"']+)["']""",
             )
             private val xmlToolJsonNameRegex = Regex(
-                pattern = """"(?:name|tool|function)"\s*:\s*"([^"]+)"""",
+                pattern = """["](?:name|tool|function)["]\s*:\s*["]([^"]+)["]""",
             )
             private val xmlToolLooseArgumentRegex = Regex(
                 pattern = """([A-Za-z_][A-Za-z0-9_-]*)\s*=\s*("[^"]*"|'[^']*'|[^\s]+)""",
@@ -4111,7 +5104,16 @@ class NativeToolCallingChatClient(
                 pattern = """(?is)(?:<\|tool_call_start\|>|<｜tool▁call▁begin｜>)(.*?)(?:<\|tool_call_end\|>|<｜tool▁call▁end｜>)""",
             )
             private val fencedJsonRegex = Regex("""(?is)```(?:json)?\s*(.+?)\s*```""")
-            private val thinkBlockRegex = Regex("""(?is)<think>(.*?)</think>""")
+            private val leadingThinkBlockRegex = Regex("""(?is)^\s*<think\s*>(.*?)</think\s*>""")
+            private val anyThinkTagRegex = Regex("""(?is)</?think\s*>""")
+            private val duplicatedOrphanThinkCloseRegex = Regex(
+                """(?is)^(.*?)\r?\n[ \t]*</think\s*>[ \t]*\r?\n(?:[ \t]*\r?\n)+(.*)$""",
+            )
+
+            private data class ParsedThinkContent(
+                val reasoning: List<String>,
+                val visibleContent: String,
+            )
 
             fun fromJson(json: JSONObject): AssistantMessage {
                 val toolCalls = mutableListOf<ToolCall>()
@@ -4130,12 +5132,14 @@ class NativeToolCallingChatClient(
                     )
                 }
                 val rawContent = json.optString("content").takeUnless { json.isNull("content") }.orEmpty()
-                val reasoning = listOf(
-                    json.optString("reasoning_content"),
-                    json.optString("reasoning"),
-                    thinkBlockRegex.findAll(rawContent).joinToString("\n") { it.groups[1]?.value.orEmpty().trim() },
-                ).filter { it.isNotBlank() }.joinToString("\n")
-                val visibleContent = thinkBlockRegex.replace(rawContent, "").trim()
+                val parsedThinkContent = parseThinkContent(rawContent)
+                val reasoning = (
+                    listOf(
+                        json.optString("reasoning_content"),
+                        json.optString("reasoning"),
+                    ) + parsedThinkContent.reasoning
+                ).map { it.trim() }.filter { it.isNotBlank() }.joinToString("\n")
+                val visibleContent = parsedThinkContent.visibleContent
                 val contentToolCalls = if (toolCalls.isEmpty()) {
                     parseToolCallsFromContent(visibleContent)
                 } else {
@@ -4151,6 +5155,128 @@ class NativeToolCallingChatClient(
                     toolCalls = toolCalls,
                     reasoning = reasoning,
                 )
+            }
+
+            private fun parseThinkContent(rawContent: String): ParsedThinkContent {
+                val original = rawContent.trim()
+                val tentativeReasoning = mutableListOf<String>()
+                var remainder = original
+                var removedLeadingBlock = false
+                while (true) {
+                    val match = leadingThinkBlockRegex.find(remainder) ?: break
+                    removedLeadingBlock = true
+                    match.groups[1]?.value?.trim()?.takeIf { it.isNotBlank() }?.let(tentativeReasoning::add)
+                    remainder = remainder.substring(match.range.last + 1).trimStart()
+                }
+
+                // A leading block is model reasoning only when it is followed by a visible reply.
+                // A response consisting solely of literal <think> markup must remain user-visible.
+                val balancedReasoning = if (removedLeadingBlock && remainder.isNotBlank()) {
+                    tentativeReasoning
+                } else {
+                    emptyList()
+                }
+                val visibleContent = if (removedLeadingBlock && remainder.isNotBlank()) {
+                    remainder.trim()
+                } else {
+                    original
+                }
+
+                repairDuplicatedOrphanThinkClose(visibleContent)?.let { repaired ->
+                    return ParsedThinkContent(
+                        reasoning = balancedReasoning + repaired.reasoning,
+                        visibleContent = repaired.visibleContent,
+                    )
+                }
+                return ParsedThinkContent(
+                    reasoning = balancedReasoning,
+                    visibleContent = visibleContent,
+                )
+            }
+
+            /**
+             * Repairs the exact malformed Nanbeige shape observed on the physical device:
+             *
+             * answer\n</think>\n\nanswer
+             *
+             * Both copies must be identical, the close tag must be the only unprotected Think
+             * tag, and it must occupy its own line followed by a blank line. These constraints
+             * keep literal prose, Markdown code, multiple-close output, and tool payloads intact.
+             */
+            private fun repairDuplicatedOrphanThinkClose(content: String): ParsedThinkContent? {
+                if (containsToolCallEnvelope(content)) return null
+                val masked = maskMarkdownCode(content)
+                val tags = anyThinkTagRegex.findAll(masked).toList()
+                if (tags.size != 1 || !tags.single().value.trimStart().startsWith("</", ignoreCase = true)) {
+                    return null
+                }
+                val match = duplicatedOrphanThinkCloseRegex.matchEntire(masked) ?: return null
+                val prefixRange = match.groups[1]?.range ?: return null
+                val suffixRange = match.groups[2]?.range ?: return null
+                val prefix = content.substring(prefixRange.first, prefixRange.last + 1).trim()
+                val suffix = content.substring(suffixRange.first, suffixRange.last + 1).trim()
+                if (prefix.isBlank() || suffix.isBlank() || prefix != suffix) return null
+                return ParsedThinkContent(
+                    reasoning = listOf(prefix),
+                    visibleContent = suffix,
+                )
+            }
+
+            private fun containsToolCallEnvelope(content: String): Boolean {
+                val lower = content.lowercase()
+                return "<tool_call" in lower ||
+                    "</tool_call" in lower ||
+                    "<|tool_call_" in lower ||
+                    "<｜tool▁call▁" in content ||
+                    xmlNamedToolCallBlockRegex.containsMatchIn(content)
+            }
+
+            /** Masks Markdown code spans without changing offsets used to slice the original. */
+            private fun maskMarkdownCode(content: String): String {
+                val masked = content.toCharArray()
+                var index = 0
+                while (index < content.length) {
+                    val marker = content[index]
+                    if (marker != '`' && marker != '~') {
+                        index += 1
+                        continue
+                    }
+                    var runEnd = index + 1
+                    while (runEnd < content.length && content[runEnd] == marker) {
+                        runEnd += 1
+                    }
+                    val runLength = runEnd - index
+                    if (marker == '~' && runLength < 3) {
+                        index = runEnd
+                        continue
+                    }
+                    val delimiter = content.substring(index, runEnd)
+                    val closing = content.indexOf(delimiter, startIndex = runEnd)
+                    if (closing < 0) {
+                        if (runLength >= 3) {
+                            maskNonNewlines(masked, index, content.length)
+                        }
+                        index = runEnd
+                        continue
+                    }
+                    val firstNewline = content.indexOf('\n', startIndex = runEnd)
+                    if (runLength < 3 && firstNewline in runEnd until closing) {
+                        index = runEnd
+                        continue
+                    }
+                    val protectedEnd = closing + delimiter.length
+                    maskNonNewlines(masked, index, protectedEnd)
+                    index = protectedEnd
+                }
+                return masked.concatToString()
+            }
+
+            private fun maskNonNewlines(target: CharArray, start: Int, endExclusive: Int) {
+                for (index in start until endExclusive) {
+                    if (target[index] != '\n' && target[index] != '\r') {
+                        target[index] = ' '
+                    }
+                }
             }
 
             private fun parseToolCallsFromContent(content: String): List<ToolCall> {
@@ -4653,6 +5779,9 @@ class NativeToolCallingChatClient(
                 "timeout" in message ||
                 "before producing a response" in message
         }
+
+        internal fun isSupportedDirectAndroidDiagnosticsAction(action: String): Boolean =
+            action.lowercase().replace('-', '_') in DIRECT_ANDROID_DEVICE_DIAGNOSTIC_ACTIONS
 
         fun extractExplicitAndroidDiagnosticsArguments(userText: String): JSONObject? {
             val lower = userText.lowercase()
@@ -5228,7 +6357,6 @@ class NativeToolCallingChatClient(
         private const val FOCUSED_PERSONA_CHARS = 320
         private const val FOCUSED_MEMORY_CHARS = 320
         private const val MAX_NATIVE_TOOL_ROUNDS = 6
-        private const val PRIVILEGED_TOOL_TIMEOUT_SECONDS = 30
         private const val MAX_TOOL_RESULT_CHARS = 12_000
         private const val MAX_NATIVE_ERROR_CHARS = 360
         private const val DEFAULT_UI_SNAPSHOT_LIMIT = 80
@@ -5674,6 +6802,9 @@ class NativeToolCallingChatClient(
         private val MARKER_REGEX = Regex("""\b[A-Z][A-Z0-9_]{5,}\b""")
         private val TERMINAL_COMMAND_WORD_REGEX = Regex(
             """\b(?:(?:pwd|whoami|date|id)(?:\s|$)|(?:mkdir|rm|ls|cat|python|uname)\s+)""",
+        )
+        private val NATURAL_TERMINAL_ACTION_REGEX = Regex(
+            """^(?:please\s+)?(?:run\s+)?(?:pwd|whoami|date|id|ls(?:\s+-la)?|uname(?:\s+-a)?)\s*[.!?]?$""",
         )
         private val FILE_WRITE_WITH_CONTENT_REGEX = Regex(
             pattern = """(?is)\b(?:write|create|save)\s+(?:"([^"]+)"|'([^']+)'|([A-Za-z0-9._/-]+))\s+with\s+content\s+(.+?)(?:\.\s+(?:after|then)\b|$)""",

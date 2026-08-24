@@ -22,6 +22,7 @@ import shlex
 import struct
 import subprocess
 import sys
+import zipfile
 import zlib
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -41,17 +42,23 @@ HOST_LAUNCH_THEME_SCHEMA = "hermes-host-launch-theme-evidence-v2"
 PERSISTED_PALETTE_SCHEMA = "hermes-persisted-palette-state-v1"
 ISSUE8_EVIDENCE_SCHEMA = "hermes-android-issue-8-tool-and-preflight-v1"
 ISSUE16_EVIDENCE_SCHEMA = "hermes-android-issue-16-debian-sandbox-v1"
+PHYSICAL_NANBEIGE_REPAIR_SCHEMA = "hermes-android-physical-nanbeige-repair-v1"
 SOURCE_DIGEST_ALGORITHM = "sha256-git-tree-contents-v1"
 EVIDENCE_PREFIX = PurePosixPath("android/release-evidence")
 COMPREHENSIVE_UI_EVIDENCE_MIN_VERSION = (0, 13, 148)
 LITERTLM_0161_MIN_VERSION = (0, 13, 148)
+PHYSICAL_NANBEIGE_REPAIR_MIN_VERSION = (0, 13, 151)
 LANGUAGES = ("en", "zh", "es", "de", "pt", "fr")
 PROFILES = ("phone-compact", "tablet")
 UI_COVERAGE_PREFIX = PurePosixPath("ui-coverage")
 LAUNCH_THEME_PREFIX = PurePosixPath("launch-theme")
 ISSUE_EVIDENCE_PREFIX = PurePosixPath("issues")
+PHYSICAL_DEVICE_PREFIX = PurePosixPath("physical-device")
 ISSUE8_EVIDENCE_PATH = ISSUE_EVIDENCE_PREFIX / "issue-8-tool-and-preflight.json"
 ISSUE16_EVIDENCE_PATH = ISSUE_EVIDENCE_PREFIX / "issue-16-debian-sandbox.json"
+PHYSICAL_NANBEIGE_REPAIR_PATH = (
+    PHYSICAL_DEVICE_PREFIX / "nanbeige4.2-3b-q4-k-m-repair.json"
+)
 COMPLETE_UI_INVENTORY = "complete-inventory.txt"
 LOCALIZED_UI_INVENTORY = "localized-inventory.txt"
 APP_SECTION_SOURCE = PurePosixPath(
@@ -87,6 +94,9 @@ SOFTWARE_RENDERER_MARKERS = (
     "microsoft basic render driver",
 )
 PACKAGE_ID = "com.mobilefork.hermesagent"
+EXPECTED_RELEASE_SIGNER_SHA256 = (
+    "2cbdb94d6081413055af1e903d4c1d6714300b4240402d1d4c8182fda777d14e"
+)
 TEST_PACKAGE_ID = f"{PACKAGE_ID}.test"
 BENCHMARK_TEST_PACKAGE_ID = f"{PACKAGE_ID}.macrobenchmark"
 MAIN_ACTIVITY = f"{PACKAGE_ID}/.MainActivity"
@@ -167,6 +177,17 @@ HISTORICAL_E4B_ARTIFACT = ArtifactSpec(
 )
 HISTORICAL_E4B_EVIDENCE_PATH = HISTORICAL_E4B_ARTIFACT.evidence_path
 
+NANBEIGE_REPAIR_ARTIFACT = ArtifactSpec(
+    model_id="nanbeige4.2-3b-q4-k-m",
+    repository="Tdamre/Nanbeige4.2-3B-GGUF",
+    revision="128d8e87d69f9c1a30c37e40530c69deda96475d",
+    file_name="Nanbeige4.2-3B-Q4_K_M.gguf",
+    runtime="llama.cpp",
+    expected_bytes=2_574_807_840,
+    sha256="99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489",
+    required_llama_cpp_runtime_lane="turboquant",
+)
+
 ISSUE8_TWELVE_B_MODEL_ID = "gemma-4-12b-litert-lm"
 ISSUE8_TWELVE_B_REPOSITORY = "litert-community/gemma-4-12B-it-litert-lm"
 ISSUE8_TWELVE_B_REVISION = "d7de8ec6dcf035c90999ff38560bf4c6eb45a947"
@@ -183,6 +204,126 @@ ISSUE16_INSTRUMENTATION_METHOD = (
     "oneClickDebianRunsGuestBinariesWithoutWritableHostFallback"
 )
 GUEST_ONLY_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+PHYSICAL_ORDINARY_CHAT_PROMPT = "Reply exactly NANBEIGE_OK"
+PHYSICAL_ORDINARY_CHAT_EXPECTED_REPLY = "NANBEIGE_OK"
+PHYSICAL_STOP_CHAT_PROMPT = "Write a long numbered list, continuing until I press Stop."
+PHYSICAL_STOP_TERMINAL_MESSAGE = "This reply was stopped by the user."
+PHYSICAL_DEVICE_EMULATOR_MARKERS = (
+    "emulator",
+    "generic",
+    "sdk_gphone",
+    "goldfish",
+    "ranchu",
+    "cuttlefish",
+    "vbox",
+    "genymotion",
+)
+VISIBLE_THINK_MARKER_RE = re.compile(
+    r"(?is)(?:</?\s*(?:think|analysis|reasoning)\b[^>]*>|"
+    r"\[(?:/?think|/?analysis|/?reasoning)\])"
+)
+PHYSICAL_MODEL_PATH_ROOT = (
+    f"/storage/emulated/0/Android/data/{PACKAGE_ID}/files/Download/models/"
+)
+PHYSICAL_STABLE_RUNTIME_EXECUTABLE = "libhermes_android_llama_server.so"
+PHYSICAL_STABLE_RUNTIME_PORT = 18081
+PHYSICAL_STABLE_RUNTIME_APK_ENTRIES = (
+    "lib/arm64-v8a/libandroid-spawn.so",
+    "lib/arm64-v8a/libc++_shared.so",
+    "lib/arm64-v8a/libcrypto.so",
+    "lib/arm64-v8a/libggml-base.so",
+    "lib/arm64-v8a/libggml-cpu.so",
+    "lib/arm64-v8a/libggml.so",
+    f"lib/arm64-v8a/{PHYSICAL_STABLE_RUNTIME_EXECUTABLE}",
+    "lib/arm64-v8a/libllama-common.so",
+    "lib/arm64-v8a/libllama-server-impl.so",
+    "lib/arm64-v8a/libllama.so",
+    "lib/arm64-v8a/libmtmd.so",
+    "lib/arm64-v8a/libssl.so",
+)
+PHYSICAL_STABLE_RUNTIME_SYSTEM_LIBRARIES = (
+    "libc.so",
+    "libm.so",
+    "libdl.so",
+)
+PHYSICAL_STABLE_RUNTIME_ROLES = {
+    "libandroid-spawn.so": "process-spawn-support",
+    "libc++_shared.so": "cxx-runtime",
+    "libcrypto.so": "tls-crypto",
+    "libggml-base.so": "ggml-core",
+    "libggml-cpu.so": "ggml-cpu-dlopen-backend",
+    "libggml.so": "ggml-backend-loader",
+    PHYSICAL_STABLE_RUNTIME_EXECUTABLE: "server-executable",
+    "libllama-common.so": "llama-common",
+    "libllama-server-impl.so": "server-implementation",
+    "libllama.so": "llama-model-runtime",
+    "libmtmd.so": "multimodal-runtime",
+    "libssl.so": "tls-runtime",
+}
+PHYSICAL_STABLE_RUNTIME_DT_NEEDED = {
+    "libandroid-spawn.so": ("libc++_shared.so", "libdl.so", "libc.so"),
+    "libc++_shared.so": ("libc.so", "libm.so", "libdl.so"),
+    "libcrypto.so": ("libdl.so", "libc.so"),
+    "libggml-base.so": ("libm.so", "libdl.so", "libc++_shared.so", "libc.so"),
+    "libggml-cpu.so": (
+        "libggml-base.so",
+        "libc++_shared.so",
+        "libm.so",
+        "libdl.so",
+        "libc.so",
+    ),
+    "libggml.so": ("libggml-base.so", "libc++_shared.so", "libdl.so", "libc.so"),
+    PHYSICAL_STABLE_RUNTIME_EXECUTABLE: ("libllama-server-impl.so", "libc.so"),
+    "libllama-common.so": (
+        "libllama.so",
+        "libssl.so",
+        "libcrypto.so",
+        "libggml.so",
+        "libggml-base.so",
+        "libc.so",
+        "libc++_shared.so",
+        "libm.so",
+        "libdl.so",
+    ),
+    "libllama-server-impl.so": (
+        "libandroid-spawn.so",
+        "libc.so",
+        "libllama-common.so",
+        "libmtmd.so",
+        "libllama.so",
+        "libggml.so",
+        "libggml-base.so",
+        "libssl.so",
+        "libcrypto.so",
+        "libc++_shared.so",
+        "libm.so",
+        "libdl.so",
+    ),
+    "libllama.so": (
+        "libggml.so",
+        "libggml-base.so",
+        "libc++_shared.so",
+        "libm.so",
+        "libdl.so",
+        "libc.so",
+    ),
+    "libmtmd.so": (
+        "libandroid-spawn.so",
+        "libllama.so",
+        "libggml.so",
+        "libggml-base.so",
+        "libc.so",
+        "libc++_shared.so",
+        "libm.so",
+        "libdl.so",
+    ),
+    "libssl.so": ("libcrypto.so", "libc.so"),
+}
+PHYSICAL_STABLE_RUNTIME_LOADER_ERROR_RE = re.compile(
+    r"(?:cannot link executable|dlopen failed|cannot locate symbol|"
+    r"library [^\r\n]+ not found|not accessible for the namespace)",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -210,6 +351,17 @@ class EvidenceFile:
 
 
 @dataclass(frozen=True)
+class PhysicalNanbeigeRepairEvidence:
+    candidate_apk_sha256: str
+    candidate_apk_bytes: int
+    apk_signer_sha256: str
+    device_model: str
+    device_manufacturer: str
+    adb_serial_sha256: str
+    model_device_path: str
+
+
+@dataclass(frozen=True)
 class ValidatedEvidence:
     files: tuple[EvidenceFile, ...]
     model_count: int
@@ -231,6 +383,14 @@ class ValidatedEvidence:
     required_settings_pages: tuple[str, ...] = ()
     required_device_pages: tuple[str, ...] = ()
     required_recommended_model_ids: tuple[str, ...] = ()
+    physical_nanbeige_repair_count: int = 0
+    physical_candidate_apk_sha256: str = ""
+    physical_candidate_apk_bytes: int = 0
+    physical_apk_signer_sha256: str = ""
+    physical_device_models: tuple[str, ...] = ()
+    physical_device_manufacturers: tuple[str, ...] = ()
+    physical_adb_serial_sha256: str = ""
+    physical_nanbeige_model_path: str = ""
 
 
 @dataclass(frozen=True)
@@ -489,6 +649,12 @@ def requires_comprehensive_ui_evidence(tag: str) -> bool:
     """Return whether the tag is subject to the v3 headed UI/launch contract."""
 
     return _tag_version_tuple(tag) >= COMPREHENSIVE_UI_EVIDENCE_MIN_VERSION
+
+
+def requires_physical_nanbeige_repair_evidence(tag: str) -> bool:
+    """Return whether the tag requires the physical ARM64 Nanbeige repair gate."""
+
+    return _tag_version_tuple(tag) >= PHYSICAL_NANBEIGE_REPAIR_MIN_VERSION
 
 
 def litertlm_coordinate_for_tag(tag: str) -> str:
@@ -1082,6 +1248,14 @@ def require_clean_worktree(repo_root: Path) -> None:
 
 
 def require_tag_points_to_head(repo_root: Path, tag: str) -> None:
+    tag_type = _run_git(
+        repo_root,
+        "cat-file",
+        "-t",
+        f"refs/tags/{tag}",
+    ).stdout.decode("ascii", errors="strict").strip()
+    if tag_type != "tag":
+        raise EvidenceError(f"Tag {tag} must be an annotated tag object, got {tag_type!r}")
     tag_commit = _run_git(
         repo_root,
         "rev-parse",
@@ -4600,6 +4774,669 @@ def _exact_keys(value: Mapping[str, Any], expected: set[str], context: str) -> N
         )
 
 
+def _registered_nanbeige_repair_artifact(
+    artifacts: Sequence[ArtifactSpec],
+) -> ArtifactSpec:
+    matches = [
+        artifact
+        for artifact in artifacts
+        if artifact.model_id == NANBEIGE_REPAIR_ARTIFACT.model_id
+    ]
+    if len(matches) != 1:
+        raise EvidenceError(
+            "The v0.13.151+ physical repair contract requires exactly one registered "
+            f"{NANBEIGE_REPAIR_ARTIFACT.model_id} artifact"
+        )
+    if matches[0] != NANBEIGE_REPAIR_ARTIFACT:
+        raise EvidenceError(
+            "The registered Nanbeige repair artifact no longer matches its pinned "
+            "repository, revision, file name, runtime lane, byte length, or SHA-256"
+        )
+    return matches[0]
+
+
+def _validate_physical_nanbeige_repair_evidence(
+    path: Path,
+    artifacts: Sequence[ArtifactSpec],
+    source_digest: str,
+    version_name: str,
+    version_code: int,
+    tag: str,
+) -> PhysicalNanbeigeRepairEvidence:
+    """Validate one privacy-safe, physical ARM64 before/after Nanbeige record."""
+
+    context = "physical_nanbeige_repair"
+    artifact = _registered_nanbeige_repair_artifact(artifacts)
+    payload = _json_object(path)
+    _exact_keys(
+        payload,
+        {
+            "schema",
+            "result",
+            "evidence_complete",
+            "recorded_at_epoch_ms",
+            "release_identity",
+            "device_identity",
+            "model_identity",
+            "stable_precondition",
+            "automatic_reconciliation",
+            "readiness",
+            "ordinary_chat",
+            "stop_control",
+            "validation_errors",
+        },
+        context,
+    )
+    for field, expected in {
+        "schema": PHYSICAL_NANBEIGE_REPAIR_SCHEMA,
+        "result": "passed",
+        "evidence_complete": True,
+        "validation_errors": [],
+    }.items():
+        if payload.get(field) != expected:
+            raise EvidenceError(f"{context}.{field} must equal {expected!r}")
+    _integer(payload, "recorded_at_epoch_ms", context, positive=True)
+
+    release = _nested_object(payload, "release_identity", context)
+    release_context = f"{context}.release_identity"
+    _exact_keys(
+        release,
+        {
+            "release_source_digest",
+            "release_tag",
+            "package_id",
+            "version_name",
+            "version_code",
+            "build_variant",
+            "candidate_artifact_name",
+            "candidate_apk_bytes",
+            "candidate_apk_sha256",
+            "installed_base_apk_bytes",
+            "installed_base_apk_sha256",
+            "candidate_apk_signer_sha256",
+            "installed_apk_signer_sha256",
+            "source_binding_verified",
+            "signer_verified",
+        },
+        release_context,
+    )
+    exact_release_identity = {
+        "release_source_digest": source_digest,
+        "release_tag": tag,
+        "package_id": PACKAGE_ID,
+        "version_name": version_name,
+        "version_code": version_code,
+        "build_variant": "release",
+        "candidate_artifact_name": f"hermes-agent-android-{tag}-device-candidate.apk",
+        "candidate_apk_signer_sha256": EXPECTED_RELEASE_SIGNER_SHA256,
+        "installed_apk_signer_sha256": EXPECTED_RELEASE_SIGNER_SHA256,
+        "source_binding_verified": True,
+        "signer_verified": True,
+    }
+    for field, expected in exact_release_identity.items():
+        if release.get(field) != expected:
+            raise EvidenceError(f"{release_context}.{field} must equal {expected!r}")
+    candidate_sha = release.get("candidate_apk_sha256")
+    installed_sha = release.get("installed_base_apk_sha256")
+    if not isinstance(candidate_sha, str) or not HEX_64_RE.fullmatch(candidate_sha):
+        raise EvidenceError(f"{release_context}.candidate_apk_sha256 must be lowercase SHA-256")
+    if installed_sha != candidate_sha:
+        raise EvidenceError(
+            f"{release_context}.installed_base_apk_sha256 must equal candidate_apk_sha256"
+        )
+    candidate_bytes = _integer(release, "candidate_apk_bytes", release_context, positive=True)
+    if _integer(release, "installed_base_apk_bytes", release_context, positive=True) != candidate_bytes:
+        raise EvidenceError(
+            f"{release_context}.installed_base_apk_bytes must equal candidate_apk_bytes"
+        )
+
+    device = _nested_object(payload, "device_identity", context)
+    device_context = f"{context}.device_identity"
+    _exact_keys(
+        device,
+        {
+            "physical_device",
+            "adb_transport",
+            "adb_serial_sha256",
+            "model",
+            "manufacturer",
+            "product",
+            "device",
+            "hardware",
+            "build_fingerprint",
+            "boot_id",
+            "android_sdk",
+            "primary_abi",
+            "supported_abis",
+            "ro_kernel_qemu",
+            "avd_name",
+        },
+        device_context,
+    )
+    if device.get("physical_device") is not True:
+        raise EvidenceError(f"{device_context}.physical_device must be true")
+    if device.get("adb_transport") not in {"usb", "wireless-tls"}:
+        raise EvidenceError(f"{device_context}.adb_transport must be usb or wireless-tls")
+    serial_sha = device.get("adb_serial_sha256")
+    if (
+        not isinstance(serial_sha, str)
+        or not HEX_64_RE.fullmatch(serial_sha)
+        or serial_sha == hashlib.sha256(b"").hexdigest()
+    ):
+        raise EvidenceError(f"{device_context}.adb_serial_sha256 must bind one nonblank serial")
+    boot_id = _required_string(device, "boot_id", device_context).casefold()
+    if BOOT_ID_RE.fullmatch(boot_id) is None:
+        raise EvidenceError(f"{device_context}.boot_id is invalid")
+    identity_fields = {
+        field: _required_string(device, field, device_context)
+        for field in (
+            "model",
+            "manufacturer",
+            "product",
+            "device",
+            "hardware",
+            "build_fingerprint",
+        )
+    }
+    identity_text = " ".join(identity_fields.values()).casefold()
+    if any(marker in identity_text for marker in PHYSICAL_DEVICE_EMULATOR_MARKERS):
+        raise EvidenceError(f"{device_context} contains an emulator identity marker")
+    if device.get("ro_kernel_qemu") != "0" or device.get("avd_name") != "":
+        raise EvidenceError(f"{device_context} does not prove a non-QEMU physical device")
+    if _integer(device, "android_sdk", device_context, positive=True) < 31:
+        raise EvidenceError(f"{device_context}.android_sdk must be at least 31")
+    if device.get("primary_abi") != "arm64-v8a":
+        raise EvidenceError(f"{device_context}.primary_abi must equal 'arm64-v8a'")
+    supported_abis = _normalized_abis(device.get("supported_abis"), device_context)
+    if supported_abis[0] != "arm64-v8a" or len(set(supported_abis)) != len(supported_abis):
+        raise EvidenceError(
+            f"{device_context}.supported_abis must be unique and begin with arm64-v8a"
+        )
+
+    model = _nested_object(payload, "model_identity", context)
+    model_context = f"{context}.model_identity"
+    _exact_keys(
+        model,
+        {
+            "model_id",
+            "publisher_repository",
+            "publisher_revision",
+            "file_name",
+            "runtime",
+            "required_runtime_lane",
+            "expected_bytes",
+            "device_visible_bytes",
+            "expected_sha256",
+            "device_sha256",
+            "device_path",
+            "content_addressed_verification_passed",
+        },
+        model_context,
+    )
+    exact_model_identity = {
+        "model_id": artifact.model_id,
+        "publisher_repository": artifact.repository,
+        "publisher_revision": artifact.revision,
+        "file_name": artifact.file_name,
+        "runtime": artifact.runtime,
+        "required_runtime_lane": artifact.required_llama_cpp_runtime_lane,
+        "expected_bytes": artifact.expected_bytes,
+        "device_visible_bytes": artifact.expected_bytes,
+        "expected_sha256": artifact.sha256,
+        "device_sha256": artifact.sha256,
+        "content_addressed_verification_passed": True,
+    }
+    for field, expected in exact_model_identity.items():
+        if model.get(field) != expected:
+            raise EvidenceError(f"{model_context}.{field} must equal {expected!r}")
+    model_path = _required_string(model, "device_path", model_context)
+    if model_path.casefold() != (PHYSICAL_MODEL_PATH_ROOT + artifact.file_name).casefold():
+        raise EvidenceError(
+            f"{model_context}.device_path must be the exact app-scoped external model path"
+        )
+
+    stable = _nested_object(payload, "stable_precondition", context)
+    stable_context = f"{context}.stable_precondition"
+    _exact_keys(
+        stable,
+        {
+            "capture_route",
+            "model_path",
+            "source_candidate_apk_sha256",
+            "runtime_directory_path",
+            "runtime_closure",
+            "runtime_closure_file_count",
+            "runtime_closure_total_bytes",
+            "runtime_closure_manifest_sha256",
+            "system_library_allowlist",
+            "unresolved_non_system_dependencies",
+            "command_executable_path",
+            "command_working_directory",
+            "command_library_path",
+            "command_model_path",
+            "command_environment",
+            "command_environment_sha256",
+            "command_argv",
+            "selected_runtime_lane",
+            "exact_artifact_verified",
+            "runtime_process_spawned",
+            "ready",
+            "process_exit_code",
+            "failure_stage",
+            "unknown_model_architecture",
+            "error_message",
+            "loader_error_absent",
+            "command_argv_sha256",
+            "device_runtime_cleanup_verified",
+        },
+        stable_context,
+    )
+    expected_runtime_directory = (
+        f"/data/local/tmp/hermes-{tag}-{candidate_sha[:16]}-llama-stable"
+    )
+    expected_runtime_path = (
+        f"{expected_runtime_directory}/{PHYSICAL_STABLE_RUNTIME_EXECUTABLE}"
+    )
+    expected_command_environment = {
+        "GGML_BACKEND_PATH": expected_runtime_directory,
+        "HOME": f"{expected_runtime_directory}/home",
+        "LANG": "C",
+        "LC_ALL": "C",
+        "LD_LIBRARY_PATH": expected_runtime_directory,
+        "PATH": "/system/bin",
+        "TMPDIR": f"{expected_runtime_directory}/tmp",
+    }
+    expected_command_argv = [
+        expected_runtime_path,
+        "--model",
+        model_path,
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(PHYSICAL_STABLE_RUNTIME_PORT),
+    ]
+    for field, expected in {
+        "capture_route": "adb-shell-extracted-stable-runtime",
+        "model_path": model_path,
+        "source_candidate_apk_sha256": candidate_sha,
+        "runtime_directory_path": expected_runtime_directory,
+        "command_executable_path": expected_runtime_path,
+        "command_working_directory": expected_runtime_directory,
+        "command_library_path": expected_runtime_directory,
+        "command_model_path": model_path,
+        "command_environment": expected_command_environment,
+        "command_argv": expected_command_argv,
+        "selected_runtime_lane": "stable",
+        "exact_artifact_verified": True,
+        "runtime_process_spawned": True,
+        "ready": False,
+        "process_exit_code": 1,
+        "failure_stage": "model-load",
+        "unknown_model_architecture": "nanbeige",
+        "loader_error_absent": True,
+        "device_runtime_cleanup_verified": True,
+    }.items():
+        if stable.get(field) != expected:
+            raise EvidenceError(f"{stable_context}.{field} must equal {expected!r}")
+
+    runtime_closure = stable.get("runtime_closure")
+    if not isinstance(runtime_closure, list):
+        raise EvidenceError(f"{stable_context}.runtime_closure must be an array")
+    if len(runtime_closure) != len(PHYSICAL_STABLE_RUNTIME_APK_ENTRIES):
+        raise EvidenceError(
+            f"{stable_context}.runtime_closure must contain exactly "
+            f"{len(PHYSICAL_STABLE_RUNTIME_APK_ENTRIES)} files"
+        )
+    observed_entries: list[str] = []
+    closure_total_bytes = 0
+    for index, closure_file in enumerate(runtime_closure):
+        closure_context = f"{stable_context}.runtime_closure[{index}]"
+        if not isinstance(closure_file, dict):
+            raise EvidenceError(f"{closure_context} must be an object")
+        _exact_keys(
+            closure_file,
+            {
+                "apk_entry",
+                "file_name",
+                "role",
+                "device_path",
+                "dt_needed",
+                "extracted_bytes",
+                "extracted_sha256",
+                "device_bytes",
+                "device_sha256",
+            },
+            closure_context,
+        )
+        apk_entry = _required_string(closure_file, "apk_entry", closure_context)
+        observed_entries.append(apk_entry)
+        if apk_entry != PHYSICAL_STABLE_RUNTIME_APK_ENTRIES[index]:
+            raise EvidenceError(
+                f"{stable_context}.runtime_closure APK entries must equal the exact ordered "
+                "Stable runtime dependency closure"
+            )
+        expected_file_name = PurePosixPath(apk_entry).name
+        if closure_file.get("file_name") != expected_file_name:
+            raise EvidenceError(
+                f"{closure_context}.file_name must equal the APK entry basename"
+            )
+        if closure_file.get("role") != PHYSICAL_STABLE_RUNTIME_ROLES.get(expected_file_name):
+            raise EvidenceError(
+                f"{closure_context}.role must identify the exact Stable runtime function"
+            )
+        expected_device_path = f"{expected_runtime_directory}/{expected_file_name}"
+        if closure_file.get("device_path") != expected_device_path:
+            raise EvidenceError(
+                f"{closure_context}.device_path must remain inside the candidate-bound directory"
+            )
+        dt_needed = closure_file.get("dt_needed")
+        if not isinstance(dt_needed, list) or tuple(dt_needed) != PHYSICAL_STABLE_RUNTIME_DT_NEEDED.get(
+            expected_file_name
+        ):
+            raise EvidenceError(
+                f"{closure_context}.dt_needed must equal the inspected direct dependencies"
+            )
+        extracted_bytes = _integer(
+            closure_file,
+            "extracted_bytes",
+            closure_context,
+            positive=True,
+        )
+        if _integer(closure_file, "device_bytes", closure_context, positive=True) != extracted_bytes:
+            raise EvidenceError(
+                f"{closure_context}.device_bytes must equal extracted_bytes"
+            )
+        extracted_sha = closure_file.get("extracted_sha256")
+        if not isinstance(extracted_sha, str) or not HEX_64_RE.fullmatch(extracted_sha):
+            raise EvidenceError(
+                f"{closure_context}.extracted_sha256 must be lowercase SHA-256"
+            )
+        if closure_file.get("device_sha256") != extracted_sha:
+            raise EvidenceError(
+                f"{closure_context}.device_sha256 must equal extracted_sha256"
+            )
+        closure_total_bytes += extracted_bytes
+    if tuple(observed_entries) != PHYSICAL_STABLE_RUNTIME_APK_ENTRIES:
+        raise EvidenceError(
+            f"{stable_context}.runtime_closure APK entries must equal the exact ordered "
+            "Stable runtime dependency closure"
+        )
+    if stable.get("runtime_closure_file_count") != len(runtime_closure):
+        raise EvidenceError(
+            f"{stable_context}.runtime_closure_file_count does not match runtime_closure"
+        )
+    _integer(stable, "runtime_closure_file_count", stable_context, positive=True)
+    if stable.get("runtime_closure_total_bytes") != closure_total_bytes:
+        raise EvidenceError(
+            f"{stable_context}.runtime_closure_total_bytes does not match runtime_closure"
+        )
+    _integer(stable, "runtime_closure_total_bytes", stable_context, positive=True)
+    closure_manifest_sha = stable.get("runtime_closure_manifest_sha256")
+    expected_closure_manifest_sha = hashlib.sha256(
+        json.dumps(
+            runtime_closure,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    if closure_manifest_sha != expected_closure_manifest_sha:
+        raise EvidenceError(
+            f"{stable_context}.runtime_closure_manifest_sha256 must bind the canonical closure JSON"
+        )
+    if stable.get("system_library_allowlist") != list(
+        PHYSICAL_STABLE_RUNTIME_SYSTEM_LIBRARIES
+    ):
+        raise EvidenceError(
+            f"{stable_context}.system_library_allowlist must equal the exact Android system set"
+        )
+    if stable.get("unresolved_non_system_dependencies") != []:
+        raise EvidenceError(
+            f"{stable_context}.unresolved_non_system_dependencies must be empty"
+        )
+    closure_names = {PurePosixPath(entry).name for entry in observed_entries}
+    for file_name, dt_needed in PHYSICAL_STABLE_RUNTIME_DT_NEEDED.items():
+        unresolved = [
+            dependency
+            for dependency in dt_needed
+            if dependency not in closure_names
+            and dependency not in PHYSICAL_STABLE_RUNTIME_SYSTEM_LIBRARIES
+        ]
+        if unresolved:
+            raise EvidenceError(
+                f"{stable_context}.runtime_closure leaves {file_name} unresolved: {unresolved!r}"
+            )
+    command_environment_sha = stable.get("command_environment_sha256")
+    expected_command_environment_sha = hashlib.sha256(
+        json.dumps(
+            expected_command_environment,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+    ).hexdigest()
+    if command_environment_sha != expected_command_environment_sha:
+        raise EvidenceError(
+            f"{stable_context}.command_environment_sha256 must bind the canonical environment JSON"
+        )
+    stable_error = _required_string(stable, "error_message", stable_context)
+    if re.search(r"unknown model architecture:\s*['\"]?nanbeige\b", stable_error, re.IGNORECASE) is None:
+        raise EvidenceError(f"{stable_context}.error_message lacks the exact Nanbeige failure")
+    if PHYSICAL_STABLE_RUNTIME_LOADER_ERROR_RE.search(stable_error) is not None:
+        raise EvidenceError(f"{stable_context}.error_message contains a linker or loader failure")
+    command_sha = stable.get("command_argv_sha256")
+    expected_command_sha = hashlib.sha256(
+        json.dumps(
+            expected_command_argv,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    if command_sha != expected_command_sha:
+        raise EvidenceError(
+            f"{stable_context}.command_argv_sha256 must bind the canonical command argv JSON"
+        )
+
+    reconciliation = _nested_object(payload, "automatic_reconciliation", context)
+    reconciliation_context = f"{context}.automatic_reconciliation"
+    _exact_keys(
+        reconciliation,
+        {
+            "capture_route",
+            "model_path",
+            "trigger",
+            "automatic",
+            "exact_artifact_verified_before_reconciliation",
+            "settings_before_runtime_lane",
+            "required_runtime_lane",
+            "settings_after_runtime_lane",
+            "settings_save_succeeded",
+            "persisted_before_runtime_launch",
+            "runtime_launch_observed_after_persist",
+            "visible_settings_runtime_lane",
+            "visible_settings_matches_persisted_lane",
+            "visible_settings_observed_after_ready",
+            "user_reselected_lane",
+        },
+        reconciliation_context,
+    )
+    exact_reconciliation = {
+        "capture_route": "app-managed-local-backend",
+        "model_path": model_path,
+        "trigger": "verified-artifact-prelaunch",
+        "automatic": True,
+        "exact_artifact_verified_before_reconciliation": True,
+        "settings_before_runtime_lane": "stable",
+        "required_runtime_lane": "turboquant",
+        "settings_after_runtime_lane": "turboquant",
+        "settings_save_succeeded": True,
+        "persisted_before_runtime_launch": True,
+        "runtime_launch_observed_after_persist": True,
+        "visible_settings_runtime_lane": "turboquant",
+        "visible_settings_matches_persisted_lane": True,
+        "visible_settings_observed_after_ready": True,
+        "user_reselected_lane": False,
+    }
+    for field, expected in exact_reconciliation.items():
+        if reconciliation.get(field) != expected:
+            raise EvidenceError(f"{reconciliation_context}.{field} must equal {expected!r}")
+
+    readiness = _nested_object(payload, "readiness", context)
+    readiness_context = f"{context}.readiness"
+    _exact_keys(
+        readiness,
+        {
+            "capture_route",
+            "backend",
+            "runtime_lane",
+            "persisted_runtime_lane",
+            "model_path",
+            "controller_ready",
+            "health_endpoint_ok",
+            "completion_canary_nonempty",
+            "completion_canary_visible_characters",
+            "ready_latency_ms",
+            "status_message",
+        },
+        readiness_context,
+    )
+    for field, expected in {
+        "capture_route": "app-managed-local-backend",
+        "backend": "llama.cpp",
+        "runtime_lane": "turboquant",
+        "persisted_runtime_lane": "turboquant",
+        "model_path": model_path,
+        "controller_ready": True,
+        "health_endpoint_ok": True,
+        "completion_canary_nonempty": True,
+    }.items():
+        if readiness.get(field) != expected:
+            raise EvidenceError(f"{readiness_context}.{field} must equal {expected!r}")
+    _integer(
+        readiness,
+        "completion_canary_visible_characters",
+        readiness_context,
+        positive=True,
+    )
+    _integer(readiness, "ready_latency_ms", readiness_context, positive=True)
+    ready_status = _required_string(readiness, "status_message", readiness_context)
+    if not re.search(r"\b(?:ready|serving)\b", ready_status, re.IGNORECASE):
+        raise EvidenceError(f"{readiness_context}.status_message does not prove readiness")
+
+    ordinary = _nested_object(payload, "ordinary_chat", context)
+    ordinary_context = f"{context}.ordinary_chat"
+    _exact_keys(
+        ordinary,
+        {
+            "capture_route",
+            "language_tag",
+            "tool_mode",
+            "tools_available",
+            "prompt",
+            "prompt_requested_tool",
+            "request_completed",
+            "visible_reply",
+            "visible_reply_characters",
+            "visible_progress_observed",
+            "progress_event_count",
+            "tool_call_count",
+            "tool_result_count",
+            "terminal_state",
+            "completion_latency_ms",
+        },
+        ordinary_context,
+    )
+    for field, expected in {
+        "capture_route": "app-chat-ui",
+        "language_tag": "en",
+        "tool_mode": "general",
+        "tools_available": True,
+        "prompt": PHYSICAL_ORDINARY_CHAT_PROMPT,
+        "prompt_requested_tool": False,
+        "request_completed": True,
+        "visible_progress_observed": True,
+        "tool_call_count": 0,
+        "tool_result_count": 0,
+        "terminal_state": "completed",
+    }.items():
+        if ordinary.get(field) != expected:
+            raise EvidenceError(f"{ordinary_context}.{field} must equal {expected!r}")
+    reply = _required_string(ordinary, "visible_reply", ordinary_context)
+    if VISIBLE_THINK_MARKER_RE.search(reply):
+        raise EvidenceError(f"{ordinary_context}.visible_reply exposes a think marker")
+    if reply.casefold() in {"...", "…", "working", "generating", "thinking"}:
+        raise EvidenceError(f"{ordinary_context}.visible_reply is a nonterminal placeholder")
+    if reply != PHYSICAL_ORDINARY_CHAT_EXPECTED_REPLY:
+        raise EvidenceError(
+            f"{ordinary_context}.visible_reply must equal the deterministic Nanbeige canary"
+        )
+    if ordinary.get("visible_reply_characters") != len(reply):
+        raise EvidenceError(f"{ordinary_context}.visible_reply_characters does not match the reply")
+    _integer(ordinary, "visible_reply_characters", ordinary_context, positive=True)
+    _integer(ordinary, "progress_event_count", ordinary_context, positive=True)
+    _integer(ordinary, "completion_latency_ms", ordinary_context, positive=True)
+
+    stop = _nested_object(payload, "stop_control", context)
+    stop_context = f"{context}.stop_control"
+    _exact_keys(
+        stop,
+        {
+            "capture_route",
+            "language_tag",
+            "prompt",
+            "stop_button_visible",
+            "visible_progress_observed_before_stop",
+            "stop_requested",
+            "stop_acknowledged",
+            "model_request_cancelled",
+            "terminal_state",
+            "visible_terminal_message",
+            "visible_terminal_message_characters",
+            "nonterminal_placeholder",
+            "busy_after_stop",
+            "stop_button_visible_after_stop",
+            "stop_latency_ms",
+        },
+        stop_context,
+    )
+    for field, expected in {
+        "capture_route": "app-chat-ui",
+        "language_tag": "en",
+        "prompt": PHYSICAL_STOP_CHAT_PROMPT,
+        "stop_button_visible": True,
+        "visible_progress_observed_before_stop": True,
+        "stop_requested": True,
+        "stop_acknowledged": True,
+        "model_request_cancelled": True,
+        "terminal_state": "stopped",
+        "visible_terminal_message": PHYSICAL_STOP_TERMINAL_MESSAGE,
+        "nonterminal_placeholder": False,
+        "busy_after_stop": False,
+        "stop_button_visible_after_stop": False,
+    }.items():
+        if stop.get(field) != expected:
+            raise EvidenceError(f"{stop_context}.{field} must equal {expected!r}")
+    terminal_message = _required_string(stop, "visible_terminal_message", stop_context)
+    if VISIBLE_THINK_MARKER_RE.search(terminal_message):
+        raise EvidenceError(f"{stop_context}.visible_terminal_message exposes a think marker")
+    if stop.get("visible_terminal_message_characters") != len(terminal_message):
+        raise EvidenceError(
+            f"{stop_context}.visible_terminal_message_characters does not match the message"
+        )
+    _integer(stop, "visible_terminal_message_characters", stop_context, positive=True)
+    _integer(stop, "stop_latency_ms", stop_context, positive=True)
+
+    return PhysicalNanbeigeRepairEvidence(
+        candidate_apk_sha256=candidate_sha,
+        candidate_apk_bytes=candidate_bytes,
+        apk_signer_sha256=EXPECTED_RELEASE_SIGNER_SHA256,
+        device_model=identity_fields["model"],
+        device_manufacturer=identity_fields["manufacturer"],
+        adb_serial_sha256=serial_sha,
+        model_device_path=model_path,
+    )
+
+
 def _reviewed_utc(value: Any, context: str) -> str:
     if not isinstance(value, str):
         raise EvidenceError(f"{context} must be a UTC timestamp string")
@@ -4971,6 +5808,8 @@ def expected_evidence_paths(
         )
         paths.update(comprehensive_ui_paths)
         paths.update(launch_theme_paths)
+    if tag is not None and requires_physical_nanbeige_repair_evidence(tag):
+        paths.add(PHYSICAL_NANBEIGE_REPAIR_PATH)
     return paths
 
 
@@ -5208,6 +6047,7 @@ def validate_evidence_directory(
     historical_issue8_model_count = 0
     issue8_tool_and_preflight_count = 0
     issue16_debian_sandbox_count = 0
+    physical_nanbeige_repair: PhysicalNanbeigeRepairEvidence | None = None
     if requires_comprehensive_ui_evidence(tag):
         _validate_historical_e4b_evidence(
             evidence_dir / Path(HISTORICAL_E4B_EVIDENCE_PATH.as_posix()),
@@ -5244,6 +6084,15 @@ def validate_evidence_directory(
             tag,
         )
         issue16_debian_sandbox_count = 1
+    if requires_physical_nanbeige_repair_evidence(tag):
+        physical_nanbeige_repair = _validate_physical_nanbeige_repair_evidence(
+            evidence_dir / Path(PHYSICAL_NANBEIGE_REPAIR_PATH.as_posix()),
+            artifacts,
+            source_digest,
+            version_name,
+            version_code,
+            tag,
+        )
 
     file_records = tuple(
         EvidenceFile(
@@ -5277,6 +6126,42 @@ def validate_evidence_directory(
         required_settings_pages=ui_source_contract.settings_pages,
         required_device_pages=ui_source_contract.device_pages,
         required_recommended_model_ids=ui_source_contract.recommended_model_ids,
+        physical_nanbeige_repair_count=int(physical_nanbeige_repair is not None),
+        physical_candidate_apk_sha256=(
+            physical_nanbeige_repair.candidate_apk_sha256
+            if physical_nanbeige_repair is not None
+            else ""
+        ),
+        physical_candidate_apk_bytes=(
+            physical_nanbeige_repair.candidate_apk_bytes
+            if physical_nanbeige_repair is not None
+            else 0
+        ),
+        physical_apk_signer_sha256=(
+            physical_nanbeige_repair.apk_signer_sha256
+            if physical_nanbeige_repair is not None
+            else ""
+        ),
+        physical_device_models=(
+            (physical_nanbeige_repair.device_model,)
+            if physical_nanbeige_repair is not None
+            else ()
+        ),
+        physical_device_manufacturers=(
+            (physical_nanbeige_repair.device_manufacturer,)
+            if physical_nanbeige_repair is not None
+            else ()
+        ),
+        physical_adb_serial_sha256=(
+            physical_nanbeige_repair.adb_serial_sha256
+            if physical_nanbeige_repair is not None
+            else ""
+        ),
+        physical_nanbeige_model_path=(
+            physical_nanbeige_repair.model_device_path
+            if physical_nanbeige_repair is not None
+            else ""
+        ),
     )
 
 
@@ -5417,7 +6302,154 @@ def build_manifest(
                 "issue16_debian_sandbox_count": evidence.issue16_debian_sandbox_count,
             }
         )
+    if requires_physical_nanbeige_repair_evidence(normalized_tag):
+        manifest["contract"].update(
+            {
+                "requires_one_physical_arm64_nanbeige_repair_record": True,
+                "physical_nanbeige_repair_schema": PHYSICAL_NANBEIGE_REPAIR_SCHEMA,
+                "physical_nanbeige_repair_path": PHYSICAL_NANBEIGE_REPAIR_PATH.as_posix(),
+                "requires_source_bound_signed_release_candidate_installed_byte_for_byte": True,
+                "required_release_candidate_signer_sha256": EXPECTED_RELEASE_SIGNER_SHA256,
+                "requires_non_qemu_arm64_physical_device": True,
+                "requires_exact_nanbeige_bytes_sha_and_app_scoped_path": True,
+                "requires_extracted_stable_unknown_nanbeige_architecture_precondition": True,
+                "required_stable_precondition_capture_route": (
+                    "adb-shell-extracted-stable-runtime"
+                ),
+                "required_stable_runtime_apk_entries": list(
+                    PHYSICAL_STABLE_RUNTIME_APK_ENTRIES
+                ),
+                "required_stable_runtime_file_count": len(
+                    PHYSICAL_STABLE_RUNTIME_APK_ENTRIES
+                ),
+                "required_stable_runtime_system_library_allowlist": list(
+                    PHYSICAL_STABLE_RUNTIME_SYSTEM_LIBRARIES
+                ),
+                "requires_source_candidate_runtime_closure_extraction_and_device_hash_match": True,
+                "requires_final_signed_apk_runtime_closure_entry_hash_binding": True,
+                "requires_stable_runtime_dependency_and_environment_binding": True,
+                "requires_no_stable_runtime_linker_or_loader_error": True,
+                "requires_automatic_persisted_turboquant_reconciliation_before_launch": True,
+                "requires_visible_settings_to_match_reconciled_turboquant_lane": True,
+                "requires_app_managed_turboquant_readiness_and_completion_canary": True,
+                "requires_general_mode_ordinary_chat_without_unsolicited_tools": True,
+                "required_general_mode_prompt": PHYSICAL_ORDINARY_CHAT_PROMPT,
+                "required_general_mode_visible_reply": (
+                    PHYSICAL_ORDINARY_CHAT_EXPECTED_REPLY
+                ),
+                "requires_nonblank_think_marker_free_visible_reply": True,
+                "requires_visible_generation_progress": True,
+                "requires_stop_to_replace_placeholder_with_terminal_message": True,
+                "physical_device_serial_disclosure": "sha256-only",
+            }
+        )
+        manifest["tested_binaries"].update(
+            {
+                "physical_candidate_apk_sha256": evidence.physical_candidate_apk_sha256,
+                "physical_candidate_apk_bytes": evidence.physical_candidate_apk_bytes,
+                "physical_candidate_apk_signer_sha256": evidence.physical_apk_signer_sha256,
+            }
+        )
+        manifest["physical_device_evidence"] = {
+            "schema": PHYSICAL_NANBEIGE_REPAIR_SCHEMA,
+            "path": PHYSICAL_NANBEIGE_REPAIR_PATH.as_posix(),
+            "classification": "physical-arm64-functional-repair-gate",
+            "adb_serial_sha256": evidence.physical_adb_serial_sha256,
+            "device_models": list(evidence.physical_device_models),
+            "device_manufacturers": list(evidence.physical_device_manufacturers),
+            "model_device_path": evidence.physical_nanbeige_model_path,
+            "artifact": _artifact_manifest_record(NANBEIGE_REPAIR_ARTIFACT),
+        }
+        manifest["summary"].update(
+            {
+                "physical_nanbeige_repair_count": evidence.physical_nanbeige_repair_count,
+                "physical_device_models": list(evidence.physical_device_models),
+            }
+        )
     return manifest
+
+
+def verify_physical_candidate_apk_binding(
+    apk_path: Path,
+    record_path: Path,
+) -> tuple[int, str, int]:
+    """Bind the committed physical closure hashes to entries in the exact signed APK."""
+
+    context = "physical_candidate_apk_binding"
+    if not apk_path.is_file():
+        raise EvidenceError(f"{context}.apk is missing: {apk_path}")
+    record = _json_object(record_path)
+    release = _nested_object(record, "release_identity", context)
+    stable = _nested_object(record, "stable_precondition", context)
+    expected_apk_bytes = _integer(release, "candidate_apk_bytes", context, positive=True)
+    expected_apk_sha = release.get("candidate_apk_sha256")
+    if not isinstance(expected_apk_sha, str) or not HEX_64_RE.fullmatch(expected_apk_sha):
+        raise EvidenceError(f"{context}.candidate_apk_sha256 must be lowercase SHA-256")
+    actual_apk_bytes = apk_path.stat().st_size
+    actual_apk_sha = _sha256_file(apk_path)
+    if actual_apk_bytes != expected_apk_bytes or actual_apk_sha != expected_apk_sha:
+        raise EvidenceError(
+            f"{context}.apk bytes/SHA-256 do not match the physical candidate record"
+        )
+
+    closure = stable.get("runtime_closure")
+    if not isinstance(closure, list):
+        raise EvidenceError(f"{context}.runtime_closure must be an array")
+    observed_entries = [
+        item.get("apk_entry") if isinstance(item, dict) else None
+        for item in closure
+    ]
+    if tuple(observed_entries) != PHYSICAL_STABLE_RUNTIME_APK_ENTRIES:
+        raise EvidenceError(
+            f"{context}.runtime_closure must contain the exact ordered Stable APK entries"
+        )
+
+    try:
+        with zipfile.ZipFile(apk_path) as archive:
+            entries_by_name: dict[str, list[zipfile.ZipInfo]] = {}
+            for info in archive.infolist():
+                entries_by_name.setdefault(info.filename, []).append(info)
+            for index, closure_file in enumerate(closure):
+                closure_context = f"{context}.runtime_closure[{index}]"
+                apk_entry = PHYSICAL_STABLE_RUNTIME_APK_ENTRIES[index]
+                matches = entries_by_name.get(apk_entry, [])
+                if len(matches) != 1 or matches[0].is_dir():
+                    raise EvidenceError(
+                        f"{closure_context}.apk_entry must occur exactly once as a file"
+                    )
+                info = matches[0]
+                expected_bytes = _integer(
+                    closure_file,
+                    "extracted_bytes",
+                    closure_context,
+                    positive=True,
+                )
+                expected_sha = closure_file.get("extracted_sha256")
+                if not isinstance(expected_sha, str) or not HEX_64_RE.fullmatch(expected_sha):
+                    raise EvidenceError(
+                        f"{closure_context}.extracted_sha256 must be lowercase SHA-256"
+                    )
+                digest = hashlib.sha256()
+                extracted_bytes = 0
+                with archive.open(info, "r") as entry_stream:
+                    while True:
+                        chunk = entry_stream.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        extracted_bytes += len(chunk)
+                        digest.update(chunk)
+                if info.file_size != expected_bytes or extracted_bytes != expected_bytes:
+                    raise EvidenceError(
+                        f"{closure_context}.extracted_bytes do not match the signed APK entry"
+                    )
+                if digest.hexdigest() != expected_sha:
+                    raise EvidenceError(
+                        f"{closure_context}.extracted_sha256 does not match the signed APK entry"
+                    )
+    except (OSError, zipfile.BadZipFile, RuntimeError) as exc:
+        raise EvidenceError(f"{context}.apk is not a readable signed APK archive: {exc}") from exc
+
+    return actual_apk_bytes, actual_apk_sha, len(closure)
 
 
 def write_manifest(path: Path, manifest: Mapping[str, Any]) -> None:
@@ -5549,6 +6581,31 @@ def _source_identity(args: argparse.Namespace) -> int:
     return 0
 
 
+def _verify_physical_candidate_apk(args: argparse.Namespace) -> int:
+    repo_root = args.repo_root.resolve()
+    tag = validate_tag(args.tag)
+    apk_path = args.apk.resolve() if args.apk.is_absolute() else (repo_root / args.apk).resolve()
+    record_path = (
+        args.record.resolve()
+        if args.record is not None and args.record.is_absolute()
+        else (
+            (repo_root / args.record).resolve()
+            if args.record is not None
+            else repo_root
+            / Path((EVIDENCE_PREFIX / tag / PHYSICAL_NANBEIGE_REPAIR_PATH).as_posix())
+        )
+    )
+    apk_bytes, apk_sha, closure_files = verify_physical_candidate_apk_binding(
+        apk_path,
+        record_path,
+    )
+    print(f"physicalCandidateApk={apk_path}")
+    print(f"physicalCandidateApkBytes={apk_bytes}")
+    print(f"physicalCandidateApkSha256={apk_sha}")
+    print(f"physicalCandidateRuntimeClosureFiles={closure_files}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Create or verify committed Android headed-device release evidence"
@@ -5569,6 +6626,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="Reject tracked or nonignored untracked changes before printing the identity",
     )
     source_parser.set_defaults(handler=_source_identity)
+    apk_binding_parser = subparsers.add_parser(
+        "verify-physical-candidate-apk",
+        help="Bind the physical Stable runtime closure to the exact signed candidate APK",
+    )
+    apk_binding_parser.add_argument("--tag", required=True, help="Android v0 SemVer release tag")
+    apk_binding_parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path(__file__).resolve().parents[1],
+    )
+    apk_binding_parser.add_argument("--apk", required=True, type=Path)
+    apk_binding_parser.add_argument("--record", type=Path)
+    apk_binding_parser.set_defaults(handler=_verify_physical_candidate_apk)
     for command, handler in (("create", _create), ("verify", _verify)):
         subparser = subparsers.add_parser(command)
         subparser.add_argument("--tag", required=True, help="Android v0 SemVer release tag")

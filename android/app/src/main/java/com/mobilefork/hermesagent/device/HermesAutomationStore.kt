@@ -176,10 +176,13 @@ data class HermesAutomationRunEvent(
     }
 }
 
-class HermesAutomationStore(context: Context) {
+class HermesAutomationStore @JvmOverloads constructor(
+    context: Context,
+    private val beforeCommitForTest: ((String) -> Unit)? = null,
+) {
     private val preferences = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun list(): List<HermesAutomationRecord> {
+    fun list(): List<HermesAutomationRecord> = synchronized(STORE_TRANSACTION_LOCK) {
         val raw = preferences.getString(KEY_RECORDS, "[]").orEmpty()
         val array = runCatching { JSONArray(raw) }.getOrDefault(JSONArray())
         val records = mutableListOf<HermesAutomationRecord>()
@@ -190,7 +193,7 @@ class HermesAutomationStore(context: Context) {
                 records += record
             }
         }
-        return records.sortedBy { it.createdAtEpochMs }
+        records.sortedBy { it.createdAtEpochMs }
     }
 
     fun get(id: String): HermesAutomationRecord? {
@@ -198,41 +201,49 @@ class HermesAutomationStore(context: Context) {
     }
 
     fun upsert(record: HermesAutomationRecord) {
-        val updated = list()
-            .filterNot { it.id == record.id }
-            .plus(record)
-            .sortedBy { it.createdAtEpochMs }
-        saveAll(updated)
+        synchronized(STORE_TRANSACTION_LOCK) {
+            val updated = list()
+                .filterNot { it.id == record.id }
+                .plus(record)
+                .sortedBy { it.createdAtEpochMs }
+            saveAll(updated)
+        }
     }
 
     fun replaceAll(records: List<HermesAutomationRecord>) {
-        saveAll(records.sortedBy { it.createdAtEpochMs })
+        synchronized(STORE_TRANSACTION_LOCK) {
+            saveAll(records.sortedBy { it.createdAtEpochMs })
+        }
     }
 
-    fun remove(id: String): Boolean {
+    fun remove(id: String): Boolean = synchronized(STORE_TRANSACTION_LOCK) {
         val existing = list()
         val updated = existing.filterNot { it.id == id }
         saveAll(updated)
-        return updated.size != existing.size
+        updated.size != existing.size
     }
 
     fun clear() {
-        saveAll(emptyList())
-        saveVariables(JSONObject())
-        saveRunEvents(emptyList())
-        saveStandbyHeartbeat(JSONObject())
+        synchronized(STORE_TRANSACTION_LOCK) {
+            saveAll(emptyList())
+            saveVariables(JSONObject())
+            saveRunEvents(emptyList())
+            saveStandbyHeartbeatLocked(JSONObject())
+        }
     }
 
     fun addRunEvent(event: HermesAutomationRunEvent) {
-        val updated = listRunEvents(MAX_RUN_EVENTS)
-            .filterNot { it.id == event.id }
-            .plus(event)
-            .sortedByDescending { it.finishedAtEpochMs }
-            .take(MAX_RUN_EVENTS)
-        saveRunEvents(updated)
+        synchronized(STORE_TRANSACTION_LOCK) {
+            val updated = listRunEvents(MAX_RUN_EVENTS)
+                .filterNot { it.id == event.id }
+                .plus(event)
+                .sortedByDescending { it.finishedAtEpochMs }
+                .take(MAX_RUN_EVENTS)
+            saveRunEvents(updated)
+        }
     }
 
-    fun listRunEvents(limit: Int = 50): List<HermesAutomationRunEvent> {
+    fun listRunEvents(limit: Int = 50): List<HermesAutomationRunEvent> = synchronized(STORE_TRANSACTION_LOCK) {
         val safeLimit = limit.coerceIn(1, MAX_RUN_EVENTS)
         val raw = preferences.getString(KEY_RUN_EVENTS, "[]").orEmpty()
         val array = runCatching { JSONArray(raw) }.getOrDefault(JSONArray())
@@ -244,21 +255,21 @@ class HermesAutomationStore(context: Context) {
                 events += event
             }
         }
-        return events.sortedByDescending { it.finishedAtEpochMs }.take(safeLimit)
+        events.sortedByDescending { it.finishedAtEpochMs }.take(safeLimit)
     }
 
     fun saveStandbyHeartbeat(heartbeat: JSONObject) {
-        preferences.edit().putString(KEY_STANDBY_HEARTBEAT, heartbeat.toString()).apply()
+        synchronized(STORE_TRANSACTION_LOCK) { saveStandbyHeartbeatLocked(heartbeat) }
     }
 
-    fun lastStandbyHeartbeat(): JSONObject {
+    fun lastStandbyHeartbeat(): JSONObject = synchronized(STORE_TRANSACTION_LOCK) {
         val raw = preferences.getString(KEY_STANDBY_HEARTBEAT, "{}").orEmpty()
-        return runCatching { JSONObject(raw) }.getOrDefault(JSONObject())
+        runCatching { JSONObject(raw) }.getOrDefault(JSONObject())
     }
 
-    fun listVariables(): JSONObject {
+    fun listVariables(): JSONObject = synchronized(STORE_TRANSACTION_LOCK) {
         val raw = preferences.getString(KEY_VARIABLES, "{}").orEmpty()
-        return runCatching { JSONObject(raw) }.getOrDefault(JSONObject())
+        runCatching { JSONObject(raw) }.getOrDefault(JSONObject())
     }
 
     fun getVariable(name: String): String? {
@@ -273,42 +284,56 @@ class HermesAutomationStore(context: Context) {
 
     fun setVariable(name: String, value: String): Boolean {
         val normalized = normalizeVariableName(name) ?: return false
-        val variables = listVariables().put(normalized, value.take(MAX_VARIABLE_VALUE_CHARS))
-        saveVariables(variables)
+        synchronized(STORE_TRANSACTION_LOCK) {
+            val variables = listVariables().put(normalized, value.take(MAX_VARIABLE_VALUE_CHARS))
+            saveVariables(variables)
+        }
         return true
     }
 
     fun removeVariable(name: String): Boolean {
         val normalized = normalizeVariableName(name) ?: return false
-        val variables = listVariables()
-        val existed = variables.has(normalized)
-        variables.remove(normalized)
-        saveVariables(variables)
-        return existed
+        return synchronized(STORE_TRANSACTION_LOCK) {
+            val variables = listVariables()
+            val existed = variables.has(normalized)
+            variables.remove(normalized)
+            saveVariables(variables)
+            existed
+        }
     }
 
     fun replaceVariables(variables: JSONObject) {
-        saveVariables(normalizeVariables(variables))
+        synchronized(STORE_TRANSACTION_LOCK) {
+            saveVariables(normalizeVariables(variables))
+        }
     }
 
     fun mergeVariables(variables: JSONObject) {
-        val merged = listVariables()
-        val normalized = normalizeVariables(variables)
-        normalized.keys().forEach { key ->
-            merged.put(key, normalized.optString(key).take(MAX_VARIABLE_VALUE_CHARS))
+        synchronized(STORE_TRANSACTION_LOCK) {
+            val merged = listVariables()
+            val normalized = normalizeVariables(variables)
+            normalized.keys().forEach { key ->
+                merged.put(key, normalized.optString(key).take(MAX_VARIABLE_VALUE_CHARS))
+            }
+            saveVariables(merged)
         }
-        saveVariables(merged)
     }
 
     private fun saveAll(records: List<HermesAutomationRecord>) {
         val array = JSONArray().apply {
             records.forEach { record -> put(record.toJson()) }
         }
-        preferences.edit().putString(KEY_RECORDS, array.toString()).apply()
+        beforeCommitForTest?.invoke(KEY_RECORDS)
+        check(preferences.edit().putString(KEY_RECORDS, array.toString()).commit()) {
+            "Failed to commit Android automation records"
+        }
     }
 
     private fun saveVariables(variables: JSONObject) {
-        preferences.edit().putString(KEY_VARIABLES, variables.toString()).apply()
+        beforeCommitForTest?.invoke(KEY_VARIABLES)
+        check(preferences.edit().putString(KEY_VARIABLES, variables.toString()).commit()) {
+            "Failed to commit Android automation variables"
+        }
     }
 
     private fun saveRunEvents(events: List<HermesAutomationRunEvent>) {
@@ -318,10 +343,22 @@ class HermesAutomationStore(context: Context) {
                 .take(MAX_RUN_EVENTS)
                 .forEach { event -> put(event.toJson()) }
         }
-        preferences.edit().putString(KEY_RUN_EVENTS, array.toString()).apply()
+        beforeCommitForTest?.invoke(KEY_RUN_EVENTS)
+        check(preferences.edit().putString(KEY_RUN_EVENTS, array.toString()).commit()) {
+            "Failed to commit Android automation run events"
+        }
+    }
+
+    private fun saveStandbyHeartbeatLocked(heartbeat: JSONObject) {
+        beforeCommitForTest?.invoke(KEY_STANDBY_HEARTBEAT)
+        check(preferences.edit().putString(KEY_STANDBY_HEARTBEAT, heartbeat.toString()).commit()) {
+            "Failed to commit Android automation standby heartbeat"
+        }
     }
 
     companion object {
+        /** Lock order: request publication gate first, then this short per-store transaction. */
+        private val STORE_TRANSACTION_LOCK = Any()
         private const val PREFS_NAME = "hermes_android_automations"
         private const val KEY_RECORDS = "records_json"
         private const val KEY_VARIABLES = "variables_json"

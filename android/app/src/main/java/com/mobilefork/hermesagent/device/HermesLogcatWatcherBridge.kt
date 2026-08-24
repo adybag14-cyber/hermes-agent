@@ -1,11 +1,13 @@
 package com.mobilefork.hermesagent.device
 
 import android.content.Context
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.CancellationException
 
 data class HermesLogcatEvent(
     val timestamp: String,
@@ -37,12 +39,30 @@ data class HermesLogcatEvent(
 }
 
 object HermesLogcatWatcherBridge {
-    fun performActionJson(context: Context, action: String, arguments: JSONObject = JSONObject()): String {
+    fun performActionJson(
+        context: Context,
+        action: String,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+        publicationGate: AutomationPublicationGate? = null,
+        privilegedShellRunner: (Context, String, Int) -> String = { runContext, command, timeoutSeconds ->
+            HermesPrivilegedAccessBridge.runShellCommandJson(runContext, command, timeoutSeconds)
+        },
+    ): String {
         return when (action.lowercase().ifBlank { "logcat_watcher_status" }) {
             "logcat_watcher_status", "logcat_status", "watch_logcat_status" -> statusJson(context)
             "start_logcat_watcher", "start_logcat_watch", "watch_logcat" -> startJson(context, arguments)
             "stop_logcat_watcher", "stop_logcat_watch" -> stopJson(context)
-            "scan_logcat_entries", "scan_logcat", "run_logcat_watch_once" -> scanOnceJson(context, arguments)
+            "scan_logcat_entries", "scan_logcat", "run_logcat_watch_once" ->
+                scanOnceJson(
+                    context,
+                    arguments,
+                    cancellationRequested,
+                    requestHttpClient,
+                    publicationGate,
+                    privilegedShellRunner,
+                )
             "reset_logcat_watcher_cursor", "reset_logcat_cursor", "clear_logcat_watcher_cursor" -> resetCursorJson(context)
             else -> JSONObject()
                 .put("success", false)
@@ -215,8 +235,25 @@ object HermesLogcatWatcherBridge {
         return true
     }
 
-    fun scanOnceJson(context: Context, arguments: JSONObject = JSONObject()): String {
+    fun scanOnceJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+        publicationGate: AutomationPublicationGate? = null,
+        privilegedShellRunner: (Context, String, Int) -> String = { runContext, command, timeoutSeconds ->
+            HermesPrivilegedAccessBridge.runShellCommandJson(runContext, command, timeoutSeconds)
+        },
+    ): String {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("Logcat watcher scan was stopped")
+        }
         val appContext = context.applicationContext
+        if (publicationGate != null) {
+            // Shizuku's remote shell process is not owned by this chat request. It cannot be
+            // synchronously unwound when Stop wins, so reject before binder/status/shell work.
+            return requestOwnedPrivilegedScanBlockedJson(appContext)
+        }
         val status = HermesPrivilegedAccessBridge.readStatus(appContext)
         if (!status.shizukuBinderAlive) {
             return unavailableJson("Shizuku is not running. Start Shizuku/Sui before scanning logcat.", status)
@@ -237,14 +274,18 @@ object HermesLogcatWatcherBridge {
         val lineLimit = arguments.optInt("max_lines", maxLines.get().toInt()).coerceIn(MIN_MAX_LINES, MAX_MAX_LINES)
         val useCursor = arguments.optBoolean("use_cursor", arguments.optBoolean("watcher_loop", false))
         if (arguments.optBoolean("reset_cursor", false)) {
-            resetCursor(appContext)
+            publishLogcatScanMutation(cancellationRequested, publicationGate) {
+                resetCursor(appContext)
+            }
         }
         val command = "logcat -d -v threadtime,uid -t $lineLimit"
         val shellResult = JSONObject(
-            HermesPrivilegedAccessBridge.runShellCommandJson(
-                appContext,
-                command,
-                LOGCAT_SCAN_TIMEOUT_SECONDS,
+            dispatchPrivilegedLogcatShellJson(
+                context = appContext,
+                command = command,
+                timeoutSeconds = LOGCAT_SCAN_TIMEOUT_SECONDS,
+                publicationGate = publicationGate,
+                privilegedShellRunner = privilegedShellRunner,
             ),
         )
         if (!shellResult.optBoolean("success", false)) {
@@ -257,14 +298,33 @@ object HermesLogcatWatcherBridge {
                 .toString()
         }
         val events = parseThreadtimeLogcatLines(shellResult.optString("output"))
-        val cursorFilteredEvents = filterNewCursorEvents(appContext, events, useCursor)
-        val packagesByUid = resolvePackagesByUid(appContext, cursorFilteredEvents)
+        val cursorFilteredEvents = filterNewCursorEvents(
+            context = appContext,
+            events = events,
+            cursorEnabled = useCursor,
+            cancellationRequested = cancellationRequested,
+            publicationGate = publicationGate,
+        )
+        val packagesByUid = resolvePackagesByUid(
+            context = appContext,
+            events = cursorFilteredEvents,
+            publicationGate = publicationGate,
+            privilegedShellRunner = privilegedShellRunner,
+        )
         val results = JSONArray()
         var matchedCount = 0
         cursorFilteredEvents.forEach { event ->
+            if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+                throw CancellationException("Logcat watcher scan was stopped")
+            }
             val eventWithPackage = attributePackages(event, packagesByUid[event.uid].orEmpty())
             val dispatched = JSONObject(
-                HermesAutomationBridge.runLogcatEntryTriggerJson(appContext, eventWithPackage.toTriggerArguments()),
+                HermesAutomationBridge.runLogcatEntryTriggerJson(
+                    appContext,
+                    eventWithPackage.toTriggerArguments(),
+                    cancellationRequested,
+                    requestHttpClient,
+                ),
             )
             val matches = dispatched.optInt("matched_count", 0)
             if (matches > 0) {
@@ -321,6 +381,8 @@ object HermesLogcatWatcherBridge {
         context: Context,
         events: List<HermesLogcatEvent>,
         cursorEnabled: Boolean,
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
     ): List<HermesLogcatEvent> {
         if (!cursorEnabled || events.isEmpty()) {
             return events
@@ -328,8 +390,24 @@ object HermesLogcatWatcherBridge {
         val appContext = context.applicationContext
         val alreadySeen = readRecentEventSignatures(appContext).toSet()
         val freshEvents = events.filter { event -> eventSignature(event) !in alreadySeen }
-        persistCursor(appContext, events)
+        publishLogcatScanMutation(cancellationRequested, publicationGate) {
+            persistCursor(appContext, events)
+        }
         return freshEvents
+    }
+
+    private fun publishLogcatScanMutation(
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        publication: () -> Unit,
+    ) {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("Logcat watcher scan was stopped")
+        }
+        publicationGate.publishValueIfActive(
+            cancelledValue = { throw CancellationException("Logcat watcher scan was stopped before publishing its cursor") },
+            publication = publication,
+        )
     }
 
     internal fun eventSignature(event: HermesLogcatEvent): String {
@@ -395,7 +473,12 @@ object HermesLogcatWatcherBridge {
         return packagesByUid
     }
 
-    private fun resolvePackagesByUid(context: Context, events: List<HermesLogcatEvent>): Map<String, List<String>> {
+    private fun resolvePackagesByUid(
+        context: Context,
+        events: List<HermesLogcatEvent>,
+        publicationGate: AutomationPublicationGate?,
+        privilegedShellRunner: (Context, String, Int) -> String,
+    ): Map<String, List<String>> {
         val uids = events
             .map { it.uid }
             .filter { uid -> UID_REGEX.matches(uid) }
@@ -406,16 +489,50 @@ object HermesLogcatWatcherBridge {
         }
         val command = uids.joinToString("; ") { uid -> "cmd package list packages --uid $uid" }
         val shellResult = JSONObject(
-            HermesPrivilegedAccessBridge.runShellCommandJson(
-                context.applicationContext,
-                command,
-                UID_PACKAGE_LOOKUP_TIMEOUT_SECONDS,
+            dispatchPrivilegedLogcatShellJson(
+                context = context.applicationContext,
+                command = command,
+                timeoutSeconds = UID_PACKAGE_LOOKUP_TIMEOUT_SECONDS,
+                publicationGate = publicationGate,
+                privilegedShellRunner = privilegedShellRunner,
             ),
         )
         if (!shellResult.optBoolean("success", false)) {
             return emptyMap()
         }
         return parseUidPackageLines(shellResult.optString("output"))
+    }
+
+    internal fun dispatchPrivilegedLogcatShellJson(
+        context: Context,
+        command: String,
+        timeoutSeconds: Int,
+        publicationGate: AutomationPublicationGate?,
+        privilegedShellRunner: (Context, String, Int) -> String = { runContext, shellCommand, timeout ->
+            HermesPrivilegedAccessBridge.runShellCommandJson(runContext, shellCommand, timeout)
+        },
+    ): String {
+        if (publicationGate != null) {
+            return requestOwnedPrivilegedScanBlockedJson(context.applicationContext)
+        }
+        return privilegedShellRunner(context.applicationContext, command, timeoutSeconds)
+    }
+
+    private fun requestOwnedPrivilegedScanBlockedJson(context: Context): String {
+        return JSONObject()
+            .put("success", false)
+            .put("exit_code", 126)
+            .put("request_owned", true)
+            .put("request_owned_privileged_dispatch_blocked", true)
+            .put("requires_shizuku", true)
+            .put("running", running.get())
+            .put("foreground_service_running", HermesLogcatWatcherService.isRunning())
+            .put(
+                "error",
+                "Hermes blocked this chat-owned logcat scan before Shizuku dispatch because the remote privileged shell cannot be synchronously contained by Stop. The manual/background logcat watcher remains available.",
+            )
+            .put("available_actions", JSONArray(ACTIONS))
+            .toString()
     }
 
     private fun enabledLogcatRecordCount(context: Context): Int {
@@ -447,7 +564,7 @@ object HermesLogcatWatcherBridge {
                 intervalSeconds.coerceIn(MIN_SCAN_INTERVAL_SECONDS.toLong(), MAX_SCAN_INTERVAL_SECONDS.toLong()),
             )
             .putLong(PREF_MAX_LINES, lineLimit.coerceIn(MIN_MAX_LINES.toLong(), MAX_MAX_LINES.toLong()))
-            .apply()
+            .commit()
     }
 
     private fun clearWatcherRequest(context: Context) {
@@ -455,7 +572,7 @@ object HermesLogcatWatcherBridge {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(PREF_DESIRED, false)
-            .apply()
+            .commit()
     }
 
     internal fun resetCursor(context: Context) {
@@ -464,7 +581,7 @@ object HermesLogcatWatcherBridge {
             .edit()
             .remove(PREF_LAST_EVENT_TIMESTAMP)
             .remove(PREF_RECENT_EVENT_SIGNATURES)
-            .apply()
+            .commit()
     }
 
     internal fun persistedLastEventTimestamp(context: Context): String? {
@@ -490,7 +607,7 @@ object HermesLogcatWatcherBridge {
             .edit()
             .putString(PREF_RECENT_EVENT_SIGNATURES, merged.joinToString("\n"))
             .putString(PREF_LAST_EVENT_TIMESTAMP, events.last().timestamp)
-            .apply()
+            .commit()
     }
 
     private fun readRecentEventSignatures(context: Context): List<String> {

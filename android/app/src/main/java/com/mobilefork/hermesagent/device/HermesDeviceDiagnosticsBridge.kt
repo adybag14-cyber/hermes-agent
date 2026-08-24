@@ -52,6 +52,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -67,26 +68,37 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 object HermesDeviceDiagnosticsBridge {
-    fun performActionJson(context: Context, action: String, arguments: JSONObject = JSONObject()): String {
+    /** Lock order: request publication gate first, then this bounded history transaction lock. */
+    private val DIAGNOSTIC_HISTORY_TRANSACTION_LOCK = Any()
+
+    fun performActionJson(
+        context: Context,
+        action: String,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+    ): String {
         val appContext = context.applicationContext
-        return when (action.lowercase(Locale.US).ifBlank { "status" }) {
+        val normalizedAction = action.lowercase(Locale.US).ifBlank { "status" }
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, normalizedAction)
+        return when (normalizedAction) {
             "status", "diagnostics_status", "device_diagnostics_status" -> statusJson(appContext).toString()
             "crash_log_status", "last_crash", "last_crash_status", "diagnostics_log_status" ->
                 HermesCrashLogStore.statusJson(appContext).toString()
             "diagnostics_log_export", "crash_log_export", "export_diagnostics_logs" ->
                 HermesCrashLogStore.exportJson(appContext).toString()
-            "clear_last_crash", "clear_crash_log", "clear_crash_diagnostics" -> {
-                HermesCrashLogStore.clearLastCrash(appContext)
-                HermesCrashLogStore.statusJson(appContext)
-                    .put("action", "clear_last_crash")
-                    .put("message", "Cleared last crash diagnostics")
-                    .toString()
-            }
+            "clear_last_crash", "clear_crash_log", "clear_crash_diagnostics" ->
+                publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
+                    HermesCrashLogStore.clearLastCrash(appContext)
+                    HermesCrashLogStore.statusJson(appContext)
+                        .put("action", "clear_last_crash")
+                        .put("message", "Cleared last crash diagnostics")
+                }.toString()
             "top_apps", "top_resource_apps", "top_memory_apps", "top_storage_apps", "resource_apps" ->
                 topAppsJson(appContext, arguments).toString()
             "wifi_scan", "wifi_analyzer", "scan_wifi", "nearby_wifi", "wifi_signals",
             "wifi_filtered_scan", "wifi_filter", "wifi_filtered_ap_details" ->
-                wifiScanJson(appContext, arguments).toString()
+                wifiScanJson(appContext, arguments, cancellationRequested = cancellationRequested, publicationGate = publicationGate).toString()
             "wifi_analyzer_report", "wifi_readiness_report", "wifi_feature_report", "wifi_scan_policy" ->
                 wifiAnalyzerReportJson(appContext, arguments).toString()
             "wifi_signal_advisor_report", "wifi_signal_advisor", "wifi_decision_report",
@@ -99,15 +111,15 @@ object HermesDeviceDiagnosticsBridge {
             "wifi_connection_link", "wifi_link_status", "wifi_current_connection", "wifi_current_ap", "wifi_current_network" ->
                 wifiConnectionLinkReportJson(appContext).toString()
             "wifi_channel_graph", "wifi_graph", "channel_graph", "wifi_signal_channel_graph" ->
-                wifiScanJson(appContext, arguments, "wifi_channel_graph").toString()
+                wifiScanJson(appContext, arguments, "wifi_channel_graph", cancellationRequested, publicationGate).toString()
             "wifi_channel_rating", "wifi_channels", "channel_rating", "best_wifi_channel", "wifi_congestion" ->
-                wifiScanJson(appContext, arguments, "wifi_channel_rating").toString()
+                wifiScanJson(appContext, arguments, "wifi_channel_rating", cancellationRequested, publicationGate).toString()
             "wifi_channel_utilization", "wifi_utilization", "wifi_spectrum", "wifi_interference", "wifi_band_occupancy" ->
-                wifiScanJson(appContext, arguments, "wifi_channel_utilization").toString()
+                wifiScanJson(appContext, arguments, "wifi_channel_utilization", cancellationRequested, publicationGate).toString()
             "wifi_ap_details", "wifi_access_points", "wifi_access_point_details", "wifi_report" ->
-                wifiScanJson(appContext, arguments, "wifi_ap_details").toString()
+                wifiScanJson(appContext, arguments, "wifi_ap_details", cancellationRequested, publicationGate).toString()
             "wifi_export", "wifi_analyzer_export", "wifi_access_point_export", "export_wifi" ->
-                wifiScanJson(appContext, arguments, "wifi_export").toString()
+                wifiScanJson(appContext, arguments, "wifi_export", cancellationRequested, publicationGate).toString()
             "bluetooth_analyzer_report", "bluetooth_readiness_report", "bluetooth_feature_report", "bluetooth_scan_policy", "nearby_bluetooth_report" ->
                 bluetoothAnalyzerReportJson(appContext, arguments).toString()
             "bluetooth_signal_advisor_report", "bluetooth_signal_advisor", "bluetooth_nearby_advisor_report",
@@ -119,13 +131,13 @@ object HermesDeviceDiagnosticsBridge {
             "top_card_bluetooth_packet", "mediatek_bluetooth_decision_packet" ->
                 bluetoothNearbyDecisionPacketReportJson(appContext, arguments).toString()
             "bluetooth_signal_history", "bluetooth_history", "bluetooth_rssi_history", "bluetooth_trends", "bluetooth_trend" ->
-                bluetoothScanJson(appContext, arguments, "bluetooth_signal_history").toString()
+                bluetoothScanJson(appContext, arguments, "bluetooth_signal_history", cancellationRequested, publicationGate).toString()
             "bluetooth_device_details", "bluetooth_details", "bluetooth_device_report", "bluetooth_export", "bluetooth_device_export" ->
-                bluetoothDeviceDetailsJson(appContext, arguments).toString()
+                bluetoothDeviceDetailsJson(appContext, arguments, cancellationRequested, publicationGate).toString()
             "bluetooth_scan", "bluetooth_scanner", "nearby_bluetooth", "ble_scan", "bluetooth_signals" ->
-                bluetoothScanJson(appContext, arguments).toString()
+                bluetoothScanJson(appContext, arguments, cancellationRequested = cancellationRequested, publicationGate = publicationGate).toString()
             "sensor_analyzer_report", "sensor_readiness_report", "sensor_feature_report", "sensor_sampling_policy", "motion_sensor_report" ->
-                sensorAnalyzerReportJson(appContext, arguments).toString()
+                sensorAnalyzerReportJson(appContext, arguments, cancellationRequested, publicationGate).toString()
             "sensor_workflow_advisor_report", "sensor_workflow_advisor", "motion_sensor_advisor_report",
             "motion_sensor_workflow_report", "gyro_accelerometer_advisor_report", "imu_workflow_advisor_report" ->
                 sensorWorkflowAdvisorReportJson(appContext, arguments).toString()
@@ -134,13 +146,13 @@ object HermesDeviceDiagnosticsBridge {
             "top_card_motion_packet", "mediatek_motion_decision_packet" ->
                 motionSensorDecisionPacketReportJson(appContext, arguments).toString()
             "motion_sensor_quality", "imu_quality_report", "motion_fusion_quality", "gyro_accel_quality", "sensor_fusion_quality" ->
-                motionSensorQualityJson(appContext, arguments).toString()
+                motionSensorQualityJson(appContext, arguments, cancellationRequested, publicationGate).toString()
             "motion_sensor_history", "motion_history", "sensor_history", "imu_history", "imu_sensor_history", "accelerometer_history", "gyroscope_history", "sensor_trends", "motion_sensor_trends" ->
-                motionSensorHistoryJson(appContext, arguments).toString()
+                motionSensorHistoryJson(appContext, arguments, cancellationRequested, publicationGate).toString()
             "motion_pose", "orientation_snapshot", "pose_snapshot", "motion_orientation" ->
-                sensorSnapshotJson(appContext, motionPoseDefaultArguments(arguments)).toString()
+                sensorSnapshotJson(appContext, motionPoseDefaultArguments(arguments), cancellationRequested, publicationGate).toString()
             "sensor_snapshot", "sensors", "sensor_status", "sample_sensors", "motion_sensors" ->
-                sensorSnapshotJson(appContext, arguments).toString()
+                sensorSnapshotJson(appContext, arguments, cancellationRequested, publicationGate).toString()
             "camera_status", "camera", "camera_capabilities" -> cameraStatusJson(appContext).toString()
             "radio_signal_graph", "radio_graph", "am_fm_signal_graph", "am_fm_radio_graph", "broadcast_radio_graph",
             "radio_band_graph", "radio_bridge_samples", "radio_bridge_sample_report", "sdr_bridge_samples",
@@ -263,25 +275,66 @@ object HermesDeviceDiagnosticsBridge {
                 agentSelfCheckReportJson(appContext).toString()
             "agent_native_tool_self_test_report", "native_tool_self_test", "all_features_test", "full_feature_test",
             "all_features_self_test", "native_bridge_self_test", "native_tool_bridge_report" ->
-                nativeToolSelfTestReportJson(appContext).toString()
+                nativeToolSelfTestReportJson(appContext, cancellationRequested, publicationGate).toString()
             "social_gmail_goal_preflight", "social_gmail_preflight", "phone_goal_preflight", "end_to_end_goal_preflight" ->
                 socialGmailGoalPreflightJson(appContext).toString()
             "show_active_overlay", "show_working_overlay", "active_overlay" ->
-                showActiveOverlayJson(appContext, arguments).toString()
+                publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
+                    showActiveOverlayJson(appContext, arguments)
+                }.toString()
             "tool_catalog", "tools", "list_tools", "available_tools", "capabilities" ->
                 toolCatalogJson().toString()
-            "open_usage_access_settings" -> openSettingsJson(appContext, Settings.ACTION_USAGE_ACCESS_SETTINGS, "Opened usage access settings").toString()
-            "open_app_settings" -> openAppSettingsJson(appContext, "Opened Hermes app settings").toString()
-            "open_location_settings" -> openSettingsJson(appContext, Settings.ACTION_LOCATION_SOURCE_SETTINGS, "Opened Android location settings").toString()
-            "open_wifi_settings" -> openSettingsJson(appContext, Settings.ACTION_WIFI_SETTINGS, "Opened Android Wi-Fi settings").toString()
-            "open_bluetooth_settings" -> openSettingsJson(appContext, Settings.ACTION_BLUETOOTH_SETTINGS, "Opened Android Bluetooth settings").toString()
+            "open_usage_access_settings" -> publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
+                openSettingsJson(appContext, Settings.ACTION_USAGE_ACCESS_SETTINGS, "Opened usage access settings")
+            }.toString()
+            "open_app_settings" -> publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
+                openAppSettingsJson(appContext, "Opened Hermes app settings")
+            }.toString()
+            "open_location_settings" -> publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
+                openSettingsJson(appContext, Settings.ACTION_LOCATION_SOURCE_SETTINGS, "Opened Android location settings")
+            }.toString()
+            "open_wifi_settings" -> publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
+                openSettingsJson(appContext, Settings.ACTION_WIFI_SETTINGS, "Opened Android Wi-Fi settings")
+            }.toString()
+            "open_bluetooth_settings" -> publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
+                openSettingsJson(appContext, Settings.ACTION_BLUETOOTH_SETTINGS, "Opened Android Bluetooth settings")
+            }.toString()
             "open_camera_permission_settings", "open_diagnostics_permission_settings" ->
-                openAppSettingsJson(appContext, "Opened Hermes app permission settings").toString()
+                publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
+                    openAppSettingsJson(appContext, "Opened Hermes app permission settings")
+                }.toString()
             else -> JSONObject()
                 .put("success", false)
                 .put("error", "Unsupported device diagnostics action: $action")
                 .put("available_actions", JSONArray(ACTIONS))
                 .toString()
+        }
+    }
+
+    private fun publishDiagnosticsMutation(
+        action: String,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        publication: () -> JSONObject,
+    ): JSONObject {
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, action)
+        return publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Device diagnostics action $action was stopped before its mutation commit")
+            },
+            publication = publication,
+        )
+    }
+
+    private fun throwIfDiagnosticsCancellationRequested(
+        cancellationRequested: () -> Boolean,
+        action: String,
+    ) {
+        if (cancellationRequested()) {
+            throw CancellationException("Device diagnostics action $action was stopped")
+        }
+        if (Thread.currentThread().isInterrupted) {
+            throw InterruptedException("Device diagnostics action $action thread was interrupted")
         }
     }
 
@@ -359,7 +412,15 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
-    fun wifiScanJson(context: Context, arguments: JSONObject = JSONObject(), actionName: String = "wifi_scan"): JSONObject {
+    fun wifiScanJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        actionName: String = "wifi_scan",
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+        persistHistory: Boolean = true,
+    ): JSONObject {
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, actionName)
         val appContext = context.applicationContext
         val limit = arguments.optInt("limit", DEFAULT_LIMIT).coerceIn(1, MAX_WIFI_RESULTS)
         val requestedRefresh = arguments.optBoolean("refresh", false)
@@ -413,10 +474,15 @@ object HermesDeviceDiagnosticsBridge {
                 )
                 .put("settings_actions", JSONArray().put("open_location_settings").put("open_app_settings"))
         }
-        val refreshAccepted = if (refresh) runCatching {
-            @Suppress("DEPRECATION")
-            wifiManager.startScan()
-        }.getOrDefault(false) else false
+        val refreshAccepted = if (refresh) {
+            publishDiagnosticsMutation("$actionName:refresh", cancellationRequested, publicationGate) {
+                @Suppress("DEPRECATION")
+                JSONObject().put("accepted", runCatching { wifiManager.startScan() }.getOrDefault(false))
+            }.optBoolean("accepted", false)
+        } else {
+            false
+        }
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, actionName)
         val scanResults = runCatching { wifiManager.scanResults.orEmpty() }.getOrElse { error ->
             return JSONObject()
                 .put("success", false)
@@ -464,7 +530,14 @@ object HermesDeviceDiagnosticsBridge {
             if (actionName == "wifi_export") "both" else "json"
         })
         val accessPointExport = wifiAccessPointExportJson(accessPointDetails, exportFormat, observedAtMs)
-        val historyStore = updateWifiSignalHistory(appContext, allNetworks, observedAtMs)
+        val historyStore = updateWifiSignalHistory(
+            context = appContext,
+            networks = allNetworks,
+            observedAtMs = observedAtMs,
+            cancellationRequested = cancellationRequested,
+            publicationGate = publicationGate,
+            persist = persistHistory,
+        )
         val signalHistory = wifiSignalHistoryRowsFromStore(historyStore)
         val wifiEnabled = wifiManager.isWifiEnabled
         val scanStatus = wifiScanStatusJson(
@@ -671,7 +744,7 @@ object HermesDeviceDiagnosticsBridge {
         val canReadScan = wifiManager != null && permissionStatus.optBoolean("can_read_scan_results", false)
         val passiveArguments = JSONObject(arguments.toString()).put("refresh", false)
         val scanResult = if (canReadScan) {
-            wifiScanJson(appContext, passiveArguments, "wifi_analyzer_report")
+            wifiScanJson(appContext, passiveArguments, "wifi_analyzer_report", persistHistory = false)
         } else {
             null
         }
@@ -1050,7 +1123,15 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
-    fun bluetoothScanJson(context: Context, arguments: JSONObject = JSONObject(), actionName: String = "bluetooth_scan"): JSONObject {
+    fun bluetoothScanJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        actionName: String = "bluetooth_scan",
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+        persistHistory: Boolean = true,
+    ): JSONObject {
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, actionName)
         val appContext = context.applicationContext
         val limit = arguments.optInt("limit", DEFAULT_LIMIT).coerceIn(1, MAX_BLUETOOTH_RESULTS)
         val requestedRefresh = arguments.optBoolean("refresh", false)
@@ -1104,15 +1185,29 @@ object HermesDeviceDiagnosticsBridge {
                 val settings = ScanSettings.Builder()
                     .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                     .build()
-                refreshAccepted = runCatching {
-                    scanner.startScan(null, settings, callback)
-                    latch.await(timeoutMs, TimeUnit.MILLISECONDS)
-                    scanner.stopScan(callback)
-                    failedCode.get() == 0
-                }.getOrElse { error ->
-                    scanError = error.message ?: error.javaClass.simpleName
+                refreshAccepted = try {
+                    runCatching {
+                        publishDiagnosticsMutation("$actionName:refresh", cancellationRequested, publicationGate) {
+                            scanner.startScan(null, settings, callback)
+                            JSONObject().put("accepted", true)
+                        }
+                        val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
+                        while (latch.count > 0L && System.nanoTime() < deadlineNanos) {
+                            throwIfDiagnosticsCancellationRequested(cancellationRequested, actionName)
+                            val remainingMs = TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime())
+                                .coerceAtLeast(1L)
+                            latch.await(minOf(remainingMs, DIAGNOSTICS_CANCELLATION_POLL_MS), TimeUnit.MILLISECONDS)
+                        }
+                        throwIfDiagnosticsCancellationRequested(cancellationRequested, actionName)
+                        failedCode.get() == 0
+                    }.getOrElse { error ->
+                        if (error is CancellationException || error is InterruptedException) throw error
+                        scanError = error.message ?: error.javaClass.simpleName
+                        false
+                    }
+                } finally {
+                    // Scanner cleanup is request-owned unwind, so it must run even after Stop.
                     runCatching { scanner.stopScan(callback) }
-                    false
                 }
                 if (failedCode.get() != 0) {
                     scanError = "Bluetooth LE scan failed with code ${failedCode.get()}"
@@ -1139,7 +1234,14 @@ object HermesDeviceDiagnosticsBridge {
         val manufacturerIdCount = bluetoothDistinctStringCount(devices, "manufacturer_ids")
         val manufacturerNameCount = bluetoothDistinctStringCount(devices, "manufacturer_names")
         val observedAtMs = System.currentTimeMillis()
-        val historyStore = updateBluetoothSignalHistory(appContext, allDevices, observedAtMs)
+        val historyStore = updateBluetoothSignalHistory(
+            context = appContext,
+            devices = allDevices,
+            observedAtMs = observedAtMs,
+            cancellationRequested = cancellationRequested,
+            publicationGate = publicationGate,
+            persist = persistHistory,
+        )
         val signalHistory = bluetoothSignalHistoryRowsFromStore(historyStore)
         return JSONObject()
             .put("success", true)
@@ -1212,7 +1314,12 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
-    fun bluetoothDeviceDetailsJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+    fun bluetoothDeviceDetailsJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+    ): JSONObject {
         val appContext = context.applicationContext
         val detailLimit = arguments.optInt("detail_limit", arguments.optInt("limit", MAX_BLUETOOTH_RESULTS))
             .coerceIn(1, MAX_BLUETOOTH_RESULTS)
@@ -1238,7 +1345,13 @@ object HermesDeviceDiagnosticsBridge {
                 .put("limit", MAX_BLUETOOTH_RESULTS)
                 .put("refresh", requestedRefresh)
                 .put("scan_mode", scanMode)
-            bluetoothScanJson(appContext, scanArguments)
+            bluetoothScanJson(
+                context = appContext,
+                arguments = scanArguments,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+                persistHistory = false,
+            )
         } else {
             null
         }
@@ -1312,7 +1425,7 @@ object HermesDeviceDiagnosticsBridge {
             (permissionStatus.optBoolean("can_read_paired_devices", false) || permissionStatus.optBoolean("can_scan_nearby_devices", false))
         val passiveArguments = JSONObject(arguments.toString()).put("refresh", false)
         val scanResult = if (canReadAnyBluetoothRows) {
-            bluetoothScanJson(appContext, passiveArguments)
+            bluetoothScanJson(appContext, passiveArguments, persistHistory = false)
         } else {
             null
         }
@@ -1619,7 +1732,14 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
-    fun sensorSnapshotJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+    fun sensorSnapshotJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+        persistHistory: Boolean = true,
+    ): JSONObject {
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, "sensor_snapshot")
         val appContext = context.applicationContext
         val sensorManager = appContext.getSystemService(SensorManager::class.java)
             ?: return JSONObject()
@@ -1633,11 +1753,25 @@ object HermesDeviceDiagnosticsBridge {
             val sensor = androidType?.let { sensorManager.getDefaultSensor(it) }
             if (androidType != null && sensor != null) key to sensor else null
         }
-        val samples = sampleSensors(sensorManager, requested, targets, timeoutMs)
+        val samples = sampleSensors(
+            sensorManager = sensorManager,
+            requested = requested,
+            targets = targets,
+            timeoutMs = timeoutMs,
+            cancellationRequested = cancellationRequested,
+            publicationGate = publicationGate,
+        )
         val capabilities = sensorCapabilityRows(sensorManager, requested)
         val available = sensorTypeCatalog(appContext)
         val observedAtMs = System.currentTimeMillis()
-        val motionHistoryStore = updateMotionSensorHistory(appContext, samples, observedAtMs)
+        val motionHistoryStore = updateMotionSensorHistory(
+            context = appContext,
+            samples = samples,
+            observedAtMs = observedAtMs,
+            cancellationRequested = cancellationRequested,
+            publicationGate = publicationGate,
+            persist = persistHistory,
+        )
         val motionHistory = motionSensorHistoryRowsFromStore(motionHistoryStore, observedAtMs)
         val motionPoseEstimates = motionPoseEstimateRows(samples, motionHistory)
         val motionQualityRows = motionSensorQualityRows(
@@ -1719,7 +1853,12 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
-    fun motionSensorHistoryJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+    fun motionSensorHistoryJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+    ): JSONObject {
         val appContext = context.applicationContext
         val sensorManager = appContext.getSystemService(SensorManager::class.java)
         val requested = requestedMotionHistorySensorTypes(arguments)
@@ -1729,7 +1868,7 @@ object HermesDeviceDiagnosticsBridge {
             val sampleArguments = JSONObject(arguments.toString())
                 .put("sensor_types", requested.joinToString(","))
                 .put("timeout_ms", timeoutMs)
-            sensorSnapshotJson(appContext, sampleArguments)
+            sensorSnapshotJson(appContext, sampleArguments, cancellationRequested, publicationGate)
         } else {
             null
         }
@@ -1811,7 +1950,12 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
-    fun motionSensorQualityJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+    fun motionSensorQualityJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+    ): JSONObject {
         val appContext = context.applicationContext
         val sensorManager = appContext.getSystemService(SensorManager::class.java)
         val requested = motionSensorQualityRequestedSensorTypes(arguments)
@@ -1825,6 +1969,8 @@ object HermesDeviceDiagnosticsBridge {
                 JSONObject(arguments.toString())
                     .put("sensor_types", requested.joinToString(","))
                     .put("timeout_ms", timeoutMs),
+                cancellationRequested,
+                publicationGate,
             )
         } else {
             null
@@ -1908,7 +2054,12 @@ object HermesDeviceDiagnosticsBridge {
             )
     }
 
-    fun sensorAnalyzerReportJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+    fun sensorAnalyzerReportJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+    ): JSONObject {
         val appContext = context.applicationContext
         val sensorManager = appContext.getSystemService(SensorManager::class.java)
         val requested = sensorAnalyzerRequestedSensorTypes(arguments)
@@ -1921,7 +2072,11 @@ object HermesDeviceDiagnosticsBridge {
         }
         val includeSnapshot = arguments.optBoolean("include_snapshot", false) || arguments.optBoolean("sample", false)
         val timeoutMs = arguments.optLong("timeout_ms", DEFAULT_SENSOR_TIMEOUT_MS).coerceIn(150L, MAX_SENSOR_TIMEOUT_MS)
-        val snapshot = if (includeSnapshot && sensorManager != null) sensorSnapshotJson(appContext, arguments) else null
+        val snapshot = if (includeSnapshot && sensorManager != null) {
+            sensorSnapshotJson(appContext, arguments, cancellationRequested, publicationGate)
+        } else {
+            null
+        }
         val samples = snapshot?.optJSONArray("sensor_samples") ?: JSONArray()
         val motionHistory = snapshot?.optJSONArray("motion_sensor_history")
             ?: motionSensorHistoryRowsFromStore(readMotionSensorHistory(appContext))
@@ -22964,32 +23119,73 @@ object HermesDeviceDiagnosticsBridge {
             .put("overlay_payload", payload)
     }
 
-    private fun nativeToolSelfTestReportJson(context: Context): JSONObject {
+    private fun nativeToolSelfTestReportJson(
+        context: Context,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+    ): JSONObject {
         val appContext = context.applicationContext
         val rows = JSONArray()
             .put(
-                nativeSelfTestRow("terminal_tool", "Native shell", "NativeAndroidShellTool") {
-                    val result = NativeAndroidShellTool.run(appContext, "printf hermes-native-shell", 5)
-                    val ready = result.optInt("exit_code", -1) == 0 &&
-                        result.optString("output").contains("hermes-native-shell")
-                    NativeSelfTestResult(
-                        ready = ready,
-                        status = if (ready) "ready" else "error",
-                        detail = if (ready) {
-                            "Android shell command executed through the native bridge."
-                        } else {
-                            result.optString("error").ifBlank { "Shell exited with code ${result.optInt("exit_code", -1)}." }
-                        },
-                        metadata = JSONObject()
-                            .put("exit_code", result.optInt("exit_code", -1))
-                            .put("execution_mode", result.optString("execution_mode"))
-                            .put("uses_termux", result.optBoolean("uses_termux", false))
-                            .put("shell", result.optString("shell")),
-                    )
+                nativeSelfTestRow(
+                    "terminal_tool",
+                    "Native shell",
+                    "NativeAndroidShellTool",
+                    cancellationRequested,
+                ) {
+                    if (publicationGate != null) {
+                        val state = HermesLinuxSubsystemBridge.readStateSnapshot(appContext)
+                        val shellPath = state?.optString("shell_path", state.optString("bash_path")).orEmpty()
+                        val ready = state?.optBoolean("uses_termux", false) == true &&
+                            shellPath.isNotBlank() && File(shellPath).let { file ->
+                                file.path.startsWith("/system/") || (file.isFile && file.canExecute())
+                            }
+                        NativeSelfTestResult(
+                            ready = ready,
+                            status = if (ready) "ready_preflight" else "not_initialized",
+                            detail = if (ready) {
+                                "Chat-safe shell preflight passed without running installation or repair."
+                            } else {
+                                "Open the manual terminal once before chat-owned native shell self-test preflight."
+                            },
+                            metadata = JSONObject()
+                                .put("executed", false)
+                                .put("request_safe_preflight", true)
+                                .put("shell_path", shellPath),
+                        )
+                    } else {
+                        val result = NativeAndroidShellTool.run(
+                            appContext,
+                            "printf hermes-native-shell",
+                            5,
+                            cancellationRequested = cancellationRequested,
+                        )
+                        val ready = result.optInt("exit_code", -1) == 0 &&
+                            result.optString("output").contains("hermes-native-shell")
+                        NativeSelfTestResult(
+                            ready = ready,
+                            status = if (ready) "ready" else "error",
+                            detail = if (ready) {
+                                "Android shell command executed through the native bridge."
+                            } else {
+                                result.optString("error").ifBlank { "Shell exited with code ${result.optInt("exit_code", -1)}." }
+                            },
+                            metadata = JSONObject()
+                                .put("exit_code", result.optInt("exit_code", -1))
+                                .put("execution_mode", result.optString("execution_mode"))
+                                .put("uses_termux", result.optBoolean("uses_termux", false))
+                                .put("shell", result.optString("shell")),
+                        )
+                    }
                 },
             )
             .put(
-                nativeSelfTestRow("android_system_tool", "Android system", "HermesSystemControlBridge") {
+                nativeSelfTestRow(
+                    "android_system_tool",
+                    "Android system",
+                    "HermesSystemControlBridge",
+                    cancellationRequested,
+                ) {
                     val status = JSONObject(HermesSystemControlBridge.statusJson())
                     NativeSelfTestResult(
                         ready = true,
@@ -23003,7 +23199,12 @@ object HermesDeviceDiagnosticsBridge {
                 },
             )
             .put(
-                nativeSelfTestRow("android_ui_tool", "Android UI", "HermesAccessibilityUiBridge") {
+                nativeSelfTestRow(
+                    "android_ui_tool",
+                    "Android UI",
+                    "HermesAccessibilityUiBridge",
+                    cancellationRequested,
+                ) {
                     val status = JSONObject(HermesAccessibilityUiBridge.snapshotJson(1))
                     val connected = status.optBoolean("accessibility_connected", false)
                     val error = status.optString("error")
@@ -23024,7 +23225,12 @@ object HermesDeviceDiagnosticsBridge {
                 },
             )
             .put(
-                nativeSelfTestRow("hy_memory_tool", "HY Memory", "HermesHyMemoryBridge") {
+                nativeSelfTestRow(
+                    "hy_memory_tool",
+                    "HY Memory",
+                    "HermesHyMemoryBridge",
+                    cancellationRequested,
+                ) {
                     val status = HermesHyMemoryBridge.statusJson(appContext)
                     NativeSelfTestResult(
                         ready = status.optBoolean("success", false),
@@ -23035,10 +23241,22 @@ object HermesDeviceDiagnosticsBridge {
                 },
             )
             .put(
-                nativeSelfTestRow("file_write_tool", "Workspace file write", "HermesWorkspaceFileBridge") {
+                nativeSelfTestRow(
+                    "file_write_tool",
+                    "Workspace file write",
+                    "HermesWorkspaceFileBridge",
+                    cancellationRequested,
+                ) {
                     val path = ".hermes-native-self-test.txt"
-                    val writeResult = HermesWorkspaceFileBridge.writeTextJson(appContext, path, "hermes-native-file", false)
-                    HermesWorkspaceFileBridge.deleteJson(appContext, path)
+                    val writeResult = publishDiagnosticsMutation(
+                        action = "native_tool_self_test:file_write",
+                        cancellationRequested = cancellationRequested,
+                        publicationGate = publicationGate,
+                    ) {
+                        val result = HermesWorkspaceFileBridge.writeTextJson(appContext, path, "hermes-native-file", false)
+                        HermesWorkspaceFileBridge.deleteJson(appContext, path)
+                        result
+                    }
                     val ready = writeResult.optBoolean("success", false) && writeResult.optInt("exit_code", -1) == 0
                     NativeSelfTestResult(
                         ready = ready,
@@ -23075,10 +23293,13 @@ object HermesDeviceDiagnosticsBridge {
         toolName: String,
         label: String,
         bridgeClass: String,
+        cancellationRequested: () -> Boolean,
         block: () -> NativeSelfTestResult,
     ): JSONObject {
+        throwIfNativeSelfTestCancellationRequested(cancellationRequested)
         return runCatching {
             val result = block()
+            throwIfNativeSelfTestCancellationRequested(cancellationRequested)
             JSONObject()
                 .put("tool_name", toolName)
                 .put("label", label)
@@ -23089,6 +23310,13 @@ object HermesDeviceDiagnosticsBridge {
                 .put("detail", result.detail)
                 .put("metadata", result.metadata)
         }.getOrElse { error ->
+            if (error is CancellationException ||
+                error is InterruptedException ||
+                cancellationRequested() ||
+                Thread.currentThread().isInterrupted
+            ) {
+                throw error
+            }
             JSONObject()
                 .put("tool_name", toolName)
                 .put("label", label)
@@ -23097,6 +23325,33 @@ object HermesDeviceDiagnosticsBridge {
                 .put("ready", false)
                 .put("status_label", "error")
                 .put("detail", error.message ?: error.javaClass.simpleName)
+        }
+    }
+
+    internal fun nativeSelfTestRowForTest(
+        cancellationRequested: () -> Boolean,
+        block: () -> Unit,
+    ): JSONObject = nativeSelfTestRow(
+        toolName = "test_tool",
+        label = "Test tool",
+        bridgeClass = "TestBridge",
+        cancellationRequested = cancellationRequested,
+    ) {
+        block()
+        NativeSelfTestResult(
+            ready = true,
+            status = "ready",
+            detail = "test",
+            metadata = JSONObject(),
+        )
+    }
+
+    private fun throwIfNativeSelfTestCancellationRequested(cancellationRequested: () -> Boolean) {
+        if (cancellationRequested()) {
+            throw CancellationException("Native tool self-test was stopped")
+        }
+        if (Thread.currentThread().isInterrupted) {
+            throw InterruptedException("Native tool self-test thread was interrupted")
         }
     }
 
@@ -23233,7 +23488,10 @@ object HermesDeviceDiagnosticsBridge {
         requested: List<String>,
         targets: List<Pair<String, Sensor>>,
         timeoutMs: Long,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
     ): JSONArray {
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, "sensor_snapshot")
         val samples = JSONArray()
         if (targets.isEmpty()) {
             requested.forEach { key ->
@@ -23266,10 +23524,20 @@ object HermesDeviceDiagnosticsBridge {
         thread.start()
         val handler = Handler(thread.looper)
         try {
-            targets.forEach { (_, sensor) ->
-                sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL, handler)
+            publishDiagnosticsMutation("sensor_snapshot:register", cancellationRequested, publicationGate) {
+                targets.forEach { (_, sensor) ->
+                    sensorManager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL, handler)
+                }
+                JSONObject().put("registered", true)
             }
-            latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+            val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs)
+            while (latch.count > 0L && System.nanoTime() < deadlineNanos) {
+                throwIfDiagnosticsCancellationRequested(cancellationRequested, "sensor_snapshot")
+                val remainingMs = TimeUnit.NANOSECONDS.toMillis(deadlineNanos - System.nanoTime())
+                    .coerceAtLeast(1L)
+                latch.await(minOf(remainingMs, DIAGNOSTICS_CANCELLATION_POLL_MS), TimeUnit.MILLISECONDS)
+            }
+            throwIfDiagnosticsCancellationRequested(cancellationRequested, "sensor_snapshot")
         } finally {
             sensorManager.unregisterListener(listener)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
@@ -27574,54 +27842,136 @@ object HermesDeviceDiagnosticsBridge {
         counts[key] = (counts[key] ?: 0) + 1
     }
 
-    private fun updateWifiSignalHistory(context: Context, networks: JSONArray, observedAtMs: Long): JSONObject {
+    internal fun updateWifiSignalHistory(
+        context: Context,
+        networks: JSONArray,
+        observedAtMs: Long,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        persist: Boolean,
+    ): JSONObject {
         val prefs = context.getSharedPreferences(WIFI_SIGNAL_HISTORY_PREFS, Context.MODE_PRIVATE)
-        val existing = runCatching {
-            JSONObject(prefs.getString(WIFI_SIGNAL_HISTORY_KEY, "{}").orEmpty().ifBlank { "{}" })
-        }.getOrDefault(JSONObject())
-        val updated = mergeWifiSignalHistory(existing, networks, observedAtMs)
-        prefs.edit().putString(WIFI_SIGNAL_HISTORY_KEY, updated.toString()).apply()
-        return updated
+        if (!persist) {
+            return synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+                val existing = readJsonPreference(prefs, WIFI_SIGNAL_HISTORY_KEY)
+                mergeWifiSignalHistory(existing, networks, observedAtMs)
+            }
+        }
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, "wifi_signal_history")
+        // Lock order is request publication gate, then this bounded JSON read-merge-commit.
+        return publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Wi-Fi scan was stopped before publishing signal history")
+            },
+        ) {
+            synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+                val updated = mergeWifiSignalHistory(
+                    readJsonPreference(prefs, WIFI_SIGNAL_HISTORY_KEY),
+                    networks,
+                    observedAtMs,
+                )
+                check(prefs.edit().putString(WIFI_SIGNAL_HISTORY_KEY, updated.toString()).commit()) {
+                    "Failed to commit Wi-Fi signal history"
+                }
+                updated
+            }
+        }
     }
 
     private fun readWifiSignalHistory(context: Context): JSONObject {
         val prefs = context.getSharedPreferences(WIFI_SIGNAL_HISTORY_PREFS, Context.MODE_PRIVATE)
-        return runCatching {
-            JSONObject(prefs.getString(WIFI_SIGNAL_HISTORY_KEY, "{}").orEmpty().ifBlank { "{}" })
-        }.getOrDefault(JSONObject())
+        return synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+            readJsonPreference(prefs, WIFI_SIGNAL_HISTORY_KEY)
+        }
     }
 
-    private fun updateBluetoothSignalHistory(context: Context, devices: JSONArray, observedAtMs: Long): JSONObject {
+    internal fun updateBluetoothSignalHistory(
+        context: Context,
+        devices: JSONArray,
+        observedAtMs: Long,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        persist: Boolean,
+    ): JSONObject {
         val prefs = context.getSharedPreferences(BLUETOOTH_SIGNAL_HISTORY_PREFS, Context.MODE_PRIVATE)
-        val existing = runCatching {
-            JSONObject(prefs.getString(BLUETOOTH_SIGNAL_HISTORY_KEY, "{}").orEmpty().ifBlank { "{}" })
-        }.getOrDefault(JSONObject())
-        val updated = mergeBluetoothSignalHistory(existing, devices, observedAtMs)
-        prefs.edit().putString(BLUETOOTH_SIGNAL_HISTORY_KEY, updated.toString()).apply()
-        return updated
+        if (!persist) {
+            return synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+                val existing = readJsonPreference(prefs, BLUETOOTH_SIGNAL_HISTORY_KEY)
+                mergeBluetoothSignalHistory(existing, devices, observedAtMs)
+            }
+        }
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, "bluetooth_signal_history")
+        return publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Bluetooth scan was stopped before publishing signal history")
+            },
+        ) {
+            synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+                val updated = mergeBluetoothSignalHistory(
+                    readJsonPreference(prefs, BLUETOOTH_SIGNAL_HISTORY_KEY),
+                    devices,
+                    observedAtMs,
+                )
+                check(prefs.edit().putString(BLUETOOTH_SIGNAL_HISTORY_KEY, updated.toString()).commit()) {
+                    "Failed to commit Bluetooth signal history"
+                }
+                updated
+            }
+        }
     }
 
     private fun readBluetoothSignalHistory(context: Context): JSONObject {
         val prefs = context.getSharedPreferences(BLUETOOTH_SIGNAL_HISTORY_PREFS, Context.MODE_PRIVATE)
-        return runCatching {
-            JSONObject(prefs.getString(BLUETOOTH_SIGNAL_HISTORY_KEY, "{}").orEmpty().ifBlank { "{}" })
-        }.getOrDefault(JSONObject())
+        return synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+            readJsonPreference(prefs, BLUETOOTH_SIGNAL_HISTORY_KEY)
+        }
     }
 
-    private fun updateMotionSensorHistory(context: Context, samples: JSONArray, observedAtMs: Long): JSONObject {
+    internal fun updateMotionSensorHistory(
+        context: Context,
+        samples: JSONArray,
+        observedAtMs: Long,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        persist: Boolean,
+    ): JSONObject {
         val prefs = context.getSharedPreferences(MOTION_SENSOR_HISTORY_PREFS, Context.MODE_PRIVATE)
-        val existing = runCatching {
-            JSONObject(prefs.getString(MOTION_SENSOR_HISTORY_KEY, "{}").orEmpty().ifBlank { "{}" })
-        }.getOrDefault(JSONObject())
-        val updated = mergeMotionSensorHistory(existing, samples, observedAtMs)
-        prefs.edit().putString(MOTION_SENSOR_HISTORY_KEY, updated.toString()).apply()
-        return updated
+        if (!persist) {
+            return synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+                val existing = readJsonPreference(prefs, MOTION_SENSOR_HISTORY_KEY)
+                mergeMotionSensorHistory(existing, samples, observedAtMs)
+            }
+        }
+        throwIfDiagnosticsCancellationRequested(cancellationRequested, "motion_sensor_history")
+        return publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Sensor snapshot was stopped before publishing motion history")
+            },
+        ) {
+            synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+                val updated = mergeMotionSensorHistory(
+                    readJsonPreference(prefs, MOTION_SENSOR_HISTORY_KEY),
+                    samples,
+                    observedAtMs,
+                )
+                check(prefs.edit().putString(MOTION_SENSOR_HISTORY_KEY, updated.toString()).commit()) {
+                    "Failed to commit motion sensor history"
+                }
+                updated
+            }
+        }
     }
 
     private fun readMotionSensorHistory(context: Context): JSONObject {
         val prefs = context.getSharedPreferences(MOTION_SENSOR_HISTORY_PREFS, Context.MODE_PRIVATE)
+        return synchronized(DIAGNOSTIC_HISTORY_TRANSACTION_LOCK) {
+            readJsonPreference(prefs, MOTION_SENSOR_HISTORY_KEY)
+        }
+    }
+
+    private fun readJsonPreference(preferences: android.content.SharedPreferences, key: String): JSONObject {
         return runCatching {
-            JSONObject(prefs.getString(MOTION_SENSOR_HISTORY_KEY, "{}").orEmpty().ifBlank { "{}" })
+            JSONObject(preferences.getString(key, "{}").orEmpty().ifBlank { "{}" })
         }.getOrDefault(JSONObject())
     }
 
@@ -29016,6 +29366,7 @@ object HermesDeviceDiagnosticsBridge {
     private const val MAX_SENSOR_TIMEOUT_MS = 3_000L
     private const val DEFAULT_BLUETOOTH_TIMEOUT_MS = 2_500L
     private const val MAX_BLUETOOTH_TIMEOUT_MS = 8_000L
+    private const val DIAGNOSTICS_CANCELLATION_POLL_MS = 50L
     private val BROADCAST_RADIO_FEATURE_NAMES = listOf(
         "android.hardware.broadcastradio",
         "android.hardware.radio",

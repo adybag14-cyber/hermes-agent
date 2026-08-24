@@ -6,11 +6,13 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
 import androidx.core.content.ContextCompat
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.CancellationException
 
 data class HermesLocationProviderEvent(
     val latitude: Double,
@@ -35,12 +37,20 @@ data class HermesLocationProviderEvent(
 }
 
 object HermesLocationWatcherBridge {
-    fun performActionJson(context: Context, action: String, arguments: JSONObject = JSONObject()): String {
+    fun performActionJson(
+        context: Context,
+        action: String,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+        publicationGate: AutomationPublicationGate? = null,
+    ): String {
         return when (action.lowercase().ifBlank { "location_watcher_status" }) {
             "location_watcher_status", "location_status", "watch_location_status", "watch_locations_status" -> statusJson(context)
             "start_location_watcher", "start_location_watch", "watch_location", "watch_locations" -> startJson(context, arguments)
             "stop_location_watcher", "stop_location_watch" -> stopJson(context)
-            "scan_location", "scan_locations", "scan_location_once", "run_location_watch_once" -> scanOnceJson(context, arguments)
+            "scan_location", "scan_locations", "scan_location_once", "run_location_watch_once" ->
+                scanOnceJson(context, arguments, cancellationRequested, requestHttpClient, publicationGate)
             else -> JSONObject()
                 .put("success", false)
                 .put("error", "Unsupported location watcher action: $action")
@@ -127,7 +137,16 @@ object HermesLocationWatcherBridge {
             .toString()
     }
 
-    fun scanOnceJson(context: Context, arguments: JSONObject = JSONObject()): String {
+    fun scanOnceJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+        publicationGate: AutomationPublicationGate? = null,
+    ): String {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("Location watcher scan was stopped")
+        }
         val appContext = context.applicationContext
         val injectedLocations = parseInjectedLocations(arguments)
         if (injectedLocations == null && !hasLocationPermission(appContext)) {
@@ -154,13 +173,28 @@ object HermesLocationWatcherBridge {
         var scannedCount = 0
         var matchedCount = 0
         events.forEach { event ->
+            if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+                throw CancellationException("Location watcher scan was stopped")
+            }
             scannedCount += 1
-            val result = JSONObject(HermesAutomationBridge.runLocationTriggerJson(appContext, event.toTriggerArguments()))
+            val result = JSONObject(
+                HermesAutomationBridge.runLocationTriggerJson(
+                    appContext,
+                    event.toTriggerArguments(),
+                    cancellationRequested,
+                    requestHttpClient,
+                ),
+            )
             if (result.optInt("matched_count", 0) > 0) {
                 matchedCount += result.optInt("matched_count", 0)
                 results.put(result)
             }
-            persistDispatch(appContext, event.epochMs)
+            if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+                throw CancellationException("Location watcher scan was stopped")
+            }
+            publishLocationScanMutation(cancellationRequested, publicationGate) {
+                persistDispatch(appContext, event.epochMs)
+            }
         }
         return JSONObject()
             .put("success", true)
@@ -171,6 +205,20 @@ object HermesLocationWatcherBridge {
             .put("location_permission_granted", hasLocationPermission(appContext))
             .put("available_actions", JSONArray(ACTIONS))
             .toString()
+    }
+
+    private fun publishLocationScanMutation(
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        publication: () -> Unit,
+    ) {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("Location watcher scan was stopped")
+        }
+        publicationGate.publishValueIfActive(
+            cancelledValue = { throw CancellationException("Location watcher scan was stopped before publishing its cursor") },
+            publication = publication,
+        )
     }
 
     internal fun dispatchLocationJson(context: Context, location: Location): String {
@@ -344,7 +392,7 @@ object HermesLocationWatcherBridge {
             .putLong(PREF_MIN_INTERVAL_MS, intervalMs.coerceIn(MIN_INTERVAL_MS, MAX_INTERVAL_MS))
             .putLong(PREF_MIN_DISTANCE_METERS, java.lang.Double.doubleToRawLongBits(minDistanceMeters.coerceIn(MIN_DISTANCE_METERS, MAX_DISTANCE_METERS)))
             .putString(PREF_PROVIDERS, providers.joinToString(","))
-            .apply()
+            .commit()
     }
 
     private fun clearWatcherRequest(context: Context) {
@@ -352,7 +400,7 @@ object HermesLocationWatcherBridge {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(PREF_DESIRED, false)
-            .apply()
+            .commit()
     }
 
     private fun persistDispatch(context: Context, epochMs: Long) {
@@ -360,7 +408,7 @@ object HermesLocationWatcherBridge {
         prefs.edit()
             .putLong(PREF_LAST_EVENT_EPOCH_MS, epochMs)
             .putLong(PREF_DISPATCH_COUNT, prefs.getLong(PREF_DISPATCH_COUNT, 0L) + 1L)
-            .apply()
+            .commit()
     }
 
     private fun canonicalProvider(raw: String): String {

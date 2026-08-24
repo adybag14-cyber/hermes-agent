@@ -104,8 +104,8 @@ def test_fdroid_toolchain_contract_is_immutable_coherent_and_parallel(fdroid_con
     assert fdroid_contract["ANDROID_CMAKE_PACKAGE"] == "cmake;3.31.6"
     assert fdroid_contract["ANDROID_NINJA_VERSION"] == "1.12.1"
     assert fdroid_contract["VAGRANT_ENV_MODE"] == "env-i"
-    assert fdroid_contract["VERSION_NAME"] == "0.13.150"
-    assert fdroid_contract["VERSION_CODE"] == "145090"
+    assert fdroid_contract["VERSION_NAME"] == "0.13.151"
+    assert fdroid_contract["VERSION_CODE"] == "145190"
     assert (
         fdroid_contract["SOURCE_BINDING_GRADLE_PROPERTY"]
         == "hermesFdroidSourceBinding=true"

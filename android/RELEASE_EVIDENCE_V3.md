@@ -22,7 +22,12 @@ performance, Perfetto, or real-model evidence. They add:
   16-GiB production memory preflight for the exact 12B artifact; and
 - one issue-#16 record for a fresh full-assets Debian deploy, trusted packaged
   PRoot/QEMU/coreutils routes, guest-only PATH, CA provisioning, four individual
-  guest command exits, real HTTPS, and successful disposable-sandbox removal.
+  guest command exits, real HTTPS, and successful disposable-sandbox removal;
+  and, from `v0.13.151` onward,
+- one privacy-safe physical ARM64 record which binds the signed source candidate,
+  the exact Nanbeige Q4_K_M artifact, the extracted Stable-runtime failure, the
+  automatic TurboQuant lane repair, readiness, ordinary-chat completion, visible
+  elapsed progress, and terminal Stop behavior.
 
 ## 1. Bind and build one candidate pair
 
@@ -33,7 +38,7 @@ The issue-#16 lane is invalid if the Linux assets are skipped, so pass the
 explicit false property even though false is the default.
 
 ```powershell
-$tag = 'v0.13.150'
+$tag = 'v0.13.151'
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)
@@ -53,6 +58,129 @@ $testApk = Resolve-Path android/app/build/outputs/apk/androidTest/debug/app-debu
 $candidateSha = (Get-FileHash $candidateApk -Algorithm SHA256).Hash.ToLowerInvariant()
 $testSha = (Get-FileHash $testApk -Algorithm SHA256).Hash.ToLowerInvariant()
 ```
+
+### 1A. Certify the signed Nanbeige repair candidate on physical ARM64 (v0.13.151+)
+
+The physical record is separate from the headed-AVD candidate pair. First push
+the clean source commit to the repository's default branch, then request the
+short-lived signed candidate from that exact live default-branch SHA. The
+`android-device-candidate` workflow accepts only `repository_dispatch`, checks
+the live default head before the build and before any signing secret is
+restored, checks it again after signing before upload, and never publishes a
+release:
+
+```powershell
+$candidateCommit = (git rev-parse HEAD).Trim()
+$defaultBranch = (gh repo view adybag14-cyber/hermes-agent `
+    --json defaultBranchRef --jq '.defaultBranchRef.name').Trim()
+git fetch --no-tags origin "+refs/heads/$($defaultBranch):refs/remotes/origin/$($defaultBranch)"
+if ($candidateCommit -ne (git rev-parse "origin/$defaultBranch").Trim()) {
+    throw 'Candidate source is not the fetched default-branch head'
+}
+gh api --method POST repos/adybag14-cyber/hermes-agent/dispatches `
+    -f event_type=android-device-candidate `
+    -f "client_payload[candidate_sha]=$candidateCommit" `
+    -f "client_payload[release_tag]=$tag"
+```
+
+Download the artifact only from the resulting run for `$candidateCommit`. Check
+its recorded checksum, APK package/version, approved signer, and embedded source
+digest before touching the phone. Retain the exact APK bytes: the installed
+`base.apk`, the committed physical record, and the final tag workflow must all
+match this candidate's byte count and SHA-256.
+
+Before `adb install -r`, preserve the existing production app and its data. The
+required precondition is a persisted Stable selection with the exact app-scoped
+Nanbeige file already present. A production APK is not debuggable, so `run-as`
+cannot execute its private native library. The Stable entry point is also a
+small dynamically linked wrapper, not a portable standalone server. Extract the
+exact ARM64 runtime closure below from the signed candidate:
+
+```text
+lib/arm64-v8a/libandroid-spawn.so
+lib/arm64-v8a/libc++_shared.so
+lib/arm64-v8a/libcrypto.so
+lib/arm64-v8a/libggml-base.so
+lib/arm64-v8a/libggml-cpu.so
+lib/arm64-v8a/libggml.so
+lib/arm64-v8a/libhermes_android_llama_server.so
+lib/arm64-v8a/libllama-common.so
+lib/arm64-v8a/libllama-server-impl.so
+lib/arm64-v8a/libllama.so
+lib/arm64-v8a/libmtmd.so
+lib/arm64-v8a/libssl.so
+```
+
+Inspect and record each file's direct `DT_NEEDED` entries. All non-system
+dependencies must resolve inside that exact closure; the only accepted system
+libraries are `libc.so`, `libm.so`, and `libdl.so`. `libggml-cpu.so` is required
+even though it is loaded dynamically rather than through `DT_NEEDED`. For every
+file, record its APK entry, role, byte count, SHA-256, direct dependencies, and
+candidate-bound device path. Hash the canonical compact, key-sorted UTF-8 JSON
+closure array as `runtime_closure_manifest_sha256`.
+
+Push the files basename-preserving to the unique directory
+
+```text
+/data/local/tmp/hermes-<tag>-<first-16-candidate-apk-sha256>-llama-stable
+```
+
+and verify every device byte count and SHA-256 against the extraction. Create
+private `home` and `tmp` children, make the wrapper executable, and launch from
+that directory through `/system/bin/env -i` with exactly `PATH=/system/bin`,
+`LANG=C`, `LC_ALL=C`, and
+candidate-bound `HOME`, `TMPDIR`, `LD_LIBRARY_PATH`, and `GGML_BACKEND_PATH`.
+The latter is mandatory because GGML discovers the CPU backend dynamically.
+Record the canonical environment JSON hash. Invoke the wrapper from that exact
+working directory with the closed argv below, commit the argv array in the
+physical record, and record the SHA-256 of its compact canonical UTF-8 JSON:
+
+```text
+<candidate-bound-wrapper> --model <exact-app-scoped-model-path> --host 127.0.0.1 --port 18081
+```
+
+Passing Stable proof is exit 1 at model load with the exact `unknown model
+architecture: 'nanbeige'` failure, an empty unresolved-non-system dependency
+set, and no linker, missing-library, missing-symbol, namespace, or `dlopen`
+failure. Delete only that validated candidate-bound directory and prove it is
+absent afterward. Never claim a `run-as` capture route for a release APK.
+
+Install the unchanged signed candidate with `adb install -r`; do not uninstall,
+clear data, remove the model, or manually reselect the runtime lane. Verify that
+the installed `base.apk` bytes and signer equal the candidate, and that the
+pre-upgrade Stable selection and model/history survived. A normal app launch
+must then prove, in order:
+
+1. exact artifact verification occurred before reconciliation;
+2. Hermes automatically and durably changed `stable` to `turboquant` before
+   spawning the runtime, without user reselection;
+3. the local controller, health endpoint, and nonblank canary became ready;
+4. reopening the same Settings state after readiness visibly showed the
+   reconciled TurboQuant lane, matching the persisted launch authority rather
+   than the stale Stable draft;
+5. General-mode prompt `Reply exactly NANBEIGE_OK` completed in the visible app
+   with the exact marker-free answer `NANBEIGE_OK`, no tool call/result cards,
+   and at least one visible elapsed-progress observation; and
+6. prompt `Write a long numbered list, continuing until I press Stop.` showed
+   progress and Stop, then reached the exact English terminal message
+   `This reply was stopped by the user.` with no busy state, Stop button, or
+   blank placeholder left behind.
+
+Hash the ADB serial rather than committing it. Record the live physical-device
+properties, boot ID, candidate and installed APK identity, exact model identity,
+Stable scratch-runtime proof, automatic reconciliation, readiness, ordinary
+chat, and Stop observations in:
+
+```text
+android/release-evidence/<tag>/physical-device/nanbeige4.2-3b-q4-k-m-repair.json
+```
+
+The closed schema is `hermes-android-physical-nanbeige-repair-v1`; use
+`tests/hermes_android/test_android_release_evidence_v151.py` as the field-shape
+reference and validate the actual record with
+`python scripts/android_release_evidence.py verify --tag <tag>` before creating
+the release manifest. Screenshots, UI XML, logs, raw serials, and command argv
+remain private scratch evidence and are not added to the closed release layout.
 
 Install those exact files on the one explicitly owned headed AVD. Keep the same
 serial, AVD, boot, source digest, run ID, and APK hashes throughout a profile's
@@ -416,6 +544,8 @@ Create only the v3 additions below. Preserve all existing `ui/`,
 
 ```text
 android/release-evidence/<tag>/
+├── physical-device/                         # required from v0.13.151
+│   └── nanbeige4.2-3b-q4-k-m-repair.json
 ├── issues/
 │   ├── issue-8-tool-and-preflight.json
 │   └── issue-16-debian-sandbox.json
@@ -443,6 +573,10 @@ Rename the extracted inventory files to the fixed names above without editing
 their contents. Copy every launch output from its clean staging directory and
 rename only the dynamic `*-manifest.json` to `manifest.json`; referenced video,
 screenshot, activity-dump, and persisted-palette names stay unchanged.
+
+For `v0.13.151+`, copy the already validated physical JSON to its one fixed path
+without reformatting it. It is source-digest and signed-candidate bound; an AVD
+record or a record generated from the later release artifact is not a substitute.
 
 Copy the two instrumentation-emitted JSON values to their fixed paths without
 adding fields, reformatting values, or substituting a handwritten summary:

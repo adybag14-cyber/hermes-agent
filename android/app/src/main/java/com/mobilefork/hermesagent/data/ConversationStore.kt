@@ -40,12 +40,16 @@ class ConversationStore(context: Context) {
     @Volatile
     private var cachedConversations: List<StoredConversation>? = null
 
+    @Synchronized
     fun currentSessionId(): String = ensureCurrentConversation().sessionId
 
+    @Synchronized
     fun currentConversation(): StoredConversation = ensureCurrentConversation()
 
+    @Synchronized
     fun currentConversationMessages(): List<StoredConversationMessage> = ensureCurrentConversation().messages
 
+    @Synchronized
     fun listConversationSummaries(): List<ConversationSummary> {
         return readConversations()
             .map { conversation ->
@@ -60,16 +64,19 @@ class ConversationStore(context: Context) {
             .sortedByDescending { it.updatedAtEpochMs }
     }
 
+    @Synchronized
     fun loadConversation(sessionId: String): StoredConversation? {
         return readConversations().firstOrNull { it.sessionId == sessionId }
     }
 
+    @Synchronized
     fun switchConversation(sessionId: String): StoredConversation? {
         val conversation = loadConversation(sessionId) ?: return null
         preferences.edit().putString(KEY_SESSION_ID, sessionId).apply()
         return conversation
     }
 
+    @Synchronized
     fun createNewConversation(title: String = DEFAULT_TITLE): StoredConversation {
         val now = System.currentTimeMillis()
         val conversation = StoredConversation(
@@ -84,20 +91,34 @@ class ConversationStore(context: Context) {
         return conversation
     }
 
+    @Synchronized
     fun upsertMessage(sessionId: String, message: StoredConversationMessage) {
+        upsertMessages(sessionId, listOf(message))
+    }
+
+    /** Persist one logical message batch with one read-modify-write and one serialization. */
+    @Synchronized
+    fun upsertMessages(sessionId: String, messages: List<StoredConversationMessage>) {
+        if (messages.isEmpty()) return
         val conversations = readConversations().toMutableList()
         val index = conversations.indexOfFirst { it.sessionId == sessionId }
         val base = if (index >= 0) conversations[index] else createShellConversation(sessionId)
         val updatedMessages = base.messages.toMutableList()
-        val existingIndex = updatedMessages.indexOfFirst { it.id == message.id }
-        if (existingIndex >= 0) {
-            updatedMessages[existingIndex] = message
-        } else {
-            updatedMessages += message
+        messages.forEach { message ->
+            val existingIndex = updatedMessages.indexOfFirst { it.id == message.id }
+            if (existingIndex >= 0) {
+                updatedMessages[existingIndex] = message
+            } else {
+                updatedMessages += message
+            }
         }
         val updatedConversation = base.copy(
             title = deriveTitle(base.title, updatedMessages),
-            updatedAtEpochMs = maxOf(base.updatedAtEpochMs, message.createdAtEpochMs, System.currentTimeMillis()),
+            updatedAtEpochMs = maxOf(
+                base.updatedAtEpochMs,
+                messages.maxOf { message -> message.createdAtEpochMs },
+                System.currentTimeMillis(),
+            ),
             messages = updatedMessages,
         )
         if (index >= 0) {
@@ -109,6 +130,7 @@ class ConversationStore(context: Context) {
         preferences.edit().putString(KEY_SESSION_ID, sessionId).apply()
     }
 
+    @Synchronized
     fun insertMessageBefore(sessionId: String, beforeMessageId: String, message: StoredConversationMessage) {
         val conversation = loadConversation(sessionId) ?: return upsertMessage(sessionId, message)
         if (conversation.messages.any { it.id == message.id }) return
@@ -125,6 +147,7 @@ class ConversationStore(context: Context) {
         )
     }
 
+    @Synchronized
     fun updateMessageContent(sessionId: String, messageId: String, newContent: String) {
         val conversation = loadConversation(sessionId) ?: return
         val updatedMessages = conversation.messages.map { message ->
@@ -139,6 +162,34 @@ class ConversationStore(context: Context) {
         )
     }
 
+    /**
+     * Finalize an in-flight assistant placeholder without overwriting a reply which won a race
+     * with Stop or failure handling.
+     */
+    @Synchronized
+    fun updateBlankMessageContent(
+        sessionId: String,
+        messageId: String,
+        newContent: String,
+    ): Boolean {
+        require(newContent.isNotBlank()) { "Terminal placeholder content must not be blank" }
+        val conversation = loadConversation(sessionId) ?: return false
+        val targetIndex = conversation.messages.indexOfFirst { it.id == messageId }
+        if (targetIndex < 0 || conversation.messages[targetIndex].content.isNotBlank()) return false
+        val updatedMessages = conversation.messages.toMutableList().apply {
+            this[targetIndex] = this[targetIndex].copy(content = newContent)
+        }
+        replaceConversation(
+            conversation.copy(
+                title = deriveTitle(conversation.title, updatedMessages),
+                updatedAtEpochMs = System.currentTimeMillis(),
+                messages = updatedMessages,
+            ),
+        )
+        return true
+    }
+
+    @Synchronized
     fun clearCurrentConversation(): StoredConversation {
         val currentId = preferences.getString(KEY_SESSION_ID, null)
         if (currentId.isNullOrBlank()) {
@@ -147,6 +198,7 @@ class ConversationStore(context: Context) {
         return clearConversation(currentId)
     }
 
+    @Synchronized
     fun clearConversation(sessionId: String): StoredConversation {
         val remaining = readConversations().filterNot { it.sessionId == sessionId }
         writeConversations(remaining)
@@ -157,16 +209,19 @@ class ConversationStore(context: Context) {
         return next
     }
 
+    @Synchronized
     fun clearAll() {
         cachedConversations = null
         preferences.edit().remove(KEY_CONVERSATIONS).remove(KEY_SESSION_ID).apply()
     }
 
+    @Synchronized
     fun clearSession() {
         preferences.edit().remove(KEY_SESSION_ID).apply()
     }
 
     /** In-memory content update for streaming; disk flush is caller's responsibility (throttled). */
+    @Synchronized
     fun updateMessageContentInMemory(sessionId: String, messageId: String, newContent: String) {
         val conversations = readConversations().toMutableList()
         val index = conversations.indexOfFirst { it.sessionId == sessionId }
@@ -183,6 +238,7 @@ class ConversationStore(context: Context) {
         cachedConversations = conversations.sortedByDescending { it.updatedAtEpochMs }
     }
 
+    @Synchronized
     fun flushCacheToDisk() {
         val snapshot = cachedConversations ?: return
         writeConversations(snapshot)

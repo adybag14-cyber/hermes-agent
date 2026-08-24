@@ -10,6 +10,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 @RunWith(RobolectricTestRunner::class)
 class HermesHindsightMemoryBridgeTest {
@@ -91,6 +95,81 @@ class HermesHindsightMemoryBridgeTest {
         assertTrue(contextJson.getString("system_prompt_context").contains("keyboard gaps"))
         assertTrue(contextJson.getString("system_prompt_context").length <= 320)
         assertTrue(contextJson.getInt("recalled_memory_count") >= 1)
+    }
+
+    @Test
+    fun automaticPromptRecallIsReadOnlyAndCannotOverwriteIndependentMemoryB() {
+        HermesHindsightMemoryBridge.performActionJson(
+            context,
+            "retain",
+            JSONObject().put("content", "Request A remembers Nanbeige prompt context."),
+        )
+        val before = JSONObject(HermesHindsightMemoryBridge.performActionJson(context, "list"))
+            .getJSONArray("memories")
+            .getJSONObject(0)
+
+        val promptContext = HermesHindsightMemoryBridge.relevantContextJson(
+            context = context,
+            arguments = JSONObject().put("query", "Nanbeige prompt").put("limit", 6),
+            reinforceRecall = false,
+        )
+        HermesHindsightMemoryBridge.performActionJson(
+            context,
+            "retain",
+            JSONObject().put("content", "Independent request B must remain durable."),
+        )
+
+        assertTrue(promptContext.getString("system_prompt_context").contains("Nanbeige"))
+        val after = JSONObject(HermesHindsightMemoryBridge.performActionJson(context, "list"))
+            .getJSONArray("memories")
+        val afterA = (0 until after.length())
+            .map(after::getJSONObject)
+            .single { it.getString("content").contains("Nanbeige") }
+        assertEquals(before.getInt("hit_count"), afterA.getInt("hit_count"))
+        assertEquals(before.getLong("last_accessed_at_ms"), afterA.getLong("last_accessed_at_ms"))
+        assertTrue(after.toString().contains("Independent request B must remain durable"))
+    }
+
+    @Test
+    fun admittedRetainAReReadsInsideTransactionAndDoesNotLoseConcurrentB() {
+        val aAdmitted = CountDownLatch(1)
+        val releaseA = CountDownLatch(1)
+        val failureA = AtomicReference<Throwable?>(null)
+        val gateA = AutomationPublicationGate { publication ->
+            aAdmitted.countDown()
+            check(releaseA.await(5, TimeUnit.SECONDS))
+            publication()
+            true
+        }
+        val workerA = thread(name = "hindsight-transaction-a") {
+            failureA.set(
+                runCatching {
+                    HermesHindsightMemoryBridge.performActionJson(
+                        context,
+                        "retain",
+                        JSONObject().put("content", "Already admitted memory A."),
+                        publicationGate = gateA,
+                    )
+                }.exceptionOrNull(),
+            )
+        }
+        assertTrue(aAdmitted.await(5, TimeUnit.SECONDS))
+
+        HermesHindsightMemoryBridge.performActionJson(
+            context,
+            "retain",
+            JSONObject().put("content", "Independent memory B committed while A was staged."),
+        )
+        releaseA.countDown()
+        workerA.join(5_000L)
+
+        assertTrue(failureA.get() == null)
+        assertTrue(!workerA.isAlive)
+        val memories = JSONObject(HermesHindsightMemoryBridge.performActionJson(context, "list"))
+            .getJSONArray("memories")
+            .toString()
+        assertTrue(memories.contains("Already admitted memory A"))
+        assertTrue(memories.contains("Independent memory B committed"))
     }
 
     @Test

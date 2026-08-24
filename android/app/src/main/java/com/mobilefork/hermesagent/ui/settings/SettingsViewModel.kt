@@ -89,6 +89,47 @@ private data class SettingsSaveResult(
     val apiKey: String,
     val onDeviceSummary: String,
     val statusMessage: String,
+    val authoritativeLlamaCppSettings: LlamaCppAdvancedSettingsTuple,
+)
+
+internal data class LlamaCppAdvancedSettingsTuple(
+    val runtimeLane: String,
+    val cacheTypeK: String,
+    val cacheTypeV: String,
+    val flashAttention: String,
+    val additionalArguments: List<String>,
+)
+
+internal data class LlamaCppAdvancedDraftSnapshot(
+    val settings: LlamaCppAdvancedSettingsTuple,
+    val revision: Long,
+    val hasUnsavedChanges: Boolean,
+)
+
+internal fun AppSettings.llamaCppAdvancedSettingsTuple() = LlamaCppAdvancedSettingsTuple(
+    runtimeLane = AppSettings.normalizeLlamaCppRuntimeLane(llamaCppRuntimeLane),
+    cacheTypeK = AppSettings.normalizeLlamaCppCacheType(llamaCppCacheTypeK),
+    cacheTypeV = AppSettings.normalizeLlamaCppCacheType(llamaCppCacheTypeV),
+    flashAttention = AppSettings.normalizeLlamaCppFlashAttention(llamaCppFlashAttention),
+    additionalArguments = llamaCppAdditionalArguments.toList(),
+)
+
+internal fun SettingsUiState.llamaCppAdvancedSettingsTuple() = LlamaCppAdvancedSettingsTuple(
+    runtimeLane = llamaCppRuntimeLane,
+    cacheTypeK = llamaCppCacheTypeK,
+    cacheTypeV = llamaCppCacheTypeV,
+    flashAttention = llamaCppFlashAttention,
+    additionalArguments = llamaCppAdditionalArguments.toList(),
+)
+
+private fun SettingsUiState.withLlamaCppAdvancedSettings(
+    settings: LlamaCppAdvancedSettingsTuple,
+) = copy(
+    llamaCppRuntimeLane = settings.runtimeLane,
+    llamaCppCacheTypeK = settings.cacheTypeK,
+    llamaCppCacheTypeV = settings.cacheTypeV,
+    llamaCppFlashAttention = settings.flashAttention,
+    llamaCppAdditionalArguments = settings.additionalArguments.toList(),
 )
 
 internal typealias SettingsSaveSupersededException = RuntimeSelectionSupersededException
@@ -182,9 +223,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val providerSetupOpenIndexes = mutableMapOf<String, Int>()
     private val settingsSaveGeneration = SettingsSaveGeneration()
     private var onDeviceSummaryJob: Job? = null
+    private val llamaCppAdvancedDraftLock = Any()
+    private var llamaCppAdvancedDraftRevision = 0L
 
     private val _uiState = MutableStateFlow(loadInitialState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
+    private var authoritativeLlamaCppSettings = _uiState.value.llamaCppAdvancedSettingsTuple()
 
     private fun loadInitialState(): SettingsUiState {
         val stored = settingsStore.load()
@@ -229,6 +273,63 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     private fun currentStrings() = hermesStringsFor(AppLanguage.fromTag(_uiState.value.languageTag))
 
+    private fun updateLlamaCppAdvancedDraft(
+        transform: (SettingsUiState) -> SettingsUiState,
+    ) = synchronized(llamaCppAdvancedDraftLock) {
+        // Increment before publishing the draft so an in-flight runtime result cannot pass its
+        // revision check and then overwrite this user action.
+        llamaCppAdvancedDraftRevision += 1
+        _uiState.update(transform)
+    }
+
+    internal fun captureLlamaCppAdvancedDraft(): LlamaCppAdvancedDraftSnapshot {
+        return synchronized(llamaCppAdvancedDraftLock) {
+            val settings = _uiState.value.llamaCppAdvancedSettingsTuple()
+            LlamaCppAdvancedDraftSnapshot(
+                settings = settings,
+                revision = llamaCppAdvancedDraftRevision,
+                hasUnsavedChanges = settings != authoritativeLlamaCppSettings,
+            )
+        }
+    }
+
+    /**
+     * Publish the durable tuple produced by the same runtime-selection generation.
+     *
+     * Runtime reconciliation is allowed to replace the captured draft only when no later edit
+     * occurred. Passive endpoint refreshes and ordinary Settings saves additionally preserve an
+     * already-dirty advanced card; explicit Apply/start actions opt in because that draft was the
+     * tuple they persisted. Endpoint/status fields still publish when an older draft is retained.
+     */
+    internal fun publishAuthoritativeLlamaCppSettingsForGeneration(
+        generation: Long,
+        expectedDraft: LlamaCppAdvancedDraftSnapshot,
+        authoritativeSettings: LlamaCppAdvancedSettingsTuple,
+        allowExistingDraftChanges: Boolean,
+        transform: (SettingsUiState) -> SettingsUiState = { it },
+    ): Boolean {
+        return settingsSaveGeneration.runIfCurrent(generation) {
+            synchronized(llamaCppAdvancedDraftLock) {
+                _uiState.update { current ->
+                    val draftUnchanged = llamaCppAdvancedDraftRevision == expectedDraft.revision &&
+                        current.llamaCppAdvancedSettingsTuple() == expectedDraft.settings
+                    val mayReplaceDraft = draftUnchanged &&
+                        (allowExistingDraftChanges || !expectedDraft.hasUnsavedChanges)
+                    // Even when a live user draft wins, remember the newest durable baseline so
+                    // later refreshes can distinguish it from unsaved UI changes.
+                    authoritativeLlamaCppSettings = authoritativeSettings
+                    transform(
+                        if (mayReplaceDraft) {
+                            current.withLlamaCppAdvancedSettings(authoritativeSettings)
+                        } else {
+                            current
+                        },
+                    )
+                }
+            }
+        }
+    }
+
     private fun persistSettingsOrReport(
         transform: (AppSettings) -> AppSettings,
     ): AppSettings? {
@@ -244,7 +345,11 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun reload() {
         val reloaded = loadInitialState()
-        _uiState.value = reloaded
+        synchronized(llamaCppAdvancedDraftLock) {
+            llamaCppAdvancedDraftRevision += 1
+            authoritativeLlamaCppSettings = reloaded.llamaCppAdvancedSettingsTuple()
+            _uiState.value = reloaded
+        }
         loadApiKeyForProvider(reloaded.provider)
         refreshOnDeviceSummary(reloaded.onDeviceBackend)
         refreshAgentEndpoint()
@@ -262,9 +367,21 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         } else {
             LocalModelRuntimeSelectionAuthority.currentGeneration()
         }
+        var expectedDraft = captureLlamaCppAdvancedDraft()
+        if (!forceStart) {
+            // SettingsScreen calls this on entry. Mirror a reconciliation completed while this
+            // ViewModel was inactive synchronously, before the user can re-apply its stale card.
+            publishAuthoritativeLlamaCppSettingsForGeneration(
+                generation = generation,
+                expectedDraft = expectedDraft,
+                authoritativeSettings = settingsStore.load().llamaCppAdvancedSettingsTuple(),
+                allowExistingDraftChanges = false,
+            )
+            expectedDraft = captureLlamaCppAdvancedDraft()
+        }
         viewModelScope.launch(Dispatchers.IO) {
-            val runtime = try {
-                if (forceStart) {
+            val (runtime, authoritativeSettings) = try {
+                val currentRuntime = if (forceStart) {
                     settingsSaveGeneration.performLongIfCurrent(generation) {
                         HermesRuntimeManager.ensureStarted(
                             getApplication(),
@@ -274,19 +391,25 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 } else {
                     HermesRuntimeManager.currentState()
                 }
+                settingsSaveGeneration.withCurrent(generation) {
+                    currentRuntime to settingsStore.load().llamaCppAdvancedSettingsTuple()
+                }
             } catch (_: RuntimeSelectionSupersededException) {
                 return@launch
             }
-            settingsSaveGeneration.runIfCurrent(generation) {
-                _uiState.update {
-                    it.copy(
-                        agentEndpointStarted = runtime.started,
-                        agentLoopbackUrl = runtime.baseUrl.orEmpty(),
-                        agentLanUrl = runtime.lanBaseUrl.orEmpty(),
-                        agentApiKey = runtime.apiKey.orEmpty(),
-                        agentModelName = runtime.modelName.orEmpty(),
-                    )
-                }
+            publishAuthoritativeLlamaCppSettingsForGeneration(
+                generation = generation,
+                expectedDraft = expectedDraft,
+                authoritativeSettings = authoritativeSettings,
+                allowExistingDraftChanges = false,
+            ) {
+                it.copy(
+                    agentEndpointStarted = runtime.started,
+                    agentLoopbackUrl = runtime.baseUrl.orEmpty(),
+                    agentLanUrl = runtime.lanBaseUrl.orEmpty(),
+                    agentApiKey = runtime.apiKey.orEmpty(),
+                    agentModelName = runtime.modelName.orEmpty(),
+                )
             }
         }
     }
@@ -362,19 +485,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun updateLiteRtLmSpeculativeDecodingMode(value: String) = _uiState.update {
         it.copy(liteRtLmSpeculativeDecodingMode = normalizeSpeculativeDecodingMode(value))
     }
-    fun updateLlamaCppRuntimeLane(value: String) = _uiState.update {
+    fun updateLlamaCppRuntimeLane(value: String) = updateLlamaCppAdvancedDraft {
         it.copy(llamaCppRuntimeLane = AppSettings.normalizeLlamaCppRuntimeLane(value))
     }
-    fun updateLlamaCppCacheTypeK(value: String) = _uiState.update {
+    fun updateLlamaCppCacheTypeK(value: String) = updateLlamaCppAdvancedDraft {
         it.copy(llamaCppCacheTypeK = AppSettings.normalizeLlamaCppCacheType(value))
     }
-    fun updateLlamaCppCacheTypeV(value: String) = _uiState.update {
+    fun updateLlamaCppCacheTypeV(value: String) = updateLlamaCppAdvancedDraft {
         it.copy(llamaCppCacheTypeV = AppSettings.normalizeLlamaCppCacheType(value))
     }
-    fun updateLlamaCppFlashAttention(value: String) = _uiState.update {
+    fun updateLlamaCppFlashAttention(value: String) = updateLlamaCppAdvancedDraft {
         it.copy(llamaCppFlashAttention = AppSettings.normalizeLlamaCppFlashAttention(value))
     }
-    fun updateLlamaCppAdditionalArguments(values: List<String>) = _uiState.update {
+    fun updateLlamaCppAdditionalArguments(values: List<String>) = updateLlamaCppAdvancedDraft {
         // Keep the draft lossless so bounds, blank lines, and control characters remain
         // visible to validation instead of being silently trimmed, dropped, or truncated.
         it.copy(llamaCppAdditionalArguments = values.toList())
@@ -491,7 +614,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         val normalizedArguments = AppSettings.normalizeLlamaCppAdditionalArguments(
             snapshot.llamaCppAdditionalArguments,
         )
-        _uiState.update {
+        updateLlamaCppAdvancedDraft {
             it.copy(
                 onDeviceBackend = BackendKind.LLAMA_CPP.persistedValue,
                 llamaCppRuntimeLane = AppSettings.normalizeLlamaCppRuntimeLane(snapshot.llamaCppRuntimeLane),
@@ -511,6 +634,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
      * a process restart or enter an exported settings bundle.
      */
     fun tryLlamaCppDespiteRamWarning() {
+        val generation = settingsSaveGeneration.invalidate()
+        val expectedDraft = captureLlamaCppAdvancedDraft()
         val snapshot = _uiState.value
         val language = AppLanguage.fromTag(snapshot.languageTag)
         val validationKey = llamaCppAdvancedValidationKey(
@@ -525,7 +650,6 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
-        val generation = settingsSaveGeneration.invalidate()
         val persisted = try {
             updateSettingsAndPendingForGeneration(
                 store = settingsStore,
@@ -566,20 +690,19 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
             return
         }
-        val publishedStart = settingsSaveGeneration.runIfCurrent(generation) {
-            _uiState.update {
-                it.copy(
+        val publishedStart = publishAuthoritativeLlamaCppSettingsForGeneration(
+            generation = generation,
+            expectedDraft = expectedDraft,
+            authoritativeSettings = persisted.llamaCppAdvancedSettingsTuple(),
+            allowExistingDraftChanges = true,
+        ) {
+            it.copy(
                     onDeviceBackend = BackendKind.LLAMA_CPP.persistedValue,
-                    llamaCppRuntimeLane = persisted.llamaCppRuntimeLane,
-                    llamaCppCacheTypeK = persisted.llamaCppCacheTypeK,
-                    llamaCppCacheTypeV = persisted.llamaCppCacheTypeV,
-                    llamaCppFlashAttention = persisted.llamaCppFlashAttention,
-                    llamaCppAdditionalArguments = persisted.llamaCppAdditionalArguments,
-                    status = llamaCppAdvancedText(language, "danger_starting"),
-                )
-            }
+                status = llamaCppAdvancedText(language, "danger_starting"),
+            )
         }
         if (!publishedStart) return
+        val runtimeExpectedDraft = captureLlamaCppAdvancedDraft()
         viewModelScope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -589,10 +712,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                             dangerouslySkipRamChecks = true,
                             admissionCheck = { settingsSaveGeneration.requireCurrent(generation) },
                         )
-                        runtimeState to OnDeviceBackendManager.currentStatus()
+                        Triple(
+                            runtimeState,
+                            OnDeviceBackendManager.currentStatus(),
+                            settingsStore.load().llamaCppAdvancedSettingsTuple(),
+                        )
                     }
                 }
-            }.onSuccess { (runtimeState, backendStatus) ->
+            }.onSuccess { (runtimeState, backendStatus, authoritativeSettings) ->
                 val localPublished = runtimeState.started &&
                     backendStatus.started &&
                     backendStatus.backendKind == BackendKind.LLAMA_CPP &&
@@ -605,13 +732,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 val runtimeDetail = runtimeState.error
                     .orEmpty()
                     .ifBlank { backendStatus.statusMessage }
-                settingsSaveGeneration.runIfCurrent(generation) {
-                    _uiState.update {
-                        it.copy(
-                            onDeviceSummary = runtimeDetail.ifBlank { localizedStatus },
-                            status = localizedStatus,
-                        )
-                    }
+                publishAuthoritativeLlamaCppSettingsForGeneration(
+                    generation = generation,
+                    expectedDraft = runtimeExpectedDraft,
+                    authoritativeSettings = authoritativeSettings,
+                    allowExistingDraftChanges = false,
+                ) {
+                    it.copy(
+                        onDeviceSummary = runtimeDetail.ifBlank { localizedStatus },
+                        status = localizedStatus,
+                    )
                 }
             }.onFailure { error ->
                 if (error is RuntimeSelectionSupersededException) return@onFailure
@@ -1155,7 +1285,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             "Local model declared unsupported llama.cpp runtime lane: $requiredLane"
         }
         val generation = settingsSaveGeneration.invalidate()
-        try {
+        val persisted = try {
             settingsSaveGeneration.withCurrent(generation) {
                 settingsStore.update { current ->
                     if (current.llamaCppRuntimeLane == normalized) current else current.copy(llamaCppRuntimeLane = normalized)
@@ -1169,7 +1299,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             }
             return
         }
-        _uiState.update { it.copy(llamaCppRuntimeLane = normalized) }
+        synchronized(llamaCppAdvancedDraftLock) {
+            authoritativeLlamaCppSettings = persisted.llamaCppAdvancedSettingsTuple()
+            _uiState.update { it.copy(llamaCppRuntimeLane = normalized) }
+        }
     }
 
     /**
@@ -1183,7 +1316,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         require(normalized == requested) {
             "Local model declared unsupported llama.cpp runtime lane: $requiredLane"
         }
-        _uiState.update { it.copy(llamaCppRuntimeLane = normalized) }
+        synchronized(llamaCppAdvancedDraftLock) {
+            authoritativeLlamaCppSettings = settingsStore.load().llamaCppAdvancedSettingsTuple()
+            _uiState.update { it.copy(llamaCppRuntimeLane = normalized) }
+        }
     }
 
     /**
@@ -1222,15 +1358,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     settingsStore.load().takeIf { it.onDeviceBackend == backendValue }
                         ?: return@withCurrent null
                 }
-                _uiState.update {
-                    it.copy(
-                        onDeviceBackend = backendValue,
-                        llamaCppRuntimeLane = persisted.llamaCppRuntimeLane,
-                        llamaCppCacheTypeK = persisted.llamaCppCacheTypeK,
-                        llamaCppCacheTypeV = persisted.llamaCppCacheTypeV,
-                        llamaCppFlashAttention = persisted.llamaCppFlashAttention,
-                        llamaCppAdditionalArguments = persisted.llamaCppAdditionalArguments,
-                    )
+                synchronized(llamaCppAdvancedDraftLock) {
+                    val authoritativeSettings = persisted.llamaCppAdvancedSettingsTuple()
+                    authoritativeLlamaCppSettings = authoritativeSettings
+                    _uiState.update {
+                        it.withLlamaCppAdvancedSettings(authoritativeSettings).copy(
+                            onDeviceBackend = backendValue,
+                        )
+                    }
                 }
                 persisted
             }
@@ -1275,6 +1410,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         generation: Long = settingsSaveGeneration.beginSave(),
     ) {
         val snapshot = _uiState.value
+        val expectedDraft = captureLlamaCppAdvancedDraft()
         val strings = hermesStringsFor(AppLanguage.fromTag(snapshot.languageTag))
         viewModelScope.launch {
             val publishedSaveStarted = settingsSaveGeneration.runIfCurrent(generation) {
@@ -1344,6 +1480,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                                 apiKey = "",
                                 onDeviceSummary = failureMessage,
                                 statusMessage = failureMessage,
+                                authoritativeLlamaCppSettings =
+                                    settingsStore.load().llamaCppAdvancedSettingsTuple(),
                             )
                         }
                     }
@@ -1361,6 +1499,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                                 apiKey = "",
                                 onDeviceSummary = failureMessage,
                                 statusMessage = failureMessage,
+                                authoritativeLlamaCppSettings =
+                                    settingsStore.load().llamaCppAdvancedSettingsTuple(),
                             )
                         }
                     }
@@ -1417,6 +1557,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                                 apiKey = providerApiKey,
                                 onDeviceSummary = failureMessage,
                                 statusMessage = failureMessage,
+                                authoritativeLlamaCppSettings =
+                                    settingsStore.load().llamaCppAdvancedSettingsTuple(),
                             )
                         }
                     }
@@ -1446,18 +1588,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                             apiKey = providerApiKey,
                             onDeviceSummary = backendSummary,
                             statusMessage = statusMessage,
+                            authoritativeLlamaCppSettings =
+                                settingsStore.load().llamaCppAdvancedSettingsTuple(),
                         )
                     }
                 }
             }.onSuccess { result ->
-                settingsSaveGeneration.runIfCurrent(generation) {
-                    _uiState.update {
-                        it.copy(
-                            onDeviceSummary = result.onDeviceSummary,
-                            apiKey = result.apiKey.ifBlank { it.apiKey },
-                            status = result.statusMessage,
-                        )
-                    }
+                publishAuthoritativeLlamaCppSettingsForGeneration(
+                    generation = generation,
+                    expectedDraft = expectedDraft,
+                    authoritativeSettings = result.authoritativeLlamaCppSettings,
+                    allowExistingDraftChanges = persistLlamaCppAdvancedDraft,
+                ) {
+                    it.copy(
+                        onDeviceSummary = result.onDeviceSummary,
+                        apiKey = result.apiKey.ifBlank { it.apiKey },
+                        status = result.statusMessage,
+                    )
                 }
             }.onFailure { error ->
                 if (error is SettingsSaveSupersededException) return@onFailure

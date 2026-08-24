@@ -10,6 +10,7 @@ import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.data.ProviderPresets
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
@@ -17,6 +18,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 import java.util.UUID
+import java.util.concurrent.CancellationException
 import kotlin.math.acos
 import kotlin.math.asin
 import kotlin.math.atan2
@@ -27,9 +29,68 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
 
+fun interface AutomationPublicationGate {
+    /** Return false when request cancellation won before [publication] could start. */
+    fun publishIfActive(publication: () -> Unit): Boolean
+}
+
 object HermesAutomationBridge {
-    fun performActionJson(context: Context, action: String, arguments: JSONObject = JSONObject()): String {
-        return when (action.lowercase().ifBlank { "list" }) {
+    private const val HTTP_PUBLICATION_PENDING_KEY = "_hermes_http_publication_pending"
+    private const val CANCELLATION_POLL_INTERVAL_MS = 50L
+
+    private class AutomationCancellationPolicy(
+        private val cancellationRequested: () -> Boolean,
+        val allowUncancellablePrivilegedShell: Boolean,
+        val publicationGate: AutomationPublicationGate?,
+    ) : () -> Boolean {
+        override fun invoke(): Boolean = cancellationRequested()
+    }
+
+    fun performActionJson(
+        context: Context,
+        action: String,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+        allowUncancellablePrivilegedShell: Boolean = true,
+        publicationGate: AutomationPublicationGate? = null,
+        beforePreparedImmediateMutationCommit: () -> Unit = {},
+    ): String {
+        val executionCancellationPolicy = AutomationCancellationPolicy(
+            cancellationRequested = cancellationRequested,
+            allowUncancellablePrivilegedShell = allowUncancellablePrivilegedShell,
+            publicationGate = publicationGate,
+        )
+        val normalizedAction = action.lowercase().ifBlank { "list" }
+        if (
+            executionCancellationPolicy.publicationGate != null &&
+            normalizedAction in REQUEST_OWNED_NON_ATOMIC_BULK_MUTATION_ACTIONS
+        ) {
+            throwIfAutomationCancellationRequested(executionCancellationPolicy)
+            return requestOwnedBulkMutationBlockedJson(normalizedAction)
+        }
+        if (
+            executionCancellationPolicy.publicationGate != null &&
+            normalizedAction in APP_SETTINGS_IMPORT_ACTIONS
+        ) {
+            return importAppSettingsRequestOwnedJson(
+                context = context,
+                arguments = arguments,
+                cancellationPolicy = executionCancellationPolicy,
+                beforeCommit = beforePreparedImmediateMutationCommit,
+            )
+        }
+        if (normalizedAction in IMMEDIATE_MUTATION_ACTIONS) {
+            return publishImmediateMutation(executionCancellationPolicy, normalizedAction) {
+                performImmediateMutationActionJson(
+                    context = context,
+                    requestedAction = action,
+                    normalizedAction = normalizedAction,
+                    arguments = arguments,
+                )
+            }
+        }
+        return when (normalizedAction) {
             "list", "list_automations", "status" -> listJson(context)
             "list_tasks", "kai_list_tasks", "tasks" -> listTasksJson(context)
             "run_history", "automation_run_history", "recent_runs", "operator_run_history" -> runHistoryJson(context, arguments)
@@ -42,7 +103,8 @@ object HermesAutomationBridge {
             "operator_pause_execution", "pause_execution", "remote_pause_execution", "opengui_pause_execution" -> operatorExecutionLifecycleJson(context, arguments, OperatorCommandType.PAUSE)
             "operator_resume_execution", "resume_execution", "remote_resume_execution", "opengui_resume_execution" -> operatorExecutionLifecycleJson(context, arguments, OperatorCommandType.RESUME)
             "operator_model_routing", "operator_model_routing_status", "model_routing", "model_routing_status", "opengui_model_routing" -> operatorModelRoutingStatusJson(context)
-            "operator_command", "opengui_command", "remote_command", "im_command", "discord_command", "telegram_command", "feishu_command" -> operatorCommandJson(context, arguments)
+            "operator_command", "opengui_command", "remote_command", "im_command", "discord_command", "telegram_command", "feishu_command" ->
+                operatorCommandJson(context, arguments, executionCancellationPolicy, requestHttpClient)
             "create_shell_task", "create_shell", "create" -> createShellTaskJson(context, arguments)
             "create_file_write_task", "create_file_write", "write_file_task" -> createFileWriteTaskJson(context, arguments)
             "create_file_delete_task", "create_file_delete", "delete_file_task" -> createFileDeleteTaskJson(context, arguments)
@@ -71,7 +133,8 @@ object HermesAutomationBridge {
             "create_toast_task", "create_flash_task", "toast_task", "flash_task" -> createToastTaskJson(context, arguments)
             "show_toast", "toast", "flash_message", "flash" -> showToastJson(context, arguments)
             "perform_audio_action", "audio_action", "set_audio_volume", "set_sound_mode", "set_ringer_mode", "set_microphone_mute", "set_speakerphone" -> performAudioActionJson(context, action, arguments)
-            "perform_http_request", "http_request", "http_get", "http_post", "http_head" -> performHttpRequestJson(context, action, arguments)
+            "perform_http_request", "http_request", "http_get", "http_post", "http_head" ->
+                performHttpRequestJson(context, action, arguments, requestHttpClient, executionCancellationPolicy)
             "overlay_scene_status", "scene_status", "overlay_status", "show_overlay_scene", "show_scene", "overlay_scene", "hide_overlay_scene", "dismiss_overlay_scene", "clear_overlay_scene", "hide_scene" -> HermesOverlaySceneBridge.performSceneJson(context, action, arguments)
             "create_launcher_shortcut", "create_shortcut", "create_home_screen_shortcut", "pin_automation_shortcut" -> HermesLauncherShortcutBridge.createShortcutJson(context, arguments)
             "list_launcher_shortcuts", "list_shortcuts", "launcher_shortcuts" -> HermesLauncherShortcutBridge.listShortcutsJson(context)
@@ -79,66 +142,123 @@ object HermesAutomationBridge {
             "set_quick_settings_tile_automation", "set_qs_tile_automation", "configure_quick_settings_tile", "configure_qs_tile" -> HermesQuickSettingsTileBridge.setTileAutomationJson(context, arguments)
             "get_quick_settings_tile_automation", "get_qs_tile_automation", "quick_settings_tile_status", "qs_tile_status" -> HermesQuickSettingsTileBridge.getTileAutomationJson(context)
             "clear_quick_settings_tile_automation", "clear_qs_tile_automation" -> HermesQuickSettingsTileBridge.clearTileAutomationJson(context)
-            "run_quick_settings_tile", "run_qs_tile" -> HermesQuickSettingsTileBridge.runConfiguredAutomationJson(context)
+            "run_quick_settings_tile", "run_qs_tile" ->
+                HermesQuickSettingsTileBridge.runConfiguredAutomationJson(context, executionCancellationPolicy, requestHttpClient)
             "set_home_screen_widget_automation", "set_widget_automation", "configure_home_screen_widget", "configure_widget", "create_home_screen_widget", "create_automation_widget" -> HermesAutomationWidgetBridge.setWidgetAutomationJson(context, arguments)
             "get_home_screen_widget_automation", "get_widget_automation", "home_screen_widget_status", "widget_status" -> HermesAutomationWidgetBridge.getWidgetAutomationJson(context, arguments)
             "list_home_screen_widgets", "list_automation_widgets", "list_widgets" -> HermesAutomationWidgetBridge.listWidgetsJson(context)
             "clear_home_screen_widget_automation", "clear_widget_automation" -> HermesAutomationWidgetBridge.clearWidgetAutomationJson(context, arguments)
-            "run_home_screen_widget", "run_widget" -> HermesAutomationWidgetBridge.runConfiguredAutomationJson(context, arguments)
+            "run_home_screen_widget", "run_widget" ->
+                HermesAutomationWidgetBridge.runConfiguredAutomationJson(context, arguments, executionCancellationPolicy, requestHttpClient)
             "calculate_sunrise_sunset", "sunrise_sunset", "sun_times", "solar_times" -> calculateSunriseSunsetJson(context, arguments)
             "export_app_settings", "export_settings", "settings_export", "backup_app_settings", "backup_settings" -> exportAppSettingsJson(context)
             "import_app_settings", "import_settings", "settings_import", "restore_app_settings", "restore_settings" -> importAppSettingsJson(context, arguments)
             "export_automations", "export", "backup_automations", "backup" -> exportAutomationsJson(context)
             "import_automations", "import", "restore_automations", "restore" -> importAutomationsJson(context, arguments)
             "import_tasker_xml", "import_tasker_data_uri", "import_tasker_project", "import_tasker_task" -> importTaskerXmlJson(context, arguments)
-            "logcat_watcher_status", "start_logcat_watcher", "stop_logcat_watcher", "scan_logcat_entries", "reset_logcat_watcher_cursor", "reset_logcat_cursor", "clear_logcat_watcher_cursor" -> HermesLogcatWatcherBridge.performActionJson(context, action, arguments)
+            "logcat_watcher_status", "start_logcat_watcher", "stop_logcat_watcher", "scan_logcat_entries", "reset_logcat_watcher_cursor", "reset_logcat_cursor", "clear_logcat_watcher_cursor" ->
+                HermesLogcatWatcherBridge.performActionJson(
+                    context,
+                    action,
+                    arguments,
+                    executionCancellationPolicy,
+                    requestHttpClient,
+                    executionCancellationPolicy.publicationGate,
+                )
             "sensor_watcher_status", "sensor_status", "watch_sensor_status", "watch_sensors_status", "start_sensor_watcher", "start_sensor_watch", "watch_sensors", "watch_sensor", "stop_sensor_watcher", "stop_sensor_watch" -> HermesSensorWatcherBridge.performActionJson(context, action, arguments)
-            "calendar_watcher_status", "calendar_status", "watch_calendar_status", "start_calendar_watcher", "start_calendar_watch", "watch_calendar", "watch_calendar_events", "stop_calendar_watcher", "stop_calendar_watch", "scan_calendar_events", "scan_calendar", "run_calendar_watch_once", "reset_calendar_watcher_cursor", "reset_calendar_cursor", "clear_calendar_watcher_cursor" -> HermesCalendarWatcherBridge.performActionJson(context, action, arguments)
-            "location_watcher_status", "location_status", "watch_location_status", "watch_locations_status", "start_location_watcher", "start_location_watch", "watch_location", "watch_locations", "stop_location_watcher", "stop_location_watch", "scan_location", "scan_locations", "scan_location_once", "run_location_watch_once" -> HermesLocationWatcherBridge.performActionJson(context, action, arguments)
-            "run", "run_now", "trigger" -> runAutomationJson(context, arguments.optString("id"), "manual")
+            "calendar_watcher_status", "calendar_status", "watch_calendar_status", "start_calendar_watcher", "start_calendar_watch", "watch_calendar", "watch_calendar_events", "stop_calendar_watcher", "stop_calendar_watch", "scan_calendar_events", "scan_calendar", "run_calendar_watch_once", "reset_calendar_watcher_cursor", "reset_calendar_cursor", "clear_calendar_watcher_cursor" ->
+                HermesCalendarWatcherBridge.performActionJson(
+                    context,
+                    action,
+                    arguments,
+                    executionCancellationPolicy,
+                    requestHttpClient,
+                    executionCancellationPolicy.publicationGate,
+                )
+            "location_watcher_status", "location_status", "watch_location_status", "watch_locations_status", "start_location_watcher", "start_location_watch", "watch_location", "watch_locations", "stop_location_watcher", "stop_location_watch", "scan_location", "scan_locations", "scan_location_once", "run_location_watch_once" ->
+                HermesLocationWatcherBridge.performActionJson(
+                    context,
+                    action,
+                    arguments,
+                    executionCancellationPolicy,
+                    requestHttpClient,
+                    executionCancellationPolicy.publicationGate,
+                )
+            "run", "run_now", "trigger" -> runAutomationJson(
+                context = context,
+                id = arguments.optString("id"),
+                trigger = "manual",
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
+            )
             "run_trigger", "trigger_event", "run_event" -> runTriggerJson(
-                context,
-                arguments.optString("trigger").ifBlank { arguments.optString("trigger_type") },
+                context = context,
+                trigger = arguments.optString("trigger").ifBlank { arguments.optString("trigger_type") },
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_app_foreground_trigger", "trigger_app_foreground", "app_foreground" -> runAppForegroundTriggerJson(
-                context,
-                stringArgument(arguments, "trigger_package_name", "package_name", "packageName", "package", "app_package").orEmpty(),
+                context = context,
+                packageName = stringArgument(arguments, "trigger_package_name", "package_name", "packageName", "package", "app_package").orEmpty(),
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_notification_posted_trigger", "trigger_notification_posted", "notification_posted" -> runNotificationPostedTriggerJson(
                 context = context,
                 packageName = stringArgument(arguments, "trigger_package_name", "package_name", "packageName", "package", "app_package").orEmpty(),
                 title = stringArgument(arguments, "notification_title", "title", allowEmpty = true).orEmpty(),
                 text = stringArgument(arguments, "notification_text", "text", "content", allowEmpty = true).orEmpty(),
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_calendar_event_trigger", "trigger_calendar_event", "calendar_event", "calendar" -> runCalendarEventTriggerJson(
                 context = context,
                 arguments = arguments,
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_location_trigger", "trigger_location", "location_event", "location" -> runLocationTriggerJson(
                 context = context,
                 arguments = arguments,
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_sensor_trigger", "trigger_sensor", "sensor_event", "sensor" -> runSensorTriggerJson(
                 context = context,
                 arguments = arguments,
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_logcat_entry_trigger", "trigger_logcat_entry", "logcat_entry", "logcat" -> runLogcatEntryTriggerJson(
                 context = context,
                 arguments = arguments,
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_external_trigger", "trigger_external", "external_trigger", "extra_trigger", "run_trigger_app" -> runExternalTriggerJson(
                 context = context,
                 arguments = arguments,
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_remote_dispatch", "submit_standby_dispatch", "operator_dispatch", "remote_dispatch", "run_opengui_dispatch" -> runRemoteDispatchJson(
                 context = context,
                 arguments = arguments,
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
             "run_shizuku_state_trigger", "trigger_shizuku_state", "check_shizuku_trigger", "shizuku_state" -> runShizukuStateTriggerJson(
                 context = context,
                 requestedState = stringArgument(arguments, "shizuku_state", "state", "expected_state", "trigger_state").orEmpty(),
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
             )
-            "run_time_trigger", "trigger_time", "time" -> runTriggerJson(context, TRIGGER_TIME)
+            "run_time_trigger", "trigger_time", "time" -> runTriggerJson(
+                context = context,
+                trigger = TRIGGER_TIME,
+                cancellationRequested = executionCancellationPolicy,
+                requestHttpClient = requestHttpClient,
+            )
             "delete", "remove" -> deleteJson(context, arguments.optString("id"))
             "cancel_task", "kai_cancel_task" -> cancelTaskJson(context, arguments)
             "enable" -> setEnabledJson(context, arguments.optString("id"), true)
@@ -154,6 +274,102 @@ object HermesAutomationBridge {
                 .put("available_triggers", JSONArray(AUTOMATION_TRIGGERS))
                 .toString()
         }
+    }
+
+    private fun publishImmediateMutation(
+        cancellationPolicy: AutomationCancellationPolicy,
+        action: String,
+        mutation: () -> String,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationPolicy)
+        return cancellationPolicy.publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Android automation action $action was stopped before its mutation commit")
+            },
+            publication = mutation,
+        )
+    }
+
+    private fun requestOwnedBulkMutationBlockedJson(action: String): String {
+        return JSONObject()
+            .put("success", false)
+            .put("exit_code", 126)
+            .put("action", action)
+            .put("request_owned", true)
+            .put("request_owned_bulk_mutation_blocked", true)
+            .put(
+                "error",
+                "Hermes blocked this chat-owned bulk automation action before parsing or mutation because its preference, scheduler, worker, or service changes cannot be committed as one Stop-safe operation. Use the manual Automation screen for imports and watcher lifecycle changes.",
+            )
+            .toString()
+    }
+
+    private fun performImmediateMutationActionJson(
+        context: Context,
+        requestedAction: String,
+        normalizedAction: String,
+        arguments: JSONObject,
+    ): String = when (normalizedAction) {
+        "operator_heartbeat", "standby_heartbeat", "remote_heartbeat", "opengui_heartbeat" ->
+            operatorStandbyHeartbeatJson(context, arguments)
+        "operator_batch_heartbeat", "batch_heartbeat", "remote_batch_heartbeat", "opengui_batch_heartbeat", "execution_batch_heartbeat" ->
+            operatorBatchHeartbeatJson(context, arguments)
+        "create_shell_task", "create_shell", "create" -> createShellTaskJson(context, arguments)
+        "create_file_write_task", "create_file_write", "write_file_task" -> createFileWriteTaskJson(context, arguments)
+        "create_file_delete_task", "create_file_delete", "delete_file_task" -> createFileDeleteTaskJson(context, arguments)
+        "create_system_action_task", "create_system_action", "system_action_task" -> createSystemActionTaskJson(context, arguments)
+        "create_ui_action_task", "create_ui_action", "ui_action_task" -> createUiActionTaskJson(context, arguments)
+        "create_app_launch_task", "create_app_launch", "launch_app_task" -> createAppLaunchTaskJson(context, arguments)
+        "create_intent_task", "create_android_intent_task", "intent_task" -> createIntentTaskJson(context, arguments)
+        "create_uri_task", "create_open_uri_task", "open_uri_task" -> createIntentTaskJson(context, arguments, "open_uri")
+        "create_broadcast_task", "create_send_broadcast_task", "broadcast_task" -> createIntentTaskJson(context, arguments, "send_broadcast")
+        "create_activity_task", "create_start_activity_task", "launch_activity_task" -> createIntentTaskJson(context, arguments, "start_activity")
+        "create_email_draft_task", "create_email_task", "create_compose_email_task", "create_send_email_task", "email_task", "compose_email" -> createEmailDraftTaskJson(context, arguments)
+        "open_uri", "open_url", "browse_url", "open_browser", "launch_browser" -> performIntentNowJson(context, arguments, "open_uri")
+        "start_activity", "launch_activity", "send_intent" -> performIntentNowJson(context, arguments, "start_activity")
+        "send_broadcast", "broadcast_intent" -> performIntentNowJson(context, arguments, "send_broadcast")
+        "create_shizuku_action_task", "create_shizuku_action", "create_privileged_action_task", "privileged_action_task" -> createShizukuActionTaskJson(context, arguments)
+        "create_sunrise_sunset_task", "create_sun_task", "create_solar_task" -> createSunriseSunsetTaskJson(context, arguments)
+        "calculate_sunrise_sunset", "sunrise_sunset", "sun_times", "solar_times" -> calculateSunriseSunsetJson(context, arguments)
+        "schedule_task", "kai_schedule_task" -> scheduleTaskJson(context, arguments)
+        "create_notification_task", "create_notify_task", "create_notify", "notify_task" -> createNotificationTaskJson(context, arguments)
+        "create_variable_action_task", "create_variable_task", "create_variable_set_task", "create_variable_clear_task" -> createVariableActionTaskJson(context, arguments)
+        "create_wait_task", "create_wait", "wait_task", "delay_task" -> createWaitTaskJson(context, arguments)
+        "create_clipboard_task", "create_set_clipboard_task", "set_clipboard_task", "clipboard_task" -> createClipboardTaskJson(context, arguments)
+        "create_vibration_task", "create_vibrate_task", "vibrate_task", "vibration_task" -> createVibrationTaskJson(context, arguments)
+        "create_audio_action_task", "create_audio_task", "audio_task", "create_volume_task", "volume_task", "create_sound_mode_task" -> createAudioActionTaskJson(context, arguments)
+        "create_http_request_task", "create_http_task", "http_request_task", "http_task", "create_http_get_task", "create_http_post_task" -> createHttpRequestTaskJson(context, arguments)
+        "create_overlay_scene_task", "create_scene_task", "overlay_scene_task", "scene_task" -> createOverlaySceneTaskJson(context, arguments)
+        "create_toast_task", "create_flash_task", "toast_task", "flash_task" -> createToastTaskJson(context, arguments)
+        "show_toast", "toast", "flash_message", "flash" -> showToastJson(context, arguments)
+        "perform_audio_action", "audio_action", "set_audio_volume", "set_sound_mode", "set_ringer_mode", "set_microphone_mute", "set_speakerphone" -> performAudioActionJson(context, requestedAction, arguments)
+        "show_overlay_scene", "show_scene", "overlay_scene", "hide_overlay_scene", "dismiss_overlay_scene", "clear_overlay_scene", "hide_scene" -> HermesOverlaySceneBridge.performSceneJson(context, requestedAction, arguments)
+        "create_launcher_shortcut", "create_shortcut", "create_home_screen_shortcut", "pin_automation_shortcut" -> HermesLauncherShortcutBridge.createShortcutJson(context, arguments)
+        "remove_launcher_shortcut", "delete_launcher_shortcut", "remove_shortcut", "delete_shortcut" -> HermesLauncherShortcutBridge.removeShortcutJson(context, arguments)
+        "set_quick_settings_tile_automation", "set_qs_tile_automation", "configure_quick_settings_tile", "configure_qs_tile" -> HermesQuickSettingsTileBridge.setTileAutomationJson(context, arguments)
+        "clear_quick_settings_tile_automation", "clear_qs_tile_automation" -> HermesQuickSettingsTileBridge.clearTileAutomationJson(context)
+        "set_home_screen_widget_automation", "set_widget_automation", "configure_home_screen_widget", "configure_widget", "create_home_screen_widget", "create_automation_widget" -> HermesAutomationWidgetBridge.setWidgetAutomationJson(context, arguments)
+        "clear_home_screen_widget_automation", "clear_widget_automation" -> HermesAutomationWidgetBridge.clearWidgetAutomationJson(context, arguments)
+        "import_app_settings", "import_settings", "settings_import", "restore_app_settings", "restore_settings" -> importAppSettingsJson(context, arguments)
+        "import_automations", "import", "restore_automations", "restore" -> importAutomationsJson(context, arguments)
+        "import_tasker_xml", "import_tasker_data_uri", "import_tasker_project", "import_tasker_task" -> importTaskerXmlJson(context, arguments)
+        "start_logcat_watcher", "stop_logcat_watcher", "start_logcat_watch", "stop_logcat_watch", "watch_logcat",
+        "reset_logcat_watcher_cursor", "reset_logcat_cursor", "clear_logcat_watcher_cursor" ->
+            HermesLogcatWatcherBridge.performActionJson(context, requestedAction, arguments)
+        "start_sensor_watcher", "start_sensor_watch", "watch_sensors", "watch_sensor", "stop_sensor_watcher", "stop_sensor_watch" ->
+            HermesSensorWatcherBridge.performActionJson(context, requestedAction, arguments)
+        "start_calendar_watcher", "start_calendar_watch", "watch_calendar", "watch_calendar_events", "stop_calendar_watcher", "stop_calendar_watch",
+        "reset_calendar_watcher_cursor", "reset_calendar_cursor", "clear_calendar_watcher_cursor" ->
+            HermesCalendarWatcherBridge.performActionJson(context, requestedAction, arguments)
+        "start_location_watcher", "start_location_watch", "watch_location", "watch_locations", "stop_location_watcher", "stop_location_watch" ->
+            HermesLocationWatcherBridge.performActionJson(context, requestedAction, arguments)
+        "delete", "remove" -> deleteJson(context, arguments.optString("id"))
+        "cancel_task", "kai_cancel_task" -> cancelTaskJson(context, arguments)
+        "enable" -> setEnabledJson(context, arguments.optString("id"), true)
+        "disable", "pause" -> setEnabledJson(context, arguments.optString("id"), false)
+        "set_variable", "variable_set" -> setVariableJson(context, arguments)
+        "delete_variable", "remove_variable", "variable_delete" -> deleteVariableJson(context, arguments)
+        else -> errorJson("Unsupported immediate Android automation mutation: $requestedAction")
     }
 
     fun listJson(context: Context): String {
@@ -619,7 +835,13 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun operatorCommandJson(context: Context, arguments: JSONObject): String {
+    fun operatorCommandJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val command = operatorCommandTextFromArguments(arguments).trim()
         if (command.isBlank()) {
             return errorJson("operator_command requires command, text, message, or an OpenGUI slash subcommand payload")
@@ -660,7 +882,10 @@ object HermesAutomationBridge {
                     .put("dispatch_source", "opengui_im_command")
                     .put("dispatch_channel", channel)
                     .put("allow_disabled", arguments.optBoolean("allow_disabled", false))
-                withParsedOperatorCommand(runRemoteDispatchJson(context, dispatchArgs), parsed)
+                withParsedOperatorCommand(
+                    runRemoteDispatchJson(context, dispatchArgs, cancellationRequested, requestHttpClient),
+                    parsed,
+                )
             }
             OperatorCommandType.DO_TASK -> {
                 val description = parsed.description.orEmpty().take(MAX_VARIABLE_VALUE_CHARS)
@@ -673,7 +898,10 @@ object HermesAutomationBridge {
                     .put("dispatch_source", "opengui_im_command")
                     .put("dispatch_channel", channel)
                     .put("allow_disabled", arguments.optBoolean("allow_disabled", false))
-                withParsedOperatorCommand(runRemoteDispatchJson(context, dispatchArgs), parsed)
+                withParsedOperatorCommand(
+                    runRemoteDispatchJson(context, dispatchArgs, cancellationRequested, requestHttpClient),
+                    parsed,
+                )
             }
             OperatorCommandType.CANCEL,
             OperatorCommandType.PAUSE,
@@ -831,12 +1059,63 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun importAppSettingsJson(context: Context, arguments: JSONObject): String {
+    private data class PreparedAppSettingsImport(
+        val settingsJson: JSONObject? = null,
+        val expertArgumentsExplicitlyExcluded: Boolean = false,
+        val errorJson: String = "",
+    )
+
+    private fun prepareAppSettingsImport(
+        context: Context,
+        arguments: JSONObject,
+    ): PreparedAppSettingsImport {
         val bundle = runCatching { settingsBundleArgument(arguments) }.getOrElse { error ->
-            return errorJson("import_app_settings bundle_json must be valid JSON: ${error.message}")
+            return PreparedAppSettingsImport(
+                errorJson = errorJson("import_app_settings bundle_json must be valid JSON: ${error.message}"),
+            )
         }
-            ?: return errorJson("import_app_settings requires bundle, settings, bundle_json, settings_json, or json")
-        val imported = AppSettingsStore(context).importBundleJson(bundle)
+            ?: return PreparedAppSettingsImport(
+                errorJson = errorJson("import_app_settings requires bundle, settings, bundle_json, settings_json, or json"),
+            )
+        val settingsJson = JSONObject((bundle.optJSONObject("settings") ?: bundle).toString())
+        val expertArgumentsExplicitlyExcluded = bundle.has("settings") && (
+            bundle.optBoolean("expert_arguments_included", true).not() ||
+                bundle.optJSONArray("excluded_portable_fields")?.let { excluded ->
+                    (0 until excluded.length()).any { index ->
+                        excluded.optString(index) == "llama_cpp_additional_arguments"
+                    }
+                } == true
+            )
+        // Materialize once outside the request gate to force all ordinary JSON traversal and
+        // normalization errors before the commit boundary. The commit rematerializes against the
+        // then-current settings snapshot so an independent request B is never overwritten by a
+        // stale fallback captured while A was preparing.
+        materializePreparedAppSettings(
+            settingsJson = settingsJson,
+            expertArgumentsExplicitlyExcluded = expertArgumentsExplicitlyExcluded,
+            current = AppSettingsStore(context).load(),
+        )
+        return PreparedAppSettingsImport(
+            settingsJson = settingsJson,
+            expertArgumentsExplicitlyExcluded = expertArgumentsExplicitlyExcluded,
+        )
+    }
+
+    private fun materializePreparedAppSettings(
+        settingsJson: JSONObject,
+        expertArgumentsExplicitlyExcluded: Boolean,
+        current: AppSettings,
+    ): AppSettings {
+        return AppSettings.fromJson(settingsJson, current).let { parsed ->
+            if (expertArgumentsExplicitlyExcluded) {
+                parsed.copy(llamaCppAdditionalArguments = emptyList())
+            } else {
+                parsed
+            }
+        }
+    }
+
+    private fun appSettingsImportResponse(imported: AppSettings): String {
         val exported = AppSettings.exportBundle(imported)
         return JSONObject()
             .put("success", true)
@@ -852,6 +1131,51 @@ object HermesAutomationBridge {
                 "App settings were imported without provider secrets; import provider credentials separately through secure storage before remote-provider calls.",
             )
             .toString()
+    }
+
+    fun importAppSettingsJson(context: Context, arguments: JSONObject): String {
+        val prepared = prepareAppSettingsImport(context, arguments)
+        if (prepared.errorJson.isNotBlank()) return prepared.errorJson
+        val settingsJson = prepared.settingsJson ?: return errorJson("import_app_settings preparation failed")
+        val imported = AppSettingsStore(context).update { current ->
+            materializePreparedAppSettings(
+                settingsJson = settingsJson,
+                expertArgumentsExplicitlyExcluded = prepared.expertArgumentsExplicitlyExcluded,
+                current = current,
+            )
+        }
+        return appSettingsImportResponse(imported)
+    }
+
+    private fun importAppSettingsRequestOwnedJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationPolicy: AutomationCancellationPolicy,
+        beforeCommit: () -> Unit,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationPolicy)
+        // JSON parsing, normalization, fallback loading, and response construction are all slow
+        // preparation. None of them belongs under NativeToolCallingChatClient.cancellationLock.
+        val prepared = prepareAppSettingsImport(context, arguments)
+        if (prepared.errorJson.isNotBlank()) return prepared.errorJson
+        val settingsJson = prepared.settingsJson ?: return errorJson("import_app_settings preparation failed")
+        beforeCommit()
+        throwIfAutomationCancellationRequested(cancellationPolicy)
+        val imported = cancellationPolicy.publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Android automation settings import was stopped before its final commit")
+            },
+            publication = {
+                AppSettingsStore(context).update { current ->
+                    materializePreparedAppSettings(
+                        settingsJson = settingsJson,
+                        expertArgumentsExplicitlyExcluded = prepared.expertArgumentsExplicitlyExcluded,
+                        current = current,
+                    )
+                }
+            },
+        )
+        return appSettingsImportResponse(imported)
     }
 
     fun importAutomationsJson(context: Context, arguments: JSONObject): String {
@@ -1726,7 +2050,14 @@ object HermesAutomationBridge {
         return HermesAudioActionBridge.performAudioActionJson(context, payload).toString()
     }
 
-    fun performHttpRequestJson(context: Context, requestedAction: String, arguments: JSONObject): String {
+    fun performHttpRequestJson(
+        context: Context,
+        requestedAction: String,
+        arguments: JSONObject,
+        requestHttpClient: OkHttpClient? = null,
+        cancellationRequested: () -> Boolean = { false },
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val directArguments = JSONObject(arguments.toString())
         if (!directArguments.has("method") && !directArguments.has("http_method")) {
             when (requestedAction.lowercase().replace("-", "_")) {
@@ -1738,7 +2069,12 @@ object HermesAutomationBridge {
         val payload = runCatching { HermesHttpRequestBridge.payloadFromArguments(directArguments, allowVariableUrl = false) }.getOrElse { error ->
             return errorJson(error.message ?: "http_request arguments are invalid")
         }
-        return HermesHttpRequestBridge.performHttpRequestJson(context, payload).toString()
+        return HermesHttpRequestBridge.performHttpRequestJson(
+            context = context,
+            payload = payload,
+            httpClient = requestHttpClient,
+            cancellationRequested = cancellationRequested,
+        ).toString()
     }
 
     private fun createRecordJson(
@@ -1827,19 +2163,43 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun runAutomationJson(context: Context, id: String, trigger: String = "manual"): String {
+    fun runAutomationJson(
+        context: Context,
+        id: String,
+        trigger: String = "manual",
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         if (id.isBlank()) {
             return errorJson("run requires an automation id")
         }
         val store = HermesAutomationStore(context)
         val record = store.get(id) ?: return errorJson("Unknown Android automation id: $id")
-        return runRecordJson(context, store, record, trigger).toString()
+        return runRecordJson(
+            context = context,
+            store = store,
+            record = record,
+            trigger = trigger,
+            cancellationRequested = cancellationRequested,
+            requestHttpClient = requestHttpClient,
+        ).toString()
     }
 
-    fun runTriggerJson(context: Context, trigger: String): String {
+    fun runTriggerJson(
+        context: Context,
+        trigger: String,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val rawTrigger = trigger.trim().lowercase().replace("-", "_").replace(" ", "_")
         if (rawTrigger == "shizuku_state" || rawTrigger == "check_shizuku" || rawTrigger == "current_shizuku") {
-            return runShizukuStateTriggerJson(context)
+            return runShizukuStateTriggerJson(
+                context = context,
+                cancellationRequested = cancellationRequested,
+                requestHttpClient = requestHttpClient,
+            )
         }
         val normalizedTrigger = normalizeTrigger(trigger) ?: return errorJson(
             "run_trigger requires one of: ${AUTOMATION_TRIGGERS.joinToString()}",
@@ -1851,7 +2211,7 @@ object HermesAutomationBridge {
             return errorJson("notification_posted trigger requires run_notification_posted_trigger with trigger_package_name or package_name")
         }
         if (normalizedTrigger == TRIGGER_CALENDAR_EVENT) {
-            return runCalendarEventTriggerJson(context, JSONObject())
+            return runCalendarEventTriggerJson(context, JSONObject(), cancellationRequested, requestHttpClient)
         }
         if (normalizedTrigger == TRIGGER_LOCATION) {
             return errorJson("location trigger requires run_location_trigger with latitude and longitude")
@@ -1866,14 +2226,24 @@ object HermesAutomationBridge {
             return errorJson("external_trigger requires run_external_trigger with trigger_id and external_token")
         }
         if (normalizedTrigger == TRIGGER_SHIZUKU_AVAILABLE || normalizedTrigger == TRIGGER_SHIZUKU_UNAVAILABLE) {
-            return runShizukuStateTriggerJson(context, normalizedTrigger)
+            return runShizukuStateTriggerJson(context, normalizedTrigger, cancellationRequested, requestHttpClient)
         }
         val store = HermesAutomationStore(context)
         val records = store.list()
             .filter { record -> record.enabled && record.triggerType == normalizedTrigger }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, normalizedTrigger))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    normalizedTrigger,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         return JSONObject()
             .put("success", true)
@@ -1883,7 +2253,13 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun runAppForegroundTriggerJson(context: Context, packageName: String): String {
+    fun runAppForegroundTriggerJson(
+        context: Context,
+        packageName: String,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val foregroundPackageName = packageName.trim()
         if (foregroundPackageName.isBlank()) {
             return errorJson("app_foreground trigger requires a package name")
@@ -1901,7 +2277,17 @@ object HermesAutomationBridge {
             }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, TRIGGER_APP_FOREGROUND))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    TRIGGER_APP_FOREGROUND,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         return JSONObject()
             .put("success", true)
@@ -1917,7 +2303,10 @@ object HermesAutomationBridge {
         packageName: String,
         title: String = "",
         text: String = "",
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
     ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val notificationPackageName = packageName.trim()
         if (notificationPackageName.isBlank()) {
             return errorJson("notification_posted trigger requires a package name")
@@ -1926,9 +2315,11 @@ object HermesAutomationBridge {
             return errorJson("notification_posted package name must not contain NUL bytes")
         }
         val store = HermesAutomationStore(context)
-        store.setVariable("NOTIFICATION_PACKAGE", notificationPackageName)
-        store.setVariable("NOTIFICATION_TITLE", title)
-        store.setVariable("NOTIFICATION_TEXT", text)
+        publishTriggerVariables(cancellationRequested, TRIGGER_NOTIFICATION_POSTED) {
+            store.setVariable("NOTIFICATION_PACKAGE", notificationPackageName)
+            store.setVariable("NOTIFICATION_TITLE", title)
+            store.setVariable("NOTIFICATION_TEXT", text)
+        }
         val variables = store.listVariables()
         val records = store.list()
             .filter { record ->
@@ -1938,7 +2329,17 @@ object HermesAutomationBridge {
             }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, TRIGGER_NOTIFICATION_POSTED))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    TRIGGER_NOTIFICATION_POSTED,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         return JSONObject()
             .put("success", true)
@@ -1951,7 +2352,13 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun runCalendarEventTriggerJson(context: Context, arguments: JSONObject): String {
+    fun runCalendarEventTriggerJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val calendarName = stringArgument(
             arguments,
             "calendar_name",
@@ -1988,7 +2395,9 @@ object HermesAutomationBridge {
             return errorJson(error)
         }
         val store = HermesAutomationStore(context)
-        setCalendarEventVariables(store, calendarName, title, description, location)
+        publishTriggerVariables(cancellationRequested, TRIGGER_CALENDAR_EVENT) {
+            setCalendarEventVariables(store, calendarName, title, description, location)
+        }
         val variables = store.listVariables()
         val records = store.list()
             .filter { record ->
@@ -1998,7 +2407,17 @@ object HermesAutomationBridge {
             }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, TRIGGER_CALENDAR_EVENT))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    TRIGGER_CALENDAR_EVENT,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         return JSONObject()
             .put("success", true)
@@ -2012,7 +2431,13 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun runLocationTriggerJson(context: Context, arguments: JSONObject): String {
+    fun runLocationTriggerJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val latitude = optionalDoubleArgument(
             arguments,
             "latitude",
@@ -2065,7 +2490,9 @@ object HermesAutomationBridge {
             return errorJson(error)
         }
         val store = HermesAutomationStore(context)
-        setLocationEventVariables(store, latitude, longitude, accuracyMeters, provider, name)
+        publishTriggerVariables(cancellationRequested, TRIGGER_LOCATION) {
+            setLocationEventVariables(store, latitude, longitude, accuracyMeters, provider, name)
+        }
         val variables = store.listVariables()
         val records = store.list()
             .filter { record ->
@@ -2075,7 +2502,17 @@ object HermesAutomationBridge {
             }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, TRIGGER_LOCATION))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    TRIGGER_LOCATION,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         return JSONObject()
             .put("success", true)
@@ -2090,7 +2527,13 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun runSensorTriggerJson(context: Context, arguments: JSONObject): String {
+    fun runSensorTriggerJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val sensorType = stringArgument(
             arguments,
             "sensor_type",
@@ -2136,7 +2579,9 @@ object HermesAutomationBridge {
             return errorJson(error)
         }
         val store = HermesAutomationStore(context)
-        setSensorEventVariables(store, sensorType, sensorEvent, valueName, value, unit, accuracy)
+        publishTriggerVariables(cancellationRequested, TRIGGER_SENSOR) {
+            setSensorEventVariables(store, sensorType, sensorEvent, valueName, value, unit, accuracy)
+        }
         val variables = store.listVariables()
         val records = store.list()
             .filter { record ->
@@ -2146,7 +2591,17 @@ object HermesAutomationBridge {
             }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, TRIGGER_SENSOR))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    TRIGGER_SENSOR,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         return JSONObject()
             .put("success", true)
@@ -2162,7 +2617,13 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun runLogcatEntryTriggerJson(context: Context, arguments: JSONObject): String {
+    fun runLogcatEntryTriggerJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val tag = stringArgument(
             arguments,
             "logcat_tag",
@@ -2234,7 +2695,9 @@ object HermesAutomationBridge {
             return errorJson(error)
         }
         val store = HermesAutomationStore(context)
-        setLogcatEventVariables(store, tag, message, level, pid, packageName, packageCandidates, packageSource, timestamp)
+        publishTriggerVariables(cancellationRequested, TRIGGER_LOGCAT_ENTRY) {
+            setLogcatEventVariables(store, tag, message, level, pid, packageName, packageCandidates, packageSource, timestamp)
+        }
         val variables = store.listVariables()
         val records = store.list()
             .filter { record ->
@@ -2244,7 +2707,17 @@ object HermesAutomationBridge {
             }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, TRIGGER_LOGCAT_ENTRY))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    TRIGGER_LOGCAT_ENTRY,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         return JSONObject()
             .put("success", true)
@@ -2263,7 +2736,13 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun runExternalTriggerJson(context: Context, arguments: JSONObject): String {
+    fun runExternalTriggerJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val triggerId = stringArgument(
             arguments,
             "trigger_id",
@@ -2307,10 +2786,22 @@ object HermesAutomationBridge {
                     record.triggerType == TRIGGER_EXTERNAL &&
                     externalTriggerMatches(record, savedVariables, triggerId, externalToken, packageName, referrer)
             }
-        setExternalTriggerVariables(store, triggerId, packageName, referrer, extrasText)
+        publishTriggerVariables(cancellationRequested, TRIGGER_EXTERNAL) {
+            setExternalTriggerVariables(store, triggerId, packageName, referrer, extrasText)
+        }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, TRIGGER_EXTERNAL))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    TRIGGER_EXTERNAL,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         return JSONObject()
             .put("success", true)
@@ -2324,7 +2815,13 @@ object HermesAutomationBridge {
             .toString()
     }
 
-    fun runRemoteDispatchJson(context: Context, arguments: JSONObject): String {
+    fun runRemoteDispatchJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val payload = dispatchPayloadFromArguments(arguments)
         val store = HermesAutomationStore(context)
         val dispatch = dispatchContextFromPayload(payload)
@@ -2342,19 +2839,32 @@ object HermesAutomationBridge {
         if (matchedRecords.isEmpty()) {
             val message =
                 "No Android automation matched remote dispatch. Pass automation_id or taskName, or create an enabled automation with trigger remote_dispatch."
-            val event = recordRemoteDispatchFailure(store, dispatch, message)
+            val event = publishRemoteDispatchFailure(cancellationRequested, store, dispatch, message)
             return remoteDispatchFailureJson(dispatch, event, message, matchedRecords.size).toString()
         }
         val runnableRecords = if (allowDisabled) matchedRecords else matchedRecords.filter { it.enabled }
         if (runnableRecords.isEmpty()) {
             val message = "Remote dispatch matched only disabled automations; enable one or pass allow_disabled=true from a trusted local caller."
-            val event = recordRemoteDispatchFailure(store, dispatch, message)
+            val event = publishRemoteDispatchFailure(cancellationRequested, store, dispatch, message)
             return remoteDispatchFailureJson(dispatch, event, message, matchedRecords.size).toString()
         }
-        setRemoteDispatchVariables(store, dispatch)
+        publishTriggerVariables(cancellationRequested, TRIGGER_REMOTE_DISPATCH) {
+            setRemoteDispatchVariables(store, dispatch)
+        }
         val results = JSONArray()
         runnableRecords.forEach { record ->
-            results.put(runRecordJson(context, store, record, TRIGGER_REMOTE_DISPATCH, dispatch))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context = context,
+                    store = store,
+                    record = record,
+                    trigger = TRIGGER_REMOTE_DISPATCH,
+                    dispatch = dispatch,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
         val allSucceeded = (0 until results.length()).all { index ->
             results.optJSONObject(index)?.optBoolean("success", false) == true
@@ -2404,6 +2914,23 @@ object HermesAutomationBridge {
         )
         store.addRunEvent(event)
         return event
+    }
+
+    private fun publishRemoteDispatchFailure(
+        cancellationRequested: () -> Boolean,
+        store: HermesAutomationStore,
+        dispatch: HermesAutomationDispatchContext,
+        message: String,
+    ): HermesAutomationRunEvent {
+        throwIfAutomationCancellationRequested(cancellationRequested)
+        val publicationGate = (cancellationRequested as? AutomationCancellationPolicy)?.publicationGate
+        return publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Remote automation dispatch was stopped before publishing failure history")
+            },
+        ) {
+            recordRemoteDispatchFailure(store, dispatch, message)
+        }
     }
 
     private fun remoteDispatchFailureJson(
@@ -2475,11 +3002,19 @@ object HermesAutomationBridge {
         store.setVariable("REMOTE_TASK_NAME", dispatch.taskName)
     }
 
-    fun runShizukuStateTriggerJson(context: Context, requestedState: String = ""): String {
+    fun runShizukuStateTriggerJson(
+        context: Context,
+        requestedState: String = "",
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val store = HermesAutomationStore(context)
         val status = HermesPrivilegedAccessBridge.readStatus(context)
         val available = status.shizukuBinderAlive && status.shizukuPermissionGranted
-        setShizukuEventVariables(store, status, available)
+        publishTriggerVariables(cancellationRequested, "shizuku_state") {
+            setShizukuEventVariables(store, status, available)
+        }
         val trigger = normalizeShizukuTrigger(requestedState, available) ?: return errorJson(
             "shizuku_state trigger requires available, unavailable, shizuku_available, or shizuku_unavailable",
         )
@@ -2487,10 +3022,22 @@ object HermesAutomationBridge {
             .filter { record -> record.enabled && record.triggerType == trigger }
         val results = JSONArray()
         records.forEach { record ->
-            results.put(runRecordJson(context, store, record, trigger))
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            results.put(
+                runRecordJson(
+                    context,
+                    store,
+                    record,
+                    trigger,
+                    cancellationRequested = cancellationRequested,
+                    requestHttpClient = requestHttpClient,
+                ),
+            )
         }
-        runCatching {
-            HermesTaskerEventBridge.notifyShizukuState(context, available, status)
+        publishTriggerVariables(cancellationRequested, "shizuku_state_notification") {
+            runCatching {
+                HermesTaskerEventBridge.notifyShizukuState(context, available, status)
+            }
         }
         return JSONObject()
             .put("success", true)
@@ -2508,33 +3055,79 @@ object HermesAutomationBridge {
         record: HermesAutomationRecord,
         trigger: String,
         dispatch: HermesAutomationDispatchContext = HermesAutomationDispatchContext(),
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
     ): JSONObject {
+        throwIfAutomationCancellationRequested(cancellationRequested)
         if (trigger == TRIGGER_TIME) {
-            setTimeEventVariables(store)
+            publishTriggerVariables(cancellationRequested, TRIGGER_TIME) {
+                setTimeEventVariables(store)
+            }
         }
+        val cancellationPolicy = cancellationRequested as? AutomationCancellationPolicy
+        val allowUncancellablePrivilegedShell = cancellationPolicy
+            ?.allowUncancellablePrivilegedShell
+            ?: true
+        val publicationGate = cancellationPolicy?.publicationGate
         val variables = store.listVariables()
         val startedAtEpochMs = System.currentTimeMillis()
+        fun publishRecordSideEffect(actionType: String, mutation: () -> JSONObject): JSONObject {
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            return publicationGate.publishValueIfActive(
+                cancelledValue = {
+                    throw CancellationException("Android automation $actionType action was stopped before its side effect")
+                },
+                publication = mutation,
+            )
+        }
         val rawResult = when (record.actionType) {
-            ACTION_TYPE_SHELL -> runShellRecord(context, record, variables)
-            ACTION_TYPE_FILE_WRITE -> runFileWriteRecord(context, record, variables)
-            ACTION_TYPE_FILE_DELETE -> HermesWorkspaceFileBridge.deleteJson(context, expandVariables(record.command, variables))
-            ACTION_TYPE_SYSTEM_ACTION -> runSystemActionRecord(context, record, variables)
-            ACTION_TYPE_UI_ACTION -> runUiActionRecord(record, variables)
-            ACTION_TYPE_APP_LAUNCH -> HermesAppControlBridge.launchPackage(context, expandVariables(record.command, variables))
-            ACTION_TYPE_INTENT -> runIntentRecord(context, record, variables)
-            ACTION_TYPE_SHIZUKU_ACTION -> runShizukuActionRecord(context, record, variables)
-            ACTION_TYPE_SUNRISE_SUNSET -> runSunriseSunsetRecord(store, record, variables)
-            ACTION_TYPE_NOTIFICATION_ACTION -> runNotificationActionRecord(context, record, variables)
-            ACTION_TYPE_VARIABLE_ACTION -> runVariableActionRecord(store, record, variables)
-            ACTION_TYPE_WAIT -> runWaitRecord(record, variables)
-            ACTION_TYPE_CLIPBOARD_ACTION -> runClipboardActionRecord(context, record, variables)
-            ACTION_TYPE_VIBRATION_ACTION -> runVibrationActionRecord(context, record, variables)
-            ACTION_TYPE_AUDIO_ACTION -> runAudioActionRecord(context, record, variables)
-            ACTION_TYPE_HTTP_REQUEST -> runHttpRequestRecord(context, store, record, variables)
-            ACTION_TYPE_OVERLAY_SCENE -> runOverlaySceneRecord(context, record, variables)
-            ACTION_TYPE_TOAST_ACTION -> runToastActionRecord(context, record, variables)
+            ACTION_TYPE_SHELL -> runShellRecord(
+                context = context,
+                record = record,
+                variables = variables,
+                cancellationRequested = cancellationRequested,
+                requestHttpClient = requestHttpClient,
+                allowUncancellablePrivilegedShell = allowUncancellablePrivilegedShell,
+            )
+            ACTION_TYPE_FILE_WRITE -> runFileWriteRecord(context, record, variables, publicationGate)
+            ACTION_TYPE_FILE_DELETE -> publishRecordSideEffect(record.actionType) {
+                HermesWorkspaceFileBridge.deleteJson(context, expandVariables(record.command, variables))
+            }
+            ACTION_TYPE_SYSTEM_ACTION -> runSystemActionRecord(context, record, variables, publicationGate)
+            ACTION_TYPE_UI_ACTION -> runUiActionRecord(record, variables, publicationGate)
+            ACTION_TYPE_APP_LAUNCH -> HermesAppControlBridge.launchApp(
+                context = context,
+                packageName = expandVariables(record.command, variables),
+                appName = "",
+                publicationGate = publicationGate,
+            )
+            ACTION_TYPE_INTENT -> publishRecordSideEffect(record.actionType) { runIntentRecord(context, record, variables) }
+            ACTION_TYPE_SHIZUKU_ACTION -> if (publicationGate != null) {
+                JSONObject(errorJson("Saved Shizuku actions are blocked for request-owned execution because the privileged process cannot be cancelled safely"))
+            } else {
+                runShizukuActionRecord(context, record, variables)
+            }
+            ACTION_TYPE_SUNRISE_SUNSET -> publishRecordSideEffect(record.actionType) { runSunriseSunsetRecord(store, record, variables) }
+            ACTION_TYPE_NOTIFICATION_ACTION -> publishRecordSideEffect(record.actionType) { runNotificationActionRecord(context, record, variables) }
+            ACTION_TYPE_VARIABLE_ACTION -> publishRecordSideEffect(record.actionType) { runVariableActionRecord(store, record, variables) }
+            ACTION_TYPE_WAIT -> runWaitRecord(record, variables, cancellationRequested)
+            ACTION_TYPE_CLIPBOARD_ACTION -> publishRecordSideEffect(record.actionType) { runClipboardActionRecord(context, record, variables) }
+            ACTION_TYPE_VIBRATION_ACTION -> publishRecordSideEffect(record.actionType) { runVibrationActionRecord(context, record, variables) }
+            ACTION_TYPE_AUDIO_ACTION -> publishRecordSideEffect(record.actionType) { runAudioActionRecord(context, record, variables) }
+            ACTION_TYPE_HTTP_REQUEST -> runHttpRequestRecord(
+                context = context,
+                record = record,
+                variables = variables,
+                cancellationRequested = cancellationRequested,
+                requestHttpClient = requestHttpClient,
+            )
+            ACTION_TYPE_OVERLAY_SCENE -> publishRecordSideEffect(record.actionType) { runOverlaySceneRecord(context, record, variables) }
+            ACTION_TYPE_TOAST_ACTION -> publishRecordSideEffect(record.actionType) { runToastActionRecord(context, record, variables) }
             else -> JSONObject(errorJson("Unsupported Android automation action type: ${record.actionType}"))
         }
+        // A stopped chat request must not publish a run history/store mutation after its owned
+        // shell has unwound. Scheduled/background invocations use the default non-cancelled token.
+        throwIfAutomationCancellationRequested(cancellationRequested)
         val exitCode = rawResult.optInt("exit_code", if (rawResult.optBoolean("success", false)) 0 else -1)
         val success = rawResult.optBoolean("success", exitCode == 0) || exitCode == 0
         val resultText = listOf(
@@ -2554,7 +3147,6 @@ object HermesAutomationBridge {
             lastSuccess = success,
             lastResult = resultText,
         )
-        store.upsert(updated)
         val runEvent = HermesAutomationRunEvent(
             id = UUID.randomUUID().toString(),
             automationId = record.id,
@@ -2572,36 +3164,159 @@ object HermesAutomationBridge {
             remoteTaskId = dispatch.taskId,
             remoteTaskName = dispatch.taskName,
         )
-        store.addRunEvent(runEvent)
-        runCatching {
-            HermesTaskerEventBridge.notifyAutomationFinished(
-                context = context,
-                record = updated,
-                trigger = trigger,
-                success = success,
-                resultText = resultText,
-            )
+        val publishRecord: () -> Unit = {
+            if (
+                record.actionType == ACTION_TYPE_HTTP_REQUEST &&
+                rawResult.optBoolean(HTTP_PUBLICATION_PENDING_KEY, false)
+            ) {
+                publishHttpRequestVariables(store, rawResult)
+            }
+            store.upsert(updated)
+            store.addRunEvent(runEvent)
+            runCatching {
+                HermesTaskerEventBridge.notifyAutomationFinished(
+                    context = context,
+                    record = updated,
+                    trigger = trigger,
+                    success = success,
+                    resultText = resultText,
+                )
+            }
         }
-        return JSONObject()
+        val published = if (publicationGate != null) {
+            publicationGate.publishIfActive(publishRecord)
+        } else {
+            // Manual and background callers have no request-owned Stop boundary. Preserve their
+            // existing behavior while retaining the final callback check for callers which do
+            // supply a cancellation token without a publication gate.
+            throwIfAutomationCancellationRequested(cancellationRequested)
+            publishRecord()
+            true
+        }
+        if (!published) {
+            throw CancellationException("Android automation was stopped before publishing variables or run history")
+        }
+        val response = JSONObject()
             .put("success", success)
+            .put("exit_code", exitCode)
             .put("trigger", trigger)
             .put("automation", updated.toJson())
             .put("result_summary", runEvent.summaryText())
             .put("execution_result_summary", runEvent.summaryText())
             .put("structured_result", runEvent.structuredResultJson())
             .put("result", rawResult)
+        rawResult.optString("error").takeIf { !success && it.isNotBlank() }?.let { error ->
+            response.put("error", error)
+        }
+        return response
     }
 
-    private fun runShellRecord(context: Context, record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+    internal fun runShellRecord(
+        context: Context,
+        record: HermesAutomationRecord,
+        variables: JSONObject,
+        cancellationRequested: () -> Boolean,
+        requestHttpClient: OkHttpClient?,
+        allowUncancellablePrivilegedShell: Boolean = true,
+        privilegedShellRunner: (Context, String, Int) -> String =
+            { runContext, command, timeoutSeconds ->
+                HermesPrivilegedAccessBridge.runShellCommandJson(runContext, command, timeoutSeconds)
+            },
+        nativeShellRunner: (Context, String, Long, OkHttpClient?, () -> Boolean) -> JSONObject =
+            { runContext, command, timeoutSeconds, packageHttpClient, requestCancelled ->
+                NativeAndroidShellTool.run(
+                    context = runContext,
+                    command = command,
+                    timeoutSeconds = timeoutSeconds,
+                    packageHttpClient = packageHttpClient,
+                    cancellationRequested = requestCancelled,
+                )
+            },
+        hostPackageCliRunner: (
+            Context,
+            String,
+            OkHttpClient?,
+            () -> Boolean,
+            AutomationPublicationGate?,
+            Boolean,
+        ) -> JSONObject = { runContext, commandLine, packageHttpClient, requestCancelled, publicationGate, requestOwned ->
+            HermesTermuxPackageManager.performCliCommand(
+                context = runContext,
+                commandLine = commandLine,
+                httpClient = packageHttpClient,
+                cancellationRequested = requestCancelled,
+                publicationGate = publicationGate,
+                requestOwned = requestOwned,
+            )
+        },
+    ): JSONObject {
         val command = expandVariables(record.command, variables)
         return if (record.useShizuku) {
-            JSONObject(HermesPrivilegedAccessBridge.runShellCommandJson(context, command, AUTOMATION_TIMEOUT_SECONDS))
+            if (!allowUncancellablePrivilegedShell) {
+                JSONObject()
+                    .put("success", false)
+                    .put("exit_code", 126)
+                    .put(
+                        "error",
+                        "Saved Shizuku shell automations are blocked in chat because the privileged process cannot be cancelled safely. Run this automation from the manual or background automation surface instead.",
+                    )
+            } else {
+                JSONObject(privilegedShellRunner(context, command, AUTOMATION_TIMEOUT_SECONDS))
+            }
+        } else if (HermesTermuxPackageManager.isPkgCommand(command)) {
+            val publicationGate = (cancellationRequested as? AutomationCancellationPolicy)?.publicationGate
+            val result = hostPackageCliRunner(
+                context,
+                command,
+                requestHttpClient,
+                cancellationRequested,
+                publicationGate,
+                publicationGate != null,
+            )
+            val message = result.optString("message")
+                .ifBlank { result.optString("error") }
+                .ifBlank { result.toString() }
+            JSONObject(result.toString())
+                .put("exit_code", result.optInt("exit_code", if (result.optBoolean("ok", false)) 0 else 1))
+                .put("output", message)
         } else {
-            NativeAndroidShellTool.run(context, command, AUTOMATION_TIMEOUT_SECONDS.toLong())
+            nativeShellRunner(
+                context,
+                command,
+                AUTOMATION_TIMEOUT_SECONDS.toLong(),
+                requestHttpClient,
+                cancellationRequested,
+            )
         }
     }
 
-    private fun runFileWriteRecord(context: Context, record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+    private fun throwIfAutomationCancellationRequested(cancellationRequested: () -> Boolean) {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("Android automation run was stopped")
+        }
+    }
+
+    private fun publishTriggerVariables(
+        cancellationRequested: () -> Boolean,
+        trigger: String,
+        publication: () -> Unit,
+    ) {
+        throwIfAutomationCancellationRequested(cancellationRequested)
+        val publicationGate = (cancellationRequested as? AutomationCancellationPolicy)?.publicationGate
+        publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Android $trigger trigger was stopped before publishing event variables")
+            },
+            publication = publication,
+        )
+    }
+
+    private fun runFileWriteRecord(
+        context: Context,
+        record: HermesAutomationRecord,
+        variables: JSONObject,
+        publicationGate: AutomationPublicationGate?,
+    ): JSONObject {
         val payload = runCatching { JSONObject(record.command) }.getOrNull()
             ?: return JSONObject(errorJson("Saved file_write automation payload is invalid"))
         val path = expandVariables(payload.optString("path"), variables)
@@ -2611,15 +3326,21 @@ object HermesAutomationBridge {
             rawPath = path,
             content = content,
             append = payload.optBoolean("append", false),
+            publicationGate = publicationGate,
         )
     }
 
-    private fun runSystemActionRecord(context: Context, record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+    private fun runSystemActionRecord(
+        context: Context,
+        record: HermesAutomationRecord,
+        variables: JSONObject,
+        publicationGate: AutomationPublicationGate?,
+    ): JSONObject {
         val systemAction = expandVariables(record.command, variables).trim().lowercase()
         if (systemAction in PRIVILEGED_SHELL_ACTIONS) {
             return JSONObject(errorJson("Saved system_action automation cannot run privileged shell; use a Shizuku shell task"))
         }
-        val result = HermesSystemControlBridge.performAction(context, systemAction)
+        val result = HermesSystemControlBridge.performAction(context, systemAction, publicationGate)
         return JSONObject()
             .put("exit_code", if (result.success) 0 else 1)
             .put("success", result.success)
@@ -2627,7 +3348,11 @@ object HermesAutomationBridge {
             .put("message", result.message)
     }
 
-    private fun runUiActionRecord(record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+    private fun runUiActionRecord(
+        record: HermesAutomationRecord,
+        variables: JSONObject,
+        publicationGate: AutomationPublicationGate?,
+    ): JSONObject {
         val payload = runCatching { JSONObject(record.command) }.getOrNull()
             ?: return JSONObject(errorJson("Saved ui_action automation payload is invalid"))
         val uiAction = normalizeUiAction(expandVariables(payload.optString("ui_action"), variables))
@@ -2635,7 +3360,7 @@ object HermesAutomationBridge {
             return JSONObject(errorJson("Unsupported saved UI action: $uiAction"))
         }
         if (uiAction in UI_GLOBAL_ACTIONS) {
-            return JSONObject(HermesAccessibilityUiBridge.performGlobalActionJson(uiAction))
+            return JSONObject(HermesAccessibilityUiBridge.performGlobalActionJson(uiAction, publicationGate))
         }
         return JSONObject(
             HermesAccessibilityUiBridge.performActionJson(
@@ -2647,6 +3372,7 @@ object HermesAutomationBridge {
                 className = expandVariables(payload.optString("class_name"), variables),
                 value = expandVariables(payload.optString("value"), variables),
                 index = payload.optInt("index", 0),
+                publicationGate = publicationGate,
             ),
         )
     }
@@ -2830,7 +3556,11 @@ object HermesAutomationBridge {
         }
     }
 
-    private fun runWaitRecord(record: HermesAutomationRecord, variables: JSONObject): JSONObject {
+    private fun runWaitRecord(
+        record: HermesAutomationRecord,
+        variables: JSONObject,
+        cancellationRequested: () -> Boolean,
+    ): JSONObject {
         val durationMs = runCatching {
             val payload = JSONObject(record.command)
             waitDurationMsFromPayload(payload, variables)
@@ -2838,7 +3568,14 @@ object HermesAutomationBridge {
             return JSONObject(errorJson(error.message ?: "Saved wait automation payload is invalid"))
         }
         return try {
-            Thread.sleep(durationMs)
+            val deadlineNanos = System.nanoTime() + durationMs * 1_000_000L
+            while (true) {
+                throwIfAutomationCancellationRequested(cancellationRequested)
+                val remainingNanos = deadlineNanos - System.nanoTime()
+                if (remainingNanos <= 0L) break
+                val remainingMs = (remainingNanos / 1_000_000L).coerceAtLeast(1L)
+                Thread.sleep(minOf(remainingMs, CANCELLATION_POLL_INTERVAL_MS))
+            }
             JSONObject()
                 .put("success", true)
                 .put("exit_code", 0)
@@ -2892,33 +3629,51 @@ object HermesAutomationBridge {
 
     private fun runHttpRequestRecord(
         context: Context,
-        store: HermesAutomationStore,
         record: HermesAutomationRecord,
         variables: JSONObject,
+        cancellationRequested: () -> Boolean,
+        requestHttpClient: OkHttpClient?,
     ): JSONObject {
         val payload = runCatching { JSONObject(record.command) }.getOrNull()
             ?: return JSONObject(errorJson("Saved http_request automation payload is invalid"))
         val expanded = runCatching { expandHttpRequestPayload(payload, variables) }.getOrElse { error ->
             return JSONObject(errorJson(error.message ?: "Saved http_request automation payload is invalid"))
         }
-        val result = HermesHttpRequestBridge.performHttpRequestJson(context, expanded)
+        throwIfAutomationCancellationRequested(cancellationRequested)
+        val result = HermesHttpRequestBridge.performHttpRequestJson(
+            context = context,
+            payload = expanded,
+            httpClient = requestHttpClient,
+            cancellationRequested = cancellationRequested,
+        )
+        throwIfAutomationCancellationRequested(cancellationRequested)
+        val statusVariable = HermesAutomationStore.normalizeVariableName(expandVariables(expanded.optString("save_status_variable"), variables))
+        val responseVariable = HermesAutomationStore.normalizeVariableName(expandVariables(expanded.optString("save_response_variable"), variables))
+        throwIfAutomationCancellationRequested(cancellationRequested)
+        return result
+            .put(HTTP_PUBLICATION_PENDING_KEY, true)
+            .put("saved_status_variable", statusVariable ?: JSONObject.NULL)
+            .put("saved_response_variable", responseVariable ?: JSONObject.NULL)
+    }
+
+    private fun publishHttpRequestVariables(store: HermesAutomationStore, result: JSONObject) {
+        result.remove(HTTP_PUBLICATION_PENDING_KEY)
         val statusText = if (result.has("status_code")) result.optInt("status_code").toString() else ""
         val bodyText = result.optString("body")
         store.setVariable("HTTPR", statusText)
         store.setVariable("HTTP_STATUS_CODE", statusText)
         store.setVariable("HTTPD", bodyText)
         store.setVariable("HTTP_RESPONSE_BODY", bodyText)
-        val statusVariable = HermesAutomationStore.normalizeVariableName(expandVariables(expanded.optString("save_status_variable"), variables))
-        if (statusVariable != null) {
-            store.setVariable(statusVariable, statusText)
+        if (result.has("saved_status_variable") && !result.isNull("saved_status_variable")) {
+            result.optString("saved_status_variable").takeIf { it.isNotBlank() }?.let { name ->
+                store.setVariable(name, statusText)
+            }
         }
-        val responseVariable = HermesAutomationStore.normalizeVariableName(expandVariables(expanded.optString("save_response_variable"), variables))
-        if (responseVariable != null) {
-            store.setVariable(responseVariable, bodyText)
+        if (result.has("saved_response_variable") && !result.isNull("saved_response_variable")) {
+            result.optString("saved_response_variable").takeIf { it.isNotBlank() }?.let { name ->
+                store.setVariable(name, bodyText)
+            }
         }
-        return result
-            .put("saved_status_variable", statusVariable ?: JSONObject.NULL)
-            .put("saved_response_variable", responseVariable ?: JSONObject.NULL)
     }
 
     fun deleteJson(context: Context, id: String): String {
@@ -5754,6 +6509,106 @@ object HermesAutomationBridge {
         "cancel" to "Return OpenGUI-compatible cancel state for a recent execution",
         "pause" to "Return OpenGUI-compatible pause state for a recent execution",
         "resume" to "Return OpenGUI-compatible resume state for a recent execution",
+    )
+
+    private val IMMEDIATE_MUTATION_ACTIONS = setOf(
+        "operator_heartbeat", "standby_heartbeat", "remote_heartbeat", "opengui_heartbeat",
+        "operator_batch_heartbeat", "batch_heartbeat", "remote_batch_heartbeat", "opengui_batch_heartbeat", "execution_batch_heartbeat",
+        "create_shell_task", "create_shell", "create",
+        "create_file_write_task", "create_file_write", "write_file_task",
+        "create_file_delete_task", "create_file_delete", "delete_file_task",
+        "create_system_action_task", "create_system_action", "system_action_task",
+        "create_ui_action_task", "create_ui_action", "ui_action_task",
+        "create_app_launch_task", "create_app_launch", "launch_app_task",
+        "create_intent_task", "create_android_intent_task", "intent_task",
+        "create_uri_task", "create_open_uri_task", "open_uri_task",
+        "create_broadcast_task", "create_send_broadcast_task", "broadcast_task",
+        "create_activity_task", "create_start_activity_task", "launch_activity_task",
+        "create_email_draft_task", "create_email_task", "create_compose_email_task",
+        "create_send_email_task", "email_task", "compose_email",
+        "open_uri", "open_url", "browse_url", "open_browser", "launch_browser",
+        "start_activity", "launch_activity", "send_intent", "send_broadcast", "broadcast_intent",
+        "create_shizuku_action_task", "create_shizuku_action", "create_privileged_action_task", "privileged_action_task",
+        "create_sunrise_sunset_task", "create_sun_task", "create_solar_task",
+        "calculate_sunrise_sunset", "sunrise_sunset", "sun_times", "solar_times",
+        "schedule_task", "kai_schedule_task",
+        "create_notification_task", "create_notify_task", "create_notify", "notify_task",
+        "create_variable_action_task", "create_variable_task", "create_variable_set_task", "create_variable_clear_task",
+        "create_wait_task", "create_wait", "wait_task", "delay_task",
+        "create_clipboard_task", "create_set_clipboard_task", "set_clipboard_task", "clipboard_task",
+        "create_vibration_task", "create_vibrate_task", "vibrate_task", "vibration_task",
+        "create_audio_action_task", "create_audio_task", "audio_task", "create_volume_task", "volume_task", "create_sound_mode_task",
+        "create_http_request_task", "create_http_task", "http_request_task", "http_task", "create_http_get_task", "create_http_post_task",
+        "create_overlay_scene_task", "create_scene_task", "overlay_scene_task", "scene_task",
+        "create_toast_task", "create_flash_task", "toast_task", "flash_task",
+        "show_toast", "toast", "flash_message", "flash",
+        "perform_audio_action", "audio_action", "set_audio_volume", "set_sound_mode", "set_ringer_mode", "set_microphone_mute", "set_speakerphone",
+        "show_overlay_scene", "show_scene", "overlay_scene", "hide_overlay_scene", "dismiss_overlay_scene", "clear_overlay_scene", "hide_scene",
+        "create_launcher_shortcut", "create_shortcut", "create_home_screen_shortcut", "pin_automation_shortcut",
+        "remove_launcher_shortcut", "delete_launcher_shortcut", "remove_shortcut", "delete_shortcut",
+        "set_quick_settings_tile_automation", "set_qs_tile_automation", "configure_quick_settings_tile", "configure_qs_tile",
+        "clear_quick_settings_tile_automation", "clear_qs_tile_automation",
+        "set_home_screen_widget_automation", "set_widget_automation", "configure_home_screen_widget", "configure_widget",
+        "create_home_screen_widget", "create_automation_widget", "clear_home_screen_widget_automation", "clear_widget_automation",
+        "import_app_settings", "import_settings", "settings_import", "restore_app_settings", "restore_settings",
+        "import_automations", "import", "restore_automations", "restore",
+        "import_tasker_xml", "import_tasker_data_uri", "import_tasker_project", "import_tasker_task",
+        "start_logcat_watcher", "stop_logcat_watcher", "start_logcat_watch", "stop_logcat_watch", "watch_logcat",
+        "reset_logcat_watcher_cursor", "reset_logcat_cursor", "clear_logcat_watcher_cursor",
+        "start_sensor_watcher", "start_sensor_watch", "watch_sensors", "watch_sensor", "stop_sensor_watcher", "stop_sensor_watch",
+        "start_calendar_watcher", "start_calendar_watch", "watch_calendar", "watch_calendar_events",
+        "stop_calendar_watcher", "stop_calendar_watch", "reset_calendar_watcher_cursor", "reset_calendar_cursor", "clear_calendar_watcher_cursor",
+        "start_location_watcher", "start_location_watch", "watch_location", "watch_locations", "stop_location_watcher", "stop_location_watch",
+        "delete", "remove", "cancel_task", "kai_cancel_task", "enable", "disable", "pause",
+        "set_variable", "variable_set", "delete_variable", "remove_variable", "variable_delete",
+    )
+
+    private val APP_SETTINGS_IMPORT_ACTIONS = setOf(
+        "import_app_settings",
+        "import_settings",
+        "settings_import",
+        "restore_app_settings",
+        "restore_settings",
+    )
+
+    private val REQUEST_OWNED_NON_ATOMIC_BULK_MUTATION_ACTIONS = setOf(
+        "import_automations",
+        "import",
+        "restore_automations",
+        "restore",
+        "import_tasker_xml",
+        "import_tasker_data_uri",
+        "import_tasker_project",
+        "import_tasker_task",
+        "start_logcat_watcher",
+        "stop_logcat_watcher",
+        "start_logcat_watch",
+        "stop_logcat_watch",
+        "watch_logcat",
+        "reset_logcat_watcher_cursor",
+        "reset_logcat_cursor",
+        "clear_logcat_watcher_cursor",
+        "start_sensor_watcher",
+        "start_sensor_watch",
+        "watch_sensors",
+        "watch_sensor",
+        "stop_sensor_watcher",
+        "stop_sensor_watch",
+        "start_calendar_watcher",
+        "start_calendar_watch",
+        "watch_calendar",
+        "watch_calendar_events",
+        "stop_calendar_watcher",
+        "stop_calendar_watch",
+        "reset_calendar_watcher_cursor",
+        "reset_calendar_cursor",
+        "clear_calendar_watcher_cursor",
+        "start_location_watcher",
+        "start_location_watch",
+        "watch_location",
+        "watch_locations",
+        "stop_location_watcher",
+        "stop_location_watch",
     )
 
     private val AUTOMATION_ACTIONS = listOf(

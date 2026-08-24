@@ -5,15 +5,18 @@ import android.os.Build
 import android.system.Os
 import android.system.OsConstants
 import androidx.annotation.RequiresApi
+import okhttp3.OkHttpClient
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.Callable
+import java.util.concurrent.CancellationException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.UUID
+import java.util.concurrent.locks.ReentrantLock
 
 internal interface NativeShellProcessStopHandle {
     val supportsForceDestroy: Boolean
@@ -63,8 +66,14 @@ object NativeAndroidShellTool {
         val interrupted: Boolean,
     )
 
+    internal data class NativeShellLifecycleDisposition(
+        val cleanCancellation: Boolean,
+        val unsafe: Boolean,
+    )
+
     @Volatile
     private var unsafeExecutionDetail: String = ""
+    private val executionLock = ReentrantLock(true)
 
     private const val PROCESS_POLL_INTERVAL_MS = 10L
     internal const val PROCESS_OWNER_ENV = "HERMES_NATIVE_EXECUTION_OWNER"
@@ -72,14 +81,50 @@ object NativeAndroidShellTool {
     private const val DETACHED_PROCESS_GRACEFUL_TIMEOUT_MS = 500L
     private const val DETACHED_PROCESS_FORCE_TIMEOUT_MS = 500L
 
-    @Synchronized
     fun run(
         context: Context,
         command: String,
         timeoutSeconds: Long = 60,
         includeLinuxSandboxStatus: Boolean = true,
+        packageHttpClient: OkHttpClient? = null,
+        cancellationRequested: () -> Boolean = { false },
+    ): JSONObject {
+        var acquired = false
+        try {
+            executionLock.lockInterruptibly()
+            acquired = true
+            return runLocked(
+                context = context,
+                command = command,
+                timeoutSeconds = timeoutSeconds,
+                includeLinuxSandboxStatus = includeLinuxSandboxStatus,
+                packageHttpClient = packageHttpClient,
+                cancellationRequested = cancellationRequested,
+            )
+        } catch (error: InterruptedException) {
+            Thread.currentThread().interrupt()
+            if (cancellationRequested()) {
+                throw CancellationException("Native shell command was stopped while waiting for the execution lane")
+                    .apply { initCause(error) }
+            }
+            throw error
+        } finally {
+            if (acquired) executionLock.unlock()
+        }
+    }
+
+    private fun runLocked(
+        context: Context,
+        command: String,
+        timeoutSeconds: Long,
+        includeLinuxSandboxStatus: Boolean,
+        packageHttpClient: OkHttpClient?,
+        cancellationRequested: () -> Boolean,
     ): JSONObject {
         val appContext = context.applicationContext
+        if (cancellationRequested()) {
+            throw CancellationException("Native shell command was stopped before setup")
+        }
         if (unsafeExecutionDetail.isNotBlank()) {
             return JSONObject()
                 .put("exit_code", 125)
@@ -91,7 +136,11 @@ object NativeAndroidShellTool {
         }
         // Route Termux-style host package manager before spawning a shell.
         if (HermesTermuxPackageManager.isPkgCommand(command)) {
-            val pkgResult = HermesTermuxPackageManager.performCliCommand(appContext, command)
+            val pkgResult = HermesTermuxPackageManager.performCliCommand(
+                context = appContext,
+                commandLine = command,
+                httpClient = packageHttpClient,
+            )
             val state = HermesLinuxSubsystemBridge.ensureInstalled(appContext)
             val message = pkgResult.optString("message")
                 .ifBlank { pkgResult.optString("error") }
@@ -126,6 +175,9 @@ object NativeAndroidShellTool {
         }
 
         val state = HermesLinuxSubsystemBridge.ensureInstalled(appContext)
+        if (cancellationRequested()) {
+            throw CancellationException("Native shell command was stopped before launch")
+        }
         val homeDir = File(state.getString("home_path")).apply { mkdirs() }
         val tmpDir = File(state.getString("tmp_path")).apply { mkdirs() }
         val shellPath = resolveShellPath(state)
@@ -195,9 +247,15 @@ object NativeAndroidShellTool {
         var stdoutRead = BoundedStreamRead("", completed = false)
         var stderrRead = BoundedStreamRead("", completed = false)
         var readerExecutorStopped = true
+        var processInputClosed = false
+        var processErrorClosed = false
+        var processOutputClosed = false
         try {
             withNativeShellProcessOwnership(
                 start = {
+                    if (cancellationRequested()) {
+                        throw CancellationException("Native shell command was stopped before launch")
+                    }
                     ProcessBuilder(shellInvocation(shellPath, effectiveCommand))
                         .directory(homeDir)
                         .apply {
@@ -287,9 +345,9 @@ object NativeAndroidShellTool {
                     }
                     stdout?.cancel(true)
                     stderr?.cancel(true)
-                    runCatching { startedProcess.inputStream.close() }
-                    runCatching { startedProcess.errorStream.close() }
-                    runCatching { startedProcess.outputStream.close() }
+                    processInputClosed = runCatching { startedProcess.inputStream.close() }.isSuccess
+                    processErrorClosed = runCatching { startedProcess.errorStream.close() }.isSuccess
+                    processOutputClosed = runCatching { startedProcess.outputStream.close() }.isSuccess
                     val activeExecutor = executor
                     if (activeExecutor != null) {
                         activeExecutor.shutdownNow()
@@ -354,15 +412,34 @@ object NativeAndroidShellTool {
         val startedProcess = requireNotNull(process) { "native shell process was not retained after launch" }
         val startedHandle = requireNotNull(processHandle) { "native shell process handle was not retained after launch" }
 
-        val unsafe = lifecycleFailure != null ||
-            !completed ||
-            !detachedContainment.verified ||
-            !stdoutRead.completed ||
-            !stderrRead.completed ||
-            !readerExecutorStopped
         val unwindVerified = termination.failure == null &&
             runCatching { !isOwnedProcessAlive(startedHandle) }.getOrDefault(false) &&
             detachedContainment.verified
+        val outputCaptureVerified = stdoutRead.completed && stderrRead.completed
+        val streamCleanupVerified = processInputClosed &&
+            processErrorClosed &&
+            processOutputClosed &&
+            readerExecutorStopped
+        val expectedCancellation = callerInterrupted &&
+            cancellationRequested() &&
+            (waitFailure == null || waitFailure is InterruptedException)
+        // A deadline is clean only when no interruption was observed anywhere in wait/cleanup.
+        // Otherwise an unrelated interrupt could be mislabeled as a verified timeout.
+        val timedOut = !completed &&
+            waitFailure == null &&
+            lifecycleFailure == null &&
+            !callerInterrupted
+        val lifecycleDisposition = nativeShellLifecycleDisposition(
+            expectedCancellation = expectedCancellation,
+            completed = completed,
+            lifecycleFailure = lifecycleFailure,
+            unwindVerified = unwindVerified,
+            outputCaptureVerified = outputCaptureVerified,
+            streamCleanupVerified = streamCleanupVerified,
+            timedOut = timedOut,
+        )
+        val cleanCancellation = lifecycleDisposition.cleanCancellation
+        val unsafe = lifecycleDisposition.unsafe
         if (unsafe) {
             val reason = listOfNotNull(
                 waitFailure?.let { "wait failed: ${it.message ?: it.javaClass.simpleName}" },
@@ -380,13 +457,13 @@ object NativeAndroidShellTool {
                     "Hermes will not start another command because PRoot/QEMU descendants cannot be excluded. " +
                     "Force stop and reopen Hermes before retrying."
         }
-        val timedOut = !completed && waitFailure == null && lifecycleFailure == null
         val detachedProcessRejected = detachedContainment.detectedOwnedPids.isNotEmpty()
         val exitCode = nativeShellExitCode(
+            cancelled = cleanCancellation,
             timedOut = timedOut,
             cleanupUnsafe = unsafe,
             detachedProcessDetected = detachedProcessRejected,
-            processExitCode = if (!unsafe && completed) startedProcess.exitValue() else null,
+            processExitCode = if (!unsafe && !cleanCancellation && completed) startedProcess.exitValue() else null,
         )
         val output = stdoutRead.text
         val detachedRejectionDetail = if (detachedProcessRejected) {
@@ -395,12 +472,16 @@ object NativeAndroidShellTool {
         } else {
             ""
         }
-        val error = if (unsafe || detachedProcessRejected) {
-            listOf(stderrRead.text.trim(), detachedRejectionDetail, unsafeExecutionDetail)
+        val error = when {
+            cleanCancellation -> listOf(stderrRead.text.trim(), "Native shell command was cancelled.")
                 .filter { it.isNotBlank() }
                 .joinToString("\n")
-        } else {
-            stderrRead.text
+            unsafe || detachedProcessRejected -> {
+                listOf(stderrRead.text.trim(), detachedRejectionDetail, unsafeExecutionDetail)
+                    .filter { it.isNotBlank() }
+                    .joinToString("\n")
+            }
+            else -> stderrRead.text
         }
 
         val result = JSONObject()
@@ -414,6 +495,7 @@ object NativeAndroidShellTool {
             .put("native_execution_route", state.optString("native_execution_route"))
             .put("native_direct_command_count", state.optInt("native_direct_command_count", 0))
             .put("available_package_count", state.optJSONArray("packages")?.length() ?: 0)
+            .put("cancelled", cleanCancellation)
             .put("timed_out", timedOut)
             .put("process_unwind_verified", unwindVerified)
             .put("detached_process_cleanup_verified", detachedContainment.verified)
@@ -427,8 +509,9 @@ object NativeAndroidShellTool {
             )
             .put(
                 "stream_cleanup_verified",
-                stdoutRead.completed && stderrRead.completed && readerExecutorStopped,
+                streamCleanupVerified,
             )
+            .put("output_capture_verified", outputCaptureVerified)
             .put("requires_app_restart", unsafe)
             .put(
                 "package_manager_status",
@@ -464,18 +547,64 @@ object NativeAndroidShellTool {
     internal fun newProcessOwnerToken(): String = UUID.randomUUID().toString()
 
     internal fun nativeShellExitCode(
+        cancelled: Boolean,
         timedOut: Boolean,
         cleanupUnsafe: Boolean,
         detachedProcessDetected: Boolean,
         processExitCode: Int?,
     ): Int {
         return when {
-            timedOut -> 124
             cleanupUnsafe -> 125
             detachedProcessDetected -> 125
+            cancelled -> 130
+            timedOut -> 124
             else -> requireNotNull(processExitCode) { "completed native shell requires an exit code" }
         }
     }
+
+    internal fun nativeShellLifecycleDisposition(
+        expectedCancellation: Boolean,
+        completed: Boolean,
+        lifecycleFailure: Throwable?,
+        unwindVerified: Boolean,
+        outputCaptureVerified: Boolean,
+        streamCleanupVerified: Boolean,
+        timedOut: Boolean = false,
+    ): NativeShellLifecycleDisposition {
+        val cleanCancellation = expectedCancellation &&
+            lifecycleFailure == null &&
+            unwindVerified &&
+            streamCleanupVerified
+        val cleanTimeout = timedOut &&
+            !expectedCancellation &&
+            lifecycleFailure == null &&
+            unwindVerified &&
+            outputCaptureVerified &&
+            streamCleanupVerified
+        val unsafe = !cleanCancellation && !cleanTimeout && (
+            lifecycleFailure != null ||
+                !completed ||
+                !unwindVerified ||
+                !outputCaptureVerified ||
+                !streamCleanupVerified
+            )
+        return NativeShellLifecycleDisposition(
+            cleanCancellation = cleanCancellation,
+            unsafe = unsafe,
+        )
+    }
+
+    internal fun <T> withExecutionPermitForTest(block: () -> T): T {
+        executionLock.lockInterruptibly()
+        return try {
+            block()
+        } finally {
+            executionLock.unlock()
+        }
+    }
+
+    internal fun isExecutionThreadQueuedForTest(thread: Thread): Boolean =
+        executionLock.hasQueuedThread(thread)
 
     internal fun ownedProcessInventory(): OwnedProcessInventory = ProcfsOwnedProcessInventory
 

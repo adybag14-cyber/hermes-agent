@@ -400,7 +400,7 @@ object LlamaCppServerController {
                 baseUrl = "http://127.0.0.1:$port/v1",
                 modelName = modelName,
                 sourceModelPath = modelPath,
-                statusMessage = "llama.cpp ${launchConfig.lane.displayLabel()} lane is serving locally from ${llamaServerOriginLabel(linuxState, launchConfig.lane)}${llamaServerCompatibilitySuffix(llamaServerPath)}; ${inspection.summary}; completion canary passed in ${canary.elapsedMs} ms. ${preflight.detail}",
+                statusMessage = "llama.cpp ${launchConfig.lane.displayLabel()} lane is serving locally from ${llamaServerOriginLabel(linuxState, launchConfig.lane)}${llamaServerCompatibilitySuffix(llamaServerPath)}; ${inspection.summary}; completion canary passed with ${canary.detail} in ${canary.elapsedMs} ms. ${preflight.detail}",
                 accelerator = "cpu",
                 artifactSummary = inspection.summary,
                 completionVerified = true,

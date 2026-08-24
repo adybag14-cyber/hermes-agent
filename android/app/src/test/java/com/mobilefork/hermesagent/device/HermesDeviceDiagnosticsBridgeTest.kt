@@ -15,10 +15,126 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 @RunWith(RobolectricTestRunner::class)
 class HermesDeviceDiagnosticsBridgeTest {
     private val context: Context = RuntimeEnvironment.getApplication()
+
+    @Test
+    fun diagnosticHistoryTransactionsReReadAndPreserveIndependentB() {
+        assertAtomicDiagnosticHistoryMerge(
+            preferencesName = "hermes_wifi_signal_history",
+            collectionKey = "networks",
+            rowsA = JSONArray().put(
+                JSONObject().put("ssid", "wifi-a").put("bssid", "00:11:22:33:44:01").put("rssi_dbm", -41),
+            ),
+            rowsB = JSONArray().put(
+                JSONObject().put("ssid", "wifi-b").put("bssid", "00:11:22:33:44:02").put("rssi_dbm", -52),
+            ),
+            expectedA = "00:11:22:33:44:01",
+            expectedB = "00:11:22:33:44:02",
+        ) { rows, observedAtMs, gate, persist ->
+            HermesDeviceDiagnosticsBridge.updateWifiSignalHistory(
+                context,
+                rows,
+                observedAtMs,
+                cancellationRequested = { false },
+                publicationGate = gate,
+                persist = persist,
+            )
+        }
+        assertAtomicDiagnosticHistoryMerge(
+            preferencesName = "hermes_bluetooth_signal_history",
+            collectionKey = "devices",
+            rowsA = JSONArray().put(
+                JSONObject().put("device_name", "bluetooth-a").put("address", "AA:BB:CC:DD:EE:01").put("rssi_dbm", -45),
+            ),
+            rowsB = JSONArray().put(
+                JSONObject().put("device_name", "bluetooth-b").put("address", "AA:BB:CC:DD:EE:02").put("rssi_dbm", -57),
+            ),
+            expectedA = "AA:BB:CC:DD:EE:01",
+            expectedB = "AA:BB:CC:DD:EE:02",
+        ) { rows, observedAtMs, gate, persist ->
+            HermesDeviceDiagnosticsBridge.updateBluetoothSignalHistory(
+                context,
+                rows,
+                observedAtMs,
+                cancellationRequested = { false },
+                publicationGate = gate,
+                persist = persist,
+            )
+        }
+        assertAtomicDiagnosticHistoryMerge(
+            preferencesName = "hermes_motion_sensor_history",
+            collectionKey = "sensors",
+            rowsA = JSONArray().put(
+                JSONObject()
+                    .put("sensor_type", "accelerometer")
+                    .put("sampled", true)
+                    .put("available", true)
+                    .put("values", JSONArray().put(1.0).put(2.0).put(3.0)),
+            ),
+            rowsB = JSONArray().put(
+                JSONObject()
+                    .put("sensor_type", "gyroscope")
+                    .put("sampled", true)
+                    .put("available", true)
+                    .put("values", JSONArray().put(0.1).put(0.2).put(0.3)),
+            ),
+            expectedA = "accelerometer",
+            expectedB = "gyroscope",
+        ) { rows, observedAtMs, gate, persist ->
+            HermesDeviceDiagnosticsBridge.updateMotionSensorHistory(
+                context,
+                rows,
+                observedAtMs,
+                cancellationRequested = { false },
+                publicationGate = gate,
+                persist = persist,
+            )
+        }
+    }
+
+    private fun assertAtomicDiagnosticHistoryMerge(
+        preferencesName: String,
+        collectionKey: String,
+        rowsA: JSONArray,
+        rowsB: JSONArray,
+        expectedA: String,
+        expectedB: String,
+        update: (JSONArray, Long, AutomationPublicationGate?, Boolean) -> JSONObject,
+    ) {
+        context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE).edit().clear().commit()
+        val aAdmitted = CountDownLatch(1)
+        val releaseA = CountDownLatch(1)
+        val failureA = AtomicReference<Throwable?>(null)
+        val gateA = AutomationPublicationGate { publication ->
+            aAdmitted.countDown()
+            check(releaseA.await(5, TimeUnit.SECONDS))
+            publication()
+            true
+        }
+        val workerA = thread(name = "$preferencesName-a") {
+            failureA.set(runCatching { update(rowsA, 100L, gateA, true) }.exceptionOrNull())
+        }
+        try {
+            assertTrue(aAdmitted.await(5, TimeUnit.SECONDS))
+            update(rowsB, 200L, null, true)
+        } finally {
+            releaseA.countDown()
+        }
+        workerA.join(5_000L)
+
+        assertFalse(workerA.isAlive)
+        assertTrue(failureA.get() == null)
+        val finalCollection = update(JSONArray(), 300L, null, false).getJSONArray(collectionKey).toString()
+        assertTrue("history lost A: $finalCollection", finalCollection.contains(expectedA, ignoreCase = true))
+        assertTrue("history lost B: $finalCollection", finalCollection.contains(expectedB, ignoreCase = true))
+    }
 
     @Test
     fun mapsWifiFrequenciesToChannels() {

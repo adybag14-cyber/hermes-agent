@@ -1,5 +1,10 @@
 package com.mobilefork.hermesagent.device
 
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -9,9 +14,15 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
+import java.io.InterruptedIOException
 import java.io.OutputStream
 import java.nio.file.Files
 import java.util.concurrent.FutureTask
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 class NativeAndroidShellToolTest {
     @Test
@@ -142,12 +153,334 @@ class NativeAndroidShellToolTest {
         assertEquals(
             125,
             NativeAndroidShellTool.nativeShellExitCode(
+                cancelled = false,
                 timedOut = false,
                 cleanupUnsafe = !result.verified,
                 detachedProcessDetected = result.detectedOwnedPids.isNotEmpty(),
                 processExitCode = 0,
             ),
         )
+    }
+
+    @Test
+    fun verifiedCancellationReturns130WithoutPoisoningTheFollowingCommandLane() {
+        val cancelled = NativeAndroidShellTool.nativeShellLifecycleDisposition(
+            expectedCancellation = true,
+            completed = false,
+            lifecycleFailure = null,
+            unwindVerified = true,
+            outputCaptureVerified = false,
+            streamCleanupVerified = true,
+        )
+
+        assertTrue(cancelled.cleanCancellation)
+        assertFalse(cancelled.unsafe)
+        assertEquals(
+            130,
+            NativeAndroidShellTool.nativeShellExitCode(
+                cancelled = cancelled.cleanCancellation,
+                timedOut = false,
+                cleanupUnsafe = cancelled.unsafe,
+                detachedProcessDetected = false,
+                processExitCode = null,
+            ),
+        )
+
+        val followingCommand = NativeAndroidShellTool.nativeShellLifecycleDisposition(
+            expectedCancellation = false,
+            completed = true,
+            lifecycleFailure = null,
+            unwindVerified = true,
+            outputCaptureVerified = true,
+            streamCleanupVerified = true,
+        )
+        assertFalse("A verified Stop must not poison the subsequent command lane", followingCommand.unsafe)
+        assertEquals(
+            0,
+            NativeAndroidShellTool.nativeShellExitCode(
+                cancelled = followingCommand.cleanCancellation,
+                timedOut = false,
+                cleanupUnsafe = followingCommand.unsafe,
+                detachedProcessDetected = false,
+                processExitCode = 0,
+            ),
+        )
+    }
+
+    @Test
+    fun verifiedTimeoutReturns124ButUnsafeTimeoutKeeps125Precedence() {
+        val cleanTimeout = NativeAndroidShellTool.nativeShellLifecycleDisposition(
+            expectedCancellation = false,
+            completed = false,
+            lifecycleFailure = null,
+            unwindVerified = true,
+            outputCaptureVerified = true,
+            streamCleanupVerified = true,
+            timedOut = true,
+        )
+        assertFalse(cleanTimeout.cleanCancellation)
+        assertFalse(cleanTimeout.unsafe)
+        assertEquals(
+            124,
+            NativeAndroidShellTool.nativeShellExitCode(
+                cancelled = false,
+                timedOut = true,
+                cleanupUnsafe = false,
+                detachedProcessDetected = false,
+                processExitCode = null,
+            ),
+        )
+
+        val unsafeTimeout = NativeAndroidShellTool.nativeShellLifecycleDisposition(
+            expectedCancellation = false,
+            completed = false,
+            lifecycleFailure = null,
+            unwindVerified = false,
+            outputCaptureVerified = true,
+            streamCleanupVerified = true,
+            timedOut = true,
+        )
+        assertTrue(unsafeTimeout.unsafe)
+        assertEquals(
+            125,
+            NativeAndroidShellTool.nativeShellExitCode(
+                cancelled = false,
+                timedOut = true,
+                cleanupUnsafe = true,
+                detachedProcessDetected = false,
+                processExitCode = null,
+            ),
+        )
+        assertEquals(
+            125,
+            NativeAndroidShellTool.nativeShellExitCode(
+                cancelled = false,
+                timedOut = true,
+                cleanupUnsafe = false,
+                detachedProcessDetected = true,
+                processExitCode = null,
+            ),
+        )
+
+        val unexpectedInterrupt = NativeAndroidShellTool.nativeShellLifecycleDisposition(
+            expectedCancellation = false,
+            completed = false,
+            lifecycleFailure = null,
+            unwindVerified = true,
+            outputCaptureVerified = true,
+            streamCleanupVerified = true,
+            timedOut = false,
+        )
+        assertTrue("An unrelated cleanup interrupt must never be relabeled a clean timeout", unexpectedInterrupt.unsafe)
+    }
+
+    @Test
+    fun waitingExecutionLaneIsInterruptibleAndDoesNotLeakIntoTheNextOwner() {
+        val aEntered = CountDownLatch(1)
+        val releaseA = CountDownLatch(1)
+        val bBodyRan = AtomicBoolean(false)
+        val bInterrupted = AtomicBoolean(false)
+        val a = thread(name = "native-shell-owner-a") {
+            NativeAndroidShellTool.withExecutionPermitForTest {
+                aEntered.countDown()
+                check(releaseA.await(5, TimeUnit.SECONDS))
+            }
+        }
+        assertTrue(aEntered.await(5, TimeUnit.SECONDS))
+        val b = thread(name = "native-shell-owner-b") {
+            try {
+                NativeAndroidShellTool.withExecutionPermitForTest {
+                    bBodyRan.set(true)
+                }
+            } catch (_: InterruptedException) {
+                bInterrupted.set(true)
+            }
+        }
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (!NativeAndroidShellTool.isExecutionThreadQueuedForTest(b) && System.nanoTime() < deadline) {
+            Thread.yield()
+        }
+        assertTrue("B never queued behind A", NativeAndroidShellTool.isExecutionThreadQueuedForTest(b))
+        b.interrupt()
+        b.join(2_000L)
+        assertFalse("interrupted waiter remained parked behind unrelated A", b.isAlive)
+        assertTrue(bInterrupted.get())
+        assertFalse(bBodyRan.get())
+
+        releaseA.countDown()
+        a.join(2_000L)
+        assertFalse(a.isAlive)
+        val cInterrupted = NativeAndroidShellTool.withExecutionPermitForTest {
+            Thread.currentThread().isInterrupted
+        }
+        assertFalse("A/B interrupt state leaked into the next command owner", cInterrupted)
+    }
+
+    @Test
+    fun cancelledLayerDownloadRemovesPartialFileWithoutCancellingAnotherRequestClient() {
+        val serverA = MockWebServer()
+        val serverB = MockWebServer()
+        serverA.start()
+        serverB.start()
+        val root = Files.createTempDirectory("hermes-layer-cancel").toFile()
+        try {
+            val slowBody = "x".repeat(4_096)
+            serverA.enqueue(
+                MockResponse()
+                    .setBody(slowBody)
+                    .throttleBody(1, 1, TimeUnit.SECONDS),
+            )
+            serverB.enqueue(
+                // On the Windows JDK, cancelling a throttled fixed-length MockWebServer body can
+                // remove the OkHttp call while leaving SocketInputStream.read parked until its
+                // read timeout. NO_RESPONSE keeps B deterministically active and still proves
+                // that A's request-owned cancellation does not reach B.
+                MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE),
+            )
+            // Use different bounded read timeouts for the two exact request clients. OkHttp call
+            // cancellation is not guaranteed to wake a Windows SocketInputStream.read immediately;
+            // A's short timeout makes its cooperative cancellation observable without making B's
+            // independent blocked read finish before the isolation assertion.
+            val clientA = OkHttpClient.Builder()
+                .readTimeout(500, TimeUnit.MILLISECONDS)
+                .build()
+            val clientB = OkHttpClient.Builder()
+                .readTimeout(4, TimeUnit.SECONDS)
+                .build()
+            val targetA = File(root, "layer-a")
+            val targetB = File(root, "layer-b")
+            val sentinelA = "previously-verified-layer"
+            targetA.writeText(sentinelA)
+            val cancelledA = AtomicBoolean(false)
+            val cancelledB = AtomicBoolean(false)
+            val failureA = AtomicReference<Throwable?>(null)
+            val failureB = AtomicReference<Throwable?>(null)
+            val workerA = thread(name = "sandbox-layer-a") {
+                failureA.set(
+                    runCatching {
+                        HermesLinuxSandboxBridge.downloadVerifiedLayer(
+                            request = Request.Builder().url(serverA.url("/layer-a")).build(),
+                            target = targetA,
+                            expectedHex = "0".repeat(64),
+                            expectedSize = slowBody.length.toLong(),
+                            layerHttpClient = clientA,
+                            cancellationRequested = cancelledA::get,
+                        )
+                    }.exceptionOrNull(),
+                )
+            }
+            val workerB = thread(name = "sandbox-layer-b") {
+                failureB.set(
+                    runCatching {
+                        HermesLinuxSandboxBridge.downloadVerifiedLayer(
+                            request = Request.Builder().url(serverB.url("/layer-b")).build(),
+                            target = targetB,
+                            expectedHex = "0".repeat(64),
+                            expectedSize = slowBody.length.toLong(),
+                            layerHttpClient = clientB,
+                            cancellationRequested = cancelledB::get,
+                        )
+                    }.exceptionOrNull(),
+                )
+            }
+
+            assertTrue(serverA.takeRequest(5, TimeUnit.SECONDS) != null)
+            assertTrue(serverB.takeRequest(5, TimeUnit.SECONDS) != null)
+            val callA = clientA.dispatcher.runningCalls().single()
+            val callB = clientB.dispatcher.runningCalls().single()
+            cancelledA.set(true)
+            clientA.dispatcher.cancelAll()
+            workerA.interrupt()
+            assertTrue("Exact sandbox layer call A was not cancelled", callA.isCanceled())
+            assertFalse("Cancelling A also cancelled sandbox layer call B", callB.isCanceled())
+            workerA.join(5_000L)
+
+            assertFalse("Cancelled sandbox layer A remained alive", workerA.isAlive)
+            assertTrue(failureA.get() != null)
+            assertEquals("Cancellation replaced or deleted the existing verified layer", sentinelA, targetA.readText())
+            assertTrue(root.listFiles().orEmpty().none { it.name.startsWith(".${targetA.name}.") })
+            assertTrue("Cancelling layer A also stopped layer B", workerB.isAlive)
+            assertEquals(null, failureB.get())
+
+            cancelledB.set(true)
+            clientB.dispatcher.cancelAll()
+            workerB.interrupt()
+            assertTrue("Exact sandbox layer call B was not cancelled", callB.isCanceled())
+            workerB.join(5_000L)
+            assertFalse(
+                "Cancelled sandbox layer B remained alive; state=${workerB.state}; " +
+                    "runningCalls=${clientB.dispatcher.runningCallsCount()}; " +
+                    "failure=${failureB.get()}; stack=${workerB.stackTrace.joinToString()}",
+                workerB.isAlive,
+            )
+            assertTrue(failureB.get() != null)
+            assertFalse(targetB.exists())
+            assertTrue(root.listFiles().orEmpty().none { it.name.startsWith(".${targetB.name}.") })
+        } finally {
+            serverA.shutdown()
+            serverB.shutdown()
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun cachedLayerHashStopsBetweenChunksWithoutMutatingTheFile() {
+        val root = Files.createTempDirectory("hermes-layer-hash-cancel").toFile()
+        try {
+            val target = File(root, "cached-layer")
+            target.writeBytes(ByteArray(DEFAULT_BUFFER_SIZE * 4) { index -> (index % 251).toByte() })
+            val original = target.readBytes()
+            var checks = 0
+
+            val failure = runCatching {
+                HermesLinuxSandboxBridge.sha256File(target) {
+                    checks += 1
+                    checks > 1
+                }
+            }.exceptionOrNull()
+
+            assertTrue(failure is InterruptedIOException)
+            assertTrue("Hash cancellation was not checked between chunks", checks > 1)
+            assertTrue("Hash cancellation mutated the cached layer", original.contentEquals(target.readBytes()))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun nativeSelfTestCancellationEscapesRowAndPreventsFollowingRows() {
+        val cancelled = AtomicBoolean(false)
+        val firstRows = java.util.concurrent.atomic.AtomicInteger(0)
+        val laterRows = java.util.concurrent.atomic.AtomicInteger(0)
+
+        val failure = runCatching {
+            HermesDeviceDiagnosticsBridge.nativeSelfTestRowForTest(
+                cancellationRequested = cancelled::get,
+            ) {
+                firstRows.incrementAndGet()
+                cancelled.set(true)
+            }
+            HermesDeviceDiagnosticsBridge.nativeSelfTestRowForTest(
+                cancellationRequested = cancelled::get,
+            ) {
+                laterRows.incrementAndGet()
+            }
+        }.exceptionOrNull()
+
+        assertTrue(failure is java.util.concurrent.CancellationException)
+        assertEquals(1, firstRows.get())
+        assertEquals("Cancellation was swallowed and the next self-test row executed", 0, laterRows.get())
+
+        cancelled.set(true)
+        val neverEntered = AtomicBoolean(false)
+        assertTrue(
+            runCatching {
+                HermesDeviceDiagnosticsBridge.nativeSelfTestRowForTest(cancelled::get) {
+                    neverEntered.set(true)
+                }
+            }.exceptionOrNull() is java.util.concurrent.CancellationException,
+        )
+        assertFalse(neverEntered.get())
     }
 
     @Test

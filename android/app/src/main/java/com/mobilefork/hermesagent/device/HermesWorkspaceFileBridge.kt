@@ -1,6 +1,7 @@
 package com.mobilefork.hermesagent.device
 
 import android.content.Context
+import android.os.Build
 import org.json.JSONObject
 import java.io.File
 
@@ -10,6 +11,7 @@ object HermesWorkspaceFileBridge {
         rawPath: String,
         content: String,
         append: Boolean = false,
+        publicationGate: AutomationPublicationGate? = null,
     ): JSONObject {
         if (rawPath.isBlank()) {
             return errorJson("file write requires a path argument", 2)
@@ -20,21 +22,70 @@ object HermesWorkspaceFileBridge {
         val resolution = resolveTarget(context, rawPath)
         resolution.error?.let { return it }
         val target = resolution.target ?: return errorJson("Unable to resolve workspace path", 2)
-
-        target.parentFile?.mkdirs()
-        if (append) {
-            target.appendText(content, Charsets.UTF_8)
-        } else {
-            target.writeText(content, Charsets.UTF_8)
+        val appContext = context.applicationContext
+        val staged = runCatching {
+            File.createTempFile("hermes-workspace-write-", ".tmp", appContext.cacheDir).also { stagingFile ->
+                stagingFile.outputStream().buffered().use { output ->
+                    if (append && target.isFile) {
+                        target.inputStream().buffered().use { input -> input.copyTo(output) }
+                    }
+                    output.write(content.toByteArray(Charsets.UTF_8))
+                }
+            }
+        }.getOrElse { error ->
+            return errorJson(
+                message = error.message ?: error.javaClass.simpleName,
+                exitCode = 1,
+                path = target.absolutePath,
+                homeDir = resolution.homeDir,
+            )
         }
 
-        return JSONObject()
-            .put("exit_code", 0)
-            .put("success", true)
-            .put("path", target.absolutePath)
-            .put("bytes", target.length())
-            .put("append", append)
-            .put("cwd", resolution.homeDir?.absolutePath.orEmpty())
+        return try {
+            publicationGate.publishValueIfActive(
+                cancelledValue = {
+                    cancelledMutationJson(
+                        action = "file_write",
+                        message = "Workspace file write was stopped before its final commit.",
+                    )
+                        .put("path", target.absolutePath)
+                        .put("append", append)
+                        .put("cwd", resolution.homeDir?.absolutePath.orEmpty())
+                },
+                publication = {
+                    val parent = target.parentFile
+                    if (parent != null && !parent.isDirectory && !parent.mkdirs()) {
+                        return@publishValueIfActive errorJson(
+                            message = "Unable to create workspace parent directory",
+                            exitCode = 1,
+                            path = target.absolutePath,
+                            homeDir = resolution.homeDir,
+                        )
+                    }
+                    runCatching { replaceStagedFileAtCommit(staged, target) }.fold(
+                        onSuccess = {
+                            JSONObject()
+                                .put("exit_code", 0)
+                                .put("success", true)
+                                .put("path", target.absolutePath)
+                                .put("bytes", target.length())
+                                .put("append", append)
+                                .put("cwd", resolution.homeDir?.absolutePath.orEmpty())
+                        },
+                        onFailure = { error ->
+                            errorJson(
+                                message = error.message ?: error.javaClass.simpleName,
+                                exitCode = 1,
+                                path = target.absolutePath,
+                                homeDir = resolution.homeDir,
+                            )
+                        },
+                    )
+                },
+            )
+        } finally {
+            staged.delete()
+        }
     }
 
     fun deleteJson(context: Context, rawPath: String): JSONObject {
@@ -67,8 +118,17 @@ object HermesWorkspaceFileBridge {
 
     private fun resolveTarget(context: Context, rawPath: String): FileResolution {
         val appContext = context.applicationContext
-        val state = HermesLinuxSubsystemBridge.ensureInstalled(appContext)
-        val homeDir = File(state.getString("home_path")).apply { mkdirs() }.canonicalFile
+        // Resolving a file path must stay read-only. In particular, do not call
+        // HermesLinuxSubsystemBridge.ensureInstalled here: it may unpack or repair the runtime
+        // before a request-owned Stop can win the file's final commit gate.
+        val supportedAbis = Build.SUPPORTED_ABIS.toList()
+        val androidAbi = supportedAbis.firstOrNull { it == "arm64-v8a" || it == "x86_64" }
+            ?: supportedAbis.firstOrNull()
+            ?: "arm64-v8a"
+        val homeDir = File(
+            appContext.filesDir,
+            "hermes-home/linux/$androidAbi/prefix/home",
+        ).canonicalFile
         val appFilesDir = appContext.filesDir.canonicalFile
         val target = if (File(rawPath).isAbsolute) {
             File(rawPath)

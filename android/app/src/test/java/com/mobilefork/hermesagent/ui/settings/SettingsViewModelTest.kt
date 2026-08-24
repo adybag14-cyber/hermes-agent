@@ -32,6 +32,172 @@ import java.util.concurrent.atomic.AtomicReference
 @Config(application = android.app.Application::class)
 class SettingsViewModelTest {
     @Test
+    fun settingsEntryRefreshMirrorsFullPersistedTupleReconciledWhileViewModelWasInactive() {
+        val application: android.app.Application = RuntimeEnvironment.getApplication()
+        val store = AppSettingsStore(application)
+        val original = store.load()
+        try {
+            store.save(
+                original.copy(
+                    llamaCppRuntimeLane = "stable",
+                    llamaCppCacheTypeK = "default",
+                    llamaCppCacheTypeV = "f16",
+                    llamaCppFlashAttention = "off",
+                    llamaCppAdditionalArguments = listOf("--threads", "2"),
+                ),
+            )
+            val viewModel = SettingsViewModel(application)
+
+            val reconciled = store.update {
+                it.copy(
+                    llamaCppRuntimeLane = "turboquant",
+                    llamaCppCacheTypeK = "q5_0",
+                    llamaCppCacheTypeV = "q5_1",
+                    llamaCppFlashAttention = "on",
+                    llamaCppAdditionalArguments = listOf("--threads", "4", "--perf"),
+                )
+            }
+
+            // SettingsScreen invokes this on entry. The tuple publication is deliberately
+            // synchronous even though the endpoint probe continues in the background.
+            viewModel.refreshAgentEndpoint(forceStart = false)
+
+            assertEquals(
+                reconciled.llamaCppAdvancedSettingsTuple(),
+                viewModel.uiState.value.llamaCppAdvancedSettingsTuple(),
+            )
+            assertEquals(
+                reconciled.llamaCppAdvancedSettingsTuple(),
+                resolveLlamaCppAdvancedSettingsForSave(
+                    existing = reconciled,
+                    draft = viewModel.uiState.value,
+                    persistDraft = false,
+                ).llamaCppAdvancedSettingsTuple(),
+            )
+        } finally {
+            store.save(original)
+        }
+    }
+
+    @Test
+    fun successfulRuntimeGenerationPublishesManagerReconciledTupleCoherently() {
+        val application: android.app.Application = RuntimeEnvironment.getApplication()
+        val store = AppSettingsStore(application)
+        val original = store.load()
+        try {
+            store.save(
+                original.copy(
+                    llamaCppRuntimeLane = "stable",
+                    llamaCppCacheTypeK = "default",
+                    llamaCppCacheTypeV = "default",
+                    llamaCppFlashAttention = "default",
+                    llamaCppAdditionalArguments = emptyList(),
+                ),
+            )
+            val viewModel = SettingsViewModel(application)
+            viewModel.updateLlamaCppAdditionalArguments(listOf("--threads", "6"))
+            val generation = LocalModelRuntimeSelectionAuthority.beginAction()
+            val savedDraft = viewModel.captureLlamaCppAdvancedDraft()
+            val reconciled = store.update {
+                it.copy(
+                    llamaCppRuntimeLane = "turboquant",
+                    llamaCppCacheTypeK = "q5_0",
+                    llamaCppCacheTypeV = "q5_1",
+                    llamaCppFlashAttention = "on",
+                    llamaCppAdditionalArguments = listOf("--threads", "6"),
+                )
+            }
+
+            assertTrue(
+                viewModel.publishAuthoritativeLlamaCppSettingsForGeneration(
+                    generation = generation,
+                    expectedDraft = savedDraft,
+                    authoritativeSettings = reconciled.llamaCppAdvancedSettingsTuple(),
+                    allowExistingDraftChanges = true,
+                ),
+            )
+            assertEquals(
+                reconciled.llamaCppAdvancedSettingsTuple(),
+                viewModel.uiState.value.llamaCppAdvancedSettingsTuple(),
+            )
+        } finally {
+            store.save(original)
+        }
+    }
+
+    @Test
+    fun reconciledTuplePublicationPreservesActiveDraftAndRejectsStaleGeneration() {
+        val application: android.app.Application = RuntimeEnvironment.getApplication()
+        val store = AppSettingsStore(application)
+        val original = store.load()
+        try {
+            store.save(
+                original.copy(
+                    llamaCppRuntimeLane = "stable",
+                    llamaCppCacheTypeK = "default",
+                    llamaCppCacheTypeV = "f16",
+                    llamaCppFlashAttention = "off",
+                ),
+            )
+            val viewModel = SettingsViewModel(application)
+            viewModel.updateLlamaCppCacheTypeK("q4_0")
+            val activeDraft = viewModel.uiState.value.llamaCppAdvancedSettingsTuple()
+            val passiveGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+            val passiveCapture = viewModel.captureLlamaCppAdvancedDraft()
+            val reconciled = store.update {
+                it.copy(
+                    llamaCppRuntimeLane = "turboquant",
+                    llamaCppCacheTypeK = "q5_0",
+                    llamaCppCacheTypeV = "q5_1",
+                    llamaCppFlashAttention = "on",
+                )
+            }.llamaCppAdvancedSettingsTuple()
+
+            viewModel.refreshAgentEndpoint(forceStart = false)
+            assertEquals(activeDraft, viewModel.uiState.value.llamaCppAdvancedSettingsTuple())
+
+            assertTrue(
+                viewModel.publishAuthoritativeLlamaCppSettingsForGeneration(
+                    generation = passiveGeneration,
+                    expectedDraft = passiveCapture,
+                    authoritativeSettings = reconciled,
+                    allowExistingDraftChanges = false,
+                ),
+            )
+            assertEquals(activeDraft, viewModel.uiState.value.llamaCppAdvancedSettingsTuple())
+
+            val editRaceGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+            val editRaceCapture = viewModel.captureLlamaCppAdvancedDraft()
+            viewModel.updateLlamaCppCacheTypeV("q8_0")
+            val editedAfterCapture = viewModel.uiState.value.llamaCppAdvancedSettingsTuple()
+            assertTrue(
+                viewModel.publishAuthoritativeLlamaCppSettingsForGeneration(
+                    generation = editRaceGeneration,
+                    expectedDraft = editRaceCapture,
+                    authoritativeSettings = reconciled,
+                    allowExistingDraftChanges = true,
+                ),
+            )
+            assertEquals(editedAfterCapture, viewModel.uiState.value.llamaCppAdvancedSettingsTuple())
+
+            val staleGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
+            val staleCapture = viewModel.captureLlamaCppAdvancedDraft()
+            LocalModelRuntimeSelectionAuthority.beginAction()
+            assertFalse(
+                viewModel.publishAuthoritativeLlamaCppSettingsForGeneration(
+                    generation = staleGeneration,
+                    expectedDraft = staleCapture,
+                    authoritativeSettings = reconciled,
+                    allowExistingDraftChanges = true,
+                ),
+            )
+            assertEquals(editedAfterCapture, viewModel.uiState.value.llamaCppAdvancedSettingsTuple())
+        } finally {
+            store.save(original)
+        }
+    }
+
+    @Test
     fun syncingDurablyCommittedNanbeigeLaneDoesNotSupersedeDownloadClickEpoch() {
         val application: android.app.Application = RuntimeEnvironment.getApplication()
         val store = AppSettingsStore(application)

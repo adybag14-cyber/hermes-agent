@@ -89,8 +89,10 @@ def test_android_chat_ui_and_native_tool_prompt_stay_compact_on_large_font_phone
     assert 'TextOverflow.Ellipsis' in chat_screen
     assert 'modifier = Modifier.size(22.dp)' in app_shell
     assert 'style = MaterialTheme.typography.bodyLarge' in app_shell
-    assert 'toolSpecsFor(userText, localModelToolMode)' in native_tool_client
-    assert '.ifEmpty { inferredToolNames(userText) }' in native_tool_client
+    assert 'initialToolSpecsFor(' in native_tool_client
+    assert 'val requestToolScope = requestToolScopeFor(userText)' in native_tool_client
+    assert 'val contextRecoveryToolSpecs = requestToolScope.scopedToolSpecs()' in native_tool_client
+    assert 'if (!isAffirmativeActionRequest(actionText)) return NativeToolRequestScope(emptyList())' in native_tool_client
     assert 'return JSONArray()' in native_tool_client
     assert 'systemMessage(\n                toolSpecs = activeToolSpecs,' in native_tool_client
     assert 'buildFocusedSystemPromptContent(' in native_tool_client

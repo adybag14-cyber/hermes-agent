@@ -46,7 +46,9 @@ object HermesTermuxMirrorConfig {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_MIRROR_PROFILE, normalized)
-            .apply()
+            // This preference can be committed inside a chat request's atomic mutation gate.
+            // Keep the disk write synchronous so it cannot be queued after Stop wins.
+            .commit()
     }
 
     fun orderedBaseUrls(context: Context): List<String> {

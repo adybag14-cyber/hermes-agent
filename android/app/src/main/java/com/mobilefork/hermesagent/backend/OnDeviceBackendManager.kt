@@ -8,6 +8,7 @@ import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.LocalModelDownloadRecord
 import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.models.HermesModelDownloadManager
+import com.mobilefork.hermesagent.models.LocalModelRuntimeSelectionAuthority
 import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
 import java.io.File
 import java.util.Locale
@@ -72,7 +73,11 @@ object OnDeviceBackendManager {
         val result = withBackgroundPriorityIfNeeded {
             when (BackendKind.fromPersistedValue(backendValue)) {
                 BackendKind.NONE -> stopAll()
-                BackendKind.LLAMA_CPP -> ensureLlamaCpp(context, dangerouslySkipRamChecks)
+                BackendKind.LLAMA_CPP -> ensureLlamaCpp(
+                    context = context,
+                    dangerouslySkipRamChecks = dangerouslySkipRamChecks,
+                    admissionCheck = admissionCheck,
+                )
                 BackendKind.LITERT_LM -> ensureLiteRtLm(context)
                 BackendKind.AICORE -> ensureAICore(context)
             }
@@ -91,7 +96,8 @@ object OnDeviceBackendManager {
     /**
      * One monitor guards backend admission, shutdown, and model-file mutation.
      *
-     * Lock order is HermesRuntimeManager first, then this OnDeviceBackendManager monitor.
+     * Lock order is HermesRuntimeManager, this OnDeviceBackendManager monitor, the short
+     * LocalModelRuntimeSelectionAuthority admission monitor, then settings/download stores.
      * Code inside [block] must never call back into HermesRuntimeManager. This is internal so
      * deterministic JVM tests can prove that startup admission cannot overlap model removal.
      */
@@ -153,6 +159,7 @@ object OnDeviceBackendManager {
     internal fun ensureLlamaCpp(
         context: Context,
         dangerouslySkipRamChecks: Boolean = false,
+        admissionCheck: () -> Unit = {},
     ): LocalBackendStatus {
         stopLiteRtLmBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
         val preferred = preferredCompletedDownload(context)
@@ -185,7 +192,47 @@ object OnDeviceBackendManager {
             return artifactVerificationFailure(preferred, BackendKind.LLAMA_CPP, artifactProof.error)
         }
 
-        val settings = AppSettingsStore(context).load()
+        val settingsStore = AppSettingsStore(context)
+        val laneReconciliation = reconcileVerifiedArtifactLlamaCppRuntimeLane(
+            currentSettings = settingsStore.load(),
+            verifiedArtifact = artifactProof.verifiedArtifact,
+            persistRequiredLane = { requiredLane ->
+                persistRequiredLlamaCppRuntimeLaneIfAdmitted(
+                    settingsStore = settingsStore,
+                    requiredLane = requiredLane,
+                    admissionCheck = admissionCheck,
+                )
+            },
+        )
+        val settings = when (laneReconciliation) {
+            is VerifiedArtifactLaneReconciliation.Ready -> laneReconciliation.settings
+            is VerifiedArtifactLaneReconciliation.PersistenceFailure -> {
+                stopLlamaCppBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
+                return LocalBackendStatus(
+                    backendKind = BackendKind.LLAMA_CPP,
+                    started = false,
+                    sourceModelPath = preferred.destinationPath,
+                    statusMessage =
+                        "Hermes verified the preferred local model, but did not start llama.cpp " +
+                            "because it could not persist the required " +
+                            "${laneReconciliation.requiredLane} runtime lane. Existing settings were preserved.",
+                    artifactSummary = artifactProof.summary,
+                ).also { currentStatus = it }
+            }
+            is VerifiedArtifactLaneReconciliation.UnsupportedRequiredLane -> {
+                stopLlamaCppBeforeTransition(BackendKind.LLAMA_CPP)?.let { return it }
+                return LocalBackendStatus(
+                    backendKind = BackendKind.LLAMA_CPP,
+                    started = false,
+                    sourceModelPath = preferred.destinationPath,
+                    statusMessage =
+                        "Hermes verified the preferred local model, but did not start llama.cpp " +
+                            "because its required runtime lane " +
+                            "'${laneReconciliation.requiredLane}' is unsupported. Existing settings were preserved.",
+                    artifactSummary = artifactProof.summary,
+                ).also { currentStatus = it }
+            }
+        }
         val launchConfig = LlamaCppLaunchConfig.fromPersistedValues(
             lane = settings.llamaCppRuntimeLane,
             cacheTypeK = settings.llamaCppCacheTypeK,
@@ -436,9 +483,105 @@ object OnDeviceBackendManager {
             .lowercase(Locale.US)
     }
 
+    internal sealed class VerifiedArtifactLaneReconciliation {
+        data class Ready(
+            val settings: AppSettings,
+            val persistedRequiredLane: Boolean,
+        ) : VerifiedArtifactLaneReconciliation()
+
+        data class PersistenceFailure(
+            val requiredLane: String,
+            val cause: Throwable,
+        ) : VerifiedArtifactLaneReconciliation()
+
+        data class UnsupportedRequiredLane(
+            val requiredLane: String,
+        ) : VerifiedArtifactLaneReconciliation()
+    }
+
+    /**
+     * Reconcile a runtime-lane requirement only after the caller has verified exact artifact
+     * bytes. Unknown artifacts and verified lane-neutral artifacts retain the user's current
+     * lane. A required-lane write must complete durably before its settings can reach launch.
+     */
+    internal fun reconcileVerifiedArtifactLlamaCppRuntimeLane(
+        currentSettings: AppSettings,
+        verifiedArtifact: VerifiedLocalModelArtifacts.Artifact?,
+        persistRequiredLane: (String) -> AppSettings,
+    ): VerifiedArtifactLaneReconciliation {
+        val declaredLane = verifiedArtifact?.requiredLlamaCppRuntimeLane
+        if (declaredLane == null || declaredLane.isBlank()) {
+            return VerifiedArtifactLaneReconciliation.Ready(
+                settings = currentSettings,
+                persistedRequiredLane = false,
+            )
+        }
+        val normalizedDeclaredLane = declaredLane.trim().lowercase(Locale.US)
+        val requiredLane = when (normalizedDeclaredLane) {
+            "stable" -> "stable"
+            "turboquant", "experimental" -> "turboquant"
+            else -> return VerifiedArtifactLaneReconciliation.UnsupportedRequiredLane(
+                requiredLane = declaredLane.trim(),
+            )
+        }
+        if (
+            AppSettings.normalizeLlamaCppRuntimeLane(currentSettings.llamaCppRuntimeLane) ==
+            requiredLane
+        ) {
+            return VerifiedArtifactLaneReconciliation.Ready(
+                settings = currentSettings,
+                persistedRequiredLane = false,
+            )
+        }
+
+        return runCatching { persistRequiredLane(requiredLane) }.fold(
+            onSuccess = { persisted ->
+                if (persisted.llamaCppRuntimeLane == requiredLane) {
+                    VerifiedArtifactLaneReconciliation.Ready(
+                        settings = persisted,
+                        persistedRequiredLane = true,
+                    )
+                } else {
+                    VerifiedArtifactLaneReconciliation.PersistenceFailure(
+                        requiredLane = requiredLane,
+                        cause = IllegalStateException(
+                            "Required llama.cpp runtime lane was not present after settings persistence",
+                        ),
+                    )
+                }
+            },
+            onFailure = { error ->
+                VerifiedArtifactLaneReconciliation.PersistenceFailure(
+                    requiredLane = requiredLane,
+                    cause = error,
+                )
+            },
+        )
+    }
+
+    /**
+     * Commit an exact-artifact lane repair only while its runtime selection is still current.
+     *
+     * The authority monitor remains held through [AppSettingsStore.update], so a newer selection
+     * either invalidates this startup before the write or commits after it. The update still reads
+     * the final settings snapshot, preserving unrelated fields changed since artifact verification.
+     */
+    internal fun persistRequiredLlamaCppRuntimeLaneIfAdmitted(
+        settingsStore: AppSettingsStore,
+        requiredLane: String,
+        admissionCheck: () -> Unit,
+    ): AppSettings {
+        return LocalModelRuntimeSelectionAuthority.withAdmissionCheck(admissionCheck) {
+            settingsStore.update { latest ->
+                latest.copy(llamaCppRuntimeLane = requiredLane)
+            }
+        }
+    }
+
     private data class ArtifactProof(
         val summary: String = "",
         val error: String? = null,
+        val verifiedArtifact: VerifiedLocalModelArtifacts.Artifact? = null,
     )
 
     private fun verifyKnownArtifact(
@@ -467,6 +610,7 @@ object OnDeviceBackendManager {
         return ArtifactProof(
             summary = "${artifact.repoId}@${artifact.revision}/${artifact.fileName}; " +
                 "${artifact.expectedBytes} bytes; SHA-256 ${artifact.sha256}; ${verification.detail}",
+            verifiedArtifact = artifact,
         )
     }
 

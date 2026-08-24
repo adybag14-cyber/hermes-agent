@@ -27,11 +27,12 @@ import com.mobilefork.hermesagent.data.ProviderPresets
 import com.mobilefork.hermesagent.data.SecureSecretsStore
 import com.mobilefork.hermesagent.data.StoredConversationAttachment
 import com.mobilefork.hermesagent.data.StoredConversationMessage
+import com.mobilefork.hermesagent.device.AutomationPublicationGate
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,11 +40,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runInterruptible
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.InterruptedIOException
 import java.net.URI
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicBoolean
 
 private val DIRECT_OPENAI_COMPATIBLE_PROVIDERS = setOf(
     "openrouter",
@@ -71,6 +77,307 @@ private val DIRECT_OPENAI_COMPATIBLE_PROVIDERS = setOf(
 private val RESPONSES_API_PROVIDERS = setOf("openai", "codex")
 private const val STREAM_PERSIST_INTERVAL_MS = 400L
 
+/**
+ * Linearizes ownership of one chat request without holding the lock across model or network work.
+ * Every persistence/UI mutation belonging to a send must enter through [mutateIfActive] or
+ * [finishIfActive]. Stop retires ownership under the same lock, waits operation cleanup outside
+ * that mutation gate, then terminalizes before releasing replacement admission.
+ */
+internal class ChatSendRequestCoordinator(
+    private val nativeUnwindTimeoutMs: Long = DEFAULT_NATIVE_UNWIND_TIMEOUT_MS,
+) {
+    internal class Request internal constructor(
+        val generation: Long,
+        val sessionId: String,
+        val assistantMessageId: String,
+    ) {
+        internal var cancelJob: (() -> Unit)? = null
+        internal var cancelNetwork: (() -> Unit)? = null
+        internal var awaitNativeUnwind: ((Long) -> Boolean)? = null
+        internal var streamBuffer: StringBuilder? = null
+        internal var lastStreamPersistMs: Long = 0L
+    }
+
+    private val lock = Any()
+    private var nextGeneration = 0L
+    private var activeRequest: Request? = null
+    private var retirementLatch: CountDownLatch? = null
+
+    fun begin(
+        sessionId: String,
+        assistantMessageId: String,
+        onBegin: (Request) -> Unit,
+    ): Request? {
+        while (true) {
+            var waitForRetirement: CountDownLatch? = null
+            var admitted: Request? = null
+            val decided = synchronized(lock) {
+                val retiring = retirementLatch
+                if (retiring != null) {
+                    waitForRetirement = retiring
+                    false
+                } else if (activeRequest != null) {
+                    true
+                } else {
+                    val request = Request(
+                        generation = ++nextGeneration,
+                        sessionId = sessionId,
+                        assistantMessageId = assistantMessageId,
+                    )
+                    activeRequest = request
+                    try {
+                        onBegin(request)
+                        admitted = request
+                        true
+                    } catch (error: Throwable) {
+                        activeRequest = null
+                        throw error
+                    }
+                }
+            }
+            if (decided) return admitted
+            checkNotNull(waitForRetirement).await()
+        }
+    }
+
+    fun isActive(request: Request): Boolean = synchronized(lock) {
+        activeRequest === request
+    }
+
+    fun mutateIfActive(request: Request, mutation: (Request) -> Unit): Boolean = synchronized(lock) {
+        if (activeRequest !== request) return@synchronized false
+        mutation(request)
+        true
+    }
+
+    fun finishIfActive(request: Request, mutation: (Request) -> Boolean): Boolean = synchronized(lock) {
+        if (activeRequest !== request) return@synchronized false
+        if (!mutation(request)) return@synchronized false
+        activeRequest = null
+        request.cancelNetwork = null
+        request.awaitNativeUnwind = null
+        true
+    }
+
+    fun attachJob(request: Request, cancel: () -> Unit): Boolean = synchronized(lock) {
+        if (activeRequest !== request) return@synchronized false
+        request.cancelJob = cancel
+        true
+    }
+
+    fun attachNetwork(request: Request, cancel: () -> Unit): Boolean =
+        attachNetwork(request, cancel, awaitNativeUnwind = null)
+
+    fun attachNetwork(
+        request: Request,
+        cancel: () -> Unit,
+        awaitNativeUnwind: ((Long) -> Boolean)?,
+    ): Boolean = synchronized(lock) {
+        if (activeRequest !== request) return@synchronized false
+        request.cancelNetwork = cancel
+        request.awaitNativeUnwind = awaitNativeUnwind
+        true
+    }
+
+    /**
+     * A request-owned publication token. The publication itself must remain a short durable/UI
+     * commit: execution and callback waits belong outside this coordinator lock. Lock order is
+     * request ownership first, then any short per-store transaction lock used by [publication].
+     */
+    fun publicationGate(request: Request): AutomationPublicationGate = AutomationPublicationGate { publication ->
+        mutateIfActive(request) { publication() }
+    }
+
+    /** Linearize a prepared native/direct operation's start with Stop/navigation ownership. */
+    fun claimWorkStartIfActive(request: Request, claimStart: () -> Boolean): Boolean = synchronized(lock) {
+        if (activeRequest !== request) return@synchronized false
+        claimStart()
+    }
+
+    /**
+     * Retire and cancel the current request before another request can begin. Slow operation
+     * unwind runs outside the mutation lock while a retirement latch prevents B admission. This
+     * lets rejected late callbacks observe retired ownership instead of deadlocking behind Stop.
+     */
+    fun stopActive(onStop: (Request) -> Unit): Request? = retireCurrent(onStop)
+
+    /**
+     * Retire work when the owning ViewModel is destroyed. [onRetire] runs as part of the same
+     * ownership transition. Request-local transports and the coroutine job are cancelled first,
+     * then callers persist a nonblank lifecycle terminal before replacement admission is released.
+     * Unlike [stopActive], this does not imply a user-requested Stop status.
+     */
+    fun retireActive(onRetire: (Request) -> Unit): Request? = retireCurrent(onRetire)
+
+    /** Retire an unexpectedly completed job only if it still owns the active send. */
+    fun jobCompleted(request: Request, onUnexpectedCompletion: (Request) -> Unit): Boolean = synchronized(lock) {
+        request.cancelJob = null
+        request.cancelNetwork = null
+        request.awaitNativeUnwind = null
+        if (activeRequest !== request) return@synchronized false
+        activeRequest = null
+        onUnexpectedCompletion(request)
+        true
+    }
+
+    private fun cancelOwnedWorkBeforeTerminal(
+        cancelNetwork: (() -> Unit)?,
+        cancelJob: (() -> Unit)?,
+        awaitNativeUnwind: ((Long) -> Boolean)?,
+    ) {
+        var failure: Throwable? = null
+        fun capture(block: () -> Unit) {
+            try {
+                block()
+            } catch (error: Throwable) {
+                val first = failure
+                if (first == null) failure = error else if (first !== error) first.addSuppressed(error)
+            }
+        }
+
+        // The sticky request-local token is published first and must not wait on a native
+        // publication lock. Cancelling the coroutine then interrupts runInterruptible so the
+        // exact operation worker can finish its owned process/callback cleanup.
+        cancelNetwork?.let { capture(it) }
+        cancelJob?.let { capture(it) }
+        awaitNativeUnwind?.let { await ->
+            capture {
+                check(await(nativeUnwindTimeoutMs)) {
+                    "Native request cleanup could not be verified within ${nativeUnwindTimeoutMs}ms; " +
+                        "the native operation lane is fail-closed until the app is restarted."
+                }
+            }
+        }
+        failure?.let { throw it }
+    }
+
+    private data class Retirement(
+        val request: Request,
+        val cancelNetwork: (() -> Unit)?,
+        val cancelJob: (() -> Unit)?,
+        val awaitNativeUnwind: ((Long) -> Boolean)?,
+        val latch: CountDownLatch,
+    )
+
+    private fun retireCurrent(onTerminal: (Request) -> Unit): Request? {
+        val retirement = synchronized(lock) {
+            val request = activeRequest ?: return@synchronized null
+            activeRequest = null
+            request.streamBuffer = null
+            val latch = CountDownLatch(1)
+            check(retirementLatch == null) { "A chat request retirement is already in progress" }
+            retirementLatch = latch
+            Retirement(
+                request = request,
+                cancelNetwork = request.cancelNetwork.also { request.cancelNetwork = null },
+                cancelJob = request.cancelJob.also { request.cancelJob = null },
+                awaitNativeUnwind = request.awaitNativeUnwind.also { request.awaitNativeUnwind = null },
+                latch = latch,
+            )
+        } ?: return null
+
+        var failure = runCatching {
+            cancelOwnedWorkBeforeTerminal(
+                retirement.cancelNetwork,
+                retirement.cancelJob,
+                retirement.awaitNativeUnwind,
+            )
+        }.exceptionOrNull()
+        val terminalFailure = runCatching {
+            synchronized(lock) {
+                onTerminal(retirement.request)
+            }
+        }.exceptionOrNull()
+        val cancellationFailure = failure
+        if (cancellationFailure == null) {
+            failure = terminalFailure
+        } else if (terminalFailure != null && terminalFailure !== cancellationFailure) {
+            cancellationFailure.addSuppressed(terminalFailure)
+        }
+        synchronized(lock) {
+            if (retirementLatch === retirement.latch) retirementLatch = null
+            retirement.latch.countDown()
+        }
+        failure?.let { throw it }
+        return retirement.request
+    }
+
+    private companion object {
+        const val DEFAULT_NATIVE_UNWIND_TIMEOUT_MS = 10_000L
+    }
+}
+
+/**
+ * Prevents the asynchronous initial store read from publishing a snapshot after a user action has
+ * already established newer UI state. The check and publication share one lock, so initialization
+ * either wins completely before the mutation or is rejected completely after it.
+ */
+internal class ChatInitializationGuard {
+    private val lock = Any()
+    private var generation = 0L
+
+    fun capture(): Long = synchronized(lock) { generation }
+
+    fun invalidate() = synchronized(lock) {
+        generation += 1L
+    }
+
+    fun applyIfCurrent(capturedGeneration: Long, publish: () -> Unit): Boolean = synchronized(lock) {
+        if (generation != capturedGeneration) return@synchronized false
+        publish()
+        true
+    }
+}
+
+/** A one-request OkHttp transport whose cancellation is sticky before registration and live after it. */
+internal class RequestOwnedHttpTransport {
+    private val cancellationRequested = AtomicBoolean(false)
+
+    val client: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            if (cancellationRequested.get()) {
+                throw InterruptedIOException("Chat fallback stopped before network dispatch")
+            }
+            chain.proceed(chain.request())
+        }
+        .build()
+
+    fun cancel() {
+        cancellationRequested.set(true)
+        client.dispatcher.cancelAll()
+    }
+}
+
+internal fun mergeInitialChatState(loaded: ChatUiState, current: ChatUiState): ChatUiState {
+    return loaded.copy(
+        input = current.input,
+        attachments = current.attachments,
+        isSending = current.isSending,
+        isListening = current.isListening,
+        isShowingHistory = current.isShowingHistory,
+        showIntermediateSteps = current.showIntermediateSteps,
+        status = if (current.status == "Loading…") loaded.status else current.status,
+        error = current.error,
+    )
+}
+
+internal data class AssistantCompletionResolution(
+    val content: String,
+    val hasAssistantContent: Boolean,
+)
+
+internal fun resolveAssistantCompletion(
+    streamedContent: String,
+    localizedFailureMessage: String,
+): AssistantCompletionResolution {
+    require(localizedFailureMessage.isNotBlank()) { "Assistant failure terminal must not be blank" }
+    return if (streamedContent.isNotBlank()) {
+        AssistantCompletionResolution(content = streamedContent, hasAssistantContent = true)
+    } else {
+        AssistantCompletionResolution(content = localizedFailureMessage, hasAssistantContent = false)
+    }
+}
+
 internal fun usesDirectOpenAiCompatibleTransport(providerId: String): Boolean {
     // The OpenAI Codex OAuth runtime uses its Responses transport and ChatGPT Web
     // uses the /conversation protocol inside the embedded Python runtime. Neither
@@ -89,28 +396,17 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     )
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
-    @Volatile
-    private var streamPersistBuffer: StringBuilder? = null
-    @Volatile
-    private var streamPersistSessionId: String = ""
-    @Volatile
-    private var streamPersistMessageId: String = ""
-    @Volatile
-    private var lastStreamPersistMs: Long = 0L
-    @Volatile
-    private var activeSendJob: Job? = null
-    @Volatile
-    private var activeSseClient: HermesSseClient? = null
+    private val sendCoordinator = ChatSendRequestCoordinator()
+    private val initializationGuard = ChatInitializationGuard()
 
     init {
+        val initializationGeneration = initializationGuard.capture()
         viewModelScope.launch(Dispatchers.IO) {
             val next = buildState()
-            _uiState.update {
-                next.copy(
-                    input = it.input,
-                    attachments = it.attachments,
-                    isSending = it.isSending,
-                )
+            initializationGuard.applyIfCurrent(initializationGeneration) {
+                _uiState.update {
+                    mergeInitialChatState(loaded = next, current = it)
+                }
             }
         }
     }
@@ -170,22 +466,47 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopCurrentTask() {
-        val snapshot = _uiState.value
-        if (!snapshot.isSending) return
-        NativeToolChatSender.cancelActive()
-        activeSseClient?.cancel()
-        activeSendJob?.cancel()
-        streamPersistBuffer = null
-        _uiState.update {
-            it.copy(
-                isSending = false,
-                status = "Stopped by user",
-                error = "",
+        stopActiveSend(status = "Stopped by user")
+    }
+
+    override fun onCleared() {
+        // A cancelled coroutine does not interrupt a blocking OkHttp Call.execute(). Retire
+        // ownership first, terminalize the admitted placeholder without claiming the user pressed
+        // Stop, and invoke the request-owned cancellation handle. Late callbacks cannot overwrite
+        // this persisted terminal or enter the fallback lane after the ViewModel is destroyed.
+        initializationGuard.invalidate()
+        sendCoordinator.retireActive { request ->
+            persistOwnedAssistantTerminal(
+                sessionId = request.sessionId,
+                assistantMessageId = request.assistantMessageId,
+                terminalMessage = currentStrings().lifecycleInterruptedReplyMessage(),
             )
         }
+        super.onCleared()
+    }
+
+    private fun stopActiveSend(status: String): Boolean {
+        val terminalMessage = currentStrings().stoppedReplyMessage()
+        return sendCoordinator.stopActive { request ->
+            request.streamBuffer = null
+            _uiState.update {
+                it.copy(
+                    isSending = false,
+                    status = status,
+                    error = "",
+                )
+            }
+            finalizeOwnedAssistantMessage(
+                sessionId = request.sessionId,
+                assistantMessageId = request.assistantMessageId,
+                terminalMessage = terminalMessage,
+            )
+        } != null
     }
 
     fun startNewConversation() {
+        initializationGuard.invalidate()
+        stopActiveSend(status = "Stopped by user")
         val conversation = conversationStore.createNewConversation()
         _uiState.value = buildState(
             activeConversationId = conversation.sessionId,
@@ -195,6 +516,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearCurrentConversation() {
+        initializationGuard.invalidate()
+        stopActiveSend(status = "Stopped by user")
         val nextConversation = conversationStore.clearCurrentConversation()
         _uiState.value = buildState(
             activeConversationId = nextConversation.sessionId,
@@ -219,6 +542,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openConversation(sessionId: String) {
+        initializationGuard.invalidate()
+        stopActiveSend(status = "Stopped by user")
         val conversation = conversationStore.switchConversation(sessionId) ?: return
         _uiState.value = buildState(
             activeConversationId = conversation.sessionId,
@@ -233,6 +558,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update { it.copy(input = "", error = "", isSending = false, status = "") }
             return
         }
+        initializationGuard.invalidate()
         val now = System.currentTimeMillis()
         val sessionId = conversationStore.currentSessionId()
         val userMessage = ChatUiMessage(UUID.randomUUID().toString(), "user", commandText, now)
@@ -301,59 +627,191 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun sendPreparedMessage(text: String, attachments: List<ChatAttachment>) {
+        // Order the initial store publication before the send snapshot. If initialization already
+        // owns its guard, this waits for it and the snapshot sees loaded history; if send wins,
+        // the later stale publication is rejected.
+        initializationGuard.invalidate()
         val snapshot = _uiState.value
         if ((text.isEmpty() && attachments.isEmpty()) || snapshot.isSending) {
             return
         }
-
-        _uiState.update {
-            it.copy(
-                isSending = true,
-                error = "",
-                status = "Starting Hermes runtime…",
-                isShowingHistory = false,
-            )
-        }
-
         val sessionId = conversationStore.currentSessionId()
         val priorConversationMessages = buildPriorChatRequestMessages(snapshot.messages)
         val now = System.currentTimeMillis()
         val userMessage = ChatUiMessage(UUID.randomUUID().toString(), "user", text, now, attachments)
         val assistantMessageId = UUID.randomUUID().toString()
         val assistantPlaceholder = ChatUiMessage(assistantMessageId, "assistant", "", now + 1)
+        val sendRequest = sendCoordinator.begin(sessionId, assistantMessageId) {
+            // Admission owns persistence. Stop and conversation navigation use the same
+            // coordinator lock, so they cannot retire this request between the user message and
+            // its assistant placeholder, and the lazy job never needs to recreate either later.
+            persistMessages(sessionId, userMessage, assistantPlaceholder)
+            val persistedConversation = conversationStore.loadConversation(sessionId)
+            _uiState.update { state ->
+                state.copy(
+                    activeConversationId = sessionId,
+                    activeConversationTitle = persistedConversation?.title ?: state.activeConversationTitle,
+                    conversationSummaries = loadSummaries(),
+                    messages = persistedConversation?.messages?.toUiMessages() ?: state.messages,
+                    input = "",
+                    attachments = emptyList(),
+                    isSending = true,
+                    error = "",
+                    status = "Starting Hermes runtime…",
+                    isShowingHistory = false,
+                )
+            }
+        } ?: return
 
         // Register the job before it can run. Without LAZY start, a stop tap immediately after
-        // send could arrive before activeSendJob was assigned, leaving the just-launched work
+        // send could arrive before its cancellation handle was assigned, leaving just-launched work
         // alive and able to re-enter the sending state.
         val sendJob = viewModelScope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
+            val typedDirectToolName = if (attachments.isEmpty()) {
+                NativeToolChatSender.extractTypedDirectToolName(text)
+            } else {
+                null
+            }
+            if (typedDirectToolName != null) {
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.mutateIfActive(sendRequest) {
+                        _uiState.update {
+                            it.copy(
+                                error = "",
+                                status = "Running $typedDirectToolName…",
+                                isShowingHistory = false,
+                            )
+                        }
+                    }
+                ) return@launch
+                val directOperation = NativeToolChatSender.prepareDirectTyped(
+                    context = getApplication<Application>(),
+                    prompt = text,
+                )
+                if (!sendCoordinator.attachNetwork(
+                        request = sendRequest,
+                        cancel = { directOperation.cancel() },
+                        awaitNativeUnwind = directOperation::awaitCompletion,
+                    )
+                ) {
+                    directOperation.cancel()
+                    return@launch
+                }
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.claimWorkStartIfActive(sendRequest, directOperation::claimStart)) {
+                    directOperation.cancel()
+                    return@launch
+                }
+                val directResult = runSynchronousDirectRouteWithCancellationCheck {
+                    requireNotNull(directOperation.executeClaimed()) {
+                        "The validated native action could not be executed."
+                    }
+                }.getOrElse { error ->
+                    NativeToolChatSendResult(
+                        content = "$typedDirectToolName failed: ${error.message ?: error.javaClass.simpleName}",
+                    )
+                }
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.isActive(sendRequest)) return@launch
+                val content = directResult.content.ifBlank { currentStrings().failedReplyMessage() }
+                val directEvents = if (directResult.executedToolCalls > 0) {
+                    listOf(
+                        ChatUiMessage(
+                            id = UUID.randomUUID().toString(),
+                            role = AgentEventType.ToolCall.persistedRole,
+                            content = "$typedDirectToolName\n$text",
+                            createdAtEpochMs = System.currentTimeMillis(),
+                        ),
+                        ChatUiMessage(
+                            id = UUID.randomUUID().toString(),
+                            role = when (typedDirectToolName) {
+                                "terminal_tool", "linux_sandbox_tool", "mcp_run_in_proot" ->
+                                    AgentEventType.ProcessLog.persistedRole
+                                "file_write_tool" -> AgentEventType.FileAccess.persistedRole
+                                else -> AgentEventType.ToolResult.persistedRole
+                            },
+                            content = content,
+                            createdAtEpochMs = System.currentTimeMillis() + 1L,
+                        ),
+                    )
+                } else {
+                    emptyList()
+                }
+                val completed = sendCoordinator.finishIfActive(sendRequest) {
+                    if (!conversationStore.updateBlankMessageContent(
+                            sessionId = sessionId,
+                            messageId = assistantMessageId,
+                            newContent = content,
+                        )
+                    ) return@finishIfActive false
+                    directEvents.forEach { eventMessage ->
+                        conversationStore.insertMessageBefore(
+                            sessionId = sessionId,
+                            beforeMessageId = assistantMessageId,
+                            message = eventMessage.toStoredMessage(),
+                        )
+                    }
+                    _uiState.update { state ->
+                        val messagesWithContent = state.messages.map { message ->
+                            if (message.id == assistantMessageId) message.copy(content = content) else message
+                        }
+                        val finalIndex = messagesWithContent.indexOfFirst { it.id == assistantMessageId }
+                        state.copy(
+                            activeConversationTitle = conversationStore.currentConversation().title,
+                            conversationSummaries = loadSummaries(),
+                            messages = messagesWithContent.toMutableList().apply {
+                                if (finalIndex >= 0) addAll(finalIndex, directEvents) else addAll(directEvents)
+                            },
+                            isSending = false,
+                            error = "",
+                            status = "",
+                        )
+                    }
+                    true
+                }
+                if (completed) retainConversationMemory(sessionId, text, content)
+                return@launch
+            }
+
             val directDiagnosticArguments = if (attachments.isEmpty()) directNativeDiagnosticArgumentsForPrompt(text) else null
             if (directDiagnosticArguments != null) {
                 val directStrings = AppSettingsStore(getApplication<Application>()).load().let { settings ->
                     hermesStringsFor(AppLanguage.fromTag(settings.languageTag))
                 }
-                persistMessages(sessionId, userMessage, assistantPlaceholder)
-                _uiState.update {
-                    it.copy(
-                        activeConversationId = sessionId,
-                        activeConversationTitle = conversationStore.currentConversation().title,
-                        conversationSummaries = loadSummaries(),
-                        messages = conversationStore.currentConversationMessages().toUiMessages(),
-                        input = "",
-                        attachments = emptyList(),
-                        isSending = true,
-                        error = "",
-                        status = directStrings.runningNativeAndroidDiagnostics(),
-                        isShowingHistory = false,
-                    )
-                }
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.mutateIfActive(sendRequest) {
+                    _uiState.update {
+                        it.copy(
+                            error = "",
+                            status = directStrings.runningNativeAndroidDiagnostics(),
+                            isShowingHistory = false,
+                        )
+                    }
+                }) return@launch
                 val action = directDiagnosticArguments.optString("action").ifBlank { "agent_native_tool_self_test_report" }
+                val diagnosticCancellationRequested = AtomicBoolean(false)
+                if (!sendCoordinator.attachNetwork(
+                        request = sendRequest,
+                        cancel = { diagnosticCancellationRequested.set(true) },
+                    )
+                ) {
+                    diagnosticCancellationRequested.set(true)
+                    return@launch
+                }
+                currentCoroutineContext().ensureActive()
                 val directExecution = runSynchronousDirectRouteWithCancellationCheck {
                     NativeBridgeInvoker.performDiagnosticsAction(
                         context = getApplication<Application>(),
                         action = action,
                         arguments = directDiagnosticArguments,
+                        cancellationRequested = {
+                            diagnosticCancellationRequested.get() || Thread.currentThread().isInterrupted
+                        },
+                        publicationGate = sendCoordinator.publicationGate(sendRequest),
                     )
                 }
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.isActive(sendRequest)) return@launch
                 val content = directExecution.fold(
                     onSuccess = { formatDirectNativeDiagnosticsReply(it) },
                     onFailure = { error ->
@@ -385,74 +843,89 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         createdAtEpochMs = System.currentTimeMillis() + 1L,
                     ),
                 )
-                directEvents.forEach { eventMessage ->
-                    conversationStore.insertMessageBefore(
+                val completed = sendCoordinator.finishIfActive(sendRequest) {
+                    if (!conversationStore.updateBlankMessageContent(
                         sessionId = sessionId,
-                        beforeMessageId = assistantMessageId,
-                        message = eventMessage.toStoredMessage(),
-                    )
+                        messageId = assistantMessageId,
+                        newContent = content,
+                    )) return@finishIfActive false
+                    directEvents.forEach { eventMessage ->
+                        conversationStore.insertMessageBefore(
+                            sessionId = sessionId,
+                            beforeMessageId = assistantMessageId,
+                            message = eventMessage.toStoredMessage(),
+                        )
+                    }
+                    _uiState.update { state ->
+                        state.copy(
+                            activeConversationTitle = conversationStore.currentConversation().title,
+                            conversationSummaries = loadSummaries(),
+                            messages = state.messages.map { message ->
+                                if (message.id == assistantMessageId) {
+                                    message.copy(content = content)
+                                } else {
+                                    message
+                                }
+                            }.let { messages ->
+                                val finalIndex = messages.indexOfFirst { it.id == assistantMessageId }
+                                messages.toMutableList().apply {
+                                    if (finalIndex >= 0) addAll(finalIndex, directEvents) else addAll(directEvents)
+                                }
+                            },
+                            isSending = false,
+                            error = "",
+                            status = "",
+                        )
+                    }
+                    true
                 }
-                conversationStore.updateMessageContent(
-                    sessionId = sessionId,
-                    messageId = assistantMessageId,
-                    newContent = content,
-                )
-                retainConversationMemory(sessionId, text, content)
-                _uiState.update { state ->
-                    state.copy(
-                        activeConversationTitle = conversationStore.currentConversation().title,
-                        conversationSummaries = loadSummaries(),
-                        messages = state.messages.map { message ->
-                            if (message.id == assistantMessageId) {
-                                message.copy(content = content)
-                            } else {
-                                message
-                            }
-                        }.let { messages ->
-                            val finalIndex = messages.indexOfFirst { it.id == assistantMessageId }
-                            messages.toMutableList().apply {
-                                if (finalIndex >= 0) addAll(finalIndex, directEvents) else addAll(directEvents)
-                            }
-                        },
-                        isSending = false,
-                        error = "",
-                        status = "",
-                    )
-                }
+                if (completed) retainConversationMemory(sessionId, text, content)
                 return@launch
             }
 
             if (attachments.isEmpty() && NativeToolChatSender.extractDirectLinuxSandboxPrompt(text)) {
-                persistMessages(sessionId, userMessage, assistantPlaceholder)
-                _uiState.update {
-                    it.copy(
-                        activeConversationId = sessionId,
-                        activeConversationTitle = conversationStore.currentConversation().title,
-                        conversationSummaries = loadSummaries(),
-                        messages = conversationStore.currentConversationMessages().toUiMessages(),
-                        input = "",
-                        attachments = emptyList(),
-                        isSending = true,
-                        error = "",
-                        status = "Running Linux sandbox tool…",
-                        isShowingHistory = false,
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.mutateIfActive(sendRequest) {
+                    _uiState.update {
+                        it.copy(
+                            error = "",
+                            status = "Running Linux sandbox tool…",
+                            isShowingHistory = false,
+                        )
+                    }
+                }) return@launch
+                val sandboxOperation = NativeToolChatSender.prepareDirectLinuxSandbox(
+                    context = getApplication<Application>(),
+                    prompt = text,
+                )
+                if (!sendCoordinator.attachNetwork(
+                        request = sendRequest,
+                        cancel = { sandboxOperation.cancel() },
+                        awaitNativeUnwind = sandboxOperation::awaitCompletion,
                     )
+                ) {
+                    sandboxOperation.cancel()
+                    return@launch
+                }
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.claimWorkStartIfActive(sendRequest, sandboxOperation::claimStart)) {
+                    sandboxOperation.cancel()
+                    return@launch
                 }
                 val sandboxResult = runSynchronousDirectRouteWithCancellationCheck {
                     requireNotNull(
-                        NativeToolChatSender.executeDirectLinuxSandbox(
-                            context = getApplication<Application>(),
-                            prompt = text,
-                        ),
+                        sandboxOperation.executeClaimed(),
                     ) { "Linux sandbox tool was not executed." }
                 }.getOrElse { error ->
                     NativeToolChatSendResult(
                         content = "Linux sandbox tool failed: ${error.message ?: error.javaClass.simpleName}",
                     )
                 }
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.isActive(sendRequest)) return@launch
                 val sandboxContent = sandboxResult.content
-                if (sandboxResult.executedToolCalls > 0) {
-                    val sandboxEvents = listOf(
+                val sandboxEvents = if (sandboxResult.executedToolCalls > 0) {
+                    listOf(
                         ChatUiMessage(
                             id = UUID.randomUUID().toString(),
                             role = AgentEventType.ToolCall.persistedRole,
@@ -466,6 +939,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                             createdAtEpochMs = System.currentTimeMillis() + 1L,
                         ),
                     )
+                } else {
+                    emptyList()
+                }
+                val completed = sendCoordinator.finishIfActive(sendRequest) {
+                    if (!conversationStore.updateBlankMessageContent(
+                        sessionId = sessionId,
+                        messageId = assistantMessageId,
+                        newContent = sandboxContent,
+                    )) return@finishIfActive false
                     sandboxEvents.forEach { eventMessage ->
                         conversationStore.insertMessageBefore(
                             sessionId = sessionId,
@@ -474,35 +956,29 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                     _uiState.update { state ->
-                        val finalIndex = state.messages.indexOfFirst { it.id == assistantMessageId }
-                        val updated = state.messages.toMutableList().apply {
-                            if (finalIndex >= 0) addAll(finalIndex, sandboxEvents) else addAll(sandboxEvents)
-                        }
-                        state.copy(messages = updated)
-                    }
-                }
-                conversationStore.updateMessageContent(
-                    sessionId = sessionId,
-                    messageId = assistantMessageId,
-                    newContent = sandboxContent,
-                )
-                retainConversationMemory(sessionId, text, sandboxContent)
-                _uiState.update { state ->
-                    state.copy(
-                        activeConversationTitle = conversationStore.currentConversation().title,
-                        conversationSummaries = loadSummaries(),
-                        messages = state.messages.map { message ->
+                        val messagesWithContent = state.messages.map { message ->
                             if (message.id == assistantMessageId) {
                                 message.copy(content = sandboxContent)
                             } else {
                                 message
                             }
-                        },
-                        isSending = false,
-                        error = "",
-                        status = "",
-                    )
+                        }
+                        val finalIndex = messagesWithContent.indexOfFirst { it.id == assistantMessageId }
+                        val updated = messagesWithContent.toMutableList().apply {
+                            if (finalIndex >= 0) addAll(finalIndex, sandboxEvents) else addAll(sandboxEvents)
+                        }
+                        state.copy(
+                            activeConversationTitle = conversationStore.currentConversation().title,
+                            conversationSummaries = loadSummaries(),
+                            messages = updated,
+                            isSending = false,
+                            error = "",
+                            status = "",
+                        )
+                    }
+                    true
                 }
+                if (completed) retainConversationMemory(sessionId, text, sandboxContent)
                 return@launch
             }
 
@@ -515,27 +991,37 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 val directStrings = AppSettingsStore(getApplication<Application>()).load().let { settings ->
                     hermesStringsFor(AppLanguage.fromTag(settings.languageTag))
                 }
-                persistMessages(sessionId, userMessage, assistantPlaceholder)
-                _uiState.update {
-                    it.copy(
-                        activeConversationId = sessionId,
-                        activeConversationTitle = conversationStore.currentConversation().title,
-                        conversationSummaries = loadSummaries(),
-                        messages = conversationStore.currentConversationMessages().toUiMessages(),
-                        input = "",
-                        attachments = emptyList(),
-                        isSending = true,
-                        error = "",
-                        status = directStrings.runningReadOnlyNativeCommand(),
-                        isShowingHistory = false,
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.mutateIfActive(sendRequest) {
+                    _uiState.update {
+                        it.copy(
+                            error = "",
+                            status = directStrings.runningReadOnlyNativeCommand(),
+                            isShowingHistory = false,
+                        )
+                    }
+                }) return@launch
+                val terminalOperation = NativeToolChatSender.prepareDirectReadOnlyTerminal(
+                    context = getApplication<Application>(),
+                    prompt = text,
+                )
+                if (!sendCoordinator.attachNetwork(
+                        request = sendRequest,
+                        cancel = { terminalOperation.cancel() },
+                        awaitNativeUnwind = terminalOperation::awaitCompletion,
                     )
+                ) {
+                    terminalOperation.cancel()
+                    return@launch
+                }
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.claimWorkStartIfActive(sendRequest, terminalOperation::claimStart)) {
+                    terminalOperation.cancel()
+                    return@launch
                 }
                 val directResult = runSynchronousDirectRouteWithCancellationCheck {
                     requireNotNull(
-                        NativeToolChatSender.executeDirectReadOnlyTerminal(
-                            context = getApplication<Application>(),
-                            prompt = text,
-                        )
+                        terminalOperation.executeClaimed(),
                     ) { directStrings.readOnlyNativeCommandUnavailable() }
                 }.getOrElse { error ->
                     NativeToolChatSendResult(
@@ -544,9 +1030,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         ),
                     )
                 }
+                currentCoroutineContext().ensureActive()
+                if (!sendCoordinator.isActive(sendRequest)) return@launch
                 val content = directResult.content
-                if (directResult.executedToolCalls > 0) {
-                    val directEvents = listOf(
+                val directEvents = if (directResult.executedToolCalls > 0) {
+                    listOf(
                         ChatUiMessage(
                             id = UUID.randomUUID().toString(),
                             role = AgentEventType.ToolCall.persistedRole,
@@ -563,6 +1051,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                             createdAtEpochMs = System.currentTimeMillis() + 1L,
                         ),
                     )
+                } else {
+                    emptyList()
+                }
+                val completed = sendCoordinator.finishIfActive(sendRequest) {
+                    if (!conversationStore.updateBlankMessageContent(
+                        sessionId = sessionId,
+                        messageId = assistantMessageId,
+                        newContent = content,
+                    )) return@finishIfActive false
                     directEvents.forEach { eventMessage ->
                         conversationStore.insertMessageBefore(
                             sessionId = sessionId,
@@ -571,35 +1068,29 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                     _uiState.update { state ->
-                        val finalIndex = state.messages.indexOfFirst { it.id == assistantMessageId }
-                        val updated = state.messages.toMutableList().apply {
-                            if (finalIndex >= 0) addAll(finalIndex, directEvents) else addAll(directEvents)
-                        }
-                        state.copy(messages = updated)
-                    }
-                }
-                conversationStore.updateMessageContent(
-                    sessionId = sessionId,
-                    messageId = assistantMessageId,
-                    newContent = content,
-                )
-                retainConversationMemory(sessionId, text, content)
-                _uiState.update { state ->
-                    state.copy(
-                        activeConversationTitle = conversationStore.currentConversation().title,
-                        conversationSummaries = loadSummaries(),
-                        messages = state.messages.map { message ->
+                        val messagesWithContent = state.messages.map { message ->
                             if (message.id == assistantMessageId) {
                                 message.copy(content = content)
                             } else {
                                 message
                             }
-                        },
-                        isSending = false,
-                        error = "",
-                        status = "",
-                    )
+                        }
+                        val finalIndex = messagesWithContent.indexOfFirst { it.id == assistantMessageId }
+                        val updated = messagesWithContent.toMutableList().apply {
+                            if (finalIndex >= 0) addAll(finalIndex, directEvents) else addAll(directEvents)
+                        }
+                        state.copy(
+                            activeConversationTitle = conversationStore.currentConversation().title,
+                            conversationSummaries = loadSummaries(),
+                            messages = updated,
+                            isSending = false,
+                            error = "",
+                            status = "",
+                        )
+                    }
+                    true
                 }
+                if (completed) retainConversationMemory(sessionId, text, content)
                 return@launch
             }
 
@@ -610,78 +1101,92 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 HermesRuntimeManager.RuntimeState(started = true)
             }
             val endpoint = directEndpoint ?: resolveChatEndpoint(runtime)
+            currentCoroutineContext().ensureActive()
+            if (!sendCoordinator.isActive(sendRequest)) return@launch
             if (!runtime.started || endpoint == null) {
-                _uiState.update {
-                    it.copy(
-                        isSending = false,
-                        error = runtime.error ?: "Hermes runtime is not ready",
-                        status = "",
+                sendCoordinator.finishIfActive(sendRequest) {
+                    finalizeOwnedAssistantMessage(
+                        sessionId = sessionId,
+                        assistantMessageId = assistantMessageId,
+                        terminalMessage = currentStrings().failedReplyMessage(),
                     )
+                    _uiState.update {
+                        it.copy(
+                            isSending = false,
+                            error = runtime.error ?: "Hermes runtime is not ready",
+                            status = "",
+                        )
+                    }
+                    true
                 }
                 return@launch
             }
-            _uiState.update {
-                it.copy(
-                    status = "Checking ${endpoint.debugLabel()} before sending…",
-                    error = "",
-                )
-            }
-
-            val userContentParts = runCatching { buildUserContentParts(text, attachments) }.getOrElse { error ->
+            if (!sendCoordinator.mutateIfActive(sendRequest) {
                 _uiState.update {
                     it.copy(
-                        isSending = false,
-                        error = error.message ?: error.javaClass.simpleName,
-                        status = "",
+                        status = "Checking ${endpoint.debugLabel()} before sending…",
+                        error = "",
                     )
+                }
+            }) return@launch
+
+            val userContentParts = runCatching { buildUserContentParts(text, attachments) }.getOrElse { error ->
+                sendCoordinator.finishIfActive(sendRequest) {
+                    finalizeOwnedAssistantMessage(
+                        sessionId = sessionId,
+                        assistantMessageId = assistantMessageId,
+                        terminalMessage = currentStrings().failedReplyMessage(),
+                    )
+                    _uiState.update {
+                        it.copy(
+                            isSending = false,
+                            error = error.message ?: error.javaClass.simpleName,
+                            status = "",
+                        )
+                    }
+                    true
                 }
                 return@launch
             }
             val memoryContext = recallConversationMemoryContext(text)
 
-            persistMessages(sessionId, userMessage, assistantPlaceholder)
-
-            _uiState.update {
-                it.copy(
-                    activeConversationId = sessionId,
-                    activeConversationTitle = conversationStore.currentConversation().title,
-                    conversationSummaries = loadSummaries(),
-                    messages = conversationStore.currentConversationMessages().toUiMessages(),
-                    input = "",
-                    attachments = emptyList(),
-                    isSending = true,
-                    error = "",
-                    status = endpoint.streamingStatus(attachments.isNotEmpty()),
-                    isShowingHistory = false,
-                )
-            }
+            currentCoroutineContext().ensureActive()
+            if (!sendCoordinator.mutateIfActive(sendRequest) {
+                _uiState.update {
+                    it.copy(
+                        error = "",
+                        status = endpoint.streamingStatus(attachments.isNotEmpty()),
+                        isShowingHistory = false,
+                    )
+                }
+            }) return@launch
 
             if (endpoint.nativeToolCalling) {
-                runCatching {
-                    val result = NativeToolChatSender.send(
-                        context = getApplication<Application>(),
-                        baseUrl = endpoint.baseUrl,
-                        modelName = endpoint.modelName,
-                        apiKey = endpoint.apiKey,
-                        providerId = endpoint.providerId,
-                        sessionId = sessionId,
-                        userText = text,
-                        userContentParts = userContentParts,
-                        priorMessages = priorConversationMessages,
-                        relevantMemoryContext = memoryContext,
-                        onEvent = { event ->
-                            val eventMessage = ChatUiMessage(
-                                id = UUID.randomUUID().toString(),
-                                role = event.type.persistedRole,
-                                content = buildString {
-                                    append(event.title)
-                                    if (event.content.isNotBlank()) {
-                                        append('\n')
-                                        append(event.content)
-                                    }
-                                },
-                                createdAtEpochMs = System.currentTimeMillis(),
-                            )
+                val nativeOperation = NativeToolChatSender.prepareSend(
+                    context = getApplication<Application>(),
+                    baseUrl = endpoint.baseUrl,
+                    modelName = endpoint.modelName,
+                    apiKey = endpoint.apiKey,
+                    providerId = endpoint.providerId,
+                    sessionId = sessionId,
+                    userText = text,
+                    userContentParts = userContentParts,
+                    priorMessages = priorConversationMessages,
+                    relevantMemoryContext = memoryContext,
+                    onEvent = event@ { event ->
+                        val eventMessage = ChatUiMessage(
+                            id = UUID.randomUUID().toString(),
+                            role = event.type.persistedRole,
+                            content = buildString {
+                                append(event.title)
+                                if (event.content.isNotBlank()) {
+                                    append('\n')
+                                    append(event.content)
+                                }
+                            },
+                            createdAtEpochMs = System.currentTimeMillis(),
+                        )
+                        sendCoordinator.mutateIfActive(sendRequest) {
                             conversationStore.insertMessageBefore(
                                 sessionId = sessionId,
                                 beforeMessageId = assistantMessageId,
@@ -694,36 +1199,68 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                                 state.copy(messages = updated)
                             }
-                        },
+                        }
+                    },
+                )
+                if (!sendCoordinator.attachNetwork(
+                        request = sendRequest,
+                        cancel = { nativeOperation.cancel() },
+                        awaitNativeUnwind = nativeOperation::awaitCompletion,
                     )
-                    conversationStore.updateMessageContent(
-                        sessionId = sessionId,
-                        messageId = assistantMessageId,
-                        newContent = result.content,
-                    )
-                    retainConversationMemory(sessionId, text, result.content)
-                    _uiState.update { state ->
-                        state.copy(
-                            activeConversationTitle = conversationStore.currentConversation().title,
-                            conversationSummaries = loadSummaries(),
-                            messages = state.messages.map { message ->
-                                if (message.id == assistantMessageId) {
-                                    message.copy(content = result.content)
-                                } else {
-                                    message
-                                }
-                            },
-                            isSending = false,
-                            status = "",
-                        )
+                ) {
+                    nativeOperation.cancel()
+                    return@launch
+                }
+                runCatching {
+                    currentCoroutineContext().ensureActive()
+                    if (!sendCoordinator.claimWorkStartIfActive(sendRequest, nativeOperation::claimStart)) {
+                        nativeOperation.cancel()
+                        return@runCatching
                     }
+                    val result = runSynchronousDirectRouteWithCancellationCheck {
+                        nativeOperation.executeClaimed()
+                    }.getOrThrow()
+                    currentCoroutineContext().ensureActive()
+                    val completed = sendCoordinator.finishIfActive(sendRequest) {
+                        if (!conversationStore.updateBlankMessageContent(
+                            sessionId = sessionId,
+                            messageId = assistantMessageId,
+                            newContent = result.content,
+                        )) return@finishIfActive false
+                        _uiState.update { state ->
+                            state.copy(
+                                activeConversationTitle = conversationStore.currentConversation().title,
+                                conversationSummaries = loadSummaries(),
+                                messages = state.messages.map { message ->
+                                    if (message.id == assistantMessageId) {
+                                        message.copy(content = result.content)
+                                    } else {
+                                        message
+                                    }
+                                },
+                                isSending = false,
+                                status = "",
+                            )
+                        }
+                        true
+                    }
+                    if (completed) retainConversationMemory(sessionId, text, result.content)
                 }.onFailure { error ->
-                    _uiState.update { state ->
-                        if (!state.isSending) state else state.copy(
-                            isSending = false,
-                            error = endpoint.failureMessage(error.message ?: error.javaClass.simpleName),
-                            status = "",
+                    val failureMessage = endpoint.failureMessage(error.message ?: error.javaClass.simpleName)
+                    sendCoordinator.finishIfActive(sendRequest) {
+                        finalizeOwnedAssistantMessage(
+                            sessionId = sessionId,
+                            assistantMessageId = assistantMessageId,
+                            terminalMessage = currentStrings().failedReplyMessage(),
                         )
+                        _uiState.update { state ->
+                            state.copy(
+                                isSending = false,
+                                error = failureMessage,
+                                status = "",
+                            )
+                        }
+                        true
                     }
                 }
                 return@launch
@@ -740,7 +1277,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 },
             )
-            activeSseClient = client
+            if (!sendCoordinator.attachNetwork(sendRequest, client::cancel)) return@launch
+            currentCoroutineContext().ensureActive()
+            if (!sendCoordinator.isActive(sendRequest)) return@launch
             val appSettings = AppSettingsStore(getApplication<Application>()).load()
             val customSystemPrompt = appSettings.customSystemPrompt
             val cacheResendEnabled = McpPromptCacheResendPolicy.shouldResendCachedContext(
@@ -785,82 +1324,102 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 chatTemplateEnableThinking = if (suppressLocalLlamaReasoning) false else null,
             )
             runCatching {
-                val onDelta: (String) -> Unit = { delta ->
-                    // Keep stream buffer in memory; throttle disk writes to avoid jank.
-                    if (streamPersistSessionId != sessionId || streamPersistMessageId != assistantMessageId) {
-                        streamPersistSessionId = sessionId
-                        streamPersistMessageId = assistantMessageId
-                        streamPersistBuffer = StringBuilder(
-                            conversationStore.loadConversation(sessionId)
+                val onDelta: (String) -> Unit = onDelta@ { delta ->
+                    sendCoordinator.mutateIfActive(sendRequest) { ownedRequest ->
+                        // Keep each request's stream buffer isolated; throttle disk writes to avoid jank.
+                        if (ownedRequest.streamBuffer == null) {
+                            ownedRequest.streamBuffer = StringBuilder(
+                                conversationStore.loadConversation(sessionId)
+                                    ?.messages
+                                    ?.firstOrNull { it.id == assistantMessageId }
+                                    ?.content
+                                    .orEmpty(),
+                            )
+                        }
+                        ownedRequest.streamBuffer?.append(delta)
+                        val now = System.currentTimeMillis()
+                        if (now - ownedRequest.lastStreamPersistMs >= STREAM_PERSIST_INTERVAL_MS) {
+                            ownedRequest.lastStreamPersistMs = now
+                            val persistedSnapshot = ownedRequest.streamBuffer?.toString().orEmpty()
+                            conversationStore.updateMessageContentInMemory(
+                                sessionId = sessionId,
+                                messageId = assistantMessageId,
+                                newContent = persistedSnapshot,
+                            )
+                            conversationStore.flushCacheToDisk()
+                        }
+                        _uiState.update { state ->
+                            state.copy(
+                                messages = state.messages.map { message ->
+                                    if (message.id == assistantMessageId) {
+                                        message.copy(content = message.content + delta)
+                                    } else {
+                                        message
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+                val onComplete: () -> Unit = onComplete@ {
+                    var assistantContent = ""
+                    var hasAssistantContent = false
+                    val completed = sendCoordinator.finishIfActive(sendRequest) { ownedRequest ->
+                        val streamedContent = ownedRequest.streamBuffer?.toString()
+                            ?: conversationStore.loadConversation(sessionId)
                                 ?.messages
                                 ?.firstOrNull { it.id == assistantMessageId }
                                 ?.content
-                                .orEmpty(),
+                                .orEmpty()
+                        val resolution = resolveAssistantCompletion(
+                            streamedContent = streamedContent,
+                            localizedFailureMessage = currentStrings().failedReplyMessage(),
                         )
-                    }
-                    streamPersistBuffer?.append(delta)
-                    val now = System.currentTimeMillis()
-                    if (now - lastStreamPersistMs >= STREAM_PERSIST_INTERVAL_MS) {
-                        lastStreamPersistMs = now
-                        val snapshot = streamPersistBuffer?.toString().orEmpty()
-                        conversationStore.updateMessageContentInMemory(
-                            sessionId = sessionId,
-                            messageId = assistantMessageId,
-                            newContent = snapshot,
-                        )
-                        conversationStore.flushCacheToDisk()
-                    }
-                    _uiState.update { state ->
-                        state.copy(
-                            messages = state.messages.map { message ->
-                                if (message.id == assistantMessageId) {
-                                    message.copy(content = message.content + delta)
-                                } else {
-                                    message
-                                }
-                            },
-                        )
-                    }
-                }
-                val onComplete: () -> Unit = {
-                    val assistantContent = streamPersistBuffer?.toString()
-                        ?: conversationStore.loadConversation(sessionId)
-                            ?.messages
-                            ?.firstOrNull { it.id == assistantMessageId }
-                            ?.content
-                            .orEmpty()
-                    if (assistantContent.isNotEmpty()) {
+                        assistantContent = resolution.content
+                        hasAssistantContent = resolution.hasAssistantContent
                         conversationStore.updateMessageContent(
                             sessionId = sessionId,
                             messageId = assistantMessageId,
-                            newContent = assistantContent,
+                            newContent = resolution.content,
                         )
+                        ownedRequest.streamBuffer = null
+                        _uiState.update { state ->
+                            state.copy(
+                                activeConversationTitle = conversationStore.currentConversation().title,
+                                conversationSummaries = loadSummaries(),
+                                messages = state.messages.map { message ->
+                                    if (message.id == assistantMessageId) {
+                                        message.copy(content = resolution.content)
+                                    } else {
+                                        message
+                                    }
+                                },
+                                isSending = false,
+                                error = if (resolution.hasAssistantContent) "" else resolution.content,
+                                status = "",
+                            )
+                        }
+                        true
                     }
-                    streamPersistBuffer = null
-                    retainConversationMemory(sessionId, text, assistantContent)
-                    _uiState.update {
-                        it.copy(
-                            activeConversationTitle = conversationStore.currentConversation().title,
-                            conversationSummaries = loadSummaries(),
-                            isSending = false,
-                            status = "",
-                        )
+                    if (completed && hasAssistantContent) {
+                        retainConversationMemory(sessionId, text, assistantContent)
                     }
                 }
                 val onError: (String) -> Unit = { error ->
-                    if (_uiState.value.isSending) {
+                    if (sendCoordinator.isActive(sendRequest)) {
                         tryNonStreamingEndpointFallback(
                             endpoint = endpoint,
                             request = request,
-                            sessionId = sessionId,
-                            assistantMessageId = assistantMessageId,
+                            sendRequest = sendRequest,
                             streamError = error,
                         )
                     }
                 }
                 val onStatus: (String) -> Unit = { status ->
-                    _uiState.update {
-                        it.copy(status = "${endpoint.debugLabel()}: $status")
+                    sendCoordinator.mutateIfActive(sendRequest) {
+                        _uiState.update {
+                            it.copy(status = "${endpoint.debugLabel()}: $status")
+                        }
                     }
                 }
                 if (endpoint.apiMode == EndpointApiMode.RESPONSES) {
@@ -882,21 +1441,35 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }.onFailure { error ->
                 val message = error.message ?: error.javaClass.simpleName
-                if (_uiState.value.isSending) {
+                if (sendCoordinator.isActive(sendRequest)) {
                     tryNonStreamingEndpointFallback(
                         endpoint = endpoint,
                         request = request,
-                        sessionId = sessionId,
-                        assistantMessageId = assistantMessageId,
+                        sendRequest = sendRequest,
                         streamError = message,
                     )
                 }
             }
         }
-        activeSendJob = sendJob
         sendJob.invokeOnCompletion {
-            if (activeSendJob === sendJob) activeSendJob = null
-            activeSseClient = null
+            sendCoordinator.jobCompleted(sendRequest) { request ->
+                request.streamBuffer = null
+                finalizeOwnedAssistantMessage(
+                    sessionId = request.sessionId,
+                    assistantMessageId = request.assistantMessageId,
+                    terminalMessage = currentStrings().failedReplyMessage(),
+                )
+                _uiState.update {
+                    it.copy(
+                        isSending = false,
+                        status = "",
+                    )
+                }
+            }
+        }
+        if (!sendCoordinator.attachJob(sendRequest, sendJob::cancel)) {
+            sendJob.cancel()
+            return
         }
         sendJob.start()
     }
@@ -904,23 +1477,32 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private fun tryNonStreamingEndpointFallback(
         endpoint: ChatEndpoint,
         request: ChatCompletionRequest,
-        sessionId: String,
-        assistantMessageId: String,
+        sendRequest: ChatSendRequestCoordinator.Request,
         streamError: String,
     ): Boolean {
-        if (endpoint.nativeToolCalling) {
+        if (endpoint.nativeToolCalling || !sendCoordinator.isActive(sendRequest)) {
             return false
         }
-        _uiState.update {
-            it.copy(
-                status = "${endpoint.debugLabel()}: stream issue detected; retrying non-stream request…",
-                error = "",
-            )
-        }
+        if (!sendCoordinator.mutateIfActive(sendRequest) {
+            _uiState.update {
+                it.copy(
+                    status = "${endpoint.debugLabel()}: stream issue detected; retrying non-stream request…",
+                    error = "",
+                )
+            }
+        }) return false
+        val sessionId = sendRequest.sessionId
+        val assistantMessageId = sendRequest.assistantMessageId
+        var completedContent = ""
         return runCatching {
+            val fallbackTransport = RequestOwnedHttpTransport()
+            if (!sendCoordinator.attachNetwork(sendRequest, fallbackTransport::cancel)) {
+                return@runCatching false
+            }
             val fallbackClient = HermesApiClient(
                 baseUrl = endpoint.baseUrl,
                 apiKey = endpoint.apiKey,
+                httpClient = fallbackTransport.client,
                 networkGuard = { url ->
                     HermesNetworkPolicy.requireExternalNetworkAllowed(
                         getApplication<Application>(),
@@ -942,39 +1524,61 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             require(content.isNotBlank()) {
                 "Non-stream endpoint returned no assistant text"
             }
-            conversationStore.updateMessageContent(
-                sessionId = sessionId,
-                messageId = assistantMessageId,
-                newContent = content,
-            )
-            retainConversationMemory(sessionId, request.messages.lastOrNull { it.role == "user" }?.content.orEmpty(), content)
-            _uiState.update { state ->
-                state.copy(
-                    activeConversationTitle = conversationStore.currentConversation().title,
-                    conversationSummaries = loadSummaries(),
-                    messages = state.messages.map { message ->
-                        if (message.id == assistantMessageId) {
-                            message.copy(content = content)
-                        } else {
-                            message
-                        }
-                    },
-                    isSending = false,
-                    error = "",
-                    status = "${endpoint.debugLabel()}: recovered with non-stream request after SSE failed.",
+            val completed = sendCoordinator.finishIfActive(sendRequest) { ownedRequest ->
+                // A fallback is the completed result for this still-owned request. Replace any
+                // partial SSE snapshot; Stop or request B cannot reach this mutation because they
+                // participate in the same ownership transition.
+                conversationStore.updateMessageContent(
+                    sessionId = sessionId,
+                    messageId = assistantMessageId,
+                    newContent = content,
+                )
+                ownedRequest.streamBuffer = null
+                _uiState.update { state ->
+                    state.copy(
+                        activeConversationTitle = conversationStore.currentConversation().title,
+                        conversationSummaries = loadSummaries(),
+                        messages = state.messages.map { message ->
+                            if (message.id == assistantMessageId) {
+                                message.copy(content = content)
+                            } else {
+                                message
+                            }
+                        },
+                        isSending = false,
+                        error = "",
+                        status = "${endpoint.debugLabel()}: recovered with non-stream request after SSE failed.",
+                    )
+                }
+                completedContent = content
+                true
+            }
+            if (completed) {
+                retainConversationMemory(
+                    sessionId,
+                    request.messages.lastOrNull { it.role == "user" }?.content.orEmpty(),
+                    completedContent,
                 )
             }
-            true
+            completed
         }.getOrElse { fallbackError ->
-            _uiState.update {
-                it.copy(
-                    isSending = false,
-                    error = endpoint.failureMessage(
-                        "Streaming failed: $streamError. Non-stream fallback also failed: " +
-                            (fallbackError.message ?: fallbackError.javaClass.simpleName),
-                    ),
-                    status = "",
+            sendCoordinator.finishIfActive(sendRequest) {
+                finalizeOwnedAssistantMessage(
+                    sessionId = sessionId,
+                    assistantMessageId = assistantMessageId,
+                    terminalMessage = currentStrings().failedReplyMessage(),
                 )
+                _uiState.update {
+                    it.copy(
+                        isSending = false,
+                        error = endpoint.failureMessage(
+                            "Streaming failed: $streamError. Non-stream fallback also failed: " +
+                                (fallbackError.message ?: fallbackError.javaClass.simpleName),
+                        ),
+                        status = "",
+                    )
+                }
+                true
             }
             false
         }
@@ -1160,6 +1764,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         .put("query", userText)
                         .put("limit", 6)
                         .put("max_chars", 1600),
+                    reinforceRecall = false,
                 ),
             ).optString("system_prompt_context")
         }.getOrDefault("").trim()
@@ -1195,12 +1800,54 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun persistMessages(sessionId: String, vararg messages: ChatUiMessage) {
-        messages.forEach { message ->
-            conversationStore.upsertMessage(
-                sessionId = sessionId,
-                message = message.toStoredMessage(),
+        conversationStore.upsertMessages(
+            sessionId = sessionId,
+            messages = messages.map { message -> message.toStoredMessage() },
+        )
+    }
+
+    private fun currentStrings() = AppSettingsStore(getApplication<Application>()).load().let { settings ->
+        hermesStringsFor(AppLanguage.fromTag(settings.languageTag))
+    }
+
+    private fun finalizeOwnedAssistantMessage(
+        sessionId: String,
+        assistantMessageId: String,
+        terminalMessage: String,
+    ) {
+        if (sessionId.isBlank() || assistantMessageId.isBlank() || terminalMessage.isBlank()) return
+        // The caller holds this request's coordinator transition. It is therefore safe—and
+        // necessary—to replace streamed partial text with Stop/failure, while a stale callback
+        // cannot enter this path after another request or completion has won ownership.
+        persistOwnedAssistantTerminal(
+            sessionId = sessionId,
+            assistantMessageId = assistantMessageId,
+            terminalMessage = terminalMessage,
+        )
+        _uiState.update { state ->
+            state.copy(
+                messages = state.messages.map { message ->
+                    if (message.id == assistantMessageId) {
+                        message.copy(content = terminalMessage)
+                    } else {
+                        message
+                    }
+                },
             )
         }
+    }
+
+    private fun persistOwnedAssistantTerminal(
+        sessionId: String,
+        assistantMessageId: String,
+        terminalMessage: String,
+    ) {
+        if (sessionId.isBlank() || assistantMessageId.isBlank() || terminalMessage.isBlank()) return
+        conversationStore.updateMessageContent(
+            sessionId = sessionId,
+            messageId = assistantMessageId,
+            newContent = terminalMessage,
+        )
     }
 
     private fun ChatUiMessage.toStoredMessage(): StoredConversationMessage = StoredConversationMessage(
@@ -1491,11 +2138,24 @@ internal fun directNativeDiagnosticArgumentsForPrompt(text: String): JSONObject?
     if (prompt.isBlank()) {
         return null
     }
-    return NativeToolChatSender.extractDirectDiagnosticsArguments(prompt)
+    val authority = NativeDirectToolAuthorityParser.parse(prompt)
+    if (!authority.allows("android_device_diagnostics_tool")) return null
+    return authority.arguments().takeIf { it.optString("action").isNotBlank() }
 }
 
-internal suspend fun <T> runSynchronousDirectRouteWithCancellationCheck(block: () -> T): Result<T> {
-    val result = runCatching(block)
+internal suspend fun <T> runSynchronousDirectRouteWithCancellationCheck(
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
+    block: () -> T,
+): Result<T> {
+    // Dispatchers.IO cancellation alone does not interrupt a blocking Process/Call. Keep the
+    // blocking lane explicitly interruptible so this request's Stop/onCleared cancellation can
+    // enter NativeAndroidShellTool's verified parent/descendant cleanup instead of merely
+    // suppressing a late UI write.
+    val result = runCatching {
+        runInterruptible(dispatcher) {
+            block()
+        }
+    }
     currentCoroutineContext().ensureActive()
     return result
 }
