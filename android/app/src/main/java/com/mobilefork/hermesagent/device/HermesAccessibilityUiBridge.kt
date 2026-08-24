@@ -36,6 +36,12 @@ object HermesAccessibilityUiBridge {
     private val NORMALIZED_COORDINATE_SPACES = setOf("normalized", "normalised", "relative", "fraction", "unit", "unit_interval")
     private val PERCENT_COORDINATE_SPACES = setOf("percent", "percentage", "normalized_percent", "normalised_percent")
 
+    internal data class UiCommitResult(
+        val performed: Boolean,
+        val cancelled: Boolean = false,
+        val gestureCompletionStatus: String = "",
+    )
+
     @JvmStatic
     fun snapshotJson(limit: Int): String {
         return runCatching {
@@ -73,6 +79,15 @@ object HermesAccessibilityUiBridge {
         includeBase64: Boolean,
         maxImageEdgePx: Int,
     ): String {
+        return captureScreenshotJson(saveFile, includeBase64, maxImageEdgePx, publicationGate = null)
+    }
+
+    fun captureScreenshotJson(
+        saveFile: Boolean,
+        includeBase64: Boolean,
+        maxImageEdgePx: Int,
+        publicationGate: AutomationPublicationGate?,
+    ): String {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
             return errorJson("Android visual screenshot capture requires API 30 or newer")
         }
@@ -98,6 +113,7 @@ object HermesAccessibilityUiBridge {
                                     saveFile = saveFile,
                                     includeBase64 = includeBase64,
                                     maxImageEdgePx = resolvedMaxEdge,
+                                    publicationGate = publicationGate,
                                 )
                             }.getOrElse { error ->
                                 errorJson(error.message ?: error.javaClass.simpleName)
@@ -132,6 +148,30 @@ object HermesAccessibilityUiBridge {
         value: String,
         index: Int,
     ): String {
+        return performActionJson(
+            action,
+            textContains,
+            contentDescriptionContains,
+            viewId,
+            packageName,
+            className,
+            value,
+            index,
+            publicationGate = null,
+        )
+    }
+
+    fun performActionJson(
+        action: String,
+        textContains: String,
+        contentDescriptionContains: String,
+        viewId: String,
+        packageName: String,
+        className: String,
+        value: String,
+        index: Int,
+        publicationGate: AutomationPublicationGate?,
+    ): String {
         return runCatching {
             val service = HermesAccessibilityController.currentService()
                 ?: return errorJson("Hermes accessibility service is not connected")
@@ -150,7 +190,11 @@ object HermesAccessibilityUiBridge {
                 return errorJson("Requested match index $resolvedIndex but only ${matches.size} node(s) matched")
             }
             val selected = matches[resolvedIndex]
-            val performed = performResolvedAction(action, selected, value)
+            val commit = commitUiAction(publicationGate) {
+                performResolvedAction(action, selected, value)
+            }
+            if (commit.cancelled) return cancelledUiMutation(action)
+            val performed = commit.performed
             JSONObject().apply {
                 put("success", performed)
                 put("action", action)
@@ -174,6 +218,32 @@ object HermesAccessibilityUiBridge {
         durationMs: Long,
         coordinateSpace: String,
     ): String {
+        return performCoordinateGestureJson(
+            action,
+            x,
+            y,
+            x1,
+            y1,
+            x2,
+            y2,
+            durationMs,
+            coordinateSpace,
+            publicationGate = null,
+        )
+    }
+
+    fun performCoordinateGestureJson(
+        action: String,
+        x: Double?,
+        y: Double?,
+        x1: Double?,
+        y1: Double?,
+        x2: Double?,
+        y2: Double?,
+        durationMs: Long,
+        coordinateSpace: String,
+        publicationGate: AutomationPublicationGate?,
+    ): String {
         return runCatching {
             if (!HermesAccessibilityController.isServiceConnected()) {
                 return errorJson("Hermes accessibility service is not connected")
@@ -187,7 +257,7 @@ object HermesAccessibilityUiBridge {
             val normalizedAction = normalizeCoordinateAction(action)
             val duration = resolvedGestureDuration(normalizedAction, durationMs)
             val points = mutableListOf<CoordinatePoint>()
-            val performed = when (normalizedAction) {
+            val commit = when (normalizedAction) {
                 "tap", "long_press" -> {
                     val point = resolveCoordinatePoint(
                         x = x ?: x1,
@@ -198,7 +268,15 @@ object HermesAccessibilityUiBridge {
                         yLabel = "y",
                     )
                     points += point
-                    HermesAccessibilityController.performTap(point.x, point.y, duration)
+                    commitGestureAction(
+                        publicationGate = publicationGate,
+                        immediateDispatch = {
+                            HermesAccessibilityController.performTap(point.x, point.y, duration)
+                        },
+                        requestOwnedDispatch = {
+                            HermesAccessibilityController.performTapForCompletion(point.x, point.y, duration)
+                        },
+                    )
                 }
                 "swipe" -> {
                     val start = resolveCoordinatePoint(
@@ -219,10 +297,26 @@ object HermesAccessibilityUiBridge {
                     )
                     points += start
                     points += end
-                    HermesAccessibilityController.performSwipe(start.x, start.y, end.x, end.y, duration)
+                    commitGestureAction(
+                        publicationGate = publicationGate,
+                        immediateDispatch = {
+                            HermesAccessibilityController.performSwipe(start.x, start.y, end.x, end.y, duration)
+                        },
+                        requestOwnedDispatch = {
+                            HermesAccessibilityController.performSwipeForCompletion(
+                                start.x,
+                                start.y,
+                                end.x,
+                                end.y,
+                                duration,
+                            )
+                        },
+                    )
                 }
                 else -> return errorJson("Unsupported coordinate UI action: $action")
             }
+            if (commit.cancelled) return cancelledUiMutation(normalizedAction)
+            val performed = commit.performed
 
             JSONObject().apply {
                 put("success", performed)
@@ -232,13 +326,20 @@ object HermesAccessibilityUiBridge {
                 put("coordinate_space", resolvedCoordinateSpaceLabel(coordinateSpace))
                 put("requested_coordinate_space", coordinateSpace.ifBlank { "absolute_px" })
                 put("duration_ms", duration)
+                if (commit.gestureCompletionStatus.isNotBlank()) {
+                    put("gesture_completion_status", commit.gestureCompletionStatus)
+                }
                 putScreenMetrics(metrics)
                 put("scale_factor", 1.0)
                 put("resolved_coordinates", JSONArray(points.map { point -> point.toJson() }))
                 put(
                     "message",
                     if (performed) {
-                        "Dispatched Android accessibility gesture: $normalizedAction"
+                        if (commit.gestureCompletionStatus.isBlank()) {
+                            "Dispatched Android accessibility gesture: $normalizedAction"
+                        } else {
+                            "Completed Android accessibility gesture: $normalizedAction"
+                        }
                     } else {
                         "Android rejected accessibility gesture: $normalizedAction"
                     },
@@ -257,6 +358,26 @@ object HermesAccessibilityUiBridge {
         distancePx: Double?,
         durationMs: Long,
         coordinateSpace: String,
+    ): String {
+        return performScrollGestureJson(
+            direction,
+            x,
+            y,
+            distancePx,
+            durationMs,
+            coordinateSpace,
+            publicationGate = null,
+        )
+    }
+
+    fun performScrollGestureJson(
+        direction: String,
+        x: Double?,
+        y: Double?,
+        distancePx: Double?,
+        durationMs: Long,
+        coordinateSpace: String,
+        publicationGate: AutomationPublicationGate?,
     ): String {
         return runCatching {
             if (!HermesAccessibilityController.isServiceConnected()) {
@@ -285,7 +406,23 @@ object HermesAccessibilityUiBridge {
             val end = scrollEndPoint(start, normalizedDirection, distance, metrics)
             val duration = (durationMs.takeIf { it > 0L } ?: DEFAULT_SCROLL_DURATION_MS)
                 .coerceIn(MIN_GESTURE_DURATION_MS, MAX_GESTURE_DURATION_MS)
-            val performed = HermesAccessibilityController.performSwipe(start.x, start.y, end.x, end.y, duration)
+            val commit = commitGestureAction(
+                publicationGate = publicationGate,
+                immediateDispatch = {
+                    HermesAccessibilityController.performSwipe(start.x, start.y, end.x, end.y, duration)
+                },
+                requestOwnedDispatch = {
+                    HermesAccessibilityController.performSwipeForCompletion(
+                        start.x,
+                        start.y,
+                        end.x,
+                        end.y,
+                        duration,
+                    )
+                },
+            )
+            if (commit.cancelled) return cancelledUiMutation("scroll")
+            val performed = commit.performed
 
             JSONObject().apply {
                 put("success", performed)
@@ -296,6 +433,9 @@ object HermesAccessibilityUiBridge {
                 put("coordinate_space", resolvedCoordinateSpaceLabel(coordinateSpace))
                 put("requested_coordinate_space", coordinateSpace.ifBlank { "absolute_px" })
                 put("duration_ms", duration)
+                if (commit.gestureCompletionStatus.isNotBlank()) {
+                    put("gesture_completion_status", commit.gestureCompletionStatus)
+                }
                 put("distance_px", distance.toDouble())
                 putScreenMetrics(metrics)
                 put("scale_factor", 1.0)
@@ -303,7 +443,11 @@ object HermesAccessibilityUiBridge {
                 put(
                     "message",
                     if (performed) {
-                        "Dispatched Android accessibility scroll gesture: $normalizedDirection"
+                        if (commit.gestureCompletionStatus.isBlank()) {
+                            "Dispatched Android accessibility scroll gesture: $normalizedDirection"
+                        } else {
+                            "Completed Android accessibility scroll gesture: $normalizedDirection"
+                        }
                     } else {
                         "Android rejected accessibility scroll gesture: $normalizedDirection"
                     },
@@ -323,6 +467,28 @@ object HermesAccessibilityUiBridge {
         packageName: String,
         className: String,
         index: Int,
+    ): String {
+        return performTextInputJson(
+            value,
+            textContains,
+            contentDescriptionContains,
+            viewId,
+            packageName,
+            className,
+            index,
+            publicationGate = null,
+        )
+    }
+
+    fun performTextInputJson(
+        value: String,
+        textContains: String,
+        contentDescriptionContains: String,
+        viewId: String,
+        packageName: String,
+        className: String,
+        index: Int,
+        publicationGate: AutomationPublicationGate?,
     ): String {
         return runCatching {
             val service = HermesAccessibilityController.currentService()
@@ -356,7 +522,11 @@ object HermesAccessibilityUiBridge {
             val arguments = Bundle().apply {
                 putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, value)
             }
-            val performed = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+            val commit = commitUiAction(publicationGate) {
+                target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+            }
+            if (commit.cancelled) return cancelledUiMutation("type")
+            val performed = commit.performed
             JSONObject().apply {
                 put("success", performed)
                 put("action", "type")
@@ -379,6 +549,13 @@ object HermesAccessibilityUiBridge {
 
     @JvmStatic
     fun performGlobalActionJson(action: String): String {
+        return performGlobalActionJson(action, publicationGate = null)
+    }
+
+    fun performGlobalActionJson(
+        action: String,
+        publicationGate: AutomationPublicationGate?,
+    ): String {
         val normalizedAction = normalizeGlobalAction(action)
         val globalAction = when (normalizedAction) {
             "back", "global_back" -> HermesGlobalAction.Back
@@ -389,7 +566,15 @@ object HermesAccessibilityUiBridge {
             else -> return errorJson("Unsupported Android global UI action: $action")
         }
         val connected = HermesAccessibilityController.isServiceConnected()
-        val success = connected && HermesAccessibilityController.performAction(globalAction)
+        val commit = if (connected) {
+            commitUiAction(publicationGate) {
+                HermesAccessibilityController.performAction(globalAction)
+            }
+        } else {
+            UiCommitResult(performed = false)
+        }
+        if (commit.cancelled) return cancelledUiMutation(normalizedAction)
+        val success = commit.performed
         return JSONObject()
             .put("success", success)
             .put("action", normalizedAction)
@@ -407,6 +592,51 @@ object HermesAccessibilityUiBridge {
 
     private fun normalizeGlobalAction(action: String): String {
         return action.trim().lowercase().replace("-", "_").replace(" ", "_")
+    }
+
+    private fun commitUiAction(
+        publicationGate: AutomationPublicationGate?,
+        commit: () -> Boolean,
+    ): UiCommitResult {
+        return publicationGate.publishValueIfActive(
+            cancelledValue = { UiCommitResult(performed = false, cancelled = true) },
+            publication = { UiCommitResult(performed = commit()) },
+        )
+    }
+
+    internal fun commitGestureAction(
+        publicationGate: AutomationPublicationGate?,
+        immediateDispatch: () -> Boolean,
+        requestOwnedDispatch: () -> HermesGestureDispatchOperation,
+    ): UiCommitResult {
+        if (publicationGate == null) {
+            // Manual callers preserve the historical accepted-dispatch contract. Request-owned
+            // chat is the stricter path below and never uses a null GestureResultCallback.
+            return UiCommitResult(performed = immediateDispatch())
+        }
+        // Admission is the only mutation under the request publication lock. The bounded terminal
+        // callback wait stays outside it so Stop can set sticky cancellation immediately; the
+        // owning NativeToolChatOperation then delays terminal publication/replacement until this
+        // synchronous bridge call has fully unwound.
+        var operation: HermesGestureDispatchOperation? = null
+        val admitted = publicationGate.publishIfActive {
+            operation = requestOwnedDispatch()
+        }
+        if (!admitted) {
+            return UiCommitResult(performed = false, cancelled = true)
+        }
+        val result = checkNotNull(operation).awaitTerminalResult()
+        return UiCommitResult(
+            performed = result.completed,
+            gestureCompletionStatus = result.status.wireValue,
+        )
+    }
+
+    private fun cancelledUiMutation(action: String): String {
+        return cancelledMutationJson(
+            action = action,
+            message = "Android UI action was stopped before its final commit.",
+        ).toString()
     }
 
     private fun normalizeCoordinateAction(action: String): String {
@@ -525,6 +755,7 @@ object HermesAccessibilityUiBridge {
         saveFile: Boolean,
         includeBase64: Boolean,
         maxImageEdgePx: Int,
+        publicationGate: AutomationPublicationGate?,
     ): String {
         val buffer = screenshot.hardwareBuffer
         try {
@@ -551,10 +782,32 @@ object HermesAccessibilityUiBridge {
             }
             val imageHash = sha256Hex(pngBytes)
             val imagePath = if (saveFile) {
-                val dir = File(service.filesDir, "hermes-screenshots").apply { mkdirs() }
-                val file = File(dir, "screen-${System.currentTimeMillis()}.png")
-                file.writeBytes(pngBytes)
-                file.absolutePath
+                val staged = File.createTempFile("hermes-screenshot-", ".tmp", service.cacheDir)
+                try {
+                    // PNG encoding and staging are intentionally outside the request gate. The
+                    // only durable publication is the short same-filesystem rename below.
+                    staged.writeBytes(pngBytes)
+                    val dir = File(service.filesDir, "hermes-screenshots")
+                    val file = File(dir, "screen-${System.currentTimeMillis()}.png")
+                    val committed = publicationGate.publishValueIfActive(
+                        cancelledValue = { false },
+                        publication = {
+                            if (!dir.isDirectory && !dir.mkdirs()) {
+                                throw IOException("Unable to create Hermes screenshot directory")
+                            }
+                            replaceStagedFileAtCommit(staged, file)
+                            true
+                        },
+                    )
+                    if (!committed) {
+                        if (scaled !== bitmap) scaled.recycle()
+                        bitmap.recycle()
+                        return cancelledUiMutation("screenshot")
+                    }
+                    file.absolutePath
+                } finally {
+                    staged.delete()
+                }
             } else {
                 ""
             }

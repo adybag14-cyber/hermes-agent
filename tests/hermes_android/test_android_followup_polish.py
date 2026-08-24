@@ -228,8 +228,12 @@ def test_screenshot_reported_native_tool_self_test_is_real_bridge_diagnostic():
 
     assert '"agent_native_tool_self_test_report"' in diagnostics_bridge
     assert '"native_tool_self_test"' in diagnostics_bridge
-    assert 'nativeToolSelfTestReportJson(appContext)' in diagnostics_bridge
-    assert 'NativeAndroidShellTool.run(appContext, "printf hermes-native-shell", 5)' in diagnostics_bridge
+    assert (
+        'nativeToolSelfTestReportJson(appContext, cancellationRequested, publicationGate)'
+        in diagnostics_bridge
+    )
+    assert '"printf hermes-native-shell"' in diagnostics_bridge
+    assert 'cancellationRequested = cancellationRequested' in diagnostics_bridge
     assert 'JSONObject(HermesSystemControlBridge.statusJson())' in diagnostics_bridge
     assert 'JSONObject(HermesAccessibilityUiBridge.snapshotJson(1))' in diagnostics_bridge
     assert 'HermesHyMemoryBridge.statusJson(appContext)' in diagnostics_bridge
@@ -691,8 +695,12 @@ def test_android_diagnostics_exposes_signal_evidence_bundle_for_gemma_visible_cu
     assert 'accelerator_preflight_matrix' in diagnostics_bridge
     assert 'agent_signal_evidence_report' in chat_client
     assert 'signal_evidence_bundle' in chat_client
-    assert 'extractImplicitSignalEvidenceArguments(userText)' in chat_client
-    assert 'extractImplicitAndroidDiagnosticsArguments(userText)' in chat_client
+    # Natural-language signal actions now enter through the request-scoped,
+    # high-confidence authority mapper; the legacy extractor remains only as a
+    # parser unit-test surface and is not an independent dispatch path.
+    assert 'highConfidenceNaturalLanguageActionToolNames(userText)' in chat_client
+    assert 'naturalToolCallConstraint(toolName, actionText)' in chat_client
+    assert 'requestToolScopeFor(userText)' in chat_client
     assert 'fun extractImplicitAndroidDiagnosticsArguments(userText: String): JSONObject?' in chat_client
     assert 'wifiDiagnosticArguments("wifi_channel_rating", userText)' in chat_client
     assert 'wifiDiagnosticArguments("wifi_export", userText)' in chat_client

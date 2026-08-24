@@ -268,6 +268,10 @@ class HermesStringsTest {
                 strings.showStepsLabel(),
                 strings.hideStepsLabel(),
                 strings.stopLabel(),
+                strings.generationElapsedLabel("2m 15s"),
+                strings.stoppedReplyMessage(),
+                strings.lifecycleInterruptedReplyMessage(),
+                strings.failedReplyMessage(),
                 strings.eventTypeLabel("thought"),
                 strings.eventTypeLabel("tool_call"),
                 strings.eventTypeLabel("file_access"),
@@ -293,6 +297,16 @@ class HermesStringsTest {
                 assertFalse(strings.signalToolsToggleLabel(false) == "Show signal tools")
                 assertFalse(strings.exitCodeLabel(0) == "Exit code 0")
                 assertFalse(strings.chatStatusText("Stopped by user") == "Stopped by user")
+                assertFalse(strings.generationElapsedLabel("2m 15s") == "Hermes is working · 2m 15s elapsed")
+                assertFalse(strings.stoppedReplyMessage() == "This reply was stopped by the user.")
+                assertFalse(
+                    strings.lifecycleInterruptedReplyMessage() ==
+                        "This reply was interrupted because the chat was closed.",
+                )
+                assertFalse(
+                    strings.failedReplyMessage() ==
+                        "Hermes could not complete this reply. Review the error above and try again.",
+                )
             }
         }
     }

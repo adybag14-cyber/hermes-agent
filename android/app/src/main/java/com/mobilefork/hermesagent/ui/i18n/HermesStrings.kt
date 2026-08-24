@@ -950,6 +950,42 @@ data class HermesStrings(
         AppLanguage.ENGLISH -> "Hermes is preparing a reply"
     }
 
+    fun generationElapsedLabel(elapsed: String): String = when (language) {
+        AppLanguage.CHINESE -> "Hermes 正在处理 · 已用时 $elapsed"
+        AppLanguage.SPANISH -> "Hermes está trabajando · $elapsed transcurridos"
+        AppLanguage.GERMAN -> "Hermes arbeitet · $elapsed vergangen"
+        AppLanguage.PORTUGUESE -> "Hermes está trabalhando · $elapsed decorridos"
+        AppLanguage.FRENCH -> "Hermes travaille · temps écoulé : $elapsed"
+        AppLanguage.ENGLISH -> "Hermes is working · $elapsed elapsed"
+    }
+
+    fun stoppedReplyMessage(): String = when (language) {
+        AppLanguage.CHINESE -> "此回复已由用户停止。"
+        AppLanguage.SPANISH -> "Esta respuesta fue detenida por el usuario."
+        AppLanguage.GERMAN -> "Diese Antwort wurde vom Benutzer gestoppt."
+        AppLanguage.PORTUGUESE -> "Esta resposta foi parada pelo usuário."
+        AppLanguage.FRENCH -> "Cette réponse a été arrêtée par l’utilisateur."
+        AppLanguage.ENGLISH -> "This reply was stopped by the user."
+    }
+
+    fun lifecycleInterruptedReplyMessage(): String = when (language) {
+        AppLanguage.CHINESE -> "由于聊天已关闭，此回复已中断。"
+        AppLanguage.SPANISH -> "Esta respuesta se interrumpió porque se cerró el chat."
+        AppLanguage.GERMAN -> "Diese Antwort wurde unterbrochen, weil der Chat geschlossen wurde."
+        AppLanguage.PORTUGUESE -> "Esta resposta foi interrompida porque o chat foi fechado."
+        AppLanguage.FRENCH -> "Cette réponse a été interrompue parce que la discussion a été fermée."
+        AppLanguage.ENGLISH -> "This reply was interrupted because the chat was closed."
+    }
+
+    fun failedReplyMessage(): String = when (language) {
+        AppLanguage.CHINESE -> "Hermes 无法完成此回复。请查看上方错误并重试。"
+        AppLanguage.SPANISH -> "Hermes no pudo completar esta respuesta. Revisa el error anterior e inténtalo de nuevo."
+        AppLanguage.GERMAN -> "Hermes konnte diese Antwort nicht abschließen. Prüfe den Fehler oben und versuche es erneut."
+        AppLanguage.PORTUGUESE -> "O Hermes não conseguiu concluir esta resposta. Verifique o erro acima e tente novamente."
+        AppLanguage.FRENCH -> "Hermes n’a pas pu terminer cette réponse. Vérifiez l’erreur ci-dessus et réessayez."
+        AppLanguage.ENGLISH -> "Hermes could not complete this reply. Review the error above and try again."
+    }
+
     fun attachmentCount(count: Int): String = when (language) {
         AppLanguage.CHINESE -> "$count 个附件"
         AppLanguage.SPANISH -> if (count == 1) "$count adjunto" else "$count adjuntos"

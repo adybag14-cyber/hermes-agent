@@ -1,22 +1,653 @@
 package com.mobilefork.hermesagent.ui.chat
 
 import com.mobilefork.hermesagent.api.ChatContentPart
+import com.mobilefork.hermesagent.api.ChatCompletionRequest
 import com.mobilefork.hermesagent.api.ChatMessage
+import com.mobilefork.hermesagent.api.HermesApiClient
 import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.HermesRuntimeManager
 import com.mobilefork.hermesagent.backend.LocalBackendStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 class ChatViewModelTest {
+    @Test
+    fun lateInitializationCannotOverwriteAnAdmittedSend() {
+        val guard = ChatInitializationGuard()
+        val initializationGeneration = guard.capture()
+        val storeReadFinished = CountDownLatch(1)
+        val releasePublication = CountDownLatch(1)
+        val state = AtomicReference(ChatUiState(status = "Loading…"))
+        val published = AtomicBoolean(false)
+        val staleLoaded = ChatUiState(
+            activeConversationId = "stale-session",
+            messages = listOf(ChatUiMessage("stale", "assistant", "stale reply", 1L)),
+        )
+        val initializer = thread(name = "chat-init-send-race") {
+            storeReadFinished.countDown()
+            assertTrue(releasePublication.await(5, TimeUnit.SECONDS))
+            published.set(
+                guard.applyIfCurrent(initializationGeneration) {
+                    state.set(mergeInitialChatState(staleLoaded, state.get()))
+                },
+            )
+        }
+        assertTrue(storeReadFinished.await(5, TimeUnit.SECONDS))
+
+        guard.invalidate()
+        val admitted = ChatUiState(
+            activeConversationId = "send-session",
+            messages = listOf(
+                ChatUiMessage("user", "user", "hello", 2L),
+                ChatUiMessage("assistant", "assistant", "", 3L),
+            ),
+            isSending = true,
+            status = "Starting Hermes runtime…",
+        )
+        state.set(admitted)
+        releasePublication.countDown()
+        initializer.join(5_000L)
+
+        assertFalse(initializer.isAlive)
+        assertFalse("stale initialization unexpectedly published after send admission", published.get())
+        assertEquals(admitted, state.get())
+    }
+
+    @Test
+    fun sendInvalidationWaitsForAnAdmittedInitializationPublishBeforeSnapshottingHistory() {
+        val guard = ChatInitializationGuard()
+        val initializationGeneration = guard.capture()
+        val publicationEntered = CountDownLatch(1)
+        val releasePublication = CountDownLatch(1)
+        val snapshotFinished = CountDownLatch(1)
+        val loadedHistory = listOf(
+            ChatUiMessage("prior-user", "user", "Earlier question", 1L),
+            ChatUiMessage("prior-assistant", "assistant", "Earlier answer", 2L),
+        )
+        val state = AtomicReference(ChatUiState(status = "Loading…"))
+        val sendSnapshot = AtomicReference<List<ChatUiMessage>>(emptyList())
+        val initializer = thread(name = "chat-init-before-send-snapshot") {
+            assertTrue(
+                guard.applyIfCurrent(initializationGeneration) {
+                    publicationEntered.countDown()
+                    assertTrue(releasePublication.await(5, TimeUnit.SECONDS))
+                    state.set(ChatUiState(activeConversationId = "loaded", messages = loadedHistory))
+                },
+            )
+        }
+        assertTrue(publicationEntered.await(5, TimeUnit.SECONDS))
+        val sender = thread(name = "chat-send-snapshot") {
+            guard.invalidate()
+            sendSnapshot.set(state.get().messages)
+            snapshotFinished.countDown()
+        }
+
+        assertFalse(
+            "send snapshot passed initialization while its publication owned the guard",
+            snapshotFinished.await(100, TimeUnit.MILLISECONDS),
+        )
+        releasePublication.countDown()
+        initializer.join(5_000L)
+        sender.join(5_000L)
+
+        assertFalse(initializer.isAlive)
+        assertFalse(sender.isAlive)
+        assertEquals(loadedHistory, sendSnapshot.get())
+    }
+
+    @Test
+    fun lateInitializationCannotOverwriteAConsumedCommandTurn() {
+        val guard = ChatInitializationGuard()
+        val initializationGeneration = guard.capture()
+        val storeReadFinished = CountDownLatch(1)
+        val releasePublication = CountDownLatch(1)
+        val state = AtomicReference(ChatUiState(status = "Loading…"))
+        val staleLoaded = ChatUiState(activeConversationId = "stale-session")
+        val initializer = thread(name = "chat-init-command-result-race") {
+            storeReadFinished.countDown()
+            assertTrue(releasePublication.await(5, TimeUnit.SECONDS))
+            guard.applyIfCurrent(initializationGeneration) {
+                state.set(mergeInitialChatState(staleLoaded, state.get()))
+            }
+        }
+        assertTrue(storeReadFinished.await(5, TimeUnit.SECONDS))
+
+        guard.invalidate()
+        val commandTurn = ChatUiState(
+            activeConversationId = "command-session",
+            messages = listOf(
+                ChatUiMessage("command", "user", "run status", 2L),
+                ChatUiMessage("result", "assistant", "all clear", 3L),
+            ),
+        )
+        state.set(commandTurn)
+        releasePublication.countDown()
+        initializer.join(5_000L)
+
+        assertFalse(initializer.isAlive)
+        assertEquals(commandTurn, state.get())
+    }
+
+    @Test
+    fun lateInitializationPreservesHistoryOpenedWhileTheStoreReadWasBlocked() {
+        val guard = ChatInitializationGuard()
+        val initializationGeneration = guard.capture()
+        val storeReadFinished = CountDownLatch(1)
+        val releasePublication = CountDownLatch(1)
+        val state = AtomicReference(ChatUiState(status = "Loading…"))
+        val initializer = thread(name = "chat-init-history-race") {
+            val loaded = ChatUiState(
+                activeConversationId = "loaded-session",
+                activeConversationTitle = "Loaded chat",
+                status = "",
+            )
+            storeReadFinished.countDown()
+            assertTrue(releasePublication.await(5, TimeUnit.SECONDS))
+            assertTrue(
+                guard.applyIfCurrent(initializationGeneration) {
+                    state.set(mergeInitialChatState(loaded, state.get()))
+                },
+            )
+        }
+        assertTrue(storeReadFinished.await(5, TimeUnit.SECONDS))
+
+        state.set(
+            state.get().copy(
+                isShowingHistory = true,
+                showIntermediateSteps = false,
+                status = "Browsing chat history",
+            ),
+        )
+        releasePublication.countDown()
+        initializer.join(5_000L)
+
+        assertFalse(initializer.isAlive)
+        assertEquals("loaded-session", state.get().activeConversationId)
+        assertTrue(state.get().isShowingHistory)
+        assertFalse(state.get().showIntermediateSteps)
+        assertEquals("Browsing chat history", state.get().status)
+    }
+
+    @Test
+    fun stopSerializesBehindAnAdmittedDeltaAndBecomesTheLastMutation() {
+        val coordinator = ChatSendRequestCoordinator()
+        val request = coordinator.begin("session-a", "assistant-a") {}!!
+        val deltaEntered = CountDownLatch(1)
+        val releaseDelta = CountDownLatch(1)
+        val stopFinished = CountDownLatch(1)
+        val mutations = mutableListOf<String>()
+
+        val deltaThread = thread(name = "chat-delta") {
+            assertTrue(
+                coordinator.mutateIfActive(request) {
+                    mutations += "delta-start"
+                    deltaEntered.countDown()
+                    assertTrue(releaseDelta.await(5, TimeUnit.SECONDS))
+                    mutations += "delta-end"
+                },
+            )
+        }
+        assertTrue(deltaEntered.await(5, TimeUnit.SECONDS))
+        val stopThread = thread(name = "chat-stop") {
+            coordinator.stopActive { mutations += "stop-terminal" }
+            stopFinished.countDown()
+        }
+
+        assertFalse("Stop must wait for the admitted mutation's ownership lock", stopFinished.await(100, TimeUnit.MILLISECONDS))
+        releaseDelta.countDown()
+        deltaThread.join(5_000L)
+        stopThread.join(5_000L)
+
+        assertFalse(deltaThread.isAlive)
+        assertFalse(stopThread.isAlive)
+        assertEquals(listOf("delta-start", "delta-end", "stop-terminal"), mutations)
+        assertFalse(coordinator.mutateIfActive(request) { mutations += "late-delta" })
+    }
+
+    @Test
+    fun stopAndRetirePublishStickyCancellationBeforeTerminalPersistence() {
+        listOf(false, true).forEach { retire ->
+            val coordinator = ChatSendRequestCoordinator()
+            val request = coordinator.begin(
+                sessionId = if (retire) "retire-session" else "stop-session",
+                assistantMessageId = if (retire) "retire-assistant" else "stop-assistant",
+            ) {}!!
+            val cancellationPublished = AtomicBoolean(false)
+            val ordering = mutableListOf<String>()
+            assertTrue(
+                coordinator.attachNetwork(request) {
+                    ordering += "network-cancel"
+                    cancellationPublished.set(true)
+                },
+            )
+            assertTrue(coordinator.attachJob(request) { ordering += "job-cancel" })
+
+            val retired = if (retire) {
+                coordinator.retireActive {
+                    assertTrue("retire terminal ran before sticky cancellation", cancellationPublished.get())
+                    ordering += "terminal"
+                }
+            } else {
+                coordinator.stopActive {
+                    assertTrue("Stop terminal ran before sticky cancellation", cancellationPublished.get())
+                    ordering += "terminal"
+                }
+            }
+
+            assertEquals(request, retired)
+            assertEquals(listOf("network-cancel", "job-cancel", "terminal"), ordering)
+        }
+    }
+
+    @Test
+    fun stopWinningTheLockRejectsLateNativeResultAndSseCompletion() {
+        val coordinator = ChatSendRequestCoordinator()
+        val request = coordinator.begin("session-a", "assistant-a") {}!!
+        val stopEntered = CountDownLatch(1)
+        val releaseStop = CountDownLatch(1)
+        val resultFinished = CountDownLatch(1)
+        val resultCommitted = AtomicBoolean(false)
+        val terminalCommitted = AtomicBoolean(false)
+
+        val stopThread = thread(name = "chat-stop") {
+            coordinator.stopActive {
+                terminalCommitted.set(true)
+                stopEntered.countDown()
+                assertTrue(releaseStop.await(5, TimeUnit.SECONDS))
+            }
+        }
+        assertTrue(stopEntered.await(5, TimeUnit.SECONDS))
+        val resultThread = thread(name = "chat-result") {
+            val completed = coordinator.finishIfActive(request) {
+                resultCommitted.set(true)
+                true
+            }
+            assertFalse(completed)
+            resultFinished.countDown()
+        }
+
+        assertFalse("A result must not pass Stop while Stop owns the transition", resultFinished.await(100, TimeUnit.MILLISECONDS))
+        releaseStop.countDown()
+        stopThread.join(5_000L)
+        resultThread.join(5_000L)
+
+        assertTrue(terminalCommitted.get())
+        assertFalse(resultCommitted.get())
+        assertFalse(coordinator.finishIfActive(request) { true })
+        assertFalse(coordinator.mutateIfActive(request) {})
+    }
+
+    @Test
+    fun stopDuringFallbackCancelsItsOwnedCallAndRejectsTheLateResult() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(
+                MockResponse()
+                    .setSocketPolicy(SocketPolicy.NO_RESPONSE),
+            )
+            val coordinator = ChatSendRequestCoordinator()
+            val request = coordinator.begin("fallback-session", "fallback-assistant") {}!!
+            val transport = RequestOwnedHttpTransport()
+            assertTrue(coordinator.attachNetwork(request, transport::cancel))
+            val terminal = AtomicReference("active")
+            val failure = AtomicReference<Throwable?>(null)
+            val worker = thread(name = "chat-fallback-call") {
+                failure.set(
+                    runCatching {
+                        HermesApiClient(
+                            baseUrl = server.url("/").toString(),
+                            httpClient = transport.client,
+                        ).createChatCompletion(
+                            ChatCompletionRequest(
+                                model = "fallback",
+                                messages = listOf(ChatMessage(role = "user", content = "hello")),
+                            ),
+                        )
+                    }.exceptionOrNull(),
+                )
+                coordinator.finishIfActive(request) {
+                    terminal.set("late result")
+                    true
+                }
+            }
+
+            assertTrue("fallback request never reached the server", server.takeRequest(5, TimeUnit.SECONDS) != null)
+            assertEquals(request, coordinator.stopActive { terminal.set("Stopped by user") })
+            worker.join(5_000L)
+
+            assertFalse("cancelled fallback call remained alive", worker.isAlive)
+            assertTrue("Call.cancel did not interrupt the fallback", failure.get() != null)
+            assertEquals("Stopped by user", terminal.get())
+            assertFalse(coordinator.finishIfActive(request) { true })
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun throwingNetworkCancellationStillCancelsTheOwnedJobAndRetiresTheRequest() {
+        val coordinator = ChatSendRequestCoordinator()
+        val request = coordinator.begin("throwing-cancel-session", "assistant-a") {}!!
+        val jobCancels = AtomicInteger(0)
+        val terminalPersisted = AtomicBoolean(false)
+        assertTrue(coordinator.attachNetwork(request) { error("network cancellation failed") })
+        assertTrue(coordinator.attachJob(request) { jobCancels.incrementAndGet() })
+
+        val failure = runCatching {
+            coordinator.stopActive { terminalPersisted.set(true) }
+        }.exceptionOrNull()
+
+        assertTrue(failure?.message.orEmpty().contains("network cancellation failed"))
+        assertEquals(1, jobCancels.get())
+        assertTrue("terminal persistence was skipped after a cancellation-hook failure", terminalPersisted.get())
+        assertFalse(coordinator.isActive(request))
+        assertTrue(coordinator.begin("next-session", "assistant-b") {} != null)
+    }
+
+    @Test
+    fun throwingStopPersistenceStillCancelsBothOwnedHandlesAndRetiresTheRequest() {
+        val coordinator = ChatSendRequestCoordinator()
+        val networkCancels = AtomicInteger(0)
+        val jobCancels = AtomicInteger(0)
+        val request = coordinator.begin("session-a", "assistant-a") {}!!
+        assertTrue(coordinator.attachNetwork(request) { networkCancels.incrementAndGet() })
+        assertTrue(coordinator.attachJob(request) { jobCancels.incrementAndGet() })
+
+        val failure = runCatching {
+            coordinator.stopActive { throw IllegalStateException("persistence failed") }
+        }.exceptionOrNull()
+
+        assertEquals("persistence failed", failure?.message)
+        assertEquals(1, networkCancels.get())
+        assertEquals(1, jobCancels.get())
+        assertFalse(coordinator.isActive(request))
+        assertTrue(coordinator.begin("session-b", "assistant-b") {} != null)
+    }
+
+    @Test
+    fun viewModelDestructionTerminalizesPlaceholderCancelsTransportAndRejectsFallbackAndLateWrites() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
+            val coordinator = ChatSendRequestCoordinator()
+            val request = coordinator.begin("destroyed-session", "destroyed-assistant") {}!!
+            val transport = RequestOwnedHttpTransport()
+            val networkCancels = AtomicInteger(0)
+            val jobCancels = AtomicInteger(0)
+            val persistedAssistant = AtomicReference("")
+            val lifecycleTerminal = "This reply was interrupted because the chat was closed."
+            val callFailure = AtomicReference<Throwable?>(null)
+            val fallbackEntered = AtomicBoolean(false)
+            assertTrue(
+                coordinator.attachNetwork(request) {
+                    networkCancels.incrementAndGet()
+                    transport.cancel()
+                },
+            )
+            assertTrue(coordinator.attachJob(request) { jobCancels.incrementAndGet() })
+
+            val worker = thread(name = "chat-destruction-blocking-call") {
+                callFailure.set(
+                    runCatching {
+                        HermesApiClient(
+                            baseUrl = server.url("/").toString(),
+                            httpClient = transport.client,
+                        ).createChatCompletion(
+                            ChatCompletionRequest(
+                                model = "destroyed-request",
+                                messages = listOf(ChatMessage(role = "user", content = "hello")),
+                            ),
+                        )
+                    }.exceptionOrNull(),
+                )
+                coordinator.finishIfActive(request) {
+                    persistedAssistant.set("late network result")
+                    true
+                }
+                if (coordinator.isActive(request)) {
+                    fallbackEntered.set(true)
+                }
+            }
+
+            assertTrue("destroyed request never reached the server", server.takeRequest(5, TimeUnit.SECONDS) != null)
+            assertEquals(
+                request,
+                coordinator.retireActive {
+                    persistedAssistant.set(lifecycleTerminal)
+                },
+            )
+            worker.join(5_000L)
+
+            assertFalse("destroyed blocking call remained alive", worker.isAlive)
+            assertTrue("destruction did not cancel the blocking Call.execute", callFailure.get() != null)
+            assertEquals(1, networkCancels.get())
+            assertEquals(1, jobCancels.get())
+            assertFalse("destroyed request entered non-stream fallback", fallbackEntered.get())
+            assertEquals(lifecycleTerminal, persistedAssistant.get())
+            assertTrue(persistedAssistant.get().isNotBlank())
+            assertFalse(coordinator.mutateIfActive(request) { persistedAssistant.set("late delta") })
+            assertFalse(coordinator.finishIfActive(request) { persistedAssistant.set("late completion"); true })
+            assertFalse(coordinator.jobCompleted(request) { persistedAssistant.set("late job terminal") })
+            assertEquals(lifecycleTerminal, persistedAssistant.get())
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun completionWinningTheLockPreventsStopFromOverwritingTheResult() {
+        val coordinator = ChatSendRequestCoordinator()
+        val request = coordinator.begin("session-a", "assistant-a") {}!!
+        val completionEntered = CountDownLatch(1)
+        val releaseCompletion = CountDownLatch(1)
+        val stopFinished = CountDownLatch(1)
+        val resultCommitted = AtomicBoolean(false)
+        val terminalCommitted = AtomicBoolean(false)
+
+        val completionThread = thread(name = "chat-completion") {
+            assertTrue(
+                coordinator.finishIfActive(request) {
+                    completionEntered.countDown()
+                    assertTrue(releaseCompletion.await(5, TimeUnit.SECONDS))
+                    resultCommitted.set(true)
+                    true
+                },
+            )
+        }
+        assertTrue(completionEntered.await(5, TimeUnit.SECONDS))
+        val stopThread = thread(name = "chat-stop") {
+            val stopped = coordinator.stopActive { terminalCommitted.set(true) }
+            assertEquals(null, stopped)
+            stopFinished.countDown()
+        }
+
+        assertFalse("Stop must wait for the completing result's ownership lock", stopFinished.await(100, TimeUnit.MILLISECONDS))
+        releaseCompletion.countDown()
+        completionThread.join(5_000L)
+        stopThread.join(5_000L)
+
+        assertTrue(resultCommitted.get())
+        assertFalse(terminalCommitted.get())
+    }
+
+    @Test
+    fun conversationTransitionsRetireTheOldSendBeforeAReplacementCanBegin() {
+        listOf("new", "open", "clear").forEachIndexed { index, transition ->
+            val coordinator = ChatSendRequestCoordinator()
+            val oldRequest = coordinator.begin("session-$index", "assistant-$index") {}!!
+            val callbackEntered = CountDownLatch(1)
+            val releaseCallback = CountDownLatch(1)
+            val transitionFinished = CountDownLatch(1)
+            val terminalCount = AtomicInteger(0)
+            val callbackAdmitted = AtomicBoolean(false)
+            val callbackReleased = AtomicBoolean(false)
+            val stoppedRequest = AtomicReference<ChatSendRequestCoordinator.Request?>()
+            val replacementRequest = AtomicReference<ChatSendRequestCoordinator.Request?>()
+            val ordering = mutableListOf<String>()
+
+            val callbackThread = thread(name = "chat-$transition-callback") {
+                callbackAdmitted.set(
+                    coordinator.mutateIfActive(oldRequest) {
+                        ordering += "callback-start"
+                        callbackEntered.countDown()
+                        callbackReleased.set(releaseCallback.await(5, TimeUnit.SECONDS))
+                        ordering += "callback-end"
+                    },
+                )
+            }
+            assertTrue(callbackEntered.await(5, TimeUnit.SECONDS))
+            val transitionThread = thread(name = "chat-$transition-transition") {
+                stoppedRequest.set(
+                    coordinator.stopActive {
+                        ordering += "terminal"
+                        terminalCount.incrementAndGet()
+                    },
+                )
+                replacementRequest.set(
+                    coordinator.begin("replacement-$transition", "replacement-assistant-$index") {
+                        ordering += "replacement"
+                    },
+                )
+                transitionFinished.countDown()
+            }
+
+            assertFalse(
+                "The $transition transition must serialize behind an admitted old callback",
+                transitionFinished.await(100, TimeUnit.MILLISECONDS),
+            )
+            releaseCallback.countDown()
+            callbackThread.join(5_000L)
+            transitionThread.join(5_000L)
+
+            assertFalse(callbackThread.isAlive)
+            assertFalse(transitionThread.isAlive)
+            assertTrue(callbackAdmitted.get())
+            assertTrue(callbackReleased.get())
+            assertEquals(oldRequest, stoppedRequest.get())
+            val replacement = replacementRequest.get()!!
+            assertEquals(1, terminalCount.get())
+            assertEquals(listOf("callback-start", "callback-end", "terminal", "replacement"), ordering)
+            assertFalse(coordinator.mutateIfActive(oldRequest) {})
+            assertFalse(coordinator.finishIfActive(oldRequest) { true })
+            assertTrue(coordinator.isActive(replacement))
+            assertTrue(coordinator.finishIfActive(replacement) { true })
+        }
+    }
+
+    @Test
+    fun stopAThenSendBThenStopBCancelsOnlyEachRequestsOwnedHandles() {
+        val coordinator = ChatSendRequestCoordinator()
+        val jobACancelled = AtomicInteger(0)
+        val networkACancelled = AtomicInteger(0)
+        val jobBCancelled = AtomicInteger(0)
+        val networkBCancelled = AtomicInteger(0)
+        val unexpectedOldCompletion = AtomicInteger(0)
+        val stopAEntered = CountDownLatch(1)
+        val releaseStopA = CountDownLatch(1)
+        val sendBFinished = CountDownLatch(1)
+        val stopAWaitReleased = AtomicBoolean(false)
+        val stoppedA = AtomicReference<ChatSendRequestCoordinator.Request?>()
+        val requestBRef = AtomicReference<ChatSendRequestCoordinator.Request?>()
+
+        val requestA = coordinator.begin("session-a", "assistant-a") {}!!
+        assertTrue(coordinator.attachJob(requestA) { jobACancelled.incrementAndGet() })
+        assertTrue(coordinator.attachNetwork(requestA) { networkACancelled.incrementAndGet() })
+        val stopAThread = thread(name = "chat-stop-a") {
+            stoppedA.set(
+                coordinator.stopActive {
+                    stopAEntered.countDown()
+                    stopAWaitReleased.set(releaseStopA.await(5, TimeUnit.SECONDS))
+                },
+            )
+        }
+        assertTrue(stopAEntered.await(5, TimeUnit.SECONDS))
+        val sendBThread = thread(name = "chat-send-b") {
+            val requestB = coordinator.begin("session-b", "assistant-b") {}!!
+            requestBRef.set(requestB)
+            coordinator.attachJob(requestB) { jobBCancelled.incrementAndGet() }
+            coordinator.attachNetwork(requestB) { networkBCancelled.incrementAndGet() }
+            sendBFinished.countDown()
+        }
+
+        assertFalse(
+            "Send B must wait until Stop A has terminalized and cancelled A's handles",
+            sendBFinished.await(100, TimeUnit.MILLISECONDS),
+        )
+        releaseStopA.countDown()
+        stopAThread.join(5_000L)
+        sendBThread.join(5_000L)
+
+        assertFalse(stopAThread.isAlive)
+        assertFalse(sendBThread.isAlive)
+        assertTrue(stopAWaitReleased.get())
+        assertEquals(requestA, stoppedA.get())
+        val requestB = requestBRef.get()!!
+        assertFalse(coordinator.jobCompleted(requestA) { unexpectedOldCompletion.incrementAndGet() })
+
+        assertTrue(coordinator.isActive(requestB))
+        assertEquals(1, jobACancelled.get())
+        assertEquals(1, networkACancelled.get())
+        assertEquals(0, jobBCancelled.get())
+        assertEquals(0, networkBCancelled.get())
+        assertEquals(0, unexpectedOldCompletion.get())
+
+        assertEquals(requestB, coordinator.stopActive {})
+        assertEquals(1, jobBCancelled.get())
+        assertEquals(1, networkBCancelled.get())
+    }
+
+    @Test
+    fun zeroDeltaSseCompletionAtomicallyCommitsLocalizedFailureTerminal() {
+        val coordinator = ChatSendRequestCoordinator()
+        val request = coordinator.begin("session-zero-delta", "assistant-zero-delta") {}!!
+        val localizedFailure = "Hermes could not complete this reply."
+        var storedContent = ""
+        var retainedAsAssistantAnswer = true
+
+        assertTrue(
+            coordinator.finishIfActive(request) {
+                val resolution = resolveAssistantCompletion(
+                    streamedContent = " \n\t ",
+                    localizedFailureMessage = localizedFailure,
+                )
+                storedContent = resolution.content
+                retainedAsAssistantAnswer = resolution.hasAssistantContent
+                true
+            },
+        )
+
+        assertEquals(localizedFailure, storedContent)
+        assertTrue(storedContent.isNotBlank())
+        assertFalse(retainedAsAssistantAnswer)
+        assertFalse(coordinator.mutateIfActive(request) { storedContent = "late delta" })
+        assertEquals(localizedFailure, storedContent)
+
+        val successful = resolveAssistantCompletion(
+            streamedContent = "  completed answer  ",
+            localizedFailureMessage = localizedFailure,
+        )
+        assertEquals("  completed answer  ", successful.content)
+        assertTrue(successful.hasAssistantContent)
+    }
+
     @Test
     fun onlyTurboQuantLocalLlamaSuppressesReasoningContent() {
         assertTrue(shouldSuppressLocalLlamaReasoning("llama.cpp", "turboquant"))
@@ -370,9 +1001,20 @@ class ChatViewModelTest {
 
     @Test
     fun ordinaryChatPromptDoesNotBypassConfiguredEndpoint() {
-        val arguments = directNativeDiagnosticArgumentsForPrompt("Write a short welcome message")
-
-        assertEquals(null, arguments)
+        listOf(
+            "Write a short welcome message",
+            "Do not use android_device_diagnostics_tool action=wifi_scan",
+            "Explain what an all features test does",
+            "`android_device_diagnostics_tool action=wifi_scan`",
+            "\"Run android_device_diagnostics_tool action=wifi_scan\"",
+            "Run android_device_diagnostics_tool? No, do not. action=wifi_scan",
+        ).forEach { prompt ->
+            assertEquals(
+                "prompt bypassed the closed direct diagnostic authority: $prompt",
+                null,
+                directNativeDiagnosticArgumentsForPrompt(prompt),
+            )
+        }
     }
 
     @Test
@@ -482,6 +1124,71 @@ class ChatViewModelTest {
         release.countDown()
         job.join()
         assertFalse("Cancelled direct diagnostics must not publish a late result", published.get())
+    }
+
+    @Test
+    fun cancellingSynchronousNativeRouteInterruptsUnderlyingWorkAndRejectsLatePublication() = runBlocking {
+        val entered = CountDownLatch(1)
+        val underlyingStopped = CountDownLatch(1)
+        val published = AtomicBoolean(false)
+        val job = launch(Dispatchers.Default) {
+            runSynchronousDirectRouteWithCancellationCheck {
+                entered.countDown()
+                try {
+                    Thread.sleep(60_000L)
+                    "late native result"
+                } catch (interrupted: InterruptedException) {
+                    underlyingStopped.countDown()
+                    throw interrupted
+                }
+            }.getOrThrow()
+            published.set(true)
+        }
+
+        assertTrue("Native route did not enter its blocking operation", entered.await(5, TimeUnit.SECONDS))
+        job.cancel()
+        assertTrue(
+            "Cancelling the request did not interrupt the underlying native operation",
+            underlyingStopped.await(5, TimeUnit.SECONDS),
+        )
+        job.join()
+
+        assertFalse("Cancelled native work must not publish a late result", published.get())
+    }
+
+    @Test
+    fun cancelledInterruptibleRouteDoesNotLeakInterruptIntoNextRequestOnReusedWorker() = runBlocking {
+        val executor = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "request-owned-native-lane")
+        }
+        val dispatcher = executor.asCoroutineDispatcher()
+        val entered = CountDownLatch(1)
+        val interrupted = CountDownLatch(1)
+        try {
+            val requestA = launch(Dispatchers.Default) {
+                runSynchronousDirectRouteWithCancellationCheck(dispatcher) {
+                    entered.countDown()
+                    try {
+                        Thread.sleep(60_000L)
+                    } catch (error: InterruptedException) {
+                        interrupted.countDown()
+                        throw error
+                    }
+                }.getOrThrow()
+            }
+            assertTrue(entered.await(5, TimeUnit.SECONDS))
+            requestA.cancel()
+            assertTrue(interrupted.await(5, TimeUnit.SECONDS))
+            requestA.join()
+
+            val requestBObservedInterrupt = runSynchronousDirectRouteWithCancellationCheck(dispatcher) {
+                Thread.currentThread().isInterrupted
+            }.getOrThrow()
+            assertFalse("Request A cancellation poisoned the reused worker for B", requestBObservedInterrupt)
+        } finally {
+            dispatcher.close()
+            executor.shutdownNow()
+        }
     }
 
     @Test

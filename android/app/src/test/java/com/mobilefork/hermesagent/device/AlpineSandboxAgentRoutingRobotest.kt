@@ -35,8 +35,8 @@ class AlpineSandboxAgentRoutingRobotest {
     }
 
     @Test
-    fun mcpRunInProotToolCallRoutesToAlpineGuestNotHostShell() {
-        val command = "cat /etc/alpine-release"
+    fun mcpRunInProotToolCallFailsClosedBeforeAnyGuestOrHostShellDispatch() {
+        val command = "uname -a"
         server.enqueue(jsonResponse(openaiToolCallPayload("mcp_run_in_proot", alpineRunArguments(command))))
         server.enqueue(jsonResponse(finalPayload("guest done")))
 
@@ -44,10 +44,10 @@ class AlpineSandboxAgentRoutingRobotest {
             baseUrl = server.url("/").toString().trimEnd('/'),
             modelName = "scripted-alpine-router",
             sessionId = "robotest-alpine-routing",
-            userText = AlpineAgentCommandCatalog.guestPrompt(command),
+            userText = "Run $command inside the Alpine sandbox.",
         )
 
-        assertTrue("Dropped Alpine tool call must fail: $result", result.executedToolCalls > 0)
+        assertEquals("The request authorizes exactly one guest action: $result", 1, result.executedToolCalls)
         assertEquals(2, result.modelRequestCount)
 
         server.takeRequest()
@@ -56,9 +56,10 @@ class AlpineSandboxAgentRoutingRobotest {
         val toolMessage = findToolMessage(messages)
         assertTrue("Expected a tool result in the next model request: $messages", toolMessage != null)
         val body = JSONObject(toolMessage!!.optString("content", "{}"))
-        assertEquals("proot_distro_qemu", body.optString("sandbox_execution_mode"))
+        assertEquals(126, body.optInt("exit_code", -1))
+        assertEquals("request_owned_proot_blocked", body.optString("sandbox_execution_mode"))
+        assertTrue(body.optBoolean("request_owned_operation_blocked", false))
         assertEquals("run", body.optString("action"))
-        assertEquals(AlpineAgentCommandCatalog.SANDBOX_NAME, body.optString("sandbox_name"))
         assertEquals(command, body.optString("sandbox_command"))
         assertFalse(
             "Alpine run must not collapse to a host-only /system/bin shell: $body",
@@ -68,13 +69,14 @@ class AlpineSandboxAgentRoutingRobotest {
     }
 
     @Test
-    fun linuxSandboxToolRunUsesTheSameAlpineGuestRoute() {
-        val command = "uname -s"
+    fun linuxSandboxLifecycleCallUsesExactAuthorizedAlpineDistroScope() {
         server.enqueue(
             jsonResponse(
                 openaiToolCallPayload(
                     "linux_sandbox_tool",
-                    alpineRunArguments(command).put("action", "run"),
+                    JSONObject()
+                        .put("action", "start")
+                        .put("distro_id", AlpineAgentCommandCatalog.DISTRO_ID),
                 ),
             ),
         )
@@ -84,15 +86,17 @@ class AlpineSandboxAgentRoutingRobotest {
             baseUrl = server.url("/").toString().trimEnd('/'),
             modelName = "scripted-alpine-router",
             sessionId = "robotest-alpine-linux-sandbox",
-            userText = AlpineAgentCommandCatalog.guestPrompt(command),
+            userText = "Start the Alpine 3.21 sandbox.",
         )
 
-        assertTrue("Dropped linux_sandbox_tool run must fail: $result", result.executedToolCalls > 0)
+        assertEquals("The request authorizes exactly one lifecycle action: $result", 1, result.executedToolCalls)
+        assertEquals(2, result.modelRequestCount)
         server.takeRequest()
         val followUp = JSONObject(server.takeRequest().body.readUtf8())
         val body = JSONObject(findToolMessage(followUp.getJSONArray("messages"))!!.optString("content", "{}"))
-        assertEquals("proot_distro_qemu", body.optString("sandbox_execution_mode"))
+        assertEquals("start", body.optString("action"))
         assertEquals(AlpineAgentCommandCatalog.SANDBOX_NAME, body.optString("sandbox_name"))
+        assertEquals(AlpineAgentCommandCatalog.DISTRO_ID, body.optString("distro_id"))
     }
 
     @Test
@@ -108,8 +112,6 @@ class AlpineSandboxAgentRoutingRobotest {
 
     private fun alpineRunArguments(command: String): JSONObject {
         return JSONObject()
-            .put("distro_id", AlpineAgentCommandCatalog.DISTRO_ID)
-            .put("name", AlpineAgentCommandCatalog.SANDBOX_NAME)
             .put("command", command)
     }
 

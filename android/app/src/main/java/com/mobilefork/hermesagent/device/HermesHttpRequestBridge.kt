@@ -9,6 +9,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import java.util.Locale
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 
 object HermesHttpRequestBridge {
@@ -48,7 +49,13 @@ object HermesHttpRequestBridge {
         return payload
     }
 
-    fun performHttpRequestJson(context: Context, payload: JSONObject): JSONObject {
+    fun performHttpRequestJson(
+        context: Context,
+        payload: JSONObject,
+        httpClient: OkHttpClient? = null,
+        cancellationRequested: () -> Boolean = { false },
+    ): JSONObject {
+        throwIfCancellationRequested(cancellationRequested)
         val method = normalizeMethod(payload.optString("method"))
             ?: return errorJson("Unsupported HTTP method: ${payload.optString("method")}")
         val url = payload.optString("url").trim()
@@ -84,14 +91,17 @@ object HermesHttpRequestBridge {
             else -> null
         }
         requestBuilder.method(method, requestBody)
-        val client = BASE_CLIENT.newBuilder()
+        val client = (httpClient ?: BASE_CLIENT).newBuilder()
             .callTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .connectTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .readTimeout(timeoutSeconds.toLong(), TimeUnit.SECONDS)
             .build()
         return try {
+            throwIfCancellationRequested(cancellationRequested)
             client.newCall(requestBuilder.build()).execute().use { response ->
+                throwIfCancellationRequested(cancellationRequested)
                 val responseBody = response.body?.string().orEmpty()
+                throwIfCancellationRequested(cancellationRequested)
                 val truncatedBody = responseBody.take(MAX_RESPONSE_BODY_CHARS)
                 val success = response.code in 200..399
                 JSONObject()
@@ -109,6 +119,9 @@ object HermesHttpRequestBridge {
                     .put("message", "HTTP $method returned ${response.code}")
             }
         } catch (error: IOException) {
+            if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+                throw CancellationException("HTTP automation request was stopped").apply { initCause(error) }
+            }
             errorJson(error.message ?: error.javaClass.simpleName)
                 .put("method", method)
                 .put("url", url)
@@ -116,6 +129,12 @@ object HermesHttpRequestBridge {
             errorJson(error.message ?: error.javaClass.simpleName)
                 .put("method", method)
                 .put("url", url)
+        }
+    }
+
+    private fun throwIfCancellationRequested(cancellationRequested: () -> Boolean) {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("HTTP automation request was stopped")
         }
     }
 

@@ -411,7 +411,7 @@ object HermesSensorWatcherBridge {
             .edit()
             .putBoolean(PREF_DESIRED, true)
             .putLong(PREF_MIN_INTERVAL_MS, intervalMs.coerceIn(MIN_INTERVAL_MS, MAX_INTERVAL_MS))
-            .apply()
+            .commit()
     }
 
     private fun clearWatcherRequest(context: Context) {
@@ -419,7 +419,7 @@ object HermesSensorWatcherBridge {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(PREF_DESIRED, false)
-            .apply()
+            .commit()
     }
 
     private fun persistDispatch(context: Context, epochMs: Long) {
@@ -427,7 +427,7 @@ object HermesSensorWatcherBridge {
         prefs.edit()
             .putLong(PREF_LAST_EVENT_EPOCH_MS, epochMs)
             .putLong(PREF_DISPATCH_COUNT, prefs.getLong(PREF_DISPATCH_COUNT, 0L) + 1L)
-            .apply()
+            .commit()
     }
 
     private fun longArgument(arguments: JSONObject, vararg keys: String): Long? {

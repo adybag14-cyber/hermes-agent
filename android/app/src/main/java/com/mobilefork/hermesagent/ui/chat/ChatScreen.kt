@@ -10,6 +10,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.SystemClock
 import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,6 +49,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -64,6 +66,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -106,6 +109,7 @@ import com.mobilefork.hermesagent.ui.auth.AuthViewModel
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.shell.AppSection
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -137,6 +141,19 @@ fun ChatScreen(
     onApplyModel: (String) -> Boolean,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var generationElapsedSeconds by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(uiState.isSending) {
+        if (!uiState.isSending) {
+            generationElapsedSeconds = 0L
+            return@LaunchedEffect
+        }
+        val startedAt = SystemClock.elapsedRealtime()
+        while (true) {
+            generationElapsedSeconds = ((SystemClock.elapsedRealtime() - startedAt) / 1_000L)
+                .coerceAtLeast(0L)
+            delay(1_000L)
+        }
+    }
     val visibleMessages = remember(uiState.messages, uiState.showIntermediateSteps) {
         if (uiState.showIntermediateSteps) {
             uiState.messages
@@ -634,6 +651,33 @@ fun ChatScreen(
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                         ) {
                             Text(strings.stopLabel())
+                        }
+                    }
+                }
+                if (uiState.isSending) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("HermesGenerationProgress"),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        shape = MaterialTheme.shapes.small,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                            )
+                            Text(
+                                text = strings.generationElapsedLabel(
+                                    formatGenerationElapsed(generationElapsedSeconds),
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                         }
                     }
                 }
@@ -1588,6 +1632,17 @@ internal fun shouldShowComposerStatus(tinyRuntimeViewport: Boolean, imeVisible: 
     return !tinyRuntimeViewport && !imeVisible
 }
 
+internal fun formatGenerationElapsed(elapsedSeconds: Long): String {
+    val safeSeconds = elapsedSeconds.coerceAtLeast(0L)
+    val minutes = safeSeconds / 60L
+    val seconds = safeSeconds % 60L
+    return if (minutes == 0L) {
+        "${seconds}s"
+    } else {
+        "${minutes}m ${seconds.toString().padStart(2, '0')}s"
+    }
+}
+
 private fun formatNamedXmlToolCalls(
     text: String,
     strings: com.mobilefork.hermesagent.ui.i18n.HermesStrings?,
@@ -1628,7 +1683,7 @@ private val XML_TOOL_NAME_ATTRIBUTE_REGEX = Regex(
 )
 
 private val XML_TOOL_JSON_NAME_REGEX = Regex(
-    pattern = """"(?:name|tool|function)"\s*:\s*"([^"]+)"""",
+    pattern = """["](?:name|tool|function)["]\s*:\s*["]([^"]+)["]""",
 )
 
 private fun expandCollapsedMarkdownRows(line: String): List<String> {

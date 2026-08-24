@@ -1,6 +1,7 @@
 package com.mobilefork.hermesagent.ui.chat
 
 import androidx.compose.ui.unit.dp
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -143,6 +144,14 @@ class ChatScreenTextFormattingTest {
         assertTrue(shouldShowComposerStatus(tinyRuntimeViewport = false, imeVisible = false))
         assertFalse(shouldShowComposerStatus(tinyRuntimeViewport = true, imeVisible = false))
         assertFalse(shouldShowComposerStatus(tinyRuntimeViewport = false, imeVisible = true))
+    }
+
+    @Test
+    fun generationElapsedFormattingIsStableAndNeverNegative() {
+        assertEquals("0s", formatGenerationElapsed(-1L))
+        assertEquals("9s", formatGenerationElapsed(9L))
+        assertEquals("1m 00s", formatGenerationElapsed(60L))
+        assertEquals("6m 16s", formatGenerationElapsed(376L))
     }
 
     @Test

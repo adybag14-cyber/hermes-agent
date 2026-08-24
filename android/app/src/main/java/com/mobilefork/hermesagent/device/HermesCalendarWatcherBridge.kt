@@ -6,11 +6,13 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.CancellationException
 
 data class HermesCalendarProviderEvent(
     val eventId: String,
@@ -36,12 +38,20 @@ data class HermesCalendarProviderEvent(
 }
 
 object HermesCalendarWatcherBridge {
-    fun performActionJson(context: Context, action: String, arguments: JSONObject = JSONObject()): String {
+    fun performActionJson(
+        context: Context,
+        action: String,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+        publicationGate: AutomationPublicationGate? = null,
+    ): String {
         return when (action.lowercase().ifBlank { "calendar_watcher_status" }) {
             "calendar_watcher_status", "calendar_status", "watch_calendar_status" -> statusJson(context)
             "start_calendar_watcher", "start_calendar_watch", "watch_calendar", "watch_calendar_events" -> startJson(context, arguments)
             "stop_calendar_watcher", "stop_calendar_watch" -> stopJson(context)
-            "scan_calendar_events", "scan_calendar", "run_calendar_watch_once" -> scanOnceJson(context, arguments)
+            "scan_calendar_events", "scan_calendar", "run_calendar_watch_once" ->
+                scanOnceJson(context, arguments, cancellationRequested, requestHttpClient, publicationGate)
             "reset_calendar_watcher_cursor", "reset_calendar_cursor", "clear_calendar_watcher_cursor" -> resetCursorJson(context)
             else -> JSONObject()
                 .put("success", false)
@@ -148,7 +158,16 @@ object HermesCalendarWatcherBridge {
             .toString()
     }
 
-    fun scanOnceJson(context: Context, arguments: JSONObject = JSONObject()): String {
+    fun scanOnceJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+        publicationGate: AutomationPublicationGate? = null,
+    ): String {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("Calendar watcher scan was stopped")
+        }
         val appContext = context.applicationContext
         val injectedEvents = parseInjectedEvents(arguments)
         if (injectedEvents == null && !hasCalendarPermission(appContext)) {
@@ -170,7 +189,9 @@ object HermesCalendarWatcherBridge {
                 .toString()
         }
         if (arguments.optBoolean("reset_cursor", false)) {
-            resetCursor(appContext)
+            publishCalendarScanMutation(cancellationRequested, publicationGate) {
+                resetCursor(appContext)
+            }
         }
         val useCursor = arguments.optBoolean("use_cursor", true)
         val lookaheadMinutes = intArgument(arguments, "lookahead_minutes", "future_minutes")
@@ -196,15 +217,34 @@ object HermesCalendarWatcherBridge {
                 return@forEach
             }
             recent += signature
-            val result = JSONObject(HermesAutomationBridge.runCalendarEventTriggerJson(appContext, event.toTriggerArguments()))
+            if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+                throw CancellationException("Calendar watcher scan was stopped")
+            }
+            val result = JSONObject(
+                HermesAutomationBridge.runCalendarEventTriggerJson(
+                    appContext,
+                    event.toTriggerArguments(),
+                    cancellationRequested,
+                    requestHttpClient,
+                ),
+            )
             if (result.optInt("matched_count", 0) > 0) {
                 matchedCount += result.optInt("matched_count", 0)
                 dispatched.put(result)
             }
-            persistLastEvent(appContext, event.beginMillis)
+            if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+                throw CancellationException("Calendar watcher scan was stopped")
+            }
+            publishCalendarScanMutation(cancellationRequested, publicationGate) {
+                persistLastEvent(appContext, event.beginMillis)
+            }
         }
-        persistRecentEventSignatures(appContext, recent.toList().takeLast(MAX_RECENT_SIGNATURES))
-        persistDispatchCount(appContext, dispatched.length())
+        val recentSignatures = recent.toList().takeLast(MAX_RECENT_SIGNATURES)
+        val additionalDispatchCount = dispatched.length()
+        publishCalendarScanMutation(cancellationRequested, publicationGate) {
+            persistRecentEventSignatures(appContext, recentSignatures)
+            persistDispatchCount(appContext, additionalDispatchCount)
+        }
         return JSONObject()
             .put("success", true)
             .put("trigger", TRIGGER_CALENDAR_EVENT)
@@ -215,6 +255,20 @@ object HermesCalendarWatcherBridge {
             .put("calendar_permission_granted", hasCalendarPermission(appContext))
             .put("available_actions", JSONArray(ACTIONS))
             .toString()
+    }
+
+    private fun publishCalendarScanMutation(
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        publication: () -> Unit,
+    ) {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw CancellationException("Calendar watcher scan was stopped")
+        }
+        publicationGate.publishValueIfActive(
+            cancelledValue = { throw CancellationException("Calendar watcher scan was stopped before publishing its cursor") },
+            publication = publication,
+        )
     }
 
     internal fun startWorker(
@@ -390,14 +444,14 @@ object HermesCalendarWatcherBridge {
             .putLong(PREF_SCAN_INTERVAL_SECONDS, intervalSeconds.toLong())
             .putLong(PREF_LOOKAHEAD_MINUTES, lookaheadMinutes.toLong())
             .putLong(PREF_LOOKBACK_MINUTES, lookbackMinutes.toLong())
-            .apply()
+            .commit()
     }
 
     private fun clearWatcherRequest(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(PREF_DESIRED, false)
-            .apply()
+            .commit()
     }
 
     private fun persistLastEvent(context: Context, epochMillis: Long) {
@@ -408,7 +462,7 @@ object HermesCalendarWatcherBridge {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putLong(PREF_LAST_EVENT_EPOCH_MS, epochMillis)
-            .apply()
+            .commit()
     }
 
     private fun persistedLastEventEpochMs(context: Context): Long? {
@@ -424,7 +478,7 @@ object HermesCalendarWatcherBridge {
         }
         val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val next = prefs.getLong(PREF_DISPATCH_COUNT, 0L) + additionalCount
-        prefs.edit().putLong(PREF_DISPATCH_COUNT, next).apply()
+        prefs.edit().putLong(PREF_DISPATCH_COUNT, next).commit()
     }
 
     private fun persistedDispatchCount(context: Context): Long {
@@ -448,7 +502,7 @@ object HermesCalendarWatcherBridge {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(PREF_RECENT_SIGNATURES, array.toString())
-            .apply()
+            .commit()
     }
 
     private fun resetCursor(context: Context) {
@@ -456,7 +510,7 @@ object HermesCalendarWatcherBridge {
             .edit()
             .remove(PREF_RECENT_SIGNATURES)
             .remove(PREF_LAST_EVENT_EPOCH_MS)
-            .apply()
+            .commit()
         lastEventEpochMs.set(0)
     }
 

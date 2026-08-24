@@ -9,6 +9,15 @@ import java.util.Locale
 
 object HermesAppControlBridge {
     fun launchApp(context: Context, packageName: String, appName: String): JSONObject {
+        return launchApp(context, packageName, appName, publicationGate = null)
+    }
+
+    fun launchApp(
+        context: Context,
+        packageName: String,
+        appName: String,
+        publicationGate: AutomationPublicationGate?,
+    ): JSONObject {
         val appContext = context.applicationContext
         val target = resolveLaunchTarget(appContext, packageName, appName)
         if (target.error.isNotBlank()) {
@@ -25,14 +34,27 @@ object HermesAppControlBridge {
             packageName = target.packageName,
             appName = target.appName,
             resolvedLabel = target.resolvedLabel,
+            publicationGate = publicationGate,
         )
     }
 
     fun launchPackage(context: Context, packageName: String): JSONObject {
-        return launchPackage(context, packageName, appName = "", resolvedLabel = "")
+        return launchPackage(
+            context,
+            packageName,
+            appName = "",
+            resolvedLabel = "",
+            publicationGate = null,
+        )
     }
 
-    private fun launchPackage(context: Context, packageName: String, appName: String, resolvedLabel: String): JSONObject {
+    private fun launchPackage(
+        context: Context,
+        packageName: String,
+        appName: String,
+        resolvedLabel: String,
+        publicationGate: AutomationPublicationGate?,
+    ): JSONObject {
         val appContext = context.applicationContext
         val trimmedPackageName = packageName.trim()
         if (trimmedPackageName.isBlank()) {
@@ -60,29 +82,44 @@ object HermesAppControlBridge {
                 message = "$trimmedPackageName is not installed or does not expose a launcher activity",
             )
 
-        return runCatching {
-            appContext.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            DeviceStateWriter.write(appContext)
-            JSONObject()
-                .put("success", true)
-                .put("exit_code", 0)
-                .put("action", "launch_app")
-                .put("package_name", trimmedPackageName)
-                .put("app_name", appName)
-                .put("resolved_app_label", resolvedLabel)
-                .put("message", "Opened $trimmedPackageName")
-        }.getOrElse { error ->
-            val message = when (error) {
-                is ActivityNotFoundException -> "$trimmedPackageName does not expose a launchable activity"
-                else -> error.message ?: error.javaClass.simpleName
-            }
-            errorJson(
-                exitCode = 1,
-                packageName = trimmedPackageName,
-                appName = appName,
-                message = message,
-            )
-        }
+        return publicationGate.publishValueIfActive(
+            cancelledValue = {
+                cancelledMutationJson(
+                    action = "launch_app",
+                    message = "App launch was stopped before its final Android activity handoff.",
+                )
+                    .put("package_name", trimmedPackageName)
+                    .put("app_name", appName)
+            },
+            publication = {
+                runCatching {
+                    appContext.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    // DeviceStateWriter performs a broad status snapshot and disk write. Keep it
+                    // on legacy/manual calls; request-owned chat must hold its Stop gate only for
+                    // the irreversible activity handoff itself.
+                    if (publicationGate == null) DeviceStateWriter.write(appContext)
+                    JSONObject()
+                        .put("success", true)
+                        .put("exit_code", 0)
+                        .put("action", "launch_app")
+                        .put("package_name", trimmedPackageName)
+                        .put("app_name", appName)
+                        .put("resolved_app_label", resolvedLabel)
+                        .put("message", "Opened $trimmedPackageName")
+                }.getOrElse { error ->
+                    val message = when (error) {
+                        is ActivityNotFoundException -> "$trimmedPackageName does not expose a launchable activity"
+                        else -> error.message ?: error.javaClass.simpleName
+                    }
+                    errorJson(
+                        exitCode = 1,
+                        packageName = trimmedPackageName,
+                        appName = appName,
+                        message = message,
+                    )
+                }
+            },
+        )
     }
 
     private fun resolveLaunchTarget(context: Context, packageName: String, appName: String): LaunchTarget {

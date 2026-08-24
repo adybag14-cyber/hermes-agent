@@ -7,6 +7,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okio.BufferedSource
 import org.json.JSONObject
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class HermesSseClient(
@@ -14,13 +15,21 @@ class HermesSseClient(
     private val apiKey: String? = null,
     private val httpClient: OkHttpClient = DEFAULT_HTTP_CLIENT,
     private val networkGuard: (String) -> Unit = {},
+    internal val beforeCallRegistration: () -> Unit = {},
 ) {
     private val normalizedBaseUrl = HermesEndpointUrl.normalizeBaseUrl(baseUrl)
+    private val callLock = Any()
+    @Volatile
+    private var cancelled = false
     @Volatile
     private var activeCall: Call? = null
 
     fun cancel() {
-        activeCall?.cancel()
+        val call = synchronized(callLock) {
+            cancelled = true
+            activeCall
+        }
+        call?.cancel()
     }
 
     fun streamChatCompletion(
@@ -50,22 +59,26 @@ class HermesSseClient(
             }
 
             val call = httpClient.newCall(builder.build())
-            activeCall = call
-            call.execute().use { response ->
-                onStatus("Endpoint responded HTTP ${response.code}; reading SSE frames")
-                val body = response.body
-                if (!response.isSuccessful) {
-                    onError("SSE request failed: ${response.code} ${response.message} ${body?.string().orEmpty().takeBodySnippet()}")
-                    return
+            beforeCallRegistration()
+            registerCallOrThrow(call)
+            try {
+                call.execute().use { response ->
+                    onStatus("Endpoint responded HTTP ${response.code}; reading SSE frames")
+                    val body = response.body
+                    if (!response.isSuccessful) {
+                        onError("SSE request failed: ${response.code} ${response.message} ${body?.string().orEmpty().takeBodySnippet()}")
+                        return
+                    }
+                    val source = body?.source()
+                    if (source == null) {
+                        onError("SSE response body was empty")
+                        return
+                    }
+                    parseStream(source, onDelta, onComplete, onError, onStatus)
                 }
-                val source = body?.source()
-                if (source == null) {
-                    onError("SSE response body was empty")
-                    return
-                }
-                parseStream(source, onDelta, onComplete, onError, onStatus)
+            } finally {
+                clearCall(call)
             }
-            if (activeCall === call) activeCall = null
         } catch (error: Exception) {
             onError(endpointTransportErrorMessage(error))
         }
@@ -96,24 +109,51 @@ class HermesSseClient(
             }
 
             val call = httpClient.newCall(builder.build())
-            activeCall = call
-            call.execute().use { response ->
-                onStatus("Responses endpoint returned HTTP ${response.code}; reading SSE frames")
-                val body = response.body
-                if (!response.isSuccessful) {
-                    onError("Responses SSE request failed: ${response.code} ${response.message} ${body?.string().orEmpty().takeBodySnippet()}")
-                    return
+            beforeCallRegistration()
+            registerCallOrThrow(call)
+            try {
+                call.execute().use { response ->
+                    onStatus("Responses endpoint returned HTTP ${response.code}; reading SSE frames")
+                    val body = response.body
+                    if (!response.isSuccessful) {
+                        onError("Responses SSE request failed: ${response.code} ${response.message} ${body?.string().orEmpty().takeBodySnippet()}")
+                        return
+                    }
+                    val source = body?.source()
+                    if (source == null) {
+                        onError("Responses SSE response body was empty")
+                        return
+                    }
+                    parseStream(source, onDelta, onComplete, onError, onStatus)
                 }
-                val source = body?.source()
-                if (source == null) {
-                    onError("Responses SSE response body was empty")
-                    return
-                }
-                parseStream(source, onDelta, onComplete, onError, onStatus)
+            } finally {
+                clearCall(call)
             }
-            if (activeCall === call) activeCall = null
         } catch (error: Exception) {
             onError(endpointTransportErrorMessage(error))
+        }
+    }
+
+    private fun registerCallOrThrow(call: Call) {
+        val registered = synchronized(callLock) {
+            if (cancelled) {
+                false
+            } else {
+                activeCall = call
+                true
+            }
+        }
+        if (!registered) {
+            call.cancel()
+            throw IOException("SSE request cancelled before network start")
+        }
+    }
+
+    private fun clearCall(call: Call) {
+        synchronized(callLock) {
+            if (activeCall === call) {
+                activeCall = null
+            }
         }
     }
 

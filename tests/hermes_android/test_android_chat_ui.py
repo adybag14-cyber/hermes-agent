@@ -152,7 +152,9 @@ def test_signal_intelligence_quick_actions_launch_direct_diagnostic_cards():
 
     assert "sendQuickPrompt" in chat_screen
     assert "fun sendQuickPrompt" in chat_view_model
-    assert "extractExplicitAndroidDiagnosticsArguments(userText)" in chat_client
+    # v0.13.151 routes every pre-model side effect through the single closed
+    # authority parser instead of rescanning the prompt in a tool-specific helper.
+    assert "NativeDirectToolAuthorityParser.parse(userText)" in chat_client
     assert 'testTag("HermesSignalQuickAction_${action.id}")' in chat_screen
     assert 'id = "wifi_analyzer"' in actions
     assert 'id = "wifi_channel_decision"' in actions

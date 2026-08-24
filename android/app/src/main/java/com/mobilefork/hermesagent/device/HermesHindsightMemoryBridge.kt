@@ -18,20 +18,37 @@ object HermesHindsightMemoryBridge {
     private const val PROMOTED_CONTEXT_MAX_CHARS = 1200
     private const val RELEVANT_CONTEXT_LIMIT = 6
     private const val RELEVANT_CONTEXT_MAX_CHARS = 1600
+    /** Lock order: request publication gate first, then this short bounded store transaction. */
+    private val STORE_TRANSACTION_LOCK = Any()
     private val ACTIONS = listOf("status", "retain", "recall", "list", "delete", "reflect", "relevant_context", "promoted_context", "clear")
 
-    fun performActionJson(context: Context, rawAction: String, arguments: JSONObject = JSONObject()): String {
+    fun performActionJson(
+        context: Context,
+        rawAction: String,
+        arguments: JSONObject = JSONObject(),
+        publicationGate: AutomationPublicationGate? = null,
+        reinforceRecall: Boolean = true,
+    ): String {
         val action = rawAction.trim().lowercase(Locale.US).ifBlank { "status" }
         return when (action) {
             "status", "read_status" -> statusJson(context)
-            "retain", "remember", "store" -> retainJson(context, arguments)
-            "recall", "search", "retrieve" -> recallJson(context, arguments)
+            "retain", "remember", "store" -> memoryMutation("retain", publicationGate) {
+                retainJson(context, arguments)
+            }
+            "recall", "search", "retrieve" -> memoryMutation("recall", publicationGate) {
+                recallJson(context, arguments, reinforce = reinforceRecall)
+            }
             "list", "memory_list", "all" -> listJson(context, arguments)
-            "delete", "remove", "forget", "memory_delete" -> deleteJson(context, arguments)
-            "reflect", "consolidate", "compact" -> reflectJson(context, arguments)
-            "relevant_context", "rag_context", "context", "system_prompt_context", "prompt_context" -> relevantContextJson(context, arguments)
+            "delete", "remove", "forget", "memory_delete" -> memoryMutation("delete", publicationGate) {
+                deleteJson(context, arguments)
+            }
+            "reflect", "consolidate", "compact" -> memoryMutation("reflect", publicationGate) {
+                reflectJson(context, arguments)
+            }
+            "relevant_context", "rag_context", "context", "system_prompt_context", "prompt_context" ->
+                relevantContextJson(context, arguments, publicationGate, reinforceRecall)
             "promoted_context" -> promotedContextJson(context, arguments)
-            "clear", "reset" -> clearJson(context)
+            "clear", "reset" -> memoryMutation("clear", publicationGate) { clearJson(context) }
             else -> JSONObject()
                 .put("success", false)
                 .put("error", "Unsupported hindsight memory action: $action")
@@ -54,7 +71,10 @@ object HermesHindsightMemoryBridge {
             .put("cards", JSONArray().put(card("Hindsight Memory", "${entries.size} retained local memories, $reinforced reinforced, $promoted promoted.")))
     }
 
-    private fun retainJson(context: Context, arguments: JSONObject): JSONObject {
+    private fun retainJson(
+        context: Context,
+        arguments: JSONObject,
+    ): JSONObject {
         val entries = readEntries(context)
         val now = System.currentTimeMillis()
         val facts = factsFrom(arguments)
@@ -90,7 +110,7 @@ object HermesHindsightMemoryBridge {
             retained.put(compactEntry(entry))
         }
 
-        trimAndSave(context, entries)
+        check(trimAndSaveLocked(context, entries)) { "Failed to commit retained local memory" }
         return JSONObject()
             .put("success", true)
             .put("action", "retain")
@@ -99,7 +119,11 @@ object HermesHindsightMemoryBridge {
             .put("cards", JSONArray().put(card("Memory Retained", "${retained.length()} fact(s) retained with tags, entities, keywords, source, and reinforcement count.")))
     }
 
-    private fun recallJson(context: Context, arguments: JSONObject): JSONObject {
+    private fun recallJson(
+        context: Context,
+        arguments: JSONObject,
+        reinforce: Boolean,
+    ): JSONObject {
         val query = arguments.optString("query").ifBlank {
             arguments.optString("text").ifBlank { arguments.optString("content") }
         }
@@ -114,15 +138,17 @@ object HermesHindsightMemoryBridge {
             .take(limit)
 
         val memories = JSONArray()
-        val returnedIds = scored.map { it.first.optString("id") }.toSet()
-        entries.forEach { entry ->
-            if (entry.optString("id") in returnedIds) {
-                entry.put("hit_count", entry.optInt("hit_count", 0) + 1)
-                    .put("last_accessed_at_ms", now)
-                maybePromote(entry, now)
+        if (reinforce) {
+            val returnedIds = scored.map { it.first.optString("id") }.toSet()
+            entries.forEach { entry ->
+                if (entry.optString("id") in returnedIds) {
+                    entry.put("hit_count", entry.optInt("hit_count", 0) + 1)
+                        .put("last_accessed_at_ms", now)
+                    maybePromote(entry, now)
+                }
             }
+            check(trimAndSaveLocked(context, entries)) { "Failed to commit reinforced local memory" }
         }
-        trimAndSave(context, entries)
         scored.forEach { (entry, score) ->
             memories.put(compactEntry(entry).put("recall_score", score))
         }
@@ -150,7 +176,10 @@ object HermesHindsightMemoryBridge {
             .put("cards", JSONArray().put(card("Memory List", "${entries.size} retained local HY Memory row(s) returned.")))
     }
 
-    private fun deleteJson(context: Context, arguments: JSONObject): JSONObject {
+    private fun deleteJson(
+        context: Context,
+        arguments: JSONObject,
+    ): JSONObject {
         val memoryId = arguments.optString("memory_id").ifBlank {
             arguments.optString("id").ifBlank { arguments.optString("target") }
         }
@@ -164,7 +193,7 @@ object HermesHindsightMemoryBridge {
         val entries = readEntries(context)
         val before = entries.size
         val remaining = entries.filterNot { it.optString("id") == memoryId }
-        saveEntries(context, remaining)
+        check(saveEntriesLocked(context, remaining)) { "Failed to commit deleted local memory" }
         val deleted = before - remaining.size
         return JSONObject()
             .put("success", deleted > 0)
@@ -175,7 +204,10 @@ object HermesHindsightMemoryBridge {
             .put("cards", JSONArray().put(card("Memory Delete", "$deleted local HY Memory row(s) deleted.")))
     }
 
-    private fun reflectJson(context: Context, arguments: JSONObject): JSONObject {
+    private fun reflectJson(
+        context: Context,
+        arguments: JSONObject,
+    ): JSONObject {
         val maxEntries = arguments.optInt("max_entries", MAX_ENTRIES).coerceIn(20, MAX_ENTRIES)
         val entries = readEntries(context)
         val before = entries.size
@@ -201,7 +233,7 @@ object HermesHindsightMemoryBridge {
             .sortedWith(compareByDescending<JSONObject> { it.optDouble("salience", 0.0) }.thenByDescending { it.optInt("hit_count", 0) })
             .take(maxEntries)
             .toMutableList()
-        saveEntries(context, reflected)
+        check(saveEntriesLocked(context, reflected)) { "Failed to commit reflected local memory" }
 
         return JSONObject()
             .put("success", true)
@@ -233,13 +265,40 @@ object HermesHindsightMemoryBridge {
             .put("cards", JSONArray().put(card("Promoted Memory", "${promoted.size} high-reuse memory row(s) ready for prompt context.")))
     }
 
-    fun relevantContextJson(context: Context, arguments: JSONObject = JSONObject()): JSONObject {
+    fun relevantContextJson(
+        context: Context,
+        arguments: JSONObject = JSONObject(),
+        publicationGate: AutomationPublicationGate? = null,
+        reinforceRecall: Boolean = true,
+    ): JSONObject {
+        return if (reinforceRecall) {
+            memoryMutation("relevant_context", publicationGate) {
+                relevantContextJsonLocked(context, arguments, reinforceRecall = true)
+            }
+        } else {
+            // Automatic prompt enrichment is a read: it must not advance hit_count,
+            // last_accessed_at_ms, promotion state, or rewrite an independent request's entry.
+            synchronized(STORE_TRANSACTION_LOCK) {
+                relevantContextJsonLocked(context, arguments, reinforceRecall = false)
+            }
+        }
+    }
+
+    private fun relevantContextJsonLocked(
+        context: Context,
+        arguments: JSONObject,
+        reinforceRecall: Boolean,
+    ): JSONObject {
         val query = arguments.optString("query").ifBlank {
             arguments.optString("text").ifBlank { arguments.optString("content") }
         }
         val limit = arguments.optInt("limit", RELEVANT_CONTEXT_LIMIT).coerceIn(1, MAX_LIMIT)
         val maxChars = arguments.optInt("max_chars", RELEVANT_CONTEXT_MAX_CHARS).coerceIn(240, 5000)
-        val recall = recallJson(context, JSONObject().put("query", query).put("limit", limit))
+        val recall = recallJson(
+            context,
+            JSONObject().put("query", query).put("limit", limit),
+            reinforce = reinforceRecall,
+        )
         val recalled = jsonObjectList(recall.optJSONArray("memories"))
         val recalledIds = recalled.map { it.optString("id") }.toSet()
         val promoted = promotedEntries(context)
@@ -271,7 +330,9 @@ object HermesHindsightMemoryBridge {
     }
 
     private fun clearJson(context: Context): JSONObject {
-        prefs(context).edit().remove(ENTRIES_KEY).apply()
+        check(prefs(context).edit().remove(ENTRIES_KEY).commit()) {
+            "Failed to commit cleared local memory"
+        }
         return JSONObject()
             .put("success", true)
             .put("action", "clear")
@@ -421,26 +482,55 @@ object HermesHindsightMemoryBridge {
         }
     }
 
-    private fun readEntries(context: Context): MutableList<JSONObject> {
+    private fun readEntries(context: Context): MutableList<JSONObject> = synchronized(STORE_TRANSACTION_LOCK) {
         val raw = prefs(context).getString(ENTRIES_KEY, "[]").orEmpty()
         val array = runCatching { JSONArray(raw) }.getOrDefault(JSONArray())
-        return buildList {
+        buildList {
             for (index in 0 until array.length()) {
                 array.optJSONObject(index)?.let(::add)
             }
         }.toMutableList()
     }
 
-    private fun trimAndSave(context: Context, entries: MutableList<JSONObject>) {
+    private fun trimAndSaveLocked(
+        context: Context,
+        entries: MutableList<JSONObject>,
+    ): Boolean {
         val trimmed = entries
             .sortedWith(compareByDescending<JSONObject> { it.optDouble("salience", 0.0) }.thenByDescending { it.optLong("last_accessed_at_ms", 0L) })
             .take(MAX_ENTRIES)
             .toMutableList()
-        saveEntries(context, trimmed)
+        return saveEntriesLocked(context, trimmed)
     }
 
-    private fun saveEntries(context: Context, entries: List<JSONObject>) {
-        prefs(context).edit().putString(ENTRIES_KEY, JSONArray(entries).toString()).apply()
+    private fun saveEntriesLocked(
+        context: Context,
+        entries: List<JSONObject>,
+    ): Boolean {
+        val payload = JSONArray(entries).toString()
+        return prefs(context).edit().putString(ENTRIES_KEY, payload).commit()
+    }
+
+    private fun memoryMutation(
+        action: String,
+        publicationGate: AutomationPublicationGate?,
+        mutation: () -> JSONObject,
+    ): JSONObject {
+        // Never acquire STORE_TRANSACTION_LOCK before a request gate: direct/manual null-gate
+        // callers enter this helper too, so every read-merge-commit shares one JVM transaction.
+        return publicationGate.publishValueIfActive(
+            cancelledValue = { cancelledMemoryMutation(action) },
+            publication = {
+                synchronized(STORE_TRANSACTION_LOCK) { mutation() }
+            },
+        )
+    }
+
+    private fun cancelledMemoryMutation(action: String): JSONObject {
+        return cancelledMutationJson(
+            action = action,
+            message = "Local memory action was stopped before its final durable commit.",
+        )
     }
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

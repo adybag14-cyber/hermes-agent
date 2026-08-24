@@ -9,8 +9,8 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-VERSION_NAME = "0.13.150"
-VERSION_CODE = "145090"
+VERSION_NAME = "0.13.151"
+VERSION_CODE = "145190"
 RESOLVED_RELEASE_COMMIT = "a" * 40
 GRADLE_RELATIVE = Path("android/app/build.gradle.kts")
 RELEASE_TAG_EXPRESSION = 'System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()'
@@ -404,7 +404,7 @@ def test_autoupdater_preview_rejects_the_prior_two_sed_recipe(tmp_path: Path):
 
     with pytest.raises(
         binding_module.FdroidSourceBindingError,
-        match="sudo does not match the v0.13.150 source-binding template",
+        match="sudo does not match the v0.13.151 source-binding template",
     ):
         binding_module.verify_autoupdate_metadata_preview(
             metadata,

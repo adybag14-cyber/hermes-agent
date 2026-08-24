@@ -8,7 +8,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InterruptedIOException
 import java.security.MessageDigest
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 
 object HermesLinuxSandboxBridge {
@@ -17,7 +19,7 @@ object HermesLinuxSandboxBridge {
     private const val GUEST_COMMAND_PATH =
         "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
     private const val AGENT_CONTROL_FILE_NAME = "hermes-agent-shell-control.json"
-    private val layerHttpClient = OkHttpClient.Builder()
+    private val defaultLayerHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(5, TimeUnit.MINUTES)
         .callTimeout(10, TimeUnit.MINUTES)
@@ -39,15 +41,51 @@ object HermesLinuxSandboxBridge {
         command: String = "",
         mirrorProfile: String = "",
         timeoutSeconds: Long = DEFAULT_TIMEOUT_SECONDS,
+        layerHttpClient: OkHttpClient = defaultLayerHttpClient,
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
     ): JSONObject {
-        val state = HermesLinuxSubsystemBridge.ensureInstalled(context.applicationContext)
+        throwIfCancellationRequested(cancellationRequested)
+        val normalizedAction = normalizeAction(action)
         val normalizedDistroId = normalizeArgumentValue(distroId)
         val normalizedName = normalizeArgumentValue(name)
         val normalizedImage = normalizeArgumentValue(image)
         val normalizedMirrorProfile = normalizeArgumentValue(mirrorProfile)
-        return when (normalizeAction(action)) {
-            "catalog" -> catalog(state, context)
-            "status", "list" -> status(state, context)
+        if (publicationGate != null && normalizedAction in REQUEST_OWNED_UNCANCELLABLE_ACTIONS) {
+            return requestOwnedProcessActionBlocked(
+                action = normalizedAction,
+                distroId = normalizedDistroId,
+                name = normalizedName,
+                image = normalizedImage,
+                command = command,
+            )
+        }
+        val state = if (publicationGate == null) {
+            // Manual and background callers retain the historical setup/repair behavior.
+            HermesLinuxSubsystemBridge.ensureInstalled(context.applicationContext)
+        } else {
+            // Chat status and bounded control changes must never install, repair, delete, or
+            // rewrite the host runtime merely by observing it.
+            HermesLinuxSubsystemBridge.readStateSnapshot(context.applicationContext)
+                ?: return requestOwnedRuntimeUnavailable(
+                    context = context.applicationContext,
+                    action = normalizedAction,
+                    distroId = normalizedDistroId,
+                    name = normalizedName,
+                )
+        }
+        throwIfCancellationRequested(cancellationRequested)
+        return when (normalizedAction) {
+            "catalog" -> if (publicationGate == null) {
+                catalog(state, context)
+            } else {
+                requestOwnedStatusFromSnapshot(state, "catalog")
+            }
+            "status", "list" -> if (publicationGate == null) {
+                status(state, context)
+            } else {
+                requestOwnedStatusFromSnapshot(state, normalizedAction)
+            }
             "download", "install" -> install(
                 context = context,
                 state = state,
@@ -55,6 +93,9 @@ object HermesLinuxSandboxBridge {
                 name = normalizedName,
                 image = normalizedImage,
                 timeoutSeconds = timeoutSeconds,
+                layerHttpClient = layerHttpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
             )
             "update", "upgrade", "refresh" -> updateSandbox(
                 context = context,
@@ -62,6 +103,7 @@ object HermesLinuxSandboxBridge {
                 distroId = normalizedDistroId,
                 name = normalizedName,
                 timeoutSeconds = timeoutSeconds,
+                cancellationRequested = cancellationRequested,
             )
             "deploy", "bootstrap", "one_click_deploy", "one-click-deploy" -> deploySandbox(
                 context = context,
@@ -70,6 +112,9 @@ object HermesLinuxSandboxBridge {
                 name = normalizedName,
                 mirrorProfile = normalizedMirrorProfile,
                 timeoutSeconds = timeoutSeconds,
+                layerHttpClient = layerHttpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
             )
             "set_mirror", "switch_mirror", "mirror" -> setMirror(
                 context = context,
@@ -78,18 +123,23 @@ object HermesLinuxSandboxBridge {
                 name = normalizedName,
                 mirrorProfile = normalizedMirrorProfile,
                 timeoutSeconds = timeoutSeconds,
+                cancellationRequested = cancellationRequested,
             )
             "start", "launch", "enable" -> startAgentShell(
                 context = context,
                 state = state,
                 distroId = normalizedDistroId,
                 name = normalizedName,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
             )
             "stop", "close", "disable" -> stopAgentShell(
                 context = context,
                 state = state,
                 distroId = normalizedDistroId,
                 name = normalizedName,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
             )
             "run" -> runCommand(
                 context = context,
@@ -98,6 +148,7 @@ object HermesLinuxSandboxBridge {
                 name = normalizedName,
                 command = command,
                 timeoutSeconds = timeoutSeconds,
+                cancellationRequested = cancellationRequested,
             )
             "remove", "uninstall", "delete" -> remove(
                 context = context,
@@ -105,6 +156,7 @@ object HermesLinuxSandboxBridge {
                 distroId = normalizedDistroId,
                 name = normalizedName,
                 timeoutSeconds = timeoutSeconds,
+                cancellationRequested = cancellationRequested,
             )
             else -> status(state, context)
                 .put("exit_code", 2)
@@ -189,8 +241,26 @@ object HermesLinuxSandboxBridge {
             )
     }
 
-    private fun catalog(state: JSONObject, context: Context): JSONObject {
+    private fun catalog(state: JSONObject, context: Context?): JSONObject {
         return status(state, context).put("action", "catalog")
+    }
+
+    private fun requestOwnedStatusFromSnapshot(state: JSONObject, action: String): JSONObject {
+        // Deliberately avoid Context.getExternalFilesDir here: Android may create the app's
+        // external-files hierarchy while resolving it. Chat-owned status is an observation only.
+        return status(state, context = null)
+            .put("action", action)
+            .put("request_owned", true)
+            .put("runtime_state_available", true)
+            .put("agent_control_observed", false)
+            .put("agent_control_file", "")
+            .put("agent_shell_enabled", false)
+            .put("active_sandbox_name", "")
+            .put("active_distro_id", "")
+            .put(
+                "agent_shell_policy",
+                "unknown: chat-owned status does not create or probe the external control-file hierarchy.",
+            )
     }
 
     private fun install(
@@ -200,6 +270,9 @@ object HermesLinuxSandboxBridge {
         name: String,
         image: String,
         timeoutSeconds: Long,
+        layerHttpClient: OkHttpClient,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
     ): JSONObject {
         val selected = selectDistro(distroId = distroId, name = name, image = image)
         val sandboxName = name.ifBlank { selected.optString("name") }
@@ -221,13 +294,19 @@ object HermesLinuxSandboxBridge {
             action = "install",
             command = command,
             timeoutSeconds = timeoutSeconds.coerceIn(60, DEFAULT_TIMEOUT_SECONDS),
+            cancellationRequested = cancellationRequested,
         )
+        throwIfCancellationRequested(cancellationRequested)
         val result = if (shouldRetryInstallWithAndroidHttp(primaryResult)) {
             val cacheResult = cacheDockerLayersWithAndroidHttp(
                 state = state,
                 imageRef = imageRef,
                 architecture = guestArchitecture,
+                layerHttpClient = layerHttpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
             )
+            throwIfCancellationRequested(cancellationRequested)
             if (cacheResult.optInt("exit_code", -1) == 0) {
                 runProotDistroCommand(
                     context = context,
@@ -235,6 +314,7 @@ object HermesLinuxSandboxBridge {
                     action = "install",
                     command = command,
                     timeoutSeconds = timeoutSeconds.coerceIn(60, DEFAULT_TIMEOUT_SECONDS),
+                    cancellationRequested = cancellationRequested,
                 ).put("network_retry", "android_https_verified_layer_cache")
                     .put("android_layer_cache", cacheResult)
                     .put("initial_network_error", primaryResult.optString("error").take(2000))
@@ -259,6 +339,7 @@ object HermesLinuxSandboxBridge {
         distroId: String,
         name: String,
         timeoutSeconds: Long,
+        cancellationRequested: () -> Boolean,
     ): JSONObject {
         val selected = selectDistro(distroId = distroId, name = name, image = "")
         val activeName = readAgentControl(context).optString("active_sandbox_name")
@@ -305,6 +386,7 @@ object HermesLinuxSandboxBridge {
             timeoutSeconds = timeoutSeconds.coerceIn(60, DEFAULT_TIMEOUT_SECONDS),
             respectAgentControl = false,
             useLifecycleTimeout = true,
+            cancellationRequested = cancellationRequested,
         ).put("action", "update")
             .put("sandbox_name", sandboxName)
             .put("distro_id", selected.optString("id"))
@@ -320,6 +402,9 @@ object HermesLinuxSandboxBridge {
         name: String,
         mirrorProfile: String,
         timeoutSeconds: Long,
+        layerHttpClient: OkHttpClient,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
     ): JSONObject {
         val selected = selectDistro(
             distroId = distroId.ifBlank { "debian-bookworm" },
@@ -337,6 +422,9 @@ object HermesLinuxSandboxBridge {
                 name = sandboxName,
                 image = selected.optString("image"),
                 timeoutSeconds = timeoutSeconds.coerceIn(60, DEFAULT_TIMEOUT_SECONDS),
+                layerHttpClient = layerHttpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
             )
         } else {
             status(state, context)
@@ -345,6 +433,7 @@ object HermesLinuxSandboxBridge {
                 .put("distro_id", selected.optString("id"))
                 .put("message", "Sandbox already installed; continuing with start/update.")
         }
+        throwIfCancellationRequested(cancellationRequested)
         if (installResult.optInt("exit_code", -1) != 0) {
             return annotateDeployDisposition(
                 result = installResult.put("action", "deploy"),
@@ -358,7 +447,10 @@ object HermesLinuxSandboxBridge {
             state = state,
             distroId = selected.optString("id"),
             name = sandboxName,
+            cancellationRequested = cancellationRequested,
+            publicationGate = publicationGate,
         )
+        throwIfCancellationRequested(cancellationRequested)
         if (startResult.optInt("exit_code", -1) != 0) {
             return annotateDeployDisposition(
                 result = startResult.put("action", "deploy"),
@@ -375,10 +467,12 @@ object HermesLinuxSandboxBridge {
                 name = sandboxName,
                 mirrorProfile = mirrorProfile,
                 timeoutSeconds = timeoutSeconds,
+                cancellationRequested = cancellationRequested,
             )
         } else {
             JSONObject().put("exit_code", 0).put("action", "set_mirror").put("skipped", true)
         }
+        throwIfCancellationRequested(cancellationRequested)
         if (mirrorResult.optInt("exit_code", -1) != 0) {
             return annotateDeployDisposition(
                 result = status(state, context)
@@ -400,6 +494,7 @@ object HermesLinuxSandboxBridge {
             distroId = selected.optString("id"),
             name = sandboxName,
             timeoutSeconds = timeoutSeconds,
+            cancellationRequested = cancellationRequested,
         )
         val result = status(state, context)
             .put("action", "deploy")
@@ -457,6 +552,7 @@ object HermesLinuxSandboxBridge {
         name: String,
         mirrorProfile: String,
         timeoutSeconds: Long,
+        cancellationRequested: () -> Boolean,
     ): JSONObject {
         val selected = selectDistro(distroId = distroId, name = name, image = "")
         val activeName = readAgentControl(context).optString("active_sandbox_name")
@@ -487,6 +583,7 @@ object HermesLinuxSandboxBridge {
             command = mirrorCommand,
             timeoutSeconds = timeoutSeconds.coerceIn(30, DEFAULT_TIMEOUT_SECONDS),
             respectAgentControl = false,
+            cancellationRequested = cancellationRequested,
         ).put("action", "set_mirror")
             .put("sandbox_name", sandboxName)
             .put("distro_id", selected.optString("id"))
@@ -500,6 +597,8 @@ object HermesLinuxSandboxBridge {
         state: JSONObject,
         distroId: String,
         name: String,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
     ): JSONObject {
         val selected = selectDistro(distroId = distroId, name = name, image = "")
         val installed = installedSandboxes(state)
@@ -528,7 +627,8 @@ object HermesLinuxSandboxBridge {
             .put("active_sandbox_name", sandboxName)
             .put("active_distro_id", selected.optString("id"))
             .put("updated_at_epoch_ms", System.currentTimeMillis())
-        writeAgentControl(context, control)
+        throwIfCancellationRequested(cancellationRequested)
+        writeAgentControl(context, control, cancellationRequested, publicationGate)
         return status(state, context)
             .put("action", "start")
             .put("sandbox_name", sandboxName)
@@ -541,6 +641,8 @@ object HermesLinuxSandboxBridge {
         state: JSONObject,
         distroId: String,
         name: String,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
     ): JSONObject {
         val selected = selectDistro(distroId = distroId, name = name, image = "")
         val prior = readAgentControl(context)
@@ -550,7 +652,8 @@ object HermesLinuxSandboxBridge {
             .put("active_sandbox_name", sandboxName)
             .put("active_distro_id", selected.optString("id").ifBlank { prior.optString("active_distro_id") })
             .put("updated_at_epoch_ms", System.currentTimeMillis())
-        writeAgentControl(context, control)
+        throwIfCancellationRequested(cancellationRequested)
+        writeAgentControl(context, control, cancellationRequested, publicationGate)
         return status(state, context)
             .put("action", "stop")
             .put("sandbox_name", sandboxName)
@@ -567,6 +670,7 @@ object HermesLinuxSandboxBridge {
         timeoutSeconds: Long,
         respectAgentControl: Boolean = true,
         useLifecycleTimeout: Boolean = false,
+        cancellationRequested: () -> Boolean = { false },
     ): JSONObject {
         val selected = selectDistro(distroId = distroId, name = name, image = "")
         val control = readAgentControl(context)
@@ -629,6 +733,7 @@ object HermesLinuxSandboxBridge {
             command = shellCommand,
             timeoutSeconds = commandTimeoutSeconds(timeoutSeconds, useLifecycleTimeout),
             includeStatus = false,
+            cancellationRequested = cancellationRequested,
         )
         return compactRunResult(
             state = state,
@@ -651,6 +756,7 @@ object HermesLinuxSandboxBridge {
         distroId: String,
         name: String,
         timeoutSeconds: Long,
+        cancellationRequested: () -> Boolean,
     ): JSONObject {
         val selected = selectDistro(distroId = distroId, name = name, image = "")
         val sandboxName = name.ifBlank { selected.optString("name") }
@@ -666,8 +772,10 @@ object HermesLinuxSandboxBridge {
             action = "remove",
             command = command,
             timeoutSeconds = timeoutSeconds.coerceIn(10, DEFAULT_TIMEOUT_SECONDS),
+            cancellationRequested = cancellationRequested,
         ).put("sandbox_name", sandboxName)
             .put("distro_id", selected.optString("id"))
+        throwIfCancellationRequested(cancellationRequested)
         val control = readAgentControl(context)
         if (control.optString("active_sandbox_name") == sandboxName) {
             writeAgentControl(
@@ -689,6 +797,7 @@ object HermesLinuxSandboxBridge {
         command: String,
         timeoutSeconds: Long,
         includeStatus: Boolean = true,
+        cancellationRequested: () -> Boolean,
     ): JSONObject {
         if (!state.optBoolean("uses_termux", false) || !hasPackage(state, "proot-distro")) {
             return status(state, context)
@@ -701,6 +810,7 @@ object HermesLinuxSandboxBridge {
             command = command,
             timeoutSeconds = timeoutSeconds,
             includeLinuxSandboxStatus = includeStatus,
+            cancellationRequested = cancellationRequested,
         )
         result.put("action", action)
         if (includeStatus) {
@@ -776,6 +886,82 @@ object HermesLinuxSandboxBridge {
         return action.trim().trim('.', ',', ':', ';').lowercase().ifBlank { "status" }
     }
 
+    private fun requestOwnedProcessActionBlocked(
+        action: String,
+        distroId: String,
+        name: String,
+        image: String,
+        command: String,
+    ): JSONObject {
+        val selected = selectDistro(distroId = distroId, name = name, image = image)
+        val sandboxName = name.ifBlank { selected.optString("name") }
+        return JSONObject()
+            .put("exit_code", 126)
+            .put("success", false)
+            .put("action", action)
+            .put("distro_id", selected.optString("id").ifBlank { distroId })
+            .put("sandbox_name", sandboxName)
+            .put("image", image.ifBlank { selected.optString("image") })
+            .put("sandbox_command", command)
+            .put("sandbox_execution_mode", "request_owned_proot_blocked")
+            .put("request_owned", true)
+            .put("request_owned_operation_blocked", true)
+            .put(
+                "error",
+                "Hermes blocked this chat-owned Linux guest process before dispatch because its filesystem/package mutations cannot be committed atomically with Stop. Use the manual Device Linux sandbox controls for install, guest commands, mirror changes, updates, or removal.",
+            )
+    }
+
+    private fun requestOwnedRuntimeUnavailable(
+        context: Context,
+        action: String,
+        distroId: String,
+        name: String,
+    ): JSONObject {
+        val selected = selectDistro(distroId = distroId, name = name, image = "")
+        val readOnlyStatus = JSONObject()
+            .put("exit_code", if (action in READ_ONLY_ACTIONS) 0 else 127)
+            .put("success", action in READ_ONLY_ACTIONS)
+            .put("action", action)
+            .put("request_owned", true)
+            .put("runtime_state_available", false)
+            .put("execution_mode", "uninitialized")
+            .put("uses_termux", false)
+            .put("proot_available", false)
+            .put("proot_distro_available", false)
+            .put("qemu_user_available", false)
+            .put("agent_shell_enabled", false)
+            .put("active_sandbox_name", "")
+            .put("active_distro_id", "")
+            .put("app_private_storage_root", context.filesDir.absolutePath)
+            .put("agent_control_file", "")
+            .put("runtime_dir", "")
+            .put("containers_dir", "")
+            .put("installed_sandboxes", JSONArray())
+            .put("downloadable_linux_sandboxes", HermesLinuxSandboxCatalog.distroCatalog())
+            .put("recommended_linux_sandboxes", HermesLinuxSandboxCatalog.recommendedSandboxIds())
+            .put("mirror_profiles", HermesLinuxSandboxCatalog.mirrorProfiles())
+            .put("desktop_environment_catalog", HermesLinuxSandboxCatalog.desktopCatalog())
+            .put("linux_sandbox_agent_summary", HermesLinuxSandboxCatalog.agentSummary())
+            .put("status", "embedded_sandbox_runtime_not_initialized")
+        if (action !in READ_ONLY_ACTIONS) {
+            readOnlyStatus
+                .put("distro_id", selected.optString("id").ifBlank { distroId })
+                .put("sandbox_name", name.ifBlank { selected.optString("name") })
+                .put(
+                    "error",
+                    "The embedded Linux runtime has not been initialized. Chat-owned sandbox actions do not install or repair it implicitly; initialize it from the Device screen first.",
+                )
+        }
+        return readOnlyStatus
+    }
+
+    private fun throwIfCancellationRequested(cancellationRequested: () -> Boolean) {
+        if (cancellationRequested()) {
+            throw CancellationException("Linux sandbox operation was stopped")
+        }
+    }
+
     internal fun normalizeArgumentValue(value: String): String {
         return value.trim().trim('.', ',', ':', ';')
     }
@@ -788,6 +974,7 @@ object HermesLinuxSandboxBridge {
     }
 
     internal fun shouldRetryInstallWithAndroidHttp(result: JSONObject): Boolean {
+        if (result.optBoolean("cancelled", false) || result.optInt("exit_code", 0) == 130) return false
         if (result.optInt("exit_code", 0) == 0) return false
         val detail = (result.optString("error") + "\n" + result.optString("output")).uppercase()
         return detail.contains("RECORD_LAYER_FAILURE") ||
@@ -803,8 +990,12 @@ object HermesLinuxSandboxBridge {
         state: JSONObject,
         imageRef: String,
         architecture: String,
+        layerHttpClient: OkHttpClient,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
     ): JSONObject {
         return try {
+            throwIfCancellationRequested(cancellationRequested)
             val image = parseDockerHubImage(imageRef)
                 ?: return JSONObject()
                     .put("exit_code", 2)
@@ -831,13 +1022,19 @@ object HermesLinuxSandboxBridge {
             val layerDir = File(cacheRoot, "oci_layers").apply { mkdirs() }
             val missing = mutableListOf<JSONObject>()
             for (index in 0 until layers.length()) {
+                throwIfCancellationRequested(cancellationRequested)
                 val layer = layers.optJSONObject(index) ?: continue
                 val digest = layer.optString("digest")
                 val expectedHex = validatedSha256Digest(digest)
                     ?: return JSONObject().put("exit_code", 2).put("error", "Manifest contains an invalid layer digest.")
                 val target = File(layerDir, digest.replace(':', '_'))
-                if (!target.isFile || target.length() != layer.optLong("size", -1L) || sha256File(target) != expectedHex) {
-                    target.delete()
+                if (!target.isFile ||
+                    target.length() != layer.optLong("size", -1L) ||
+                    sha256File(target, cancellationRequested) != expectedHex
+                ) {
+                    throwIfCancellationRequested(cancellationRequested)
+                    // Preserve the last durable cache entry until a fully downloaded and
+                    // verified replacement can be promoted under the request gate.
                     missing += layer
                 }
             }
@@ -853,7 +1050,10 @@ object HermesLinuxSandboxBridge {
                 .addQueryParameter("service", "registry.docker.io")
                 .addQueryParameter("scope", "repository:${image.repo}:pull")
                 .build()
-            val token = executeTextRequest(Request.Builder().url(tokenUrl).get().build())
+            val token = executeTextRequest(
+                request = Request.Builder().url(tokenUrl).get().build(),
+                layerHttpClient = layerHttpClient,
+            )
                 .let { JSONObject(it).optString("token").ifBlank { JSONObject(it).optString("access_token") } }
             if (token.isBlank()) {
                 return JSONObject().put("exit_code", 1).put("error", "Docker Hub did not return an anonymous pull token.")
@@ -861,6 +1061,7 @@ object HermesLinuxSandboxBridge {
 
             var downloadedCount = 0
             missing.forEach { layer ->
+                throwIfCancellationRequested(cancellationRequested)
                 val digest = layer.getString("digest")
                 val expectedHex = validatedSha256Digest(digest)
                     ?: error("Manifest contains an invalid layer digest.")
@@ -875,6 +1076,9 @@ object HermesLinuxSandboxBridge {
                     target = target,
                     expectedHex = expectedHex,
                     expectedSize = expectedSize,
+                    layerHttpClient = layerHttpClient,
+                    cancellationRequested = cancellationRequested,
+                    publicationGate = publicationGate,
                 )
                 downloadedCount += 1
             }
@@ -892,7 +1096,7 @@ object HermesLinuxSandboxBridge {
         }
     }
 
-    private fun executeTextRequest(request: Request): String {
+    private fun executeTextRequest(request: Request, layerHttpClient: OkHttpClient): String {
         return layerHttpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
                 error("HTTP ${response.code} ${response.message} for ${request.url.host}")
@@ -901,14 +1105,23 @@ object HermesLinuxSandboxBridge {
         }
     }
 
-    private fun downloadVerifiedLayer(
+    internal fun downloadVerifiedLayer(
         request: Request,
         target: File,
         expectedHex: String,
         expectedSize: Long,
+        layerHttpClient: OkHttpClient,
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
     ) {
-        target.parentFile?.mkdirs()
-        val temporary = File(target.parentFile, ".${target.name}.${System.nanoTime()}.tmp")
+        throwIfCancellationRequested(cancellationRequested)
+        val targetParent = target.parentFile ?: error("Sandbox layer cache target has no parent directory.")
+        if (publicationGate == null) {
+            targetParent.mkdirs()
+        } else if (!targetParent.isDirectory) {
+            throw InterruptedIOException("Sandbox layer cache must be initialized manually before a request-owned promotion")
+        }
+        val temporary = File(targetParent, ".${target.name}.${System.nanoTime()}.tmp")
         try {
             val digest = MessageDigest.getInstance("SHA-256")
             var byteCount = 0L
@@ -921,6 +1134,7 @@ object HermesLinuxSandboxBridge {
                     FileOutputStream(temporary).buffered().use { output ->
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                         while (true) {
+                            throwIfLayerCancellationRequested(cancellationRequested, "Sandbox layer download was stopped")
                             val read = input.read(buffer)
                             if (read < 0) break
                             if (read == 0) continue
@@ -934,16 +1148,22 @@ object HermesLinuxSandboxBridge {
             if (expectedSize >= 0 && byteCount != expectedSize) {
                 error("Docker layer size mismatch: expected $expectedSize bytes, received $byteCount.")
             }
+            throwIfLayerCancellationRequested(cancellationRequested, "Sandbox layer promotion was stopped")
             val actualHex = digest.digest().joinToString("") { "%02x".format(it) }
             if (actualHex != expectedHex) {
                 error("Docker layer SHA-256 mismatch: expected $expectedHex, received $actualHex.")
             }
-            if (target.exists() && !target.delete()) {
-                error("Unable to replace stale Docker layer cache ${target.name}.")
-            }
-            if (!temporary.renameTo(target)) {
-                error("Unable to atomically promote Docker layer cache ${target.name}.")
-            }
+            // Slow network transfer and hashing are intentionally outside the request lock. The
+            // only gated section is the bounded durable replacement of the verified cache entry.
+            throwIfLayerCancellationRequested(cancellationRequested, "Sandbox layer promotion was stopped")
+            publicationGate.publishValueIfActive(
+                cancelledValue = {
+                    throw InterruptedIOException("Sandbox layer promotion was stopped before its final commit")
+                },
+                publication = {
+                    replaceStagedFileAtCommit(temporary, target)
+                },
+            )
         } finally {
             temporary.delete()
         }
@@ -967,17 +1187,30 @@ object HermesLinuxSandboxBridge {
         return match.groupValues[1]
     }
 
-    private fun sha256File(file: File): String {
+    internal fun sha256File(
+        file: File,
+        cancellationRequested: () -> Boolean = { false },
+    ): String {
         val digest = MessageDigest.getInstance("SHA-256")
         file.inputStream().buffered().use { input ->
             val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
             while (true) {
+                throwIfLayerCancellationRequested(cancellationRequested, "Sandbox layer verification was stopped")
                 val read = input.read(buffer)
                 if (read < 0) break
                 if (read > 0) digest.update(buffer, 0, read)
             }
         }
         return digest.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun throwIfLayerCancellationRequested(
+        cancellationRequested: () -> Boolean,
+        message: String,
+    ) {
+        if (cancellationRequested() || Thread.currentThread().isInterrupted) {
+            throw InterruptedIOException(message)
+        }
     }
 
     private fun sha256Hex(bytes: ByteArray): String {
@@ -1241,10 +1474,35 @@ object HermesLinuxSandboxBridge {
             .getOrDefault(defaultAgentControl())
     }
 
-    private fun writeAgentControl(context: Context, control: JSONObject) {
+    private fun writeAgentControl(
+        context: Context,
+        control: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+    ) {
+        throwIfCancellationRequested(cancellationRequested)
         val file = agentControlFile(context)
-        file.parentFile?.mkdirs()
-        file.writeText(control.toString(), Charsets.UTF_8)
+        val controlParent = file.parentFile ?: error("Linux sandbox control file has no parent directory.")
+        if (publicationGate == null) {
+            controlParent.mkdirs()
+        } else if (!controlParent.isDirectory) {
+            error("Initialize the Linux sandbox controls manually before changing them from chat.")
+        }
+        val temporary = File(controlParent, ".${file.name}.${System.nanoTime()}.tmp")
+        try {
+            temporary.writeText(control.toString(), Charsets.UTF_8)
+            throwIfCancellationRequested(cancellationRequested)
+            publicationGate.publishValueIfActive(
+                cancelledValue = {
+                    throw CancellationException("Linux sandbox control change was stopped before its final commit")
+                },
+                publication = {
+                    replaceStagedFileAtCommit(temporary, file)
+                },
+            )
+        } finally {
+            temporary.delete()
+        }
     }
 
     private fun appPrivateStorageRoot(context: Context): File {
@@ -1256,4 +1514,25 @@ object HermesLinuxSandboxBridge {
             ?.let { File(it, "hermes-home/$AGENT_CONTROL_FILE_NAME") }
             ?: File(context.filesDir, "hermes-home/$AGENT_CONTROL_FILE_NAME")
     }
+
+    private val READ_ONLY_ACTIONS = setOf("catalog", "status", "list")
+
+    private val REQUEST_OWNED_UNCANCELLABLE_ACTIONS = setOf(
+        "download",
+        "install",
+        "deploy",
+        "bootstrap",
+        "one_click_deploy",
+        "one-click-deploy",
+        "update",
+        "upgrade",
+        "refresh",
+        "set_mirror",
+        "switch_mirror",
+        "mirror",
+        "run",
+        "remove",
+        "uninstall",
+        "delete",
+    )
 }

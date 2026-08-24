@@ -13,8 +13,71 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 class HermesSseClientTest {
+    @Test
+    fun cancelBeforeCallRegistrationIsStickyAndCannotAffectAnotherClient() {
+        val registrationReached = CountDownLatch(1)
+        val releaseRegistration = CountDownLatch(1)
+        val networkStartsA = AtomicInteger(0)
+        val errorA = AtomicReference<String?>(null)
+        val clientA = HermesSseClient(
+            baseUrl = "http://127.0.0.1:15436",
+            httpClient = OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    networkStartsA.incrementAndGet()
+                    chain.proceed(chain.request())
+                }
+                .build(),
+            beforeCallRegistration = {
+                registrationReached.countDown()
+                assertTrue(releaseRegistration.await(5, TimeUnit.SECONDS))
+            },
+        )
+        val workerA = thread(name = "sse-pre-registration-a") {
+            clientA.streamChatCompletion(
+                request = sampleRequest(),
+                onDelta = {},
+                onComplete = {},
+                onError = { errorA.set(it) },
+            )
+        }
+
+        assertTrue(registrationReached.await(5, TimeUnit.SECONDS))
+        clientA.cancel()
+        releaseRegistration.countDown()
+        workerA.join(5_000L)
+
+        assertFalse("Cancelled SSE request A remained alive", workerA.isAlive)
+        assertEquals(0, networkStartsA.get())
+        assertTrue(errorA.get().orEmpty().contains("cancelled", ignoreCase = true))
+
+        val clientB = HermesSseClient(
+            baseUrl = "http://127.0.0.1:15436",
+            httpClient = singleResponseClient(
+                "data: {\"choices\":[{\"delta\":{\"content\":\"B_OK\"}}]}\n\ndata: [DONE]\n\n",
+            ),
+        )
+        val deltasB = mutableListOf<String>()
+        var completedB = false
+        var errorB: String? = null
+        clientB.streamChatCompletion(
+            request = sampleRequest(),
+            onDelta = { deltasB += it },
+            onComplete = { completedB = true },
+            onError = { errorB = it },
+        )
+
+        assertEquals(listOf("B_OK"), deltasB)
+        assertTrue(completedB)
+        assertNull(errorB)
+    }
+
     @Test
     fun streamChatCompletion_reports_transport_failures_via_onError() {
         val client = HermesSseClient(

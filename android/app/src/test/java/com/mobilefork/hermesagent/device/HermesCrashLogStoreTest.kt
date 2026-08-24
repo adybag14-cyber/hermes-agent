@@ -11,6 +11,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 @RunWith(RobolectricTestRunner::class)
 class HermesCrashLogStoreTest {
@@ -19,6 +25,69 @@ class HermesCrashLogStoreTest {
     @Before
     fun resetCrashLogs() {
         HermesCrashLogStore.clearAllForTest(context)
+    }
+
+    @Test
+    fun stoppedDiagnosticsMutationAIsRejectedWhileIndependentRequestBCommits() {
+        HermesCrashLogStore.recordCrashForTest(
+            context = context,
+            throwable = IllegalStateException("retain-until-request-a-is-cancelled"),
+            nowMs = 1_717_171_717_500L,
+        )
+        val cancelledA = AtomicBoolean(false)
+        val aReachedPublication = CountDownLatch(1)
+        val releaseAPublication = CountDownLatch(1)
+        val failureA = AtomicReference<Throwable?>(null)
+        val gateA = AutomationPublicationGate { publication ->
+            aReachedPublication.countDown()
+            check(releaseAPublication.await(5, TimeUnit.SECONDS))
+            if (cancelledA.get()) {
+                false
+            } else {
+                publication()
+                true
+            }
+        }
+        val gateB = AutomationPublicationGate { publication ->
+            publication()
+            true
+        }
+
+        try {
+            val workerA = thread(name = "diagnostics-clear-publication-a", isDaemon = true) {
+                failureA.set(
+                    runCatching {
+                        HermesDeviceDiagnosticsBridge.performActionJson(
+                            context = context,
+                            action = "clear_last_crash",
+                            cancellationRequested = { cancelledA.get() },
+                            publicationGate = gateA,
+                        )
+                    }.exceptionOrNull(),
+                )
+            }
+            assertTrue("request A never reached its diagnostics mutation boundary", aReachedPublication.await(5, TimeUnit.SECONDS))
+
+            val resultB = JSONObject(
+                HermesDeviceDiagnosticsBridge.performActionJson(
+                    context = context,
+                    action = "open_app_settings",
+                    publicationGate = gateB,
+                ),
+            )
+            assertTrue(resultB.toString(), resultB.getBoolean("success"))
+            assertEquals("open_app_settings", resultB.getString("action"))
+
+            cancelledA.set(true)
+            releaseAPublication.countDown()
+            workerA.join(5_000L)
+
+            assertFalse("request A remained blocked after Stop", workerA.isAlive)
+            assertTrue(failureA.get() is CancellationException)
+            assertTrue(HermesCrashLogStore.statusSnapshot(context).hasLastCrash)
+        } finally {
+            releaseAPublication.countDown()
+        }
     }
 
     @Test

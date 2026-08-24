@@ -455,18 +455,28 @@ object HermesLinuxSubsystemBridge {
 
     fun readState(context: Context): JSONObject? {
         val stateFile = stateFile(context)
+        val snapshot = readStateSnapshot(context)
+        if (snapshot != null) {
+            return snapshot
+        }
+        // Manual/background setup retains the historical cleanup behavior. Chat-owned package
+        // status uses readStateSnapshot directly and therefore never mutates while observing.
+        if (stateFile.isFile) {
+            stateFile.delete()
+        }
+        return null
+    }
+
+    internal fun readStateSnapshot(context: Context): JSONObject? {
+        val stateFile = stateFile(context)
         if (!stateFile.isFile) {
             return null
         }
         val rawState = stateFile.readText(Charsets.UTF_8).trim()
         if (rawState.isBlank()) {
-            stateFile.delete()
             return null
         }
-        return runCatching { JSONObject(rawState) }.getOrElse {
-            stateFile.delete()
-            null
-        }
+        return runCatching { JSONObject(rawState) }.getOrNull()
     }
 
     /**

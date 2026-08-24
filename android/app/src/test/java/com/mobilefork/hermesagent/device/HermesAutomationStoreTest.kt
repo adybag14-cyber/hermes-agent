@@ -5,6 +5,7 @@ import android.content.Context
 import android.media.AudioManager
 import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
@@ -16,10 +17,362 @@ import org.junit.runner.RunWith
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.shadows.ShadowToast
+import java.io.File
 import java.util.Calendar
+import java.util.concurrent.CancellationException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import kotlin.concurrent.thread
 
 @RunWith(RobolectricTestRunner::class)
 class HermesAutomationStoreTest {
+    @Test
+    fun storeTransactionSerializesAlreadyAdmittedVariableAAndPreservesB() {
+        val context = RuntimeEnvironment.getApplication()
+        val variableA = "ATOMIC_A_${System.nanoTime()}"
+        val variableB = "ATOMIC_B_${System.nanoTime()}"
+        val aPrepared = CountDownLatch(1)
+        val releaseACommit = CountDownLatch(1)
+        val bFinished = CountDownLatch(1)
+        val failureA = AtomicReference<Throwable?>(null)
+        val failureB = AtomicReference<Throwable?>(null)
+        val storeA = HermesAutomationStore(context) { key ->
+            if (key == "variables_json") {
+                aPrepared.countDown()
+                check(releaseACommit.await(5, TimeUnit.SECONDS))
+            }
+        }
+        val storeB = HermesAutomationStore(context)
+        storeB.removeVariable(variableA)
+        storeB.removeVariable(variableB)
+
+        try {
+            val workerA = thread(name = "automation-store-transaction-a") {
+                failureA.set(runCatching { storeA.setVariable(variableA, "A") }.exceptionOrNull())
+            }
+            assertTrue(aPrepared.await(5, TimeUnit.SECONDS))
+            val workerB = thread(name = "automation-store-transaction-b") {
+                failureB.set(runCatching { storeB.setVariable(variableB, "B") }.exceptionOrNull())
+                bFinished.countDown()
+            }
+
+            assertFalse("B bypassed A's shared store transaction", bFinished.await(100, TimeUnit.MILLISECONDS))
+            releaseACommit.countDown()
+            workerA.join(5_000L)
+            workerB.join(5_000L)
+
+            assertFalse(workerA.isAlive)
+            assertFalse(workerB.isAlive)
+            assertTrue(failureA.get() == null)
+            assertTrue(failureB.get() == null)
+            assertEquals("A", storeB.getVariable(variableA))
+            assertEquals("B", storeB.getVariable(variableB))
+        } finally {
+            releaseACommit.countDown()
+            storeB.removeVariable(variableA)
+            storeB.removeVariable(variableB)
+        }
+    }
+
+    @Test
+    fun stoppedImmediateMutationAIsRejectedWhileIndependentRequestBCommits() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = HermesAutomationStore(context)
+        val variableA = "STOP_GATE_A_${System.nanoTime()}"
+        val variableB = "STOP_GATE_B_${System.nanoTime()}"
+        val cancelledA = AtomicBoolean(false)
+        val aReachedPublication = CountDownLatch(1)
+        val releaseAPublication = CountDownLatch(1)
+        val failureA = AtomicReference<Throwable?>(null)
+        val gateA = AutomationPublicationGate { publication ->
+            aReachedPublication.countDown()
+            check(releaseAPublication.await(5, TimeUnit.SECONDS))
+            if (cancelledA.get()) {
+                false
+            } else {
+                publication()
+                true
+            }
+        }
+        val gateB = AutomationPublicationGate { publication ->
+            publication()
+            true
+        }
+
+        store.removeVariable(variableA)
+        store.removeVariable(variableB)
+        try {
+            val workerA = thread(name = "automation-immediate-publication-a", isDaemon = true) {
+                failureA.set(
+                    runCatching {
+                        HermesAutomationBridge.performActionJson(
+                            context = context,
+                            action = "set_variable",
+                            arguments = org.json.JSONObject()
+                                .put("name", variableA)
+                                .put("value", "must-not-persist"),
+                            cancellationRequested = { cancelledA.get() },
+                            publicationGate = gateA,
+                        )
+                    }.exceptionOrNull(),
+                )
+            }
+            assertTrue("request A never reached its immediate mutation boundary", aReachedPublication.await(5, TimeUnit.SECONDS))
+
+            val resultB = org.json.JSONObject(
+                HermesAutomationBridge.performActionJson(
+                    context = context,
+                    action = "set_variable",
+                    arguments = org.json.JSONObject()
+                        .put("name", variableB)
+                        .put("value", "request-b-committed"),
+                    publicationGate = gateB,
+                ),
+            )
+            assertTrue(resultB.toString(), resultB.getBoolean("success"))
+            assertEquals("request-b-committed", store.getVariable(variableB))
+
+            cancelledA.set(true)
+            releaseAPublication.countDown()
+            workerA.join(5_000L)
+
+            assertFalse("request A remained blocked after Stop", workerA.isAlive)
+            assertTrue(failureA.get() is CancellationException)
+            assertNull(store.getVariable(variableA))
+            assertEquals("request-b-committed", store.getVariable(variableB))
+        } finally {
+            releaseAPublication.countDown()
+            store.removeVariable(variableA)
+            store.removeVariable(variableB)
+        }
+    }
+
+    @Test
+    fun requestOwnedBulkImportsAndWatcherLifecycleFailBeforeParsingOrHandoff() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = HermesAutomationStore(context)
+        val recordsBefore = store.list().map { it.toJson().toString() }
+        val variablesBefore = store.listVariables().toString()
+        val gateCalls = AtomicInteger(0)
+        val requestGate = AutomationPublicationGate { publication ->
+            gateCalls.incrementAndGet()
+            publication()
+            true
+        }
+        val actions = listOf(
+            "import_automations" to org.json.JSONObject()
+                .put("bundle_json", "{malformed-and-intentionally-never-parsed"),
+            "import_tasker_xml" to org.json.JSONObject()
+                .put("tasker_xml", "<TaskerData>${"x".repeat(100_000)}</TaskerData>"),
+            "start_logcat_watcher" to org.json.JSONObject(),
+            "start_calendar_watcher" to org.json.JSONObject(),
+            "start_location_watcher" to org.json.JSONObject(),
+            "start_sensor_watcher" to org.json.JSONObject(),
+        )
+
+        actions.forEach { (action, arguments) ->
+            val result = org.json.JSONObject(
+                HermesAutomationBridge.performActionJson(
+                    context = context,
+                    action = action,
+                    arguments = arguments,
+                    publicationGate = requestGate,
+                ),
+            )
+            assertEquals(action, 126, result.optInt("exit_code", -1))
+            assertTrue(action, result.optBoolean("request_owned_bulk_mutation_blocked", false))
+        }
+
+        assertEquals("a fail-closed bulk action entered the mutation gate", 0, gateCalls.get())
+        assertEquals(recordsBefore, store.list().map { it.toJson().toString() })
+        assertEquals(variablesBefore, store.listVariables().toString())
+    }
+
+    @Test
+    fun preparedSettingsImportDoesNotHoldCancellationLockDuringSlowPreparation() {
+        val context = RuntimeEnvironment.getApplication()
+        val settingsStore = AppSettingsStore(context)
+        val original = settingsStore.load()
+        val requestLock = Any()
+        val cancelled = AtomicBoolean(false)
+        val preparationReached = CountDownLatch(1)
+        val releasePreparation = CountDownLatch(1)
+        val cancelAcquired = CountDownLatch(1)
+        val workerFailure = AtomicReference<Throwable?>()
+        val desiredPrompt = "must-not-commit-${System.nanoTime()}"
+        val gate = AutomationPublicationGate { publication ->
+            synchronized(requestLock) {
+                if (cancelled.get()) {
+                    false
+                } else {
+                    publication()
+                    true
+                }
+            }
+        }
+
+        try {
+            val worker = thread(name = "prepared-settings-import-a", isDaemon = true) {
+                workerFailure.set(
+                    runCatching {
+                        HermesAutomationBridge.performActionJson(
+                            context = context,
+                            action = "import_app_settings",
+                            arguments = org.json.JSONObject()
+                                .put(
+                                    "settings",
+                                    org.json.JSONObject().put("custom_system_prompt", desiredPrompt),
+                                ),
+                            cancellationRequested = { cancelled.get() },
+                            publicationGate = gate,
+                            beforePreparedImmediateMutationCommit = {
+                                preparationReached.countDown()
+                                check(releasePreparation.await(5, TimeUnit.SECONDS))
+                            },
+                        )
+                    }.exceptionOrNull(),
+                )
+            }
+            assertTrue("settings import never finished preparation", preparationReached.await(5, TimeUnit.SECONDS))
+
+            val cancelWorker = thread(name = "prepared-settings-import-cancel", isDaemon = true) {
+                synchronized(requestLock) {
+                    cancelled.set(true)
+                    cancelAcquired.countDown()
+                }
+            }
+            assertTrue(
+                "Stop could not acquire the request lock while slow import preparation was blocked",
+                cancelAcquired.await(1, TimeUnit.SECONDS),
+            )
+            releasePreparation.countDown()
+            worker.join(5_000)
+            cancelWorker.join(5_000)
+
+            assertFalse("prepared settings import did not unwind", worker.isAlive)
+            assertTrue(workerFailure.get() is CancellationException)
+            assertEquals(original.customSystemPrompt, settingsStore.load().customSystemPrompt)
+        } finally {
+            releasePreparation.countDown()
+            settingsStore.save(original)
+        }
+    }
+
+    @Test
+    fun chatOwnedSavedShizukuShellIsRejectedBeforePrivilegedBridgeDispatch() {
+        val context = RuntimeEnvironment.getApplication()
+        val privilegedDispatches = AtomicInteger(0)
+        val record = HermesAutomationRecord(
+            id = "saved-shizuku-chat-block",
+            label = "Saved Shizuku shell",
+            actionType = ACTION_TYPE_SHELL,
+            command = "id",
+            useShizuku = true,
+            triggerType = TRIGGER_MANUAL,
+            intervalMinutes = null,
+            enabled = true,
+            createdAtEpochMs = 1L,
+            updatedAtEpochMs = 1L,
+        )
+
+        val result = HermesAutomationBridge.runShellRecord(
+            context = context,
+            record = record,
+            variables = org.json.JSONObject(),
+            cancellationRequested = { false },
+            requestHttpClient = null,
+            allowUncancellablePrivilegedShell = false,
+            privilegedShellRunner = { _, _, _ ->
+                privilegedDispatches.incrementAndGet()
+                org.json.JSONObject().put("success", true).put("exit_code", 0).toString()
+            },
+            nativeShellRunner = { _, _, _, _, _ ->
+                throw AssertionError("Shizuku record must not fall through to the native shell runner")
+            },
+        )
+
+        assertFalse(result.toString(), result.getBoolean("success"))
+        assertEquals(126, result.getInt("exit_code"))
+        assertTrue(result.getString("error").contains("blocked in chat"))
+        assertEquals("Privileged bridge was dispatched despite the chat boundary", 0, privilegedDispatches.get())
+    }
+
+    @Test
+    fun manualSavedShizukuShellKeepsItsExistingPrivilegedBridgeRoute() {
+        val context = RuntimeEnvironment.getApplication()
+        val privilegedDispatches = AtomicInteger(0)
+        val record = HermesAutomationRecord(
+            id = "saved-shizuku-manual-allowed",
+            label = "Manual Shizuku shell",
+            actionType = ACTION_TYPE_SHELL,
+            command = "id",
+            useShizuku = true,
+            triggerType = TRIGGER_MANUAL,
+            intervalMinutes = null,
+            enabled = true,
+            createdAtEpochMs = 1L,
+            updatedAtEpochMs = 1L,
+        )
+
+        val result = HermesAutomationBridge.runShellRecord(
+            context = context,
+            record = record,
+            variables = org.json.JSONObject(),
+            cancellationRequested = { false },
+            requestHttpClient = null,
+            privilegedShellRunner = { _, command, timeoutSeconds ->
+                privilegedDispatches.incrementAndGet()
+                assertEquals("id", command)
+                assertEquals(30, timeoutSeconds)
+                org.json.JSONObject().put("success", true).put("exit_code", 0).toString()
+            },
+        )
+
+        assertTrue(result.toString(), result.getBoolean("success"))
+        assertEquals(1, privilegedDispatches.get())
+    }
+
+    @Test
+    fun savedPkgShellReceivesTheExactRequestOwnedHttpClient() {
+        val context = RuntimeEnvironment.getApplication()
+        val requestClient = OkHttpClient.Builder().build()
+        var capturedClient: OkHttpClient? = null
+        var capturedCommand = ""
+        val record = HermesAutomationRecord(
+            id = "saved-pkg-http-client",
+            label = "Saved package search",
+            actionType = ACTION_TYPE_SHELL,
+            command = "pkg search curl",
+            useShizuku = false,
+            triggerType = TRIGGER_MANUAL,
+            intervalMinutes = null,
+            enabled = true,
+            createdAtEpochMs = 1L,
+            updatedAtEpochMs = 1L,
+        )
+
+        val result = HermesAutomationBridge.runShellRecord(
+            context = context,
+            record = record,
+            variables = org.json.JSONObject(),
+            cancellationRequested = { false },
+            requestHttpClient = requestClient,
+            hostPackageCliRunner = { _, command, packageHttpClient, cancelled, _, _ ->
+                capturedClient = packageHttpClient
+                capturedCommand = command
+                assertFalse(cancelled())
+                org.json.JSONObject().put("success", true).put("exit_code", 0)
+            },
+        )
+
+        assertTrue(result.toString(), result.getBoolean("success"))
+        assertEquals("pkg search curl", capturedCommand)
+        assertTrue("Saved pkg route did not retain request-owned client identity", capturedClient === requestClient)
+    }
+
     @Test
     fun storeRoundTripsAndRemovesAutomationRecords() {
         val context = RuntimeEnvironment.getApplication()
@@ -819,6 +1172,82 @@ class HermesAutomationStoreTest {
         assertEquals(1, triggered.getInt("matched_count"))
         assertTrue(store.getVariable("TIME").orEmpty().matches(Regex("\\d{2}:\\d{2}")))
         assertTrue(store.getVariable("TIME_DAY").orEmpty() in setOf("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"))
+    }
+
+    @Test
+    fun chatCancellationReachesDirectTriggerAndQuickSettingsWrapperWithoutRunHistoryMutation() {
+        val context = RuntimeEnvironment.getApplication()
+        val store = HermesAutomationStore(context)
+        store.clear()
+        HermesQuickSettingsTileBridge.clearTileAutomationJson(context)
+        val automationId = "auto-chat-cancel-${System.nanoTime()}"
+        val relativePath = "$automationId.txt"
+        val home = File(HermesLinuxSubsystemBridge.ensureInstalled(context).getString("home_path"))
+        val target = File(home, relativePath)
+        target.delete()
+
+        try {
+            val created = org.json.JSONObject(
+                HermesAutomationBridge.performActionJson(
+                    context,
+                    "create_file_write_task",
+                    org.json.JSONObject()
+                        .put("id", automationId)
+                        .put("path", relativePath)
+                        .put("content", "owned chat action")
+                        .put("trigger", "manual"),
+                ),
+            )
+            assertTrue(created.toString(), created.getBoolean("success"))
+
+            // The fourth check is runRecord admission. Cancellation must now reject the saved
+            // file mutation itself, not merely its later history publication.
+            val directChecks = AtomicInteger(0)
+            val directFailure = runCatching {
+                HermesAutomationBridge.performActionJson(
+                    context,
+                    "run_trigger",
+                    org.json.JSONObject().put("trigger", "manual"),
+                    cancellationRequested = { directChecks.incrementAndGet() >= 4 },
+                )
+            }.exceptionOrNull()
+            assertTrue(directFailure is CancellationException)
+            assertTrue("run_trigger did not reach the owned post-action cancellation boundary", directChecks.get() >= 4)
+            assertFalse("cancelled request wrote the saved file action", target.exists())
+            assertTrue(store.listRunEvents().none { it.automationId == automationId })
+            assertNull(store.get(automationId)?.lastRunEpochMs)
+
+            target.delete()
+            val configured = org.json.JSONObject(
+                HermesAutomationBridge.performActionJson(
+                    context,
+                    "set_quick_settings_tile_automation",
+                    org.json.JSONObject().put("automation_id", automationId),
+                ),
+            )
+            assertTrue(configured.toString(), configured.getBoolean("success"))
+
+            // The wrapper has one fewer outer boundary and must reject the saved file before
+            // its final workspace commit as well.
+            val wrapperChecks = AtomicInteger(0)
+            val wrapperFailure = runCatching {
+                HermesAutomationBridge.performActionJson(
+                    context,
+                    "run_quick_settings_tile",
+                    org.json.JSONObject(),
+                    cancellationRequested = { wrapperChecks.incrementAndGet() >= 3 },
+                )
+            }.exceptionOrNull()
+            assertTrue(wrapperFailure is CancellationException)
+            assertTrue("Quick Settings wrapper dropped the request cancellation callback", wrapperChecks.get() >= 3)
+            assertFalse("cancelled wrapper wrote the saved file action", target.exists())
+            assertTrue(store.listRunEvents().none { it.automationId == automationId })
+            assertNull(store.get(automationId)?.lastRunEpochMs)
+        } finally {
+            HermesQuickSettingsTileBridge.clearTileAutomationJson(context)
+            target.delete()
+            store.clear()
+        }
     }
 
     @Test
@@ -2228,53 +2657,58 @@ class HermesAutomationStoreTest {
     fun bridgeExportsAndImportsSecretFreeAppSettingsBundles() {
         val context = RuntimeEnvironment.getApplication()
         val store = AppSettingsStore(context)
-        store.save(
-            AppSettings(
-                provider = "openai",
-                baseUrl = "https://api.openai.example/v1",
-                model = "gpt-test",
-                dataSaverMode = true,
-                offlineAirplaneMode = true,
-                portalEnabled = false,
-                onDeviceBackend = "litert_lm",
-                languageTag = "pt",
-                customSystemPrompt = "Use local tools first and stay brief.",
-                themePrimaryHex = "#123456",
-                themeCardShape = "square",
-            ),
-        )
+        val originalSettings = store.load()
+        try {
+            store.save(
+                AppSettings(
+                    provider = "openai",
+                    baseUrl = "https://api.openai.example/v1",
+                    model = "gpt-test",
+                    dataSaverMode = true,
+                    offlineAirplaneMode = true,
+                    portalEnabled = false,
+                    onDeviceBackend = "litert_lm",
+                    languageTag = "pt",
+                    customSystemPrompt = "Use local tools first and stay brief.",
+                    themePrimaryHex = "#123456",
+                    themeCardShape = "square",
+                ),
+            )
 
-        val exported = org.json.JSONObject(HermesAutomationBridge.performActionJson(context, "export_app_settings"))
-        assertTrue(exported.toString(), exported.getBoolean("success"))
-        assertEquals(AppSettings.EXPORT_KIND, exported.getString("kind"))
-        assertFalse(exported.getBoolean("secrets_included"))
-        assertTrue(exported.getJSONArray("redacted_secret_fields").toString().contains("access_token"))
-        assertEquals("openai", exported.getJSONObject("settings").getString("provider"))
-        assertEquals("Use local tools first and stay brief.", exported.getJSONObject("settings").getString("custom_system_prompt"))
+            val exported = org.json.JSONObject(HermesAutomationBridge.performActionJson(context, "export_app_settings"))
+            assertTrue(exported.toString(), exported.getBoolean("success"))
+            assertEquals(AppSettings.EXPORT_KIND, exported.getString("kind"))
+            assertFalse(exported.getBoolean("secrets_included"))
+            assertTrue(exported.getJSONArray("redacted_secret_fields").toString().contains("access_token"))
+            assertEquals("openai", exported.getJSONObject("settings").getString("provider"))
+            assertEquals("Use local tools first and stay brief.", exported.getJSONObject("settings").getString("custom_system_prompt"))
 
-        store.save(AppSettings())
-        val imported = org.json.JSONObject(
-            HermesAutomationBridge.performActionJson(
-                context,
-                "import_app_settings",
-                org.json.JSONObject().put("bundle", exported.getJSONObject("bundle")),
-            ),
-        )
+            store.save(AppSettings())
+            val imported = org.json.JSONObject(
+                HermesAutomationBridge.performActionJson(
+                    context,
+                    "import_app_settings",
+                    org.json.JSONObject().put("bundle", exported.getJSONObject("bundle")),
+                ),
+            )
 
-        assertTrue(imported.toString(), imported.getBoolean("success"))
-        assertEquals("import_app_settings", imported.getString("action"))
-        val reloaded = store.load()
-        assertEquals("openai", reloaded.provider)
-        assertEquals("https://api.openai.example/v1", reloaded.baseUrl)
-        assertEquals("gpt-test", reloaded.model)
-        assertTrue(reloaded.dataSaverMode)
-        assertTrue(reloaded.offlineAirplaneMode)
-        assertFalse(reloaded.portalEnabled)
-        assertEquals("litert_lm", reloaded.onDeviceBackend)
-        assertEquals("pt", reloaded.languageTag)
-        assertEquals("Use local tools first and stay brief.", reloaded.customSystemPrompt)
-        assertEquals("#123456", reloaded.themePrimaryHex)
-        assertEquals("square", reloaded.themeCardShape)
+            assertTrue(imported.toString(), imported.getBoolean("success"))
+            assertEquals("import_app_settings", imported.getString("action"))
+            val reloaded = store.load()
+            assertEquals("openai", reloaded.provider)
+            assertEquals("https://api.openai.example/v1", reloaded.baseUrl)
+            assertEquals("gpt-test", reloaded.model)
+            assertTrue(reloaded.dataSaverMode)
+            assertTrue(reloaded.offlineAirplaneMode)
+            assertFalse(reloaded.portalEnabled)
+            assertEquals("litert_lm", reloaded.onDeviceBackend)
+            assertEquals("pt", reloaded.languageTag)
+            assertEquals("Use local tools first and stay brief.", reloaded.customSystemPrompt)
+            assertEquals("#123456", reloaded.themePrimaryHex)
+            assertEquals("square", reloaded.themeCardShape)
+        } finally {
+            store.save(originalSettings)
+        }
     }
 
     @Test

@@ -10,6 +10,7 @@ import android.os.Build
 import android.widget.RemoteViews
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
+import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -36,7 +37,7 @@ object HermesAutomationWidgetBridge {
             .edit()
             .putString(automationKey(appWidgetId), record.id)
             .putString(labelKey(appWidgetId), label.take(MAX_WIDGET_LABEL_CHARS))
-            .apply()
+            .commit()
 
         updateWidgets(appContext)
         val requestPin = arguments.optBoolean("pin", arguments.optBoolean("request_pin", false))
@@ -106,7 +107,7 @@ object HermesAutomationWidgetBridge {
             editor.remove(automationKey(appWidgetId))
             editor.remove(labelKey(appWidgetId))
         }
-        editor.apply()
+        editor.commit()
         updateWidgets(appContext)
         return JSONObject()
             .put("success", true)
@@ -118,7 +119,12 @@ object HermesAutomationWidgetBridge {
             .toString()
     }
 
-    fun runConfiguredAutomationJson(context: Context, appWidgetId: Int? = null): String {
+    fun runConfiguredAutomationJson(
+        context: Context,
+        appWidgetId: Int? = null,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
         val appContext = context.applicationContext
         val config = configuredAutomation(appContext, appWidgetId)
             ?: return errorJson("No Hermes automation is configured for this home-screen widget")
@@ -127,6 +133,8 @@ object HermesAutomationWidgetBridge {
                 appContext,
                 config.automationId,
                 TRIGGER_HOME_SCREEN_WIDGET,
+                cancellationRequested,
+                requestHttpClient,
             ),
         )
         return result
@@ -138,12 +146,17 @@ object HermesAutomationWidgetBridge {
             .toString()
     }
 
-    fun runConfiguredAutomationJson(context: Context, arguments: JSONObject): String {
+    fun runConfiguredAutomationJson(
+        context: Context,
+        arguments: JSONObject,
+        cancellationRequested: () -> Boolean = { false },
+        requestHttpClient: OkHttpClient? = null,
+    ): String {
         val appWidgetId = widgetIdArgument(arguments)
         if (appWidgetId != null && appWidgetId <= 0) {
             return errorJson("home screen widget id must be a positive integer")
         }
-        return runConfiguredAutomationJson(context, appWidgetId)
+        return runConfiguredAutomationJson(context, appWidgetId, cancellationRequested, requestHttpClient)
     }
 
     fun updateWidgets(context: Context) {
@@ -195,7 +208,7 @@ object HermesAutomationWidgetBridge {
             editor.remove(automationKey(appWidgetId))
             editor.remove(labelKey(appWidgetId))
         }
-        editor.apply()
+        editor.commit()
     }
 
     private fun requestPinWidget(context: Context): PinResult {

@@ -6,7 +6,9 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.InterruptedIOException
 import java.security.MessageDigest
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -69,7 +71,7 @@ object HermesTermuxPackageManager {
         "xz-utils",
     )
 
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+    private val defaultHttpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .callTimeout(180, TimeUnit.SECONDS)
@@ -97,27 +99,63 @@ object HermesTermuxPackageManager {
         packages: List<String> = emptyList(),
         mirrorProfile: String = "",
         query: String = "",
+        httpClient: OkHttpClient? = null,
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+        requestOwned: Boolean = publicationGate != null,
     ): JSONObject {
         val app = context.applicationContext
+        val normalizedAction = action.trim().lowercase().ifBlank { "status" }
+        throwIfPackageRequestCancelled(cancellationRequested)
         if (mirrorProfile.isNotBlank()) {
-            HermesTermuxMirrorConfig.setMirrorProfile(app, mirrorProfile)
+            publishMirrorProfile(
+                context = app,
+                profile = mirrorProfile,
+                action = normalizedAction,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+                requestOwned = requestOwned,
+            )?.let { return it }
         }
-        val state = HermesLinuxSubsystemBridge.ensureInstalled(app)
+        val state = if (requestOwned) {
+            HermesLinuxSubsystemBridge.readStateSnapshot(app)
+                ?: return errorResult(
+                    action = normalizedAction,
+                    message = "Embedded Termux prefix is not initialized. Open the manual terminal once before using chat-owned host package discovery.",
+                )
+        } else {
+            HermesLinuxSubsystemBridge.ensureInstalled(app)
+        }
+        throwIfPackageRequestCancelled(cancellationRequested)
         if (!state.optBoolean("uses_termux", false)) {
             return errorResult(
-                action = action,
+                action = normalizedAction,
                 message = "Embedded Termux prefix is unavailable (system shell fallback).",
             )
         }
-        seedStatusFromApkIfNeeded(app, state)
-        return when (action.trim().lowercase()) {
+        // Chat status/list/search must stay observational. Baseline restoration and package-state
+        // reconciliation can rewrite a large managed prefix, so only manual/background callers run
+        // that repair lane. A signed APK or the manual terminal can initialize it ahead of chat.
+        if (!requestOwned) {
+            seedStatusFromApkIfNeeded(app, state)
+        }
+        throwIfPackageRequestCancelled(cancellationRequested)
+        return when (normalizedAction) {
             "", "status", "show" -> status(app, state, packages)
             "update", "refresh", "update_index" -> updateIndex(app, state)
             "upgrade", "full-upgrade", "dist-upgrade" -> upgrade(app, state, packages)
             "install", "add" -> install(app, state, packages)
             "remove", "uninstall", "purge" -> remove(app, state, packages)
             "list", "list-installed" -> listInstalled(app, state)
-            "search", "find" -> search(app, state, query.ifBlank { packages.firstOrNull().orEmpty() })
+            "search", "find" -> search(
+                context = app,
+                state = state,
+                query = query.ifBlank { packages.firstOrNull().orEmpty() },
+                httpClient = httpClient ?: defaultHttpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+                requestOwned = requestOwned,
+            )
             "set_mirror", "mirror" -> {
                 val profile = mirrorProfile.ifBlank { packages.firstOrNull().orEmpty() }
                 if (profile.isBlank()) {
@@ -125,13 +163,28 @@ object HermesTermuxPackageManager {
                         .put("action", "set_mirror")
                         .put("mirror_profile", HermesTermuxMirrorConfig.mirrorProfile(app))
                 }
-                HermesTermuxMirrorConfig.setMirrorProfile(app, profile)
+                publishMirrorProfile(
+                    context = app,
+                    profile = profile,
+                    action = "set_mirror",
+                    cancellationRequested = cancellationRequested,
+                    publicationGate = publicationGate,
+                    requestOwned = requestOwned,
+                )?.let { return it }
                 status(app, state)
                     .put("action", "set_mirror")
                     .put("mirror_profile", HermesTermuxMirrorConfig.mirrorProfile(app))
                     .put("exit_code", 0)
             }
-            "cli" -> runCli(app, state, packages)
+            "cli" -> runCli(
+                context = app,
+                state = state,
+                tokens = packages,
+                httpClient = httpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+                requestOwned = requestOwned,
+            )
             else -> errorResult(
                 action = action,
                 message = "Unknown action '$action'. Use status, update, upgrade, install, remove, list, search, set_mirror.",
@@ -142,11 +195,26 @@ object HermesTermuxPackageManager {
     /**
      * Parse a shell-style `pkg …` / `hermes-pkg …` command into an action.
      */
-    fun performCliCommand(context: Context, commandLine: String): JSONObject {
+    fun performCliCommand(
+        context: Context,
+        commandLine: String,
+        httpClient: OkHttpClient? = null,
+        cancellationRequested: () -> Boolean = { false },
+        publicationGate: AutomationPublicationGate? = null,
+        requestOwned: Boolean = publicationGate != null,
+    ): JSONObject {
+        throwIfPackageRequestCancelled(cancellationRequested)
         val tokens = tokenize(commandLine)
             .dropWhile { it in setOf("pkg", "hermes-pkg", "command") }
         if (tokens.isEmpty()) {
-            return performAction(context, "status")
+            return performAction(
+                context = context,
+                action = "status",
+                httpClient = httpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+                requestOwned = requestOwned,
+            )
         }
         val sub = tokens[0].lowercase()
         val rest = tokens.drop(1).filter { !it.startsWith("-") }
@@ -162,8 +230,20 @@ object HermesTermuxPackageManager {
                 },
                 packages = rest,
                 query = rest.joinToString(" "),
+                httpClient = httpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+                requestOwned = requestOwned,
             )
-            else -> performAction(context, "install", packages = tokens)
+            else -> performAction(
+                context = context,
+                action = "install",
+                packages = tokens,
+                httpClient = httpClient,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+                requestOwned = requestOwned,
+            )
         }
     }
 
@@ -301,9 +381,24 @@ object HermesTermuxPackageManager {
             )
     }
 
-    private fun runCli(context: Context, state: JSONObject, tokens: List<String>): JSONObject {
+    private fun runCli(
+        context: Context,
+        state: JSONObject,
+        tokens: List<String>,
+        httpClient: OkHttpClient?,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        requestOwned: Boolean,
+    ): JSONObject {
         if (tokens.isEmpty()) return status(context, state)
-        return performCliCommand(context, tokens.joinToString(" "))
+        return performCliCommand(
+            context = context,
+            commandLine = tokens.joinToString(" "),
+            httpClient = httpClient,
+            cancellationRequested = cancellationRequested,
+            publicationGate = publicationGate,
+            requestOwned = requestOwned,
+        )
     }
 
     private fun status(context: Context, state: JSONObject, filter: List<String> = emptyList()): JSONObject {
@@ -376,11 +471,27 @@ object HermesTermuxPackageManager {
         return status(context, state).put("action", "list")
     }
 
-    private fun search(context: Context, state: JSONObject, query: String): JSONObject {
+    private fun search(
+        context: Context,
+        state: JSONObject,
+        query: String,
+        httpClient: OkHttpClient,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        requestOwned: Boolean,
+    ): JSONObject {
         if (query.isBlank()) {
             return errorResult("search", "search requires a query")
         }
-        val index = ensureIndex(context, state)
+        val index = ensureIndex(
+            context = context,
+            state = state,
+            httpClient = httpClient,
+            cancellationRequested = cancellationRequested,
+            publicationGate = publicationGate,
+            requestOwned = requestOwned,
+        )
+        throwIfPackageRequestCancelled(cancellationRequested)
         val q = query.lowercase()
         val matches = JSONArray()
         for ((name, record) in index) {
@@ -452,7 +563,15 @@ object HermesTermuxPackageManager {
         return immutableHostPackageResult(context, state, "remove", requested)
     }
 
-    private fun ensureIndex(context: Context, state: JSONObject): Map<String, PackageRecord> {
+    private fun ensureIndex(
+        context: Context,
+        state: JSONObject,
+        httpClient: OkHttpClient,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        requestOwned: Boolean,
+    ): Map<String, PackageRecord> {
+        throwIfPackageRequestCancelled(cancellationRequested)
         val cached = loadIndexCache(context, state)
         if (cached.isNotEmpty()) {
             val meta = loadIndexMeta(context, state)
@@ -461,12 +580,27 @@ object HermesTermuxPackageManager {
                 return cached
             }
         }
-        val (index, mirror) = fetchIndex(context, state)
-        saveIndexCache(context, state, index, mirror)
+        val (index, mirror) = fetchIndex(context, state, httpClient, cancellationRequested)
+        throwIfPackageRequestCancelled(cancellationRequested)
+        if (!requestOwned || publicationGate != null) {
+            saveIndexCache(
+                context = context,
+                state = state,
+                index = index,
+                mirror = mirror,
+                cancellationRequested = cancellationRequested,
+                publicationGate = publicationGate,
+            )
+        }
         return index
     }
 
-    private fun fetchIndex(context: Context, state: JSONObject): Pair<Map<String, PackageRecord>, String> {
+    private fun fetchIndex(
+        context: Context,
+        state: JSONObject,
+        httpClient: OkHttpClient,
+        cancellationRequested: () -> Boolean,
+    ): Pair<Map<String, PackageRecord>, String> {
         val arch = state.optString("termux_arch").ifBlank {
             when (state.optString("android_abi")) {
                 "arm64-v8a" -> "aarch64"
@@ -477,9 +611,11 @@ object HermesTermuxPackageManager {
         val relative = HermesTermuxMirrorConfig.packagesIndexPath(arch)
         val errors = mutableListOf<String>()
         for (base in HermesTermuxMirrorConfig.orderedBaseUrls(context)) {
+            throwIfPackageRequestCancelled(cancellationRequested)
             val url = HermesTermuxMirrorConfig.url(base, relative)
             try {
-                val body = httpGetBytes(url)
+                val body = httpGetBytes(url, httpClient, cancellationRequested)
+                throwIfPackageRequestCancelled(cancellationRequested)
                 val text = body.toString(Charsets.UTF_8)
                 val index = parsePackagesIndex(text)
                 if (index.isEmpty()) {
@@ -488,13 +624,24 @@ object HermesTermuxPackageManager {
                 }
                 return index to base
             } catch (exc: Exception) {
+                if (
+                    exc is CancellationException || exc is InterruptedIOException ||
+                    cancellationRequested() || Thread.currentThread().isInterrupted
+                ) {
+                    throw exc
+                }
                 errors.add("$url: ${exc.message}")
             }
         }
         throw IllegalStateException("Failed to fetch Packages index: ${errors.joinToString(" | ")}")
     }
 
-    private fun httpGetBytes(url: String): ByteArray {
+    private fun httpGetBytes(
+        url: String,
+        httpClient: OkHttpClient,
+        cancellationRequested: () -> Boolean,
+    ): ByteArray {
+        throwIfPackageRequestCancelled(cancellationRequested)
         val request = Request.Builder()
             .url(url)
             .header("User-Agent", HermesTermuxMirrorConfig.USER_AGENT)
@@ -502,6 +649,7 @@ object HermesTermuxPackageManager {
             .get()
             .build()
         httpClient.newCall(request).execute().use { response ->
+            throwIfPackageRequestCancelled(cancellationRequested)
             if (!response.isSuccessful) {
                 throw IllegalStateException("HTTP ${response.code}")
             }
@@ -557,9 +705,7 @@ object HermesTermuxPackageManager {
 
     private fun pkgDir(context: Context, state: JSONObject): File {
         val abi = state.optString("android_abi").ifBlank { "arm64-v8a" }
-        val dir = File(context.filesDir, "hermes-home/linux/$abi/var/lib/hermes-pkg")
-        dir.mkdirs()
-        return dir
+        return File(context.filesDir, "hermes-home/linux/$abi/var/lib/hermes-pkg")
     }
 
     private fun loadStatus(context: Context, state: JSONObject): JSONObject {
@@ -572,7 +718,8 @@ object HermesTermuxPackageManager {
     }
 
     private fun saveStatus(context: Context, state: JSONObject, db: JSONObject) {
-        File(pkgDir(context, state), STATUS_FILE).writeText(db.toString(), Charsets.UTF_8)
+        val dir = pkgDir(context, state).apply { mkdirs() }
+        File(dir, STATUS_FILE).writeText(db.toString(), Charsets.UTF_8)
     }
 
     private fun loadIndexCache(context: Context, state: JSONObject): Map<String, PackageRecord> {
@@ -592,8 +739,9 @@ object HermesTermuxPackageManager {
         state: JSONObject,
         index: Map<String, PackageRecord>,
         mirror: String,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
     ) {
-        val dir = pkgDir(context, state)
         // Rebuild a minimal Packages-like cache for parsePackagesIndex
         val body = buildString {
             for (record in index.values.sortedBy { it.name }) {
@@ -607,15 +755,54 @@ object HermesTermuxPackageManager {
                 append('\n')
             }
         }
-        File(dir, INDEX_CACHE).writeText(body, Charsets.UTF_8)
-        File(dir, INDEX_META).writeText(
-            JSONObject()
-                .put("updated_at_ms", System.currentTimeMillis())
-                .put("mirror", mirror)
-                .put("package_count", index.size)
-                .toString(),
-            Charsets.UTF_8,
-        )
+        val metadata = JSONObject()
+            .put("updated_at_ms", System.currentTimeMillis())
+            .put("mirror", mirror)
+            .put("package_count", index.size)
+            .toString()
+        throwIfPackageRequestCancelled(cancellationRequested)
+        publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Host package search was stopped before publishing its discovery cache")
+            },
+        ) {
+            val dir = pkgDir(context, state).apply { mkdirs() }
+            File(dir, INDEX_CACHE).writeText(body, Charsets.UTF_8)
+            File(dir, INDEX_META).writeText(metadata, Charsets.UTF_8)
+            Unit
+        }
+    }
+
+    private fun publishMirrorProfile(
+        context: Context,
+        profile: String,
+        action: String,
+        cancellationRequested: () -> Boolean,
+        publicationGate: AutomationPublicationGate?,
+        requestOwned: Boolean,
+    ): JSONObject? {
+        throwIfPackageRequestCancelled(cancellationRequested)
+        if (requestOwned && publicationGate == null) {
+            return errorResult(action, "Chat-owned mirror changes require an active request mutation gate")
+        }
+        publicationGate.publishValueIfActive(
+            cancelledValue = {
+                throw CancellationException("Host package mirror change was stopped before publication")
+            },
+        ) {
+            HermesTermuxMirrorConfig.setMirrorProfile(context, profile)
+            Unit
+        }
+        return null
+    }
+
+    private fun throwIfPackageRequestCancelled(cancellationRequested: () -> Boolean) {
+        if (cancellationRequested()) {
+            throw CancellationException("Host package action was stopped")
+        }
+        if (Thread.currentThread().isInterrupted) {
+            throw InterruptedException("Host package action thread was interrupted")
+        }
     }
 
     fun seedStatusFromApkIfNeeded(context: Context, state: JSONObject) {
