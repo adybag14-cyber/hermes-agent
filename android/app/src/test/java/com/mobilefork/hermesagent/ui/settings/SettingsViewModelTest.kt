@@ -644,6 +644,39 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun readyLocalBackendSummaryPreservesMeasuredCompletionCanaryDetail() {
+        val detailed =
+            "llama.cpp Experimental TurboQuant / Nanbeige lane is serving locally; " +
+                "completion canary passed with nonblank message.content (17 characters) in 321 ms"
+
+        assertEquals(
+            detailed,
+            visibleReadyLocalBackendSummary(
+                status = LocalBackendStatus(
+                    backendKind = BackendKind.LLAMA_CPP,
+                    started = true,
+                    statusMessage = detailed,
+                    completionVerified = true,
+                    completionLatencyMs = 321L,
+                ),
+                fallback = { "generic ready" },
+            ),
+        )
+        assertEquals(
+            "generic ready",
+            visibleReadyLocalBackendSummary(
+                status = LocalBackendStatus(
+                    backendKind = BackendKind.LLAMA_CPP,
+                    started = true,
+                    statusMessage = detailed,
+                    completionVerified = false,
+                ),
+                fallback = { "generic ready" },
+            ),
+        )
+    }
+
+    @Test
     fun saveAgentPersonaPersistsCustomSystemPromptWithoutSecrets() {
         val application = RuntimeEnvironment.getApplication()
         val store = AppSettingsStore(application)
