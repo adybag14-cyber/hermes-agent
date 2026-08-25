@@ -11,6 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
@@ -18,6 +19,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.InterruptedIOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -291,6 +293,60 @@ class ChatViewModelTest {
         assertFalse(resultCommitted.get())
         assertFalse(coordinator.finishIfActive(request) { true })
         assertFalse(coordinator.mutateIfActive(request) {})
+    }
+
+    @Test
+    fun requestOwnedTransportCancellationIsStickyBeforeCallRegistration() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(MockResponse().setBody("must-not-be-requested"))
+            val transport = RequestOwnedHttpTransport(
+                cancellationMessage = "request was already stopped",
+            )
+            transport.cancel()
+
+            val failure = runCatching {
+                transport.client.newCall(
+                    Request.Builder().url(server.url("/late-call")).build(),
+                ).execute().use { response -> response.body?.string() }
+            }.exceptionOrNull()
+
+            assertTrue(failure is InterruptedIOException)
+            assertEquals("request was already stopped", failure?.message)
+            assertEquals(0, transport.activeCallCountForTest())
+            assertEquals(null, server.takeRequest(250, TimeUnit.MILLISECONDS))
+        } finally {
+            server.shutdown()
+        }
+    }
+
+    @Test
+    fun requestOwnedTransportForgetsCallsAtNaturalEofAndExplicitClose() {
+        val server = MockWebServer()
+        server.start()
+        try {
+            server.enqueue(MockResponse().setBody("natural-eof"))
+            server.enqueue(MockResponse().setBody("explicit-close"))
+            val transport = RequestOwnedHttpTransport()
+
+            transport.client.newCall(
+                Request.Builder().url(server.url("/natural-eof")).build(),
+            ).execute().use { response ->
+                assertEquals(1, transport.activeCallCountForTest())
+                assertEquals("natural-eof", response.body?.string())
+                assertEquals(0, transport.activeCallCountForTest())
+            }
+
+            val response = transport.client.newCall(
+                Request.Builder().url(server.url("/explicit-close")).build(),
+            ).execute()
+            assertEquals(1, transport.activeCallCountForTest())
+            response.close()
+            assertEquals(0, transport.activeCallCountForTest())
+        } finally {
+            server.shutdown()
+        }
     }
 
     @Test

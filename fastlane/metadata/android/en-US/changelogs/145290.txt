@@ -1,0 +1,1 @@
+Fixes Stop/cancellation for request-owned downloads after response headers, retaining the exact streaming call until its body closes so cancelling one chat cannot affect another. Adds deterministic concurrent-layer regression coverage. Retains the Nanbeige/TurboQuant, narrow tool-authority, generation-progress, and local-runtime improvements certified for the prior candidate.

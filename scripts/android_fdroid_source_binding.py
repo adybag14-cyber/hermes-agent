@@ -37,8 +37,8 @@ if str(SCRIPT_DIR) not in sys.path:
 
 BINDING_SCHEMA = "hermes-android-fdroid-source-binding-v1"
 BINDING_FILE_NAME = "hermes-android-fdroid-source-binding.properties"
-AUTUPDATE_VERSION_NAME = "0.13.151"
-AUTUPDATE_VERSION_CODE = "145190"
+AUTUPDATE_VERSION_NAME = "0.13.152"
+AUTUPDATE_VERSION_CODE = "145290"
 GRADLE_PATH = PurePosixPath("android/app/build.gradle.kts")
 FDROID_LOCAL_PROPERTIES = (
     PurePosixPath("local.properties"),

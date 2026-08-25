@@ -25,7 +25,6 @@ import com.mobilefork.hermesagent.device.HermesWorkspaceFileBridge
 import com.mobilefork.hermesagent.device.NativeAndroidShellTool
 import com.mobilefork.hermesagent.device.publishValueIfActive
 import okhttp3.Call
-import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -145,26 +144,17 @@ class NativeToolCallingChatClient(
     private var activeCall: Call? = null
     @Volatile
     private var cancelled: Boolean = false
-    private val requestToolHttpClient: OkHttpClient = (
-        requestToolHttpClient ?: OkHttpClient.Builder()
+    private val requestToolHttpTransport = RequestOwnedHttpTransport(
+        baseClient = requestToolHttpClient ?: OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(5, TimeUnit.MINUTES)
             .callTimeout(10, TimeUnit.MINUTES)
             .followRedirects(true)
             .followSslRedirects(true)
-            .build()
-        ).newBuilder()
-        // OkHttpClient.newBuilder() otherwise shares the base Dispatcher. Give every chat request
-        // an exact dispatcher so cancelling A cannot cancel B even if tests/integration supply the
-        // same base client instance to both request clients.
-        .dispatcher(Dispatcher())
-        .addInterceptor { chain ->
-            if (cancelled) {
-                throw InterruptedIOException("Native tool request was stopped before network dispatch")
-            }
-            chain.proceed(chain.request())
-        }
-        .build()
+            .build(),
+        cancellationMessage = "Native tool request was stopped before network dispatch",
+    )
+    private val requestToolHttpClient: OkHttpClient = requestToolHttpTransport.client
     private val automationPublicationGate = AutomationPublicationGate { publication ->
         // Test hook deliberately runs before the lock so a deterministic Stop can win any exact
         // native publication/mutation boundary. Production uses the no-op default.
@@ -187,10 +177,10 @@ class NativeToolCallingChatClient(
         // client's exact NativeToolChatOperation worker after interrupting runInterruptible.
         cancelled = true
         activeCall?.cancel()
-        // This client instance is request-owned. The sandbox fallback transport must be equally
-        // request-owned so Stop/onCleared can cancel Docker token/layer calls without affecting
-        // another chat or a manual sandbox session.
-        requestToolHttpClient.dispatcher.cancelAll()
+        // This transport instance is request-owned and retains exact calls through response-body
+        // close, so Stop/onCleared can cancel Docker token/layer streams without affecting another
+        // chat or a manual sandbox session.
+        requestToolHttpTransport.cancel()
     }
 
     private fun ensureNotCancelled() {

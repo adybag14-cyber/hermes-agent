@@ -41,7 +41,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
+import okhttp3.Call
+import okhttp3.Dispatcher
+import okhttp3.Interceptor
+import okhttp3.MediaType
 import okhttp3.OkHttpClient
+import okhttp3.Response
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.ForwardingSource
+import okio.buffer
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -329,23 +339,118 @@ internal class ChatInitializationGuard {
     }
 }
 
-/** A one-request OkHttp transport whose cancellation is sticky before registration and live after it. */
-internal class RequestOwnedHttpTransport {
-    private val cancellationRequested = AtomicBoolean(false)
+/**
+ * Tracks one request's exact OkHttp calls through response-body close, not merely until a
+ * synchronous [Call.execute] returns response headers. OkHttp's dispatcher removes a synchronous
+ * call at that earlier boundary, so dispatcher cancellation alone cannot reliably stop a body
+ * which is still being streamed.
+ */
+internal class RequestOwnedHttpTransport(
+    baseClient: OkHttpClient = OkHttpClient.Builder().build(),
+    private val cancellationMessage: String = "Chat fallback stopped before network dispatch",
+) {
+    private val calls = RequestOwnedCallRegistry(cancellationMessage)
 
-    val client: OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor { chain ->
-            if (cancellationRequested.get()) {
-                throw InterruptedIOException("Chat fallback stopped before network dispatch")
-            }
-            chain.proceed(chain.request())
-        }
-        .build()
+    val client: OkHttpClient = baseClient.newBuilder().let { builder ->
+        // OkHttpClient.newBuilder() shares the base Dispatcher by default. Request ownership must
+        // be enforced here, even when a caller supplies a shared base client, so cancelling this
+        // transport can never reach another request's queued or running calls.
+        builder.dispatcher(Dispatcher())
+        builder.interceptors().add(0, Interceptor(calls::intercept))
+        builder.build()
+    }
 
     fun cancel() {
-        cancellationRequested.set(true)
+        calls.cancelAll()
+        // Also reaches asynchronous calls which are still queued and have not entered the
+        // tracking interceptor yet. This dispatcher belongs only to this request transport.
         client.dispatcher.cancelAll()
     }
+
+    internal fun activeCallCountForTest(): Int = calls.activeCallCount()
+}
+
+private class RequestOwnedCallRegistry(
+    private val cancellationMessage: String,
+) {
+    private val lock = Any()
+    private var cancellationRequested = false
+    private val activeCalls = mutableSetOf<Call>()
+
+    fun intercept(chain: Interceptor.Chain): Response {
+        val call = chain.call()
+        synchronized(lock) {
+            if (cancellationRequested) {
+                call.cancel()
+                throw InterruptedIOException(cancellationMessage)
+            }
+            activeCalls += call
+        }
+        val response = try {
+            chain.proceed(chain.request())
+        } catch (error: Throwable) {
+            forget(call)
+            throw error
+        }
+        val body = response.body
+        if (body == null) {
+            forget(call)
+            return response
+        }
+        return response.newBuilder()
+            .body(RequestOwnedResponseBody(body) { forget(call) })
+            .build()
+    }
+
+    fun cancelAll() {
+        val snapshot = synchronized(lock) {
+            cancellationRequested = true
+            activeCalls.toList()
+        }
+        snapshot.forEach(Call::cancel)
+    }
+
+    fun activeCallCount(): Int = synchronized(lock) { activeCalls.size }
+
+    private fun forget(call: Call) = synchronized(lock) {
+        activeCalls -= call
+        Unit
+    }
+}
+
+private class RequestOwnedResponseBody(
+    private val delegate: ResponseBody,
+    onFinished: () -> Unit,
+) : ResponseBody() {
+    private val finished = AtomicBoolean(false)
+    private val trackedSource: BufferedSource = object : ForwardingSource(delegate.source()) {
+        private fun finishOnce() {
+            if (finished.compareAndSet(false, true)) onFinished()
+        }
+
+        override fun read(sink: Buffer, byteCount: Long): Long {
+            return try {
+                super.read(sink, byteCount).also { if (it == -1L) finishOnce() }
+            } catch (error: Throwable) {
+                finishOnce()
+                throw error
+            }
+        }
+
+        override fun close() {
+            try {
+                super.close()
+            } finally {
+                finishOnce()
+            }
+        }
+    }.buffer()
+
+    override fun contentType(): MediaType? = delegate.contentType()
+
+    override fun contentLength(): Long = delegate.contentLength()
+
+    override fun source(): BufferedSource = trackedSource
 }
 
 internal fun mergeInitialChatState(loaded: ChatUiState, current: ChatUiState): ChatUiState {
