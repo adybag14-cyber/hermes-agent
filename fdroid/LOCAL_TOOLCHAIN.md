@@ -19,10 +19,10 @@ cd ~/fdroiddata-hermes
 ```
 
 Run that preview from a fresh clone of the live `fdroiddata` metadata after the
-GitHub tag exists. `--auto` must create the local 0.13.152/145290 build recipe
+GitHub tag exists. `--auto` must create the local 0.13.153/145390 build recipe
 and resolve its exact tag commit. The autoupdater copies the prior build recipe,
 so its output is not yet eligible for the pinned build. From the same WSL shell,
-render and verify the v0.13.152 source-binding fields from the committed Hermes
+render and verify the v0.13.153 source-binding fields from the committed Hermes
 template into that generated build:
 
 ```sh
@@ -40,7 +40,7 @@ git -C "$FDROIDDATA_ROOT" diff -- \
   metadata/com.mobilefork.hermesagent.yml
 ```
 
-The render transaction requires exactly one 0.13.152/145290 build, preserves
+The render transaction requires exactly one 0.13.153/145390 build, preserves
 the autoupdater-resolved full Git commit, every historical `Builds` entry, and
 all unrelated live metadata, and overlays the exact `sudo`, `ndk`, `gradle`,
 `gradleprops`, and `prebuild` fields. It then verifies that
@@ -124,6 +124,35 @@ This handoff removes the prior `unbound` DEX difference; it does not by itself
 certify reproducibility. Certification still requires the pinned buildserver's
 `Binaries:` comparison to report that its unsigned APK matches the published
 GitHub universal APK after the standard signing-block normalization.
+
+Gradle also recognizes the central bot's inherited two-`sed` source
+transformation without weakening that boundary. Marker states are closed: an
+ordinary checkout has no root/app SDK locators and retains every tracked
+wrapper, while the exact F-Droid state has all three identical SDK locators and
+none of the three tracked scanner-managed wrappers. Every partial or contradictory
+combination fails. Any semantic release tag without an explicit digest invokes
+binding verification instead of emitting an unbound identity; an invalid tag,
+competing digest, or explicit binding disable fails.
+
+`android_fdroid_source_binding.py verify-transformed` accepts only the complete
+known signing scrub, SDK locators, two metadata edits, and scanner deletions. It
+sanitizes Git authority, rejects non-default index flags and all hidden
+untracked inputs, and compares each unchanged tracked file or symlink directly
+with its committed blob so clean filters cannot conceal different build bytes.
+It then requires `HEAD` to equal the peeled annotated tag on the canonical
+GitHub origin. That live read-only tag lookup is intentionally fail-closed when
+GitHub or the network is unavailable.
+
+This source fallback does not provision Android SDK packages. Central metadata
+must still declare NDK 29.0.14206865 and install CMake 3.31.6, exactly as the
+committed no-MR preview overlay does. Update detection alone is not proof that
+an unoverlaid inherited central recipe is buildable.
+
+The experimental native lane removes `.note.gnu.build-id` and `.comment` with
+the locked NDK `llvm-strip` after linking, then requires the locked
+`llvm-readelf` to prove both non-loadable host-metadata sections are absent.
+This prevents pre-strip host details from surviving as a different GNU build-ID
+in otherwise byte-identical F-Droid and GitHub libraries.
 
 You can inspect the complete side-effect-free contract before starting Docker:
 

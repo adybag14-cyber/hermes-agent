@@ -1,0 +1,1 @@
+Fixes F-Droid reproducibility by removing non-loadable host-derived ELF build IDs and compiler comments from the TurboQuant llama.cpp server before packaging, then proving those sections are absent. Also source-binds the exact legacy F-Droid bot checkout automatically, preventing unbound DEX and baseline-profile drift while retaining the v0.13.152 cancellation and Nanbeige fixes.

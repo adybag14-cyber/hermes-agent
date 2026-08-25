@@ -52,6 +52,10 @@ PATH_PREFIX_MAP_OPTIONS = (
     "-fmacro-prefix-map",
     "-fdebug-prefix-map",
 )
+NONDETERMINISTIC_ELF_SECTIONS = (
+    ".note.gnu.build-id",
+    ".comment",
+)
 
 
 def canonical_json_bytes(payload: Any) -> bytes:
@@ -675,6 +679,49 @@ def verify_no_local_path_leaks(binary: Path, roots: Iterable[Path]) -> None:
                     )
 
 
+def normalize_android_elf_metadata(
+    binary: Path,
+    *,
+    strip: Path,
+    readelf: Path,
+    environment: dict[str, str],
+) -> tuple[str, ...]:
+    """Remove host-derived, non-loadable ELF metadata and prove it is absent.
+
+    LLD calculates the GNU build ID before ``llvm-strip --strip-unneeded``.
+    Inputs which are discarded by that strip can therefore leave different
+    build-ID bytes in otherwise identical final Android executables.  Compiler
+    comments are also non-loadable host metadata.  Remove both with the exact
+    NDK tool and fail before packaging if either section survives.
+    """
+
+    command = [str(strip), "--strip-unneeded"]
+    command.extend(
+        f"--remove-section={section}" for section in NONDETERMINISTIC_ELF_SECTIONS
+    )
+    command.append(str(binary))
+    subprocess.run(command, check=True, env=environment)
+
+    result = subprocess.run(
+        [str(readelf), "-SW", str(binary)],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=environment,
+    )
+    section_names = set(
+        re.findall(r"^\s*\[\s*\d+\]\s+(\S+)", result.stdout, flags=re.MULTILINE)
+    )
+    surviving = sorted(section_names.intersection(NONDETERMINISTIC_ELF_SECTIONS))
+    if surviving:
+        raise RuntimeError(
+            f"{binary} retains non-reproducible ELF section(s): {', '.join(surviving)}"
+        )
+    return NONDETERMINISTIC_ELF_SECTIONS
+
+
 def configure_and_build_abi(
     *,
     lock: dict[str, Any],
@@ -924,7 +971,12 @@ def build_experimental_server(
                 jobs=jobs,
                 environment=environment,
             )
-            subprocess.run([str(strip), "--strip-unneeded", str(binary)], check=True, env=environment)
+            normalize_android_elf_metadata(
+                binary,
+                strip=strip,
+                readelf=readelf,
+                environment=environment,
+            )
             verify_no_local_path_leaks(binary, (work_dir, source_dir, build_dir))
             elf = verify_android_elf(
                 binary,
@@ -970,6 +1022,7 @@ def build_experimental_server(
                     "source": CANONICAL_SOURCE_PREFIX,
                     "build": CANONICAL_BUILD_PREFIX,
                 },
+                "removed_elf_sections": list(NONDETERMINISTIC_ELF_SECTIONS),
             },
             "capabilities": lock["capabilities"],
             "license_artifacts": lock["license_artifacts"],

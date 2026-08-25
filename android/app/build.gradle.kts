@@ -12,16 +12,15 @@ val repoRoot = rootDir.parentFile
 val hermesVersionFile = repoRoot.resolve("hermes_cli/__init__.py")
 val releaseTag = System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()
 val fdroidSourceBindingFileName = "hermes-android-fdroid-source-binding.properties"
-val hermesFdroidSourceBinding = providers.gradleProperty("hermesFdroidSourceBinding")
+val hermesFdroidSourceBindingSetting = providers.gradleProperty("hermesFdroidSourceBinding")
     .orNull
     ?.trim()
-    ?.let { configured ->
+    ?.also { configured ->
         require(configured == "true" || configured == "false") {
             "hermesFdroidSourceBinding must be exactly true or false, got '$configured'"
         }
-        configured.toBoolean()
     }
-    ?: false
+val hermesFdroidSourceBinding = hermesFdroidSourceBindingSetting?.toBoolean() ?: false
 val environmentHermesSourceDigest = System.getenv("HERMES_SOURCE_DIGEST")
     .orEmpty()
     .trim()
@@ -31,6 +30,53 @@ val environmentHermesSourceDigest = System.getenv("HERMES_SOURCE_DIGEST")
             "HERMES_SOURCE_DIGEST must be one lowercase SHA-256 digest, got '$digest'"
         }
     }
+val fdroidGeneratedSdkLocatorFiles = listOf(
+    repoRoot.resolve("local.properties"),
+    rootDir.resolve("local.properties"),
+    rootDir.resolve("app/local.properties"),
+)
+val fdroidScannerManagedGradleFiles = listOf(
+    rootDir.resolve("gradlew"),
+    rootDir.resolve("gradlew.bat"),
+    rootDir.resolve("gradle/wrapper/gradle-wrapper.jar"),
+)
+val fdroidSdkLocatorPresence = fdroidGeneratedSdkLocatorFiles.map { it.isFile }
+val fdroidWrapperPresence = fdroidScannerManagedGradleFiles.map { it.isFile }
+val ordinaryCheckoutMarkers =
+    !fdroidSdkLocatorPresence[0] && !fdroidSdkLocatorPresence[2] && fdroidWrapperPresence.all { it }
+val exactFdroidCheckoutMarkers =
+    fdroidSdkLocatorPresence.all { it } && fdroidWrapperPresence.none { it }
+val fdroidMutationDetected =
+    fdroidSdkLocatorPresence[0] ||
+        fdroidSdkLocatorPresence[2] ||
+        fdroidWrapperPresence.any { !it }
+val semanticReleaseTag =
+    Regex("v[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?").matches(releaseTag)
+require(releaseTag.isBlank() || semanticReleaseTag) {
+    "HERMES_RELEASE_TAG must be an exact semantic release tag, got '$releaseTag'"
+}
+if (fdroidMutationDetected) {
+    require(!ordinaryCheckoutMarkers && exactFdroidCheckoutMarkers) {
+        "F-Droid SDK-locator and scanner-wrapper state is partial or contradictory"
+    }
+    require(environmentHermesSourceDigest.isBlank()) {
+        "A transformed F-Droid checkout cannot use HERMES_SOURCE_DIGEST"
+    }
+    require(semanticReleaseTag) {
+        "A transformed F-Droid checkout requires an exact semantic release tag, got '$releaseTag'"
+    }
+    require(hermesFdroidSourceBindingSetting != "false") {
+        "A transformed F-Droid checkout cannot disable source binding"
+    }
+}
+if (semanticReleaseTag && environmentHermesSourceDigest.isBlank()) {
+    require(hermesFdroidSourceBindingSetting != "false") {
+        "A release-tagged build cannot disable source binding"
+    }
+}
+val automaticFdroidSourceBinding = semanticReleaseTag &&
+    environmentHermesSourceDigest.isBlank() &&
+    hermesFdroidSourceBindingSetting == null
 
 fun resolvedBuildPython(): String {
     val configured = System.getenv("PYTHON_FOR_BUILD").orEmpty().trim()
@@ -76,6 +122,18 @@ val hermesSourceDigest = when {
                 repoRoot.absolutePath,
                 "--binding-file",
                 gradle.gradleUserHomeDir.resolve(fdroidSourceBindingFileName).absolutePath,
+                "--version",
+                releaseTag.removePrefix("v"),
+            ),
+        )
+    }
+    automaticFdroidSourceBinding -> {
+        runSourceDigestCommand(
+            repoRoot.resolve("scripts/android_fdroid_source_binding.py"),
+            listOf(
+                "verify-transformed",
+                "--repo-root",
+                repoRoot.absolutePath,
                 "--version",
                 releaseTag.removePrefix("v"),
             ),
