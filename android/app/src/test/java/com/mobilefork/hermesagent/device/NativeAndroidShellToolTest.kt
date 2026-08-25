@@ -1,5 +1,8 @@
 package com.mobilefork.hermesagent.device
 
+import com.mobilefork.hermesagent.ui.chat.RequestOwnedHttpTransport
+import okhttp3.Call
+import okhttp3.EventListener
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
@@ -342,12 +345,42 @@ class NativeAndroidShellToolTest {
             // A's timeout remains longer than the exact cancel assertion, so the test cannot
             // pass from a natural timeout. B's longer timeout keeps its independent blocked read
             // alive through A's bounded Windows socket-unwind interval.
-            val clientA = OkHttpClient.Builder()
+            val callAReference = AtomicReference<Call?>(null)
+            val callBReference = AtomicReference<Call?>(null)
+            val responseBodyAStarted = CountDownLatch(1)
+            val requestHeadersBFinished = CountDownLatch(1)
+            val clientABase = OkHttpClient.Builder()
                 .readTimeout(5, TimeUnit.SECONDS)
+                .eventListener(
+                    object : EventListener() {
+                        override fun callStart(call: Call) {
+                            callAReference.compareAndSet(null, call)
+                        }
+
+                        override fun responseBodyStart(call: Call) {
+                            responseBodyAStarted.countDown()
+                        }
+                    },
+                )
                 .build()
-            val clientB = OkHttpClient.Builder()
+            val clientBBase = OkHttpClient.Builder()
                 .readTimeout(15, TimeUnit.SECONDS)
+                .eventListener(
+                    object : EventListener() {
+                        override fun callStart(call: Call) {
+                            callBReference.compareAndSet(null, call)
+                        }
+
+                        override fun requestHeadersEnd(call: Call, request: Request) {
+                            requestHeadersBFinished.countDown()
+                        }
+                    },
+                )
                 .build()
+            val transportA = RequestOwnedHttpTransport(clientABase)
+            val transportB = RequestOwnedHttpTransport(clientBBase)
+            val clientA = transportA.client
+            val clientB = transportB.client
             val targetA = File(root, "layer-a")
             val targetB = File(root, "layer-b")
             val sentinelA = "previously-verified-layer"
@@ -356,20 +389,6 @@ class NativeAndroidShellToolTest {
             val cancelledB = AtomicBoolean(false)
             val failureA = AtomicReference<Throwable?>(null)
             val failureB = AtomicReference<Throwable?>(null)
-            val workerA = thread(name = "sandbox-layer-a") {
-                failureA.set(
-                    runCatching {
-                        HermesLinuxSandboxBridge.downloadVerifiedLayer(
-                            request = Request.Builder().url(serverA.url("/layer-a")).build(),
-                            target = targetA,
-                            expectedHex = "0".repeat(64),
-                            expectedSize = slowBody.length.toLong(),
-                            layerHttpClient = clientA,
-                            cancellationRequested = cancelledA::get,
-                        )
-                    }.exceptionOrNull(),
-                )
-            }
             val workerB = thread(name = "sandbox-layer-b") {
                 failureB.set(
                     runCatching {
@@ -385,12 +404,41 @@ class NativeAndroidShellToolTest {
                 )
             }
 
-            assertTrue(serverA.takeRequest(5, TimeUnit.SECONDS) != null)
+            assertTrue("Layer B never finished sending request headers", requestHeadersBFinished.await(5, TimeUnit.SECONDS))
             assertTrue(serverB.takeRequest(5, TimeUnit.SECONDS) != null)
-            val callA = clientA.dispatcher.runningCalls().single()
-            val callB = clientB.dispatcher.runningCalls().single()
+            val callB = checkNotNull(callBReference.get())
+            assertEquals("Layer B left the request-owned dispatcher before A started", 1, clientB.dispatcher.runningCallsCount())
+            assertEquals(1, transportB.activeCallCountForTest())
+
+            val workerA = thread(name = "sandbox-layer-a") {
+                failureA.set(
+                    runCatching {
+                        HermesLinuxSandboxBridge.downloadVerifiedLayer(
+                            request = Request.Builder().url(serverA.url("/layer-a")).build(),
+                            target = targetA,
+                            expectedHex = "0".repeat(64),
+                            expectedSize = slowBody.length.toLong(),
+                            layerHttpClient = clientA,
+                            cancellationRequested = cancelledA::get,
+                        )
+                    }.exceptionOrNull(),
+                )
+            }
+            assertTrue("Layer A never started reading its response body", responseBodyAStarted.await(5, TimeUnit.SECONDS))
+            assertTrue(serverA.takeRequest(5, TimeUnit.SECONDS) != null)
+            val callA = checkNotNull(callAReference.get())
+            assertEquals(
+                "Synchronous layer A should already have left OkHttp's dispatcher after response headers",
+                0,
+                clientA.dispatcher.runningCallsCount(),
+            )
+            assertEquals("Request-owned layer A was not retained through response-body streaming", 1, transportA.activeCallCountForTest())
+            assertTrue(
+                "Layer A never created its request-owned partial file",
+                root.listFiles().orEmpty().any { it.name.startsWith(".${targetA.name}.") },
+            )
             cancelledA.set(true)
-            clientA.dispatcher.cancelAll()
+            transportA.cancel()
             workerA.interrupt()
             assertTrue("Exact sandbox layer call A was not cancelled", callA.isCanceled())
             assertFalse("Cancelling A also cancelled sandbox layer call B", callB.isCanceled())
@@ -398,13 +446,14 @@ class NativeAndroidShellToolTest {
 
             assertFalse("Cancelled sandbox layer A remained alive", workerA.isAlive)
             assertTrue(failureA.get() != null)
+            assertEquals("Cancelled layer A remained registered with its request transport", 0, transportA.activeCallCountForTest())
             assertEquals("Cancellation replaced or deleted the existing verified layer", sentinelA, targetA.readText())
             assertTrue(root.listFiles().orEmpty().none { it.name.startsWith(".${targetA.name}.") })
             assertTrue("Cancelling layer A also stopped layer B", workerB.isAlive)
             assertEquals(null, failureB.get())
 
             cancelledB.set(true)
-            clientB.dispatcher.cancelAll()
+            transportB.cancel()
             workerB.interrupt()
             assertTrue("Exact sandbox layer call B was not cancelled", callB.isCanceled())
             workerB.join(17_000L)
@@ -415,6 +464,7 @@ class NativeAndroidShellToolTest {
                 workerB.isAlive,
             )
             assertTrue(failureB.get() != null)
+            assertEquals("Cancelled layer B remained registered with its request transport", 0, transportB.activeCallCountForTest())
             assertFalse(targetB.exists())
             assertTrue(root.listFiles().orEmpty().none { it.name.startsWith(".${targetB.name}.") })
         } finally {
