@@ -8,6 +8,11 @@ and SDK locator files, and writes the committed source identity outside the
 source tree. The ``verify`` phase runs from Gradle after the metadata edits and
 buildserver cleanup, and accepts only that exact closed transformation set.
 
+The ``verify-transformed`` phase supports the central F-Droid bot's historical
+two-``sed`` recipe without trusting an unbound build. It requires the exact
+post-scanner/post-prebuild checkout state and derives the identity directly
+from committed ``HEAD`` blobs, so no prebuild handoff file is needed.
+
 The ``render-autoupdate-preview`` phase is a separate, local-only transaction.
 It preserves the autoupdater's resolved release commit and all unrelated live
 metadata while replacing only the target build's ``sudo``, ``ndk``, ``gradle``,
@@ -23,9 +28,11 @@ import argparse
 import hashlib
 import os
 import re
+import shutil
 import stat
 import subprocess
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Mapping
@@ -37,9 +44,11 @@ if str(SCRIPT_DIR) not in sys.path:
 
 BINDING_SCHEMA = "hermes-android-fdroid-source-binding-v1"
 BINDING_FILE_NAME = "hermes-android-fdroid-source-binding.properties"
-AUTUPDATE_VERSION_NAME = "0.13.152"
-AUTUPDATE_VERSION_CODE = "145290"
+AUTUPDATE_VERSION_NAME = "0.13.153"
+AUTUPDATE_VERSION_CODE = "145390"
+EXPECTED_REMOTE_REPOSITORY = "https://github.com/adybag14-cyber/hermes-agent.git"
 GRADLE_PATH = PurePosixPath("android/app/build.gradle.kts")
+SOURCE_DIGEST_EXCLUDED_PREFIX = PurePosixPath("android/release-evidence")
 FDROID_LOCAL_PROPERTIES = (
     PurePosixPath("local.properties"),
     PurePosixPath("android/local.properties"),
@@ -64,6 +73,10 @@ GRADLE_SIGNING_LINE_RES = (
 )
 FDROID_SCANNER_REMOVED_GRADLE_NAMES = frozenset(
     {"gradle-wrapper.jar", "gradlew", "gradlew.bat", "gradle-daemon-jvm.properties"}
+)
+FDROID_ALLOWED_CONFIGURATION_PREFIXES = (
+    PurePosixPath("android/.gradle"),
+    PurePosixPath("android/.kotlin"),
 )
 EXPECTED_BINDING_KEYS = frozenset(
     {
@@ -120,6 +133,46 @@ class FdroidSourceBindingError(RuntimeError):
     """Raised when the F-Droid source-binding handoff is not authoritative."""
 
 
+def _sanitized_git_subprocess_environment() -> dict[str, str]:
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.upper().startswith("GIT_")
+    }
+    environment.update(
+        {
+            "GIT_TERMINAL_PROMPT": "0",
+            "LC_ALL": "C",
+            "LANG": "C",
+        }
+    )
+    return environment
+
+
+@contextmanager
+def _sanitized_git_process_environment():
+    controlled_names = {
+        key for key in os.environ if key.upper().startswith("GIT_")
+    } | {"LC_ALL", "LANG"}
+    previous = {key: os.environ[key] for key in controlled_names if key in os.environ}
+    try:
+        for key in controlled_names:
+            os.environ.pop(key, None)
+        os.environ.update(
+            {
+                "GIT_TERMINAL_PROMPT": "0",
+                "LC_ALL": "C",
+                "LANG": "C",
+            }
+        )
+        yield
+    finally:
+        for key in list(os.environ):
+            if key.upper().startswith("GIT_") or key in {"LC_ALL", "LANG"}:
+                os.environ.pop(key, None)
+        os.environ.update(previous)
+
+
 @dataclass(frozen=True)
 class VerifiedBinding:
     commit: str
@@ -162,20 +215,42 @@ def git_source_tree_identity(repo_root: Path):
             f"unable to load Android source-identity implementation: {exc}"
         ) from exc
     try:
-        return implementation(repo_root)
+        with _sanitized_git_process_environment():
+            return implementation(repo_root)
     except (EvidenceError, OSError, ValueError) as exc:
         raise FdroidSourceBindingError(
             f"unable to resolve committed Android source identity: {exc}"
         ) from exc
 
 
+def _git_blob_content_identities(repo_root: Path, object_ids: set[str]) -> dict[str, str]:
+    try:
+        from android_release_evidence import _git_blob_content_identities as implementation
+    except ImportError as exc:
+        raise FdroidSourceBindingError(
+            f"unable to load committed blob-identity implementation: {exc}"
+        ) from exc
+    try:
+        with _sanitized_git_process_environment():
+            return implementation(repo_root, object_ids)
+    except (OSError, ValueError) as exc:
+        raise FdroidSourceBindingError(
+            f"unable to hash committed source blobs: {exc}"
+        ) from exc
+
+
 def _run_git(repo_root: Path, *args: str) -> bytes:
+    environment = _sanitized_git_subprocess_environment()
+    git = shutil.which("git", path=environment.get("PATH"))
+    if not git:
+        raise FdroidSourceBindingError("git is required for F-Droid source binding")
     try:
         result = subprocess.run(
-            ["git", *args],
+            [str(Path(git).resolve()), *args],
             cwd=repo_root,
             check=False,
             capture_output=True,
+            env=environment,
         )
     except FileNotFoundError as exc:
         raise FdroidSourceBindingError("git is required for F-Droid source binding") from exc
@@ -191,6 +266,13 @@ def _normalize_repo_root(repo_root: Path) -> Path:
     resolved = repo_root.resolve()
     if not (resolved / ".git").exists():
         raise FdroidSourceBindingError(f"repository is not a Git checkout: {resolved}")
+    reported = Path(
+        _run_git(resolved, "rev-parse", "--show-toplevel").decode("utf-8").strip()
+    ).resolve()
+    if reported != resolved:
+        raise FdroidSourceBindingError(
+            f"Git worktree authority {reported} does not match repository root {resolved}"
+        )
     return resolved
 
 
@@ -218,7 +300,8 @@ def _assert_release_identity(repo_root: Path, version_name: str) -> None:
     try:
         from check_android_release_identity import validate_release_identity
 
-        identity = validate_release_identity(repo_root, f"v{version_name}")
+        with _sanitized_git_process_environment():
+            identity = validate_release_identity(repo_root, f"v{version_name}")
     except (ImportError, OSError, ValueError) as exc:
         raise FdroidSourceBindingError(
             f"F-Droid version {version_name} does not match the committed release identity: {exc}"
@@ -250,7 +333,9 @@ def _decode_git_paths(payload: bytes) -> set[PurePosixPath]:
 
 
 def _tracked_changed_paths(repo_root: Path) -> set[PurePosixPath]:
-    return _decode_git_paths(_run_git(repo_root, "diff", "--name-only", "-z", "HEAD", "--"))
+    return _decode_git_paths(
+        _run_git(repo_root, "diff", "--no-ext-diff", "--name-only", "-z", "HEAD", "--")
+    )
 
 
 def _untracked_paths(repo_root: Path) -> set[PurePosixPath]:
@@ -259,8 +344,140 @@ def _untracked_paths(repo_root: Path) -> set[PurePosixPath]:
     )
 
 
+def _all_untracked_paths(repo_root: Path) -> set[PurePosixPath]:
+    """Return untracked paths without honoring ignore or exclude rules."""
+
+    return _decode_git_paths(_run_git(repo_root, "ls-files", "--others", "-z"))
+
+
+def _assert_default_index_flags(repo_root: Path) -> None:
+    flagged: list[str] = []
+    for record in _run_git(repo_root, "ls-files", "-v", "-z").split(b"\0"):
+        if not record:
+            continue
+        if len(record) < 3 or record[1:2] != b" ":
+            raise FdroidSourceBindingError("Git returned malformed index-flag output")
+        marker = chr(record[0])
+        try:
+            path = record[2:].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise FdroidSourceBindingError("Git reported a non-UTF-8 indexed path") from exc
+        if marker != "H":
+            flagged.append(f"{marker}:{path}")
+    if flagged:
+        raise FdroidSourceBindingError(
+            "F-Droid source binding rejects non-default Git index flags: "
+            + ", ".join(sorted(flagged)[:10])
+        )
+
+
+def _assert_no_hidden_untracked_inputs(repo_root: Path) -> None:
+    allowed_exact = set(FDROID_LOCAL_PROPERTIES)
+    unexpected = []
+    for path in _all_untracked_paths(repo_root):
+        if path in allowed_exact:
+            continue
+        if any(
+            prefix == path or prefix in path.parents
+            for prefix in FDROID_ALLOWED_CONFIGURATION_PREFIXES
+        ):
+            continue
+        unexpected.append(path.as_posix())
+    if unexpected:
+        raise FdroidSourceBindingError(
+            "F-Droid checkout contains untracked or ignored build input(s): "
+            + ", ".join(sorted(unexpected)[:10])
+        )
+
+
+def _head_tracked_entries(
+    repo_root: Path,
+) -> dict[PurePosixPath, tuple[str, str, str]]:
+    entries: dict[PurePosixPath, tuple[str, str, str]] = {}
+    for record in _run_git(repo_root, "ls-tree", "-r", "-z", "HEAD").split(b"\0"):
+        if not record:
+            continue
+        try:
+            metadata, raw_path = record.split(b"\t", 1)
+            mode, entry_type, object_id = metadata.decode("ascii").split(" ", 2)
+            path = PurePosixPath(raw_path.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise FdroidSourceBindingError("Git returned malformed HEAD tree data") from exc
+        if path in entries:
+            raise FdroidSourceBindingError(f"Git returned duplicate HEAD path: {path}")
+        entries[path] = (mode, entry_type, object_id)
+    return entries
+
+
 def _head_tracked_paths(repo_root: Path) -> set[PurePosixPath]:
-    return _decode_git_paths(_run_git(repo_root, "ls-tree", "-r", "--name-only", "-z", "HEAD"))
+    return set(_head_tracked_entries(repo_root))
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _assert_unchanged_tracked_bytes(
+    repo_root: Path,
+    expected_changes: Mapping[PurePosixPath, bytes | None],
+    phase: str,
+) -> None:
+    comparable = {
+        path: entry
+        for path, entry in _head_tracked_entries(repo_root).items()
+        if entry[1] == "blob"
+        and path not in expected_changes
+        and not (
+            path == SOURCE_DIGEST_EXCLUDED_PREFIX
+            or SOURCE_DIGEST_EXCLUDED_PREFIX in path.parents
+        )
+    }
+    identities = _git_blob_content_identities(
+        repo_root,
+        {entry[2] for entry in comparable.values()},
+    )
+    for path, (mode, _entry_type, object_id) in comparable.items():
+        candidate = repo_root.joinpath(*path.parts)
+        expected_identity = identities.get(object_id, "")
+        if not expected_identity.startswith("sha256:"):
+            raise FdroidSourceBindingError(
+                f"F-Droid {phase} has no committed blob identity for {path.as_posix()}"
+            )
+        expected_sha256 = expected_identity.removeprefix("sha256:")
+        if mode == "120000":
+            if not candidate.is_symlink():
+                raise FdroidSourceBindingError(
+                    f"F-Droid {phase} tracked symlink changed: {path.as_posix()}"
+                )
+            actual_sha256 = hashlib.sha256(
+                os.readlink(candidate).encode("utf-8")
+            ).hexdigest()
+        else:
+            try:
+                candidate_stat = candidate.lstat()
+            except OSError as exc:
+                raise FdroidSourceBindingError(
+                    f"F-Droid {phase} tracked file is missing: {path.as_posix()}"
+                ) from exc
+            if candidate.is_symlink() or not stat.S_ISREG(candidate_stat.st_mode):
+                raise FdroidSourceBindingError(
+                    f"F-Droid {phase} tracked file type changed: {path.as_posix()}"
+                )
+            expected_executable = mode == "100755"
+            actual_executable = bool(candidate_stat.st_mode & stat.S_IXUSR)
+            if actual_executable != expected_executable:
+                raise FdroidSourceBindingError(
+                    f"F-Droid {phase} tracked executable mode changed: {path.as_posix()}"
+                )
+            actual_sha256 = _sha256_file(candidate)
+        if actual_sha256 != expected_sha256:
+            raise FdroidSourceBindingError(
+                f"F-Droid {phase} tracked bytes differ from HEAD: {path.as_posix()}"
+            )
 
 
 def _replace_once(source: str, needle: str, replacement: str, label: str) -> str:
@@ -404,6 +621,7 @@ def _assert_tracked_state(
     expected_changes: Mapping[PurePosixPath, bytes | None],
     phase: str,
 ) -> None:
+    _assert_default_index_flags(repo_root)
     actual_paths = _tracked_changed_paths(repo_root)
     expected_paths = set(expected_changes)
     if actual_paths != expected_paths:
@@ -431,10 +649,12 @@ def _assert_tracked_state(
                 f"transformation; expectedSha256={hashlib.sha256(expected).hexdigest()}, "
                 f"currentSha256={hashlib.sha256(current).hexdigest()}"
             )
+    _assert_unchanged_tracked_bytes(repo_root, expected_changes, phase)
 
 
 def _assert_fdroid_prepare_state(repo_root: Path) -> None:
     _validate_fdroid_local_properties(repo_root)
+    _assert_no_hidden_untracked_inputs(repo_root)
     _assert_tracked_state(
         repo_root,
         _fdroid_signing_scrubbed_sources(repo_root),
@@ -444,6 +664,7 @@ def _assert_fdroid_prepare_state(repo_root: Path) -> None:
 
 def _assert_fdroid_verify_state(repo_root: Path, version_name: str) -> None:
     _validate_fdroid_local_properties(repo_root)
+    _assert_no_hidden_untracked_inputs(repo_root)
     expected: dict[PurePosixPath, bytes | None] = dict(
         _fdroid_signing_scrubbed_sources(repo_root)
     )
@@ -453,6 +674,44 @@ def _assert_fdroid_verify_state(repo_root: Path, version_name: str) -> None:
     for scanner_deleted in _fdroid_scanner_deleted_gradle_files(repo_root):
         expected[scanner_deleted] = None
     _assert_tracked_state(repo_root, expected, "post-metadata-prebuild")
+
+
+def _assert_remote_release_tag_authority(repo_root: Path, version_name: str) -> str:
+    origin = _run_git(repo_root, "remote", "get-url", "origin").decode("utf-8").strip()
+    if origin != EXPECTED_REMOTE_REPOSITORY:
+        raise FdroidSourceBindingError(
+            "F-Droid transformed source must use the canonical Hermes origin; "
+            f"got {origin!r}"
+        )
+    tag = f"v{version_name}"
+    tag_ref = f"refs/tags/{tag}"
+    peeled_ref = f"{tag_ref}^{{}}"
+    rows = _run_git(
+        repo_root,
+        "ls-remote",
+        "--tags",
+        "origin",
+        tag_ref,
+        peeled_ref,
+    ).decode("ascii").splitlines()
+    parsed: dict[str, str] = {}
+    for row in rows:
+        fields = row.split("\t")
+        if len(fields) != 2 or COMMIT_RE.fullmatch(fields[0].lower()) is None:
+            raise FdroidSourceBindingError("canonical origin returned malformed tag authority")
+        if fields[1] in parsed:
+            raise FdroidSourceBindingError("canonical origin returned duplicate tag authority")
+        parsed[fields[1]] = fields[0].lower()
+    if set(parsed) != {tag_ref, peeled_ref}:
+        raise FdroidSourceBindingError(
+            f"canonical origin must expose one annotated {tag} object and peeled commit"
+        )
+    head = _head_commit(repo_root)
+    if parsed[peeled_ref] != head:
+        raise FdroidSourceBindingError(
+            f"canonical {tag} commit {parsed[peeled_ref]} does not match HEAD {head}"
+        )
+    return head
 
 
 def _normalize_version_code(version_code: str | int) -> str:
@@ -999,6 +1258,25 @@ def verify_binding(repo_root: Path, binding_file: Path, version: str) -> Verifie
     return VerifiedBinding(commit, version_name, identity.digest, identity.file_count)
 
 
+def verify_transformed_binding(repo_root: Path, version: str) -> VerifiedBinding:
+    """Bind an exact bot-transformed checkout directly to committed ``HEAD``.
+
+    This is deliberately narrower than a generic dirty-tree fallback. The
+    checkout must match the same closed F-Droid signing scrub, SDK locators,
+    two declared metadata edits, and scanner deletions accepted by
+    :func:`verify_binding`. Source identity is calculated from Git objects, not
+    from transformed working-tree bytes.
+    """
+
+    repo_root = _normalize_repo_root(repo_root)
+    version_name = _normalize_version(version)
+    commit = _assert_remote_release_tag_authority(repo_root, version_name)
+    _assert_release_identity(repo_root, version_name)
+    _assert_fdroid_verify_state(repo_root, version_name)
+    identity = git_source_tree_identity(repo_root)
+    return VerifiedBinding(commit, version_name, identity.digest, identity.file_count)
+
+
 def _print_binding(binding: VerifiedBinding, binding_file: Path) -> None:
     print(f"sourceDigest={binding.source_digest}")
     print(f"sourceFiles={binding.source_files}")
@@ -1025,6 +1303,9 @@ def main() -> int:
         command_parser.add_argument("--repo-root", type=Path, required=True)
         command_parser.add_argument("--binding-file", type=Path, required=True)
         command_parser.add_argument("--version", required=True)
+    transformed_parser = subparsers.add_parser("verify-transformed")
+    transformed_parser.add_argument("--repo-root", type=Path, required=True)
+    transformed_parser.add_argument("--version", required=True)
     for command in ("render-autoupdate-preview", "verify-autoupdate-preview"):
         command_parser = subparsers.add_parser(command)
         command_parser.add_argument("--metadata", type=Path, required=True)
@@ -1039,6 +1320,13 @@ def main() -> int:
         elif args.command == "verify":
             binding = verify_binding(args.repo_root, args.binding_file, args.version)
             _print_binding(binding, args.binding_file)
+        elif args.command == "verify-transformed":
+            binding = verify_transformed_binding(args.repo_root, args.version)
+            print("bindingMode=verified-transformed-checkout")
+            print(f"sourceDigest={binding.source_digest}")
+            print(f"sourceFiles={binding.source_files}")
+            print(f"sourceCommit={binding.commit}")
+            print(f"versionName={binding.version_name}")
         elif args.command == "render-autoupdate-preview":
             preview = render_autoupdate_metadata_preview(
                 args.metadata,

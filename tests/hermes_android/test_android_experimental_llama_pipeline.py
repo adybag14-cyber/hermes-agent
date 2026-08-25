@@ -75,6 +75,10 @@ def test_experimental_llama_lock_pins_source_toolchain_and_capabilities():
     assert "q4_0" in lock["capabilities"]["kv_cache_types"]
     assert "turbo3" in lock["capabilities"]["kv_cache_types"]
     assert lock["capabilities"]["turbo_cache_requires_flash_attention"] is True
+    assert experimental.NONDETERMINISTIC_ELF_SECTIONS == (
+        ".note.gnu.build-id",
+        ".comment",
+    )
 
 
 def test_experimental_llama_lock_rejects_more_than_twelve_workers(tmp_path):
@@ -470,6 +474,79 @@ def test_android_elf_validation_rejects_unpinned_runtime_library(tmp_path, monke
         )
 
 
+def test_android_elf_normalization_removes_host_metadata_and_proves_absence(
+    tmp_path,
+    monkeypatch,
+):
+    binary = tmp_path / "llama-server"
+    binary.write_bytes(b"\x7fELF fixture")
+    strip = tmp_path / "llvm-strip"
+    readelf = tmp_path / "llvm-readelf"
+    commands = []
+
+    def fake_run(command, **_kwargs):
+        commands.append(command)
+        if command[0] == str(readelf):
+            return SimpleNamespace(
+                stdout=(
+                    "There are 3 section headers:\n"
+                    "  [ 1] .text PROGBITS 00000000 000040 000010 00 AX 0 0 16\n"
+                    "  [ 2] .rodata PROGBITS 00000000 000050 000010 00 A 0 0 1\n"
+                ),
+                stderr="",
+                returncode=0,
+            )
+        return SimpleNamespace(stdout="", stderr="", returncode=0)
+
+    monkeypatch.setattr(experimental.subprocess, "run", fake_run)
+
+    removed = experimental.normalize_android_elf_metadata(
+        binary,
+        strip=strip,
+        readelf=readelf,
+        environment={"LC_ALL": "C"},
+    )
+
+    assert removed == (".note.gnu.build-id", ".comment")
+    assert commands[0] == [
+        str(strip),
+        "--strip-unneeded",
+        "--remove-section=.note.gnu.build-id",
+        "--remove-section=.comment",
+        str(binary),
+    ]
+    assert commands[1] == [str(readelf), "-SW", str(binary)]
+
+
+@pytest.mark.parametrize("surviving", [".note.gnu.build-id", ".comment"])
+def test_android_elf_normalization_rejects_surviving_host_metadata(
+    tmp_path,
+    monkeypatch,
+    surviving,
+):
+    binary = tmp_path / "llama-server"
+    binary.write_bytes(b"\x7fELF fixture")
+
+    def fake_run(command, **_kwargs):
+        if command[1:2] == ["-SW"]:
+            return SimpleNamespace(
+                stdout=f"  [ 7] {surviving} NOTE 00000000 000100 000020 00 A 0 0 4\n",
+                stderr="",
+                returncode=0,
+            )
+        return SimpleNamespace(stdout="", stderr="", returncode=0)
+
+    monkeypatch.setattr(experimental.subprocess, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="retains non-reproducible ELF section"):
+        experimental.normalize_android_elf_metadata(
+            binary,
+            strip=tmp_path / "llvm-strip",
+            readelf=tmp_path / "llvm-readelf",
+            environment={"LC_ALL": "C"},
+        )
+
+
 def test_builder_never_trusts_generated_outputs_as_their_own_attestation():
     script = (REPO_ROOT / "scripts/prepare_android_experimental_llama_server.py").read_text(
         encoding="utf-8"
@@ -502,15 +579,16 @@ def test_packaged_manifest_excludes_the_ambient_git_banner():
     assert "build_dir" not in manifest_body
 
 
-def test_local_path_scan_runs_after_strip_and_before_elf_attestation():
+def test_local_path_scan_runs_after_metadata_normalization_and_before_elf_attestation():
     script = (REPO_ROOT / "scripts/prepare_android_experimental_llama_server.py").read_text(
         encoding="utf-8"
     )
     build_body = script.split("def build_experimental_server(", 1)[1].split("\ndef main()", 1)[0]
 
-    assert build_body.index('"--strip-unneeded"') < build_body.index(
+    assert build_body.index("normalize_android_elf_metadata") < build_body.index(
         "verify_no_local_path_leaks"
     ) < build_body.index("verify_android_elf")
+    assert '"removed_elf_sections": list(NONDETERMINISTIC_ELF_SECTIONS)' in build_body
 
 
 def test_build_environment_uses_locked_source_date_epoch_not_ambient(monkeypatch):

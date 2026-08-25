@@ -9,8 +9,8 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-VERSION_NAME = "0.13.152"
-VERSION_CODE = "145290"
+VERSION_NAME = "0.13.153"
+VERSION_CODE = "145390"
 RESOLVED_RELEASE_COMMIT = "a" * 40
 GRADLE_RELATIVE = Path("android/app/build.gradle.kts")
 RELEASE_TAG_EXPRESSION = 'System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()'
@@ -218,6 +218,21 @@ def _apply_fdroid_post_prebuild_cleanup(repo: Path) -> None:
     (repo / "android/gradlew.bat").unlink()
 
 
+def _accept_fixture_remote_tag(binding_module, monkeypatch, repo: Path) -> None:
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    monkeypatch.setattr(
+        binding_module,
+        "_assert_remote_release_tag_authority",
+        lambda _repo, _version: commit,
+    )
+
+
 def test_clean_prepare_and_exact_prebuild_resolve_the_committed_github_digest(
     source_checkout: Path,
     tmp_path: Path,
@@ -332,6 +347,214 @@ def test_verify_rejects_a_missing_prebuild_handoff(
         )
 
 
+def test_exact_transformed_checkout_self_binds_without_prebuild_handoff(
+    source_checkout: Path,
+    monkeypatch,
+):
+    binding_module = _load_binding_module()
+    _accept_fixture_remote_tag(binding_module, monkeypatch, source_checkout)
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+
+    verified = binding_module.verify_transformed_binding(source_checkout, VERSION_NAME)
+    committed_identity = binding_module.git_source_tree_identity(source_checkout)
+
+    assert verified.source_digest == committed_identity.digest
+    assert verified.source_files == committed_identity.file_count
+    assert verified.commit == subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=source_checkout,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+def test_transformed_checkout_self_binding_rejects_extra_source_change(
+    source_checkout: Path,
+    monkeypatch,
+):
+    binding_module = _load_binding_module()
+    _accept_fixture_remote_tag(binding_module, monkeypatch, source_checkout)
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    (source_checkout / "tracked.txt").write_text("tampered\n", encoding="utf-8")
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="post-metadata-prebuild tracked-source changes",
+    ):
+        binding_module.verify_transformed_binding(source_checkout, VERSION_NAME)
+
+
+def test_transformed_checkout_rejects_assume_unchanged_index_bypass(
+    source_checkout: Path,
+    monkeypatch,
+):
+    binding_module = _load_binding_module()
+    _accept_fixture_remote_tag(binding_module, monkeypatch, source_checkout)
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    (source_checkout / "tracked.txt").write_text("hidden tamper\n", encoding="utf-8")
+    _git(source_checkout, "update-index", "--assume-unchanged", "tracked.txt")
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="non-default Git index flags",
+    ):
+        binding_module.verify_transformed_binding(source_checkout, VERSION_NAME)
+
+
+def test_transformed_checkout_rejects_info_excluded_untracked_source(
+    source_checkout: Path,
+    monkeypatch,
+):
+    binding_module = _load_binding_module()
+    _accept_fixture_remote_tag(binding_module, monkeypatch, source_checkout)
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    hidden = source_checkout / "android/app/src/main/java/Hidden.kt"
+    hidden.parent.mkdir(parents=True, exist_ok=True)
+    hidden.write_text("class Hidden\n", encoding="utf-8")
+    (source_checkout / ".git/info/exclude").write_text(
+        "android/app/src/main/java/Hidden.kt\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="untracked or ignored build input",
+    ):
+        binding_module.verify_transformed_binding(source_checkout, VERSION_NAME)
+
+
+def test_explicit_binding_rejects_info_excluded_untracked_source(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    hidden = source_checkout / "android/app/src/main/assets/hidden.txt"
+    hidden.parent.mkdir(parents=True, exist_ok=True)
+    hidden.write_text("hidden asset\n", encoding="utf-8")
+    (source_checkout / ".git/info/exclude").write_text(
+        "android/app/src/main/assets/hidden.txt\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="untracked or ignored build input",
+    ):
+        binding_module.verify_binding(
+            source_checkout,
+            binding_file,
+            VERSION_NAME,
+        )
+
+
+def test_explicit_binding_compares_raw_tracked_bytes_despite_clean_filter(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+
+    clean_filter = source_checkout / ".git/mask-clean.sh"
+    clean_filter.write_text("#!/bin/sh\nprintf 'committed\\n'\n", encoding="utf-8")
+    clean_filter.chmod(0o755)
+    _git(source_checkout, "config", "filter.mask.clean", str(clean_filter))
+    (source_checkout / ".git/info/attributes").write_text(
+        "tracked.txt filter=mask\n",
+        encoding="utf-8",
+    )
+    (source_checkout / "tracked.txt").write_text("malicious working bytes\n", encoding="utf-8")
+    hidden_diff = subprocess.run(
+        ["git", "diff", "--name-only", "HEAD", "--", "tracked.txt"],
+        cwd=source_checkout,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert hidden_diff == ""
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="tracked bytes differ from HEAD: tracked.txt",
+    ):
+        binding_module.verify_binding(
+            source_checkout,
+            binding_file,
+            VERSION_NAME,
+        )
+
+
+def test_transformed_checkout_ignores_hostile_git_authority_environment(
+    source_checkout: Path,
+    monkeypatch,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    _accept_fixture_remote_tag(binding_module, monkeypatch, source_checkout)
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    expected_digest = binding_module.git_source_tree_identity(source_checkout).digest
+    monkeypatch.setenv("GIT_DIR", str(tmp_path / "hostile-git-dir"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(tmp_path / "hostile-work-tree"))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(tmp_path / "hostile-index"))
+
+    verified = binding_module.verify_transformed_binding(source_checkout, VERSION_NAME)
+
+    assert verified.source_digest == expected_digest
+
+
+def test_transformed_checkout_rejects_remote_tag_commit_drift(
+    source_checkout: Path,
+    monkeypatch,
+):
+    binding_module = _load_binding_module()
+    head = "a" * 40
+    remote_commit = "b" * 40
+    tag_object = "c" * 40
+
+    def fake_run_git(_repo, *args):
+        if args == ("remote", "get-url", "origin"):
+            return (binding_module.EXPECTED_REMOTE_REPOSITORY + "\n").encode()
+        if args[:3] == ("ls-remote", "--tags", "origin"):
+            tag_ref = f"refs/tags/v{VERSION_NAME}"
+            return (
+                f"{tag_object}\t{tag_ref}\n"
+                f"{remote_commit}\t{tag_ref}^{{}}\n"
+            ).encode()
+        if args == ("rev-parse", "HEAD"):
+            return (head + "\n").encode()
+        raise AssertionError(args)
+
+    monkeypatch.setattr(binding_module, "_run_git", fake_run_git)
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="does not match HEAD",
+    ):
+        binding_module._assert_remote_release_tag_authority(
+            source_checkout,
+            VERSION_NAME,
+        )
+
+
 @pytest.mark.parametrize(
     "tamper",
     ["extra-source", "extra-deletion", "gradle-transform", "binding-digest"],
@@ -392,7 +615,19 @@ def test_fdroid_metadata_and_gradle_wire_prepare_before_sed_and_verify_afterward
     assert "providers.gradleProperty(\"hermesFdroidSourceBinding\")" in gradle
     assert "android_fdroid_source_binding.py" in gradle
     assert '"verify"' in gradle
+    assert '"verify-transformed"' in gradle
     assert '"--binding-file"' in gradle
+    assert "automaticFdroidSourceBinding" in gradle
+    assert "ordinaryCheckoutMarkers" in gradle
+    assert "exactFdroidCheckoutMarkers" in gradle
+    assert "fdroidMutationDetected" in gradle
+    assert "F-Droid SDK-locator and scanner-wrapper state is partial" in gradle
+    assert "semanticReleaseTag &&" in gradle
+    assert "A transformed F-Droid checkout cannot disable source binding" in gradle
+    assert "A release-tagged build cannot disable source binding" in gradle
+    assert "_assert_remote_release_tag_authority" in (
+        REPO_ROOT / "scripts/android_fdroid_source_binding.py"
+    ).read_text(encoding="utf-8")
     assert '"--require-clean"' in gradle
     assert "mutually exclusive authorities" in gradle
 
@@ -404,7 +639,7 @@ def test_autoupdater_preview_rejects_the_prior_two_sed_recipe(tmp_path: Path):
 
     with pytest.raises(
         binding_module.FdroidSourceBindingError,
-        match="sudo does not match the v0.13.152 source-binding template",
+        match="sudo does not match the v0.13.153 source-binding template",
     ):
         binding_module.verify_autoupdate_metadata_preview(
             metadata,
