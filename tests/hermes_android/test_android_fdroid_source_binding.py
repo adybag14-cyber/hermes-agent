@@ -1,6 +1,8 @@
 import hashlib
 import importlib.util
+import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -26,6 +28,18 @@ FDROID_LOCAL_PROPERTIES_PAYLOAD = (
     b"sdk-location=/opt/android-sdk\n"
     b"ndk.dir=/opt/android-sdk/ndk/29.0.14206865\n"
     b"ndk-location=/opt/android-sdk/ndk/29.0.14206865\n"
+)
+FDROID_CHAQUOPY_PROGUARD_PAYLOAD = (
+    b"# Ensure all classes and methods used by Cython code are left alone by minifyEnabled.\n"
+    b"-keep class com.chaquo.python.** { * ; }\n"
+    b"\n"
+    b"# See get_sam in class.pxi.\n"
+    b"-keep class kotlin.jvm.functions.** { * ; }\n"
+    b"-keep class kotlin.jvm.internal.FunctionBase { * ; }\n"
+    b"-keep class kotlin.reflect.KAnnotatedElement { *; }\n"
+    b"\n"
+    b"# TODO: https://github.com/chaquo/chaquopy/issues/842\n"
+    b"-dontwarn org.jetbrains.annotations.NotNull\n"
 )
 
 
@@ -147,7 +161,10 @@ def source_checkout(tmp_path: Path) -> Path:
     )
     (repo / "android/gradlew").write_text("#!/bin/sh\n", encoding="utf-8")
     (repo / "android/gradlew.bat").write_text("@echo off\r\n", encoding="utf-8")
-    (repo / ".gitignore").write_text("android/local.properties\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(
+        "android/local.properties\nandroid/app/build/\n__pycache__/\n",
+        encoding="utf-8",
+    )
     (repo / "fdroid/com.mobilefork.hermesagent.version").write_text(
         f"versionName={VERSION_NAME}\nversionCode={VERSION_CODE}\n",
         encoding="utf-8",
@@ -232,6 +249,9 @@ def _apply_fdroid_post_prebuild_cleanup(repo: Path) -> None:
     (repo / "android/gradle/gradle-daemon-jvm.properties").unlink()
     (repo / "android/gradlew").unlink()
     (repo / "android/gradlew.bat").unlink()
+    proguard = repo / "android/app/build/python/proguard-rules.pro"
+    proguard.parent.mkdir(parents=True, exist_ok=True)
+    proguard.write_bytes(FDROID_CHAQUOPY_PROGUARD_PAYLOAD)
 
 
 def _accept_fixture_remote_tag(binding_module, monkeypatch, repo: Path) -> None:
@@ -264,6 +284,14 @@ def test_clean_prepare_and_exact_prebuild_resolve_the_committed_github_digest(
 
     _apply_declared_fdroid_transform(source_checkout)
     _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    assert (
+        binding_module.FDROID_CHAQUOPY_PROGUARD_PATH
+        not in binding_module._untracked_paths(source_checkout)
+    )
+    assert (
+        binding_module.FDROID_CHAQUOPY_PROGUARD_PATH
+        in binding_module._all_untracked_paths(source_checkout)
+    )
     verified = binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
 
     assert verified == prepared
@@ -321,6 +349,9 @@ def test_verify_rejects_a_scanner_managed_file_left_in_the_checkout(
     (source_checkout / "android/gradle/gradle-daemon-jvm.properties").unlink()
     (source_checkout / "android/gradlew").unlink()
     (source_checkout / "android/gradlew.bat").unlink()
+    proguard = source_checkout / "android/app/build/python/proguard-rules.pro"
+    proguard.parent.mkdir(parents=True, exist_ok=True)
+    proguard.write_bytes(FDROID_CHAQUOPY_PROGUARD_PAYLOAD)
 
     with pytest.raises(
         binding_module.FdroidSourceBindingError,
@@ -541,6 +572,252 @@ def test_verify_rejects_a_missing_prebuild_handoff(
             tmp_path / binding_module.BINDING_FILE_NAME,
             VERSION_NAME,
         )
+
+
+def test_verify_accepts_exact_required_chaquopy_proguard_output(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    assert len(FDROID_CHAQUOPY_PROGUARD_PAYLOAD) == 404
+    assert hashlib.sha256(FDROID_CHAQUOPY_PROGUARD_PAYLOAD).hexdigest() == (
+        "a7dbf6d6d1fbbbbf3b80ed835927e3b13432aa886437b8d5b91eb0edae096b6d"
+    )
+    assert (
+        binding_module.FDROID_CHAQUOPY_PROGUARD_PAYLOAD
+        == FDROID_CHAQUOPY_PROGUARD_PAYLOAD
+    )
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    prepared = binding_module.prepare_binding(
+        source_checkout, binding_file, VERSION_NAME
+    )
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+
+    assert binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME) == prepared
+
+
+def test_verify_transformed_accepts_exact_required_chaquopy_proguard_output(
+    source_checkout: Path,
+    monkeypatch,
+):
+    binding_module = _load_binding_module()
+    _accept_fixture_remote_tag(binding_module, monkeypatch, source_checkout)
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+
+    binding_module.verify_transformed_binding(source_checkout, VERSION_NAME)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        FDROID_CHAQUOPY_PROGUARD_PAYLOAD + b"# tampered\n",
+        FDROID_CHAQUOPY_PROGUARD_PAYLOAD.replace(b"NotNull", b"Nullable", 1),
+    ],
+    ids=["extra-content", "changed-rule"],
+)
+def test_verify_rejects_tampered_chaquopy_proguard_output(
+    source_checkout: Path,
+    tmp_path: Path,
+    mutation: bytes,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    (source_checkout / "android/app/build/python/proguard-rules.pro").write_bytes(mutation)
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="does not match the exact generated payload",
+    ):
+        binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
+
+
+def test_verify_rejects_missing_chaquopy_proguard_output(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    (source_checkout / "android/app/build/python/proguard-rules.pro").unlink()
+
+    with pytest.raises(binding_module.FdroidSourceBindingError, match="Chaquopy ProGuard"):
+        binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
+
+
+@pytest.mark.parametrize("replacement", ["symlink", "directory"])
+def test_verify_rejects_nonordinary_chaquopy_proguard_output(
+    source_checkout: Path,
+    tmp_path: Path,
+    replacement: str,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    proguard = source_checkout / "android/app/build/python/proguard-rules.pro"
+    proguard.unlink()
+    if replacement == "symlink":
+        proguard.symlink_to(source_checkout / "tracked.txt")
+    else:
+        proguard.mkdir()
+
+    with pytest.raises(binding_module.FdroidSourceBindingError, match="Chaquopy ProGuard"):
+        binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
+
+
+def test_verify_rejects_extra_chaquopy_build_output_sibling(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    (source_checkout / "android/app/build/python/unexpected.txt").write_text(
+        "unexpected\n", encoding="ascii"
+    )
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="untracked or ignored build input",
+    ):
+        binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
+
+
+@pytest.mark.parametrize(
+    "pyc_name",
+    [
+        "android_release_evidence.cpython-313.pyc",
+        "check_android_release_identity.cpython-313.pyc",
+    ],
+)
+def test_verify_rejects_preexisting_python_bytecode(
+    source_checkout: Path,
+    tmp_path: Path,
+    pyc_name: str,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    pycache = source_checkout / "scripts/__pycache__"
+    pycache.mkdir(parents=True)
+    (pycache / pyc_name).write_bytes(b"forbidden bytecode")
+    pyc_path = binding_module.PurePosixPath("scripts/__pycache__") / pyc_name
+    assert pyc_path not in binding_module._untracked_paths(source_checkout)
+    assert pyc_path in binding_module._all_untracked_paths(source_checkout)
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="untracked or ignored build input",
+    ):
+        binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
+
+
+@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="POSIX FIFO support required")
+def test_fifo_proguard_rejection_does_not_block(tmp_path: Path):
+    fifo = tmp_path / "proguard-rules.pro"
+    os.mkfifo(fifo)
+    command = """
+import importlib.util
+import pathlib
+import sys
+spec = importlib.util.spec_from_file_location("binding", sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+module._read_exact_regular_file_without_following(pathlib.Path(sys.argv[2]), "FIFO")
+"""
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            command,
+            str(REPO_ROOT / "scripts/android_fdroid_source_binding.py"),
+            str(fifo),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=3,
+    )
+
+    assert completed.returncode != 0
+    assert "must be an ordinary non-symlink file" in completed.stderr
+
+
+def test_prepare_rejects_preexisting_chaquopy_proguard_output(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    proguard = source_checkout / "android/app/build/python/proguard-rules.pro"
+    proguard.parent.mkdir(parents=True, exist_ok=True)
+    proguard.write_bytes(FDROID_CHAQUOPY_PROGUARD_PAYLOAD)
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="untracked or ignored build input",
+    ):
+        binding_module.prepare_binding(
+            source_checkout,
+            tmp_path / binding_module.BINDING_FILE_NAME,
+            VERSION_NAME,
+        )
+
+
+def test_dynamic_local_imports_do_not_emit_python_bytecode(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    isolated_scripts = tmp_path / "isolated-scripts"
+    isolated_scripts.mkdir()
+    for name in (
+        "android_fdroid_source_binding.py",
+        "android_release_evidence.py",
+        "check_android_release_identity.py",
+    ):
+        shutil.copyfile(REPO_ROOT / "scripts" / name, isolated_scripts / name)
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_file = tmp_path / "isolated-gradle-home" / "binding.properties"
+    environment = dict(os.environ)
+    environment.pop("PYTHONDONTWRITEBYTECODE", None)
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(isolated_scripts / "android_fdroid_source_binding.py"),
+            "prepare",
+            "--repo-root",
+            str(source_checkout),
+            "--binding-file",
+            str(binding_file),
+            "--version",
+            VERSION_NAME,
+        ],
+        check=True,
+        env=environment,
+    )
+
+    assert not (isolated_scripts / "__pycache__").exists()
 
 
 def test_exact_transformed_checkout_self_binds_without_prebuild_handoff(

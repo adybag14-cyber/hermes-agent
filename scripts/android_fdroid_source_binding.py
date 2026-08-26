@@ -38,6 +38,9 @@ from pathlib import Path, PurePosixPath
 from typing import Mapping
 
 
+sys.dont_write_bytecode = True
+
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
@@ -59,6 +62,21 @@ FDROID_LOCAL_PROPERTIES_PAYLOAD = (
     b"sdk-location=/opt/android-sdk\n"
     b"ndk.dir=/opt/android-sdk/ndk/29.0.14206865\n"
     b"ndk-location=/opt/android-sdk/ndk/29.0.14206865\n"
+)
+FDROID_CHAQUOPY_PROGUARD_PATH = PurePosixPath(
+    "android/app/build/python/proguard-rules.pro"
+)
+FDROID_CHAQUOPY_PROGUARD_PAYLOAD = (
+    b"# Ensure all classes and methods used by Cython code are left alone by minifyEnabled.\n"
+    b"-keep class com.chaquo.python.** { * ; }\n"
+    b"\n"
+    b"# See get_sam in class.pxi.\n"
+    b"-keep class kotlin.jvm.functions.** { * ; }\n"
+    b"-keep class kotlin.jvm.internal.FunctionBase { * ; }\n"
+    b"-keep class kotlin.reflect.KAnnotatedElement { *; }\n"
+    b"\n"
+    b"# TODO: https://github.com/chaquo/chaquopy/issues/842\n"
+    b"-dontwarn org.jetbrains.annotations.NotNull\n"
 )
 RELEASE_TAG_EXPRESSION = 'System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()'
 BUILD_PYTHON_EXPRESSION = (
@@ -377,8 +395,12 @@ def _assert_default_index_flags(repo_root: Path) -> None:
         )
 
 
-def _assert_no_hidden_untracked_inputs(repo_root: Path) -> None:
-    allowed_exact = set(FDROID_LOCAL_PROPERTIES)
+def _assert_no_hidden_untracked_inputs(
+    repo_root: Path,
+    *,
+    allowed_generated: frozenset[PurePosixPath] = frozenset(),
+) -> None:
+    allowed_exact = set(FDROID_LOCAL_PROPERTIES) | set(allowed_generated)
     unexpected = []
     for path in _all_untracked_paths(repo_root):
         if path in allowed_exact:
@@ -393,6 +415,65 @@ def _assert_no_hidden_untracked_inputs(repo_root: Path) -> None:
         raise FdroidSourceBindingError(
             "F-Droid checkout contains untracked or ignored build input(s): "
             + ", ".join(sorted(unexpected)[:10])
+        )
+
+
+def _read_exact_regular_file_without_following(path: Path, label: str) -> bytes:
+    try:
+        path_stat = path.lstat()
+    except OSError as exc:
+        raise FdroidSourceBindingError(f"unable to inspect {label}: {path}") from exc
+    if path.is_symlink() or not stat.S_ISREG(path_stat.st_mode):
+        raise FdroidSourceBindingError(
+            f"{label} must be an ordinary non-symlink file"
+        )
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_BINARY", 0)
+        | getattr(os, "O_NONBLOCK", 0)
+    )
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    if nofollow:
+        flags |= nofollow
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise FdroidSourceBindingError(
+            f"unable to open {label} without following links"
+        ) from exc
+    try:
+        descriptor_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(descriptor_stat.st_mode):
+            raise FdroidSourceBindingError(
+                f"{label} must be an ordinary non-symlink file"
+            )
+        if (
+            descriptor_stat.st_dev != path_stat.st_dev
+            or descriptor_stat.st_ino != path_stat.st_ino
+        ):
+            raise FdroidSourceBindingError(
+                f"{label} changed while it was being opened"
+            )
+        with os.fdopen(descriptor, "rb", closefd=False) as handle:
+            return handle.read()
+    except OSError as exc:
+        raise FdroidSourceBindingError(f"unable to read {label}") from exc
+    finally:
+        os.close(descriptor)
+
+
+def _validate_fdroid_chaquopy_proguard(repo_root: Path) -> None:
+    candidate = repo_root / FDROID_CHAQUOPY_PROGUARD_PATH
+    payload = _read_exact_regular_file_without_following(
+        candidate,
+        "F-Droid Chaquopy ProGuard output",
+    )
+    if payload != FDROID_CHAQUOPY_PROGUARD_PAYLOAD:
+        raise FdroidSourceBindingError(
+            "F-Droid Chaquopy ProGuard output does not match the exact generated payload; "
+            f"expectedBytes={len(FDROID_CHAQUOPY_PROGUARD_PAYLOAD)}, "
+            f"expectedSha256={hashlib.sha256(FDROID_CHAQUOPY_PROGUARD_PAYLOAD).hexdigest()}, "
+            f"actualBytes={len(payload)}, actualSha256={hashlib.sha256(payload).hexdigest()}"
         )
 
 
@@ -665,8 +746,12 @@ def _assert_fdroid_prepare_state(repo_root: Path) -> None:
 
 
 def _assert_fdroid_verify_state(repo_root: Path, version_name: str) -> None:
+    _validate_fdroid_chaquopy_proguard(repo_root)
     _validate_fdroid_local_properties(repo_root)
-    _assert_no_hidden_untracked_inputs(repo_root)
+    _assert_no_hidden_untracked_inputs(
+        repo_root,
+        allowed_generated=frozenset({FDROID_CHAQUOPY_PROGUARD_PATH}),
+    )
     expected: dict[PurePosixPath, bytes | None] = dict(
         _fdroid_signing_scrubbed_sources(repo_root)
     )
