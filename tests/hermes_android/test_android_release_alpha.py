@@ -186,6 +186,15 @@ def test_android_push_workflow_compiles_android_test_sources():
     assert './gradlew :app:compileDebugAndroidTestKotlin -PskipHermesAndroidLinuxAssets=true' in workflow
 
 
+def test_android_push_workflow_allows_a_cold_native_smoke_build_to_finish():
+    workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
+    smoke_job = workflow.split("  smoke:\n", 1)[1].split(
+        "\n  signed-play-verification:\n", 1
+    )[0]
+
+    assert "    timeout-minutes: 45\n" in smoke_job
+
+
 def test_android_signed_device_candidate_is_default_head_bound_and_nonpublishing():
     workflow = (REPO_ROOT / ".github/workflows/android-device-candidate.yml").read_text(
         encoding="utf-8",
