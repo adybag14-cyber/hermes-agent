@@ -622,6 +622,44 @@ def resolve_locked_cmake_and_ninja(
     return cmake, ninja, actual_cmake, actual_ninja
 
 
+def _path_is_within(candidate: Path, root: Path) -> bool:
+    try:
+        common = os.path.commonpath((str(candidate.resolve()), str(root.resolve())))
+    except ValueError:
+        return False
+    return os.path.normcase(common) == os.path.normcase(str(root.resolve()))
+
+
+def resolve_host_cxx_compiler(
+    ndk_dir: Path,
+    environment: dict[str, str] | None = None,
+) -> Path:
+    search_path = (environment or os.environ).get("PATH", "")
+    rejected: list[Path] = []
+    for name in ("g++", "c++", "clang++"):
+        located = shutil.which(name, path=search_path)
+        if located is None:
+            continue
+        resolved = Path(located).resolve()
+        cross_named = re.search(
+            r"(?:aarch64|armv7a|i686|x86_64)-linux-android.*(?:clang\+\+|g\+\+)(?:\.exe)?$",
+            resolved.name,
+            flags=re.IGNORECASE,
+        )
+        if _path_is_within(resolved, ndk_dir) or cross_named:
+            rejected.append(resolved)
+            continue
+        if not resolved.is_file():
+            continue
+        return resolved
+    rejected_text = ", ".join(str(path) for path in rejected)
+    detail = f"; rejected Android cross compiler(s): {rejected_text}" if rejected else ""
+    raise RuntimeError(
+        "a real host C++ compiler was not found on PATH; install g++ or provide c++/clang++"
+        + detail
+    )
+
+
 def deterministic_build_environment(lock: dict[str, Any]) -> dict[str, str]:
     environment = os.environ.copy()
     # Ambient SOURCE_DATE_EPOCH must not mutate a hash-locked Android candidate.
@@ -731,6 +769,7 @@ def configure_and_build_abi(
     ndk_dir: Path,
     cmake: Path,
     ninja: Path,
+    host_cxx_compiler: Path,
     jobs: int,
     environment: dict[str, str],
 ) -> Path:
@@ -751,6 +790,7 @@ def configure_and_build_abi(
         f"-DANDROID_ABI={abi}",
         f"-DANDROID_PLATFORM=android-{android['minimum_api']}",
         f"-DANDROID_NDK={ndk_dir}",
+        f"-DHOST_CXX_COMPILER:FILEPATH={host_cxx_compiler}",
     ]
     command.extend(f"-D{key}={value}" for key, value in sorted(build["cmake_defines"].items()))
     path_map_flags = cmake_compiler_flags(
@@ -763,6 +803,7 @@ def configure_and_build_abi(
         )
     )
     subprocess.run(command, check=True, env=environment)
+    verify_configured_host_cxx_compiler(build_dir, host_cxx_compiler)
     verify_configured_build_identity(build_dir, lock)
     subprocess.run(
         [str(cmake), "--build", str(build_dir), "--target", "llama-server", "--parallel", str(jobs)],
@@ -786,6 +827,27 @@ def verify_configured_build_identity(build_dir: Path, lock: dict[str, Any]) -> N
         raise RuntimeError("configured llama-server build number does not match the lock")
     if f'char const * LLAMA_COMMIT = "{expected_commit}";' not in payload:
         raise RuntimeError("configured llama-server commit identity does not match the lock")
+
+
+def verify_configured_host_cxx_compiler(build_dir: Path, expected: Path) -> None:
+    cache = build_dir / "CMakeCache.txt"
+    if not cache.is_file():
+        raise RuntimeError(f"CMake did not generate the expected cache file: {cache}")
+    matches = re.findall(
+        r"^HOST_CXX_COMPILER:([^=]+)=(.*)$",
+        cache.read_text(encoding="utf-8"),
+        flags=re.MULTILINE,
+    )
+    if len(matches) != 1:
+        raise RuntimeError("CMake cache must contain exactly one HOST_CXX_COMPILER entry")
+    cache_type, configured_value = matches[0]
+    if cache_type != "FILEPATH":
+        raise RuntimeError("CMake cache HOST_CXX_COMPILER entry must have FILEPATH type")
+    configured = Path(configured_value.strip()).resolve()
+    if configured != expected.resolve():
+        raise RuntimeError(
+            f"configured HOST_CXX_COMPILER mismatch: expected {expected.resolve()}, got {configured}"
+        )
 
 
 def verify_android_elf(
@@ -928,6 +990,7 @@ def build_experimental_server(
     strip = resolve_ndk_tool(ndk_dir, "llvm-strip")
     readelf = resolve_ndk_tool(ndk_dir, "llvm-readelf")
     environment = deterministic_build_environment(lock)
+    host_cxx_compiler = resolve_host_cxx_compiler(ndk_dir, environment)
 
     source = lock["source"]
     archive_name = f"llama-cpp-turboquant-{source['commit']}.tar.gz"
@@ -968,6 +1031,7 @@ def build_experimental_server(
                 ndk_dir=ndk_dir,
                 cmake=cmake,
                 ninja=ninja,
+                host_cxx_compiler=host_cxx_compiler,
                 jobs=jobs,
                 environment=environment,
             )
