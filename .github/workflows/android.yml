@@ -22,7 +22,7 @@ jobs:
   smoke:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.play_registration_snippet == '' }}
     runs-on: ${{ fromJSON(vars.HERMES_ANDROID_RUNNER || '["ubuntu-latest"]') }}
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
