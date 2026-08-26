@@ -61,7 +61,7 @@ def _autoupdater_metadata(target_count: int = 1) -> str:
     subdir: android/app
     sudo:
       - apt-get update
-      - apt-get install -y python3-pip
+      - apt-get install -y g++ python3-pip
     gradle:
       - yes
     prebuild:
@@ -1080,6 +1080,7 @@ def test_fdroid_metadata_and_gradle_wire_prepare_before_sed_and_verify_afterward
 
     assert build["gradleprops"] == ["hermesFdroidSourceBinding=true"]
     assert build["ndk"] == "29.0.14206865"
+    assert "apt-get install -y g++ python3-pip" in build["sudo"]
     assert 'sdkmanager "cmake;3.31.6"' in build["sudo"]
     assert "android_fdroid_source_binding.py prepare" in prebuild[0]
     assert "${GRADLE_USER_HOME:-$HOME/.gradle}" in prebuild[0]

@@ -210,6 +210,7 @@ def test_native_toolchain_contract_matches_lock_gradle_and_fdroid_metadata(
     )
     assert "ndkVersion = hermesExperimentalLlamaNdkVersion" in gradle
     assert f'    ndk: {fdroid_contract["ANDROID_NDK_VERSION"]}' in metadata
+    assert "      - apt-get install -y g++ python3-pip" in metadata
     assert f'      - sdkmanager "{fdroid_contract["ANDROID_CMAKE_PACKAGE"]}"' in metadata
 
 

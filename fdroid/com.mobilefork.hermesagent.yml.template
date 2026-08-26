@@ -38,7 +38,7 @@ Builds:
     subdir: android/app
     sudo:
       - apt-get update
-      - apt-get install -y python3-pip
+      - apt-get install -y g++ python3-pip
       - sdkmanager "cmake;3.31.6"
     ndk: 29.0.14206865
     gradle:

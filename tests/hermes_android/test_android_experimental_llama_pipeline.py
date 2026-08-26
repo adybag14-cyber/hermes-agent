@@ -143,6 +143,87 @@ def test_locked_cmake_and_ninja_reject_version_mismatch_before_build(tmp_path, m
         experimental.resolve_locked_cmake_and_ninja(lock, str(cmake), str(ninja))
 
 
+def test_host_cxx_compiler_prefers_real_gxx_from_host_path(tmp_path, monkeypatch):
+    ndk = tmp_path / "Sdk" / "ndk" / "29.0.14206865"
+    host_bin = tmp_path / "host-bin"
+    host_bin.mkdir()
+    gxx = host_bin / "g++"
+    cxx = host_bin / "c++"
+    gxx.write_bytes(b"host g++")
+    cxx.write_bytes(b"host c++")
+    observed = []
+
+    def fake_which(name, *, path):
+        observed.append((name, path))
+        return str({"g++": gxx, "c++": cxx}.get(name)) if name in {"g++", "c++"} else None
+
+    monkeypatch.setattr(experimental.shutil, "which", fake_which)
+
+    resolved = experimental.resolve_host_cxx_compiler(ndk, {"PATH": str(host_bin)})
+
+    assert resolved == gxx.resolve()
+    assert observed == [("g++", str(host_bin))]
+
+
+def test_host_cxx_compiler_rejects_missing_host_tool(tmp_path, monkeypatch):
+    monkeypatch.setattr(experimental.shutil, "which", lambda _name, *, path: None)
+
+    with pytest.raises(RuntimeError, match=r"real host C\+\+ compiler was not found"):
+        experimental.resolve_host_cxx_compiler(tmp_path / "ndk", {"PATH": "/empty"})
+
+
+def test_host_cxx_compiler_rejects_ndk_only_cross_compiler(tmp_path, monkeypatch):
+    ndk = tmp_path / "Sdk" / "ndk" / "29.0.14206865"
+    cross = ndk / "toolchains/llvm/prebuilt/linux-x86_64/bin/clang++"
+    cross.parent.mkdir(parents=True)
+    cross.write_bytes(b"Android cross compiler")
+    monkeypatch.setattr(
+        experimental.shutil,
+        "which",
+        lambda name, *, path: str(cross) if name == "clang++" else None,
+    )
+
+    with pytest.raises(RuntimeError, match="rejected Android cross compiler"):
+        experimental.resolve_host_cxx_compiler(ndk, {"PATH": str(cross.parent)})
+
+
+def test_configured_host_cxx_compiler_cache_must_match_exact_path(tmp_path):
+    compiler = tmp_path / "host bin" / "g++"
+    compiler.parent.mkdir()
+    compiler.write_bytes(b"host compiler")
+    build_dir = tmp_path / "build"
+    build_dir.mkdir()
+    cache = build_dir / "CMakeCache.txt"
+    cache.write_text(
+        f"HOST_CXX_COMPILER:FILEPATH={compiler.resolve()}\n",
+        encoding="utf-8",
+    )
+
+    experimental.verify_configured_host_cxx_compiler(build_dir, compiler)
+    cache.write_text(
+        f"HOST_CXX_COMPILER:FILEPATH={(tmp_path / 'wrong-g++').resolve()}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="configured HOST_CXX_COMPILER mismatch"):
+        experimental.verify_configured_host_cxx_compiler(build_dir, compiler)
+
+    for invalid_type in ("STRING", "UNINITIALIZED"):
+        cache.write_text(
+            f"HOST_CXX_COMPILER:{invalid_type}={compiler.resolve()}\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(RuntimeError, match="must have FILEPATH type"):
+            experimental.verify_configured_host_cxx_compiler(build_dir, compiler)
+
+    cache.write_text(
+        f"HOST_CXX_COMPILER:FILEPATH={compiler.resolve()}\n"
+        f"HOST_CXX_COMPILER:STRING={compiler.resolve()}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="exactly one HOST_CXX_COMPILER entry"):
+        experimental.verify_configured_host_cxx_compiler(build_dir, compiler)
+
+
 def test_cmake_configuration_maps_random_source_and_build_roots_after_locked_defines(
     tmp_path,
     monkeypatch,
@@ -164,6 +245,13 @@ def test_cmake_configuration_maps_random_source_and_build_roots_after_locked_def
     binary = build_dir / "bin" / "llama-server"
     binary.parent.mkdir(parents=True)
     binary.write_bytes(b"fixture")
+    host_cxx = tmp_path / "host bin" / "g++"
+    host_cxx.parent.mkdir()
+    host_cxx.write_bytes(b"host compiler")
+    (build_dir / "CMakeCache.txt").write_text(
+        f"HOST_CXX_COMPILER:FILEPATH={host_cxx.resolve()}\n",
+        encoding="utf-8",
+    )
     commands = []
 
     def fake_run(command, **_kwargs):
@@ -180,6 +268,7 @@ def test_cmake_configuration_maps_random_source_and_build_roots_after_locked_def
         ndk_dir=tmp_path / "ndk",
         cmake=tmp_path / "cmake",
         ninja=tmp_path / "ninja",
+        host_cxx_compiler=host_cxx,
         jobs=12,
         environment=experimental.deterministic_build_environment(lock),
     )
@@ -200,10 +289,18 @@ def test_cmake_configuration_maps_random_source_and_build_roots_after_locked_def
     cxx_flags = f"-DCMAKE_CXX_FLAGS={rendered_flags}"
     assert configure.count(c_flags) == 1
     assert configure.count(cxx_flags) == 1
+    host_definition = f"-DHOST_CXX_COMPILER:FILEPATH={host_cxx}"
+    assert configure.count(host_definition) == 1
     assert ";" not in rendered_flags
     for option in options:
         assert option in rendered_flags
     last_locked_define = max(
+        configure.index(f"-D{key}={value}")
+        for key, value in lock["build"]["cmake_defines"].items()
+    )
+    assert configure.index(f"-DANDROID_NDK={tmp_path / 'ndk'}") < configure.index(
+        host_definition
+    ) < min(
         configure.index(f"-D{key}={value}")
         for key, value in lock["build"]["cmake_defines"].items()
     )

@@ -117,7 +117,7 @@ EXPECTED_BINDING_KEYS = frozenset(
 EXPECTED_METADATA_SUDO = (
     "    sudo:\n"
     "      - apt-get update\n"
-    "      - apt-get install -y python3-pip\n"
+    "      - apt-get install -y g++ python3-pip\n"
     '      - sdkmanager "cmake;3.31.6"\n'
 )
 EXPECTED_METADATA_NDK = "    ndk: 29.0.14206865\n"
