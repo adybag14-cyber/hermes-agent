@@ -54,6 +54,12 @@ FDROID_LOCAL_PROPERTIES = (
     PurePosixPath("android/local.properties"),
     PurePosixPath("android/app/local.properties"),
 )
+FDROID_LOCAL_PROPERTIES_PAYLOAD = (
+    b"sdk.dir=/opt/android-sdk\n"
+    b"sdk-location=/opt/android-sdk\n"
+    b"ndk.dir=/opt/android-sdk/ndk/29.0.14206865\n"
+    b"ndk-location=/opt/android-sdk/ndk/29.0.14206865\n"
+)
 RELEASE_TAG_EXPRESSION = 'System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()'
 BUILD_PYTHON_EXPRESSION = (
     'return if (osName.contains("windows")) "python" else "python3"'
@@ -596,23 +602,19 @@ def _validate_fdroid_local_properties(repo_root: Path) -> None:
     payloads: list[bytes] = []
     for path in FDROID_LOCAL_PROPERTIES:
         candidate = repo_root / path
-        if not candidate.is_file():
+        if not candidate.is_file() or candidate.is_symlink():
             raise FdroidSourceBindingError(
-                f"F-Droid buildserver-generated SDK locator is missing: {path.as_posix()}"
+                "F-Droid buildserver-generated SDK/NDK locator must be an ordinary file: "
+                f"{path.as_posix()}"
             )
         payloads.append(candidate.read_bytes())
     if len(set(payloads)) != 1:
         raise FdroidSourceBindingError(
             "F-Droid buildserver-generated local.properties files are not identical"
         )
-    try:
-        text = payloads[0].decode("ascii")
-    except UnicodeDecodeError as exc:
-        raise FdroidSourceBindingError("F-Droid SDK locator is not ASCII") from exc
-    match = re.fullmatch(r"sdk\.dir=(/[^\r\n]+)\nsdk-location=(/[^\r\n]+)\n", text)
-    if match is None or match.group(1) != match.group(2):
+    if payloads[0] != FDROID_LOCAL_PROPERTIES_PAYLOAD:
         raise FdroidSourceBindingError(
-            "F-Droid SDK locator must contain only identical absolute sdk.dir and sdk-location values"
+            "F-Droid SDK/NDK locator does not match the exact pinned buildserver payload"
         )
 
 

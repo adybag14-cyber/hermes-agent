@@ -1,3 +1,4 @@
+import hashlib
 import importlib.util
 import re
 import subprocess
@@ -19,6 +20,12 @@ BUILD_PYTHON_EXPRESSION = (
 )
 BUILD_PYTHON_REPLACEMENT = (
     'return if (osName.contains("windows")) "python" else "python3.13"'
+)
+FDROID_LOCAL_PROPERTIES_PAYLOAD = (
+    b"sdk.dir=/opt/android-sdk\n"
+    b"sdk-location=/opt/android-sdk\n"
+    b"ndk.dir=/opt/android-sdk/ndk/29.0.14206865\n"
+    b"ndk-location=/opt/android-sdk/ndk/29.0.14206865\n"
 )
 
 
@@ -160,7 +167,7 @@ def source_checkout(tmp_path: Path) -> Path:
 
 
 def _apply_fdroid_buildserver_preparation(repo: Path) -> None:
-    properties = b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\n"
+    properties = FDROID_LOCAL_PROPERTIES_PAYLOAD
     for relative in (
         Path("local.properties"),
         Path("android/local.properties"),
@@ -199,6 +206,15 @@ def _apply_fdroid_buildserver_preparation(repo: Path) -> None:
         if "signingConfig = signingConfigs.getByName" not in line
     )
     macrobenchmark.write_bytes(macro_source.encode("utf-8"))
+
+
+def _write_fdroid_local_properties(repo: Path, payload: bytes) -> None:
+    for relative in (
+        Path("local.properties"),
+        Path("android/local.properties"),
+        Path("android/app/local.properties"),
+    ):
+        (repo / relative).write_bytes(payload)
 
 
 def _apply_declared_fdroid_transform(repo: Path) -> None:
@@ -328,6 +344,186 @@ def test_prepare_rejects_missing_buildserver_sdk_and_signing_preparation(
             tmp_path / binding_module.BINDING_FILE_NAME,
             VERSION_NAME,
         )
+
+
+def test_fdroid_local_properties_accepts_exact_pinned_sdk_ndk_payload(
+    source_checkout: Path,
+):
+    binding_module = _load_binding_module()
+    assert len(FDROID_LOCAL_PROPERTIES_PAYLOAD) == 146
+    assert hashlib.sha256(FDROID_LOCAL_PROPERTIES_PAYLOAD).hexdigest() == (
+        "6ce9884ec454393dcdd094805065e31adda2e11650dd59d71087c9e0f608660f"
+    )
+    assert binding_module.FDROID_LOCAL_PROPERTIES_PAYLOAD == FDROID_LOCAL_PROPERTIES_PAYLOAD
+    _apply_fdroid_buildserver_preparation(source_checkout)
+
+    binding_module._validate_fdroid_local_properties(source_checkout)
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\n",
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\nndk-location=/opt/android-sdk/ndk/29.0.14206865\n",
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\nndk.dir=/opt/android-sdk/ndk/29.0.14206865\n",
+        b"sdk-location=/opt/android-sdk\nsdk.dir=/opt/android-sdk\nndk.dir=/opt/android-sdk/ndk/29.0.14206865\nndk-location=/opt/android-sdk/ndk/29.0.14206865\n",
+        FDROID_LOCAL_PROPERTIES_PAYLOAD + b"unexpected.key=value\n",
+        FDROID_LOCAL_PROPERTIES_PAYLOAD + b"ndk.dir=/opt/android-sdk/ndk/29.0.14206865\n",
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/different-sdk\nndk.dir=/opt/android-sdk/ndk/29.0.14206865\nndk-location=/opt/android-sdk/ndk/29.0.14206865\n",
+        b"sdk.dir=opt/android-sdk\nsdk-location=opt/android-sdk\nndk.dir=opt/android-sdk/ndk/29.0.14206865\nndk-location=opt/android-sdk/ndk/29.0.14206865\n",
+        b"sdk.dir=/tmp/android-sdk\nsdk-location=/tmp/android-sdk\nndk.dir=/tmp/android-sdk/ndk/29.0.14206865\nndk-location=/tmp/android-sdk/ndk/29.0.14206865\n",
+        b"sdk.dir=/opt/android-sdk-evil\nsdk-location=/opt/android-sdk-evil\nndk.dir=/opt/android-sdk-evil/ndk/29.0.14206865\nndk-location=/opt/android-sdk-evil/ndk/29.0.14206865\n",
+        b"sdk.dir=/opt/android-sdk/\nsdk-location=/opt/android-sdk/\nndk.dir=/opt/android-sdk//ndk/29.0.14206865\nndk-location=/opt/android-sdk//ndk/29.0.14206865\n",
+        b"sdk.dir=/opt/android-sdk/../other\nsdk-location=/opt/android-sdk/../other\nndk.dir=/opt/android-sdk/../other/ndk/29.0.14206865\nndk-location=/opt/android-sdk/../other/ndk/29.0.14206865\n",
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\nndk.dir=/opt/android-sdk/ndk/29.0.14206865\nndk-location=/different-ndk\n",
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\nndk.dir=/opt/android-sdk/ndk/../29.0.14206865\nndk-location=/opt/android-sdk/ndk/../29.0.14206865\n",
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\nndk.dir=/opt/android-sdk/ndk/28.0.13004108\nndk-location=/opt/android-sdk/ndk/28.0.13004108\n",
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\nndk.dir=/opt/other/ndk/29.0.14206865\nndk-location=/opt/other/ndk/29.0.14206865\n",
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.replace(b"\n", b"\r\n"),
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.rstrip(b"\n"),
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.replace(b"sdk.dir=", b"sdk.dir =", 1),
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.replace(b"sdk-location=", b"\nsdk-location=", 1),
+        b"# generated\n" + FDROID_LOCAL_PROPERTIES_PAYLOAD,
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.replace(
+            b"sdk.dir=/opt/android-sdk\n", b"sdk.dir=/opt/android-\\\nsdk\n", 1
+        ),
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.replace(b"android-sdk", b"android\\u002dsdk"),
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.replace(b"\n", b"\n\n", 1),
+        b"\xef\xbb\xbf" + FDROID_LOCAL_PROPERTIES_PAYLOAD,
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.replace(b"android-sdk", b"android\x00-sdk", 1),
+        FDROID_LOCAL_PROPERTIES_PAYLOAD.replace(b"/opt/android-sdk", b"/opt/andr\xc3\xb6id-sdk"),
+    ],
+    ids=[
+        "old-sdk-only-payload",
+        "missing-ndk-dir",
+        "missing-ndk-location",
+        "reordered-lines",
+        "extra-key",
+        "duplicate-key",
+        "mismatched-sdk-values",
+        "relative-paths",
+        "alternate-sdk-root",
+        "sdk-prefix-root",
+        "trailing-slash",
+        "sdk-traversal",
+        "mismatched-ndk-values",
+        "ndk-traversal",
+        "wrong-ndk-version",
+        "wrong-ndk-path",
+        "crlf",
+        "missing-final-lf",
+        "whitespace",
+        "blank-line",
+        "comment",
+        "continuation",
+        "escaped-unicode-separator",
+        "double-lf",
+        "bom",
+        "embedded-nul",
+        "non-ascii",
+    ],
+)
+def test_fdroid_local_properties_rejects_noncanonical_payloads(
+    source_checkout: Path,
+    payload: bytes,
+):
+    binding_module = _load_binding_module()
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    _write_fdroid_local_properties(source_checkout, payload)
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="exact pinned buildserver payload",
+    ):
+        binding_module._validate_fdroid_local_properties(source_checkout)
+
+
+def test_fdroid_local_properties_rejects_nonidentical_files(source_checkout: Path):
+    binding_module = _load_binding_module()
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    (source_checkout / "android/app/local.properties").write_bytes(
+        FDROID_LOCAL_PROPERTIES_PAYLOAD + b"unexpected.key=value\n"
+    )
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="files are not identical",
+    ):
+        binding_module._validate_fdroid_local_properties(source_checkout)
+
+
+def test_fdroid_local_properties_rejects_symlink(source_checkout: Path):
+    binding_module = _load_binding_module()
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    locator = source_checkout / "local.properties"
+    locator.unlink()
+    locator.symlink_to(Path("android/local.properties"))
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="must be an ordinary file",
+    ):
+        binding_module._validate_fdroid_local_properties(source_checkout)
+
+
+def test_fdroid_local_properties_rejects_missing_locator(source_checkout: Path):
+    binding_module = _load_binding_module()
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    (source_checkout / "android/local.properties").unlink()
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="must be an ordinary file",
+    ):
+        binding_module._validate_fdroid_local_properties(source_checkout)
+
+
+def test_fdroid_local_properties_rejects_directory_locator(source_checkout: Path):
+    binding_module = _load_binding_module()
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    locator = source_checkout / "android/local.properties"
+    locator.unlink()
+    locator.mkdir()
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="must be an ordinary file",
+    ):
+        binding_module._validate_fdroid_local_properties(source_checkout)
+
+
+def test_fdroid_local_properties_rejects_additional_untracked_path(source_checkout: Path):
+    binding_module = _load_binding_module()
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    (source_checkout / "unexpected.txt").write_text("unexpected\n", encoding="ascii")
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="buildserver-generated untracked SDK locators",
+    ):
+        binding_module._validate_fdroid_local_properties(source_checkout)
+
+
+def test_verify_rejects_locator_mutation_after_prepare(
+    source_checkout: Path,
+    tmp_path: Path,
+):
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    _write_fdroid_local_properties(
+        source_checkout,
+        b"sdk.dir=/opt/android-sdk\nsdk-location=/opt/android-sdk\n",
+    )
+
+    with pytest.raises(
+        binding_module.FdroidSourceBindingError,
+        match="exact pinned buildserver payload",
+    ):
+        binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
 
 
 def test_verify_rejects_a_missing_prebuild_handoff(
