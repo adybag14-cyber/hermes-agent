@@ -808,6 +808,38 @@ def test_output_replacement_copies_to_destination_filesystem_before_atomic_swap(
     assert not _transaction_residue(output.parent)
 
 
+def test_bound_timestamp_update_uses_native_windows_descriptor_handle(tmp_path, monkeypatch):
+    source = tmp_path / "source"
+    source.write_bytes(b"source")
+    os.utime(source, ns=(946684800000000000, 946684801000000000))
+    destination = tmp_path / "destination"
+    destination.write_bytes(b"destination")
+    descriptor = os.open(
+        destination,
+        os.O_RDWR | getattr(os, "O_BINARY", 0),
+    )
+    calls = []
+
+    def fake_windows_set_times(open_descriptor, timestamps):
+        calls.append((open_descriptor, timestamps))
+
+    monkeypatch.setattr(experimental.os, "name", "nt")
+    monkeypatch.setattr(
+        experimental.os,
+        "utime",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("path utime called")),
+    )
+    monkeypatch.setattr(experimental, "_set_windows_file_times_bound", fake_windows_set_times)
+    try:
+        source_stat = source.stat()
+        experimental._set_file_times_bound(destination, descriptor, source_stat)
+    finally:
+        os.close(descriptor)
+
+    assert calls == [(descriptor, (source_stat.st_atime_ns, source_stat.st_mtime_ns))]
+    assert destination.read_bytes() == b"destination"
+
+
 def test_output_replacement_accepts_an_existing_empty_output(tmp_path):
     staged = tmp_path / "staged"
     artifact = _write_owned_output(staged, "new")
