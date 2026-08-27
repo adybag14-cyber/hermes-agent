@@ -1,6 +1,10 @@
+import errno
 import hashlib
 import json
+import os
+import stat
 import tarfile
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -699,17 +703,729 @@ def test_build_environment_uses_locked_source_date_epoch_not_ambient(monkeypatch
     assert environment["LC_ALL"] == "C"
 
 
+def _sha256_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _write_owned_output(
+    root: Path,
+    marker: str,
+    *,
+    kind: str = "jni",
+    exist_ok: bool = False,
+) -> Path:
+    root.mkdir(parents=True, exist_ok=exist_ok)
+    payload = marker.encode("utf-8")
+    if kind == "jni":
+        relative = "arm64-v8a/libhermes_experimental_llama_server.so"
+        manifest_relative = experimental.MANIFEST_NAME
+        manifest = {
+            "schema_version": 1,
+            "generated_by": experimental.MANIFEST_GENERATOR,
+            "artifacts": {
+                "arm64-v8a": {
+                    "relative_path": relative,
+                    "size_bytes": len(payload),
+                    "sha256": _sha256_bytes(payload),
+                }
+            },
+        }
+    elif kind == "assets":
+        relative = "licenses/project.txt"
+        manifest_relative = experimental.PACKAGED_MANIFEST_ASSET
+        manifest = {
+            "schema_version": 1,
+            "generated_by": experimental.MANIFEST_GENERATOR,
+            "license_artifacts": [
+                {
+                    "source_path": "LICENSE",
+                    "packaged_asset_path": relative,
+                    "size_bytes": len(payload),
+                    "sha256": _sha256_bytes(payload),
+                }
+            ],
+        }
+    else:
+        raise AssertionError(f"unsupported owned-output fixture kind: {kind}")
+    artifact = root / relative
+    artifact.parent.mkdir(parents=True)
+    artifact.write_bytes(payload)
+    if kind == "jni":
+        artifact.chmod(0o755)
+    manifest_path = root / manifest_relative
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return artifact
+
+
+def _transaction_residue(parent: Path) -> list[Path]:
+    candidates = [
+        *parent.glob(".*.transaction-*"),
+        *parent.glob(".*.cleanup-*"),
+        parent / ".hermes-experimental-llama-publication.lock",
+    ]
+    return sorted(path for path in candidates if path.exists() or path.is_symlink())
+
+
 def test_output_replacement_refuses_nonempty_unowned_directory(tmp_path):
     output = tmp_path / "jniLibs"
     output.mkdir()
     (output / "user-file").write_text("preserve", encoding="utf-8")
     staged = tmp_path / "staged"
-    staged.mkdir()
+    _write_owned_output(staged, "new")
 
     with pytest.raises(RuntimeError, match="refusing to replace non-empty unowned output"):
         experimental.replace_owned_output(staged, output)
 
     assert (output / "user-file").read_text(encoding="utf-8") == "preserve"
+    assert not _transaction_residue(tmp_path)
+
+
+def test_output_replacement_copies_to_destination_filesystem_before_atomic_swap(
+    tmp_path,
+    monkeypatch,
+):
+    staged = tmp_path / "source-filesystem" / "staged"
+    binary = _write_owned_output(staged, "new native bytes")
+    output = tmp_path / "destination-filesystem" / "jniLibs"
+    output.parent.mkdir()
+    _write_owned_output(output, "old")
+    real_replace = experimental.os.replace
+
+    def simulated_cross_device_replace(source, destination):
+        if Path(source) == staged:
+            raise OSError(errno.EXDEV, "simulated cross-device rename")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(experimental.os, "replace", simulated_cross_device_replace)
+
+    experimental.replace_owned_output(staged, output)
+
+    published = output / binary.relative_to(staged)
+    assert published.read_bytes() == b"new native bytes"
+    assert stat.S_IMODE(published.stat().st_mode) == 0o755
+    assert staged.is_dir()
+    assert not _transaction_residue(output.parent)
+
+
+def test_output_replacement_accepts_an_existing_empty_output(tmp_path):
+    staged = tmp_path / "staged"
+    artifact = _write_owned_output(staged, "new")
+    output = tmp_path / "output"
+    output.mkdir()
+
+    experimental.replace_owned_output(staged, output)
+
+    assert (output / artifact.relative_to(staged)).read_bytes() == b"new"
+    assert not _transaction_residue(tmp_path)
+
+
+@pytest.mark.parametrize("unsafe_kind", ["symlink", "fifo"])
+def test_output_replacement_rejects_staged_link_and_special_file(
+    tmp_path,
+    unsafe_kind,
+):
+    staged = tmp_path / "staged"
+    staged.mkdir()
+    unsafe = staged / "unsafe"
+    if unsafe_kind == "symlink":
+        target = tmp_path / "target"
+        target.write_text("target", encoding="utf-8")
+        unsafe.symlink_to(target)
+    else:
+        if not hasattr(os, "mkfifo"):
+            pytest.skip("POSIX FIFO support required")
+        os.mkfifo(unsafe)
+
+    with pytest.raises(RuntimeError, match="contains a (?:link or reparse point|special file)"):
+        experimental.replace_owned_output(staged, tmp_path / "output")
+
+
+def test_output_replacement_rejects_a_staged_root_symlink(tmp_path):
+    real_staged = tmp_path / "real-staged"
+    _write_owned_output(real_staged, "new")
+    staged = tmp_path / "staged-link"
+    staged.symlink_to(real_staged, target_is_directory=True)
+
+    with pytest.raises(RuntimeError, match="must be an ordinary non-link directory"):
+        experimental.replace_owned_output(staged, tmp_path / "output")
+
+
+def test_output_replacement_rejects_broken_output_symlink(tmp_path):
+    staged = tmp_path / "staged"
+    _write_owned_output(staged, "new")
+    output = tmp_path / "output"
+    output.symlink_to(tmp_path / "missing-target", target_is_directory=True)
+
+    with pytest.raises(RuntimeError, match="must be an ordinary non-link directory"):
+        experimental.replace_owned_output(staged, output)
+
+    assert output.is_symlink()
+
+
+def test_output_replacement_rejects_a_linked_output_ancestor(tmp_path):
+    staged = tmp_path / "staged"
+    _write_owned_output(staged, "new")
+    real_parent = tmp_path / "real-parent"
+    real_parent.mkdir()
+    linked_parent = tmp_path / "linked-parent"
+    linked_parent.symlink_to(real_parent, target_is_directory=True)
+    output = linked_parent / "output"
+
+    with pytest.raises(RuntimeError, match="contains a link, reparse point, or non-directory"):
+        experimental.replace_owned_output(staged, output)
+
+    assert linked_parent.is_symlink()
+    assert not output.exists()
+
+
+def test_windows_reparse_attribute_is_treated_as_an_unsafe_link(monkeypatch):
+    monkeypatch.setattr(
+        experimental.stat,
+        "FILE_ATTRIBUTE_REPARSE_POINT",
+        0x400,
+        raising=False,
+    )
+    fake_stat = SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0x400)
+
+    assert experimental._unsafe_link_or_reparse(fake_stat)
+
+
+def test_output_replacement_preserves_old_owned_output_on_copy_failure(tmp_path, monkeypatch):
+    staged = tmp_path / "staged"
+    _write_owned_output(staged, "new")
+    output = tmp_path / "output"
+    old_artifact = _write_owned_output(output, "old")
+
+    def fail_copy(_source, destination, _snapshot):
+        destination.mkdir()
+        (destination / "partial").write_text("partial", encoding="utf-8")
+        raise OSError("copy failed")
+
+    monkeypatch.setattr(experimental, "_copy_validated_tree", fail_copy)
+
+    with pytest.raises(OSError, match="copy failed"):
+        experimental.replace_owned_output(staged, output)
+
+    assert old_artifact.read_bytes() == b"old"
+    assert not _transaction_residue(tmp_path)
+
+
+def test_second_preparation_failure_cleans_the_first_transaction(tmp_path, monkeypatch):
+    staged_jni = tmp_path / "staged-jni"
+    staged_assets = tmp_path / "staged-assets"
+    _write_owned_output(staged_jni, "new-jni")
+    _write_owned_output(staged_assets, "new-assets", kind="assets")
+    output_jni = tmp_path / "generated-jni" / "jniLibs"
+    output_assets = tmp_path / "generated-assets" / "assets"
+    old_jni = _write_owned_output(output_jni, "old-jni")
+    old_assets = _write_owned_output(output_assets, "old-assets", kind="assets")
+    real_copy = experimental._copy_validated_tree
+    calls = 0
+
+    def fail_second_copy(source, destination, snapshot):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            destination.mkdir()
+            raise OSError("second copy failed")
+        return real_copy(source, destination, snapshot)
+
+    monkeypatch.setattr(experimental, "_copy_validated_tree", fail_second_copy)
+
+    with pytest.raises(OSError, match="second copy failed"):
+        experimental.replace_owned_outputs(
+            (
+                (staged_jni, output_jni, Path(experimental.MANIFEST_NAME)),
+                (staged_assets, output_assets, Path(experimental.PACKAGED_MANIFEST_ASSET)),
+            )
+        )
+
+    assert old_jni.read_bytes() == b"old-jni"
+    assert old_assets.read_bytes() == b"old-assets"
+    assert not _transaction_residue(output_jni.parent)
+    assert not _transaction_residue(output_assets.parent)
+
+
+def test_output_replacement_restores_old_owned_output_on_swap_failure(tmp_path, monkeypatch):
+    staged = tmp_path / "staged"
+    _write_owned_output(staged, "new")
+    output = tmp_path / "output"
+    old_artifact = _write_owned_output(output, "old")
+    real_replace = experimental.os.replace
+
+    def fail_incoming_swap(source, destination):
+        if Path(source).name == "incoming" and Path(destination) == output:
+            raise OSError("swap failed")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(experimental.os, "replace", fail_incoming_swap)
+
+    with pytest.raises(OSError, match="swap failed"):
+        experimental.replace_owned_output(staged, output)
+
+    assert old_artifact.read_bytes() == b"old"
+    assert not _transaction_residue(tmp_path)
+
+
+def test_second_output_swap_failure_restores_both_owned_outputs(tmp_path, monkeypatch):
+    staged_jni = tmp_path / "staged-jni"
+    staged_assets = tmp_path / "staged-assets"
+    _write_owned_output(staged_jni, "new-jni")
+    _write_owned_output(staged_assets, "new-assets", kind="assets")
+    output_jni = tmp_path / "generated-jni" / "jniLibs"
+    output_assets = tmp_path / "generated-assets" / "assets"
+    old_jni = _write_owned_output(output_jni, "old-jni")
+    old_assets = _write_owned_output(output_assets, "old-assets", kind="assets")
+    real_replace = experimental.os.replace
+
+    def fail_second_publish(source, destination):
+        if Path(source).name == "incoming" and Path(destination) == output_assets:
+            raise OSError("second publish failed")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(experimental.os, "replace", fail_second_publish)
+
+    with pytest.raises(OSError, match="second publish failed"):
+        experimental.replace_owned_outputs(
+            (
+                (staged_jni, output_jni, Path(experimental.MANIFEST_NAME)),
+                (staged_assets, output_assets, Path(experimental.PACKAGED_MANIFEST_ASSET)),
+            )
+        )
+
+    assert old_jni.read_bytes() == b"old-jni"
+    assert old_assets.read_bytes() == b"old-assets"
+    assert not _transaction_residue(output_jni.parent)
+    assert not _transaction_residue(output_assets.parent)
+
+
+def test_cleanup_failure_after_commit_never_rolls_back_verified_outputs(tmp_path, monkeypatch):
+    staged_jni = tmp_path / "staged-jni"
+    staged_assets = tmp_path / "staged-assets"
+    new_jni = _write_owned_output(staged_jni, "new-jni")
+    new_assets = _write_owned_output(staged_assets, "new-assets", kind="assets")
+    output_jni = tmp_path / "generated-jni" / "jniLibs"
+    output_assets = tmp_path / "generated-assets" / "assets"
+    _write_owned_output(output_jni, "old-jni")
+    _write_owned_output(output_assets, "old-assets", kind="assets")
+    real_cleanup = experimental._cleanup_transaction_tree
+    calls = 0
+
+    def fail_second_cleanup(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("cleanup failed")
+        return real_cleanup(*args, **kwargs)
+
+    monkeypatch.setattr(experimental, "_cleanup_transaction_tree", fail_second_cleanup)
+
+    with pytest.raises(RuntimeError, match="outputs committed, but transaction cleanup failed"):
+        experimental.replace_owned_outputs(
+            (
+                (staged_jni, output_jni, Path(experimental.MANIFEST_NAME)),
+                (staged_assets, output_assets, Path(experimental.PACKAGED_MANIFEST_ASSET)),
+            )
+        )
+
+    assert (output_jni / new_jni.relative_to(staged_jni)).read_bytes() == b"new-jni"
+    assert (output_assets / new_assets.relative_to(staged_assets)).read_bytes() == b"new-assets"
+    assert not (output_jni.parent / ".hermes-experimental-llama-publication.lock").exists()
+    assert not (output_assets.parent / ".hermes-experimental-llama-publication.lock").exists()
+
+
+def test_rollback_ambiguity_does_not_prevent_other_output_restoration(tmp_path, monkeypatch):
+    staged_jni = tmp_path / "staged-jni"
+    staged_assets = tmp_path / "staged-assets"
+    new_jni = _write_owned_output(staged_jni, "new-jni")
+    _write_owned_output(staged_assets, "new-assets", kind="assets")
+    output_jni = tmp_path / "generated-jni" / "jniLibs"
+    output_assets = tmp_path / "generated-assets" / "assets"
+    _write_owned_output(output_jni, "old-jni")
+    old_assets = _write_owned_output(output_assets, "old-assets", kind="assets")
+    real_replace = experimental.os.replace
+
+    def tamper_then_fail(source, destination):
+        if Path(source).name == "incoming" and Path(destination) == output_assets:
+            (output_jni / new_jni.relative_to(staged_jni)).write_bytes(b"tampered")
+            raise OSError("second publish failed")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(experimental.os, "replace", tamper_then_fail)
+
+    with pytest.raises(RuntimeError, match="ambiguous experimental llama publication rollback"):
+        experimental.replace_owned_outputs(
+            (
+                (staged_jni, output_jni, Path(experimental.MANIFEST_NAME)),
+                (staged_assets, output_assets, Path(experimental.PACKAGED_MANIFEST_ASSET)),
+            )
+        )
+
+    assert old_assets.read_bytes() == b"old-assets"
+    assert (output_jni / new_jni.relative_to(staged_jni)).read_bytes() == b"tampered"
+    assert list(output_jni.parent.glob(".jniLibs.transaction-*"))
+
+
+def test_final_commit_sweep_detects_change_after_all_immediate_verifications(
+    tmp_path,
+    monkeypatch,
+):
+    staged_jni = tmp_path / "staged-jni"
+    staged_assets = tmp_path / "staged-assets"
+    new_jni = _write_owned_output(staged_jni, "new-jni")
+    _write_owned_output(staged_assets, "new-assets", kind="assets")
+    output_jni = tmp_path / "generated-jni" / "jniLibs"
+    output_assets = tmp_path / "generated-assets" / "assets"
+    _write_owned_output(output_jni, "old-jni")
+    old_assets = _write_owned_output(output_assets, "old-assets", kind="assets")
+    real_matches = experimental._snapshot_matches_owned
+    published_checks = 0
+
+    def tamper_after_immediate_checks(path, manifest, expected, label):
+        nonlocal published_checks
+        result = real_matches(path, manifest, expected, label)
+        if label == "published output":
+            published_checks += 1
+            if published_checks == 2:
+                (output_jni / new_jni.relative_to(staged_jni)).write_bytes(b"late-tamper")
+        return result
+
+    monkeypatch.setattr(experimental, "_snapshot_matches_owned", tamper_after_immediate_checks)
+
+    with pytest.raises(RuntimeError, match="ambiguous experimental llama publication rollback"):
+        experimental.replace_owned_outputs(
+            (
+                (staged_jni, output_jni, Path(experimental.MANIFEST_NAME)),
+                (staged_assets, output_assets, Path(experimental.PACKAGED_MANIFEST_ASSET)),
+            )
+        )
+
+    assert published_checks == 2
+    assert old_assets.read_bytes() == b"old-assets"
+    assert (output_jni / new_jni.relative_to(staged_jni)).read_bytes() == b"late-tamper"
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        "wrong-schema",
+        "wrong-generator",
+        "extra-file",
+        "missing-file",
+        "bad-size",
+        "bad-digest",
+        "duplicate-path",
+        "case-collision",
+        "escaping-path",
+        "manifest-collision",
+        "malformed-record",
+    ],
+)
+def test_output_replacement_rejects_unclosed_or_malformed_owned_inventory(tmp_path, mutation):
+    staged = tmp_path / "staged"
+    _write_owned_output(staged, "new")
+    output = tmp_path / "output"
+    artifact = _write_owned_output(output, "old")
+    manifest_path = output / experimental.MANIFEST_NAME
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    record = manifest["artifacts"]["arm64-v8a"]
+    if mutation == "wrong-schema":
+        manifest["schema_version"] = 2
+    elif mutation == "wrong-generator":
+        manifest["generated_by"] = "forged"
+    elif mutation == "extra-file":
+        (output / "extra").write_text("extra", encoding="utf-8")
+    elif mutation == "missing-file":
+        artifact.unlink()
+    elif mutation == "bad-size":
+        record["size_bytes"] += 1
+    elif mutation == "bad-digest":
+        record["sha256"] = "0" * 64
+    elif mutation == "duplicate-path":
+        manifest["artifacts"]["x86_64"] = dict(record)
+    elif mutation == "case-collision":
+        duplicate = dict(record)
+        duplicate["relative_path"] = record["relative_path"].upper()
+        manifest["artifacts"]["x86_64"] = duplicate
+    elif mutation == "escaping-path":
+        record["relative_path"] = "../escape"
+    elif mutation == "manifest-collision":
+        record["relative_path"] = experimental.MANIFEST_NAME
+    elif mutation == "malformed-record":
+        manifest["artifacts"]["arm64-v8a"] = []
+    if mutation not in {"extra-file", "missing-file"}:
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(RuntimeError):
+        experimental.replace_owned_output(staged, output)
+
+    assert output.is_dir()
+    assert not _transaction_residue(tmp_path)
+
+
+@pytest.mark.parametrize("nested_first", [True, False])
+def test_output_replacement_rejects_same_or_nested_destinations(tmp_path, nested_first):
+    staged_jni = tmp_path / "staged-jni"
+    staged_assets = tmp_path / "staged-assets"
+    _write_owned_output(staged_jni, "new-jni")
+    _write_owned_output(staged_assets, "new-assets", kind="assets")
+    output = tmp_path / "output"
+    other = output / "nested" if nested_first else output
+    first = output if nested_first else output
+
+    with pytest.raises(RuntimeError, match="distinct and non-overlapping"):
+        experimental.replace_owned_outputs(
+            (
+                (staged_jni, first, Path(experimental.MANIFEST_NAME)),
+                (staged_assets, other, Path(experimental.PACKAGED_MANIFEST_ASSET)),
+            )
+        )
+
+
+def test_output_replacement_rejects_staged_and_destination_overlap(tmp_path):
+    staged = tmp_path / "staged"
+    _write_owned_output(staged, "new")
+
+    with pytest.raises(RuntimeError, match="staged and published.*must not overlap"):
+        experimental.replace_owned_output(staged, staged / "nested-output")
+
+
+def test_transaction_cleanup_preserves_a_replaced_root(tmp_path):
+    transaction, inode = experimental._new_transaction_root(tmp_path, "output")
+    original = tmp_path / "original-transaction"
+    transaction.rename(original)
+    replacement = transaction
+    replacement.mkdir()
+    (replacement / "unrelated").write_text("preserve", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="identity changed; preserving"):
+        experimental._cleanup_transaction_tree(
+            replacement,
+            tmp_path,
+            ".output.transaction-",
+            inode,
+        )
+
+    assert (replacement / "unrelated").read_text(encoding="utf-8") == "preserve"
+    assert original.is_dir()
+
+
+def test_transaction_root_creation_failure_removes_the_exact_empty_root(tmp_path, monkeypatch):
+    real_chmod = experimental.os.chmod
+
+    def fail_transaction_chmod(path, mode):
+        if ".output.transaction-" in Path(path).name:
+            raise OSError("transaction chmod failed")
+        return real_chmod(path, mode)
+
+    monkeypatch.setattr(experimental.os, "chmod", fail_transaction_chmod)
+
+    with pytest.raises(OSError, match="transaction chmod failed"):
+        experimental._new_transaction_root(tmp_path, "output")
+
+    assert not list(tmp_path.glob(".output.transaction-*"))
+
+
+def test_publication_lock_setup_failure_releases_the_created_lock(tmp_path, monkeypatch):
+    staged = tmp_path / "staged"
+    _write_owned_output(staged, "new")
+    output = tmp_path / "output"
+    _write_owned_output(output, "old")
+    real_chmod = experimental.os.chmod
+
+    def fail_lock_chmod(path, mode):
+        if Path(path).name == ".hermes-experimental-llama-publication.lock":
+            raise OSError("lock chmod failed")
+        return real_chmod(path, mode)
+
+    monkeypatch.setattr(experimental.os, "chmod", fail_lock_chmod)
+
+    with pytest.raises(OSError, match="lock chmod failed"):
+        experimental.replace_owned_output(staged, output)
+
+    assert not _transaction_residue(tmp_path)
+
+
+def test_transaction_cleanup_does_not_use_recursive_path_deletion(tmp_path, monkeypatch):
+    staged = tmp_path / "staged"
+    artifact = _write_owned_output(staged, "new")
+    output = tmp_path / "output"
+    _write_owned_output(output, "old")
+    monkeypatch.setattr(
+        experimental.shutil,
+        "rmtree",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("unsafe rmtree")),
+    )
+
+    experimental.replace_owned_output(staged, output)
+
+    assert (output / artifact.relative_to(staged)).read_bytes() == b"new"
+    assert not _transaction_residue(tmp_path)
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX dirfd/openat regression")
+def test_transaction_cleanup_never_follows_a_swapped_intermediate_directory(
+    tmp_path,
+    monkeypatch,
+):
+    holder = tmp_path / "holder"
+    tree = holder / "tree"
+    nested = tree / "nested"
+    nested.mkdir(parents=True)
+    (nested / "file").write_bytes(b"matching bytes")
+    external = tmp_path / "external"
+    external.mkdir()
+    external_file = external / "file"
+    external_file.write_bytes(b"matching bytes")
+    expected = experimental._validated_tree_snapshot(tree, "captured cleanup tree")
+    holder_stat = holder.lstat()
+    holder_inode = (holder_stat.st_dev, holder_stat.st_ino)
+    real_snapshot = experimental._validated_tree_snapshot
+    swapped = False
+
+    def swap_after_snapshot(path, label):
+        nonlocal swapped
+        result = real_snapshot(path, label)
+        if Path(path) == tree and label == "transaction deletion tree" and not swapped:
+            swapped = True
+            nested.rename(tree / "captured-nested")
+            nested.symlink_to(external, target_is_directory=True)
+        return result
+
+    monkeypatch.setattr(experimental, "_validated_tree_snapshot", swap_after_snapshot)
+
+    with pytest.raises((OSError, RuntimeError)):
+        experimental._remove_validated_tree_nofollow(
+            tree,
+            expected,
+            holder_inode,
+            stat.S_IMODE(holder_stat.st_mode),
+        )
+
+    assert swapped
+    assert external_file.read_bytes() == b"matching bytes"
+    assert (tree / "captured-nested/file").read_bytes() == b"matching bytes"
+
+
+def test_main_keeps_output_link_lexical_for_publication_rejection(tmp_path, monkeypatch):
+    target = tmp_path / "target"
+    target.mkdir()
+    output_link = tmp_path / "output-link"
+    output_link.symlink_to(target, target_is_directory=True)
+    assets_output = tmp_path / "assets"
+    captured = {}
+
+    def capture_build(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(experimental, "build_experimental_server", capture_build)
+    monkeypatch.setattr(
+        experimental.sys,
+        "argv",
+        [
+            "prepare_android_experimental_llama_server.py",
+            "--output-dir",
+            str(output_link),
+            "--assets-output-dir",
+            str(assets_output),
+        ],
+    )
+
+    experimental.main()
+
+    assert captured["output_dir"] == output_link.absolute()
+    assert captured["output_dir"] != target.resolve()
+
+
+def test_concurrent_publication_is_rejected_without_mixing_output_pairs(tmp_path, monkeypatch):
+    staged_jni = tmp_path / "staged-jni"
+    staged_assets = tmp_path / "staged-assets"
+    new_jni = _write_owned_output(staged_jni, "new-jni")
+    new_assets = _write_owned_output(staged_assets, "new-assets", kind="assets")
+    competing_jni = tmp_path / "competing-jni"
+    competing_assets = tmp_path / "competing-assets"
+    _write_owned_output(competing_jni, "competing-jni")
+    _write_owned_output(competing_assets, "competing-assets", kind="assets")
+    output_jni = tmp_path / "generated-jni" / "jniLibs"
+    output_assets = tmp_path / "generated-assets" / "assets"
+    _write_owned_output(output_jni, "old-jni")
+    _write_owned_output(output_assets, "old-assets", kind="assets")
+    real_copy = experimental._copy_validated_tree
+    first_copy_entered = threading.Event()
+    release_first_copy = threading.Event()
+    worker_errors = []
+
+    def block_first_copy(source, destination, snapshot):
+        result = real_copy(source, destination, snapshot)
+        if Path(source) == staged_jni:
+            first_copy_entered.set()
+            assert release_first_copy.wait(timeout=10)
+        return result
+
+    monkeypatch.setattr(experimental, "_copy_validated_tree", block_first_copy)
+
+    def publish_first_pair():
+        try:
+            experimental.replace_owned_outputs(
+                (
+                    (staged_jni, output_jni, Path(experimental.MANIFEST_NAME)),
+                    (staged_assets, output_assets, Path(experimental.PACKAGED_MANIFEST_ASSET)),
+                )
+            )
+        except BaseException as exc:
+            worker_errors.append(exc)
+
+    worker = threading.Thread(target=publish_first_pair, daemon=True)
+    worker.start()
+    assert first_copy_entered.wait(timeout=10)
+    try:
+        with pytest.raises(RuntimeError, match="another experimental llama publication is active"):
+            experimental.replace_owned_outputs(
+                (
+                    (competing_jni, output_jni, Path(experimental.MANIFEST_NAME)),
+                    (
+                        competing_assets,
+                        output_assets,
+                        Path(experimental.PACKAGED_MANIFEST_ASSET),
+                    ),
+                )
+            )
+    finally:
+        release_first_copy.set()
+    worker.join(timeout=20)
+
+    assert not worker.is_alive()
+    assert not worker_errors
+    assert (output_jni / new_jni.relative_to(staged_jni)).read_bytes() == b"new-jni"
+    assert (output_assets / new_assets.relative_to(staged_assets)).read_bytes() == b"new-assets"
+    assert not _transaction_residue(output_jni.parent)
+    assert not _transaction_residue(output_assets.parent)
+
+
+def test_replaced_publication_lock_aborts_before_output_mutation(tmp_path, monkeypatch):
+    staged = tmp_path / "staged"
+    _write_owned_output(staged, "new")
+    output = tmp_path / "output"
+    old_artifact = _write_owned_output(output, "old")
+    real_copy = experimental._copy_validated_tree
+
+    def replace_lock_after_copy(source, destination, snapshot):
+        result = real_copy(source, destination, snapshot)
+        lock = output.parent / ".hermes-experimental-llama-publication.lock"
+        (lock / "owner.token").unlink()
+        lock.rmdir()
+        lock.mkdir()
+        (lock / "owner.token").write_bytes(b"forged")
+        return result
+
+    monkeypatch.setattr(experimental, "_copy_validated_tree", replace_lock_after_copy)
+
+    with pytest.raises(RuntimeError, match="publication lock identity changed"):
+        experimental.replace_owned_output(staged, output)
+
+    assert old_artifact.read_bytes() == b"old"
+    assert output.is_dir()
 
 
 def test_gradle_and_bridge_wire_unique_experimental_server_without_replacing_stable_lane():

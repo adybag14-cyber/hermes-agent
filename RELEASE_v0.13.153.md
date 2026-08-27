@@ -16,6 +16,13 @@ reported in GitHub Issue #17.
   cross-host hardening measure.
 - Uses the locked NDK `llvm-readelf` to fail before packaging if either section
   survives.
+- Selects a real host C++ compiler outside the Android NDK for llama.cpp's
+  build-time host tools, while retaining the locked NDK compiler for Android
+  targets.
+- Copies verified JNI and license/manifest outputs into private transaction
+  roots on their destination filesystem before coordinated atomic publication.
+  This closes the F-Droid `/tmp`-to-Gradle-volume `EXDEV` failure while keeping
+  both generated trees coherent under failure or concurrent invocation.
 - Records the removed-section contract in the packaged experimental-lane
   manifest before hashing the normalized arm64-v8a and x86_64 libraries.
 
