@@ -1,0 +1,155 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=settings:Tools
+artifact=headed-v0.13.153-6e86cbf84df1f95e-20260827-133718bst-profile-phone-360x800dp-settings-4-tools
+coverage_kind=settings-subpage
+page_id=Settings.Tools
+profile=phone-360x800dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=360
+screen_height_dp=800
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.153
+version_code=145390
+build_variant=debug
+source_digest=6e86cbf84df1f95e19ee328900d9c7e81c304faad550417eb2fce07e3248d869
+candidate_apk_sha256=5bab662fdbc35ad681602a4ed5596f202e0258339e8ef4e0f6da341615f502f3
+instrumentation_apk_sha256=97286db7e7cab5e0feaec164360c71b2c4ffe13131993662d7fa7b720e2cdcbd
+evidence_run_id=v0.13.153-6e86cbf84df1f95e-20260827-133718bst
+device_serial=emulator-5560
+avd_name=Qitong_API_35_D
+device_boot_id=97b07658-a5da-4015-af98-e56e26eeb28b
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=0901edb4ff84911a8f68d433825a538eeefa0cde164961cd8a2da01f461a6dc9
+sentinel=McpExternalRuntimeUnavailable
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #1149 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #1151 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px, Tag: 'HermesSettingsContentList'
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=100.0, reverseScrolling=false)'
+       |       CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@83f5bcb'
+       |       Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |        |-Node #1609 at (l=48.0, t=388.0, r=1032.0, b=724.0)px, Tag: 'HermesSettingsPageNavigation'
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1611 at (l=78.0, t=412.0, r=398.0, b=472.0)px
+       |        |  | Text = '[Settings  ›  Tools]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1614 at (l=78.0, t=502.0, r=262.0, b=622.0)px, Tag: 'HermesSettingsPage_Overview'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1616 at (l=108.0, t=538.0, r=232.0, b=586.0)px
+       |        |  |    Text = '[General]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1617 at (l=280.0, t=502.0, r=459.0, b=622.0)px, Tag: 'HermesSettingsPage_Models'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1619 at (l=310.0, t=538.0, r=429.0, b=586.0)px
+       |        |  |    Text = '[Models]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1620 at (l=477.0, t=502.0, r=651.0, b=622.0)px, Tag: 'HermesSettingsPage_Theme'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1622 at (l=509.0, t=538.0, r=619.0, b=586.0)px
+       |        |  |    Text = '[Theme]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1623 at (l=669.0, t=502.0, r=843.0, b=622.0)px, Tag: 'HermesSettingsPage_Tools'
+       |        |  | Role = 'Button'
+       |        |  | [Disabled]
+       |        |  | Actions = [OnClick]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1625 at (l=712.0, t=538.0, r=800.0, b=586.0)px
+       |        |  |    Text = '[Tools]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1626 at (l=78.0, t=652.0, r=319.0, b=700.0)px
+       |        |    Text = '[/settings/tools]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1887 at (l=48.0, t=760.0, r=1032.0, b=1816.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1889 at (l=96.0, t=808.0, r=508.0, b=880.0)px
+       |        |  | Text = '[MCP configuration]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1890 at (l=96.0, t=916.0, r=984.0, b=1108.0)px, Tag: 'McpExternalRuntimeUnavailable'
+       |        |  | Text = '[External MCP stdio, SSE, and HTTP transports are unavailable in the embedded Android runtime because their process lifetime cannot yet be verified safely.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1891 at (l=96.0, t=1144.0, r=984.0, b=1288.0)px, Tag: 'McpConfigFilePath'
+       |        |  | Text = '[Config file: /data/user/0/com.mobilefork.hermesagent/files/hermes-home/mcp/mcp_config.json]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1892 at (l=96.0, t=1324.0, r=984.0, b=1468.0)px, Tag: 'McpStoredConfigNotExecuted'
+       |        |  | Text = '[Any existing MCP JSON is retained at this path for export or migration only; Hermes does not load or execute it on Android.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1895 at (l=96.0, t=1504.0, r=525.0, b=1564.0)px
+       |        |  | Text = '[Provider cache resend]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1896 at (l=96.0, t=1576.0, r=828.0, b=1768.0)px
+       |        |  | Text = '[When enabled, Hermes may resend stable prior/tool-output context for provider input-token caching. When disabled, cached context resend is blocked.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1897 at (l=828.0, t=1588.0, r=984.0, b=1684.0)px, Tag: 'McpProviderCacheResendSwitch'
+       |        |    Role = 'Switch'
+       |        |    Focused = 'false'
+       |        |    ToggleableState = 'Off'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |-Node #1899 at (l=48.0, t=1852.0, r=1032.0, b=2452.0)px, Tag: 'HermesSkillsSection'
+       |          IsTraversalGroup = 'true'
+       |           |-Node #1901 at (l=96.0, t=1900.0, r=215.0, b=1972.0)px
+       |           | Text = '[Skills]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1902 at (l=96.0, t=2008.0, r=984.0, b=2104.0)px
+       |           | Text = '[Installed Hermes skills from hermes-home and bundled skill directories.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1904 at (l=96.0, t=2152.0, r=984.0, b=2272.0)px, Tag: 'SkillsRefreshButton'
+       |           | Role = 'Button'
+       |           | [Disabled]
+       |           | Actions = [OnClick]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1906 at (l=447.0, t=2182.0, r=633.0, b=2242.0)px
+       |           |    Text = '[Loading…]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1908 at (l=96.0, t=2320.0, r=729.0, b=2368.0)px, Tag: 'SkillsStatus'
+       |           | Text = '[Waiting for Hermes Python runtime…]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1907 at (l=96.0, t=2404.0, r=984.0, b=2404.0)px, Tag: 'SkillsList'
+       |             IsTraversalGroup = 'true'
+       |             VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+       |             CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@9ec240c'
+       |             Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |-Node #147 at (l=0.0, t=0.0, r=1080.0, b=352.0)px
+         IsTraversalGroup = 'true'
+          |-Node #151 at (l=36.0, t=172.0, r=180.0, b=316.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #156 at (l=204.0, t=199.0, r=294.0, b=289.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #158 at (l=318.0, t=184.0, r=502.0, b=256.0)px
+          | Text = '[Settings]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #159 at (l=318.0, t=256.0, r=995.0, b=304.0)px
+            Text = '[Runtime provider and API configuration]'
+            Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

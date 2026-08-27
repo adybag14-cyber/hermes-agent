@@ -1,0 +1,163 @@
+language=es
+screen_width_dp=360
+screen_height_dp=800
+font_scale=1.0
+release_source_digest=6e86cbf84df1f95e19ee328900d9c7e81c304faad550417eb2fce07e3248d869
+candidate_apk_sha256=5bab662fdbc35ad681602a4ed5596f202e0258339e8ef4e0f6da341615f502f3
+instrumentation_apk_sha256=97286db7e7cab5e0feaec164360c71b2c4ffe13131993662d7fa7b720e2cdcbd
+evidence_run_id=v0.13.153-6e86cbf84df1f95e-20260827-133718bst
+package_id=com.mobilefork.hermesagent
+version_name=0.13.153
+version_code=145390
+build_variant=debug
+litertlm_coordinate=com.google.ai.edge.litertlm:litertlm-android:0.16.1
+device_serial=emulator-5560
+avd_name=Qitong_API_35_D
+device_boot_id=97b07658-a5da-4015-af98-e56e26eeb28b
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=c01a88e116b26bc8f6cf002cdae6ff980b25faae3e71233032a881ea2b43c98e
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #2330 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #2332 at (l=0.0, t=352.0, r=1080.0, b=2328.0)px
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=1540.0, reverseScrolling=false)'
+       |       Actions = [ScrollBy, ScrollByOffset]
+       |        |-Node #2333 at (l=48.0, t=388.0, r=1032.0, b=910.0)px, Tag: 'HermesDevicePageNavigation'
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #2335 at (l=84.0, t=418.0, r=515.0, b=478.0)px
+       |        |  | Text = '[Dispositivo / Resumen]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2338 at (l=84.0, t=526.0, r=329.0, b=622.0)px, Tag: 'HermesDevicePage_Overview'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'true'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2341 at (l=132.0, t=550.0, r=281.0, b=598.0)px
+       |        |  |    Text = '[Resumen]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2342 at (l=347.0, t=526.0, r=529.0, b=622.0)px, Tag: 'HermesDevicePage_Linux'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2345 at (l=395.0, t=550.0, r=481.0, b=598.0)px
+       |        |  |    Text = '[Linux]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2346 at (l=547.0, t=526.0, r=854.0, b=622.0)px, Tag: 'HermesDevicePage_Connectivity'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2349 at (l=595.0, t=550.0, r=806.0, b=598.0)px
+       |        |  |    Text = '[Conectividad]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2350 at (l=84.0, t=688.0, r=320.0, b=784.0)px, Tag: 'HermesDevicePage_Files'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2353 at (l=132.0, t=712.0, r=272.0, b=760.0)px
+       |        |  |    Text = '[Archivos]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2354 at (l=338.0, t=688.0, r=591.0, b=784.0)px, Tag: 'HermesDevicePage_Controls'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2357 at (l=386.0, t=712.0, r=543.0, b=760.0)px
+       |        |  |    Text = '[Controles]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2358 at (l=609.0, t=688.0, r=996.0, b=784.0)px, Tag: 'HermesDevicePage_Automations'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #2361 at (l=657.0, t=712.0, r=948.0, b=760.0)px
+       |        |  |    Text = '[Automatizaciones]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2362 at (l=84.0, t=832.0, r=203.0, b=880.0)px
+       |        |    Text = '[/device]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #2363 at (l=48.0, t=946.0, r=1032.0, b=2890.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #2366 at (l=96.0, t=994.0, r=715.0, b=1066.0)px
+       |        |  | Text = '[Cómo usar esta versión alfa]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2367 at (l=96.0, t=1090.0, r=984.0, b=1666.0)px
+       |        |  | Text = '[1. Pídelo en lenguaje natural, por ejemplo, «Ejecuta date y dime la hora» o «Comprueba el estado de mi dispositivo». Estos dos ejemplos exactos usan rutas nativas de solo lectura sin un modelo. Otras solicitudes pueden requerir un modelo con llamadas estructuradas.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2368 at (l=96.0, t=1690.0, r=984.0, b=2050.0)px
+       |        |  | Text = '[2. Concede una carpeta compartida desde el selector nativo de Android para que Hermes lea o edite los archivos reales y luego describe la tarea en lenguaje natural.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2369 at (l=96.0, t=2074.0, r=984.0, b=2290.0)px
+       |        |  | Text = '[3. Importa archivos al espacio de trabajo solo cuando quieras copias temporales o archivos de preparación.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2370 at (l=96.0, t=2314.0, r=984.0, b=2674.0)px
+       |        |  | Text = '[4. Activa la accesibilidad de Hermes si quieres que inspeccione la UI visible y lance acciones más precisas además de Inicio, Atrás, Recientes, Notificaciones y Ajustes rápidos.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2371 at (l=96.0, t=2698.0, r=984.0, b=2842.0)px
+       |        |    Text = '[Ruta del espacio de trabajo: /data/user/0/com.mobilefork.hermesagent/files/hermes-home/workspace]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #2372 at (l=48.0, t=2926.0, r=1032.0, b=3628.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #2375 at (l=96.0, t=2974.0, r=810.0, b=3046.0)px
+       |        |  | Text = '[Centro de control del dispositivo]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2376 at (l=96.0, t=3082.0, r=984.0, b=3226.0)px
+       |        |  | Text = '[Cada página se centra en un área: Linux, conectividad, archivos, controles del sistema o automatizaciones.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2379 at (l=96.0, t=3262.0, r=593.0, b=3352.0)px
+       |        |  | IsTraversalGroup = 'true'
+       |        |  |  |-Node #2380 at (l=129.0, t=3283.0, r=560.0, b=3331.0)px
+       |        |  |    Text = '[Linux listo · 0 sandboxes]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2381 at (l=617.0, t=3262.0, r=871.0, b=3352.0)px
+       |        |  | IsTraversalGroup = 'true'
+       |        |  |  |-Node #2382 at (l=650.0, t=3283.0, r=838.0, b=3331.0)px
+       |        |  |    Text = '[Red · Wi-Fi]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2383 at (l=96.0, t=3376.0, r=511.0, b=3466.0)px
+       |        |  | IsTraversalGroup = 'true'
+       |        |  |  |-Node #2384 at (l=129.0, t=3397.0, r=478.0, b=3445.0)px
+       |        |  |    Text = '[Espacio · 0 archivos]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #2385 at (l=96.0, t=3490.0, r=624.0, b=3580.0)px
+       |        |    IsTraversalGroup = 'true'
+       |        |     |-Node #2386 at (l=129.0, t=3511.0, r=591.0, b=3559.0)px
+       |        |       Text = '[Automatización · 0 activas]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #2387 at (l=48.0, t=3664.0, r=1032.0, b=3760.0)px
+       |          Text = '[La suite de comandos Linux está lista para comandos en el dispositivo]'
+       |          Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #147 at (l=0.0, t=0.0, r=1080.0, b=352.0)px
+         IsTraversalGroup = 'true'
+          |-Node #151 at (l=36.0, t=172.0, r=180.0, b=316.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Abrir menú de navegación]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #156 at (l=204.0, t=199.0, r=294.0, b=289.0)px
+          | ContentDescription = '[Logo de Hermes]'
+          | Role = 'Image'
+          |-Node #158 at (l=318.0, t=184.0, r=563.0, b=256.0)px
+          | Text = '[Dispositivo]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #159 at (l=318.0, t=256.0, r=1044.0, b=304.0)px
+            Text = '[Archivos, suite Linux y controles del teléfono]'
+            Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
