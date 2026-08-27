@@ -1199,6 +1199,86 @@ def _plain_directory_chain_snapshot(path: Path, label: str) -> tuple[tuple[str, 
     return tuple(records)
 
 
+def _set_windows_file_times_bound(
+    descriptor: int,
+    timestamps: tuple[int, int],
+) -> None:
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    epoch_delta_100ns = 116_444_736_000_000_000
+
+    def as_filetime(timestamp_ns: int) -> wintypes.FILETIME:
+        ticks = timestamp_ns // 100 + epoch_delta_100ns
+        if ticks < 0 or ticks > 0xFFFFFFFFFFFFFFFF:
+            raise RuntimeError(f"timestamp is outside the Windows FILETIME range: {timestamp_ns}")
+        return wintypes.FILETIME(ticks & 0xFFFFFFFF, ticks >> 32)
+
+    access_time = as_filetime(timestamps[0])
+    write_time = as_filetime(timestamps[1])
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    set_file_time = kernel32.SetFileTime
+    set_file_time.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.FILETIME),
+        ctypes.POINTER(wintypes.FILETIME),
+        ctypes.POINTER(wintypes.FILETIME),
+    ]
+    set_file_time.restype = wintypes.BOOL
+    native_handle = msvcrt.get_osfhandle(descriptor)
+    if native_handle == -1:
+        raise OSError("unable to resolve the native Windows destination handle")
+    if not set_file_time(
+        wintypes.HANDLE(native_handle),
+        None,
+        ctypes.byref(access_time),
+        ctypes.byref(write_time),
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
+def _set_file_times_bound(
+    path: Path,
+    descriptor: int,
+    source_stat: os.stat_result,
+) -> None:
+    timestamps = (source_stat.st_atime_ns, source_stat.st_mtime_ns)
+    if os.utime in os.supports_fd:
+        os.utime(descriptor, ns=timestamps)
+        return
+
+    opened = os.fstat(descriptor)
+    path_before = path.lstat()
+    if (
+        _unsafe_link_or_reparse(opened)
+        or not stat.S_ISREG(opened.st_mode)
+        or _unsafe_link_or_reparse(path_before)
+        or not stat.S_ISREG(path_before.st_mode)
+        or (path_before.st_dev, path_before.st_ino) != (opened.st_dev, opened.st_ino)
+    ):
+        raise RuntimeError(f"copied output identity changed before timestamp update: {path}")
+
+    if os.name == "nt":
+        _set_windows_file_times_bound(descriptor, timestamps)
+    elif os.utime in os.supports_follow_symlinks:
+        os.utime(path, ns=timestamps, follow_symlinks=False)
+    else:
+        raise RuntimeError("platform lacks a descriptor-bound or no-follow timestamp API")
+
+    path_after = path.lstat()
+    descriptor_after = os.fstat(descriptor)
+    if (
+        _unsafe_link_or_reparse(path_after)
+        or not stat.S_ISREG(path_after.st_mode)
+        or (path_after.st_dev, path_after.st_ino)
+        != (descriptor_after.st_dev, descriptor_after.st_ino)
+        or (descriptor_after.st_dev, descriptor_after.st_ino)
+        != (opened.st_dev, opened.st_ino)
+    ):
+        raise RuntimeError(f"copied output identity changed during timestamp update: {path}")
+
+
 def _copy_validated_tree(source: Path, destination: Path, source_snapshot: TreeSnapshot) -> None:
     source_inode, source_identity, _ = source_snapshot
     if _validated_tree_snapshot(source, "staged experimental llama output") != source_snapshot:
@@ -1231,13 +1311,9 @@ def _copy_validated_tree(source: Path, destination: Path, source_snapshot: TreeS
                     raise OSError(f"unable to finish writing copied output: {relative}")
                 view = view[written:]
             os.fchmod(descriptor, record[1])
+            _set_file_times_bound(destination_path, descriptor, source_stat)
         finally:
             os.close(descriptor)
-        os.utime(
-            destination_path,
-            ns=(source_stat.st_atime_ns, source_stat.st_mtime_ns),
-            follow_symlinks=False,
-        )
     for directory, mode in reversed(copied_directories):
         os.chmod(directory, mode)
     os.chmod(destination, source_identity["."][1])
