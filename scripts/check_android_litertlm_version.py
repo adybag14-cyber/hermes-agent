@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the release LiteRT-LM pin or resolve Google's published-latest SDK."""
+"""Check the stable release pin or resolve Google's published LiteRT-LM SDKs."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ DEPENDENCY_PATTERN = re.compile(
     r'litertlm-android:\$liteRtLmVersion"\s*\)'
 )
 EXACT_VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.]+)?")
+STABLE_EXACT_VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+")
 
 
 def declared_version(gradle_file: Path) -> str:
@@ -58,6 +59,22 @@ def latest_release(metadata: bytes) -> str:
     return version
 
 
+def latest_stable_release(metadata: bytes) -> str:
+    root = ET.fromstring(metadata)
+    candidates = {
+        value.strip()
+        for value in (
+            root.findtext("./versioning/release") or "",
+            root.findtext("./versioning/latest") or "",
+            *(node.text or "" for node in root.findall("./versioning/versions/version")),
+        )
+        if STABLE_EXACT_VERSION_PATTERN.fullmatch(value.strip())
+    }
+    if not candidates:
+        raise ValueError("Google Maven metadata does not declare a stable release")
+    return max(candidates, key=lambda value: tuple(int(part) for part in value.split(".")))
+
+
 def download_metadata(url: str = MAVEN_METADATA_URL) -> bytes:
     request = urllib.request.Request(
         url,
@@ -81,6 +98,11 @@ def main(argv: list[str] | None = None) -> None:
         help="Print Google's exact published-latest version without comparing the release pin",
     )
     output_mode.add_argument(
+        "--print-latest-stable",
+        action="store_true",
+        help="Print Google's newest stable version without comparing the release pin",
+    )
+    output_mode.add_argument(
         "--print-declared",
         action="store_true",
         help="Print the exact Hermes release pin without downloading Maven metadata",
@@ -99,23 +121,32 @@ def main(argv: list[str] | None = None) -> None:
         metadata_source = MAVEN_METADATA_URL
         metadata = download_metadata()
 
-    latest = latest_release(metadata)
+    published_latest = latest_release(metadata)
+    latest_stable = latest_stable_release(metadata)
     if args.print_latest:
-        print(latest)
+        print(published_latest)
+        return
+    if args.print_latest_stable:
+        print(latest_stable)
         return
 
     declared = declared_version(gradle_file)
     result = {
         "artifact": "com.google.ai.edge.litertlm:litertlm-android",
         "declared": declared,
-        "latest": latest,
-        "matches_latest": declared == latest,
+        "latest": latest_stable,
+        "matches_latest": declared == latest_stable,
+        "latest_stable": latest_stable,
+        "matches_latest_stable": declared == latest_stable,
+        "published_latest": published_latest,
+        "published_latest_is_prerelease": published_latest != latest_stable,
         "metadata_source": metadata_source,
     }
     print(json.dumps(result, sort_keys=True))
-    if declared != latest:
+    if declared != latest_stable:
         raise SystemExit(
-            f"Hermes pins LiteRT-LM Android {declared}, but Google Maven release is {latest}"
+            f"Hermes pins LiteRT-LM Android {declared}, but Google's latest stable "
+            f"release is {latest_stable} (published latest: {published_latest})"
         )
 
 
