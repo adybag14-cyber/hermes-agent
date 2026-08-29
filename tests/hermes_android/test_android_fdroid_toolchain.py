@@ -10,6 +10,17 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "fdroid/run-local-buildserver.sh"
+VERSION_CONTRACT = REPO_ROOT / "fdroid/com.mobilefork.hermesagent.version"
+
+
+def _read_version_contract() -> dict[str, str]:
+    values = dict(
+        line.split("=", 1)
+        for line in VERSION_CONTRACT.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    )
+    assert set(values) == {"versionName", "versionCode"}
+    return values
 
 
 def _run_helper(*args: object) -> subprocess.CompletedProcess[str]:
@@ -70,6 +81,7 @@ def test_fdroid_helper_has_valid_bash_syntax():
 
 
 def test_fdroid_toolchain_contract_is_immutable_coherent_and_parallel(fdroid_contract):
+    version_contract = _read_version_contract()
     image = fdroid_contract["BUILDSERVER_IMAGE"]
     buildserver_revision = fdroid_contract["BUILDSERVER_REVISION"]
     fdroidserver_revision = fdroid_contract["FDROIDSERVER_COMMIT"]
@@ -104,8 +116,8 @@ def test_fdroid_toolchain_contract_is_immutable_coherent_and_parallel(fdroid_con
     assert fdroid_contract["ANDROID_CMAKE_PACKAGE"] == "cmake;3.31.6"
     assert fdroid_contract["ANDROID_NINJA_VERSION"] == "1.12.1"
     assert fdroid_contract["VAGRANT_ENV_MODE"] == "env-i"
-    assert fdroid_contract["VERSION_NAME"] == "0.13.153"
-    assert fdroid_contract["VERSION_CODE"] == "145390"
+    assert fdroid_contract["VERSION_NAME"] == version_contract["versionName"]
+    assert fdroid_contract["VERSION_CODE"] == version_contract["versionCode"]
     assert (
         fdroid_contract["SOURCE_BINDING_GRADLE_PROPERTY"]
         == "hermesFdroidSourceBinding=true"

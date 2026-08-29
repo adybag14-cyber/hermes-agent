@@ -303,23 +303,15 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert '"agent_objective_coverage_report"' in diagnostics_bridge
     assert '"agent_upgrade_coverage_report"' in diagnostics_bridge
     assert '"hermes_upgrade_coverage_report"' in diagnostics_bridge
-    assert '"agent_release_validation_report"' in diagnostics_bridge
-    assert '"github_release_readiness_report"' in diagnostics_bridge
-    assert '"release_validation_readiness_report"' in diagnostics_bridge
     assert '"agent_capability_upgrade_report"' in diagnostics_bridge
     assert 'mcpToolServerRegistryReportJson(appContext)' in diagnostics_bridge
     assert 'agentObjectiveCoverageReportJson(appContext)' in diagnostics_bridge
-    assert 'agentReleaseValidationReportJson(appContext)' in diagnostics_bridge
     assert 'agentCapabilityUpgradeReportJson(appContext)' in diagnostics_bridge
     assert 'fun agentObjectiveCoverageReportJson(context: Context): JSONObject' in diagnostics_bridge
-    assert 'fun agentReleaseValidationReportJson(context: Context): JSONObject' in diagnostics_bridge
     assert 'fun agentCapabilityUpgradeReportJson(context: Context): JSONObject' in diagnostics_bridge
     assert 'agentObjectiveCoverageRows(' in diagnostics_bridge
     assert 'agentObjectiveGapRows(' in diagnostics_bridge
     assert 'agentResearchParityRows()' in diagnostics_bridge
-    assert 'agentReleaseValidationRows(' in diagnostics_bridge
-    assert 'agentReleaseArtifactGateRows(' in diagnostics_bridge
-    assert 'agentFdroidReleaseMetadataRows(' in diagnostics_bridge
     assert 'agentCapabilityUpgradeRows(' in diagnostics_bridge
     assert 'agentCapabilityUpgradeRouteRows()' in diagnostics_bridge
     assert 'fun mcpToolServerRegistryReportJson(context: Context): JSONObject' in diagnostics_bridge
@@ -341,9 +333,6 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert '"agent_objective_coverage_matrix"' in diagnostics_bridge
     assert '"agent_objective_gap_matrix"' in diagnostics_bridge
     assert '"agent_research_parity_matrix"' in diagnostics_bridge
-    assert '"agent_release_validation_matrix"' in diagnostics_bridge
-    assert '"agent_release_artifact_gates"' in diagnostics_bridge
-    assert '"fdroid_release_metadata_matrix"' in diagnostics_bridge
     assert '"agent_upgrade_objective_matrix"' in diagnostics_bridge
     assert '"agent_upgrade_route_matrix"' in diagnostics_bridge
     assert 'Objective Coverage' in diagnostics_bridge
@@ -351,13 +340,6 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert 'Research Parity Map' in diagnostics_bridge
     assert 'https://github.com/SimonSchubert/Kai' in diagnostics_bridge
     assert 'https://github.com/VREMSoftwareDevelopment/WiFiAnalyzer' in diagnostics_bridge
-    assert 'Release and CI proof' in diagnostics_bridge
-    assert 'Release Validation' in diagnostics_bridge
-    assert 'Release Artifact Gates' in diagnostics_bridge
-    assert 'F-Droid Metadata Gates' in diagnostics_bridge
-    assert 'android-release.yml' in diagnostics_bridge
-    assert 'scripts/android_release_manifest.py' in diagnostics_bridge
-    assert 'Fastlane graphics in tagged tree' in diagnostics_bridge
     assert 'Upgrade Objective Matrix' in diagnostics_bridge
     assert 'Upgrade Verification Routes' in diagnostics_bridge
     assert 'Full Hermes upgrade objective audit' in diagnostics_bridge

@@ -6697,10 +6697,10 @@ object HermesDeviceDiagnosticsBridge {
             .put("android_ci_workflow", ".github/workflows/android.yml")
             .put("android_release_workflow", ".github/workflows/android-release.yml")
             .put("release_manifest_script", "scripts/android_release_manifest.py")
-            .put("fdroid_metadata_application_id", "com.nousresearch.hermesagent")
+            .put("fdroid_metadata_application_id", "com.mobilefork.hermesagent")
             .put("fork_application_id", "com.mobilefork.hermesagent")
             .put("fastlane_metadata_path", "fastlane/metadata/android")
-            .put("fdroid_metadata_path", "metadata/com.nousresearch.hermesagent")
+            .put("fdroid_metadata_path", "fdroid/com.mobilefork.hermesagent.yml.template")
     }
 
     private fun agentReleaseValidationRows(identity: JSONObject): JSONArray = JSONArray()
@@ -6726,12 +6726,12 @@ object HermesDeviceDiagnosticsBridge {
                 ready = false,
                 valueLabel = "external command evidence required",
                 detail = "Required local evidence: python source guards, focused Android unit tests, and git diff whitespace checks after Hermes diagnostics/card changes.",
-                recommendation = "Run python -m pytest tests/hermes_android/test_android_chat_ui.py tests/hermes_android/test_android_followup_polish.py -q, focused :app:testDebugUnitTest, and git diff --check before release claims.",
+                recommendation = "Run bash scripts/run_tests.sh tests/hermes_android/test_android_chat_ui.py tests/hermes_android/test_android_fdroid_listing_images.py -q, focused :app:testDebugUnitTest, and git diff --check before release claims.",
                 fraction = 0.42f,
                 extra = JSONObject()
                     .put("evidence_required", "python guards, JDK 21 Gradle unit tests, git diff --check")
                     .put("terminal_commands", jsonStringArray(listOf(
-                        "python -m pytest tests/hermes_android/test_android_chat_ui.py tests/hermes_android/test_android_followup_polish.py -q",
+                        "bash scripts/run_tests.sh tests/hermes_android/test_android_chat_ui.py tests/hermes_android/test_android_fdroid_listing_images.py -q",
                         "./gradlew :app:testDebugUnitTest -PskipHermesAndroidLinuxAssets=true",
                         "git diff --check",
                     )))
