@@ -118,7 +118,7 @@ jobs:
             tests/run_agent/test_run_agent_chatgpt_web.py \
             -q
 
-      - name: Verify latest LiteRT-LM Android SDK
+      - name: Verify latest stable LiteRT-LM Android SDK
         run: python scripts/check_android_litertlm_version.py
 
       - name: Set up Android SDK
