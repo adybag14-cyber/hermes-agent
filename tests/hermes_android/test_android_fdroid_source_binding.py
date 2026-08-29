@@ -12,8 +12,23 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-VERSION_NAME = "0.13.153"
-VERSION_CODE = "145390"
+
+
+def _read_version_contract() -> dict[str, str]:
+    values = dict(
+        line.split("=", 1)
+        for line in (
+            REPO_ROOT / "fdroid/com.mobilefork.hermesagent.version"
+        ).read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    )
+    assert set(values) == {"versionName", "versionCode"}
+    return values
+
+
+VERSION_CONTRACT = _read_version_contract()
+VERSION_NAME = VERSION_CONTRACT["versionName"]
+VERSION_CODE = VERSION_CONTRACT["versionCode"]
 RESOLVED_RELEASE_COMMIT = "a" * 40
 GRADLE_RELATIVE = Path("android/app/build.gradle.kts")
 RELEASE_TAG_EXPRESSION = 'System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()'
@@ -1113,7 +1128,7 @@ def test_autoupdater_preview_rejects_the_prior_two_sed_recipe(tmp_path: Path):
 
     with pytest.raises(
         binding_module.FdroidSourceBindingError,
-        match="sudo does not match the v0.13.153 source-binding template",
+        match=rf"sudo does not match the v{re.escape(VERSION_NAME)} source-binding template",
     ):
         binding_module.verify_autoupdate_metadata_preview(
             metadata,

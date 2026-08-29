@@ -3799,7 +3799,24 @@ class HermesDeviceDiagnosticsBridgeTest {
 
         assertTrue(result.getBoolean("success"))
         assertEquals("agent_release_validation_report", result.getString("action"))
-        assertTrue(result.getJSONObject("app_release_identity").toString().contains("android-release.yml"))
+        val releaseIdentity = result.getJSONObject("app_release_identity")
+        assertTrue(releaseIdentity.toString().contains("android-release.yml"))
+        assertEquals(
+            "com.mobilefork.hermesagent",
+            releaseIdentity.getString("fdroid_metadata_application_id"),
+        )
+        assertEquals(
+            "com.mobilefork.hermesagent",
+            releaseIdentity.getString("fork_application_id"),
+        )
+        assertEquals(
+            "fastlane/metadata/android",
+            releaseIdentity.getString("fastlane_metadata_path"),
+        )
+        assertEquals(
+            "fdroid/com.mobilefork.hermesagent.yml.template",
+            releaseIdentity.getString("fdroid_metadata_path"),
+        )
         assertTrue(result.getJSONArray("source_report_actions").toString().contains("agent_objective_coverage_report"))
         assertTrue(validationText.contains("Android CI workflow gate"))
         assertTrue(validationText.contains("Signed release workflow gate"))

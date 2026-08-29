@@ -1,1 +1,0 @@
-Run local AI models with chat, files, voice, and Android tools
