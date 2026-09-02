@@ -517,6 +517,14 @@ def _parse_utc(value: Any, context: str) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
+def _require_ninety_day_retention(created: datetime, expires: datetime, context: str) -> None:
+    retained_seconds = (expires - created).total_seconds()
+    if not 89 * 86400 <= retained_seconds <= (RETENTION_DAYS + 1) * 86400:
+        raise PerfettoArtifactError(
+            f"{context} retention is not the required approximately 90-day window"
+        )
+
+
 def _gh_json(arguments: Sequence[str], *, cwd: Path) -> dict[str, Any]:
     result = _run(("gh", "api", *arguments), cwd=cwd)
     try:
@@ -588,8 +596,7 @@ def create_registry(
             raise PerfettoArtifactError(f"GitHub Actions artifact digest is invalid for {version['tag']}")
         created = _parse_utc(created_at, f"{version['tag']}.created_at")
         expires = _parse_utc(expires_at, f"{version['tag']}.expires_at")
-        if expires <= created or (expires - created).total_seconds() > (RETENTION_DAYS + 1) * 86400:
-            raise PerfettoArtifactError(f"GitHub Actions retention is invalid for {version['tag']}")
+        _require_ninety_day_retention(created, expires, f"GitHub Actions {version['tag']}")
         if item.get("expired") is not False:
             raise PerfettoArtifactError(f"GitHub Actions artifact is already expired for {version['tag']}")
         artifacts.append(
@@ -766,8 +773,7 @@ def validate_registry(
             raise PerfettoArtifactError(f"Perfetto Actions artifact URLs are not canonical for {tag}")
         created = _parse_utc(artifact.get("created_at"), f"{tag}.created_at")
         expires = _parse_utc(artifact.get("expires_at"), f"{tag}.expires_at")
-        if expires <= created or (expires - created).total_seconds() > (RETENTION_DAYS + 1) * 86400:
-            raise PerfettoArtifactError(f"Perfetto Actions artifact retention is invalid for {tag}")
+        _require_ninety_day_retention(created, expires, f"Perfetto Actions {tag}")
         archive_total += archive_bytes
     if seen_tags != [version["tag"] for version in source_payload["versions"]]:
         raise PerfettoArtifactError("Perfetto Actions artifacts are not in source-manifest order")
@@ -799,6 +805,7 @@ def archived_trace_records(
 
 
 def active_artifact_for_tag(
+    repo_root: Path,
     registry_path: Path,
     source_manifest_path: Path,
     tag: str,
@@ -816,6 +823,31 @@ def active_artifact_for_tag(
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     if _parse_utc(artifact["expires_at"], f"{tag}.expires_at") <= current:
         raise PerfettoArtifactError(f"The registered Perfetto Actions artifact for {tag} has expired")
+    repository = registry["repository"]
+    live = _gh_json(
+        (f"repos/{repository}/actions/artifacts/{artifact['id']}",),
+        cwd=repo_root.resolve(),
+    )
+    workflow_run = live.get("workflow_run")
+    expected_live = {
+        "id": artifact["id"],
+        "name": artifact["name"],
+        "size_in_bytes": artifact["archive_bytes"],
+        "digest": artifact["digest"],
+        "expired": False,
+        "created_at": artifact["created_at"],
+        "expires_at": artifact["expires_at"],
+        "archive_download_url": artifact["archive_download_url"],
+    }
+    for field, expected in expected_live.items():
+        if live.get(field) != expected:
+            raise PerfettoArtifactError(
+                f"Live GitHub artifact {artifact['id']} {field} differs from the registry"
+            )
+    if not isinstance(workflow_run, dict) or workflow_run.get("id") != registry["workflow"]["run_id"]:
+        raise PerfettoArtifactError(
+            f"Live GitHub artifact {artifact['id']} belongs to a different workflow run"
+        )
     return registry, artifact
 
 
@@ -909,7 +941,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "resolve-active-artifact":
             registry_path = _resolve(repo_root, args.registry, REGISTRY_RELATIVE)
             registry, artifact = active_artifact_for_tag(
-                registry_path, manifest_path, args.tag
+                repo_root, registry_path, manifest_path, args.tag
             )
             print(f"artifactTag={artifact['tag']}")
             print(f"workflowRunId={registry['workflow']['run_id']}")

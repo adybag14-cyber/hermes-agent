@@ -234,6 +234,3 @@ android/app/build/
 android/local.properties
 android/keystore.properties
 android/release.keystore
-# Raw Perfetto captures are content-addressed in release evidence and archived
-# by .github/workflows/android-perfetto-artifacts.yml instead of recommitted.
-android/release-evidence/**/*.perfetto-trace

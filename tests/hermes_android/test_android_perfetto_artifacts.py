@@ -6,6 +6,7 @@ import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -128,6 +129,47 @@ def test_committed_source_manifest_is_the_complete_historical_inventory(perfetto
     assert hashlib.sha256(inventory.encode("utf-8")).hexdigest() == (
         "35d603ca2f3af4b102ed1c0d63bd005bcb7381bef03a66e489b25f472b721338"
     )
+
+
+def test_active_registry_resolution_rechecks_the_live_github_artifact(
+    perfetto_module, monkeypatch
+):
+    directory = REPO_ROOT / "android" / "release-evidence" / "perfetto-artifacts"
+    registry_path = directory / "registry.json"
+    manifest_path = directory / "source-manifest.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    expected = registry["artifacts"][0]
+    live = {
+        "id": expected["id"],
+        "name": expected["name"],
+        "size_in_bytes": expected["archive_bytes"],
+        "digest": expected["digest"],
+        "expired": False,
+        "created_at": expected["created_at"],
+        "expires_at": expected["expires_at"],
+        "archive_download_url": expected["archive_download_url"],
+        "workflow_run": {"id": registry["workflow"]["run_id"]},
+    }
+    monkeypatch.setattr(perfetto_module, "_gh_json", lambda *args, **kwargs: live)
+
+    _, resolved = perfetto_module.active_artifact_for_tag(
+        REPO_ROOT,
+        registry_path,
+        manifest_path,
+        expected["tag"],
+        now=datetime(2026, 9, 3, tzinfo=timezone.utc),
+    )
+    assert resolved == expected
+
+    live["expired"] = True
+    with pytest.raises(perfetto_module.PerfettoArtifactError, match="differs from the registry"):
+        perfetto_module.active_artifact_for_tag(
+            REPO_ROOT,
+            registry_path,
+            manifest_path,
+            expected["tag"],
+            now=datetime(2026, 9, 3, tzinfo=timezone.utc),
+        )
 
 
 def _source_manifest(perfetto_module, files_by_tag: dict[str, list[tuple[str, bytes]]]):
@@ -266,6 +308,11 @@ def test_registry_is_cryptographically_bound_to_the_source_manifest(
     registry_path.write_text(json.dumps(registry), encoding="utf-8")
 
     perfetto_module.validate_registry(registry_path, manifest_path)
+    registry["artifacts"][0]["expires_at"] = "2026-10-02T10:05:00Z"
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+    with pytest.raises(perfetto_module.PerfettoArtifactError, match="90-day window"):
+        perfetto_module.validate_registry(registry_path, manifest_path)
+    registry["artifacts"][0]["expires_at"] = "2026-12-01T10:05:00Z"
     registry["artifacts"][0]["digest"] = "sha256:" + "4" * 63
     registry_path.write_text(json.dumps(registry), encoding="utf-8")
     with pytest.raises(perfetto_module.PerfettoArtifactError, match="identity is invalid"):

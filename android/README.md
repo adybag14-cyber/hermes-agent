@@ -953,8 +953,9 @@ python scripts/android_release_evidence.py verify `
 
 Keep that external root outside the repository so clean-tree checks remain
 meaningful. Local collection still writes and transactionally validates raw
-traces first; the ignore rule prevents a later ordinary `git add` from
-accidentally recommitting the large captures.
+traces first. Those new files intentionally remain visible to `git status`:
+the existing tagged-release workflow requires repository-resident trace bytes
+unless an exact artifact download is explicitly wired into that release.
 
 The manifest records the shared run ID and hashes every evidence file, the
 debug UI candidate/instrumentation pair, the separate non-debuggable benchmark

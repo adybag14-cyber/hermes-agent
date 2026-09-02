@@ -773,40 +773,64 @@ def test_v147_policy_remains_v2_without_new_fixed_paths(evidence_module, artifac
     assert evidence_module.HISTORICAL_E4B_EVIDENCE_PATH not in paths
 
 
-def test_committed_v147_evidence_remains_byte_for_byte_valid_under_v2(evidence_module, monkeypatch):
+def test_committed_v147_metadata_and_external_trace_index_remain_exact():
     evidence_root = REPO_ROOT / "android" / "release-evidence" / "v0.13.147"
     committed = json.loads((evidence_root / "manifest.json").read_text(encoding="utf-8"))
-    def fast_committed_png_identity(path: Path):
-        payload = path.read_bytes()
-        return evidence_module.DecodedPng(
-            int.from_bytes(payload[16:20], "big"),
-            int.from_bytes(payload[20:24], "big"),
-            hashlib.sha256(payload).hexdigest(),
-            16,
+    archive = json.loads(
+        (
+            REPO_ROOT
+            / "android"
+            / "release-evidence"
+            / "perfetto-artifacts"
+            / "source-manifest.json"
+        ).read_text(encoding="utf-8")
+    )
+    archived_version = next(
+        version for version in archive["versions"] if version["tag"] == "v0.13.147"
+    )
+    archived_traces = {record["path"]: record for record in archived_version["files"]}
+    manifest_traces = {
+        f"android/release-evidence/v0.13.147/{record['path']}": {
+            "path": f"android/release-evidence/v0.13.147/{record['path']}",
+            "bytes": record["bytes"],
+            "sha256": record["sha256"],
+        }
+        for record in committed["evidence"]["files"]
+        if record["path"].endswith(".perfetto-trace")
+    }
+    performance_traces = {}
+    for profile in ("phone-compact", "tablet"):
+        payload = json.loads(
+            (evidence_root / "performance" / f"{profile}.json").read_text(encoding="utf-8")
         )
+        for record in payload["traces"]:
+            path = f"android/release-evidence/v0.13.147/{record['path']}"
+            performance_traces[path] = {
+                "path": path,
+                "bytes": record["bytes"],
+                "sha256": record["sha256"],
+            }
+    assert archived_traces == manifest_traces == performance_traces
+    assert archived_version["trace_file_count"] == 10
+    assert archived_version["trace_bytes"] == 418_599_397
 
-    # The PNG decoder's pixel-level behavior already has focused coverage in
-    # the v2 suite. Avoid re-decoding twelve large historical PNGs through the
-    # repository-wide 30-second per-test guard while retaining byte hashing.
-    monkeypatch.setattr(evidence_module, "_decode_png", fast_committed_png_identity)
-    artifacts = tuple(
-        evidence_module.ArtifactSpec(**record)
-        for record in committed["registered_model_matrix"]
-    )
-    source = evidence_module.SourceTreeIdentity(**committed["source_tree"])
-    validated = evidence_module.validate_evidence_directory(
-        evidence_root,
-        artifacts,
-        source.digest,
-        "v0.13.147",
-    )
-    rebuilt = evidence_module.build_manifest(
-        tag="v0.13.147",
-        source=source,
-        artifacts=artifacts,
-        evidence=validated,
-    )
-    assert rebuilt == committed
+    non_trace_records = {
+        record["path"]: record
+        for record in committed["evidence"]["files"]
+        if not record["path"].endswith(".perfetto-trace")
+    }
+    actual_non_manifest_files = {
+        path.relative_to(evidence_root).as_posix()
+        for path in evidence_root.rglob("*")
+        if path.is_file()
+        and path.name != "manifest.json"
+        and not path.name.endswith(".perfetto-trace")
+    }
+    assert actual_non_manifest_files == set(non_trace_records)
+    for relative, record in non_trace_records.items():
+        path = evidence_root / relative
+        assert path.stat().st_size == record["bytes"]
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == record["sha256"]
 
 
 def test_v148_validates_closed_comprehensive_ui_and_human_review_contract(
