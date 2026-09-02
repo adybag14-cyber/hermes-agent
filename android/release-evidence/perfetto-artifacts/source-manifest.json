@@ -1,0 +1,415 @@
+{
+  "repository": "adybag14-cyber/hermes-agent",
+  "schema": "hermes-android-perfetto-source-manifest-v1",
+  "source_commit": "2aaeeb7fc3ccf6804b4811c073ff6ed853c8cbab",
+  "trace_bytes": 3250743669,
+  "trace_file_count": 70,
+  "versions": [
+    {
+      "artifact_name": "hermes-android-perfetto-v0.13.147-2aaeeb7fc3ccf6804b4811c073ff6ed853c8cbab",
+      "files": [
+        {
+          "bytes": 45010965,
+          "path": "android/release-evidence/v0.13.147/performance/phone-compact.traces/iteration-001.perfetto-trace",
+          "sha256": "670a6566b281828eac3d649ef685c8e6e15b96f27a78006169543ca715ba2383"
+        },
+        {
+          "bytes": 53517408,
+          "path": "android/release-evidence/v0.13.147/performance/phone-compact.traces/iteration-002.perfetto-trace",
+          "sha256": "4f61ba92d31036155619ada72ff04b288aa7db0b23cc0c29a843001973bb4873"
+        },
+        {
+          "bytes": 43139819,
+          "path": "android/release-evidence/v0.13.147/performance/phone-compact.traces/iteration-003.perfetto-trace",
+          "sha256": "2eef77e0969aef2800cd815d74034ef540fbed19985ffd85886c982d64233cc4"
+        },
+        {
+          "bytes": 46238338,
+          "path": "android/release-evidence/v0.13.147/performance/phone-compact.traces/iteration-004.perfetto-trace",
+          "sha256": "5061b42347fc41b9dd8507e30734a63bf67386b19bd4098c45544fc3ba8b4a76"
+        },
+        {
+          "bytes": 47214089,
+          "path": "android/release-evidence/v0.13.147/performance/phone-compact.traces/iteration-005.perfetto-trace",
+          "sha256": "e9013e8e0633e54f36c20109f3723a5029542e170e75ea46082ad5877d401e7a"
+        },
+        {
+          "bytes": 35427753,
+          "path": "android/release-evidence/v0.13.147/performance/tablet.traces/iteration-001.perfetto-trace",
+          "sha256": "0b4349d7ebf25cdfa835a6393c56f56950c89b4d3dd39895f6e291bd3745c8dd"
+        },
+        {
+          "bytes": 36651025,
+          "path": "android/release-evidence/v0.13.147/performance/tablet.traces/iteration-002.perfetto-trace",
+          "sha256": "4af2e03a8815b692909b0df73b6d18e981d1d84408b82363e2e45f09d48e3c77"
+        },
+        {
+          "bytes": 32978774,
+          "path": "android/release-evidence/v0.13.147/performance/tablet.traces/iteration-003.perfetto-trace",
+          "sha256": "0069acf5f986560ccbbf03adfd3094ad822bca067d65033fc80e7de71d421d2e"
+        },
+        {
+          "bytes": 44419286,
+          "path": "android/release-evidence/v0.13.147/performance/tablet.traces/iteration-004.perfetto-trace",
+          "sha256": "544639622ed889bbcd960f3faea7f4256ca1504945864d0a32e765c3c918ec10"
+        },
+        {
+          "bytes": 34001940,
+          "path": "android/release-evidence/v0.13.147/performance/tablet.traces/iteration-005.perfetto-trace",
+          "sha256": "d6c12704e60218832bb82d543f4f7cd39916f2b214b626ea27b55f483d471fa2"
+        }
+      ],
+      "tag": "v0.13.147",
+      "trace_bytes": 418599397,
+      "trace_file_count": 10
+    },
+    {
+      "artifact_name": "hermes-android-perfetto-v0.13.148-2aaeeb7fc3ccf6804b4811c073ff6ed853c8cbab",
+      "files": [
+        {
+          "bytes": 39920081,
+          "path": "android/release-evidence/v0.13.148/performance/phone-compact.traces/iteration-001.perfetto-trace",
+          "sha256": "3891e4d6923d96eaf194ae7627f237e32ef04c8455827791ac08d2db63afe806"
+        },
+        {
+          "bytes": 42984753,
+          "path": "android/release-evidence/v0.13.148/performance/phone-compact.traces/iteration-002.perfetto-trace",
+          "sha256": "fdaa2fe76f14ec0343639d8fffa9e4cb50b13335bf611d9354bc7d62b69a5e8c"
+        },
+        {
+          "bytes": 41447684,
+          "path": "android/release-evidence/v0.13.148/performance/phone-compact.traces/iteration-003.perfetto-trace",
+          "sha256": "6804ccd92ce980c8797418856cd80d283646d523e6435ff788af9506d3713152"
+        },
+        {
+          "bytes": 41836767,
+          "path": "android/release-evidence/v0.13.148/performance/phone-compact.traces/iteration-004.perfetto-trace",
+          "sha256": "a4fdd9f1f772574546d0552bae7b27ca71e0a1b617883712e827ec4babefcb4a"
+        },
+        {
+          "bytes": 44531767,
+          "path": "android/release-evidence/v0.13.148/performance/phone-compact.traces/iteration-005.perfetto-trace",
+          "sha256": "18d352649c1b40a6bd05b7470195b4cbeb9b705961d1a1973d5d05e920b8929e"
+        },
+        {
+          "bytes": 48609869,
+          "path": "android/release-evidence/v0.13.148/performance/tablet.traces/iteration-001.perfetto-trace",
+          "sha256": "a92ec50d16bb7ed6de0e13ed10fdcb6771f0f1cadbc81aa823f9127e125b4e0d"
+        },
+        {
+          "bytes": 45102136,
+          "path": "android/release-evidence/v0.13.148/performance/tablet.traces/iteration-002.perfetto-trace",
+          "sha256": "518e26b9e3bf11bba98c7a6731c8cb06eb273890d80c5acbec14288e121e835a"
+        },
+        {
+          "bytes": 48331267,
+          "path": "android/release-evidence/v0.13.148/performance/tablet.traces/iteration-003.perfetto-trace",
+          "sha256": "b447042b61670f283d78bd0d56bdbea4e463eadcbebf42e82fd9396656f9a706"
+        },
+        {
+          "bytes": 53902184,
+          "path": "android/release-evidence/v0.13.148/performance/tablet.traces/iteration-004.perfetto-trace",
+          "sha256": "39b5f30a5666cb5f92068e30d5863aeb726d284cd96e419b0ba59c5060158baf"
+        },
+        {
+          "bytes": 45050081,
+          "path": "android/release-evidence/v0.13.148/performance/tablet.traces/iteration-005.perfetto-trace",
+          "sha256": "1e9f6ca341ccdb8c4985d8c27842c713e2c2257ae5c1921735f640ee81cbc62a"
+        }
+      ],
+      "tag": "v0.13.148",
+      "trace_bytes": 451716589,
+      "trace_file_count": 10
+    },
+    {
+      "artifact_name": "hermes-android-perfetto-v0.13.149-2aaeeb7fc3ccf6804b4811c073ff6ed853c8cbab",
+      "files": [
+        {
+          "bytes": 44386852,
+          "path": "android/release-evidence/v0.13.149/performance/phone-compact.traces/iteration-001.perfetto-trace",
+          "sha256": "3f3713e1216be4e0e1478d70b3a462a8f370a53a2cea380ef8b1d390e65ed975"
+        },
+        {
+          "bytes": 45113615,
+          "path": "android/release-evidence/v0.13.149/performance/phone-compact.traces/iteration-002.perfetto-trace",
+          "sha256": "6e3d1e99a2673e4a16dd19bcbbcd19e0e65c6c81f729d12d366f488b192c16a6"
+        },
+        {
+          "bytes": 50366974,
+          "path": "android/release-evidence/v0.13.149/performance/phone-compact.traces/iteration-003.perfetto-trace",
+          "sha256": "03f0c88de647fdcd17ab5fdd16c2674a6133c711bed0a5fac0c15b8b7a1e2b88"
+        },
+        {
+          "bytes": 40001456,
+          "path": "android/release-evidence/v0.13.149/performance/phone-compact.traces/iteration-004.perfetto-trace",
+          "sha256": "ee613f9f82c6fbd31de65d00c2b3e3995fd46e1c8900f070b9749c648109284c"
+        },
+        {
+          "bytes": 45048493,
+          "path": "android/release-evidence/v0.13.149/performance/phone-compact.traces/iteration-005.perfetto-trace",
+          "sha256": "b22f54683e3e5ca1ed93b6b51eac1d8af01e6f85419343fa715748b7c69e10b2"
+        },
+        {
+          "bytes": 45272288,
+          "path": "android/release-evidence/v0.13.149/performance/tablet.traces/iteration-001.perfetto-trace",
+          "sha256": "09328dbe667e87d159aeb3e40139699c338bb5c56148d74b5b68ba4ae93e4383"
+        },
+        {
+          "bytes": 37754374,
+          "path": "android/release-evidence/v0.13.149/performance/tablet.traces/iteration-002.perfetto-trace",
+          "sha256": "b624a1a7211072e8670e8b03618499d7ecceb138567f1f1f09dbcce73f3420ee"
+        },
+        {
+          "bytes": 37867327,
+          "path": "android/release-evidence/v0.13.149/performance/tablet.traces/iteration-003.perfetto-trace",
+          "sha256": "c7b23c2d05f93f69921f8ed6ac622e93fadf7837cc15ebee2ad7c723e0620d6b"
+        },
+        {
+          "bytes": 37106279,
+          "path": "android/release-evidence/v0.13.149/performance/tablet.traces/iteration-004.perfetto-trace",
+          "sha256": "8a80b87136cd07f8cb8be0a9885a5bfeafb4b92bbed575d310b013c8af934114"
+        },
+        {
+          "bytes": 36616105,
+          "path": "android/release-evidence/v0.13.149/performance/tablet.traces/iteration-005.perfetto-trace",
+          "sha256": "72cfe53dfdaa0d59f7ca8fe98a81aff63e441668ea0f4553dd97938e6cd798fd"
+        }
+      ],
+      "tag": "v0.13.149",
+      "trace_bytes": 419533763,
+      "trace_file_count": 10
+    },
+    {
+      "artifact_name": "hermes-android-perfetto-v0.13.150-2aaeeb7fc3ccf6804b4811c073ff6ed853c8cbab",
+      "files": [
+        {
+          "bytes": 41839112,
+          "path": "android/release-evidence/v0.13.150/performance/phone-compact.traces/iteration-001.perfetto-trace",
+          "sha256": "dfe646120208546bbc0ce583f79d87252c2328e48286b96782d3428a077a71bf"
+        },
+        {
+          "bytes": 41173311,
+          "path": "android/release-evidence/v0.13.150/performance/phone-compact.traces/iteration-002.perfetto-trace",
+          "sha256": "8c2828417b02dac57f2d7138b9348857e83cdbfc335b18668cfef7ebb5c2c356"
+        },
+        {
+          "bytes": 42707092,
+          "path": "android/release-evidence/v0.13.150/performance/phone-compact.traces/iteration-003.perfetto-trace",
+          "sha256": "6810a1da67163e837146b71f14c09f71d43bdc55078a9a5325469b2dfcb03bb8"
+        },
+        {
+          "bytes": 50327828,
+          "path": "android/release-evidence/v0.13.150/performance/phone-compact.traces/iteration-004.perfetto-trace",
+          "sha256": "b76ee415372fc0ff85f0bf71f6ccdb3ae3ed2c3722df38d681ba5cfcc3602a22"
+        },
+        {
+          "bytes": 42105024,
+          "path": "android/release-evidence/v0.13.150/performance/phone-compact.traces/iteration-005.perfetto-trace",
+          "sha256": "7448b358908e336974432dc08eabd5934311dff4ded7c2fc2aa4ddda0398388d"
+        },
+        {
+          "bytes": 59420149,
+          "path": "android/release-evidence/v0.13.150/performance/tablet.traces/iteration-001.perfetto-trace",
+          "sha256": "d173242f248e071abb98294d82b8e37109ac02bffc3d68f3e8b710b0d1cc7cf0"
+        },
+        {
+          "bytes": 54733182,
+          "path": "android/release-evidence/v0.13.150/performance/tablet.traces/iteration-002.perfetto-trace",
+          "sha256": "54439f2ece16f6d45dfbce0fa4c72c5e1534b772d595ee7bbcd4d6b5c9614692"
+        },
+        {
+          "bytes": 49695354,
+          "path": "android/release-evidence/v0.13.150/performance/tablet.traces/iteration-003.perfetto-trace",
+          "sha256": "c80c3bedef87cd870fc96f7749d323fd916e0ff8269f257040ea665581ba8ead"
+        },
+        {
+          "bytes": 54486687,
+          "path": "android/release-evidence/v0.13.150/performance/tablet.traces/iteration-004.perfetto-trace",
+          "sha256": "6cfd63d6a8df7a1a8a95f6344b52ea972204a548dbe1d1c50160deb2cc59c85d"
+        },
+        {
+          "bytes": 57314408,
+          "path": "android/release-evidence/v0.13.150/performance/tablet.traces/iteration-005.perfetto-trace",
+          "sha256": "a56d31e1b790422164592077cf409483b0775bab1320982276cb37a49b6cf0a8"
+        }
+      ],
+      "tag": "v0.13.150",
+      "trace_bytes": 493802147,
+      "trace_file_count": 10
+    },
+    {
+      "artifact_name": "hermes-android-perfetto-v0.13.151-2aaeeb7fc3ccf6804b4811c073ff6ed853c8cbab",
+      "files": [
+        {
+          "bytes": 39303453,
+          "path": "android/release-evidence/v0.13.151/performance/phone-compact.traces/iteration-001.perfetto-trace",
+          "sha256": "2b91b0df1c1359d37b6f91505fd2b1823b3d65146d7f1ebf0af747967e2115c4"
+        },
+        {
+          "bytes": 41338420,
+          "path": "android/release-evidence/v0.13.151/performance/phone-compact.traces/iteration-002.perfetto-trace",
+          "sha256": "eceb434ad53e74b55c03fc73e0aca7ff8489570a3f98b1e90e7aaf427f04c38b"
+        },
+        {
+          "bytes": 38808791,
+          "path": "android/release-evidence/v0.13.151/performance/phone-compact.traces/iteration-003.perfetto-trace",
+          "sha256": "29e10a026f298b381460d1c48afc69f1d7eafce437ccc8797ec3d4c40f1d6aa3"
+        },
+        {
+          "bytes": 42968720,
+          "path": "android/release-evidence/v0.13.151/performance/phone-compact.traces/iteration-004.perfetto-trace",
+          "sha256": "5ce5a677a3758683bd4893d89863ecf9a7c49d19f5c2d75ac1b9f4d74c30a753"
+        },
+        {
+          "bytes": 45012607,
+          "path": "android/release-evidence/v0.13.151/performance/phone-compact.traces/iteration-005.perfetto-trace",
+          "sha256": "0f753817c3b47027c8f5818fbe85457789285d7df6dfbd790d747d0f070d8fb9"
+        },
+        {
+          "bytes": 58419158,
+          "path": "android/release-evidence/v0.13.151/performance/tablet.traces/iteration-001.perfetto-trace",
+          "sha256": "d5e754e0d24194e8cf34a8e75cb8fed42017c24da8bba4716ba90e8b1e939c81"
+        },
+        {
+          "bytes": 57344468,
+          "path": "android/release-evidence/v0.13.151/performance/tablet.traces/iteration-002.perfetto-trace",
+          "sha256": "bc8a1a5fcf3b837cf95b1e37d742a17a996361eadbadb51325953279b6c6eadf"
+        },
+        {
+          "bytes": 64846755,
+          "path": "android/release-evidence/v0.13.151/performance/tablet.traces/iteration-003.perfetto-trace",
+          "sha256": "980bd50f5cc8cfcbe92d65a7a548f073fd499b857cbb613d1a2a7bbc6a9c2425"
+        },
+        {
+          "bytes": 61831183,
+          "path": "android/release-evidence/v0.13.151/performance/tablet.traces/iteration-004.perfetto-trace",
+          "sha256": "ea1270d69af244c4ba9b2b7bc922553e6b8f37327656ae64920c6ec93d80bb20"
+        },
+        {
+          "bytes": 54531688,
+          "path": "android/release-evidence/v0.13.151/performance/tablet.traces/iteration-005.perfetto-trace",
+          "sha256": "e7e8eda0b5ae10f28a534a50be053b8aa2b9dfff81846d69c0296714e61abf76"
+        }
+      ],
+      "tag": "v0.13.151",
+      "trace_bytes": 504405243,
+      "trace_file_count": 10
+    },
+    {
+      "artifact_name": "hermes-android-perfetto-v0.13.152-2aaeeb7fc3ccf6804b4811c073ff6ed853c8cbab",
+      "files": [
+        {
+          "bytes": 45177710,
+          "path": "android/release-evidence/v0.13.152/performance/phone-compact.traces/iteration-001.perfetto-trace",
+          "sha256": "a0b90c35c3aa074c3c7088dd0c1c4f7554ff3e65ef6d1406fd1610b2f8f9c65c"
+        },
+        {
+          "bytes": 44114856,
+          "path": "android/release-evidence/v0.13.152/performance/phone-compact.traces/iteration-002.perfetto-trace",
+          "sha256": "7c5f4b7e3f84f4a180343a091570b73cf3ffba23308652b5f862fbe9f6fcbc0e"
+        },
+        {
+          "bytes": 51125833,
+          "path": "android/release-evidence/v0.13.152/performance/phone-compact.traces/iteration-003.perfetto-trace",
+          "sha256": "871a209b029cd7e1ee5412a5c3f974d9c2ea9154a66674c36d09327d36e3e9d6"
+        },
+        {
+          "bytes": 42125319,
+          "path": "android/release-evidence/v0.13.152/performance/phone-compact.traces/iteration-004.perfetto-trace",
+          "sha256": "958d49bbe268376c10d89a4a920b98d4c561d3f238abbc991d36a9c021b811da"
+        },
+        {
+          "bytes": 41964717,
+          "path": "android/release-evidence/v0.13.152/performance/phone-compact.traces/iteration-005.perfetto-trace",
+          "sha256": "d026e48d84c3144c9cb167a8cd577cd917489257bbddb263802d33929665067e"
+        },
+        {
+          "bytes": 56298337,
+          "path": "android/release-evidence/v0.13.152/performance/tablet.traces/iteration-001.perfetto-trace",
+          "sha256": "b6eab7aeb1e81abc89db3ccb70e061e756bcd8431f43fd97bb758e5ba9e3a8b5"
+        },
+        {
+          "bytes": 62397502,
+          "path": "android/release-evidence/v0.13.152/performance/tablet.traces/iteration-002.perfetto-trace",
+          "sha256": "791f2c1e30294902282bd925f591411232dc7a8eb98089624d9cc337b38b9db0"
+        },
+        {
+          "bytes": 65693016,
+          "path": "android/release-evidence/v0.13.152/performance/tablet.traces/iteration-003.perfetto-trace",
+          "sha256": "f62e14fc68d4aab2f367c0d04a795d85a69f2fd57dc33dcbc3b0a1e8b1e4e6b1"
+        },
+        {
+          "bytes": 58417051,
+          "path": "android/release-evidence/v0.13.152/performance/tablet.traces/iteration-004.perfetto-trace",
+          "sha256": "0143e26c91403c65a3355f530f1251702f0b65532ff4682dd2938e1f08d759d4"
+        },
+        {
+          "bytes": 59855782,
+          "path": "android/release-evidence/v0.13.152/performance/tablet.traces/iteration-005.perfetto-trace",
+          "sha256": "3a81bbb4e464a56b8b0e5675008cad1310f2077f30bb57b349f3c811d80c5778"
+        }
+      ],
+      "tag": "v0.13.152",
+      "trace_bytes": 527170123,
+      "trace_file_count": 10
+    },
+    {
+      "artifact_name": "hermes-android-perfetto-v0.13.153-2aaeeb7fc3ccf6804b4811c073ff6ed853c8cbab",
+      "files": [
+        {
+          "bytes": 37186420,
+          "path": "android/release-evidence/v0.13.153/performance/phone-compact.traces/iteration-001.perfetto-trace",
+          "sha256": "843f6356613a58edcba21843eb94b571e13207226ecf878367e82d0c6090240a"
+        },
+        {
+          "bytes": 42621183,
+          "path": "android/release-evidence/v0.13.153/performance/phone-compact.traces/iteration-002.perfetto-trace",
+          "sha256": "2cb894614d82ade51ff6646566738551b128cd785e6a989f26532e27b6e45968"
+        },
+        {
+          "bytes": 34395211,
+          "path": "android/release-evidence/v0.13.153/performance/phone-compact.traces/iteration-003.perfetto-trace",
+          "sha256": "bd45487b31356e8a7f9ce1791647787e0f83ce62912474efad1a93c6647ea293"
+        },
+        {
+          "bytes": 26232267,
+          "path": "android/release-evidence/v0.13.153/performance/phone-compact.traces/iteration-004.perfetto-trace",
+          "sha256": "0969fd95c5d88be591417e2de6a0448205884898f8d4e6f56600b6e78394477f"
+        },
+        {
+          "bytes": 35964999,
+          "path": "android/release-evidence/v0.13.153/performance/phone-compact.traces/iteration-005.perfetto-trace",
+          "sha256": "6b1278e14d92eb3c451d422e71ae073b5db59599731553029e522729509b434c"
+        },
+        {
+          "bytes": 48546982,
+          "path": "android/release-evidence/v0.13.153/performance/tablet.traces/iteration-001.perfetto-trace",
+          "sha256": "a8f48a920ba2571ea756b625a92eac382a17b01144bb2be158659d9da6df5b84"
+        },
+        {
+          "bytes": 47691226,
+          "path": "android/release-evidence/v0.13.153/performance/tablet.traces/iteration-002.perfetto-trace",
+          "sha256": "a5e609cc1530b59e571138120e47174767ba5cd73914deb8096e4642003c33b9"
+        },
+        {
+          "bytes": 55651262,
+          "path": "android/release-evidence/v0.13.153/performance/tablet.traces/iteration-003.perfetto-trace",
+          "sha256": "695a7bcc76f2d8f8afdf0dcec936df973468e68d1b93be16a6588c6b2c758daa"
+        },
+        {
+          "bytes": 52527560,
+          "path": "android/release-evidence/v0.13.153/performance/tablet.traces/iteration-004.perfetto-trace",
+          "sha256": "5ef33dadc8eb66e0312153fb08f4f73112ee5712b8d2b0b90976d27c8249e301"
+        },
+        {
+          "bytes": 54699297,
+          "path": "android/release-evidence/v0.13.153/performance/tablet.traces/iteration-005.perfetto-trace",
+          "sha256": "d241c10232d4398dd056c5dca55c3d8b80f19c367bfa94419547a3849a6a6d41"
+        }
+      ],
+      "tag": "v0.13.153",
+      "trace_bytes": 435516407,
+      "trace_file_count": 10
+    }
+  ]
+}

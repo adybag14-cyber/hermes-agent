@@ -213,6 +213,43 @@ def _trace_bindings_from_performance(repo_root: Path, tag: str) -> dict[str, dic
     return bindings
 
 
+def _trace_bindings_from_release_manifest(
+    repo_root: Path, tag: str
+) -> dict[str, dict[str, Any]]:
+    manifest_path = _repo_path(repo_root, EVIDENCE_PREFIX / tag / "manifest.json")
+    payload = _json_object(manifest_path)
+    evidence = payload.get("evidence")
+    files = evidence.get("files") if isinstance(evidence, dict) else None
+    if not isinstance(files, list):
+        raise PerfettoArtifactError(f"{manifest_path} has no evidence file index")
+    bindings: dict[str, dict[str, Any]] = {}
+    for record in files:
+        if not isinstance(record, dict) or not str(record.get("path", "")).endswith(
+            ".perfetto-trace"
+        ):
+            continue
+        if set(record) != {"path", "bytes", "sha256"}:
+            raise PerfettoArtifactError(f"{manifest_path} has an invalid trace file record")
+        evidence_relative = record["path"]
+        repository_relative = (EVIDENCE_PREFIX / tag / evidence_relative).as_posix()
+        if TRACE_PATH_RE.fullmatch(repository_relative) is None:
+            raise PerfettoArtifactError(
+                f"{manifest_path} has a non-canonical trace path: {evidence_relative!r}"
+            )
+        if repository_relative in bindings:
+            raise PerfettoArtifactError(
+                f"{manifest_path} repeats trace path {evidence_relative!r}"
+            )
+        bindings[repository_relative] = {
+            "path": repository_relative,
+            "bytes": record.get("bytes"),
+            "sha256": record.get("sha256"),
+        }
+    if not bindings:
+        raise PerfettoArtifactError(f"{manifest_path} has no trace file records")
+    return bindings
+
+
 def _validate_trace_file(path: Path, record: Mapping[str, Any]) -> None:
     _require_regular_file(path)
     expected_bytes = record["bytes"]
@@ -254,6 +291,11 @@ def create_source_manifest(repo_root: Path) -> dict[str, Any]:
     seen: set[str] = set()
     for tag in sorted(tags, key=_version_key):
         bindings = _trace_bindings_from_performance(root, tag)
+        release_bindings = _trace_bindings_from_release_manifest(root, tag)
+        if release_bindings != bindings:
+            raise PerfettoArtifactError(
+                f"{tag} release manifest trace index differs from normalized performance bindings"
+            )
         trace_paths = tuple(sorted(tags[tag]))
         if set(trace_paths) != set(bindings):
             raise PerfettoArtifactError(
@@ -402,12 +444,13 @@ def verify_source(repo_root: Path, manifest_path: Path, expected_commit: str | N
         _validate_trace_file(_repo_path(root, relative), records[relative])
     for version in payload["versions"]:
         bindings = _trace_bindings_from_performance(root, version["tag"])
+        release_bindings = _trace_bindings_from_release_manifest(root, version["tag"])
         version_records = {
             record["path"]: record for record in version["files"]
         }
-        if bindings != version_records:
+        if bindings != version_records or release_bindings != version_records:
             raise PerfettoArtifactError(
-                f"{version['tag']} normalized performance bindings differ from the source manifest"
+                f"{version['tag']} committed trace bindings differ from the source manifest"
             )
 
 

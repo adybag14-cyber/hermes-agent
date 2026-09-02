@@ -59,6 +59,24 @@ def _write_profile(root: Path, tag: str, profile: str, contents: bytes) -> None:
     (performance / f"{profile}.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
+def _write_release_manifest(root: Path, tag: str) -> None:
+    evidence_files = []
+    performance = root / "android" / "release-evidence" / tag / "performance"
+    for normalized in sorted(performance.glob("*.json")):
+        payload = json.loads(normalized.read_text(encoding="utf-8"))
+        for trace in payload["traces"]:
+            evidence_files.append(
+                {
+                    "path": trace["path"],
+                    "bytes": trace["bytes"],
+                    "sha256": trace["sha256"],
+                }
+            )
+    (performance.parent / "manifest.json").write_text(
+        json.dumps({"evidence": {"files": evidence_files}}), encoding="utf-8"
+    )
+
+
 def test_create_source_manifest_covers_every_tracked_trace(perfetto_module, tmp_path):
     root = tmp_path / "repo"
     root.mkdir()
@@ -67,6 +85,7 @@ def test_create_source_manifest_covers_every_tracked_trace(perfetto_module, tmp_
     _git(root, "config", "user.email", "perfetto@example.invalid")
     _write_profile(root, "v0.13.147", "phone-compact", b"phone trace")
     _write_profile(root, "v0.13.147", "tablet", b"tablet trace")
+    _write_release_manifest(root, "v0.13.147")
     _git(root, "add", ".")
     _git(root, "commit", "-m", "fixture")
 
@@ -78,6 +97,37 @@ def test_create_source_manifest_covers_every_tracked_trace(perfetto_module, tmp_
     assert manifest["trace_bytes"] == len(b"phone trace") + len(b"tablet trace")
     assert len(records) == 2
     assert manifest["versions"][0]["artifact_name"].endswith(manifest["source_commit"])
+
+
+def test_committed_source_manifest_is_the_complete_historical_inventory(perfetto_module):
+    path = (
+        REPO_ROOT
+        / "android"
+        / "release-evidence"
+        / "perfetto-artifacts"
+        / "source-manifest.json"
+    )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    records = perfetto_module.validate_source_manifest(payload)
+
+    assert payload["trace_file_count"] == 70
+    assert payload["trace_bytes"] == 3_250_743_669
+    assert {version["tag"]: version["trace_bytes"] for version in payload["versions"]} == {
+        "v0.13.147": 418_599_397,
+        "v0.13.148": 451_716_589,
+        "v0.13.149": 419_533_763,
+        "v0.13.150": 493_802_147,
+        "v0.13.151": 504_405_243,
+        "v0.13.152": 527_170_123,
+        "v0.13.153": 435_516_407,
+    }
+    inventory = "\n".join(
+        f"{record['path']}|{record['bytes']}|{record['sha256']}"
+        for record in (records[path] for path in sorted(records))
+    )
+    assert hashlib.sha256(inventory.encode("utf-8")).hexdigest() == (
+        "35d603ca2f3af4b102ed1c0d63bd005bcb7381bef03a66e489b25f472b721338"
+    )
 
 
 def _source_manifest(perfetto_module, files_by_tag: dict[str, list[tuple[str, bytes]]]):
