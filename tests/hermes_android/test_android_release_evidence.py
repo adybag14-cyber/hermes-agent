@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import shutil
 import struct
 import subprocess
 import sys
@@ -1461,6 +1462,132 @@ def test_missing_tampered_or_extra_trace_fails_closed(
     with pytest.raises(evidence_module.EvidenceError, match="layout mismatch"):
         evidence_module.validate_evidence_directory(
             evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def _externalize_fixture_traces(evidence_root: Path, destination: Path) -> Path:
+    performance = evidence_root / "performance"
+    destination.mkdir()
+    trace_directories = sorted(performance.glob("*.traces"))
+    assert trace_directories
+    for trace_directory in trace_directories:
+        external_directory = destination / trace_directory.name
+        external_directory.mkdir()
+        traces = sorted(trace_directory.glob("*.perfetto-trace"))
+        assert traces
+        for trace in traces:
+            shutil.copy2(trace, external_directory / trace.name)
+            trace.unlink()
+        trace_directory.rmdir()
+    return destination
+
+
+def test_external_perfetto_bytes_reproduce_the_local_manifest(
+    evidence_root, evidence_module, artifacts, tmp_path
+):
+    local = evidence_module.validate_evidence_directory(
+        evidence_root, artifacts, SOURCE_DIGEST, TAG
+    )
+    source = evidence_module.SourceTreeIdentity(
+        algorithm=evidence_module.SOURCE_DIGEST_ALGORITHM,
+        digest=SOURCE_DIGEST,
+        file_count=100,
+        git_object_format="sha1",
+        excluded_prefix="android/release-evidence/",
+    )
+    local_manifest = evidence_module.build_manifest(
+        tag=TAG, source=source, artifacts=artifacts, evidence=local
+    )
+    perfetto_root = _externalize_fixture_traces(
+        evidence_root, tmp_path / "downloaded-perfetto"
+    )
+
+    external = evidence_module.validate_evidence_directory(
+        evidence_root,
+        artifacts,
+        SOURCE_DIGEST,
+        TAG,
+        perfetto_root=perfetto_root,
+    )
+    external_manifest = evidence_module.build_manifest(
+        tag=TAG, source=source, artifacts=artifacts, evidence=external
+    )
+
+    assert external.files == local.files
+    assert external_manifest == local_manifest
+    with pytest.raises(evidence_module.EvidenceError, match="missing or unsafe"):
+        evidence_module.validate_evidence_directory(
+            evidence_root, artifacts, SOURCE_DIGEST, TAG
+        )
+
+
+def test_external_perfetto_root_rejects_tampering_extras_and_mixed_storage(
+    evidence_root, evidence_module, artifacts, tmp_path
+):
+    perfetto_root = _externalize_fixture_traces(
+        evidence_root, tmp_path / "downloaded-perfetto"
+    )
+    trace = perfetto_root / "phone-compact.traces" / "iteration-003.perfetto-trace"
+    original = trace.read_bytes()
+    trace.write_bytes(b"tampered")
+    with pytest.raises(evidence_module.EvidenceError, match="bytes/hash"):
+        evidence_module.validate_evidence_directory(
+            evidence_root,
+            artifacts,
+            SOURCE_DIGEST,
+            TAG,
+            perfetto_root=perfetto_root,
+        )
+    trace.write_bytes(original)
+
+    extra = perfetto_root / "phone-compact.traces" / "unexpected.perfetto-trace"
+    extra.write_bytes(b"extra")
+    with pytest.raises(evidence_module.EvidenceError, match="External Perfetto layout mismatch"):
+        evidence_module.validate_evidence_directory(
+            evidence_root,
+            artifacts,
+            SOURCE_DIGEST,
+            TAG,
+            perfetto_root=perfetto_root,
+        )
+    extra.unlink()
+
+    local_directory = evidence_root / "performance" / "phone-compact.traces"
+    local_directory.mkdir()
+    shutil.copy2(trace, local_directory / trace.name)
+    with pytest.raises(evidence_module.EvidenceError, match="layout mismatch"):
+        evidence_module.validate_evidence_directory(
+            evidence_root,
+            artifacts,
+            SOURCE_DIGEST,
+            TAG,
+            perfetto_root=perfetto_root,
+        )
+
+
+def test_external_perfetto_root_is_closed_and_separate(
+    evidence_root, evidence_module, artifacts, tmp_path
+):
+    perfetto_root = _externalize_fixture_traces(
+        evidence_root, tmp_path / "downloaded-perfetto"
+    )
+    missing = perfetto_root / "tablet.traces" / "iteration-005.perfetto-trace"
+    missing.unlink()
+    with pytest.raises(evidence_module.EvidenceError, match="missing or unsafe"):
+        evidence_module.validate_evidence_directory(
+            evidence_root,
+            artifacts,
+            SOURCE_DIGEST,
+            TAG,
+            perfetto_root=perfetto_root,
+        )
+    with pytest.raises(evidence_module.EvidenceError, match="must differ"):
+        evidence_module.validate_evidence_directory(
+            evidence_root,
+            artifacts,
+            SOURCE_DIGEST,
+            TAG,
+            perfetto_root=evidence_root,
         )
 
 

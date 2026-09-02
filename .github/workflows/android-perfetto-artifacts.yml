@@ -1,0 +1,272 @@
+name: Android Perfetto artifact archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_commit:
+        description: Exact 40-character commit that still contains every tracked Perfetto trace
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: android-perfetto-archive-${{ inputs.source_commit }}
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Verify and upload all trace groups
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    outputs:
+      v147_id: ${{ steps.upload_v147.outputs.artifact-id }}
+      v148_id: ${{ steps.upload_v148.outputs.artifact-id }}
+      v149_id: ${{ steps.upload_v149.outputs.artifact-id }}
+      v150_id: ${{ steps.upload_v150.outputs.artifact-id }}
+      v151_id: ${{ steps.upload_v151.outputs.artifact-id }}
+      v152_id: ${{ steps.upload_v152.outputs.artifact-id }}
+      v153_id: ${{ steps.upload_v153.outputs.artifact-id }}
+    steps:
+      - name: Reject a non-commit source input
+        shell: bash
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+
+      - name: Check out trusted archive tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          path: tooling
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/android_perfetto_artifacts.py
+            android/release-evidence/perfetto-artifacts/source-manifest.json
+
+      - name: Check out the immutable trace source
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.source_commit }}
+          fetch-depth: 1
+          persist-credentials: false
+          path: source
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            android/release-evidence/*/performance/*.json
+            android/release-evidence/*/performance/*.traces/*.perfetto-trace
+
+      - name: Verify all 70 source traces before upload
+        shell: bash
+        env:
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+        run: |
+          set -euo pipefail
+          checked_out_commit="$(git -C source rev-parse --verify 'HEAD^{commit}')"
+          test "$checked_out_commit" = "$SOURCE_COMMIT"
+          python tooling/scripts/android_perfetto_artifacts.py verify-source \
+            --repo-root source \
+            --manifest "$GITHUB_WORKSPACE/tooling/android/release-evidence/perfetto-artifacts/source-manifest.json" \
+            --expected-source-commit "$SOURCE_COMMIT"
+
+      - name: Upload v0.13.147 traces
+        id: upload_v147
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hermes-android-perfetto-v0.13.147-${{ inputs.source_commit }}
+          path: source/android/release-evidence/v0.13.147/performance/*.traces/*.perfetto-trace
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload v0.13.148 traces
+        id: upload_v148
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hermes-android-perfetto-v0.13.148-${{ inputs.source_commit }}
+          path: source/android/release-evidence/v0.13.148/performance/*.traces/*.perfetto-trace
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload v0.13.149 traces
+        id: upload_v149
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hermes-android-perfetto-v0.13.149-${{ inputs.source_commit }}
+          path: source/android/release-evidence/v0.13.149/performance/*.traces/*.perfetto-trace
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload v0.13.150 traces
+        id: upload_v150
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hermes-android-perfetto-v0.13.150-${{ inputs.source_commit }}
+          path: source/android/release-evidence/v0.13.150/performance/*.traces/*.perfetto-trace
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload v0.13.151 traces
+        id: upload_v151
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hermes-android-perfetto-v0.13.151-${{ inputs.source_commit }}
+          path: source/android/release-evidence/v0.13.151/performance/*.traces/*.perfetto-trace
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload v0.13.152 traces
+        id: upload_v152
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hermes-android-perfetto-v0.13.152-${{ inputs.source_commit }}
+          path: source/android/release-evidence/v0.13.152/performance/*.traces/*.perfetto-trace
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Upload v0.13.153 traces
+        id: upload_v153
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hermes-android-perfetto-v0.13.153-${{ inputs.source_commit }}
+          path: source/android/release-evidence/v0.13.153/performance/*.traces/*.perfetto-trace
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 6
+
+      - name: Publish immutable artifact receipts
+        shell: bash
+        env:
+          V147_ID: ${{ steps.upload_v147.outputs.artifact-id }}
+          V147_URL: ${{ steps.upload_v147.outputs.artifact-url }}
+          V147_DIGEST: ${{ steps.upload_v147.outputs.artifact-digest }}
+          V148_ID: ${{ steps.upload_v148.outputs.artifact-id }}
+          V148_URL: ${{ steps.upload_v148.outputs.artifact-url }}
+          V148_DIGEST: ${{ steps.upload_v148.outputs.artifact-digest }}
+          V149_ID: ${{ steps.upload_v149.outputs.artifact-id }}
+          V149_URL: ${{ steps.upload_v149.outputs.artifact-url }}
+          V149_DIGEST: ${{ steps.upload_v149.outputs.artifact-digest }}
+          V150_ID: ${{ steps.upload_v150.outputs.artifact-id }}
+          V150_URL: ${{ steps.upload_v150.outputs.artifact-url }}
+          V150_DIGEST: ${{ steps.upload_v150.outputs.artifact-digest }}
+          V151_ID: ${{ steps.upload_v151.outputs.artifact-id }}
+          V151_URL: ${{ steps.upload_v151.outputs.artifact-url }}
+          V151_DIGEST: ${{ steps.upload_v151.outputs.artifact-digest }}
+          V152_ID: ${{ steps.upload_v152.outputs.artifact-id }}
+          V152_URL: ${{ steps.upload_v152.outputs.artifact-url }}
+          V152_DIGEST: ${{ steps.upload_v152.outputs.artifact-digest }}
+          V153_ID: ${{ steps.upload_v153.outputs.artifact-id }}
+          V153_URL: ${{ steps.upload_v153.outputs.artifact-url }}
+          V153_DIGEST: ${{ steps.upload_v153.outputs.artifact-digest }}
+        run: |
+          set -euo pipefail
+          {
+            echo '### Perfetto artifact receipts'
+            echo
+            echo '| Release | Artifact ID | Digest | URL |'
+            echo '|---|---:|---|---|'
+            for version in 147 148 149 150 151 152 153; do
+              id_name="V${version}_ID"
+              url_name="V${version}_URL"
+              digest_name="V${version}_DIGEST"
+              echo "| v0.13.${version} | ${!id_name} | \`${!digest_name}\` | [artifact](${!url_name}) |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  verify-round-trip:
+    name: Download and hash every uploaded byte
+    needs: upload
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out trusted verification tooling
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+          path: tooling
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/android_perfetto_artifacts.py
+            android/release-evidence/perfetto-artifacts/source-manifest.json
+
+      - name: Download v0.13.147 by immutable artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.upload.outputs.v147_id }}
+          path: downloads/hermes-android-perfetto-v0.13.147-${{ inputs.source_commit }}
+          digest-mismatch: error
+
+      - name: Download v0.13.148 by immutable artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.upload.outputs.v148_id }}
+          path: downloads/hermes-android-perfetto-v0.13.148-${{ inputs.source_commit }}
+          digest-mismatch: error
+
+      - name: Download v0.13.149 by immutable artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.upload.outputs.v149_id }}
+          path: downloads/hermes-android-perfetto-v0.13.149-${{ inputs.source_commit }}
+          digest-mismatch: error
+
+      - name: Download v0.13.150 by immutable artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.upload.outputs.v150_id }}
+          path: downloads/hermes-android-perfetto-v0.13.150-${{ inputs.source_commit }}
+          digest-mismatch: error
+
+      - name: Download v0.13.151 by immutable artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.upload.outputs.v151_id }}
+          path: downloads/hermes-android-perfetto-v0.13.151-${{ inputs.source_commit }}
+          digest-mismatch: error
+
+      - name: Download v0.13.152 by immutable artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.upload.outputs.v152_id }}
+          path: downloads/hermes-android-perfetto-v0.13.152-${{ inputs.source_commit }}
+          digest-mismatch: error
+
+      - name: Download v0.13.153 by immutable artifact ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.upload.outputs.v153_id }}
+          path: downloads/hermes-android-perfetto-v0.13.153-${{ inputs.source_commit }}
+          digest-mismatch: error
+
+      - name: Verify the independent cloud round trip
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tooling/scripts/android_perfetto_artifacts.py verify-downloads \
+            --repo-root tooling \
+            --manifest "$GITHUB_WORKSPACE/tooling/android/release-evidence/perfetto-artifacts/source-manifest.json" \
+            --download-root "$GITHUB_WORKSPACE/downloads"
+
+      - name: Record terminal round-trip proof
+        shell: bash
+        run: |
+          {
+            echo '### Terminal archive gate'
+            echo
+            echo '- Downloaded all seven artifacts by immutable artifact ID.'
+            echo '- The download action accepted every archive digest.'
+            echo '- Rehashed 70 trace files and 3,250,743,669 uncompressed bytes.'
+          } >> "$GITHUB_STEP_SUMMARY"

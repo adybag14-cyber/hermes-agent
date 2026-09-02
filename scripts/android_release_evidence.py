@@ -2890,6 +2890,7 @@ def _validate_performance(
     *,
     litertlm_coordinate: str = LITERTLM_COORDINATE,
     artifact_path_overrides: Mapping[str, Path] | None = None,
+    perfetto_root: Path | None = None,
 ) -> dict[str, Any]:
     payload = _json_object(path)
     context = f"performance[{profile}]"
@@ -2987,10 +2988,20 @@ def _validate_performance(
         },
     }
     overrides = dict(artifact_path_overrides or {})
+    if overrides and perfetto_root is not None:
+        raise EvidenceError(
+            f"{context} cannot combine temporary artifact overrides with an external Perfetto root"
+        )
     if overrides and set(overrides) != expected_references:
         raise EvidenceError(f"{context} temporary artifact override set is incomplete or unexpected")
 
-    def validate_reference(reference: Any, expected_path: str, *, nonempty: bool = True) -> Path:
+    def validate_reference(
+        reference: Any,
+        expected_path: str,
+        *,
+        nonempty: bool = True,
+        external_perfetto: bool = False,
+    ) -> Path:
         if not isinstance(reference, Mapping) or set(reference) != {"path", "bytes", "sha256"}:
             raise EvidenceError(f"{context} artifact reference for {expected_path} is invalid")
         if reference.get("path") != expected_path:
@@ -3001,7 +3012,13 @@ def _validate_performance(
             raise EvidenceError(f"{context} artifact {expected_path} has an invalid byte count")
         if not isinstance(digest, str) or not HEX_64_RE.fullmatch(digest):
             raise EvidenceError(f"{context} artifact {expected_path} has an invalid SHA-256")
-        artifact_path = overrides.get(expected_path, evidence_root / Path(expected_path))
+        if external_perfetto and perfetto_root is not None:
+            relative = PurePosixPath(expected_path)
+            if not relative.parts or relative.parts[0] != "performance":
+                raise EvidenceError(f"{context} external Perfetto path is not canonical")
+            artifact_path = perfetto_root.joinpath(*relative.parts[1:])
+        else:
+            artifact_path = overrides.get(expected_path, evidence_root / Path(expected_path))
         if not artifact_path.is_file() or artifact_path.is_symlink():
             raise EvidenceError(f"{context} artifact {expected_path} is missing or unsafe")
         if artifact_path.stat().st_size != size or _sha256_file(artifact_path) != digest:
@@ -3038,7 +3055,7 @@ def _validate_performance(
         ):
             raise EvidenceError(f"{context}.traces[{index - 1}].source_name is invalid")
         reference = {field: trace[field] for field in ("path", "bytes", "sha256")}
-        trace_path = validate_reference(reference, expected_path)
+        trace_path = validate_reference(reference, expected_path, external_perfetto=True)
         if trace["sha256"] in seen_trace_hashes:
             raise EvidenceError(f"{context} trace hashes must be unique per iteration")
         seen_trace_hashes.add(trace["sha256"])
@@ -5826,6 +5843,22 @@ def _walk_evidence_files(evidence_dir: Path) -> set[PurePosixPath]:
     return files
 
 
+def _validated_perfetto_root(evidence_dir: Path, perfetto_root: Path | None) -> Path | None:
+    if perfetto_root is None:
+        return None
+    if perfetto_root.is_symlink() or not perfetto_root.is_dir():
+        raise EvidenceError("External Perfetto root must be one existing non-symlink directory")
+    resolved = perfetto_root.resolve()
+    evidence_resolved = evidence_dir.resolve()
+    if resolved == evidence_resolved:
+        raise EvidenceError("External Perfetto root must differ from the release evidence directory")
+    if resolved.is_relative_to(evidence_resolved) or evidence_resolved.is_relative_to(resolved):
+        raise EvidenceError(
+            "External Perfetto root and release evidence directory must not contain one another"
+        )
+    return resolved
+
+
 def validate_evidence_directory(
     evidence_dir: Path,
     artifacts: Sequence[ArtifactSpec],
@@ -5833,9 +5866,11 @@ def validate_evidence_directory(
     tag: str,
     *,
     repo_root: Path | None = None,
+    perfetto_root: Path | None = None,
 ) -> ValidatedEvidence:
     if not evidence_dir.is_dir():
         raise EvidenceError(f"Release evidence directory does not exist: {evidence_dir}")
+    external_perfetto_root = _validated_perfetto_root(evidence_dir, perfetto_root)
     actual_paths = _walk_evidence_files(evidence_dir)
     actual_without_manifest = actual_paths - {PurePosixPath("manifest.json")}
     base_expected_paths = expected_evidence_paths(artifacts, tag=tag)
@@ -5858,6 +5893,7 @@ def validate_evidence_directory(
             version_name,
             version_code,
             litertlm_coordinate=litertlm_coordinate,
+            perfetto_root=external_perfetto_root,
         )
         for profile in PROFILES
     ]
@@ -6022,14 +6058,35 @@ def validate_evidence_directory(
         comprehensive_ui_paths=comprehensive_ui_paths,
         launch_theme_paths=launch_theme_paths,
     )
-    missing = expected_paths - actual_without_manifest
-    unexpected = actual_without_manifest - expected_paths
+    trace_paths = {
+        PurePosixPath(reference["path"])
+        for record in performance_records
+        for reference in record["traces"]
+    }
+    repository_expected_paths = (
+        expected_paths - trace_paths if external_perfetto_root is not None else expected_paths
+    )
+    missing = repository_expected_paths - actual_without_manifest
+    unexpected = actual_without_manifest - repository_expected_paths
     if missing or unexpected:
         raise EvidenceError(
             "Release evidence layout mismatch; "
             f"missing={[path.as_posix() for path in sorted(missing)]}, "
             f"unexpected={[path.as_posix() for path in sorted(unexpected)]}"
         )
+    if external_perfetto_root is not None:
+        external_expected_paths = {
+            PurePosixPath(*relative.parts[1:]) for relative in trace_paths
+        }
+        external_actual_paths = _walk_evidence_files(external_perfetto_root)
+        external_missing = external_expected_paths - external_actual_paths
+        external_unexpected = external_actual_paths - external_expected_paths
+        if external_missing or external_unexpected:
+            raise EvidenceError(
+                "External Perfetto layout mismatch; "
+                f"missing={[path.as_posix() for path in sorted(external_missing)]}, "
+                f"unexpected={[path.as_posix() for path in sorted(external_unexpected)]}"
+            )
 
     for artifact in artifacts:
         _validate_model_evidence(
@@ -6097,8 +6154,16 @@ def validate_evidence_directory(
     file_records = tuple(
         EvidenceFile(
             path=relative.as_posix(),
-            bytes=(evidence_dir / Path(relative.as_posix())).stat().st_size,
-            sha256=_sha256_file(evidence_dir / Path(relative.as_posix())),
+            bytes=(
+                external_perfetto_root.joinpath(*relative.parts[1:])
+                if external_perfetto_root is not None and relative in trace_paths
+                else evidence_dir / Path(relative.as_posix())
+            ).stat().st_size,
+            sha256=_sha256_file(
+                external_perfetto_root.joinpath(*relative.parts[1:])
+                if external_perfetto_root is not None and relative in trace_paths
+                else evidence_dir / Path(relative.as_posix())
+            ),
         )
         for relative in sorted(expected_paths)
     )
@@ -6494,7 +6559,8 @@ def require_committed_evidence(repo_root: Path, evidence_dir: Path) -> None:
         missing = present - tracked
         unexpected = tracked - present
         raise EvidenceError(
-            "Every release evidence file, including manifest.json, must be committed; "
+            "Every repository-resident release evidence file, including manifest.json, "
+            "must be committed; "
             f"untracked={[path for path in sorted(missing)]}, missing={[path for path in sorted(unexpected)]}"
         )
 
@@ -6520,8 +6586,16 @@ def _resolve_paths(args: argparse.Namespace) -> tuple[Path, Path, Path, str]:
     return repo_root, evidence_dir, registry, tag
 
 
+def _resolve_perfetto_root(args: argparse.Namespace, repo_root: Path) -> Path | None:
+    candidate = getattr(args, "perfetto_root", None)
+    if candidate is None:
+        return None
+    return candidate.resolve() if candidate.is_absolute() else (repo_root / candidate).resolve()
+
+
 def _create(args: argparse.Namespace) -> int:
     repo_root, evidence_dir, registry, tag = _resolve_paths(args)
+    perfetto_root = _resolve_perfetto_root(args, repo_root)
     require_source_clean_for_create(repo_root, evidence_dir)
     artifacts = load_registered_model_matrix(registry)
     source = git_source_tree_identity(repo_root)
@@ -6531,6 +6605,7 @@ def _create(args: argparse.Namespace) -> int:
         source.digest,
         tag,
         repo_root=repo_root,
+        perfetto_root=perfetto_root,
     )
     manifest = build_manifest(tag=tag, source=source, artifacts=artifacts, evidence=evidence)
     manifest_path = evidence_dir / "manifest.json"
@@ -6542,11 +6617,16 @@ def _create(args: argparse.Namespace) -> int:
     print(f"evidenceFiles={len(evidence.files)}")
     print(f"uiCaptures={evidence.ui_capture_count}")
     print(f"models={evidence.model_count}")
+    print(
+        "perfettoEvidence="
+        + ("external-bytes-verified" if perfetto_root is not None else "repository-bytes-verified")
+    )
     return 0
 
 
 def _verify(args: argparse.Namespace) -> int:
     repo_root, evidence_dir, registry, tag = _resolve_paths(args)
+    perfetto_root = _resolve_perfetto_root(args, repo_root)
     require_clean_worktree(repo_root)
     if args.require_tag_ref:
         require_tag_points_to_head(repo_root, tag)
@@ -6558,6 +6638,7 @@ def _verify(args: argparse.Namespace) -> int:
         source.digest,
         tag,
         repo_root=repo_root,
+        perfetto_root=perfetto_root,
     )
     expected = build_manifest(tag=tag, source=source, artifacts=artifacts, evidence=evidence)
     verify_manifest(evidence_dir / "manifest.json", expected)
@@ -6567,6 +6648,10 @@ def _verify(args: argparse.Namespace) -> int:
     print(f"sourceDigest={source.digest}")
     print(f"evidenceFiles={len(evidence.files)}")
     print("deviceCertification=committed-headed-avd-evidence")
+    print(
+        "perfettoEvidence="
+        + ("external-bytes-verified" if perfetto_root is not None else "repository-bytes-verified")
+    )
     return 0
 
 
@@ -6645,6 +6730,14 @@ def build_parser() -> argparse.ArgumentParser:
         subparser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
         subparser.add_argument("--evidence-dir", type=Path)
         subparser.add_argument("--model-registry", type=Path)
+        subparser.add_argument(
+            "--perfetto-root",
+            type=Path,
+            help=(
+                "Closed external directory containing phone-compact.traces and "
+                "tablet.traces; every trace byte is hashed while logical manifest paths stay unchanged"
+            ),
+        )
         if command == "verify":
             subparser.add_argument(
                 "--require-tag-ref",

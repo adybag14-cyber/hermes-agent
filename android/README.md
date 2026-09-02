@@ -445,11 +445,11 @@ android/release-evidence/<tag>/
 │   ├── phone-compact.json
 │   ├── phone-compact.host.raw.json
 │   ├── phone-compact.macrobenchmark.raw.json
-│   ├── phone-compact.traces/iteration-{001..005}.perfetto-trace
+│   ├── phone-compact.traces/iteration-{001..005}.perfetto-trace  # logical/artifact path
 │   ├── tablet.json
 │   ├── tablet.host.raw.json
 │   ├── tablet.macrobenchmark.raw.json
-│   └── tablet.traces/iteration-{001..005}.perfetto-trace
+│   └── tablet.traces/iteration-{001..005}.perfetto-trace        # logical/artifact path
 ├── models/<registered-model-id>.json
 └── manifest.json                 # emitted by the create command
 ```
@@ -466,6 +466,40 @@ record. The
 model files are the unaltered `hermes-model-evidence-v1` JSON records retrieved
 from `files/hermes-model-evidence/`. There must be exactly one passing record
 for every current `VerifiedLocalModelArtifacts.releaseMatrix` entry.
+
+The 70 historical raw traces for `v0.13.147` through `v0.13.153` are stored as
+seven GitHub Actions artifacts instead of occupying the current checkout. Their
+logical paths, byte counts, and SHA-256 values remain unchanged in each
+performance record and release manifest. The closed inventory is
+`release-evidence/perfetto-artifacts/source-manifest.json`; the successful
+workflow run, immutable artifact IDs, archive digests, and expiration times are
+bound by `release-evidence/perfetto-artifacts/registry.json`. Run
+`.github/workflows/android-perfetto-artifacts.yml` only against the exact
+40-character source commit recorded by that manifest. It verifies all source
+bytes before upload and then uses a separate runner to download by artifact ID
+and rehash all 70 files.
+
+Actions artifacts are retained for 90 days, not forever. The recorded source
+commit and historical release tags therefore remain the durable recovery path
+for renewing an expired archive. Removing the files from the current tree does
+not rewrite those immutable releases or erase the blobs from Git history.
+
+To verify a downloaded set independently, download all seven artifacts from the
+registered run into one directory (the GitHub CLI creates one child directory
+per artifact), then run:
+
+```powershell
+python scripts/android_perfetto_artifacts.py verify-downloads `
+    --download-root C:\path\to\downloaded-artifacts
+python scripts/android_perfetto_artifacts.py verify-registry
+```
+
+For a release-evidence verification whose trace files are external, pass the
+single version artifact directory as `--perfetto-root`. That directory must
+contain only `phone-compact.traces/` and `tablet.traces/`; every byte is opened
+and hashed, and the reconstructed release manifest must still match exactly.
+An artifact receipt or registry record alone is never accepted as trace-byte
+evidence.
 
 Use the compact-phone AVD for `performance/phone-compact.json` and the
 large-memory tablet AVD for `performance/tablet.json`; all model evidence must
@@ -593,6 +627,8 @@ The normalized record calls the raw FrameTiming denominator
 implies that those populations reconcile or have the same size. Preserve
 the JSON report and every `.perfetto-trace` from
 `macrobenchmark/build/outputs/connected_android_test_additional_output/benchmark/`.
+Keep the closed trace set in run-bound scratch until the external artifact has
+passed its independent download-and-hash gate.
 
 AndroidX warns that emulator measurements are not representative of physical
 devices. This hardware-accelerated AVD lane therefore suppresses only the
@@ -901,6 +937,24 @@ git commit -m "release(android): certify $tag headed-device evidence"
 git tag -a $tag -m "Hermes Agent Fork $tag"
 python scripts/android_release_evidence.py verify --tag $tag --require-tag-ref
 ```
+
+When the raw traces have already been externalized, supply the downloaded
+single-version artifact root to both manifest creation and verification:
+
+```powershell
+python scripts/android_release_evidence.py create `
+    --tag $tag `
+    --perfetto-root C:\path\to\artifact
+python scripts/android_release_evidence.py verify `
+    --tag $tag `
+    --perfetto-root C:\path\to\artifact `
+    --require-tag-ref
+```
+
+Keep that external root outside the repository so clean-tree checks remain
+meaningful. Local collection still writes and transactionally validates raw
+traces first; the ignore rule prevents a later ordinary `git add` from
+accidentally recommitting the large captures.
 
 The manifest records the shared run ID and hashes every evidence file, the
 debug UI candidate/instrumentation pair, the separate non-debuggable benchmark
