@@ -59,6 +59,7 @@ jobs:
           path: source
           sparse-checkout-cone-mode: false
           sparse-checkout: |
+            android/release-evidence/*/manifest.json
             android/release-evidence/*/performance/*.json
             android/release-evidence/*/performance/*.traces/*.perfetto-trace
 
