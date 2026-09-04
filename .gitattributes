@@ -40,3 +40,6 @@ verification-screenshots/** -text -eol
 # Compatibility patches are byte-hashed; blank context lines retain their unified-diff marker.
 hermes_android/patches/*.patch text eol=lf
 hermes_android/patches/*.patch whitespace=-blank-at-eol
+
+# Published release evidence is byte-bound; do not rewrite its original line endings.
+android/release-evidence/** -text -eol
