@@ -19,10 +19,21 @@ class CapturingThread:
     targets = []
 
     def __init__(self, *, target, daemon=None, name=None):
-        self.targets.append(target)
+        self._alive = False
+
+        def run():
+            try:
+                target()
+            finally:
+                self._alive = False
+
+        self.targets.append(run)
 
     def start(self):
-        pass
+        self._alive = True
+
+    def is_alive(self):
+        return self._alive
 
 
 class ObservedEvent:

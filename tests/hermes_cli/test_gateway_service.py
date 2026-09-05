@@ -1249,10 +1249,11 @@ class TestSystemUnitHermesHome:
         monkeypatch.setattr(gateway_cli, "get_hermes_home", lambda: root_hermes)
         monkeypatch.setattr(gateway_cli, "_build_service_path_dirs", lambda: [])
 
-        monkeypatch.setattr(gateway_cli.shutil, "which", lambda name: "/root/bin/node")
+        original_which = gateway_cli.shutil.which
+        monkeypatch.setattr(gateway_cli.shutil, "which", lambda name: "/root/bin/node" if name == "node" else original_which(name))
         root_unit = gateway_cli.generate_systemd_unit(system=True, run_as_user="alice")
 
-        monkeypatch.setattr(gateway_cli.shutil, "which", lambda name: "/home/alice/.local/bin/node")
+        monkeypatch.setattr(gateway_cli.shutil, "which", lambda name: "/home/alice/.local/bin/node" if name == "node" else original_which(name))
         user_unit = gateway_cli.generate_systemd_unit(system=True, run_as_user="alice")
 
         assert root_unit == user_unit

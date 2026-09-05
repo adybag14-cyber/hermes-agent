@@ -561,8 +561,9 @@ def test_cmd_model_forwards_nous_login_tls_options(monkeypatch):
     monkeypatch.setattr("hermes_cli.config.save_env_value", lambda key, value: None)
     monkeypatch.setattr("hermes_cli.auth.resolve_provider", lambda requested, **kwargs: "nous")
     monkeypatch.setattr("hermes_cli.auth.get_provider_auth_state", lambda provider_id: None)
-    monkeypatch.setattr(hermes_main, "_prompt_provider_choice", lambda choices, **kwargs: 0)
-    monkeypatch.setattr(hermes_cli_main_provider_setup, "_prompt_provider_choice", lambda choices, **kwargs: 0)
+    # This is a login-option forwarding contract, not a menu-order snapshot.
+    # Selecting ordinal zero entered the fork's ChatGPT device-login poll.
+    monkeypatch.setattr(hermes_main, "_pick_provider", lambda *args: "nous")
 
     captured = {}
 
@@ -681,5 +682,3 @@ def test_custom_endpoint_key_env_is_a_valid_posix_name_for_ip_endpoints():
 
     for identity in ("127.0.0.1_8080", "0.0.0.0", "10.0.0.7:11434", "", "-–-"):
         assert _ENV_VAR_NAME_RE.match(custom_endpoint_key_env(identity)), identity
-
-
