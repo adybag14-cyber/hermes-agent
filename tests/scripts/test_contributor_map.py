@@ -21,6 +21,20 @@ import release  # noqa: E402
 from add_contributor import add_contributor, read_mapping_file  # noqa: E402
 
 
+def test_case_variant_reuses_one_mapping_for_audit_and_release(tmp_path, monkeypatch):
+    import audit_pr_attribution as audit
+
+    directory = tmp_path / "contributors" / "emails"
+    directory.mkdir(parents=True)
+    (directory / "author@Example-Host.local").write_text("verified-author\n", encoding="utf-8")
+    monkeypatch.setattr(audit, "REPO_ROOT", tmp_path)
+    mapping = release._load_contributor_dir(directory)
+    monkeypatch.setattr(release, "AUTHOR_MAP", mapping)
+    assert audit.is_mapped("author@example-host.local")
+    assert release.resolve_author("Unverified display name", "author@example-host.local") == "@verified-author"
+    assert len(list(directory.iterdir())) == 1
+
+
 # ── directory loader behavior ─────────────────────────────────────────
 
 

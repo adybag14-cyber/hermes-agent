@@ -2244,6 +2244,9 @@ def resolve_author(name: str, email: str) -> str:
     """Resolve a git author to a GitHub @mention."""
     # Try email lookup first
     gh_user = AUTHOR_MAP.get(email)
+    if not gh_user:
+        gh_user = next((login for mapped_email, login in AUTHOR_MAP.items()
+                        if mapped_email.casefold() == email.casefold()), None)
     if gh_user:
         return f"@{gh_user}"
 

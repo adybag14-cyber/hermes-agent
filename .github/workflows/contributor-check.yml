@@ -41,6 +41,7 @@ jobs:
           # (one file per email — conflict-free) or an entry in the frozen
           # legacy AUTHOR_MAP in scripts/release.py.
           MISSING=""
+          MAPPED_EMAIL_PATHS=$(git ls-files -- contributors/emails/)
           while IFS= read -r email; do
             # Skip teknium and bot emails
             case "$email" in
@@ -52,8 +53,8 @@ jobs:
               continue  # GitHub id+login noreply emails auto-resolve
             fi
 
-            if [ -f "contributors/emails/${email}" ]; then
-              continue  # mapped via the contributors directory
+            if printf '%s\n' "$MAPPED_EMAIL_PATHS" | grep -Fix -- "contributors/emails/${email}" > /dev/null; then
+              continue  # one canonical mapping also covers case-only email variants
             fi
 
             if ! grep -qF "\"${email}\"" scripts/release.py 2>/dev/null; then

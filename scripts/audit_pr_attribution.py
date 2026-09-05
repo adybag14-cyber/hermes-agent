@@ -68,6 +68,14 @@ def is_mapped(email: str) -> bool:
         return True
     if (REPO_ROOT / "contributors" / "emails" / email).is_file():
         return True
+    # Case-only mapping files cannot coexist on Windows/macOS. Reuse the one
+    # canonical file on Linux too, including historical domain-case variants.
+    emails_dir = REPO_ROOT / "contributors" / "emails"
+    if emails_dir.is_dir() and any(
+        path.is_file() and path.name.casefold() == email.casefold()
+        for path in emails_dir.iterdir()
+    ):
+        return True
     release_py = REPO_ROOT / "scripts" / "release.py"
     try:
         if f'"{email}"' in release_py.read_text(encoding="utf-8", errors="replace"):
