@@ -119,12 +119,17 @@ afterEach(async () => {
 });
 
 describe("SessionsPage per-row profile routing (#99387)", () => {
-  it("sends every per-row request to the row's owning profile, not the management default", async () => {
+  // Cold transforms of the page/provider graph belong to fixture setup. On
+  // constrained CI they can consume the entire five-second assertion budget.
+  // Keep the action timeout and each readiness deadline unchanged.
+  beforeEach(async () => {
     await renderSessionsPage([
       { id: "sid-guanli", profile: "guanli", source: "cli", model: null, title: "Managed", started_at: 1, ended_at: null,
         last_active: 1, is_active: false, message_count: 2, tool_call_count: 0, input_tokens: 1, output_tokens: 1, preview: "hi" },
     ]);
+  }, 30_000);
 
+  it("sends every per-row request to the row's owning profile, not the management default", async () => {
     // expand → transcript read
     await act(async () => click(button("Delete session")!.closest("div.cursor-pointer")));
     await waitFor(() => apiMocks.getSessionMessages.mock.calls.length > 0);
