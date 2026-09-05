@@ -14,9 +14,10 @@ from unittest.mock import patch
 import pytest
 
 from agent import chat_completion_helpers as cch
+from hermes_android.agent_lifecycle import OwnedAgentWorkerMixin
 
 
-class _FakeAgent:
+class _FakeAgent(OwnedAgentWorkerMixin):
     api_mode = "bedrock_converse"
     _interrupt_requested = False  # not interrupted at entry (passes pre-flight)
     _disable_streaming = False

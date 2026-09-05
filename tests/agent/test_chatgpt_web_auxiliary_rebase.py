@@ -39,15 +39,18 @@ def _must_not_resolve(**_kwargs):
     pytest.fail("This route must not exchange or resolve runtime credentials")
 
 
-def test_explicit_key_does_not_require_a_configured_credential_store(monkeypatch):
+@pytest.mark.parametrize("scope_key,expected_session", [
+    ("caller-token", "scoped-session"), ("another-token", ""), ("", ""),
+])
+def test_explicit_key_only_uses_metadata_paired_with_that_grant(monkeypatch, scope_key, expected_session):
     monkeypatch.setattr(web_aux, "resolve_chatgpt_web_runtime_credentials", _must_not_resolve)
-    with _scope({"CHATGPT_WEB_SESSION_TOKEN": "scoped-session"}):
+    with _scope({"CHATGPT_WEB_ACCESS_TOKEN": scope_key, "CHATGPT_WEB_SESSION_TOKEN": "scoped-session"}):
         client, model = aux.resolve_provider_client(
             "chatgpt-web", "gpt-test", explicit_api_key="caller-token",
         )
     assert isinstance(client, web_aux.ChatGptWebAuxiliaryClient)
     assert client.api_key == "caller-token"
-    assert client.chat.completions._session_token == "scoped-session"
+    assert client.chat.completions._session_token == expected_session
     assert model == "gpt-test"
 
 

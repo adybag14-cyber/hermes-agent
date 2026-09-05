@@ -79,15 +79,19 @@ class TestNoOverlayFlag:
             assert cua_backend._cua_no_overlay() is True
 
     @pytest.mark.linux_only
-    def test_linux_wayland_keeps_overlay(self, monkeypatch):
+    def test_linux_wayland_overlay_respects_native_wsl_policy(self, monkeypatch):
         """Wayland desktop keeps the overlay: the compositor owns the
         overlay surface lifecycle, so it cannot get stuck above every
         workspace the way an X11 window can."""
         monkeypatch.setenv("DISPLAY", ":0")
         monkeypatch.setenv("WAYLAND_DISPLAY", "wayland-0")
         monkeypatch.setenv("XDG_SESSION_TYPE", "wayland")
+        # WSLg is still WSL: the compositor does not override the explicit
+        # WSL safety policy. Exercise the host we are actually running on.
+        from pathlib import Path
+        native_wsl = "microsoft" in Path("/proc/version").read_text(encoding="utf-8").lower()
         with patch("hermes_cli.config.load_config", return_value={}):
-            assert cua_backend._cua_no_overlay() is False
+            assert cua_backend._cua_no_overlay() is native_wsl
 
     @pytest.mark.linux_only
     def test_linux_x11_explicit_false_overrides_auto_detect(self, monkeypatch):

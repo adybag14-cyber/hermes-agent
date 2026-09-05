@@ -10,7 +10,7 @@ an explicit runtime error.
 """
 
 __all__ = ["Anthropic", "__version__"]
-__version__ = "0.39.0"
+__version__ = "0.87.0"
 
 
 class Anthropic:

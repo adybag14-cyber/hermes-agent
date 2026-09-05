@@ -63,6 +63,9 @@ def test_quickstart_runs_all_three_legs(client, monkeypatch, tmp_path):
     monkeypatch.setattr(
         "hermes_cli.local_runtime.binaries.ensure_runtime_installed",
         lambda tag, backend, progress=None: calls.append("install"))
+    # Asset availability is a separate preflight contract. Keep this sequencing
+    # test offline and independent of the host's GPU/backend recommendation.
+    monkeypatch.setattr("hermes_cli.local_runtime.binaries.resolve_assets", lambda tag, backend: [])
 
     # Leg 2: nothing staged; the download writes the files the plan names.
     def _fake_download(url, dest, job, *, base_done=0, keep_totals=False):
@@ -85,7 +88,7 @@ def test_quickstart_runs_all_three_legs(client, monkeypatch, tmp_path):
         lambda *a, **k: calls.append("assign"))
 
     r = client.post("/api/local-models/quickstart", json={})
-    assert r.status_code == 200
+    assert r.status_code == 200, r.json()
     body = r.json()
     assert body["needs_runtime"] is True
     assert body["needs_download"] is True

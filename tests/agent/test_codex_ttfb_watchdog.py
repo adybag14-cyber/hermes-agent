@@ -268,10 +268,12 @@ def test_wait_notice_omits_reconnect_when_all_deadlines_are_non_finite(
 def test_moa_heartbeat_survives_infinite_stale_timeout(monkeypatch):
     """The full 100-poll MoA heartbeat must leave a healthy call running."""
     from agent import chat_completion_helpers as h
+    from hermes_android.agent_lifecycle import OwnedAgentWorkerMixin
 
     notices: list[str] = []
     response = SimpleNamespace(ok=True)
     agent = SimpleNamespace(
+        _start_owned_worker_thread=OwnedAgentWorkerMixin()._start_owned_worker_thread,
         platform="desktop",
         api_mode="chat_completions",
         provider="moa",
@@ -285,7 +287,7 @@ def test_moa_heartbeat_survives_infinite_stale_timeout(monkeypatch):
     class HeartbeatThread:
         """Keep the synthetic worker alive through one heartbeat."""
 
-        def __init__(self, *, target, daemon):
+        def __init__(self, *, target, daemon, name=None):
             self._polls = 0
             self._target = target
 
@@ -320,9 +322,11 @@ def test_moa_heartbeat_survives_infinite_stale_timeout(monkeypatch):
 def test_wait_notice_formatting_error_does_not_abort_request(monkeypatch):
     """Status construction is fail-open even if its formatter breaks."""
     from agent import chat_completion_helpers as h
+    from hermes_android.agent_lifecycle import OwnedAgentWorkerMixin
 
     response = SimpleNamespace(ok=True)
     agent = SimpleNamespace(
+        _start_owned_worker_thread=OwnedAgentWorkerMixin()._start_owned_worker_thread,
         platform="desktop",
         api_mode="chat_completions",
         provider="moa",
@@ -334,7 +338,7 @@ def test_wait_notice_formatting_error_does_not_abort_request(monkeypatch):
     )
 
     class HeartbeatThread:
-        def __init__(self, *, target, daemon):
+        def __init__(self, *, target, daemon, name=None):
             self._polls = 0
             self._target = target
 
@@ -428,7 +432,6 @@ def test_large_codex_request_hard_ceiling_reclaims_silent_stall(tmp_path, monkey
         assert "with no response" in str(excinfo.value)
     finally:
         stop["flag"] = True
-
 
 
 

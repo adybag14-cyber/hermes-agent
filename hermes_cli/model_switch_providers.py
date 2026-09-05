@@ -807,7 +807,8 @@ def _lap_canonical_rows(b: _PickerBuild) -> None:
             # dedicated var of its own the user could set.
             sib = PROVIDER_REGISTRY.get(cp.slug[:-3]) if cp.slug.endswith("-cn") else None
             sib_vars = set(sib.api_key_env_vars) if sib else set()
-            if lit and lit <= sib_vars < set(cp_config.api_key_env_vars) and cp.slug != b.current_provider:
+            if (lit and lit <= sib_vars and set(cp_config.api_key_env_vars) - sib_vars
+                    and cp.slug != b.current_provider):
                 continue
         has_creds = has_creds or _auth_store_has_provider(cp.slug) or _pool_usable(cp.slug) or (
             _is_aws_sdk(cp_config) and _has_aws_sdk_creds_for_listing(cp.slug, b.current_provider))

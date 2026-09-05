@@ -165,7 +165,7 @@ class OwnedProcessRegistryMixin:
         if _IS_WINDOWS or not process_group_id:
             return False
         try:
-            os.killpg(process_group_id, 0)
+            os.killpg(process_group_id, 0)  # windows-footgun: ok -- _IS_WINDOWS guard above
             return True
         except ProcessLookupError:
             return False
@@ -180,7 +180,7 @@ class OwnedProcessRegistryMixin:
         if _IS_WINDOWS or not process_group_id:
             return
         try:
-            os.killpg(process_group_id, signal.SIGKILL if force else signal.SIGTERM)
+            os.killpg(process_group_id, signal.SIGKILL if force else signal.SIGTERM)  # windows-footgun: ok -- POSIX-only branch
         except (ProcessLookupError, PermissionError, OSError):
             pass
 
@@ -332,7 +332,7 @@ class OwnedProcessRegistryMixin:
         self._signal_host_tree(tree, force=True)
         if not _IS_WINDOWS:
             try:
-                os.kill(pid, signal.SIGKILL)
+                os.kill(pid, signal.SIGKILL)  # windows-footgun: ok -- inside not _IS_WINDOWS
             except (ProcessLookupError, PermissionError, OSError):
                 pass
         if not self._wait_for_verified_exit(alive, deadline):

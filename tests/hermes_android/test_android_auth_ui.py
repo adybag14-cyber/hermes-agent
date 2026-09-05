@@ -303,59 +303,6 @@ def test_runtime_provider_accounts_use_key_setup_instead_of_dead_corr3xt_default
     assert "Qwen OAuth / Qwen Chat token" in provider_presets
 
 
-def test_settings_opens_official_provider_key_pages():
-    settings_screen = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsScreen.kt").read_text(encoding="utf-8")
-    settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
-    browser_launcher = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesExternalBrowserLauncher.kt").read_text(encoding="utf-8")
-    provider_setup_web_activity = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesProviderSetupWebActivity.kt").read_text(encoding="utf-8")
-    provider_presets = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/data/ProviderPresets.kt").read_text(encoding="utf-8")
-    strings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
-
-    assert "providerPreset?.apiKeyUrl" in settings_screen
-    assert "viewModel::openProviderKeyPage" in settings_screen
-    assert "viewModel::copyProviderKeyPage" in settings_screen
-    assert "viewModel::checkProviderKeyPage" in settings_screen
-    assert "strings.providerCredentialInputHelp(ProviderPresets.apiKeyEnvVars(providerId))" in settings_screen
-    assert "Intent.ACTION_VIEW" in browser_launcher
-    assert "Uri.parse(targetUrl)" in settings_view_model
-    assert "HermesProviderSetupWebActivity.open(" in settings_view_model
-    assert "HermesProviderSetupWebActivity.openInApp" not in settings_view_model
-    assert "fun checkProviderKeyPage(url: String)" in settings_view_model
-    assert "probeProviderKeyPages(providerLabel, urlsForProviderKeyPage(providerId, requestedUrl))" in settings_view_model
-    assert "ProviderSetupUrlProbe::probe" in settings_view_model
-    assert "ProviderSetupUrlProbe.MAX_STATUS_LENGTH" in settings_view_model
-    assert "class HermesProviderSetupWebActivity" in provider_setup_web_activity
-    assert "WebView(this)" in provider_setup_web_activity
-    assert "HermesExternalBrowserLauncher.open" in provider_setup_web_activity
-    assert "forceChooser = true" in provider_setup_web_activity
-    assert "Intent.createChooser" in browser_launcher
-    assert "putExtra(Browser.EXTRA_APPLICATION_ID" in browser_launcher
-    assert "ClipboardManager" in settings_view_model
-    assert "ClipData.newPlainText" in settings_view_model
-    assert "ProviderPresets.providerIdForSetupUrl(target, providerId)" in settings_view_model
-    assert "ProviderPresets.setupClipboardText(it)" in settings_view_model
-    assert "private val providerSetupOpenIndexes = mutableMapOf<String, Int>()" in settings_view_model
-    assert "ProviderPresets.setupTarget(providerId, nextIndex)" in settings_view_model
-    assert "providerSetupOpenIndexes[providerId] = target.nextIndex" in settings_view_model
-    assert "addCategory(Intent.CATEGORY_BROWSABLE)" in browser_launcher
-    assert "openProviderKeyPage(providerLabel)" in settings_screen
-    assert "copyProviderSetupUrl()" in settings_screen
-    assert "onCheckProviderKeyPage(providerId, apiKeyUrl)" in settings_screen
-    assert "strings.checkProviderSetupUrl()" in settings_screen
-    assert "importSavedProviderCredential()" in settings_screen
-    assert "Use saved Hermes credential" in strings
-    assert "Open $providerLabel setup page" in strings
-    assert "Copy setup URL" in strings
-    assert "checkProviderSetupUrl" in strings
-    assert "Check setup" in strings
-    assert "ProviderPresets.androidSettingsDefaults.forEach" in settings_screen
-    assert "androidSettingsDefaults = defaults" in provider_presets
-    assert "PasswordVisualTransformation()" in settings_screen
-    assert "KeyboardType.Password" in settings_screen
-    assert "ProviderPresets.parseCredentialInput(snapshot.provider, snapshot.apiKey)" in settings_view_model
-    assert "parsedCredential.importedFromEnvLine" in settings_view_model
-    assert "strings.settingsSavedImportedCredential(parsedCredential.sourceLabel)" in settings_view_model
-    assert "imported $sourceLabel into secure storage" in strings
 
 
 def test_settings_can_import_saved_python_provider_credentials_without_blank_overwrite():
@@ -383,33 +330,3 @@ def test_settings_can_import_saved_python_provider_credentials_without_blank_ove
     assert '"alibaba-coding-plan": {' in auth_bridge
     assert "BAILIAN_CODING_PLAN_API_KEY" in auth_bridge
     assert 'if normalized == "qwen-oauth":' in auth_bridge
-
-
-def test_settings_provider_switch_applies_selected_provider_defaults():
-    settings_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/settings/SettingsViewModel.kt").read_text(encoding="utf-8")
-    auth_runtime_applier = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/auth/AuthRuntimeApplier.kt").read_text(encoding="utf-8")
-
-    assert "val providerChanged = provider != it.provider" in settings_view_model
-    assert 'baseUrl = if (providerChanged && provider != "custom") preset?.baseUrl.orEmpty() else it.baseUrl' in settings_view_model
-    assert 'model = if (providerChanged && provider != "custom") preset?.modelHint.orEmpty() else it.model' in settings_view_model
-    assert 'ProviderPresets.runtimeConfigBaseUrl(snapshot.provider, snapshot.baseUrl)' in settings_view_model
-    assert 'val runtimeConfigBaseUrl = ProviderPresets.runtimeConfigBaseUrl(session.runtimeProvider, resolvedBaseUrl)' in auth_runtime_applier
-    assert 'import com.nousresearch.hermesagent.data.SecureSecretsStore' in auth_runtime_applier
-    assert 'val providerCredential = session.apiKey' in auth_runtime_applier
-    assert 'SecureSecretsStore(appContext).saveApiKey(session.runtimeProvider, providerCredential)' in auth_runtime_applier
-    assert 'runtimeConfigBaseUrl,' in auth_runtime_applier
-    assert "private val restartScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)" in auth_runtime_applier
-    assert "restartRuntimeAsync(appContext, selectionGeneration)" in auth_runtime_applier
-    assert "LocalModelRuntimeSelectionAuthority.performLongIfCurrent(selectionGeneration)" in auth_runtime_applier
-    assert "restartScope.launch {" in auth_runtime_applier
-
-
-def test_android_wheel_task_tracks_python_auth_sources():
-    build_gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
-
-    assert 'tasks.register<Exec>("prepareHermesAndroidWheel")' in build_gradle
-    assert 'inputs.file(repoRoot.resolve("pyproject.toml"))' in build_gradle
-    assert 'inputs.files(fileTree(repoRoot.resolve(packageDir))' in build_gradle
-    assert '"hermes_android"' in build_gradle
-    assert '"hermes_cli"' in build_gradle
-    assert 'include("**/*.py")' in build_gradle

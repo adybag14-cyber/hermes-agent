@@ -8,7 +8,7 @@ resolution-markers = [
 ]
 
 [options]
-exclude-newer = "2026-08-21T20:46:42.0604792Z"
+exclude-newer = "2026-08-22T15:03:02.0078529Z"
 exclude-newer-span = "P14D"
 
 [options.exclude-newer-package]
@@ -77,6 +77,7 @@ sentencepiece = false
 firecrawl-anydoc = false
 google-api-python-client = false
 brotlicffi = false
+hy-memory = false
 mem0ai = false
 qrcode = false
 vercel = false
@@ -1846,7 +1847,6 @@ all = [
     { name = "httplib2" },
     { name = "httpx2" },
     { name = "mcp" },
-    { name = "mistralai" },
     { name = "pyasn1" },
     { name = "python-multipart" },
     { name = "starlette" },
@@ -2096,7 +2096,6 @@ requires-dist = [
     { name = "hermes-agent", extras = ["honcho"], marker = "extra == 'termux'" },
     { name = "hermes-agent", extras = ["mcp"], marker = "extra == 'all'" },
     { name = "hermes-agent", extras = ["mcp"], marker = "extra == 'termux'" },
-    { name = "hermes-agent", extras = ["mistral"], marker = "extra == 'all'" },
     { name = "hermes-agent", extras = ["pty"], marker = "extra == 'all'" },
     { name = "hermes-agent", extras = ["pty"], marker = "extra == 'termux-all'" },
     { name = "hermes-agent", extras = ["sms"], marker = "extra == 'all'" },

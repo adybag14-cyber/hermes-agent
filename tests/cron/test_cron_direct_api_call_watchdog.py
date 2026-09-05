@@ -33,10 +33,14 @@ sys.modules.setdefault("fal_client", types.SimpleNamespace())
 import run_agent
 
 from agent.chat_completion_helpers import direct_api_call
+from hermes_android.agent_lifecycle import OwnedAgentWorkerMixin
 
 
 def _make_agent(*, stale_timeout, platform="cron"):
     agent = MagicMock()
+    owner = OwnedAgentWorkerMixin()
+    agent._start_owned_worker_thread = owner._start_owned_worker_thread
+    agent._admit_and_start_owned_thread = owner._admit_and_start_owned_thread
     agent.platform = platform
     agent.api_mode = "chat_completions"
     agent.provider = "openrouter"

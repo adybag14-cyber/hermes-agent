@@ -106,7 +106,7 @@ def run_harness(
 ) -> subprocess.CompletedProcess[str]:
     command = [sys.executable, str(HARNESS), "--serial", serial, *args]
     try:
-        return subprocess.run(command, check=check, text=True, capture_output=True, timeout=timeout_s)
+        return subprocess.run(command, check=check, text=True, encoding="utf-8", errors="replace", capture_output=True, timeout=timeout_s)
     except subprocess.TimeoutExpired:
         return subprocess.CompletedProcess(command, returncode=124, stdout="", stderr="harness timeout")
 

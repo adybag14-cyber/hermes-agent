@@ -465,6 +465,14 @@ def _run_protected_sync_provider_call(callback: Callable[[dict[str, Any]], Any],
     cancel_check = _AuxiliaryCancellationDecision(source_cancel_check)
     if cancel_check():
         raise AuxiliaryExplicitCancellation()
+    if is_embedded_android_runtime():
+        # Embedded calls already run under their API/compression worker owner.
+        # A detached inner provider would escape that owner's quiescence check
+        # and keep using shared clients after their profile lease is released.
+        result = callback(kwargs)
+        if cancel_check():
+            raise AuxiliaryExplicitCancellation()
+        return result
     # Thread-locals do not cross into the daemon: timing hooks fire from the thread running
     # the callback, and the host deadline is inert unless carried along.
     progress_hook = getattr(_aux_progress, "hook", None)

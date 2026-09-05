@@ -3996,7 +3996,9 @@ class APIServerAdapter(OwnedApiRuntimeMixin, OpenAICompatRoutesMixin, BasePlatfo
         failed reconnects and turns the whole gateway into a zombie (OSError: [Errno 24] Too many open
         files, #37011).
         """
-        self._idempotency_cache.cancel_inflight_for_shutdown()
+        cache = getattr(self, "_idempotency_cache", None)
+        if cache is not None:
+            cache.cancel_inflight_for_shutdown()
         self._mark_disconnected()
         if self._response_store is not None:
             try:

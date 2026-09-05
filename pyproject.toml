@@ -385,7 +385,6 @@ all = [
   "hermes-agent[sms]",
   "hermes-agent[acp]",
   "hermes-agent[google]",
-  "hermes-agent[mistral]",
   "hermes-agent[web]",
   "hermes-agent[youtube]",
 ]
@@ -507,6 +506,7 @@ httplib2 = false
 httpx = false
 httpx2 = false
 huggingface_hub = false
+hy-memory = false
 jinja2 = false
 lark-oapi = false
 markdown = false

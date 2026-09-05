@@ -10,6 +10,7 @@ the conversation thread instead of the interrupt worker.
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+from hermes_android.agent_lifecycle import OwnedAgentWorkerMixin
 
 from agent.chat_completion_helpers import (
     direct_api_call,
@@ -19,6 +20,9 @@ from agent.chat_completion_helpers import (
 
 def _make_agent(*, platform="cron"):
     agent = MagicMock()
+    owner = OwnedAgentWorkerMixin()
+    agent._start_owned_worker_thread = owner._start_owned_worker_thread
+    agent._admit_and_start_owned_thread = owner._admit_and_start_owned_thread
     agent.platform = platform
     agent.api_mode = "chat_completions"
     agent.provider = "openrouter"

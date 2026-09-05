@@ -960,9 +960,13 @@ class TestReviewRound3:
              patch.object(bt_lightpanda_fallback, "_using_lightpanda_engine", return_value=False), \
              patch("hermes_cli.browser_connect.detect_default_chromium", return_value="chrome"), \
              patch("hermes_cli.browser_connect.real_profile_copy_dir", return_value=str(tmp_path)), \
-             patch("hermes_cli.browser_connect.snapshot_real_profile",
-                   return_value=(str(tmp_path), None)) as snap, \
-             patch.object(bt_real_profile, "_agent_browser_get_cdp",
+               patch("hermes_cli.browser_connect.snapshot_real_profile",
+                     return_value=(str(tmp_path), None)) as snap, \
+               patch("hermes_cli.browser_connect.chromium_executable", return_value="/fake/chrome"), \
+               patch.object(bt_real_profile, "_launch_real_profile_chrome", return_value=(9251, None)) as launch, \
+               patch.object(bt_real_profile, "_attach_agent_browser_to_real_profile", \
+                            return_value=("http://127.0.0.1:9251", None)), \
+               patch.object(bt_real_profile, "_agent_browser_get_cdp",
                           side_effect=[None, "http://127.0.0.1:9251"]), \
              patch.object(bt_install, "_find_agent_browser", return_value="/usr/bin/agent-browser"), \
              patch.object(bt.subprocess, "run", return_value=proc), \
@@ -970,6 +974,7 @@ class TestReviewRound3:
             cdp, err = bt_real_profile._real_profile_cdp()
         assert err is None
         snap.assert_called_once()
+        launch.assert_called_once_with("/fake/chrome", str(tmp_path))
         bt._real_profile_cdp_cache.clear()
 
 

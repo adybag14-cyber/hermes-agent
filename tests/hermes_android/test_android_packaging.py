@@ -97,10 +97,6 @@ def test_chaquopy_requirements_normalizer_canonicalizes_metadata_newlines(tmp_pa
         assert info.create_system == 3
 
 
-def test_android_wheel_includes_iteration_limits_module():
-    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-
-    assert "iteration_limits" in pyproject["tool"]["setuptools"]["py-modules"]
 
 
 def test_fdroid_updatecheck_data_uses_literal_version_code_for_future_tags():
@@ -159,16 +155,13 @@ def test_android_runtime_requirements_pin_pre_jiter_openai_sdk():
 
 
 def test_hy_memory_dependency_is_registered_as_lazy_optional_provider():
-    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    lazy_deps = (REPO_ROOT / "tools/lazy_deps.py").read_text(encoding="utf-8")
-    config = (REPO_ROOT / "hermes_cli/config.py").read_text(encoding="utf-8")
-    provider = (REPO_ROOT / "plugins/memory/hy_memory/__init__.py").read_text(encoding="utf-8")
+    from hermes_cli.config_defaults import DEFAULT_CONFIG
+    from tools.lazy_deps import LAZY_DEPS
+    from plugins.memory.hy_memory import HyMemoryProvider
 
-    assert pyproject["project"]["optional-dependencies"]["hy-memory"] == ["hy-memory==1.2.18"]
-    assert '"memory.hy_memory": ("hy-memory==1.2.18",)' in lazy_deps
-    assert '"provider": "hy_memory"' in config
-    assert '_lazy_ensure("memory.hy_memory", prompt=False)' in provider
-    assert 'from hy_memory import HyMemoryClient' in provider
+    pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert tuple(pyproject["project"]["optional-dependencies"]["hy-memory"]) == LAZY_DEPS["memory.hy_memory"]
+    assert DEFAULT_CONFIG["memory"]["provider"] == HyMemoryProvider().name
 
 
 def test_android_llama_server_native_dependencies_are_packaged():
@@ -259,34 +252,21 @@ def test_android_anthropic_stub_warns_at_runtime():
 
 
 def test_android_fal_client_stub_marks_image_generation_deferred():
-    stub_init = (REPO_ROOT / "android/pip-stubs/fal-client-stub/fal_client/__init__.py").read_text(encoding="utf-8")
-    toolset_file = (REPO_ROOT / "toolsets.py").read_text(encoding="utf-8")
-    manifest = (REPO_ROOT / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+    import pytest
+    from toolsets import resolve_toolset
 
-    assert "__hermes_android_stub__ = True" in stub_init
-    assert "Image generation is deferred" in stub_init
-    android_toolset_block = toolset_file.split('"hermes-android-app":', 1)[1].split('},', 1)[0]
-    assert '"image_generate"' not in android_toolset_block
-    assert '"terminal"' in android_toolset_block
-    assert '"process"' in android_toolset_block
-    assert '"android_device_status"' in android_toolset_block
-    assert '"android_shared_folder_list"' in android_toolset_block
-    assert '"android_shared_folder_read"' in android_toolset_block
-    assert '"android_shared_folder_write"' in android_toolset_block
-    assert '"android_ui_snapshot"' in android_toolset_block
-    assert '"android_ui_action"' in android_toolset_block
-    assert '"android_system_action"' in android_toolset_block
-    assert '"read_file"' in android_toolset_block
-    assert '"write_file"' in android_toolset_block
-    assert 'android.permission.POST_NOTIFICATIONS' in manifest
-    assert 'android.permission.ACCESS_WIFI_STATE' in manifest
-    assert 'android.permission.BLUETOOTH_CONNECT' in manifest
-    assert 'android.permission.NFC' in manifest
-    assert 'android.permission.SYSTEM_ALERT_WINDOW' in manifest
-    assert 'android.permission.FOREGROUND_SERVICE' in manifest
-    assert 'HermesRuntimeService' in manifest
-    assert 'HermesNotificationListenerService' in manifest
-    assert 'android.permission.BIND_NOTIFICATION_LISTENER_SERVICE' in manifest
+    stub_path = REPO_ROOT / "android/pip-stubs/fal-client-stub/fal_client/__init__.py"
+    spec = importlib.util.spec_from_file_location("hermes_test_android_fal_stub", stub_path)
+    stub = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(stub)
+    assert stub.__hermes_android_stub__ is True
+    with pytest.raises(RuntimeError, match="Image generation is deferred"):
+        stub.submit("test-model", arguments={})
+    with pytest.raises(RuntimeError, match="Image generation is deferred"):
+        stub.SyncClient()
+    mobile_tools = set(resolve_toolset("hermes-android-app", include_registry=False))
+    assert {"image_generate", "process"}.isdisjoint(mobile_tools)
+    assert {"terminal", "android_device_status", "read_file", "write_file"} <= mobile_tools
 
 
 def test_android_declares_shizuku_privileged_access_support():

@@ -32,6 +32,9 @@ from agent.context_engine import automatic_compaction_status_message, sanitize_m
 from agent.memory_provider import PRE_COMPRESS_CHECKPOINT_API_VERSION
 from agent.model_metadata import estimate_messages_tokens_rough, estimate_request_tokens_rough
 from agent.session_activity import ActivityProvenance, normalize_activity_provenance
+from hermes_android.agent_lifecycle import require_android_worker_unwound
+from hermes_android.compression_lifecycle import start_compression_watchdog, submit_owned_compression
+from hermes_android.runtime_identity import is_embedded_android_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -1017,7 +1020,9 @@ def run_compress_context_with_progress_timeout(
     # Sync mirror of gateway hygiene's run_in_executor + wait_for loop: offload,
     # poll idle budget + ceiling, fence-cancel on timeout so no late commit lands.
     from tools.thread_context import propagate_context_to_thread
-    executor = _get_compress_timeout_executor()
+    embedded = is_embedded_android_runtime()
+    executor = None if embedded else _get_compress_timeout_executor()
+    owned_worker = None
     # Refuse rather than queue when the pool is full: a queued job would wait out
     # its budget unstarted and run stale later. Skip compression this cycle.
     # A queued job would silently wait out its whole budget without starting and stay eligible to run as a
@@ -1052,7 +1057,11 @@ def run_compress_context_with_progress_timeout(
     # Bare pool workers start with an empty ContextVar map; propagate the
     # parent conversation/approval context into the worker.
     try:
-        future = executor.submit(propagate_context_to_thread(_fence_gated_worker), fence)
+        callback = propagate_context_to_thread(_fence_gated_worker)
+        if embedded:
+            future, owned_worker = submit_owned_compression(telemetry_agent, callback, fence)
+        else:
+            future = executor.submit(callback, fence)
     except BaseException:
         _release_compression_admission()
         raise
@@ -1099,6 +1108,9 @@ def run_compress_context_with_progress_timeout(
         # the holder-qualified hook so a NEW compressor can acquire at once (no ABA).
         handled_exit = True
         _release_cancelled_worker(future, fence, total_exhausted=total_exhausted, ceiling=ceiling)
+        # Android cannot retry beside the timed-out native provider. Retain the
+        # worker so API teardown cannot release its clients or profile lease.
+        require_android_worker_unwound(telemetry_agent, owned_worker, join_timeout=1.0)
         waited = time.monotonic() - wait_started
         # #76354 S3 analogue for this wait: charge the idle budget from the LAST PROGRESS event, not from
         # the start of this wait slice. Waiting a full ``idle`` after progress that landed early in the
@@ -1130,6 +1142,7 @@ def run_compress_context_with_progress_timeout(
             # Any unwind while waiting: revoke commit admission and release the worker's
             # lease before the host unwinds, so the detached worker can never publish.
             fence.revoke_commit_admission()
+        require_android_worker_unwound(telemetry_agent, owned_worker, join_timeout=1.0)
 
 
 class CompressionCheckpointUnavailable(RuntimeError):
@@ -1540,7 +1553,7 @@ class _CompressionActivityHeartbeat:
         # if a prior timeout/cooldown stamp is still on the agent.
         self._suppressed = False
         self._touch("context compression started", allow_terminal_overwrite=True)
-        self._thread.start()
+        start_compression_watchdog(self._thread, self._stop, self._agent)
         return self
 
     def stop(self, desc: str = "context compression completed") -> None:
@@ -1638,9 +1651,11 @@ def _direct_messages_for_pre_compress_memory(messages: Any) -> list[dict[str, An
 
 class _CompressionLockLeaseRefresher:
     def __init__(
-        self, db: Any, session_id: str, holder: str, ttl_seconds: float, refresh_interval_seconds: float | None = None
+        self, db: Any, session_id: str, holder: str, ttl_seconds: float, refresh_interval_seconds: float | None = None,
+        *, worker_owner: Any = None,
     ) -> None:
         self._db = db
+        self._worker_owner = worker_owner
         self._session_id = session_id
         self._holder = holder
         self._ttl_seconds = ttl_seconds
@@ -1654,7 +1669,7 @@ class _CompressionLockLeaseRefresher:
         self._thread = threading.Thread(target=self._run, name="compression-lock-refresh", daemon=True)
 
     def start(self) -> "_CompressionLockLeaseRefresher":
-        self._thread.start()
+        start_compression_watchdog(self._thread, self._stop, self._worker_owner)
         return self
 
     def stop(self) -> None:
@@ -2300,7 +2315,9 @@ class _CompressionLease:
     def start_refresher(self) -> None:
         if self.holder is None:
             return
-        candidate = _CompressionLockLeaseRefresher(self.db, self.sid, self.holder, self.ttl, self._refresh_interval)
+        candidate = _CompressionLockLeaseRefresher(
+            self.db, self.sid, self.holder, self.ttl, self._refresh_interval, worker_owner=self._agent,
+        )
         # Cancellation may release the holder between hook publication and this
         # start; serialize with the release path so no refresher starts on a freed lock.
         with self._release_guard:

@@ -1,6 +1,7 @@
 """Tests for the dangerous command approval module."""
 
 import os
+import shlex
 import threading
 import time
 from pathlib import Path
@@ -104,10 +105,12 @@ class TestDetectDangerousRm:
             assert "delete" in desc.lower()
 
 
-    def test_nonrecursive_verification_artifact_cleanup_is_not_dangerous(self):
-        with mock_patch("tempfile.gettempdir", return_value="/tmp"):
+    def test_nonrecursive_verification_artifact_cleanup_is_not_dangerous(self, tmp_path):
+        canonical_temp = tmp_path.resolve()
+        with mock_patch("tempfile.gettempdir", return_value=str(canonical_temp)):
             for prefix in ("hermes-verify-", "hermes-ad-hoc-"):
-                assert detect_dangerous_command(f"rm -f /tmp/{prefix}example.py") == (
+                operand = shlex.quote(str(canonical_temp / f"{prefix}example.py"))
+                assert detect_dangerous_command(f"rm -f {operand}") == (
                     False,
                     None,
                     None,
@@ -117,12 +120,17 @@ class TestDetectDangerousRm:
         real_temp = tmp_path / "real-temp"
         real_temp.mkdir()
         linked_temp = tmp_path / "linked-temp"
-        linked_temp.symlink_to(real_temp, target_is_directory=True)
+        try:
+            linked_temp.symlink_to(real_temp, target_is_directory=True)
+        except OSError as exc:
+            if getattr(exc, "winerror", None) == 1314:
+                pytest.skip("Windows symlink privilege unavailable; exercised on Linux")
+            raise
         basename = "hermes-verify-example.py"
 
         with mock_patch("tempfile.gettempdir", return_value=str(linked_temp)):
-            assert detect_dangerous_command(f"rm -f {linked_temp / basename}")[0] is True
-            assert detect_dangerous_command(f"rm -f {real_temp / basename}") == (
+            assert detect_dangerous_command(f"rm -f {shlex.quote(str(linked_temp / basename))}")[0] is True
+            assert detect_dangerous_command(f"rm -f {shlex.quote(str(real_temp.resolve() / basename))}") == (
                 False,
                 None,
                 None,
@@ -227,7 +235,7 @@ class TestSafeCommand:
         monkeypatch.setenv("HERMES_ANDROID_BOOTSTRAP", "1")
         monkeypatch.setenv("HERMES_EXEC_ASK", "1")
         with (
-            mock_patch("tools.approval._get_approval_mode", return_value="manual"),
+            mock_patch("tools.approval_context._get_approval_mode", return_value="manual"),
             mock_patch("tools.tirith_security.check_command_security") as tirith,
         ):
             result = approval_module.check_all_command_guards("echo hello", "local")
@@ -264,7 +272,7 @@ class TestSessionKeyContext:
     def test_context_keeps_pending_approval_attached_to_originating_session(self, monkeypatch):
         monkeypatch.setenv("HERMES_EXEC_ASK", "1")
         monkeypatch.setenv("HERMES_SESSION_KEY", "alice")
-        monkeypatch.setattr(approval_module, "_get_approval_config", lambda: {"mode": "manual"})
+        monkeypatch.setattr(approval_context, "_get_approval_config", lambda: {"mode": "manual"})
         monkeypatch.setattr(approval_module, "_YOLO_MODE_FROZEN", False)
         monkeypatch.setattr(approval_module, "_permanent_approved", set())
         monkeypatch.setattr(approval_module, "_session_approved", {})

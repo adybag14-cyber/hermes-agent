@@ -51,8 +51,10 @@ def _same_uid_process_ids() -> set[int] | None:
     """Return currently visible processes owned by this Android app UID."""
     if not _android_process_ownership_enabled():
         return set()
+    if not hasattr(os, "getuid"):
+        return None  # No POSIX UID authority: fail closed, never infer app ownership.
     owned = set()
-    own_uid = os.getuid()
+    own_uid = os.getuid()  # windows-footgun: ok -- hasattr guard above, no Windows UID inference
     proc_root = Path("/proc")
     try:
         entries = list(proc_root.iterdir())
@@ -75,8 +77,10 @@ def _same_uid_process_ids() -> set[int] | None:
 
 
 def _process_group_is_alive(process_group_id: int) -> bool:
+    if not hasattr(os, "killpg"):
+        return True  # An unsupported host cannot certify that the group is gone.
     try:
-        os.killpg(process_group_id, 0)
+        os.killpg(process_group_id, 0)  # windows-footgun: ok -- hasattr guard above
         return True
     except ProcessLookupError:
         return False
@@ -213,7 +217,7 @@ def _terminate_android_process_owner(
         owned, ambiguous = remaining()
     except RuntimeError as exc:
         return len(observed_owned), str(exc)
-    _signal_owned_processes(owned, owner.owner_token, signal.SIGKILL)
+    _signal_owned_processes(owned, owner.owner_token, signal.SIGKILL)  # windows-footgun: ok -- Android /proc ownership required
     while time.monotonic() < deadline:
         try:
             owned, ambiguous = remaining()
@@ -221,7 +225,7 @@ def _terminate_android_process_owner(
             return len(observed_owned), str(exc)
         if stably_clean(owned, ambiguous):
             return len(observed_owned), ""
-        _signal_owned_processes(owned, owner.owner_token, signal.SIGKILL)
+        _signal_owned_processes(owned, owner.owner_token, signal.SIGKILL)  # windows-footgun: ok -- Android /proc ownership required
         time.sleep(0.02)
     try:
         owned, ambiguous = remaining()

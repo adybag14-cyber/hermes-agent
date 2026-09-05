@@ -82,6 +82,7 @@ class TestCompletionConsumedPrune:
         class _FakeSess:
             def __init__(self, sid):
                 self.id = sid
+                self.task_id = ""
                 self.started_at = time.time() - (FINISHED_TTL_SECONDS + 100)
                 self.exited = True
 

@@ -84,22 +84,22 @@ def test_cli_picker_hides_excluded_provider_by_alias(config_home):
     # Find a canonical provider that has at least one alias and is a leaf
     # row (not folded into a multi-member group) so its label appears
     # directly. Pick the first such provider.
+    _write_config(config_home)
+    baseline = _capture_provider_labels(config_home)
+    entries = {p.slug: p for p in CANONICAL_PROVIDERS}
     target_slug = None
     target_alias = None
     for alias, canon in _PROVIDER_ALIASES.items():
-        if canon and any(p.slug == canon for p in CANONICAL_PROVIDERS):
+        if canon in entries and entries[canon].tui_desc in baseline:
             target_slug = canon
             target_alias = alias
             break
     if target_slug is None:
         pytest.skip("no aliased canonical provider available to test")
 
-    from hermes_cli.models import _PROVIDER_LABELS
-    target_label_fragment = _PROVIDER_LABELS.get(target_slug, target_slug)
+    target_label_fragment = entries[target_slug].tui_desc
 
     # Baseline: the provider appears without exclusion.
-    _write_config(config_home)
-    baseline = _capture_provider_labels(config_home)
     assert any(target_label_fragment in lbl for lbl in baseline), (
         f"sanity: {target_slug} ({target_label_fragment!r}) should appear by "
         f"default; labels={baseline}"
@@ -115,5 +115,4 @@ def test_cli_picker_hides_excluded_provider_by_alias(config_home):
         f"excluding alias {target_alias!r} should hide {target_slug}; "
         f"labels={excluded_labels}"
     )
-
 

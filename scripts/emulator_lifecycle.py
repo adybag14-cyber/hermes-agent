@@ -177,7 +177,7 @@ def wait_for_device(
 
 def run_adb(serial: str, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     command = [str(adb_executable()), "-s", serial, *args]
-    return subprocess.run(command, check=check, text=True, capture_output=True)
+    return subprocess.run(command, check=check, text=True, encoding="utf-8", errors="replace", capture_output=True)
 
 
 def package_installed(serial: str, package: str = DEFAULT_PACKAGE) -> bool:

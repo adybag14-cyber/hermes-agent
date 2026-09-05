@@ -566,6 +566,8 @@ class TestRunsHandlerPrecedence:
                 headers=_headers(KEY),
             )
             assert resp.status in (200, 202)
+            payload = await resp.json()
+            assert await _await_run(adapter, payload["run_id"])
 
         assert seen and seen[0]["session_id"] == "sess-live"
 
@@ -584,6 +586,8 @@ class TestRunsHandlerPrecedence:
                 headers=_headers(KEY),
             )
             assert resp.status in (200, 202)
+            payload = await resp.json()
+            assert await _await_run(adapter, payload["run_id"])
 
         assert seen and seen[0]["session_id"] == "explicit-session"
         # KEY still resolves to its own conversation, never the explicit one.
@@ -594,9 +598,9 @@ async def _await_run(adapter, run_id, timeout=10.0):
     """Wait for a /v1/runs worker to finish, so settlement has happened."""
     deadline = asyncio.get_running_loop().time() + timeout
     while asyncio.get_running_loop().time() < deadline:
-        if run_id not in adapter._active_run_agents:
-            # One more tick so the executor thread's finally can retire.
-            await asyncio.sleep(0.05)
+        if run_id not in adapter._active_run_tasks:
+            # The task is published before executor-side agent construction,
+            # and retired only after that worker's finally has completed.
             return True
         await asyncio.sleep(0.02)
     return False

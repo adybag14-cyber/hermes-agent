@@ -30,6 +30,7 @@ import httpx
 import pytest
 
 from agent import chat_completion_helpers as cch
+from hermes_android.agent_lifecycle import OwnedAgentWorkerMixin
 
 
 
@@ -37,6 +38,7 @@ from agent import chat_completion_helpers as cch
 def _make_agent():
     """A MagicMock agent wired with just enough surface for the helpers."""
     agent = MagicMock()
+    agent._start_owned_worker_thread = OwnedAgentWorkerMixin()._start_owned_worker_thread
     agent.api_mode = "chat_completions"
     agent._interrupt_requested = False
     agent.verbose_logging = False
@@ -138,5 +140,4 @@ def test_anthropic_non_streaming_stale_aborts_request_client_not_shared():
     )
     # Worker unblocks and closes its own request client from its own thread.
     _wait_for_mock_call(agent._close_request_anthropic_client)
-
 

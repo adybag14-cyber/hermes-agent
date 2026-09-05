@@ -62,7 +62,7 @@ def run_adb(serial: str | None, *args: str, check: bool = True) -> subprocess.Co
 
 
 def devices(_: argparse.Namespace) -> int:
-    result = subprocess.run([adb_path(), "devices", "-l"], text=True, check=False)
+    result = subprocess.run([adb_path(), "devices", "-l"], text=True, encoding="utf-8", errors="replace", check=False)
     return result.returncode
 
 
