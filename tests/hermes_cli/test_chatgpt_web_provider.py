@@ -1355,6 +1355,7 @@ def test_stream_chatgpt_web_completion_resolves_async_generated_images(monkeypat
 
 def test_stream_chatgpt_web_completion_does_not_extend_timeout_for_image_polling(monkeypatch):
     from hermes_cli import chatgpt_web as chatgpt_web_mod
+    from types import SimpleNamespace
 
     captured = {}
 
@@ -1399,7 +1400,11 @@ def test_stream_chatgpt_web_completion_does_not_extend_timeout_for_image_polling
             return _StreamResponse()
 
     monotonic_values = iter([100.0, 102.0])
-    monkeypatch.setattr(chatgpt_web_mod.time, "monotonic", lambda: next(monotonic_values))
+    # Replace only this module's clock, not stdlib time.monotonic used by
+    # asyncio/pytest teardown after the two budget measurements are consumed.
+    monkeypatch.setattr(chatgpt_web_mod, "time", SimpleNamespace(
+        monotonic=lambda: next(monotonic_values), sleep=chatgpt_web_mod.time.sleep,
+    ))
     monkeypatch.setattr(
         chatgpt_web_mod,
         "_resolve_chatgpt_web_generated_images",

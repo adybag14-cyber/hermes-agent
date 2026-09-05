@@ -30,8 +30,11 @@ jobs:
     # cargo builds codegen units and test binaries in parallel across the
     # cores. This lane also builds the crate from the start when Cargo.toml
     # changes.
-    runs-on: ubuntu-latest-32-core
-    timeout-minutes: 30
+    runs-on: ${{ github.repository == 'NousResearch/hermes-agent' && 'ubuntu-latest-32-core' || 'ubuntu-latest' }}
+    timeout-minutes: ${{ github.repository == 'NousResearch/hermes-agent' && 30 || 90 }}
+    env:
+      # Rust code generation is memory-heavy on the ordinary fork runner.
+      CARGO_BUILD_JOBS: ${{ github.repository == 'NousResearch/hermes-agent' && 32 || 2 }}
     defaults:
       run:
         working-directory: apps/bootstrap-installer/src-tauri

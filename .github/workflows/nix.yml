@@ -13,7 +13,7 @@ name: Nix flake check
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, codex/termux-five-goals]
 
 permissions:
   contents: read
@@ -54,8 +54,8 @@ jobs:
     # takes minutes and not seconds when the cache misses. `nix flake check`
     # builds 21 checks, and --max-jobs defaults to the core count. It uses the
     # wider runner with no more configuration.
-    runs-on: ubuntu-latest-32-core
-    timeout-minutes: 60
+    runs-on: ${{ github.repository == 'NousResearch/hermes-agent' && 'ubuntu-latest-32-core' || 'ubuntu-latest' }}
+    timeout-minutes: ${{ github.repository == 'NousResearch/hermes-agent' && 60 || 120 }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -116,4 +116,6 @@ jobs:
       - name: nix flake check
         # --print-build-logs: a check that fails then prints the assertion
         # that failed, and not only the derivation that failed to build.
-        run: nix flake check --print-build-logs
+        # Keep full upstream parallelism there; bound both derivations and
+        # per-derivation jobs on the lower-memory fork runner.
+        run: nix flake check --print-build-logs --max-jobs ${{ github.repository == 'NousResearch/hermes-agent' && 32 || 2 }} --cores ${{ github.repository == 'NousResearch/hermes-agent' && '0' || '2' }}

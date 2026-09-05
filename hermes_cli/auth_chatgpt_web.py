@@ -1,7 +1,7 @@
 """ChatGPT Web authentication status."""
 
-import os
 from typing import Any, Dict
+from agent.secret_scope import get_secret
 
 
 def get_chatgpt_web_auth_status() -> Dict[str, Any]:
@@ -9,8 +9,8 @@ def get_chatgpt_web_auth_status() -> Dict[str, Any]:
 
     Prefers explicit credentials, then the ChatGPT Web pool, then Codex OAuth.
     """
-    access_token = os.getenv("CHATGPT_WEB_ACCESS_TOKEN", "").strip()
-    session_token = os.getenv("CHATGPT_WEB_SESSION_TOKEN", "").strip()
+    access_token = get_secret("CHATGPT_WEB_ACCESS_TOKEN", "").strip()
+    session_token = get_secret("CHATGPT_WEB_SESSION_TOKEN", "").strip()
     if access_token:
         return {
             "logged_in": True,

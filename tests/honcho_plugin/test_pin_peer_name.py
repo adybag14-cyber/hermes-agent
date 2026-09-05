@@ -516,18 +516,65 @@ class TestPinTransition:
 
     def test_cache_busting_signature_reflects_pin_peer_name(self, tmp_path, monkeypatch):
         """Gateway agent cache must bust when honcho.json's pinPeerName flips."""
+        import os
+
         from gateway.run import GatewayRunner
 
         cfg_path = tmp_path / "honcho.json"
         monkeypatch.setenv("HERMES_HOME", str(tmp_path))
 
         cfg_path.write_text(json.dumps({"apiKey": "k", "peerName": "Igor", "pinPeerName": True}))
+        pinned_stat = cfg_path.stat()
         sig_pinned = GatewayRunner._extract_cache_busting_config({"memory": {"provider": "honcho"}})
 
         cfg_path.write_text(json.dumps({"apiKey": "k", "peerName": "Igor", "pinPeerName": False}))
+        # Reproduce a filesystem retaining mtime across two rapid writes.
+        os.utime(cfg_path, ns=(pinned_stat.st_atime_ns, pinned_stat.st_mtime_ns))
+        assert cfg_path.stat().st_mtime_ns == pinned_stat.st_mtime_ns
+        assert cfg_path.stat().st_size != pinned_stat.st_size
         sig_unpinned = GatewayRunner._extract_cache_busting_config({"memory": {"provider": "honcho"}})
 
         assert sig_pinned["honcho.pin_peer_name"] != sig_unpinned["honcho.pin_peer_name"]
+
+    def test_cache_busting_signature_detects_atomic_same_size_replacement(self, tmp_path, monkeypatch):
+        import os
+
+        import pytest
+
+        from gateway.run import GatewayRunner
+
+        cfg_path = tmp_path / "honcho.json"
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+        cfg_path.write_text(json.dumps({"apiKey": "k", "peerName": "Igor"}))
+        original_stat = cfg_path.stat()
+        before = GatewayRunner._extract_cache_busting_config({"memory": {"provider": "honcho"}})
+        replacement = tmp_path / "replacement.json"
+        replacement.write_text(json.dumps({"apiKey": "k", "peerName": "Egor"}))
+        os.utime(replacement, ns=(original_stat.st_atime_ns, original_stat.st_mtime_ns))
+        if replacement.stat().st_ino == original_stat.st_ino:
+            pytest.skip("filesystem does not expose distinct file identities")
+        os.replace(replacement, cfg_path)
+        assert cfg_path.stat().st_mtime_ns == original_stat.st_mtime_ns
+        assert cfg_path.stat().st_size == original_stat.st_size
+
+        after = GatewayRunner._extract_cache_busting_config({"memory": {"provider": "honcho"}})
+        assert before["honcho.peer_name"] == "Igor"
+        assert after["honcho.peer_name"] == "Egor"
+
+    def test_unchanged_identity_file_uses_memoized_config_and_returns_a_copy(self, tmp_path, monkeypatch):
+        from unittest.mock import patch
+
+        from gateway.run import GatewayRunner
+
+        cfg_path = tmp_path / "honcho.json"
+        monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+        cfg_path.write_text(json.dumps({"apiKey": "k", "peerName": "Igor"}))
+        with patch.object(HonchoClientConfig, "from_global_config", wraps=HonchoClientConfig.from_global_config) as load:
+            first = GatewayRunner._extract_cache_busting_config({"memory": {"provider": "honcho"}})
+            first["honcho.peer_name"] = "caller mutation"
+            second = GatewayRunner._extract_cache_busting_config({"memory": {"provider": "honcho"}})
+            assert load.call_count == 1
+            assert second["honcho.peer_name"] == "Igor"
 
 
 class TestProfilePeerUniqueness:
@@ -571,4 +618,3 @@ class TestProfilePeerUniqueness:
             "Profiles pinned to distinct peer names must not collapse to "
             "the same Honcho peer — otherwise profile isolation is fictional."
         )
-

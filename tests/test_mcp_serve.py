@@ -121,6 +121,15 @@ def populated_sessions_dir(sessions_dir, sample_sessions):
     return sessions_dir
 
 
+def _advance_mtime(path):
+    """Open the poll gate without depending on the filesystem clock tick."""
+    before = path.stat()
+    # A two-second advance survives coarse filesystem timestamp resolution;
+    # utime(..., None) can leave the baseline mtime unchanged on fast hosts.
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns + 2_000_000_000))
+    assert path.stat().st_mtime > before.st_mtime
+
+
 def _create_test_db(db_path, session_id, messages):
     """Create a minimal SQLite DB mimicking hermes_state schema."""
     conn = sqlite3.connect(str(db_path))
@@ -1259,7 +1268,7 @@ class TestEventBridgePollE2E:
         conn.commit()
         conn.close()
         # Touch the DB file to update mtime (WAL mode may not update mtime on small writes)
-        os.utime(db_path, None)
+        _advance_mtime(db_path)
 
         # Update sessions.json updated_at to trigger re-check
         sessions_data["agent:main:telegram:dm:new"]["updated_at"] = "2026-03-29T15:00:10"
@@ -1374,7 +1383,7 @@ class TestEventBridgePollE2E:
             "id": 2, "role": "assistant", "content": "arrived after start",
             "timestamp": "2026-03-29T15:05:00",
         })
-        os.utime(db_path, None)  # bump mtime so the poll gate opens
+        _advance_mtime(db_path)
         bridge._poll_once(DB())
         events = bridge.poll_events(after_cursor=0)["events"]
         assert len(events) == 1
@@ -1412,7 +1421,7 @@ class TestEventBridgePollE2E:
             "id": 1, "role": "user", "content": "hello after baseline",
             "timestamp": "2026-03-29T15:10:00",
         }]
-        os.utime(db_path, None)
+        _advance_mtime(db_path)
         bridge._poll_once(DB())
 
         events = bridge.poll_events(after_cursor=0)["events"]

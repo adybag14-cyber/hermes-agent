@@ -65,7 +65,7 @@ def test_embedded_android_mcp_sync_never_persists_or_registers_external_servers(
     with (
         patch("hermes_android.mcp_bridge.load_config", create=True) as load_config,
         patch("hermes_android.mcp_bridge.save_config", create=True) as save_config,
-        patch("tools.mcp_tool.register_mcp_servers") as register,
+        patch("tools.mcp_tool_discovery.register_mcp_servers") as register,
     ):
         result = sync_android_mcp_config(tmp_path, force=True)
 

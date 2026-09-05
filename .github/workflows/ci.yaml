@@ -17,7 +17,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, codex/termux-five-goals]
 
 permissions:
   contents: read
@@ -62,8 +62,6 @@ jobs:
         id: classify
         uses: ./.github/actions/detect-changes
         with:
-          sparse-checkout: scripts/ci/classify_changes.py
-          sparse-checkout-cone-mode: false
           github-token: ${{ github.token }}
 
   # ─────────────────────────────────────────────────────────────────────
@@ -221,8 +219,8 @@ jobs:
 
   # ─────────────────────────────────────────────────────────────────────
   # Gate: runs after everything. ``if: always()`` ensures it reports a
-  # status even when some deps were skipped. Only actual ``failure``
-  # results cause it to fail; ``skipped`` is treated as success.
+  # status even when some deps were skipped. Only ``success`` and
+  # ``skipped`` are acceptable; cancelled validation is not a pass.
   #
   # Branch protection should require ONLY this check.
   #
@@ -274,13 +272,13 @@ jobs:
           print(f'needs-json={json.dumps(compact)}')
           with open('$GITHUB_OUTPUT', 'a') as f:
               f.write(f'needs-json={json.dumps(compact)}\n')
-          failed = [name for name, info in needs.items() if info['result'] == 'failure']
+          failed = [name for name, info in needs.items() if info['result'] not in ('success', 'skipped')]
           for name, info in sorted(needs.items()):
               result = info['result']
               icon = '✅' if result in ('success', 'skipped') else '❌'
               print(f'{icon} {name}: {result}')
           if failed:
-              print(f'::error::{len(failed)} job(s) failed: {\", \".join(failed)}')
+              print(f'::error::{len(failed)} job(s) did not pass: {\", \".join(failed)}')
               sys.exit(1)
           print('All checks passed (or were skipped)')
           "

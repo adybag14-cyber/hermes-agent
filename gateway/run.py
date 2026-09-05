@@ -4186,7 +4186,7 @@ class GatewayRunner(
     _HONCHO_CACHE_BUSTING_KEYS = (
         "honcho.peer_name", "honcho.ai_peer", "honcho.pin_peer_name", "honcho.runtime_peer_prefix",
         "honcho.user_peer_aliases")
-    _HONCHO_CACHE_BUSTING_MEMO: dict[tuple[str, int | None], dict[str, Any]] = {}
+    _HONCHO_CACHE_BUSTING_MEMO: dict[tuple[str, int | None, int | None, int | None], dict[str, Any]] = {}
 
     @staticmethod
     def _init_cached_agent_for_turn(agent: Any, interrupt_depth: int) -> None:

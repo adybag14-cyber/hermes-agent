@@ -44,15 +44,18 @@ class GatewayAgentCacheMixin:
 
     @classmethod
     def _extract_honcho_cache_busting_config(cls) -> dict[str, Any]:
-        """Extract Honcho identity keys, memoized by honcho.json mtime; all-None when unavailable."""
+        """Extract Honcho identity keys, memoized by file identity; all-None when unavailable."""
         try:
             from plugins.memory.honcho.client import HonchoClientConfig, resolve_config_path
             path = resolve_config_path()
             try:
-                mtime_ns = path.stat().st_mtime_ns
+                status = path.stat()
+                signature = (status.st_mtime_ns, status.st_size, status.st_ino)
             except OSError:
-                mtime_ns = None
-            memo_key = (str(path), mtime_ns)
+                signature = (None, None, None)
+            # Same-tick writes can retain mtime; size catches boolean flips,
+            # and inode catches atomic replacements of the same size.
+            memo_key = (str(path), *signature)
             cached = cls._HONCHO_CACHE_BUSTING_MEMO.get(memo_key)
             if cached is not None:
                 return dict(cached)

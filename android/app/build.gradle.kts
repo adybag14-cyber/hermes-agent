@@ -157,7 +157,6 @@ val hermesSourceDigest = when {
     }
     else -> ""
 }
-val generatedPythonBuildLibDir = repoRoot.resolve("build/lib")
 val hermesWheelDir = layout.buildDirectory.dir("hermes-wheel")
 val generatedHermesLinuxAssetsDir = layout.buildDirectory.dir("generated/hermes-linux-assets")
 val generatedHermesNativeLibsDir = layout.buildDirectory.dir("generated/hermes-native-libs")
@@ -462,6 +461,12 @@ val prepareHermesAndroidWheel = tasks.register<Exec>("prepareHermesAndroidWheel"
     val wheelDir = hermesWheelDir.get().asFile
     inputs.file(repoRoot.resolve("pyproject.toml"))
     inputs.file(repoRoot.resolve("README.md"))
+    inputs.file(repoRoot.resolve("LICENSE"))
+    inputs.file(repoRoot.resolve("setup.py"))
+    inputs.file(repoRoot.resolve("MANIFEST.in"))
+    inputs.file(repoRoot.resolve("scripts/build_android_runtime_wheel.py"))
+    inputs.file(repoRoot.resolve("scripts/verify_android_runtime_wheel.py"))
+    inputs.files(fileTree(repoRoot) { include("*.py") })
     listOf(
         "agent",
         "tools",
@@ -473,39 +478,34 @@ val prepareHermesAndroidWheel = tasks.register<Exec>("prepareHermesAndroidWheel"
         "plugins",
         "providers",
         "hermes_android",
+        "skills",
+        "optional-skills",
+        "locales",
+        "optional-mcps",
     ).forEach { packageDir ->
         inputs.files(fileTree(repoRoot.resolve(packageDir)) {
-            include("**/*.py")
-            include("**/*.json")
-            include("**/*.yaml")
-            include("**/*.yml")
-            include("**/*.txt")
-            include("**/*.html")
-            include("**/*.js")
-            include("**/*.css")
+            // Include every package-data/resource type, not just a small
+            // extension list: images, templates, shell scripts, etc. matter.
+            exclude("**/.git/**", "**/.hg/**", "**/.svn/**")
+            exclude("**/__pycache__/**", "**/.pytest_cache/**", "**/.mypy_cache/**", "**/.ruff_cache/**")
+            exclude("**/.tox/**", "**/.nox/**", "**/.venv/**", "**/venv/**", "**/node_modules/**")
+            exclude("**/build/**", "**/dist/**", "**/target/**", "**/.artifacts/**", "**/release-evidence/**")
+            exclude("**/*.egg-info/**", "**/*.dist-info/**", "**/.coverage")
+            exclude("**/*.pyc", "**/*.pyo", "**/*.pyd", "**/*.whl", "**/*.egg", "**/*.apk", "**/*.aab")
+            exclude("**/*.pftrace", "**/*.profraw", "**/*.profdata")
         })
     }
     outputs.file(wheelDir.resolve(hermesWheelName()))
-    doFirst {
-        wheelDir.mkdirs()
-        val repoRootPath = repoRoot.canonicalFile.toPath()
-        val buildLibPath = generatedPythonBuildLibDir.canonicalFile.toPath()
-        check(buildLibPath.startsWith(repoRootPath)) {
-            "Refusing to remove Python build output outside repository: $buildLibPath"
-        }
-        if (generatedPythonBuildLibDir.exists()) {
-            generatedPythonBuildLibDir.deleteRecursively()
-        }
-    }
+    environment("HERMES_ANDROID_BUILD", "1")
     commandLine(
         resolvedBuildPython(),
-        "-m",
-        "pip",
-        "wheel",
-        "--no-deps",
+        repoRoot.resolve("scripts/build_android_runtime_wheel.py").absolutePath,
+        "--project-root",
+        repoRoot.absolutePath,
         "--wheel-dir",
         wheelDir.absolutePath,
-        repoRoot.absolutePath,
+        "--wheel-name",
+        hermesWheelName(),
     )
 }
 

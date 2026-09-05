@@ -24,6 +24,8 @@ from typing import Any, Callable, Iterable, Optional
 
 import httpx
 
+from agent.secret_scope import get_secret
+
 try:
     import websockets
 except ImportError:
@@ -52,19 +54,19 @@ _TOOL_RESPONSE_CONTINUATION_HINT = (
 
 
 def _default_user_agent() -> str:
-    return os.getenv("CHATGPT_WEB_USER_AGENT", "").strip() or DEFAULT_CHATGPT_WEB_USER_AGENT
+    return get_secret("CHATGPT_WEB_USER_AGENT", "").strip() or DEFAULT_CHATGPT_WEB_USER_AGENT
 
 
 def _default_device_id() -> str:
-    return os.getenv("CHATGPT_WEB_DEVICE_ID", "").strip() or str(uuid.uuid4())
+    return get_secret("CHATGPT_WEB_DEVICE_ID", "").strip() or str(uuid.uuid4())
 
 
 def _chatgpt_web_debug_base() -> str:
-    return os.getenv("CHATGPT_WEB_DEBUG_BASE", "").strip()
+    return get_secret("CHATGPT_WEB_DEBUG_BASE", "").strip()
 
 
 def _chatgpt_web_force_browser_fetch() -> bool:
-    value = os.getenv("CHATGPT_WEB_FORCE_BROWSER_FETCH", "").strip().lower()
+    value = get_secret("CHATGPT_WEB_FORCE_BROWSER_FETCH", "").strip().lower()
     return value in {"1", "true", "yes", "on"}
 
 
@@ -1261,11 +1263,11 @@ def _fetch_chatgpt_web_access_token_from_session(
 
 
 def resolve_chatgpt_web_runtime_credentials(*, force_refresh: bool = False) -> dict[str, Any]:
-    access_token = os.getenv("CHATGPT_WEB_ACCESS_TOKEN", "").strip()
-    session_token = os.getenv("CHATGPT_WEB_SESSION_TOKEN", "").strip()
-    cookie_header = os.getenv("CHATGPT_WEB_COOKIE_HEADER", "").strip()
-    user_agent = os.getenv("CHATGPT_WEB_USER_AGENT", "").strip()
-    device_id = os.getenv("CHATGPT_WEB_DEVICE_ID", "").strip()
+    access_token = get_secret("CHATGPT_WEB_ACCESS_TOKEN", "").strip()
+    session_token = get_secret("CHATGPT_WEB_SESSION_TOKEN", "").strip()
+    cookie_header = get_secret("CHATGPT_WEB_COOKIE_HEADER", "").strip()
+    user_agent = get_secret("CHATGPT_WEB_USER_AGENT", "").strip()
+    device_id = get_secret("CHATGPT_WEB_DEVICE_ID", "").strip()
     if access_token:
         return {
             "provider": "chatgpt-web",
@@ -1385,11 +1387,11 @@ def fetch_chatgpt_web_model_ids(
     timeout: float = 15.0,
 ) -> list[str]:
     token = (access_token or "").strip()
-    resolved_session = (session_token or os.getenv("CHATGPT_WEB_SESSION_TOKEN", "")).strip()
-    resolved_cookie_header = str(cookie_header or os.getenv("CHATGPT_WEB_COOKIE_HEADER", "")).strip()
+    resolved_session = (session_token or get_secret("CHATGPT_WEB_SESSION_TOKEN", "")).strip()
+    resolved_cookie_header = str(cookie_header or get_secret("CHATGPT_WEB_COOKIE_HEADER", "")).strip()
     resolved_browser_cookies = browser_cookies
-    resolved_user_agent = str(user_agent or os.getenv("CHATGPT_WEB_USER_AGENT", "")).strip()
-    resolved_device_id = str(device_id or os.getenv("CHATGPT_WEB_DEVICE_ID", "")).strip()
+    resolved_user_agent = str(user_agent or get_secret("CHATGPT_WEB_USER_AGENT", "")).strip()
+    resolved_device_id = str(device_id or get_secret("CHATGPT_WEB_DEVICE_ID", "")).strip()
     if not token:
         resolved_creds = resolve_chatgpt_web_runtime_credentials()
         token = str(resolved_creds.get("api_key") or "").strip()

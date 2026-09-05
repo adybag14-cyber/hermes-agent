@@ -338,14 +338,6 @@ def test_android_release_tag_version_code_tracks_fdroid_semver():
     }
 
 
-def test_android_wheel_build_clears_stale_python_build_output():
-    gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
-
-    assert 'val generatedPythonBuildLibDir = repoRoot.resolve("build/lib")' in gradle
-    assert "generatedPythonBuildLibDir.deleteRecursively()" in gradle
-    assert "Refusing to remove Python build output outside repository" in gradle
-
-
 def test_android_visual_harness_supports_wide_screenshots_and_clicks():
     harness = (REPO_ROOT / "scripts/android_visual_harness.py").read_text(encoding="utf-8")
 
