@@ -33,3 +33,6 @@ docker/entrypoint.sh text eol=lf
 *.svg   text eol=lf
 *.ps1   text eol=crlf
 android/pip-stubs/**/*.egg-info/PKG-INFO text eol=lf
+
+# Historical verification captures are evidence, not normalized source files.
+verification-screenshots/** -text -eol
