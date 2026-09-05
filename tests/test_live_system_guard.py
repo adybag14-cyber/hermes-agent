@@ -3,13 +3,24 @@
 The guard must treat only argv[0] of a list/tuple command as the executable
 (arguments are data: a file named ``skill`` is not the ``skill`` binary),
 while still scanning every token of wrapper invocations like ``bash -c``.
-All blocked-case commands use patterns that match no real process, so a
-guard regression cannot kill anything.
+Blocked-case commands use an inert primitive installed before the guard, so
+a guard regression cannot kill anything.
 """
 
 import subprocess
 
 import pytest
+
+
+@pytest.fixture
+def _live_system_guard_primitives(monkeypatch, request):
+    if request.node.name == "test_argv_arguments_are_not_treated_as_executables":
+        return  # This positive control only reads the test-owned text file.
+
+    def must_be_blocked(*args, **kwargs):
+        raise AssertionError("Guard let a process-killer invocation reach the inert backend")
+
+    monkeypatch.setattr(subprocess, "run", must_be_blocked)
 
 
 def test_argv_arguments_are_not_treated_as_executables(tmp_path):

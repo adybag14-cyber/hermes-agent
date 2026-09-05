@@ -1436,7 +1436,7 @@ def _live_system_guard(request, monkeypatch, _live_system_guard_primitives):
     _PROCESS_KILLERS = ("pkill", "killall", "taskkill", "skill", "fuser")
     _COMMAND_WRAPPERS = ("command", "nohup", "setsid")
     _NON_EXECUTING_ARGUMENT_COMMANDS = {
-        "echo", "egrep", "false", "fgrep", "grep", "printf", "rg", "true",
+        "cat", "echo", "egrep", "false", "fgrep", "grep", "printf", "rg", "true",
     }
     _SHELL_COMMAND_PREFIXES = (
         "!", "elif", "else", "exec", "if", "then", "time", "until", "while", "do",
