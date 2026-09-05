@@ -823,6 +823,13 @@ class ClientLifecycleMixin:
             return
         self.api_key, self.base_url = runtime_key, stripped_base
         # Inlined (not _sync_client_kwargs_credentials): tests call this unbound on a SimpleNamespace agent.
+        if self.api_mode == "chatgpt_web":
+            from agent.chatgpt_credentials import CHATGPT_WEB_METADATA_FIELDS, bind_chatgpt_web_credentials
+
+            bind_chatgpt_web_credentials(self, {
+                "api_key": runtime_key,
+                **{name: getattr(entry, name, None) for name in CHATGPT_WEB_METADATA_FIELDS},
+            })
         self._client_kwargs["api_key"] = self.api_key
         self._client_kwargs["base_url"] = self.base_url
         self._reapply_route_client_config(route_changed=route_changed)

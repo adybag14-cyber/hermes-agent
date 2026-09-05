@@ -184,40 +184,6 @@ def test_format_initial_message_keeps_latest_tool_context_on_remote_thread():
     assert "not a new user request" in prompt
 
 
-def test_format_initial_message_keeps_latest_tool_context_on_remote_thread():
-    from hermes_cli.chatgpt_web import _format_initial_message
-
-    prompt = _format_initial_message(
-        instructions="Use tools before answering.",
-        messages=[
-            {"role": "user", "content": "Find the branch and then inspect Wikipedia."},
-            {
-                "role": "assistant",
-                "content": "",
-                "tool_calls": [
-                    {
-                        "function": {
-                            "name": "terminal",
-                            "arguments": '{"command": "git rev-parse --abbrev-ref HEAD"}',
-                        }
-                    }
-                ],
-            },
-            {"role": "tool", "content": '{"output":"main","exit_code":0,"error":null}'},
-        ],
-        has_remote_thread=True,
-    )
-
-    assert "Latest user request:\nFind the branch and then inspect Wikipedia." in prompt
-    assert "Local Hermes context after that request" in prompt
-    assert "<tool_call>" in prompt
-    assert "\"name\": \"terminal\"" in prompt
-    assert "<tool_response>" in prompt
-    assert "\"output\":\"main\"" in prompt
-    assert "same task" in prompt
-    assert "not a new user request" in prompt
-
-
 def test_format_initial_message_renders_multimodal_user_text_without_image_noise():
     from hermes_cli.chatgpt_web import _format_initial_message
 
@@ -237,66 +203,6 @@ def test_format_initial_message_renders_multimodal_user_text_without_image_noise
 
     assert "Describe the attached image briefly." in prompt
     assert "file:///tmp/red-square.png" not in prompt
-
-def test_select_chatgpt_web_browser_response_text_falls_back_to_article_text():
-    from hermes_cli.chatgpt_web import _select_chatgpt_web_browser_response_text
-
-    text, model = _select_chatgpt_web_browser_response_text(
-        {
-            "assistant": [],
-            "articles": [
-                {"text": "Describe the attached image briefly.", "author": "user", "model": ""},
-                {"text": "Describe the attached image briefly. The image is a red square.", "author": "assistant", "model": "gpt-5-4-thinking"},
-            ],
-            "mainText": "Describe the attached image briefly. The image is a red square.",
-        },
-        "Describe the attached image briefly.",
-    )
-
-    assert text == "The image is a red square."
-    assert model == "gpt-5-4-thinking"
-
-
-def test_select_chatgpt_web_browser_response_text_ignores_prompt_echo_page_chrome():
-    from hermes_cli.chatgpt_web import _select_chatgpt_web_browser_response_text
-
-    text, model = _select_chatgpt_web_browser_response_text(
-        {
-            "assistant": [],
-            "articles": [],
-            "mainText": (
-                "Developer instructions: ... Conversation so far: User: Look at this local image. "
-                "Reading documents Thinking ChatGPT can make mistakes. See Cookie Preferences."
-            ),
-        },
-        "Look at this local image. Answer only with the dominant color and shape.",
-    )
-
-    assert text == ""
-    assert model == ""
-
-
-def test_materialize_chatgpt_web_browser_image_accepts_data_urls():
-    from hermes_cli.chatgpt_web import _materialize_chatgpt_web_browser_image
-
-    png_data_url = (
-        "data:image/png;base64,"
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO7Z0xQAAAAASUVORK5CYII="
-    )
-
-    materialized_path, cleanup_path = _materialize_chatgpt_web_browser_image(png_data_url)
-
-    try:
-        assert materialized_path == cleanup_path
-        assert materialized_path.endswith(".png")
-        with open(materialized_path, "rb") as handle:
-            assert handle.read(8) == b"\x89PNG\r\n\x1a\n"
-    finally:
-        if cleanup_path:
-            import os
-            if os.path.exists(cleanup_path):
-                os.unlink(cleanup_path)
-
 
 def test_select_chatgpt_web_browser_response_text_falls_back_to_article_text():
     from hermes_cli.chatgpt_web import _select_chatgpt_web_browser_response_text

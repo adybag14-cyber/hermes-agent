@@ -890,6 +890,9 @@ def _apply_primary_runtime_fields(agent, rt: Dict[str, Any]) -> None:
     if hasattr(agent, "_transport_cache"):
         agent._transport_cache.clear()
     agent.api_key = rt["api_key"]
+    from agent.chatgpt_credentials import rebind_chatgpt_web_credentials
+
+    rebind_chatgpt_web_credentials(agent, rt.get("chatgpt_web_credentials"))
     agent._reasoning_echo_flag = rt.get("reasoning_echo_flag", False)
     agent.request_overrides = dict(rt.get("request_overrides") or {})
     agent._client_kwargs = dict(rt["client_kwargs"])
@@ -1789,6 +1792,8 @@ _SWITCH_SNAPSHOT_FIELDS = (
     "_anthropic_client", "_anthropic_api_key", "_anthropic_base_url", "_is_anthropic_oauth",
     "_config_context_length", "_reasoning_echo_flag", "runtime_capabilities",
     "_credential_pool", "_credential_pool_entry_id",
+    "_chatgpt_web_credentials", "_chatgpt_web_session_token", "_chatgpt_web_cookie_header",
+    "_chatgpt_web_browser_cookies", "_chatgpt_web_user_agent", "_chatgpt_web_device_id",
 )
 _MISSING = object()
 
@@ -1915,7 +1920,7 @@ def _build_switched_client(agent, new_provider, api_key, base_url, api_mode, new
     agent.client = agent._create_openai_client(dict(agent._client_kwargs), reason="switch_model", shared=True)
 
 
-def _swap_switch_runtime(agent, new_model, new_provider, api_key, base_url, api_mode, old_provider, old_norm, new_norm) -> None:
+def _swap_switch_runtime(agent, new_model, new_provider, api_key, base_url, api_mode, old_provider, old_norm, new_norm, *, chatgpt_web_credentials=None) -> None:
     """Swap identity/transport fields, reload the pool, rebuild the client (rolled back by the caller on error)."""
     # Clear the per-config override so the new model's context window is re-resolved.
     agent._config_context_length = None
@@ -1940,6 +1945,9 @@ def _swap_switch_runtime(agent, new_model, new_provider, api_key, base_url, api_
         agent._transport_cache.clear()
     if api_key:
         agent.api_key = api_key
+    from agent.chatgpt_credentials import rebind_chatgpt_web_credentials
+
+    rebind_chatgpt_web_credentials(agent, chatgpt_web_credentials)
     # Reload the credential pool on provider change: a pool with a mismatched provider makes
     # recover_with_credential_pool short-circuit. Reload failure is non-fatal.
     if old_norm != new_norm or getattr(agent, "_credential_pool", None) is None:
@@ -2049,6 +2057,8 @@ def _build_primary_runtime_snapshot(agent, api_mode) -> Dict[str, Any]:
         "compressor_api_mode": getattr(cc, "api_mode", agent.api_mode),
         "compressor_threshold_tokens": cc.threshold_tokens if cc else 0,
     }
+    if api_mode == "chatgpt_web":
+        rt["chatgpt_web_credentials"] = agent._chatgpt_web_credentials
     if api_mode == "anthropic_messages":
         rt.update({
             "anthropic_api_key": agent._anthropic_api_key,
@@ -2098,7 +2108,8 @@ def _persist_switch_billing_route(agent) -> None:
 
 
 def switch_model(
-    agent, new_model, new_provider, api_key='', base_url='', api_mode='', capabilities=None
+    agent, new_model, new_provider, api_key='', base_url='', api_mode='', capabilities=None,
+    chatgpt_web_credentials=None,
 ):
     """Switch the model/provider in-place for a live agent (rebuild clients, caching flags,
     compressor). Mirrors ``_try_activate_fallback()`` but also updates ``_primary_runtime`` so
@@ -2120,7 +2131,8 @@ def switch_model(
     snapshot = _snapshot_switch_state(agent)
     try:
         _swap_switch_runtime(
-            agent, new_model, new_provider, api_key, base_url, api_mode, old_provider, old_norm, new_norm
+            agent, new_model, new_provider, api_key, base_url, api_mode, old_provider, old_norm, new_norm,
+            chatgpt_web_credentials=chatgpt_web_credentials,
         )
     except Exception:
         _restore_switch_snapshot(agent, snapshot)

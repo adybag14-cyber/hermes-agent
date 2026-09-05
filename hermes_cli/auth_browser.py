@@ -258,12 +258,13 @@ async def _get_chatgpt_web_browser_auth_state(debug_base: str) -> dict[str, Any]
     if websockets is None:
         raise SystemExit("Python package 'websockets' is required for browser auth.")
 
-    with urllib.request.urlopen(f"{debug_base}/json/list", timeout=5) as response:
-        pages = json.load(response)
+    from hermes_cli.chatgpt_web import _chatgpt_web_browser_pages, _is_chatgpt_browser_page
+
+    pages = await asyncio.to_thread(_chatgpt_web_browser_pages, debug_base)
 
     page = None
     for item in pages:
-        if item.get("type") == "page" and "chatgpt.com" in str(item.get("url") or ""):
+        if _is_chatgpt_browser_page(item):
             page = item
             break
     if page is None:

@@ -2128,6 +2128,9 @@ def try_activate_fallback(agent, reason: "FailoverReason | None" = None) -> bool
 
         _rebind_fallback_credential_pool(agent, fb_provider, fb_model)
         _swap_fallback_clients(agent, fb_client, fb_provider, fb_model, fb_base_url, fb_api_mode)
+        from agent.chatgpt_credentials import rebind_chatgpt_web_credentials
+
+        rebind_chatgpt_web_credentials(agent, getattr(fb_client, "_chatgpt_web_credentials", None))
 
         from agent.agent_runtime_helpers import sync_credential_pool_entry_id
         sync_credential_pool_entry_id(agent)

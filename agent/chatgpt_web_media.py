@@ -9,6 +9,7 @@ import json
 from agent.prompt_builder import DEFAULT_AGENT_IDENTITY
 from agent.chatgpt_web_parsing import _CHATGPT_WEB_HERMES_INTRO
 from pathlib import Path
+from typing import Any, Optional
 from hermes_constants import get_hermes_home
 import uuid
 

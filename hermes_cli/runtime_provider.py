@@ -245,7 +245,12 @@ _NO_ANTHROPIC_CREDENTIALS_MSG = ("No Anthropic credentials found. Set ANTHROPIC_
 
 def _runtime(provider: str, api_mode: str, base_url: Any, api_key: Any, **extra: Any) -> Dict[str, Any]:
     """Build a resolved-runtime dict; ``extra`` carries source/requested_provider/provider-specific keys."""
-    return {"provider": provider, "api_mode": api_mode, "base_url": base_url, "api_key": api_key, **extra}
+    runtime = {"provider": provider, "api_mode": api_mode, "base_url": base_url, "api_key": api_key, **extra}
+    if provider == "chatgpt-web" or api_mode == "chatgpt_web":
+        from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
+        runtime.update(chatgpt_web_agent_kwargs(runtime))
+    return runtime
 
 
 def _cfg_provider(model_cfg: Dict[str, Any]) -> str:
@@ -468,8 +473,13 @@ def _resolve_runtime_from_pool_entry(*, provider: str, entry: PooledCredential, 
                                                   _pool_entry_base_url(entry).rstrip("/"))
     base_url = _finalize_base_url(provider, api_mode, base_url)
     api_mode = _maybe_apply_codex_app_server_runtime(provider=provider, api_mode=api_mode, model_cfg=model_cfg)
+    metadata = {}
+    if api_mode == "chatgpt_web":
+        from agent.chatgpt_credentials import CHATGPT_WEB_METADATA_FIELDS
+
+        metadata = {name: getattr(entry, name, None) for name in CHATGPT_WEB_METADATA_FIELDS}
     return _runtime(provider, api_mode, base_url, _pool_entry_api_key(entry), source=getattr(entry, "source", "pool"),
-                    credential_pool=pool, requested_provider=requested_provider)
+                    credential_pool=pool, requested_provider=requested_provider, **metadata)
 
 
 def _openrouter_should_use_pool(requested_provider, model_cfg, explicit_api_key, explicit_base_url) -> bool:

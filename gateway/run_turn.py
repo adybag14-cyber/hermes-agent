@@ -72,6 +72,9 @@ class GatewayTurnMixin:
                 )
             }
             override_runtime["capabilities"] = dict(override_runtime["capabilities"] or {})
+            from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
+            override_runtime.update(chatgpt_web_agent_kwargs(override))
             if override_runtime.get("api_key"):
                 if override_runtime.get("credential_pool") is None:
                     override_runtime["credential_pool"] = _credential_pool_for_provider(override.get("provider"))
@@ -170,6 +173,9 @@ class GatewayTurnMixin:
         }
         runtime["args"] = list(runtime["args"] or [])
         runtime["capabilities"] = dict(runtime["capabilities"] or {})
+        from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
+        runtime.update(chatgpt_web_agent_kwargs(runtime_kwargs))
         base_request_overrides = dict(runtime_kwargs.get("request_overrides") or {})
         route = {
             "model": model,

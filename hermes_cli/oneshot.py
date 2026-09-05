@@ -350,6 +350,7 @@ def _run_agent(
 ) -> tuple[str, dict]:
     """Build an AIAgent exactly like a normal CLI chat turn, run one conversation, and return
     ``(final_response, run_result)``. Imports are local to keep CLI startup cheap."""
+    from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
     from hermes_cli.config import load_config
     from hermes_cli.runtime_provider import resolve_runtime_provider
     from hermes_cli.tools_config import _get_platform_tools
@@ -398,6 +399,7 @@ def _run_agent(
             platform="cli",
             session_db=session_db,
             credential_pool=runtime.get("credential_pool"),
+            **chatgpt_web_agent_kwargs(runtime),
             fallback_model=get_fallback_chain(cfg) or None,
             ephemeral_system_prompt=skills_prompt,
             # The only interactive callback wired: no user sits at a terminal. Sudo prompts gate on

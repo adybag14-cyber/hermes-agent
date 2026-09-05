@@ -16,12 +16,13 @@ import threading
 
 from rich.markup import escape as _escape
 from hermes_cli.shared_utils import base_url_host_matches
+from agent.chatgpt_credentials import chatgpt_web_agent_kwargs, chatgpt_web_switch_kwargs
 
 # CLI-level fields describing the active model route; snapshotted before a switch / one-turn
 # override and restored wholesale on rollback.
 _RUNTIME_FIELDS = (
     "model", "provider", "requested_provider", "_explicit_api_key", "_explicit_base_url",
-    "api_key", "base_url", "api_mode")
+    "api_key", "base_url", "api_mode", "_chatgpt_web_credentials")
 
 
 def _runtime_fields(cli) -> dict:
@@ -384,6 +385,7 @@ class CLIModelSwitchMixin:
                 if resolved.get("api_key"):
                     self.api_key = resolved["api_key"]
                     self._credential_pool = resolved.get("credential_pool")
+                    self._chatgpt_web_credentials = chatgpt_web_agent_kwargs(resolved).get("chatgpt_web_credentials")
                 if not stored_base_url and resolved.get("base_url"):
                     self.base_url = resolved["base_url"]
                 if not stored_api_mode and resolved.get("api_mode"):
@@ -399,7 +401,8 @@ class CLIModelSwitchMixin:
             try:
                 self.agent.switch_model(
                     new_model=self.model, new_provider=self.provider, api_key=self.api_key or "",
-                    base_url=self.base_url or "", api_mode=self.api_mode or "")
+                    base_url=self.base_url or "", api_mode=self.api_mode or "",
+                    **chatgpt_web_agent_kwargs({**_runtime_fields(self), "chatgpt_web_credentials": getattr(self, "_chatgpt_web_credentials", None)}))
             except Exception:
                 logger.debug("In-place agent model swap on resume failed", exc_info=True)
         msg = f"Model restored from session: {stored_model}"
@@ -499,7 +502,8 @@ class CLIModelSwitchMixin:
                     new_model=snapshot.get("model", ""), new_provider=snapshot.get("provider", ""),
                     api_key=snapshot.get("api_key", ""), base_url=snapshot.get("base_url", ""),
                     api_mode=snapshot.get("api_mode", ""),
-                    capabilities=snapshot.get("capabilities"))
+                    capabilities=snapshot.get("capabilities"),
+                    **chatgpt_web_agent_kwargs({**snapshot, "chatgpt_web_credentials": snapshot.get("_chatgpt_web_credentials")}))
             except Exception as exc:
                 logger.warning("CLI one-turn model restore failed: %s", exc)
 
@@ -576,13 +580,14 @@ class CLIModelSwitchMixin:
             self.base_url = result.base_url
         if result.api_mode:
             self.api_mode = result.api_mode
+        self._chatgpt_web_credentials = getattr(result, "chatgpt_web_credentials", None)
 
         if self.agent is not None:
             try:
                 self.agent.switch_model(
                     new_model=result.new_model, new_provider=result.target_provider,
                     api_key=result.api_key, base_url=result.base_url, api_mode=result.api_mode,
-                    capabilities=getattr(result, "runtime_capabilities", None))
+                    capabilities=getattr(result, "runtime_capabilities", None), **chatgpt_web_switch_kwargs(result))
             except Exception as exc:
                 # The agent rolled itself back to the old working model/client. Roll the CLI's own staged
                 # fields back too and abort the rest of the commit (note + success print) so a failed switch

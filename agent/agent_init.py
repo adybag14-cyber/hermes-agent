@@ -2117,6 +2117,8 @@ def _snapshot_primary_runtime(agent):
         "compressor_context_length": _cc.context_length,
         "compressor_threshold_tokens": _cc.threshold_tokens,
     }
+    if agent.api_mode == "chatgpt_web":
+        agent._primary_runtime["chatgpt_web_credentials"] = agent._chatgpt_web_credentials
     if agent.api_mode == "anthropic_messages":
         agent._primary_runtime.update({
             "anthropic_api_key": agent._anthropic_api_key,
@@ -2225,6 +2227,7 @@ def init_agent(
     chatgpt_web_session_token: str = "", chatgpt_web_cookie_header: str = "",
     chatgpt_web_browser_cookies: Any = None, chatgpt_web_user_agent: str = "",
     chatgpt_web_device_id: str = "",
+    chatgpt_web_credentials: Any = None,
 ):
     """Initialize the AI Agent (body of :meth:`AIAgent.__init__`).
 
@@ -2284,7 +2287,7 @@ def init_agent(
         "session_token": chatgpt_web_session_token, "cookie_header": chatgpt_web_cookie_header,
         "browser_cookies": chatgpt_web_browser_cookies, "user_agent": chatgpt_web_user_agent,
         "device_id": chatgpt_web_device_id,
-    })
+    }, api_key=api_key, credential_snapshot=chatgpt_web_credentials)
     _finalize_routing(agent, api_mode, credential_pool)
 
     # Platform callbacks are stored under their parameter names verbatim.
@@ -2305,6 +2308,10 @@ def init_agent(
     _setup_logging(agent)
     _set_defaults(agent, _STREAM_STATE)
     _build_client(agent, api_key, base_url, fallback_model)
+    if agent.api_mode == "chatgpt_web":
+        from agent.chatgpt_credentials import bind_chatgpt_web_credentials, chatgpt_web_parent_kwargs
+
+        bind_chatgpt_web_credentials(agent, chatgpt_web_parent_kwargs(agent)["chatgpt_web_credentials"])
     _init_fallback_chain(agent, fallback_model)
     _load_tools(agent, enabled_toolsets, disabled_toolsets)
     _init_session_state(

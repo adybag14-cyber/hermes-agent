@@ -28,6 +28,7 @@ import time
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from agent.chatgpt_credentials import apply_chatgpt_web_runtime_override, chatgpt_web_agent_kwargs
 
 # _resolve_request_profile result for a /p/<profile>/ prefix this gateway does not serve (-> 404);
 # distinct from None (no prefix / multiplexing off -> default profile).
@@ -253,7 +254,7 @@ _REQUEST_OPTION_MISSING = object()
 # vocabulary clamping happens downstream in agent.reasoning_effort.
 _REASONING_EFFORTS = frozenset({"none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"})
 _RUNTIME_AGENT_OVERRIDE_KEYS = (
-    "api_key", "base_url", "provider", "api_mode", "command", "args", "credential_pool", "max_tokens")
+    "api_key", "base_url", "provider", "api_mode", "command", "args", "credential_pool", "max_tokens", "chatgpt_web_credentials")
 
 
 def _clean_request_string(value: Any) -> Optional[str]:
@@ -299,12 +300,13 @@ def _apply_runtime_agent_overrides(
     """Merge resolved provider/runtime fields into ``runtime_kwargs`` in place."""
     if not isinstance(overrides, dict):
         return runtime_kwargs
+    previous_runtime = dict(runtime_kwargs)
     for key in _RUNTIME_AGENT_OVERRIDE_KEYS:
         value = overrides.get(key)
         if value is None:
             continue
         runtime_kwargs[key] = list(value) if key == "args" and isinstance(value, (list, tuple)) else value
-    return runtime_kwargs
+    return apply_chatgpt_web_runtime_override(previous_runtime, runtime_kwargs, overrides)
 
 
 def _resolve_request_runtime_agent_kwargs(provider: str, target_model: Optional[str] = None) -> Dict[str, Any]:
@@ -332,7 +334,8 @@ def _resolve_request_runtime_agent_kwargs(provider: str, target_model: Optional[
     return {
         **{k: runtime.get(k) for k in ("api_key", "base_url", "provider", "api_mode", "command")},
         "args": list(runtime.get("args") or []),
-        "credential_pool": runtime.get("credential_pool"), "max_tokens": max_tokens}
+        "credential_pool": runtime.get("credential_pool"), "max_tokens": max_tokens,
+        **chatgpt_web_agent_kwargs(runtime)}
 
 
 def _request_agent_overrides(
@@ -2090,13 +2093,13 @@ class APIServerAdapter(OwnedApiRuntimeMixin, OpenAICompatRoutesMixin, BasePlatfo
                     runtime_kwargs, effective_provider, target_model=effective_model,
                     required=bool(request_provider) or confirmed_runtime_lock)
             if not applied and effective_provider and effective_provider != current_provider:
-                runtime_kwargs["provider"] = effective_provider
+                _apply_runtime_agent_overrides(runtime_kwargs, {"provider": effective_provider})
             model = effective_model
             # Per-route explicit transport secrets/base URLs win after provider resolution.
             for key in ("api_key", "base_url"):
                 value = _clean_request_string(route_cfg.get(key))
                 if value:
-                    runtime_kwargs[key] = value
+                    _apply_runtime_agent_overrides(runtime_kwargs, {key: value})
             if route:
                 logger.debug(
                     "api_server request selection applied: model=%s provider=%s route_provider=%s request_provider=%s",

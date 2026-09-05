@@ -30,6 +30,7 @@ from datetime import datetime
 from typing import Callable, Dict, Optional, Any, List, Tuple, cast
 
 from agent.async_utils import safe_schedule_threadsafe
+from agent.session_activity import ActivityProvenance
 from agent.conversation_compression import (
     COMPACTION_DONE_STATUS, COMPACTION_HEARTBEAT_STATUS, COMPACTION_STATUS, COMPRESSION_RETRY_CONTEXT_REDUCED_STATUS_TEMPLATE,
     COMPRESSION_RETRY_MESSAGES_STATUS_TEMPLATE, COMPRESSION_RETRY_TOKENS_STATUS_TEMPLATE,
@@ -2181,6 +2182,8 @@ def _resolve_runtime_agent_kwargs() -> dict:
 def _runtime_agent_kwargs(runtime: dict) -> dict:
     """AIAgent constructor kwargs shared by every runtime-provider resolution.
     ``request_overrides`` passes through as resolved so the provider's request body reaches each turn."""
+    from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
     return {
         "api_key": runtime.get("api_key"),
         "base_url": runtime.get("base_url"),
@@ -2190,7 +2193,7 @@ def _runtime_agent_kwargs(runtime: dict) -> dict:
         "command": runtime.get("command"),
         "args": list(runtime.get("args") or []),
         "credential_pool": runtime.get("credential_pool"),
-        "request_overrides": runtime.get("request_overrides")}
+        "request_overrides": runtime.get("request_overrides"), **chatgpt_web_agent_kwargs(runtime)}
 
 
 @dataclasses.dataclass(frozen=True)

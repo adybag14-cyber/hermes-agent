@@ -20,34 +20,44 @@ from agent.chatgpt_web_media import ChatGPTWebMediaMixin
 from agent.chatgpt_web_tools import ChatGPTWebToolsMixin
 
 
-def configure_browser_credentials(agent, values):
+def configure_browser_credentials(agent, values, *, api_key=None, credential_snapshot=None):
     agent._chatgpt_web_forced_tool_call = None
     agent._chatgpt_web_forced_tool_call_mode = "always"
     agent._chatgpt_web_selected_tool_names = []
     agent._chatgpt_web_selected_tool_payload_messages = []
+    agent._chatgpt_web_credentials = None
     for field, value in values.items():
         setattr(agent, "_chatgpt_web_" + field, value)
     if agent.api_mode != "chatgpt_web":
         return
     from agent.secret_scope import get_secret
-    from agent.credential_pool import load_pool
+    from agent.chatgpt_credentials import (
+        CHATGPT_WEB_METADATA_FIELDS, matching_chatgpt_web_credentials, validate_chatgpt_web_credentials,
+    )
 
-    text_fields = ("session_token", "cookie_header", "user_agent", "device_id")
-    for field in text_fields:
-        attribute = "_chatgpt_web_" + field
-        value = getattr(agent, attribute) or get_secret("CHATGPT_WEB_" + field.upper(), "")
-        setattr(agent, attribute, str(value or "").strip())
-    if any(getattr(agent, "_chatgpt_web_" + field) for field in text_fields) or agent._chatgpt_web_browser_cookies is not None:
-        return
-    try:
-        pool = load_pool("chatgpt-web")
-        entry = (pool.select() or pool.peek()) if pool and pool.has_credentials() else None
-        if entry is not None:
-            for field in text_fields:
-                setattr(agent, "_chatgpt_web_" + field, str(getattr(entry, field, "") or "").strip())
-            agent._chatgpt_web_browser_cookies = getattr(entry, "browser_cookies", None)
-    except Exception:
-        logger.debug("ChatGPT Web browser credentials unavailable from pool", exc_info=True)
+    if credential_snapshot is not None:
+        snapshot = validate_chatgpt_web_credentials(credential_snapshot, api_key)
+    else:
+        key = str(api_key or "").strip()
+        metadata = dict(values)
+        explicit_metadata = any(
+            metadata.get(name) is not None if name == "browser_cookies" else bool(metadata.get(name))
+            for name in CHATGPT_WEB_METADATA_FIELDS
+        )
+        if not explicit_metadata:
+            if key and get_secret("CHATGPT_WEB_ACCESS_TOKEN", "").strip() == key:
+                metadata.update({name: get_secret("CHATGPT_WEB_" + name.upper(), "")
+                                 for name in CHATGPT_WEB_METADATA_FIELDS if name != "browser_cookies"})
+            else:
+                # The grant is already selected. A second pool select could
+                # attach a different account's browser session to it.
+                snapshot = matching_chatgpt_web_credentials(key)
+                metadata = {name: getattr(snapshot, name) for name in CHATGPT_WEB_METADATA_FIELDS}
+        snapshot = validate_chatgpt_web_credentials({"api_key": key, **metadata}, key)
+    for name in CHATGPT_WEB_METADATA_FIELDS:
+        setattr(agent, "_chatgpt_web_" + name, getattr(snapshot, name))
+    if api_key is not None or credential_snapshot is not None:
+        agent._chatgpt_web_credentials = snapshot
 
 
 class ChatGPTWebTransportMixin(ChatGPTWebMessagesMixin, ChatGPTWebMediaMixin, ChatGPTWebToolsMixin):
@@ -324,6 +334,8 @@ class ChatGPTWebTransportMixin(ChatGPTWebMessagesMixin, ChatGPTWebMediaMixin, Ch
             "on_delta": _on_delta,
             "client": client,
         }
+        if getattr(self, "_chatgpt_web_credentials", None) is not None:
+            call_kwargs["credential_snapshot"] = self._chatgpt_web_credentials
 
         retried_stale_thread = False
         while True:

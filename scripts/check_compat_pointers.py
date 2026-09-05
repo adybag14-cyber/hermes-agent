@@ -17,13 +17,12 @@ from __future__ import annotations
 
 import ast
 import json
-import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "compat_manifest.json"
-SKIP_DIRS = {".git", "node_modules", "website", "skills", "optional-skills", "apps", "evals", "build", "MagicMock", ".worktrees", "__pycache__"}
+SKIP_DIRS = {".git", ".venv", "venv", ".artifacts", "node_modules", "website", "skills", "optional-skills", "apps", "evals", "build", "MagicMock", ".worktrees", "__pycache__"}
 
 
 def _py_files():
@@ -37,6 +36,24 @@ def _py_files():
         yield p
 
 
+def _string_patch_target(node: ast.Call, patch_aliases: set[str]) -> ast.Constant | None:
+    """Inspect actual patch calls, not diagnostic/example strings in test data."""
+    fn = node.func
+    patch_call = isinstance(fn, ast.Name) and fn.id in patch_aliases
+    if isinstance(fn, ast.Attribute):
+        patch_call = fn.attr in {"patch", "setattr", "delattr"} or (
+            fn.attr == "dict"
+            and ((isinstance(fn.value, ast.Name) and fn.value.id in patch_aliases)
+                 or (isinstance(fn.value, ast.Attribute) and fn.value.attr == "patch"))
+        )
+    if not patch_call:
+        return None
+    target = node.args[0] if node.args else next(
+        (kw.value for kw in node.keywords if kw.arg == "target"), None
+    )
+    return target if isinstance(target, ast.Constant) and isinstance(target.value, str) else None
+
+
 def main() -> int:
     if not MANIFEST.exists():
         print("compat_manifest.json missing — nothing to check (compat layer already reverted?)")
@@ -47,7 +64,6 @@ def main() -> int:
         compat.setdefault(e["facade"], set()).add(e["name"])
     facades = set(compat)
     hits: list[str] = []
-    str_pat = re.compile(r"""["']((?:[A-Za-z_][\w]*\.)+[A-Za-z_]\w*)["']""")
     for path in _py_files():
         rel = path.relative_to(ROOT)
         try:
@@ -57,7 +73,10 @@ def main() -> int:
             continue
         # module-level facade import aliases in this file: alias -> facade
         aliases: dict[str, str] = {}
+        patch_aliases = {"patch"}
         for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module in {"unittest.mock", "mock"}:
+                patch_aliases.update(a.asname or a.name for a in node.names if a.name == "patch")
             if isinstance(node, ast.ImportFrom) and node.module in facades and node.level == 0:
                 bad = [a.name for a in node.names if a.name in compat[node.module]]
                 for b in bad:
@@ -77,6 +96,12 @@ def main() -> int:
                 if fac and node.attr in compat[fac]:
                     hits.append(f"{rel}:{node.lineno}: {node.value.id}.{node.attr} (via {fac})")
             elif isinstance(node, ast.Call):
+                target = _string_patch_target(node, patch_aliases)
+                if target is not None:
+                    dotted = target.value.strip()
+                    fac, _, name = dotted.rpartition(".")
+                    if fac in facades and name in compat[fac]:
+                        hits.append(f'{rel}:{target.lineno}: "{dotted}" (string patch target)')
                 # monkeypatch.setattr(<facade alias>, "<name>", ...) / patch.object(<facade alias>, "<name>")
                 fn = node.func
                 is_setattr = (isinstance(fn, ast.Attribute) and fn.attr in ("setattr", "delattr", "object")) or (
@@ -85,12 +110,6 @@ def main() -> int:
                     fac = aliases.get(node.args[0].id)
                     if fac and node.args[1].value in compat[fac]:
                         hits.append(f"{rel}:{node.lineno}: setattr/patch({node.args[0].id}, \"{node.args[1].value}\") (via {fac})")
-            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
-                m = str_pat.fullmatch(node.value.strip())
-                if m:
-                    dotted = m.group(1); fac, _, name = dotted.rpartition(".")
-                    if fac in facades and name in compat[fac]:
-                        hits.append(f"{rel}:{node.lineno}: \"{dotted}\" (string patch target)")
     if hits:
         print("❌ in-tree code depends on plugin-compat pointers (scheduled for removal):")
         for h in sorted(set(hits)):

@@ -9,6 +9,7 @@ import sys
 from rich.markup import escape as _escape
 
 from hermes_cli.shared_utils import base_url_host_matches
+from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
 
 
 def _single_query_clarify_callback(question: str, choices=None, multi_select=False) -> str:
@@ -41,14 +42,18 @@ def _current_runtime(cli) -> dict:
         "api_mode": cli.api_mode,
         "command": cli.acp_command,
         "args": list(cli.acp_args or []),
-        "credential_pool": getattr(cli, "_credential_pool", None)}
+        "credential_pool": getattr(cli, "_credential_pool", None),
+        **({"chatgpt_web_credentials": cli._chatgpt_web_credentials}
+           if getattr(cli, "_chatgpt_web_credentials", None) is not None else {})}
 
 
 def _route_signature(model, runtime: dict) -> tuple:
     """Hashable identity of (model, routing) used to detect when the agent must be rebuilt."""
-    return (
+    signature = (
         model, runtime.get("provider"), runtime.get("requested_provider"), runtime.get("base_url"),
         runtime.get("api_mode"), runtime.get("command"), tuple(runtime.get("args") or ()))
+    paired = chatgpt_web_agent_kwargs(runtime)
+    return signature + (paired["chatgpt_web_credentials"],) if paired else signature
 
 
 def _keyless_custom_base(base_url) -> bool:
@@ -222,10 +227,15 @@ class CLIAgentSetupMixin:
             print("\n⚠️  Provider resolver returned an empty base URL. "
                   "Check your provider config or run: hermes setup")
             return False
-        credentials_changed = api_key != self.api_key or base_url != self.base_url
+        paired = chatgpt_web_agent_kwargs(runtime).get("chatgpt_web_credentials")
+        credentials_changed = (
+            api_key != self.api_key or base_url != self.base_url
+            or paired != getattr(self, "_chatgpt_web_credentials", None)
+        )
         routing_changed = resolved_routing != (self.provider, self.api_mode, self.acp_command, self.acp_args)
         self.provider, self.api_mode, self.acp_command, self.acp_args = resolved_routing
         self._credential_pool = runtime.get("credential_pool")
+        self._chatgpt_web_credentials = paired
         self._provider_source = runtime.get("source")
         self.api_key = api_key
         self.base_url = base_url
@@ -516,6 +526,7 @@ class CLIAgentSetupMixin:
                 requested_provider=runtime.get("requested_provider"),
                 api_mode=runtime.get("api_mode"), acp_command=runtime.get("command"),
                 acp_args=runtime.get("args"), credential_pool=runtime.get("credential_pool"),
+                **chatgpt_web_agent_kwargs(runtime),
                 max_tokens=self.max_tokens, max_iterations=self.max_turns,
                 run_budget_seconds=getattr(self, "run_budget_seconds", None),
                 enabled_toolsets=self.enabled_toolsets, disabled_toolsets=self.disabled_toolsets,

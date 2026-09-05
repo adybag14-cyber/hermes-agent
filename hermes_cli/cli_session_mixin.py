@@ -86,16 +86,19 @@ def _reset_model_to_config_default(cli, silent: bool) -> None:
             explicit_provider=_config_provider or "")
         if not r.success:
             return
+        from agent.chatgpt_credentials import chatgpt_web_switch_kwargs
+
         if cli.agent:
             cli.agent.switch_model(
                 new_model=r.new_model, new_provider=r.target_provider, api_key=r.api_key,
                 base_url=r.base_url, api_mode=r.api_mode,
-                capabilities=getattr(r, "runtime_capabilities", None))
+                capabilities=getattr(r, "runtime_capabilities", None), **chatgpt_web_switch_kwargs(r))
         cli.model = r.new_model
         cli.provider = r.target_provider
         cli.requested_provider = r.target_provider
         cli._explicit_api_key = r.api_key
         cli._explicit_base_url = r.base_url
+        cli._chatgpt_web_credentials = getattr(r, "chatgpt_web_credentials", None)
         if r.api_key:
             cli.api_key = r.api_key
         if r.base_url:

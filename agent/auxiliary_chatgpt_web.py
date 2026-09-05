@@ -11,6 +11,10 @@ from types import SimpleNamespace
 from typing import Any, Optional
 
 from hermes_cli.chatgpt_web import resolve_chatgpt_web_runtime_credentials, stream_chatgpt_web_completion
+from agent.chatgpt_credentials import (
+    CHATGPT_WEB_METADATA_FIELDS, chatgpt_web_credential_fingerprint,
+    matching_chatgpt_web_credentials, validate_chatgpt_web_credentials,
+)
 
 logger = logging.getLogger("agent.auxiliary_client")
 
@@ -217,6 +221,10 @@ class _ChatGptWebCompletionsAdapter:
         self._browser_cookies = browser_cookies
         self._user_agent = user_agent
         self._device_id = device_id
+        self._credential_snapshot = validate_chatgpt_web_credentials({
+            "api_key": access_token, "session_token": session_token, "cookie_header": cookie_header,
+            "browser_cookies": browser_cookies, "user_agent": user_agent, "device_id": device_id,
+        }, access_token)
 
     def create(self, **kwargs) -> Any:
         from agent.auxiliary_client import _notify_aux_provider_response
@@ -262,6 +270,7 @@ class _ChatGptWebCompletionsAdapter:
             browser_cookies=self._browser_cookies,
             user_agent=self._user_agent,
             device_id=self._device_id,
+            credential_snapshot=self._credential_snapshot,
             timeout=timeout,
             history_and_training_disabled=True,
             on_delta=lambda text: _notify_aux_provider_response() if text else None,
@@ -318,6 +327,7 @@ class ChatGptWebAuxiliaryClient:
                 device_id=device_id,
             )
         )
+        self._chatgpt_web_credentials = self.chat.completions._credential_snapshot
 
     def close(self):
         return None
@@ -346,6 +356,7 @@ class AsyncChatGptWebAuxiliaryClient:
         )
         self.api_key = sync_wrapper.api_key
         self.base_url = sync_wrapper.base_url
+        self._chatgpt_web_credentials = sync_wrapper._chatgpt_web_credentials
 
 
 def resolve_chatgpt_web(req):
@@ -378,11 +389,20 @@ def resolve_chatgpt_web(req):
         base = str(req.explicit_base_url or "https://chatgpt.com/backend-api/f").rstrip("/")
         return aux._AuxProbeClientStub(api_key="", base_url=base), model
 
-    if req.explicit_api_key:
-        creds = {"api_key": req.explicit_api_key, **{
-            field: get_secret("CHATGPT_WEB_" + field.upper(), "") or ""
-            for field in ("session_token", "cookie_header", "user_agent", "device_id")
-        }}
+    main = req.main_runtime or {}
+    paired_main = main.get("chatgpt_web_credentials")
+    if paired_main is not None and (not req.explicit_api_key or req.explicit_api_key == main.get("api_key")):
+        snapshot = validate_chatgpt_web_credentials(paired_main, main.get("api_key"))
+        creds = {"api_key": snapshot.api_key, "base_url": main.get("base_url"),
+                 **{name: getattr(snapshot, name) for name in CHATGPT_WEB_METADATA_FIELDS}}
+    elif req.explicit_api_key:
+        key = str(req.explicit_api_key).strip()
+        if key == get_secret("CHATGPT_WEB_ACCESS_TOKEN", "").strip():
+            creds = {"api_key": key, **{name: get_secret("CHATGPT_WEB_" + name.upper(), "") or ""
+                                      for name in CHATGPT_WEB_METADATA_FIELDS if name != "browser_cookies"}}
+        else:
+            snapshot = matching_chatgpt_web_credentials(key)
+            creds = {"api_key": key, **{name: getattr(snapshot, name) for name in CHATGPT_WEB_METADATA_FIELDS}}
     else:
         try:
             creds = resolve_chatgpt_web_runtime_credentials()
@@ -415,6 +435,10 @@ def cache_scope_hint(provider, runtime):
         resolved = aux._normalize_aux_provider(runtime.get("provider") or aux._read_main_provider())
     if resolved != "chatgpt-web":
         return ""
+    if runtime.get("api_key"):
+        paired_hint = chatgpt_web_credential_fingerprint(runtime)
+        if paired_hint is not None:
+            return f":chatgpt-web:{paired_hint}"
     values = [str(aux.get_hermes_home())] + [get_secret(name, "") or "" for name in (
         "CHATGPT_WEB_ACCESS_TOKEN", "CHATGPT_WEB_SESSION_TOKEN", "CHATGPT_WEB_COOKIE_HEADER",
         "CHATGPT_WEB_USER_AGENT", "CHATGPT_WEB_DEVICE_ID",

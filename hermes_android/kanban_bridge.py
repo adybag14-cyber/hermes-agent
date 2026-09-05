@@ -16,6 +16,7 @@ from hermes_android.python_path import prefer_hermes_package_root
 prefer_hermes_package_root()
 
 from hermes_cli import kanban_db as kb
+from hermes_cli.kanban_db_connect import connect
 
 
 def _hermes_home(hermes_home: str | None) -> str:
@@ -57,7 +58,7 @@ def ensure_board(hermes_home: str | None = None, board: str | None = None) -> st
         home = _hermes_home(hermes_home)
         os.environ.setdefault("HERMES_HOME", home)
         # connect() auto-initializes schema on first open.
-        conn = kb.connect(board=board)
+        conn = connect(board=board)
         try:
             path = str(kb.kanban_db_path(board=board))
             boards = kb.list_boards(include_archived=False)
@@ -85,7 +86,7 @@ def list_board(
     try:
         home = _hermes_home(hermes_home)
         os.environ.setdefault("HERMES_HOME", home)
-        conn = kb.connect(board=board)
+        conn = connect(board=board)
         try:
             status_filter = status.strip() if status and str(status).strip() else None
             tasks = kb.list_tasks(
@@ -119,7 +120,7 @@ def show_task(
         tid = str(task_id or "").strip()
         if not tid:
             return _err("task_id is required")
-        conn = kb.connect(board=board)
+        conn = connect(board=board)
         try:
             task = kb.get_task(conn, tid)
             if task is None:
@@ -153,7 +154,7 @@ def create_task(
         cleaned = str(title or "").strip()
         if not cleaned:
             return _err("title is required")
-        conn = kb.connect(board=board)
+        conn = connect(board=board)
         try:
             task_id = kb.create_task(
                 conn,
@@ -187,7 +188,7 @@ def comment_task(
             return _err("task_id is required")
         if not body:
             return _err("comment text is required")
-        conn = kb.connect(board=board)
+        conn = connect(board=board)
         try:
             if kb.get_task(conn, tid) is None:
                 return _err(f"task not found: {tid}")
@@ -211,7 +212,7 @@ def complete_task(
         tid = str(task_id or "").strip()
         if not tid:
             return _err("task_id is required")
-        conn = kb.connect(board=board)
+        conn = connect(board=board)
         try:
             ok = kb.complete_task(
                 conn,
@@ -240,7 +241,7 @@ def unblock_task(
         tid = str(task_id or "").strip()
         if not tid:
             return _err("task_id is required")
-        conn = kb.connect(board=board)
+        conn = connect(board=board)
         try:
             ok = kb.unblock_task(conn, tid)
             if not ok:

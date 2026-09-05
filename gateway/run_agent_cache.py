@@ -15,6 +15,9 @@ from agent.interrupt_compat import _accepts_keyword
 from gateway.config import Platform
 from gateway.session import SessionSource, build_session_context_prompt
 from hermes_cli.config import cfg_get
+from agent.chatgpt_credentials import (
+    apply_chatgpt_web_runtime_override, chatgpt_web_agent_kwargs, chatgpt_web_credential_fingerprint,
+)
 
 if TYPE_CHECKING:  # string annotations only; never imported at runtime (cycle)
     from gateway.run import GatewayRunner  # noqa: F401
@@ -123,6 +126,10 @@ class GatewayAgentCacheMixin:
         # Fingerprint the FULL credential, not a short prefix: OAuth/JWT-style tokens often share a
         # common prefix (e.g. "eyJhbGci"), so a prefix would give false cache hits across auth switches.
         _api_key = str(runtime.get("api_key", "") or "")
+        cache_signature = sorted((cache_keys or {}).items())
+        paired_fingerprint = chatgpt_web_credential_fingerprint(runtime)
+        if paired_fingerprint is not None:
+            cache_signature.append(("chatgpt_web_credentials", paired_fingerprint))
         blob = _j.dumps(
             [
                 model,
@@ -133,7 +140,7 @@ class GatewayAgentCacheMixin:
                 sorted(enabled_toolsets) if enabled_toolsets else [],
                 # reasoning_config excluded — set per-message on the cached agent; no prompt/tool effect.
                 ephemeral_prompt or "",
-                sorted((cache_keys or {}).items()),
+                cache_signature,
                 str(user_id or ""), str(user_id_alt or ""),
                 # skip_context_files changes the agent's frozen system prompt (context files in vs out):
                 # a toggled edit must rebuild the cached agent, not silently reuse it.
@@ -175,6 +182,7 @@ class GatewayAgentCacheMixin:
                     override[k] = runtime.get(k)
                 override["request_overrides"] = dict(runtime.get("request_overrides") or {})
                 override["capabilities"] = dict(runtime.get("capabilities") or {})
+                override.update(chatgpt_web_agent_kwargs(runtime))
                 if not override.get("base_url"):
                     override["base_url"] = runtime.get("base_url")
             except Exception:
@@ -196,10 +204,12 @@ class GatewayAgentCacheMixin:
         if not override:
             return model, runtime_kwargs
         model = override.get("model", model)
+        previous_runtime = dict(runtime_kwargs)
         for key in _OVERRIDE_APPLY_KEYS:
             val = override.get(key)
             if val is not None:
                 runtime_kwargs[key] = val
+        apply_chatgpt_web_runtime_override(previous_runtime, runtime_kwargs, override)
         # request_overrides reflects the switched-to provider; apply whenever the override recorded
         # it (even as None) so switching to a provider without configured overrides clears a stale
         # value left by the default provider's runtime resolution.

@@ -351,12 +351,15 @@ def _runtime_provider_credentials(v: dict, explicit_request_overrides) -> dict:
         f"'{pinned_command}' command, which was not found on PATH. "
         f"Install it or choose a different delegation provider.",
     )
+    from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
     return _credential_bundle(
         v["model"] or runtime.get("model") or None,
         configured_provider if runtime.get("provider") == _RUNTIME_PROVIDER_CUSTOM else runtime.get("provider"),
         runtime.get("base_url"), api_key, runtime.get("api_mode"),
         _merge_request_overrides(runtime.get("request_overrides"), explicit_request_overrides) or {},
         runtime.get("max_output_tokens"), command=pinned_command, args=list(runtime.get("args") or []),
+        **chatgpt_web_agent_kwargs(runtime),
     )
 
 def _resolve_effective_max_iterations(default: Any = None) -> int:
@@ -431,6 +434,7 @@ def _resolve_child_runtime(
     parent_agent, delegation_cfg: dict, parent_api_key: Any, *, model: Optional[str], override_provider: Optional[str],
     override_base_url: Optional[str], override_api_key: Optional[str], override_api_mode: Optional[str],
     override_max_tokens: Optional[int], override_acp_command: Optional[str], override_acp_args: Optional[List[str]],
+    override_chatgpt_web_credentials: Any = None,
 ) -> Dict[str, Any]:
     """Child credentials, transport and routing (config override > parent inherit) as ``AIAgent`` kwargs. Rules that
     are easy to break: api_mode is re-derived (not inherited) when the child's provider differs from the parent's
@@ -516,4 +520,19 @@ def _resolve_child_runtime(
     child_max_tokens = override_max_tokens if override_max_tokens is not None else getattr(parent_agent, "max_tokens", None)
     if isinstance(child_max_tokens, int):
         kwargs["max_tokens"] = child_max_tokens
+    if effective_provider == "chatgpt-web" or effective_api_mode == "chatgpt_web":
+        from agent.chatgpt_credentials import chatgpt_web_agent_kwargs, chatgpt_web_parent_kwargs
+        from hermes_cli.route_identity import normalize_route_base_url
+
+        if override_chatgpt_web_credentials is not None:
+            kwargs.update(chatgpt_web_agent_kwargs({**kwargs, "chatgpt_web_credentials": override_chatgpt_web_credentials}))
+        elif (
+            effective_provider == getattr(parent_agent, "provider", None)
+            and kwargs["api_key"] == parent_api_key
+            and normalize_route_base_url(effective_base_url) == normalize_route_base_url(parent_agent.base_url)
+        ):
+            kwargs.update(chatgpt_web_parent_kwargs(parent_agent))
+        else:
+            # A distinct explicit grant must not inherit the parent's cookies.
+            kwargs.update(chatgpt_web_agent_kwargs(kwargs))
     return kwargs

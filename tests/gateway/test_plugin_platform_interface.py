@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PLATFORMS_DIR = PROJECT_ROOT / "plugins" / "platforms"
 
 
@@ -33,6 +33,10 @@ def _discover_platform_plugins() -> list[str]:
 _PLATFORM_NAMES = _discover_platform_plugins()
 
 
+def test_bundled_platform_discovery_is_nonempty():
+    assert _PLATFORM_NAMES, f"No bundled platforms discovered in {PLATFORMS_DIR}"
+
+
 @pytest.fixture
 def clean_registry():
     """Yield with a clean platform registry, restoring state afterwards."""
@@ -48,12 +52,22 @@ def clean_registry():
 class _MockPluginContext:
     """Minimal mock of hermes_cli.plugins.PluginContext.
 
-    Only implements register_platform so we can exercise the plugin's
-    register() entrypoint without importing the real plugin system.
+    Records platform, hook and CLI registration without activating any of them.
     """
 
     def __init__(self):
         self.registered_names: list[str] = []
+        self.hooks: dict[str, Any] = {}
+        self.cli_commands: dict[str, dict[str, Any]] = {}
+
+    def register_hook(self, hook_name: str, callback: Any) -> None:
+        assert callable(callback)
+        self.hooks[hook_name] = callback
+
+    def register_cli_command(self, *, name: str, **kwargs: Any) -> None:
+        assert callable(kwargs["setup_fn"])
+        assert callable(kwargs["handler_fn"])
+        self.cli_commands[name] = kwargs
 
     def register_platform(
         self,
@@ -128,5 +142,3 @@ def test_platform_entry_has_required_fields(platform_name: str, clean_registry):
         assert callable(entry.is_connected)
     if entry.setup_fn is not None:
         assert callable(entry.setup_fn)
-
-

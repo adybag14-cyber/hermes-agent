@@ -278,7 +278,7 @@ class TestSessionKeyContext:
         results = {}
 
         def worker_alice():
-            token = approval_module.set_current_session_key("alice")
+            token = approval_context.set_current_session_key("alice")
             try:
                 alice_ready.set()
                 if not bob_ready.wait(timeout=5):
@@ -290,19 +290,19 @@ class TestSessionKeyContext:
             except Exception as exc:
                 results["error"] = exc
             finally:
-                approval_module.reset_current_session_key(token)
+                approval_context.reset_current_session_key(token)
 
         worker = threading.Thread(target=worker_alice, daemon=True)
         worker.start()
         try:
             assert alice_ready.wait(timeout=5)
-            bob_token = approval_module.set_current_session_key("bob")
+            bob_token = approval_context.set_current_session_key("bob")
             try:
                 monkeypatch.setenv("HERMES_SESSION_KEY", "bob")
                 bob_ready.set()
                 worker.join(timeout=5)
             finally:
-                approval_module.reset_current_session_key(bob_token)
+                approval_context.reset_current_session_key(bob_token)
             assert not worker.is_alive()
             assert "error" not in results, results.get("error")
             assert results["approval"]["status"] == "pending_approval"

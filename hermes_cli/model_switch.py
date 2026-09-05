@@ -440,6 +440,7 @@ class ModelSwitchResult:
     runtime_capabilities: Optional[dict[str, bool]] = None
     model_info: Optional[ModelInfo] = None
     is_global: bool = False
+    chatgpt_web_credentials: Any = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -993,6 +994,9 @@ def _apply_direct_alias_endpoint(st: "_Switch", da: DirectAlias) -> None:
         except Exception:
             alias_runtime = {}
         st.base_url = alias_runtime.get("base_url", "") or da.base_url
+        from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
+        st.chatgpt_web_credentials = chatgpt_web_agent_kwargs(alias_runtime).get("chatgpt_web_credentials")
         # The resolver reports "no key found" as the `no-key-required` placeholder; normalise so
         # a same-host credential still outranks it.
         resolved_key = alias_runtime.get("api_key", "")
@@ -1052,6 +1056,7 @@ class _Switch:
     validation_headers: dict = field(default_factory=dict)
     suppress_ollama_headers: bool = False
     validation: dict = field(default_factory=dict)
+    chatgpt_web_credentials: Any = field(default=None, repr=False)
 
     def fail(self, message: str, **fields) -> ModelSwitchResult:
         return ModelSwitchResult(success=False, is_global=self.is_global, error_message=message, **fields)
@@ -1071,6 +1076,9 @@ class _Switch:
         rt = resolve_runtime_provider(target_model=self.new_model, **kwargs)
         self.api_key, self.base_url = rt.get("api_key", ""), rt.get("base_url", "")
         self.api_mode = rt.get("api_mode", "")
+        from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
+        self.chatgpt_web_credentials = chatgpt_web_agent_kwargs(rt).get("chatgpt_web_credentials")
         self.validation_headers = rt.get("extra_headers") or self.validation_headers
 
 
@@ -1441,6 +1449,11 @@ def _build_switch_result(st: _Switch) -> ModelSwitchResult:
         request_overrides = _custom_provider_request_overrides(cp_for_ro) or None if cp_for_ro else None
     except Exception:
         request_overrides = None
+    from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
+    final_runtime = {"provider": st.target_provider, "api_mode": st.api_mode, "api_key": st.api_key}
+    if st.chatgpt_web_credentials is not None and st.chatgpt_web_credentials.api_key == st.api_key:
+        final_runtime["chatgpt_web_credentials"] = st.chatgpt_web_credentials
     return ModelSwitchResult(
         success=True, new_model=st.new_model, target_provider=st.target_provider,
         provider_changed=st.provider_changed, api_key=st.api_key, base_url=st.base_url, api_mode=st.api_mode,
@@ -1448,7 +1461,7 @@ def _build_switch_result(st: _Switch) -> ModelSwitchResult:
         provider_label=st.provider_label, resolved_via_alias=st.resolved_alias, capabilities=capabilities,
         runtime_capabilities={
             k: v for k, v in runtime_capabilities.items() if isinstance(k, str) and isinstance(v, bool)},
-        model_info=model_info, is_global=st.is_global)
+        model_info=model_info, is_global=st.is_global, **chatgpt_web_agent_kwargs(final_runtime))
 
 
 def switch_model(

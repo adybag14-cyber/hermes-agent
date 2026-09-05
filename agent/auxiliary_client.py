@@ -2891,6 +2891,10 @@ def _normalize_main_runtime(main_runtime: Optional[Dict[str, Any]]) -> Dict[str,
         identity = normalized.get(identity_field)
         if isinstance(identity, str):
             normalized[identity_field] = identity.lower()
+    if normalized.get("api_key"):
+        from agent.chatgpt_credentials import chatgpt_web_agent_kwargs
+
+        normalized.update(chatgpt_web_agent_kwargs(main_runtime))
     return normalized
 
 
@@ -4086,6 +4090,7 @@ def _main_route_target(runtime: Dict[str, Any], task: Optional[str]) -> Tuple[st
 
 def _try_main_provider_route(
     main_provider: str, main_model: str, runtime_base_url: str, runtime_api_key: Any, runtime_api_mode: str,
+    *, main_runtime: Optional[Dict[str, Any]] = None,
 ) -> Optional[Tuple[Any, str, str]]:
     """Step 1: route aux onto the main provider + main model; None if unusable."""
     if not (main_provider and main_model and main_provider not in {"auto", ""}):
@@ -4124,6 +4129,7 @@ def _try_main_provider_route(
     client, resolved = resolve_provider_client(
         resolved_provider, main_model, explicit_base_url=explicit_base_url,
         explicit_api_key=explicit_api_key, api_mode=runtime_api_mode or None,
+        **({"main_runtime": main_runtime} if main_runtime and "chatgpt_web_credentials" in main_runtime else {}),
     )
     if client is None:
         return None
@@ -4167,7 +4173,7 @@ def _resolve_auto_route(
     runtime = _normalize_main_runtime(main_runtime)
     _warn_stale_openai_base_url(runtime.get("provider", ""))
     main_provider, main_model, base_url, api_key, api_mode = _main_route_target(runtime, task)
-    routed = _try_main_provider_route(main_provider, main_model, base_url, api_key, api_mode)
+    routed = _try_main_provider_route(main_provider, main_model, base_url, api_key, api_mode, main_runtime=runtime)
     if routed is not None:
         return routed
     if task:

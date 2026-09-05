@@ -280,6 +280,7 @@ class AIAgent(
         chatgpt_web_session_token: str = "", chatgpt_web_cookie_header: str = "",
         chatgpt_web_browser_cookies: Any = None, chatgpt_web_user_agent: str = "",
         chatgpt_web_device_id: str = "",
+        chatgpt_web_credentials: Any = None,
     ):
         """Forwarder — see ``agent.agent_init.init_agent`` (same keyword parameters, minus ``tool_delay``)."""
         init_kwargs = {k: v for k, v in locals().items() if k not in ("self", "tool_delay")}
@@ -506,9 +507,12 @@ class AIAgent(
             detail = detail[:217].rstrip() + "..."
         self._emit_warning(f"⚠ Auxiliary {task} failed: {detail}")
 
-    def _current_main_runtime(self) -> Dict[str, str]:
+    def _current_main_runtime(self) -> Dict[str, Any]:
         """Return the live main runtime for session-scoped auxiliary routing."""
-        return {key: getattr(self, key, "") or "" for key in ("model", "provider", "base_url", "api_key", "api_mode", "auth_mode")}
+        from agent.chatgpt_credentials import chatgpt_web_parent_kwargs
+
+        return {**{key: getattr(self, key, "") or "" for key in ("model", "provider", "base_url", "api_key", "api_mode", "auth_mode")},
+                **chatgpt_web_parent_kwargs(self)}
 
     _check_compression_model_feasibility = _forward("agent.conversation_compression", "check_compression_model_feasibility")
     _replay_compression_warning = _forward("agent.conversation_compression", "replay_compression_warning")

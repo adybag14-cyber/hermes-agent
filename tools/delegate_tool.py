@@ -124,6 +124,7 @@ def _build_child_agent(
     override_acp_args: Optional[List[str]] = None,
     # Legacy; accepted for wire compat but ignored (capability is depth-derived).
     role: str = "leaf",
+    override_chatgpt_web_credentials: Any = None,
 ):
     """Build (don't run) a child AIAgent on the main thread. override_* (from delegation config) replace parent
     inheritance so children can run on a different provider:model pair."""
@@ -164,6 +165,7 @@ def _build_child_agent(
         override_base_url=override_base_url, override_api_key=override_api_key, override_api_mode=override_api_mode,
         override_max_tokens=override_max_tokens, override_acp_command=override_acp_command,
         override_acp_args=override_acp_args,
+        override_chatgpt_web_credentials=override_chatgpt_web_credentials,
     )
     if override_request_overrides is not None:
         # honored whenever set, incl. the inherit branch where
@@ -312,6 +314,8 @@ def _build_children(
         "override_request_overrides": creds.get("request_overrides"),
         "override_max_tokens": creds.get("max_output_tokens"), "override_acp_command": creds.get("command"),
         "override_acp_args": creds.get("args"),
+        **({"override_chatgpt_web_credentials": creds["chatgpt_web_credentials"]}
+           if "chatgpt_web_credentials" in creds else {}),
     }
     children = []
     for i, t in enumerate(task_list):

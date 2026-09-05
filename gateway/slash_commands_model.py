@@ -212,11 +212,14 @@ class GatewayModelCommandsMixin:
         cached_agent = self._cached_agent_for(ctx.session_key)
         if cached_agent is None:
             return None
+        from agent.chatgpt_credentials import chatgpt_web_switch_kwargs
+
         try:
             cached_agent.switch_model(
                 new_model=result.new_model, new_provider=result.target_provider,
                 api_key=result.api_key, base_url=result.base_url, api_mode=result.api_mode,
                 capabilities=getattr(result, "runtime_capabilities", None),
+                **chatgpt_web_switch_kwargs(result),
             )
         except Exception as exc:
             logger.warning(
@@ -233,6 +236,7 @@ class GatewayModelCommandsMixin:
     ) -> None:
         """Persist a committed switch: session DB, next-turn note, override map, config write-through."""
         from hermes_cli.model_switch import format_model_for_display
+        from agent.chatgpt_credentials import chatgpt_web_switch_kwargs
 
         # Persist the new model to the session DB so the dashboard shows the updated model (#34850).
         _sess_db = getattr(self, "_session_db", None)
@@ -265,6 +269,7 @@ class GatewayModelCommandsMixin:
             "base_url": result.base_url, "api_mode": result.api_mode,
             "request_overrides": dict(result.request_overrides or {}),
             "capabilities": dict(result.runtime_capabilities or {}),
+            **chatgpt_web_switch_kwargs(result),
         }
         if one_turn:
             if not hasattr(self, "_pending_one_turn_model_restores"):
