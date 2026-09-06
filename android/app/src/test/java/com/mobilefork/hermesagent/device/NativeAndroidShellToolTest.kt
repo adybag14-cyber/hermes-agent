@@ -1098,7 +1098,7 @@ class NativeAndroidShellToolTest {
 
     @Test
     fun sandboxQemuRejectsLegacyShimResolvedIntoWritablePrefix() {
-        val root = createTempDir(prefix = "hermes-qemu-prefix-")
+        val root = kotlin.io.path.createTempDirectory("hermes-qemu-prefix-").toFile()
         try {
             val prefix = File(root, "prefix").apply { mkdirs() }
             val writableBin = File(prefix, "bin").apply { mkdirs() }

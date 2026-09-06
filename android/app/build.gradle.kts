@@ -1,16 +1,84 @@
 import java.util.Properties
 import java.io.ByteArrayOutputStream
+import org.gradle.process.ExecOperations
+import javax.inject.Inject
+import com.chaquo.python.PythonPlugin
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
+import org.gradle.api.artifacts.Configuration
+import java.nio.file.Files
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.chaquo.python")
 }
 
 val repoRoot = rootDir.parentFile
+interface HermesProcessServices {
+    @get:Inject val execOperations: ExecOperations
+}
+val hermesProcessServices = objects.newInstance<HermesProcessServices>()
+val hermesChaquopyLabRoot = providers.gradleProperty("hermesChaquopyLab").orNull
+    ?.let { rootProject.file(it).canonicalFile }
+fun fileSha256(file: File): String = file.inputStream().buffered().use { input ->
+    val digest = MessageDigest.getInstance("SHA-256")
+    val buffer = ByteArray(1024 * 1024)
+    while (true) {
+        val count = input.read(buffer)
+        if (count < 0) break
+        digest.update(buffer, 0, count)
+    }
+    digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
+}
+val hermesChaquopyLabReceipt = hermesChaquopyLabRoot?.let { lab ->
+    val receipt = lab.resolve("consumer.json")
+    require(receipt.isFile && receipt.length() <= 4 * 1024 * 1024) { "Missing/oversized Chaquopy lab receipt" }
+    (JsonSlurper().parse(receipt) as Map<*, *>).also {
+        require(it["schema"] == "hermes-chaquopy-consumer-v1" && it["python"] == "3.13") {
+            "Unsupported Chaquopy consumer; this Hermes experiment first qualifies Python 3.13"
+        }
+        require(it["hermes_requirements_sha256"] == fileSha256(repoRoot.resolve("requirements-android-chaquopy.txt"))) {
+            "Hermes requirements changed after preparing the Chaquopy consumer"
+        }
+    }
+}
+fun verifyHermesChaquopyLab() {
+    val lab = hermesChaquopyLabRoot ?: return
+    val receipt = requireNotNull(hermesChaquopyLabReceipt)
+    val files = receipt["files"] as List<*>
+    val expected = mutableSetOf<String>()
+    files.forEach { entry ->
+        val item = entry as Map<*, *>
+        val path = item["path"] as String
+        require(path.matches(Regex("[A-Za-z0-9_./+-]+")) && !path.startsWith('/') &&
+            path.split('/').none { it == ".." || it == "." } && expected.add(path)) {
+            "Invalid or duplicate Chaquopy consumer path"
+        }
+        val file = lab.resolve(path)
+        require(file.canonicalFile.toPath().startsWith(lab.toPath()) &&
+            !Files.isSymbolicLink(file.toPath()) && file.isFile &&
+            file.length() == (item["bytes"] as Number).toLong() && fileSha256(file) == item["sha256"]) {
+            "Chaquopy consumer input changed: $path"
+        }
+    }
+    val actual = lab.walkTopDown().filter { it.isFile && it != lab.resolve("consumer.json") }
+        .map { it.relativeTo(lab).invariantSeparatorsPath }.toSet()
+    require(actual == expected) { "Chaquopy consumer contains unrecorded or missing inputs" }
+}
+verifyHermesChaquopyLab()
 val hermesVersionFile = repoRoot.resolve("hermes_cli/__init__.py")
 val releaseTag = System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()
+require(hermesChaquopyLabRoot == null || releaseTag.isBlank()) {
+    "The opt-in Chaquopy consumer is a development experiment, not a tagged release input"
+}
+if (hermesChaquopyLabRoot != null) {
+    gradle.taskGraph.whenReady {
+        require(allTasks.none { it.project == project && it.name.contains("Release", ignoreCase = true) }) {
+            "Chaquopy laboratory inputs may not produce a release variant"
+        }
+    }
+}
 val fdroidSourceBindingFileName = "hermes-android-fdroid-source-binding.properties"
 val hermesFdroidSourceBindingSetting = providers.gradleProperty("hermesFdroidSourceBinding")
     .orNull
@@ -89,7 +157,7 @@ fun resolvedBuildPython(): String {
 
 fun runSourceDigestCommand(script: File, arguments: List<String>): String {
     val identityOutput = ByteArrayOutputStream()
-    exec {
+    hermesProcessServices.execOperations.exec {
         commandLine(listOf(resolvedBuildPython(), script.absolutePath) + arguments)
         standardOutput = identityOutput
     }.assertNormalExitValue()
@@ -158,10 +226,10 @@ val hermesSourceDigest = when {
     else -> ""
 }
 val hermesWheelDir = layout.buildDirectory.dir("hermes-wheel")
-val generatedHermesLinuxAssetsDir = layout.buildDirectory.dir("generated/hermes-linux-assets")
-val generatedHermesNativeLibsDir = layout.buildDirectory.dir("generated/hermes-native-libs")
-val generatedHermesExperimentalLlamaLibsDir = layout.buildDirectory.dir("generated/hermes-experimental-llama-libs")
-val generatedHermesExperimentalLlamaAssetsDir = layout.buildDirectory.dir("generated/hermes-experimental-llama-assets")
+val generatedHermesLinuxAssetsDir = objects.directoryProperty().convention(layout.buildDirectory.dir("generated/hermes-linux-assets"))
+val generatedHermesNativeLibsDir = objects.directoryProperty().convention(layout.buildDirectory.dir("generated/hermes-native-libs"))
+val generatedHermesExperimentalLlamaLibsDir = objects.directoryProperty().convention(layout.buildDirectory.dir("generated/hermes-experimental-llama-libs"))
+val generatedHermesExperimentalLlamaAssetsDir = objects.directoryProperty().convention(layout.buildDirectory.dir("generated/hermes-experimental-llama-assets"))
 val hermesLinuxAssetLockFile = repoRoot.resolve("hermes_android/termux_linux_assets.lock.json")
 val hermesExperimentalLlamaLockFile = repoRoot.resolve("hermes_android/experimental_llama_server.lock.json")
 val hermesExperimentalLlamaNdkVersion = "29.0.14206865"
@@ -177,7 +245,7 @@ val keystoreProperties = Properties().apply {
     }
 }
 val hasReleaseKeystore = keystoreProperties.isNotEmpty()
-val liteRtLmStableVersion = "0.16.1"
+val liteRtLmStableVersion = "0.17.0"
 val liteRtLmVersion = providers.gradleProperty("hermesLiteRtLmVersion")
     .getOrElse(liteRtLmStableVersion)
     .trim()
@@ -289,6 +357,7 @@ android {
             "HERMES_LITERTLM_LOCAL_AAR",
             (liteRtLmLocalAar != null).toString(),
         )
+        buildConfigField("boolean", "HERMES_CHAQUOPY_LAB", (hermesChaquopyLabRoot != null).toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -400,29 +469,18 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         aidl = true
         buildConfig = true
         compose = true
     }
 
-    androidResources {
-        ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~"
+    if (hermesChaquopyLabRoot != null) {
+        sourceSets.getByName("androidTest").kotlin.directories += "src/chaquopyLabAndroidTest/java"
     }
 
-    sourceSets {
-        getByName("main") {
-            if (!skipHermesAndroidLinuxAssets) {
-                assets.srcDir(generatedHermesLinuxAssetsDir)
-                assets.srcDir(generatedHermesExperimentalLlamaAssetsDir)
-                jniLibs.srcDir(generatedHermesNativeLibsDir)
-                jniLibs.srcDir(generatedHermesExperimentalLlamaLibsDir)
-            }
-        }
+    androidResources {
+        ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~"
     }
 
     packaging {
@@ -447,11 +505,55 @@ chaquopy {
             // block, so the runtime requirements file must include all transitive
             // dependencies explicitly.
             options("--no-deps")
-            install("../../android/pip-stubs/anthropic-stub")
-            install("../../android/pip-stubs/fal-client-stub")
+            if (hermesChaquopyLabRoot == null) {
+                install("../../android/pip-stubs/anthropic-stub")
+                install("../../android/pip-stubs/fal-client-stub")
+            } else {
+                options("--no-index", "--find-links", hermesChaquopyLabRoot.resolve("wheels").absolutePath,
+                    "--only-binary", ":all:")
+            }
             install("build/hermes-wheel/${hermesWheelName()}")
-            install("-r", "../../requirements-android-chaquopy.txt")
+            install("-r", hermesChaquopyLabRoot?.resolve("requirements.txt")?.absolutePath
+                ?: "../../requirements-android-chaquopy.txt")
         }
+    }
+    hermesChaquopyLabRoot?.let { lab ->
+        sourceSets.getByName("main") { srcDir(lab.resolve("python")) }
+    }
+}
+
+hermesChaquopyLabRoot?.let {
+    afterEvaluate {
+        val receipt = requireNotNull(hermesChaquopyLabReceipt)
+        val bootstrapVersion = receipt["bootstrap_version"] as String
+        val bootstrapHash = receipt["bootstrap_sha256"] as String
+        val configs = plugins.getPlugin(PythonPlugin::class.java).configs
+            .filterKeys { name -> name.endsWith("RuntimeBootstrap") }.values
+        check(configs.isNotEmpty()) { "Chaquopy bootstrap configurations were not found" }
+        configs.forEach { config ->
+            check(config.state == Configuration.State.UNRESOLVED) { "Bootstrap resolved before experiment selection" }
+            config.resolutionStrategy.eachDependency {
+                if (requested.group == "com.chaquo.python.runtime" && requested.name == "bootstrap") {
+                    useVersion(bootstrapVersion)
+                    because("Use the source-verified split-archive importer from the Chaquopy fork")
+                }
+            }
+        }
+        val verifyInputs = tasks.register("verifyHermesChaquopyLab") {
+            doLast {
+                verifyHermesChaquopyLab()
+                configs.forEach { config ->
+                    val artifact = config.resolvedConfiguration.resolvedArtifacts.single()
+                    val id = artifact.moduleVersion.id
+                    check(id.group == "com.chaquo.python.runtime" && id.name == "bootstrap" &&
+                        id.version == bootstrapVersion && artifact.classifier == "3.13" &&
+                        artifact.extension == "imy" && fileSha256(artifact.file) == bootstrapHash) {
+                        "Resolved Python bootstrap differs from the verified fork input"
+                    }
+                }
+            }
+        }
+        tasks.named("preBuild") { dependsOn(verifyInputs) }
     }
 }
 
@@ -512,51 +614,51 @@ val prepareHermesAndroidWheel = tasks.register<Exec>("prepareHermesAndroidWheel"
 val prepareHermesAndroidLinuxAssets = tasks.register<Exec>("prepareHermesAndroidLinuxAssets") {
     group = "android"
     description = "Download and normalize the Android Linux command-suite assets."
-    val outputDir = generatedHermesLinuxAssetsDir.get().asFile
+    val outputDir = generatedHermesLinuxAssetsDir
     inputs.file(repoRoot.resolve("scripts/prepare_android_linux_assets.py"))
     inputs.file(hermesLinuxAssetLockFile)
     inputs.file(repoRoot.resolve("scripts/prepare_android_linux_assets.py"))
     inputs.file(repoRoot.resolve("hermes_android/linux_assets.py"))
     outputs.dir(outputDir)
     doFirst {
-        outputDir.mkdirs()
+        outputDir.get().asFile.mkdirs()
+        commandLine(
+            resolvedBuildPython(),
+            repoRoot.resolve("scripts/prepare_android_linux_assets.py").absolutePath,
+            "--output-dir",
+            outputDir.get().asFile.absolutePath,
+            "--lock-file",
+            hermesLinuxAssetLockFile.absolutePath,
+        )
     }
-    commandLine(
-        resolvedBuildPython(),
-        repoRoot.resolve("scripts/prepare_android_linux_assets.py").absolutePath,
-        "--output-dir",
-        outputDir.absolutePath,
-        "--lock-file",
-        hermesLinuxAssetLockFile.absolutePath,
-    )
 }
 
 val prepareHermesAndroidNativeLibs = tasks.register<Exec>("prepareHermesAndroidNativeLibs") {
     group = "android"
     description = "Expose embedded Linux launchers through Android's executable native-library directory."
     dependsOn(prepareHermesAndroidLinuxAssets)
-    val outputDir = generatedHermesNativeLibsDir.get().asFile
+    val outputDir = generatedHermesNativeLibsDir
     inputs.file(repoRoot.resolve("scripts/prepare_android_native_libs.py"))
     inputs.dir(generatedHermesLinuxAssetsDir)
     outputs.dir(outputDir)
     doFirst {
-        outputDir.mkdirs()
+        outputDir.get().asFile.mkdirs()
+        commandLine(
+            resolvedBuildPython(),
+            repoRoot.resolve("scripts/prepare_android_native_libs.py").absolutePath,
+            "--linux-assets-dir",
+            generatedHermesLinuxAssetsDir.get().asFile.absolutePath,
+            "--output-dir",
+            outputDir.get().asFile.absolutePath,
+        )
     }
-    commandLine(
-        resolvedBuildPython(),
-        repoRoot.resolve("scripts/prepare_android_native_libs.py").absolutePath,
-        "--linux-assets-dir",
-        generatedHermesLinuxAssetsDir.get().asFile.absolutePath,
-        "--output-dir",
-        outputDir.absolutePath,
-    )
 }
 
 val prepareHermesAndroidExperimentalLlamaServer = tasks.register<Exec>("prepareHermesAndroidExperimentalLlamaServer") {
     group = "android"
     description = "Build and verify the pinned experimental TurboQuant llama-server for Android."
-    val outputDir = generatedHermesExperimentalLlamaLibsDir.get().asFile
-    val assetsOutputDir = generatedHermesExperimentalLlamaAssetsDir.get().asFile
+    val outputDir = generatedHermesExperimentalLlamaLibsDir
+    val assetsOutputDir = generatedHermesExperimentalLlamaAssetsDir
     inputs.file(hermesExperimentalLlamaLockFile)
     inputs.file(hermesExperimentalLlamaPatchFile)
     inputs.file(repoRoot.resolve("scripts/prepare_android_experimental_llama_server.py"))
@@ -564,25 +666,39 @@ val prepareHermesAndroidExperimentalLlamaServer = tasks.register<Exec>("prepareH
     outputs.dir(assetsOutputDir)
     onlyIf { !skipHermesAndroidLinuxAssets }
     doFirst {
-        outputDir.parentFile.mkdirs()
+        outputDir.get().asFile.parentFile.mkdirs()
+        commandLine(
+            resolvedBuildPython(),
+            repoRoot.resolve("scripts/prepare_android_experimental_llama_server.py").absolutePath,
+            "--output-dir",
+            outputDir.get().asFile.absolutePath,
+            "--assets-output-dir",
+            assetsOutputDir.get().asFile.absolutePath,
+            "--lock-file",
+            hermesExperimentalLlamaLockFile.absolutePath,
+            "--cache-dir",
+            gradle.gradleUserHomeDir.resolve("caches/hermes-experimental-llama/source").absolutePath,
+            "--jobs",
+            "12",
+        )
     }
-    commandLine(
-        resolvedBuildPython(),
-        repoRoot.resolve("scripts/prepare_android_experimental_llama_server.py").absolutePath,
-        "--output-dir",
-        outputDir.absolutePath,
-        "--assets-output-dir",
-        assetsOutputDir.absolutePath,
-        "--lock-file",
-        hermesExperimentalLlamaLockFile.absolutePath,
-        "--cache-dir",
-        gradle.gradleUserHomeDir.resolve("caches/hermes-experimental-llama/source").absolutePath,
-        "--jobs",
-        "12",
-    )
 }
 
 if (!skipHermesAndroidLinuxAssets) {
+    androidComponents.onVariants { variant ->
+        variant.sources.assets?.addGeneratedSourceDirectory(prepareHermesAndroidLinuxAssets) {
+            generatedHermesLinuxAssetsDir
+        }
+        variant.sources.assets?.addGeneratedSourceDirectory(prepareHermesAndroidExperimentalLlamaServer) {
+            generatedHermesExperimentalLlamaAssetsDir
+        }
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareHermesAndroidNativeLibs) {
+            generatedHermesNativeLibsDir
+        }
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareHermesAndroidExperimentalLlamaServer) {
+            generatedHermesExperimentalLlamaLibsDir
+        }
+    }
     tasks.named("preBuild") {
         dependsOn(prepareHermesAndroidLinuxAssets)
         dependsOn(prepareHermesAndroidNativeLibs)
@@ -623,7 +739,7 @@ fun normalizeChaquopyBuildJson(variant: String) {
     if (!buildJson.isFile) {
         return
     }
-    exec {
+    hermesProcessServices.execOperations.exec {
         commandLine(
             resolvedBuildPython(),
             repoRoot.resolve("scripts/normalize_chaquopy_assets.py").absolutePath,
@@ -643,7 +759,7 @@ fun normalizeChaquopyRequirementsImy(variant: String) {
     if (!requirementsImy.isFile) {
         return
     }
-    exec {
+    hermesProcessServices.execOperations.exec {
         commandLine(
             resolvedBuildPython(),
             repoRoot.resolve("scripts/normalize_chaquopy_assets.py").absolutePath,
@@ -713,7 +829,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation("org.json:json:20240303")
-    // Release/F-Droid builds use the exact stable default (0.16.1). Developers can compile
+    // Release/F-Droid builds use the exact stable default (0.17.0). Developers can compile
     // an upstream preview version or a locally built LiteRT-LM main-branch AAR
     // without weakening the reproducible release pin.
     if (liteRtLmLocalAar != null) {

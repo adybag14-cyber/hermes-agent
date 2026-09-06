@@ -27,6 +27,45 @@ import java.util.concurrent.atomic.AtomicInteger
 @RunWith(RobolectricTestRunner::class)
 class HermesModelDownloadManagerTest {
     @Test
+    fun discoveringPreallocatedModelBytesCannotPromoteAnUnfinishedSystemDownload() {
+        val context = RuntimeEnvironment.getApplication()
+        val model = File.createTempFile("preallocated-", ".litertlm", HermesModelDownloadManager.modelsDirectory(context))
+        try {
+            java.io.RandomAccessFile(model, "rw").use { it.setLength(4096) }
+            for (status in listOf("queued", "running", "paused", "failed", "missing")) {
+                val record = removalRecord("in-flight", model.absolutePath, 42).copy(
+                    status = status, totalBytes = 4096, downloadedBytes = 12,
+                )
+                val scanned = HermesModelDownloadManager.importExistingModelFiles(context, listOf(record))
+                    .single { it.id == record.id }
+                assertEquals("File discovery replaced DownloadManager's $status state", record, scanned)
+            }
+            val imported = removalRecord("imported", model.absolutePath, -1).copy(status = "missing")
+            val recovered = HermesModelDownloadManager.importExistingModelFiles(context, listOf(imported))
+                .single { it.id == imported.id }
+            assertEquals("Local imports must still recover when their file reappears", "completed", recovered.status)
+        } finally {
+            model.delete()
+        }
+    }
+
+    @Test
+    fun vanishedSystemJobCannotCertifyAnExistingPreallocatedFile() {
+        val context = RuntimeEnvironment.getApplication()
+        val model = File.createTempFile("vanished-", ".gguf", HermesModelDownloadManager.modelsDirectory(context))
+        try {
+            java.io.RandomAccessFile(model, "rw").use { it.setLength(4096) }
+            val running = removalRecord("vanished", model.absolutePath, 987654).copy(status = "running")
+            val refreshed = HermesModelDownloadManager.refreshRecord(context, running)
+            assertEquals("missing", refreshed.status)
+            assertEquals("An already completed download may still be used", "completed",
+                HermesModelDownloadManager.refreshRecord(context, running.copy(status = "completed")).status)
+        } finally {
+            model.delete()
+        }
+    }
+
+    @Test
     fun ggufArtifactSelection_prefersBonsaiQ10OverF16() {
         assertTrue(isCompatibleRepoFile("Bonsai-27B-Q1_0.gguf", "GGUF"))
         assertTrue(

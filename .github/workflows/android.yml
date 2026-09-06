@@ -6,6 +6,7 @@ on:
       - feat/termux-install-path
       - codex/termux-five-goals
       - 'codex/android-v*'
+      - 'codex/android-chaquopy-*'
   pull_request:
   workflow_dispatch:
     inputs:
@@ -81,6 +82,9 @@ jobs:
           ./gradlew :app:compileBenchmarkKotlin :macrobenchmark:compileBenchmarkKotlin \
             -PskipHermesAndroidLinuxAssets=true
           ./gradlew :app:assembleDebug
+
+      - name: Verify generated runtimes inside the APK
+        run: python scripts/verify_android_runtime_package.py android/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload debug APK artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

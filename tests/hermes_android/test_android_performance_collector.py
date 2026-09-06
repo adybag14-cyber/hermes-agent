@@ -13,7 +13,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_DIGEST = "d" * 64
 TARGET_SHA = "c" * 64
 BENCHMARK_SHA = "e" * 64
-RUN_ID = "release-v0.13.148-live-5566"
+VERSION_NAME = "0.13.154"
+VERSION_CODE = 145490
+RUN_ID = f"release-v{VERSION_NAME}-live-5566"
 BOOT_ID = "12345678-1234-4abc-8def-1234567890ab"
 SERIAL = "emulator-5566"
 AVD = "Medium_Phone_API_35"
@@ -244,7 +246,7 @@ def _macro_report(
     }
 
 
-def _invocation(profile: str = "phone-compact") -> dict:
+def _invocation(profile: str, litertlm_coordinate: str) -> dict:
     benchmark_class = (
         "com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark"
     )
@@ -254,10 +256,9 @@ def _invocation(profile: str = "phone-compact") -> dict:
             "gradlew.bat",
             ":macrobenchmark:connectedBenchmarkAndroidTest",
             f"-PhermesBenchmarkExpectedSourceDigest={SOURCE_DIGEST}",
-            "-PhermesBenchmarkExpectedVersionName=0.13.148",
-            "-PhermesBenchmarkExpectedVersionCode=144890",
-            "-PhermesBenchmarkExpectedLiteRtLmCoordinate="
-            "com.google.ai.edge.litertlm:litertlm-android:0.16.1",
+            f"-PhermesBenchmarkExpectedVersionName={VERSION_NAME}",
+            f"-PhermesBenchmarkExpectedVersionCode={VERSION_CODE}",
+            f"-PhermesBenchmarkExpectedLiteRtLmCoordinate={litertlm_coordinate}",
             f"-PhermesBenchmarkTargetApkSha256={TARGET_SHA}",
             f"-PhermesBenchmarkApkSha256={BENCHMARK_SHA}",
             f"-PhermesBenchmarkEvidenceRunId={RUN_ID}",
@@ -295,6 +296,7 @@ def _invocation(profile: str = "phone-compact") -> dict:
 def _inputs(
     tmp_path: Path,
     *,
+    litertlm_coordinate: str,
     profile: str = "phone-compact",
     iterations: int = 5,
     frames_per_iteration: int = 24,
@@ -342,13 +344,13 @@ def _inputs(
         trace.write_bytes(b"PERFETTO\x00" + bytes([index]) * 64)
         trace_paths.append(trace)
     invocation_path = inputs / "invocation.json"
-    invocation_path.write_text(json.dumps(_invocation(profile)), encoding="utf-8")
+    invocation_path.write_text(json.dumps(_invocation(profile, litertlm_coordinate)), encoding="utf-8")
     return report_path, tuple(trace_paths), invocation_path
 
 
 def _config(module, tmp_path: Path, *, profile: str = "phone-compact", **input_options):
     report, traces, invocation = _inputs(
-        tmp_path, profile=profile, **input_options
+        tmp_path, profile=profile, litertlm_coordinate=module.LITERTLM_COORDINATE, **input_options
     )
     return module.CollectorConfig(
         serial=SERIAL,
@@ -359,8 +361,8 @@ def _config(module, tmp_path: Path, *, profile: str = "phone-compact", **input_o
         benchmark_target_apk_sha256=TARGET_SHA,
         benchmark_test_apk_sha256=BENCHMARK_SHA,
         evidence_run_id=RUN_ID,
-        version_name="0.13.148",
-        version_code=144890,
+        version_name=VERSION_NAME,
+        version_code=VERSION_CODE,
         litertlm_coordinate=module.LITERTLM_COORDINATE,
         macrobenchmark_report=report,
         macrobenchmark_traces=traces,
@@ -427,8 +429,8 @@ class FixtureExecutor:
         if command == ("shell", "dumpsys", "package", "com.mobilefork.hermesagent"):
             return self.result(
                 argv,
-                "Packages:\n  versionCode=144890 minSdk=31 targetSdk=35\n"
-                "  versionName=0.13.148\n",
+                f"Packages:\n  versionCode={VERSION_CODE} minSdk=31 targetSdk=35\n"
+                f"  versionName={VERSION_NAME}\n",
             )
         if command == (
             "shell",
@@ -660,7 +662,7 @@ def test_collector_produces_validator_accepted_macrobenchmark_v2(
     )
     assert not any("gfxinfo" in call or "swipe" in call for call in executor.calls)
     assert release_module._validate_performance(
-        output, "phone-compact", SOURCE_DIGEST, "0.13.148", 144890
+        output, "phone-compact", SOURCE_DIGEST, VERSION_NAME, VERSION_CODE
     ) == payload
     assert (output.parent / "phone-compact.host.raw.json").is_file()
     assert (output.parent / "phone-compact.macrobenchmark.raw.json").is_file()
@@ -1376,7 +1378,7 @@ def test_device_boot_or_font_scale_drift_fails_closed(
         ),
         (
             ("shell", "dumpsys", "package", "com.mobilefork.hermesagent"),
-            "Packages:\n  versionCode=144890 minSdk=31\n  versionCode=144890 minSdk=31\n  versionName=0.13.148\n",
+            f"Packages:\n  versionCode={VERSION_CODE} minSdk=31\n  versionCode={VERSION_CODE} minSdk=31\n  versionName={VERSION_NAME}\n",
             "installed version",
         ),
     ),

@@ -5,6 +5,11 @@ tags at or after `v0.13.148`. Earlier committed evidence, including
 `android/release-evidence/v0.13.147`, remains on manifest v2 and must not be
 regenerated or rearranged.
 
+The current candidate uses LiteRT-LM 0.17.0 (v0.13.154 onward). The offline
+validator keeps historical v0.13.148–153 evidence bound to 0.16.1 and earlier
+evidence to 0.16.0. Do not relabel or regenerate those immutable records for an
+SDK upgrade. A model-lab APK is not a release-certified or phone-upgrade APK.
+
 The v3 additions do not replace the existing six-language Device overview,
 performance, Perfetto, or real-model evidence. They add:
 
@@ -38,7 +43,7 @@ The issue-#16 lane is invalid if the Linux assets are skipped, so pass the
 explicit false property even though false is the default.
 
 ```powershell
-$tag = 'v0.13.153'
+$tag = 'v0.13.154' # Example for the next candidate, not permission to publish.
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)

@@ -24,6 +24,7 @@ import com.mobilefork.hermesagent.models.ModelDownloadDraft
 import com.mobilefork.hermesagent.models.ModelDownloadInspection
 import com.mobilefork.hermesagent.models.RuntimeSelectionSupersededException
 import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
+import com.mobilefork.hermesagent.models.VerifiedLocalModelMirrors
 import com.mobilefork.hermesagent.models.clearPendingAutoStartForGeneration
 import com.mobilefork.hermesagent.models.persistPreferredModelRuntimeSelection
 import com.mobilefork.hermesagent.models.updateRuntimeSelectionSettings
@@ -248,11 +249,19 @@ class LocalModelDownloadsViewModel internal constructor(
         }
     }
 
-    fun startRecommendedModelDownload(presetId: String, dataSaverMode: Boolean): String? {
-        if (recommendedModelPresets.none { it.id == presetId }) return null
+    fun startRecommendedModelDownload(presetId: String, dataSaverMode: Boolean, useModelScope: Boolean = false): String? {
+        val selected = recommendedModelPresets.firstOrNull { it.id == presetId } ?: return null
+        val mirror = if (useModelScope) {
+            val artifact = VerifiedLocalModelArtifacts.find(selected.repoOrUrl, selected.filePath) ?: return null
+            VerifiedLocalModelMirrors.forArtifact(artifact) ?: return null
+        } else null
         val selectionGeneration = LocalModelRuntimeSelectionAuthority.beginAction()
         if (!cancelPriorPendingAutoStart(selectionGeneration)) return null
         val preset = selectRecommendedModel(presetId, selectionGeneration) ?: return null
+        val draft = preset.toDraft().let { if (mirror == null) it else it.copy(repoOrUrl = mirror.downloadUrl) }
+        if (mirror != null && !LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
+                _uiState.update { it.copy(repoOrUrl = mirror.downloadUrl) }
+            }) return null
         val context = getApplication<Application>()
         viewModelScope.launch {
             runCatching {
@@ -267,7 +276,7 @@ class LocalModelDownloadsViewModel internal constructor(
                         HermesModelDownloadManager.enqueueDownload(
                             context = context,
                             store = downloadStore,
-                            draft = preset.toDraft(),
+                            draft = draft,
                             hfToken = _uiState.value.huggingFaceToken,
                             dataSaverMode = dataSaverMode,
                         )

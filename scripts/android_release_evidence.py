@@ -47,6 +47,7 @@ SOURCE_DIGEST_ALGORITHM = "sha256-git-tree-contents-v1"
 EVIDENCE_PREFIX = PurePosixPath("android/release-evidence")
 COMPREHENSIVE_UI_EVIDENCE_MIN_VERSION = (0, 13, 148)
 LITERTLM_0161_MIN_VERSION = (0, 13, 148)
+LITERTLM_0170_MIN_VERSION = (0, 13, 154)
 PHYSICAL_NANBEIGE_REPAIR_MIN_VERSION = (0, 13, 151)
 LANGUAGES = ("en", "zh", "es", "de", "pt", "fr")
 PROFILES = ("phone-compact", "tablet")
@@ -104,7 +105,8 @@ PHONE_UI_DRAWER_TAG = "HermesShellDrawerButton"
 BUILD_VARIANT = "debug"
 PERFORMANCE_BUILD_VARIANT = "benchmark"
 LEGACY_LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.0"
-LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.1"
+LITERTLM_0161_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.1"
+LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.17.0"
 ANDROIDX_BENCHMARK_COORDINATE = "androidx.benchmark:benchmark-macro-junit4:1.4.1"
 REPORTING_PACKAGE_COMPILATION_MODE = "run-from-apk"
 TARGET_COMPILER_FILTER = "speed"
@@ -660,8 +662,10 @@ def requires_physical_nanbeige_repair_evidence(tag: str) -> bool:
 def litertlm_coordinate_for_tag(tag: str) -> str:
     """Return the release dependency required by the tag's immutable evidence contract."""
 
-    if _tag_version_tuple(tag) >= LITERTLM_0161_MIN_VERSION:
+    if _tag_version_tuple(tag) >= LITERTLM_0170_MIN_VERSION:
         return LITERTLM_COORDINATE
+    if _tag_version_tuple(tag) >= LITERTLM_0161_MIN_VERSION:
+        return LITERTLM_0161_COORDINATE
     return LEGACY_LITERTLM_COORDINATE
 
 
@@ -3393,6 +3397,7 @@ def _validate_historical_e4b_evidence(
         evidence_run_id,
         version_name,
         version_code,
+        litertlm_coordinate=litertlm_coordinate_for_tag(f"v{version_name}"),
     )
     context = "model[gemma-4-e4b-litert-lm]"
     expected_top_level_keys = {

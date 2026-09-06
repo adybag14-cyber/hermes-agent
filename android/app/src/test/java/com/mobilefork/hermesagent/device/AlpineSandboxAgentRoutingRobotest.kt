@@ -48,14 +48,9 @@ class AlpineSandboxAgentRoutingRobotest {
         )
 
         assertEquals("The request authorizes exactly one guest action: $result", 1, result.executedToolCalls)
-        assertEquals(2, result.modelRequestCount)
-
-        server.takeRequest()
-        val followUp = JSONObject(server.takeRequest().body.readUtf8())
-        val messages = followUp.getJSONArray("messages")
-        val toolMessage = findToolMessage(messages)
-        assertTrue("Expected a tool result in the next model request: $messages", toolMessage != null)
-        val body = JSONObject(toolMessage!!.optString("content", "{}"))
+        assertEquals("Native denials must not ask the model to invent an explanation", 1, result.modelRequestCount)
+        assertEquals(1, server.requestCount)
+        val body = JSONObject(result.lastToolResult)
         assertEquals(126, body.optInt("exit_code", -1))
         assertEquals("request_owned_proot_blocked", body.optString("sandbox_execution_mode"))
         assertTrue(body.optBoolean("request_owned_operation_blocked", false))

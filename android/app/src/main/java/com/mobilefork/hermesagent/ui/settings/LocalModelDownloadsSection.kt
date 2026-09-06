@@ -21,6 +21,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -31,9 +32,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
+import com.mobilefork.hermesagent.ui.i18n.modelScopeMirrorButton
+import com.mobilefork.hermesagent.ui.i18n.modelScopeMirrorNote
+import com.mobilefork.hermesagent.ui.i18n.modelScopeResearchNotice
+import com.mobilefork.hermesagent.ui.i18n.modelScopeLicencesButton
+import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
+import com.mobilefork.hermesagent.models.VerifiedLocalModelMirrors
 
 internal fun recommendedLocalModelCardTestTag(presetId: String): String =
     "RecommendedLocalModelCard-$presetId"
@@ -64,6 +72,7 @@ fun LocalModelDownloadsSection(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val strings = LocalHermesStrings.current
+    val uriHandler = LocalUriHandler.current
     var detectedModelMenuExpanded by remember { mutableStateOf(false) }
     val selectedDetectedModel = uiState.detectedModels.firstOrNull { model -> model.id == uiState.selectedDetectedModelId }
     val importModelLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -311,6 +320,31 @@ fun LocalModelDownloadsSection(
                             enabled = !offlineAirplaneMode,
                         ) {
                             Text(strings.downloadAndStart())
+                        }
+                        val mirror = VerifiedLocalModelArtifacts.find(preset.repoOrUrl, preset.filePath)
+                            ?.let(VerifiedLocalModelMirrors::forArtifact)
+                        if (mirror != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    onRuntimeFlavorSelected(preset.runtimeFlavor)
+                                    onRequiredLlamaCppRuntimeLane(
+                                        viewModel.startRecommendedModelDownload(preset.id, dataSaverMode, useModelScope = true),
+                                    )
+                                },
+                                enabled = !offlineAirplaneMode,
+                                modifier = Modifier.fillMaxWidth().testTag("ModelScopeMirror-${preset.id}"),
+                            ) { Text(strings.modelScopeMirrorButton()) }
+                            Text(strings.modelScopeMirrorNote(), style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.testTag("ModelScopeNote-${preset.id}"))
+                            if (mirror.researchOnly) {
+                                Text(strings.modelScopeResearchNotice(), style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.testTag("ModelScopeResearch-${preset.id}"))
+                            }
+                            TextButton(onClick = { uriHandler.openUri("https://modelscope.cn/models/${mirror.repoId}") },
+                                modifier = Modifier.testTag("ModelScopeLicences-${preset.id}")) {
+                                Text(strings.modelScopeLicencesButton())
+                            }
                         }
                     }
                 }

@@ -687,7 +687,7 @@ def v151_root(tmp_path, monkeypatch, evidence_module, artifacts):
         monkeypatch.setattr(
             module,
             "LITERTLM_COORDINATE" if module is legacy else "V3_LITERTLM_COORDINATE",
-            evidence_module.LITERTLM_COORDINATE,
+            evidence_module.litertlm_coordinate_for_tag(TAG),
         )
     root = tmp_path / "release-evidence"
     v3._write_v3_fixture(root, evidence_module, artifacts)

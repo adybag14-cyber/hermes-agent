@@ -141,5 +141,5 @@ internal object ReleaseDeviceEvidenceIdentity {
     private const val ARG_EVIDENCE_RUN_ID = "evidence_run_id"
     private const val ARG_DEVICE_SERIAL = "device_serial"
     private const val ARG_AVD_NAME = "avd_name"
-    private const val LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.1"
+    private const val LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.17.0"
 }

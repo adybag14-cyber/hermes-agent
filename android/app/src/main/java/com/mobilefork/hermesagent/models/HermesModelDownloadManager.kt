@@ -488,9 +488,11 @@ object HermesModelDownloadManager {
         val query = DownloadManager.Query().setFilterById(record.downloadManagerId)
         downloadManager.query(query)?.use { cursor ->
             if (!cursor.moveToFirst()) {
+                // A preallocated destination is not proof that a vanished system job finished.
+                val completed = record.status == "completed" && File(record.destinationPath).isFile
                 return record.copy(
-                    status = if (File(record.destinationPath).exists()) "completed" else "missing",
-                    statusMessage = if (File(record.destinationPath).exists()) "Download file is present on disk" else "Android no longer reports this download",
+                    status = if (completed) "completed" else "missing",
+                    statusMessage = if (completed) "Download file is present on disk" else "Android no longer reports this download; completion is unverified. Remove it and download again.",
                     updatedAtEpochMs = System.currentTimeMillis(),
                 )
             }
@@ -700,7 +702,7 @@ object HermesModelDownloadManager {
         return store.setPreferredDownloadId(recordId)
     }
 
-    private fun importExistingModelFiles(
+    internal fun importExistingModelFiles(
         context: Context,
         records: List<LocalModelDownloadRecord>,
     ): List<LocalModelDownloadRecord> {
@@ -718,7 +720,9 @@ object HermesModelDownloadManager {
                 val canonicalPath = file.absolutePath.canonicalPathOrNull() ?: return@forEach
                 if (canonicalPath in knownPaths) {
                     val index = current.indexOfFirst { it.destinationPath.canonicalPathOrNull() == canonicalPath }
-                    if (index >= 0 && current[index].status != "completed") {
+                    // DownloadManager may allocate the full size before writing the bytes.
+                    // Its status, including failure/pause, must remain authoritative.
+                    if (index >= 0 && current[index].downloadManagerId < 0L && current[index].status != "completed") {
                         val size = file.length().coerceAtLeast(current[index].totalBytes)
                         current[index] = current[index].copy(
                             totalBytes = size,
@@ -825,6 +829,22 @@ object HermesModelDownloadManager {
         val trimmed = draft.repoOrUrl.trim()
         val explicitFilePath = draft.filePath.trim().trim('/')
         val requestedRevision = draft.revision.trim().ifBlank { "main" }
+        VerifiedLocalModelMirrors.fromExactUrl(trimmed)?.let { mirror ->
+            val artifact = VerifiedLocalModelArtifacts.require(mirror.repoId, mirror.fileName)
+            require(mirror.matches(artifact)) { "ModelScope mirror no longer matches the verified source artifact" }
+            require(explicitFilePath.isBlank() || explicitFilePath == mirror.fileName) {
+                "Selected file differs from the immutable ModelScope mirror URL"
+            }
+            return ResolvedDownloadSource(
+                sourceUrl = mirror.downloadUrl,
+                resolvedFilePath = mirror.fileName,
+                resolvedRepoId = artifact.repoId,
+                // Keep the original model identity in the record. The source URL
+                // separately preserves ModelScope's immutable mirror revision.
+                resolvedRevision = artifact.revision,
+                compatibilityHint = "ModelScope",
+            )
+        }
         val liteRtArtifactPreference = liteRtArtifactPreferenceForCurrentDevice()
         parseHuggingFaceReference(trimmed)?.let { reference ->
             val resolvedRevision = reference.revision ?: requestedRevision
@@ -1319,7 +1339,11 @@ object HermesModelDownloadManager {
         return try {
             HeadProbeResult(
                 contentLength = connection.contentLengthLong,
-                acceptRanges = connection.getHeaderField("Accept-Ranges").orEmpty().contains("bytes", ignoreCase = true),
+                // The public ModelScope endpoint currently replies 200 even to
+                // a partial Range request. Do not promise DownloadManager resume
+                // until it has a standards-compliant 206 response on that path.
+                acceptRanges = VerifiedLocalModelMirrors.fromExactUrl(sourceUrl) == null &&
+                    connection.getHeaderField("Accept-Ranges").orEmpty().contains("bytes", ignoreCase = true),
             )
         } finally {
             connection.disconnect()

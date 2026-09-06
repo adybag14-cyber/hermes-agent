@@ -766,8 +766,10 @@ def test_v147_policy_remains_v2_without_new_fixed_paths(evidence_module, artifac
     )
     assert (
         evidence_module.litertlm_coordinate_for_tag("v0.13.148")
-        == evidence_module.LITERTLM_COORDINATE
+        == evidence_module.LITERTLM_0161_COORDINATE
     )
+    assert evidence_module.litertlm_coordinate_for_tag("v0.13.153") == evidence_module.LITERTLM_0161_COORDINATE
+    assert evidence_module.litertlm_coordinate_for_tag("v0.13.154") == evidence_module.LITERTLM_COORDINATE
     paths = evidence_module.expected_evidence_paths(artifacts, tag="v0.13.147")
     assert not any(path.parts[0] in {"ui-coverage", "launch-theme", "issues"} for path in paths)
     assert evidence_module.HISTORICAL_E4B_EVIDENCE_PATH not in paths

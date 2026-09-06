@@ -250,6 +250,9 @@ headed device run must still prove model load, health, and non-empty completion.
 
 ## LiteRT-LM stable and upstream-preview builds
 
+For the opt-in source-built Chaquopy consumer, real SDK/model experiments and
+public ModelScope routes, see [the model laboratory](CHAQUOPY_MODEL_LAB.md).
+
 Normal and F-Droid builds use the exact `liteRtLmStableVersion` declared in
 `app/build.gradle.kts`. The live CI guard compares that pin with Google Maven
 and rejects stale or dynamic release dependencies.
@@ -258,7 +261,7 @@ Google does not currently publish an Android nightly Maven coordinate. To test
 a newly published exact preview version without changing the release default:
 
 ```powershell
-./gradlew.bat :app:compileDebugKotlin -PhermesLiteRtLmVersion=0.16.1
+./gradlew.bat :app:compileDebugKotlin -PhermesLiteRtLmVersion=0.17.0
 ```
 
 To test an Android AAR built locally from LiteRT-LM `main`:
@@ -559,7 +562,7 @@ the preflight invalidates the run.
 
 The task-graph guard rejects benchmark artifact or connected tasks unless the
 release tag and lowercase source SHA-256 are exact, LiteRT-LM remains the
-release coordinate `com.google.ai.edge.litertlm:litertlm-android:0.16.1`, and
+release coordinate `com.google.ai.edge.litertlm:litertlm-android:0.17.0`, and
 no local LiteRT-LM AAR is selected. Before measurement the benchmark reads the
 installed target's benchmark-only manifest identity, package version,
 debuggable/profileable flags, and APK bytes; it refuses any mismatch with the
@@ -702,7 +705,7 @@ if ($bootId -notmatch '^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$') {
 }
 
 $versionName = $tag.TrimStart('v')
-$coordinate = 'com.google.ai.edge.litertlm:litertlm-android:0.16.1'
+$coordinate = 'com.google.ai.edge.litertlm:litertlm-android:0.17.0'
 $gradle = (Resolve-Path .\gradlew.bat).Path
 $gradleArgs = @(
     ':macrobenchmark:connectedBenchmarkAndroidTest'

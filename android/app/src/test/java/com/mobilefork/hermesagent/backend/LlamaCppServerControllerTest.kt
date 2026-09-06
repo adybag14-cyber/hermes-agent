@@ -10,6 +10,17 @@ import java.net.ServerSocket
 
 class LlamaCppServerControllerTest {
     @Test
+    fun canaryRequiresStringContentRatherThanNullOrMetadataCoercion() {
+        for (value in listOf(JSONObject.NULL, JSONObject().put("metadata", true), 42, false)) {
+            assertEquals("", LlamaCppServerController.completionMessageText(JSONObject().put("content", value)))
+        }
+        assertEquals("", LlamaCppServerController.completionMessageText(null))
+        assertEquals("", LlamaCppServerController.completionMessageText(JSONObject().put("content", "  ")))
+        assertEquals("ok", LlamaCppServerController.completionMessageText(JSONObject().put("content", " ok ")))
+        assertEquals("null", LlamaCppServerController.completionMessageText(JSONObject().put("content", "null")))
+    }
+
+    @Test
     fun cachedReadyStatusRetainsCompletionCharactersAndLatency() {
         assertEquals(
             "llama.cpp Experimental TurboQuant lane is serving locally; " +

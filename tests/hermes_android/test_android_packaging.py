@@ -18,19 +18,6 @@ def _load_chaquopy_normalizer():
     return module
 
 
-def test_chaquopy_build_preinstalls_android_stubs():
-    gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
-
-    assert 'prepareHermesAndroidWheel' in gradle
-    assert "normalize_chaquopy_assets.py" in gradle
-    assert 'inputs.file(repoRoot.resolve("scripts/normalize_chaquopy_assets.py"))' in gradle
-    assert 'it.name.endsWith("PythonRequirementsAssets")' in gradle
-    assert 'it.name.startsWith("merge") && it.name.endsWith("Assets")' in gradle
-    assert 'options("--no-deps")' in gradle
-    assert 'install("../../android/pip-stubs/anthropic-stub")' in gradle
-    assert 'install("../../android/pip-stubs/fal-client-stub")' in gradle
-    assert 'install("build/hermes-wheel/${hermesWheelName()}")' in gradle
-    assert 'install("-r", "../../requirements-android-chaquopy.txt")' in gradle
 
 
 def test_android_release_workflow_uses_hash_based_python_bytecode():

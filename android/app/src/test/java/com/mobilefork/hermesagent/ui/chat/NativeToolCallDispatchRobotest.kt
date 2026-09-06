@@ -99,7 +99,9 @@ class NativeToolCallDispatchRobotest {
         assertEquals("Native policy denial must not trigger a model follow-up", 1, server.requestCount)
         assertEquals(1, result.modelRequestCount)
         assertFalse(result.content, result.content.contains("Invented"))
-        assertTrue(result.content, result.content.contains("Stop"))
+        assertEquals(sandboxStopPolicyMessage(
+            com.mobilefork.hermesagent.ui.i18n.AppLanguage.fromTag(settingsStore.load().languageTag),
+        ), result.content)
     }
 
     @Test

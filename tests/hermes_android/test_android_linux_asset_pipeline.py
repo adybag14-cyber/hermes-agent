@@ -25,29 +25,6 @@ from scripts.prepare_android_linux_assets import (
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_prepare_android_linux_assets_script_exists_and_is_wired_into_gradle():
-    script = (REPO_ROOT / "scripts/prepare_android_linux_assets.py").read_text(encoding="utf-8")
-    native_script = (REPO_ROOT / "scripts/prepare_android_native_libs.py").read_text(encoding="utf-8")
-    gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
-
-    assert "def prepare_assets" in script
-    assert "resolve_dependency_closure" in script
-    assert "prepareHermesAndroidLinuxAssets" in gradle
-    assert "prepareHermesAndroidNativeLibs" in gradle
-    assert 'inputs.file(repoRoot.resolve("scripts/prepare_android_linux_assets.py"))' in gradle
-    assert 'inputs.file(repoRoot.resolve("hermes_android/linux_assets.py"))' in gradle
-    assert "generated/hermes-linux-assets" in gradle
-    assert "generated/hermes-native-libs" in gradle
-    assert "termux_linux_assets.lock.json" in gradle
-    assert "assets.srcDir" in gradle
-    assert "jniLibs.srcDir" in gradle
-    assert "useLegacyPackaging = true" in gradle
-    assert "create_bionic_llama_server_launcher" in script
-    assert "patch_android_spawn_needed_to_libc" in script
-    assert "HERMES_TERMUX_MAIN_BASE_URLS" in script
-    assert "libandroid-spawn.so" in script
-    assert "libhermes_android_bash.so" in native_script
-    assert "libhermes_android_llama_server.so" in native_script
 
 
 def test_prepare_android_linux_assets_script_imports_from_android_workdir():

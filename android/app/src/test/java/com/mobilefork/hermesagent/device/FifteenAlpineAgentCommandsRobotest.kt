@@ -85,7 +85,9 @@ class FifteenAlpineAgentCommandsRobotest {
             assertEquals("Exact typed requests must not delegate authority to a model", 0, result.modelRequestCount)
             assertTrue(
                 "Request ${index + 1} must report that guest dispatch was blocked: ${result.content}",
-                result.content.contains("blocked this chat-owned Linux guest process before dispatch"),
+                result.content == com.mobilefork.hermesagent.ui.chat.sandboxStopPolicyMessage(
+                    com.mobilefork.hermesagent.ui.i18n.AppLanguage.ENGLISH,
+                ),
             )
         }
 

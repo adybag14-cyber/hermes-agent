@@ -301,13 +301,8 @@ class SmallLocalModelsInstrumentedTest {
                 .getJSONArray("choices")
                 .getJSONObject(0)
                 .getJSONObject("message")
-            // Some small models/backends return only reasoning/tool fields; accept any non-blank text.
-            val content = sequenceOf(
-                message.optString("content"),
-                message.optString("reasoning"),
-                message.optString("reasoning_content"),
-                text,
-            ).map { part -> part.trim() }.firstOrNull { part -> part.isNotEmpty() }.orEmpty()
+            // A nonempty JSON envelope or reasoning-only chunk is not an assistant reply.
+            val content = (message.opt("content") as? String).orEmpty().trim()
             assertTrue("empty chat response: $text", content.isNotBlank())
             return content
         }

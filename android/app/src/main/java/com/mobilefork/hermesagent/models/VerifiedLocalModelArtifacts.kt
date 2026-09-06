@@ -159,6 +159,7 @@ object VerifiedLocalModelArtifacts {
     }
 
     private fun normalizeRepo(repoOrUrl: String): String {
+        VerifiedLocalModelMirrors.fromExactUrl(repoOrUrl)?.let { return it.repoId }
         val trimmed = repoOrUrl.trim().removePrefix("hf://").trim('/')
         val marker = "huggingface.co/"
         val afterHost = trimmed.substringAfter(marker, trimmed).substringBefore("/blob/").substringBefore("/resolve/")

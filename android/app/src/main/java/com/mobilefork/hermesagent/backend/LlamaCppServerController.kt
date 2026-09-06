@@ -757,7 +757,7 @@ object LlamaCppServerController {
                     .optJSONArray("choices")
                     ?.optJSONObject(0)
                     ?.optJSONObject("message")
-                val content = message?.optString("content").orEmpty().trim()
+                val content = completionMessageText(message)
                 if (content.isBlank()) {
                     CompletionCanary(
                         verified = false,
@@ -780,6 +780,9 @@ object LlamaCppServerController {
             )
         }
     }
+
+    internal fun completionMessageText(message: JSONObject?): String =
+        (message?.opt("content") as? String).orEmpty().trim()
 
     internal fun startupCompletionCanaryPayload(
         modelName: String,

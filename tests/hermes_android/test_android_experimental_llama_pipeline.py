@@ -1460,32 +1460,6 @@ def test_replaced_publication_lock_aborts_before_output_mutation(tmp_path, monke
     assert output.is_dir()
 
 
-def test_gradle_and_bridge_wire_unique_experimental_server_without_replacing_stable_lane():
-    gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
-    bridge = (
-        REPO_ROOT
-        / "android/app/src/main/java/com/mobilefork/hermesagent/device/HermesLinuxSubsystemBridge.kt"
-    ).read_text(encoding="utf-8")
-    stable_native_script = (REPO_ROOT / "scripts/prepare_android_native_libs.py").read_text(encoding="utf-8")
-
-    assert "prepareHermesAndroidExperimentalLlamaServer" in gradle
-    assert "scripts/prepare_android_experimental_llama_server.py" in gradle
-    assert "hermes_android/patches/llama_cpp_e306_legacy_nanbeige_loop_count.patch" in gradle
-    assert "inputs.file(hermesExperimentalLlamaPatchFile)" in gradle
-    assert "generated/hermes-experimental-llama-libs" in gradle
-    assert "generated/hermes-experimental-llama-assets" in gradle
-    assert "assets.srcDir(generatedHermesExperimentalLlamaAssetsDir)" in gradle
-    assert "jniLibs.srcDir(generatedHermesExperimentalLlamaLibsDir)" in gradle
-    assert "onlyIf { !skipHermesAndroidLinuxAssets }" in gradle
-    assert "dependsOn(prepareHermesAndroidExperimentalLlamaServer)" in gradle
-    assert 'val hermesExperimentalLlamaNdkVersion = "29.0.14206865"' in gradle
-    assert "ndkVersion = hermesExperimentalLlamaNdkVersion" in gradle
-    assert 'caches/hermes-experimental-llama/source' in gradle
-    assert "fun experimentalLlamaServerPath(context: Context): String" in bridge
-    assert 'put("experimental_llama_server_path", experimentalLlamaServerPath)' in bridge
-    assert 'put("experimental_llama_server_path", experimentalLlamaServerPath(context))' in bridge
-    assert "libhermes_android_llama_server_experimental.so" not in stable_native_script
-    assert '"bin/llama-server": "libhermes_android_llama_server.so"' in stable_native_script
 
 
 def test_android_build_workflows_install_the_locked_native_toolchain():
