@@ -39,11 +39,14 @@ def test_ws_orphan_reap_releases_resume_lock_before_slow_teardown(monkeypatch):
     def _slow_teardown(_session, *, end_reason="tui_close"):
         assert end_reason == "ws_orphan_reap"
         teardown_started.set()
-        assert release_teardown.wait(timeout=2.0)
+        assert release_teardown.wait(timeout=10.0)
 
     monkeypatch.setattr(server, "_WS_ORPHAN_REAP_GRACE_S", 0.01)
     monkeypatch.setattr(server.threading, "Timer", _Timer)
     monkeypatch.setattr(server, "_teardown_session", _slow_teardown)
+    # This test owns the no-delegations case. Reading a live ledger is unrelated
+    # I/O and used to consume the entire scheduling budget under a full run.
+    monkeypatch.setattr(server, "_session_has_active_delegations", lambda *a: False)
     server._sessions["slow-orphan"] = _session(
         transport=server._detached_ws_transport,
         running=False,
@@ -54,15 +57,15 @@ def test_ws_orphan_reap_releases_resume_lock_before_slow_teardown(monkeypatch):
     thread.start()
     acquired = False
     try:
-        assert teardown_started.wait(timeout=1.0)
+        assert teardown_started.wait(timeout=5.0)
         assert "slow-orphan" not in server._sessions
-        acquired = server._session_resume_lock.acquire(timeout=0.2)
+        acquired = server._session_resume_lock.acquire(blocking=False)
         assert acquired, "orphan teardown kept the global resume lock held"
     finally:
         if acquired:
             server._session_resume_lock.release()
         release_teardown.set()
-        thread.join(timeout=2.0)
+        thread.join(timeout=5.0)
         server._sessions.pop("slow-orphan", None)
 
     assert not thread.is_alive()
