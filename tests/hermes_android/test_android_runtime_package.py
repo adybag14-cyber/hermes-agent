@@ -21,7 +21,9 @@ def package_entries(lab):
         for program in NATIVE_PROGRAMS:
             entries[f"lib/{abi}/libhermes_android_{program}.so"] = header
         entries[f"assets/hermes-linux/{abi}/manifest.json"] = '{"schema":1}'
-        entries[f"assets/chaquopy/requirements-{abi}.imy"] = zip_bytes({"native.so": b"fixture"})
+        entries[f"assets/chaquopy/requirements-{abi}.imy"] = zip_bytes(
+            {f"{name}/native.so": header for name in ("jiter", "pydantic_core")}
+            if lab else {"native.so": b"fixture"})
     entries["assets/hermes-experimental-llama/manifest.json"] = '{"schema":1}'
     entries["assets/chaquopy/bootstrap.imy"] = zip_bytes({"bootstrap.pyc": b"fixture"})
     summary = "Genuine SDK" if lab else "Android/Chaquopy placeholder"
@@ -36,9 +38,28 @@ def package_entries(lab):
 def test_package_mode_must_match_embedded_sdk_metadata(tmp_path, lab):
     apk = tmp_path / "candidate.apk"
     apk.write_bytes(zip_bytes(package_entries(lab)))
-    assert verify(apk, chaquopy_lab=lab)["chaquopy_lab"] == lab
-    with pytest.raises(ValueError, match="Wrong Python dependency mode"):
-        verify(apk, chaquopy_lab=not lab)
+    assert verify(apk, legacy_stubs=not lab)["python_dependency_mode"] == (
+        "genuine-sdks" if lab else "legacy-stubs")
+    with pytest.raises(ValueError, match="Wrong Python dependency mode|Missing genuine native"):
+        verify(apk, legacy_stubs=lab)
+
+
+def test_normal_and_lab_builds_both_require_genuine_dependencies(tmp_path):
+    apk = tmp_path / "candidate.apk"
+    apk.write_bytes(zip_bytes(package_entries(True)))
+    assert verify(apk)["python_dependency_mode"] == "genuine-sdks"
+    assert verify(apk, chaquopy_lab=True)["python_dependency_mode"] == "genuine-sdks"
+    with pytest.raises(ValueError, match="Legacy placeholder"):
+        verify(apk, chaquopy_lab=True, legacy_stubs=True)
+
+
+def test_genuine_mode_checks_native_python_architecture(tmp_path):
+    entries = package_entries(True)
+    entries["assets/chaquopy/requirements-arm64-v8a.imy"] = entries["assets/chaquopy/requirements-x86_64.imy"]
+    apk = tmp_path / "candidate.apk"
+    apk.write_bytes(zip_bytes(entries))
+    with pytest.raises(ValueError, match="Wrong Python native ELF"):
+        verify(apk)
 
 
 @pytest.mark.parametrize("fault", ["missing-lane", "wrong-abi", "missing-assets"])

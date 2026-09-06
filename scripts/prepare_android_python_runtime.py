@@ -227,10 +227,10 @@ def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS):
     run([python, helpers / "build_bootstrap.py", "--python", "3.13", "--output", bootstrap],
         cwd=source, env=environment, timeout=180)
     shutil.copytree(bootstrap / "maven", stage / "maven")
-    bootstrap_receipt = json.loads((bootstrap / "receipt.json").read_text())
+    bootstrap_receipt = json.loads((bootstrap / "receipt.json").read_text(encoding="utf-8"))
     shutil.copyfile(bootstrap / "receipt.json", stage / "bootstrap-receipt.json")
     official = work / "official-requirements.txt"
-    official.write_text(official_requirements(lock, requirements.read_text()), encoding="utf-8")
+    official.write_text(official_requirements(lock, requirements.read_text(encoding="utf-8")), encoding="utf-8")
     shutil.copyfile(requirements, stage / "requirements.txt")
     for abi, platform_abi in ABIS.items():
         run([python, "-m", "pip", "download", "--no-deps", "--require-hashes", "--only-binary=:all:",
@@ -258,7 +258,7 @@ def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS):
                "bootstrap_sha256": bootstrap_receipt["archive_sha256"],
                "source_lock_sha256": digest(lock_file), "hermes_requirements_sha256": digest(requirements),
                "fork_commit": lock["source"]["commit"], "runtime_tested": False, "files": inventory(stage)}
-    (stage / "consumer.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+    (stage / "consumer.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     verify(stage, lock_file=lock_file, requirements=requirements)
     output.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(stage, output)

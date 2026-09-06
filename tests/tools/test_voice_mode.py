@@ -199,12 +199,14 @@ class TestDetectAudioEnvironment:
         assert any("SSH" in n for n in result.get("notices", []))
 
     def test_wsl_without_pulse_blocks_voice(self, monkeypatch, tmp_path):
-        """WSL without PULSE_SERVER should block voice mode."""
+        """WSL without forwarding or the optional playback fallback blocks voice."""
         monkeypatch.delenv("SSH_CLIENT", raising=False)
         monkeypatch.delenv("SSH_TTY", raising=False)
         monkeypatch.delenv("SSH_CONNECTION", raising=False)
         monkeypatch.delenv("PULSE_SERVER", raising=False)
+        monkeypatch.delenv("PIPEWIRE_REMOTE", raising=False)
         monkeypatch.setattr("tools.voice_mode._pulse_socket_reachable", lambda: False)
+        monkeypatch.setattr("tools.voice_mode._wsl_powershell_tts_available", lambda: False)
         monkeypatch.setattr("tools.voice_mode._import_audio",
                             lambda: (MagicMock(), MagicMock()))
 

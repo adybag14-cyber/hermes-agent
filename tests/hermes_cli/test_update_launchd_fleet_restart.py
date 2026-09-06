@@ -197,9 +197,10 @@ class TestProbeLaunchdDomainForLabel:
 
 class TestGetServicePidsScoping:
     def _wire(self, monkeypatch):
-        monkeypatch.setattr(gw, "is_macos", lambda: True)
-        monkeypatch.setattr(gw, "supports_systemd_services", lambda: False)
         monkeypatch.setattr(gw, "get_launchd_label", lambda: "ai.hermes.gateway")
+        # The exclusion scan must not inspect this workstation's real services.
+        # Exercise the host-specific branch on macOS, without impersonating it.
+        monkeypatch.setattr(gw.subprocess, "run", lambda *a, **k: _completed(0, "300\t0\tcom.example.other\n"))
         monkeypatch.setattr(
             gw,
             "launchd_gateway_labels_for_install",
@@ -214,6 +215,7 @@ class TestGetServicePidsScoping:
             gw, "_locate_launchd_gateway_service", lambda label: located[label]
         )
 
+    @pytest.mark.macos_only
     def test_all_profiles_returns_every_gateway_service_pid(self, monkeypatch):
         """The update sweep's exclude-set must protect ALL freshly-restarted
         services, not only the invoking profile's (else the sweep SIGTERMs
@@ -221,6 +223,7 @@ class TestGetServicePidsScoping:
         self._wire(monkeypatch)
         assert gw._get_service_pids(all_profiles=True) == {100, 200}
 
+    @pytest.mark.macos_only
     def test_default_stays_scoped_to_current_profile(self, monkeypatch):
         """Regression guard: default-scope callers (gateway status, cron,
         stop_profile_gateway's orphan reaper) must NOT start seeing sibling

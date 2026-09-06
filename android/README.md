@@ -278,6 +278,10 @@ other moving dependency selectors are rejected for the release contract.
 
 Use Android Studio's JBR and a real CPython 3.13 executable. Do not let Gradle
 resolve an unrelated `python.exe` or an old Java installation from `PATH`.
+First prepare the source-built Python dependency bundle in the pinned Linux
+buildserver as documented in [PYTHON_RUNTIME.md](PYTHON_RUNTIME.md), then export
+the verified bundle to Windows. The example below supplies its absolute path;
+the default location is `GRADLE_USER_HOME/hermes-python-runtime`.
 
 ```powershell
 $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
@@ -287,7 +291,8 @@ $env:PYTHON_FOR_BUILD = `
   'C:\Users\you\AppData\Local\Programs\Python\Python313\python.exe'
 
 Set-Location android
-./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+./gradlew.bat :app:testDebugUnitTest :app:lintDebug :app:assembleDebug `
+  -PhermesPythonBundle=C:\path\to\verified-python-bundle
 ```
 
 The debug APK is written beneath `android/app/build/outputs/apk/debug/`.

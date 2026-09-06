@@ -206,6 +206,8 @@ jobs:
           test -x "$apksigner"
           test -x "$aapt2"
           test -f "$unsigned_apk"
+          python ../scripts/verify_android_runtime_package.py "$unsigned_apk" \
+            --python-bundle "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-runtime"
           python ../scripts/verify_android_source_bound_artifact.py \
             --artifact "$unsigned_apk" \
             --source-digest "$HERMES_SOURCE_DIGEST"

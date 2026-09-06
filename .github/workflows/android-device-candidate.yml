@@ -109,6 +109,8 @@ jobs:
           ./gradlew :app:assembleRelease --no-daemon
           unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
           test -f "$unsigned_apk"
+          python ../scripts/verify_android_runtime_package.py "$unsigned_apk" \
+            --python-bundle "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-runtime"
           python ../scripts/verify_android_source_bound_artifact.py \
             --artifact "$unsigned_apk" \
             --source-digest "$HERMES_SOURCE_DIGEST"

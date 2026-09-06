@@ -23,7 +23,7 @@ def main():
     report = audit_wheels.audit_directory(args.wheel_dir, "3.13", args.abi)
     report["dependency_closure"] = assemble_wheelhouse.dependency_closure(
         args.wheel_dir, requirements, "3.13", args.abi)
-    args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
+    args.output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if not report["passed"]:
         raise ValueError("Android Python wheel audit failed: " + str(args.output))
     print(f"Android Python offline closure/ELF audit passed: {args.abi}")
