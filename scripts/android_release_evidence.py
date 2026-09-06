@@ -30,11 +30,11 @@ from typing import Any, Iterable, Mapping, Sequence
 import xml.etree.ElementTree as ET
 
 try:
-    from scripts import android_release_evidence_policy as release_policy
-    from scripts.android_release_evidence_common import EvidenceError, _exact_keys
-except ModuleNotFoundError:  # Direct script execution.
     import android_release_evidence_policy as release_policy
     from android_release_evidence_common import EvidenceError, _exact_keys
+except ModuleNotFoundError:  # Imported as a package rather than executed as a script.
+    from scripts import android_release_evidence_policy as release_policy
+    from scripts.android_release_evidence_common import EvidenceError, _exact_keys
 
 
 MANIFEST_SCHEMA_V2 = "hermes-android-release-evidence-manifest-v2"

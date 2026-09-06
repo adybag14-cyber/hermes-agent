@@ -7,9 +7,9 @@ from datetime import datetime, timezone
 from typing import Any, Mapping
 
 try:
-    from scripts.android_release_evidence_common import EvidenceError, _exact_keys
-except ModuleNotFoundError:  # Direct script execution.
     from android_release_evidence_common import EvidenceError, _exact_keys
+except ModuleNotFoundError:  # Imported as a package rather than executed as a script.
+    from scripts.android_release_evidence_common import EvidenceError, _exact_keys
 
 
 REVIEWER_RE = re.compile(r"^[^\r\n]{2,120}$")
