@@ -25,10 +25,16 @@ import sys
 import zipfile
 import zlib
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 import xml.etree.ElementTree as ET
+
+try:
+    from scripts import android_release_evidence_policy as release_policy
+    from scripts.android_release_evidence_common import EvidenceError, _exact_keys
+except ModuleNotFoundError:  # Direct script execution.
+    import android_release_evidence_policy as release_policy
+    from android_release_evidence_common import EvidenceError, _exact_keys
 
 
 MANIFEST_SCHEMA_V2 = "hermes-android-release-evidence-manifest-v2"
@@ -87,7 +93,6 @@ HEX_COLOR_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 HEADED_UI_PROFILE_RE = re.compile(r"^(phone|tablet)-([0-9]+)x([0-9]+)dp$")
 SAFE_ARTIFACT_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,239}$")
 SAFE_THEME_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,79}$")
-REVIEWER_RE = re.compile(r"^[^\r\n]{2,120}$")
 SOFTWARE_RENDERER_MARKERS = (
     "swiftshader",
     "llvmpipe",
@@ -144,8 +149,6 @@ QEMU_CIM_SCRIPT = (
 )
 
 
-class EvidenceError(ValueError):
-    """Raised when release evidence fails closed."""
 
 
 @dataclass(frozen=True)
@@ -4788,12 +4791,6 @@ def _validate_comprehensive_ui_evidence(
     return paths, len(all_records), custom_light_by_profile
 
 
-def _exact_keys(value: Mapping[str, Any], expected: set[str], context: str) -> None:
-    if set(value) != expected:
-        raise EvidenceError(
-            f"{context} key set is invalid; missing={sorted(expected - set(value))}, "
-            f"unexpected={sorted(set(value) - expected)}"
-        )
 
 
 def _registered_nanbeige_repair_artifact(
@@ -5260,48 +5257,7 @@ def _validate_physical_nanbeige_repair_evidence(
         )
 
     reconciliation = _nested_object(payload, "automatic_reconciliation", context)
-    reconciliation_context = f"{context}.automatic_reconciliation"
-    _exact_keys(
-        reconciliation,
-        {
-            "capture_route",
-            "model_path",
-            "trigger",
-            "automatic",
-            "exact_artifact_verified_before_reconciliation",
-            "settings_before_runtime_lane",
-            "required_runtime_lane",
-            "settings_after_runtime_lane",
-            "settings_save_succeeded",
-            "persisted_before_runtime_launch",
-            "runtime_launch_observed_after_persist",
-            "visible_settings_runtime_lane",
-            "visible_settings_matches_persisted_lane",
-            "visible_settings_observed_after_ready",
-            "user_reselected_lane",
-        },
-        reconciliation_context,
-    )
-    exact_reconciliation = {
-        "capture_route": "app-managed-local-backend",
-        "model_path": model_path,
-        "trigger": "verified-artifact-prelaunch",
-        "automatic": True,
-        "exact_artifact_verified_before_reconciliation": True,
-        "settings_before_runtime_lane": "stable",
-        "required_runtime_lane": "turboquant",
-        "settings_after_runtime_lane": "turboquant",
-        "settings_save_succeeded": True,
-        "persisted_before_runtime_launch": True,
-        "runtime_launch_observed_after_persist": True,
-        "visible_settings_runtime_lane": "turboquant",
-        "visible_settings_matches_persisted_lane": True,
-        "visible_settings_observed_after_ready": True,
-        "user_reselected_lane": False,
-    }
-    for field, expected in exact_reconciliation.items():
-        if reconciliation.get(field) != expected:
-            raise EvidenceError(f"{reconciliation_context}.{field} must equal {expected!r}")
+    release_policy.validate_automatic_reconciliation(reconciliation, model_path, context)
 
     readiness = _nested_object(payload, "readiness", context)
     readiness_context = f"{context}.readiness"
@@ -5459,16 +5415,6 @@ def _validate_physical_nanbeige_repair_evidence(
     )
 
 
-def _reviewed_utc(value: Any, context: str) -> str:
-    if not isinstance(value, str):
-        raise EvidenceError(f"{context} must be a UTC timestamp string")
-    try:
-        parsed = datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-    except ValueError as exc:
-        raise EvidenceError(f"{context} must use YYYY-MM-DDTHH:MM:SSZ") from exc
-    if parsed.year < 2026:
-        raise EvidenceError(f"{context} predates the comprehensive release-evidence contract")
-    return value
 
 
 def _validate_launch_artifact(
@@ -5671,25 +5617,7 @@ def _validate_launch_theme_manifest(
     )
 
     review = _nested_object(payload, "visual_review", context)
-    review_keys = {
-        "status",
-        "reviewer",
-        "reviewed_at_utc",
-        "decision",
-        "notes",
-        "method",
-        "automated_pixel_certification",
-    }
-    _exact_keys(review, review_keys, f"{context}.visual_review")
-    if review["status"] != "reviewed" or review["decision"] != "pass":
-        raise EvidenceError(f"{context} does not carry a passing completed human visual review")
-    if not isinstance(review["reviewer"], str) or not REVIEWER_RE.fullmatch(review["reviewer"]):
-        raise EvidenceError(f"{context}.visual_review.reviewer is invalid")
-    _reviewed_utc(review["reviewed_at_utc"], f"{context}.visual_review.reviewed_at_utc")
-    if not isinstance(review["notes"], str) or not review["notes"].strip() or len(review["notes"]) > 500:
-        raise EvidenceError(f"{context}.visual_review.notes is invalid")
-    if review["method"] != "manual-frame-by-frame" or review["automated_pixel_certification"] is not False:
-        raise EvidenceError(f"{context}.visual_review improperly claims automated pixel certification")
+    release_policy.validate_launch_visual_review(review, context)
 
     captures = payload["captures"]
     if not isinstance(captures, list) or len(captures) != 2:
@@ -6314,8 +6242,7 @@ def build_manifest(
                 "required_recommended_model_ids": list(evidence.required_recommended_model_ids),
                 "requires_six_language_recommended_model_and_framework_ui_inventory": True,
                 "requires_persisted_palette_bound_launcher_and_deep_link_capture_per_profile": True,
-                "requires_human_frame_by_frame_launch_theme_review": True,
-                "launch_theme_capture_does_not_self_certify_pixels": True,
+                **release_policy.launch_review_manifest_contract(),
                 "requires_historical_issue8_e4b_cpu_speculation_off_completion": True,
                 "requires_issue8_exact_direct_tool_and_metadata_only_12b_preflight": True,
                 "requires_issue16_fresh_debian_guest_https_and_clean_stopped_disposition": True,
@@ -6399,8 +6326,7 @@ def build_manifest(
                 "requires_final_signed_apk_runtime_closure_entry_hash_binding": True,
                 "requires_stable_runtime_dependency_and_environment_binding": True,
                 "requires_no_stable_runtime_linker_or_loader_error": True,
-                "requires_automatic_persisted_turboquant_reconciliation_before_launch": True,
-                "requires_visible_settings_to_match_reconciled_turboquant_lane": True,
+                **release_policy.physical_reconciliation_manifest_contract(),
                 "requires_app_managed_turboquant_readiness_and_completion_canary": True,
                 "requires_general_mode_ordinary_chat_without_unsolicited_tools": True,
                 "required_general_mode_prompt": PHYSICAL_ORDINARY_CHAT_PROMPT,
