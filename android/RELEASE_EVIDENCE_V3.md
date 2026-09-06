@@ -610,16 +610,24 @@ Run the repository tests through the canonical wrapper, then create the
 deterministic v3 manifest while the source tree is clean outside the evidence
 directory:
 
+For v0.13.154 onward, first complete the new-release trace upload and independent
+round-trip workflow described in `README.md`. Keep raw traces outside Git, commit
+only their source manifest and successful artifact receipt, and pass the exact
+downloaded trace directory to both evidence commands below. The release workflow
+downloads and verifies that same immutable artifact before signing.
+
 ```powershell
 $env:HERMES_TEST_WORKERS = '12'
 wsl.exe bash -lc "cd /mnt/c/Users/adyba/hermes-agent-android-overhaul && HERMES_TEST_WORKERS=12 scripts/run_tests.sh tests/hermes_android --dist=worksteal"
 git diff --check
 actionlint
-python scripts/android_release_evidence.py create --tag $tag
+$traceRoot = 'C:\path\to\verified-release-traces'
+python scripts/android_release_evidence.py create --tag $tag --perfetto-root $traceRoot
 git add "android/release-evidence/$tag"
+git add "android/release-evidence/perfetto-artifacts/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
 git tag -a $tag -m "Hermes Agent Fork $tag"
-python scripts/android_release_evidence.py verify --tag $tag --require-tag-ref
+python scripts/android_release_evidence.py verify --tag $tag --perfetto-root $traceRoot --require-tag-ref
 ```
 
 Manifest v3 hashes every added file and records the comprehensive UI capture

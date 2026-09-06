@@ -509,6 +509,46 @@ and hashed, and the reconstructed release manifest must still match exactly.
 An artifact receipt or registry record alone is never accepted as trace-byte
 evidence.
 
+For **new releases (v0.13.154 onward)**, do not add raw traces to Git even
+temporarily. Keep an external directory containing only the two canonical
+`*.traces` directories. After the final-source performance JSON has been
+collected, generate and commit metadata only:
+
+```powershell
+python scripts/android_perfetto_release_artifact.py create-source `
+    --tag v0.13.154 --trace-root C:\path\to\new-traces
+```
+
+This creates `release-evidence/perfetto-artifacts/v0.13.154/source.json`, bound
+to the measured source digest, capture run, and every trace's size/hash. Dispatch
+`android-perfetto-release.yml` on that exact reviewed commit, with the release
+tag and a unique `hermes-traces-<32 lowercase hex characters>` runner label.
+First require its hosted preflight to pass. Then register only an explicitly
+approved, isolated Docker runner using `--ephemeral --no-default-labels` and
+that label. Give the container only the trace files at `/trace-input`, no
+personal checkout, credentials, host mounts, or Docker socket. The workflow
+fetches its own sparse trusted tooling at `github.sha`; no PR code runs there.
+Preserve the runner/job logs and remove the container after its one upload job;
+verify GitHub has automatically deregistered it (remove the exact runner if a
+failed registration/job left it behind).
+
+A separate hosted job downloads by immutable artifact ID and hashes every
+file. Only after the **whole workflow succeeds**, record its authority:
+
+```powershell
+python scripts/android_perfetto_release_artifact.py create-receipt `
+    --tag v0.13.154 --run-id <successful-run-id> --artifact-id <artifact-id>
+python scripts/android_perfetto_release_artifact.py verify-receipt --tag v0.13.154
+```
+
+Commit the generated `receipt.json` with the evidence. The release workflow
+checks the receipt against live GitHub APIs, including the upload commit's
+manifest/tooling, downloads the exact ID, and passes the external bytes to the
+unchanged release-evidence validator **before signing**. Keep a local backup:
+these new traces have no Git recovery copy and Actions retention is 90 days.
+Renewing an expired archive requires another approved upload, round-trip check,
+and receipt; expired metadata alone cannot pass a release gate.
+
 Use the compact-phone AVD for `performance/phone-compact.json` and the
 large-memory tablet AVD for `performance/tablet.json`; all model evidence must
 come from one of those exact measured serial/AVD/fingerprint records. Verify
