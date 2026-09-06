@@ -544,6 +544,15 @@ class NativeToolCallingChatClient(
                 latestToolResult = toolResult
                 val activityType = nativeToolActivityType(toolCall.name)
                 onEvent(NativeAgentEvent(activityType, "${toolCall.name} result", toolResult))
+                nativeSandboxPolicyDenial(toolResult, appSettings.languageTag)?.let { denial ->
+                    ensureNotCancelled()
+                    return Result(
+                        content = denial,
+                        executedToolCalls = executedToolCalls,
+                        lastToolResult = latestToolResult,
+                        modelRequestCount = modelRequestCount,
+                    )
+                }
                 messages.put(
                     JSONObject()
                         .put("role", "tool")
@@ -950,6 +959,7 @@ class NativeToolCallingChatClient(
     }
 
     private fun toolCompletionReply(toolResult: String): String {
+        nativeSandboxPolicyDenial(toolResult, AppSettingsStore(appContext).load().languageTag)?.let { return it }
         val parsed = runCatching { JSONObject(toolResult) }.getOrNull() ?: return toolResult.ifBlank { "Tool call completed." }
         val output = parsed.optString("output").trim()
         if (output.isNotBlank()) {

@@ -66,6 +66,43 @@ class NativeToolCallDispatchRobotest {
     }
 
     @Test
+    fun nativeSandboxPolicyDenialDoesNotAskTheModelToExplainOrRetryIt() {
+        val blocked = JSONObject()
+            .put("exit_code", 126)
+            .put("sandbox_execution_mode", "request_owned_proot_blocked")
+            .put("request_owned_operation_blocked", true)
+            .put("error", "Guest mutations cannot be committed atomically with Stop.")
+        val runnerCalls = AtomicInteger()
+        val scopedClient = NativeToolCallingChatClient(
+            context = RuntimeEnvironment.getApplication(),
+            linuxSandboxActionRunner = { _, _, _, _, _, _ ->
+                runnerCalls.incrementAndGet()
+                blocked
+            },
+        )
+        server.enqueue(jsonResponse(openaiToolCallPayload(
+            "mcp_run_in_proot", JSONObject().put("command", "uname -a"),
+        )))
+        server.enqueue(jsonResponse(finalPayload("Invented filesystem ownership explanation")))
+
+        val result = scopedClient.send(
+            baseUrl = server.url("/").toString().trimEnd('/'),
+            modelName = "scripted",
+            sessionId = "sandbox-policy-denial",
+            userText = "Run uname -a inside the Alpine sandbox.",
+            providerId = "llama.cpp",
+        )
+
+        assertEquals(1, runnerCalls.get())
+        assertEquals(1, result.executedToolCalls)
+        assertEquals(blocked.toString(), result.lastToolResult)
+        assertEquals("Native policy denial must not trigger a model follow-up", 1, server.requestCount)
+        assertEquals(1, result.modelRequestCount)
+        assertFalse(result.content, result.content.contains("Invented"))
+        assertTrue(result.content, result.content.contains("Stop"))
+    }
+
+    @Test
     fun sandboxRequestABlockedAtClientGateThenStoppedCannotAffectIndependentB() {
         val requestAAtGate = CountDownLatch(1)
         val releaseRequestA = CountDownLatch(1)
