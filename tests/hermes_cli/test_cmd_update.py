@@ -16,6 +16,18 @@ from hermes_cli import update_cmd
 pytestmark = pytest.mark.usefixtures("isolate_update_repository_side_effects")
 
 
+def test_simulated_update_preserves_process_discovery_isolation(monkeypatch):
+    import importlib
+    from hermes_cli import gateway, main
+
+    def no_live_gateways(*args, **kwargs):
+        return []
+
+    monkeypatch.setattr(gateway, "find_gateway_pids", no_live_gateways)
+    main._purge_stale_hermes_modules()
+    assert importlib.import_module("hermes_cli.gateway").find_gateway_pids is no_live_gateways
+
+
 def _make_run_side_effect(branch="main", verify_ok=True, commit_count="0"):
     """Build a side_effect function for subprocess.run that simulates git commands."""
 

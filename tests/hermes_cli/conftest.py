@@ -63,7 +63,28 @@ def isolate_update_repository_side_effects(monkeypatch):
     repository nor refresh installed optional backends, especially while
     racing one another under xdist.
     """
-    from hermes_cli import main
+    from hermes_cli import gateway, main, update_inventory, update_receipt
 
     monkeypatch.setattr(main, "_clear_bytecode_cache", lambda _root: 0)
+    # A simulated git update must not evict the gateway/inventory modules
+    # carrying these tests' process-isolation stubs. Otherwise restart imports
+    # fresh, unmocked modules and inspects the developer's real process fleet.
+    # Real eviction behavior has its own test_update_stale_module_purge suite.
+    monkeypatch.setattr(main, "_purge_stale_hermes_modules", lambda: None)
     monkeypatch.setattr(main, "_refresh_active_lazy_features", lambda *args, **kwargs: True)
+    # These three callers test Git/configuration, not live fleet lifecycle.
+    # Keep absence explicit on Windows too: unknown/missing resume state is
+    # intentionally fail-closed in production and may request a cold start.
+    monkeypatch.setattr(gateway, "find_gateway_pids", lambda *a, **k: [])
+    monkeypatch.setattr(gateway, "supports_systemd_services", lambda: False)
+    monkeypatch.setattr(gateway, "find_profile_gateway_processes", lambda *a, **k: [])
+    monkeypatch.setattr(update_inventory, "collect_runtime_inventory", lambda *a, **k: update_inventory.UpdatePlan())
+    monkeypatch.setattr(update_receipt, "collect_fleet_versions", lambda *a, **k: [])
+    monkeypatch.setattr(main, "_fleet_probe_expected_runtimes", lambda *a, **k: False)
+    monkeypatch.setattr(main, "_pause_windows_gateways_for_update", lambda *a, **k: None)
+    monkeypatch.setattr(main, "_resume_windows_gateways_after_update", lambda *a, **k: None)
+
+    def reject_cold_start(*args, **kwargs):
+        raise AssertionError("Simulated Git/config updates must not launch real gateways")
+
+    monkeypatch.setattr(main, "_cold_start_windows_gateway_after_update", reject_cold_start)
