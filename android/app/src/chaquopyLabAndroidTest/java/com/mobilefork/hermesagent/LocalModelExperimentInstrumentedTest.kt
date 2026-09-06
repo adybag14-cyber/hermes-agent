@@ -60,7 +60,8 @@ class LocalModelExperimentInstrumentedTest {
         require(caseId.matches(Regex("[A-Za-z0-9._-]{1,100}")))
         val fileName = requireNotNull(args.getString("model_file_name"))
         require(File(fileName).name == fileName)
-        val model = File(context.filesDir, "hermes-home/downloads/models/$fileName")
+        val model = args.getString("model_path")?.takeIf { it.isNotBlank() }?.let(::File)
+            ?: File(context.filesDir, "hermes-home/downloads/models/$fileName")
         val expectedBytes = requireNotNull(args.getString("model_bytes")).toLong()
         val expectedSha = requireNotNull(args.getString("model_sha256"))
         require(expectedSha.matches(Regex("[0-9a-f]{64}")))
@@ -73,6 +74,9 @@ class LocalModelExperimentInstrumentedTest {
         val requestedAccelerator = args.getString("accelerator", "cpu")
         require(requestedAccelerator in setOf("cpu", "gpu", "npu"))
         val sandboxPrompt = args.getString("sandbox_prompt", "")
+        val question = args.getString("prompt", "What is 17 + 25? Give the answer briefly.")
+        val expectedAnswerPattern = args.getString("expected_answer_regex", "\\b42\\b")
+        val expectedAnswer = Regex(expectedAnswerPattern)
         val reportFile = File(evidenceDirectory, "$caseId.json")
         val report = JSONObject()
             .put("case_id", caseId).put("release_certified", false).put("status", "starting")
@@ -82,6 +86,7 @@ class LocalModelExperimentInstrumentedTest {
             .put("requested_cache_k", cache).put("requested_cache_v", cache)
             .put("requested_accelerator", requestedAccelerator).put("app_package", BuildConfig.APPLICATION_ID)
             .put("app_version", BuildConfig.VERSION_NAME)
+            .put("prompt", question).put("expected_answer_regex", expectedAnswerPattern)
             .put("litertlm_coordinate", BuildConfig.HERMES_LITERTLM_COORDINATE)
             .put("android_api", Build.VERSION.SDK_INT).put("android_abi", Build.SUPPORTED_ABIS.first())
             .put("model_agency_verified", false)
@@ -121,6 +126,7 @@ class LocalModelExperimentInstrumentedTest {
             val status = OnDeviceBackendManager.ensureConfigured(context, backend.persistedValue)
             apiKey = status.apiKey
             report.put("runtime_started", status.started).put("accelerator", status.accelerator)
+            report.put("runtime_status", status.statusMessage)
             report.put("startup_elapsed_ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt))
             reportFile.writeText(report.toString(2))
             assertTrue(status.statusMessage, status.started)
@@ -147,9 +153,20 @@ class LocalModelExperimentInstrumentedTest {
             report.put("health_status", health.optString("status"))
             assertEquals(health.toString(), "ok", health.optString("status"))
             val completionStart = System.nanoTime()
-            val completion = request(status.baseUrl + "/chat/completions", JSONObject()
+            val completionPayload = JSONObject()
                 .put("model", status.modelName).put("temperature", 0.2).put("max_tokens", 512).put("stream", false)
-                .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", "What is 17 + 25? Give the answer briefly."))))
+                .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", question)))
+            // Ordinary Hermes chat already disables template thinking. A raw-server
+            // diagnostic may opt out, but it must not masquerade as the app request.
+            val directThinking = args.getString("direct_thinking", "disabled")
+            require(directThinking in setOf("disabled", "server-default"))
+            if (directThinking == "disabled") {
+                completionPayload.put("chat_template_kwargs", JSONObject().put("enable_thinking", false))
+            }
+            val completion = request(status.baseUrl + "/chat/completions", completionPayload)
+            val choice = completion.getJSONArray("choices").getJSONObject(0)
+            report.put("direct_api_thinking", directThinking).put("direct_api_choice", choice)
+                .put("direct_api_usage", completion.optJSONObject("usage"))
             val content = (completion.getJSONArray("choices").getJSONObject(0)
                 .getJSONObject("message").opt("content") as? String).orEmpty().trim()
             report.put("completion", content)
@@ -157,6 +174,18 @@ class LocalModelExperimentInstrumentedTest {
             report.put("completion_nonempty", content.isNotEmpty())
             reportFile.writeText(report.toString(2))
             assertTrue("Reasoning-only or empty assistant content is not a reply", content.isNotEmpty())
+            val chatResult = NativeToolCallingChatClient(context).send(
+                baseUrl = status.baseUrl, modelName = status.modelName, apiKey = status.apiKey,
+                providerId = backend.persistedValue, sessionId = "app-chat-$caseId",
+                userText = question,
+            )
+            report.put("app_chat_reply", chatResult.content).put("app_chat_model_requests", chatResult.modelRequestCount)
+                .put("app_chat_tool_calls", chatResult.executedToolCalls)
+            reportFile.writeText(report.toString(2))
+            assertTrue("Actual app chat must reach the model", chatResult.modelRequestCount > 0)
+            assertEquals("This plain-chat probe does not authorize a tool action", 0, chatResult.executedToolCalls)
+            assertTrue("The actual app chat must match the requested answer contract, not an empty-response fallback",
+                expectedAnswer.containsMatchIn(chatResult.content))
             if (sandboxPrompt.isNotBlank()) {
                 val enabled = HermesLinuxSandboxBridge.performAction(context, "start", distroId = "alpine-3-21", name = "hermes-lab-alpine")
                 assertEquals(enabled.toString(), 0, enabled.optInt("exit_code", -1))
