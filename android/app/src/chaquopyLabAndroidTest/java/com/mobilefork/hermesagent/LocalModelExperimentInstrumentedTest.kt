@@ -70,6 +70,8 @@ class LocalModelExperimentInstrumentedTest {
         val backend = if (args.getString("backend") == "llama.cpp") BackendKind.LLAMA_CPP else BackendKind.LITERT_LM
         val lane = args.getString("lane", "stable")
         val cache = args.getString("cache_type", "f16")
+        val requestedAccelerator = args.getString("accelerator", "cpu")
+        require(requestedAccelerator in setOf("cpu", "gpu", "npu"))
         val sandboxPrompt = args.getString("sandbox_prompt", "")
         val reportFile = File(evidenceDirectory, "$caseId.json")
         val report = JSONObject()
@@ -78,6 +80,8 @@ class LocalModelExperimentInstrumentedTest {
             .put("model_bytes", expectedBytes).put("model_sha256", expectedSha)
             .put("backend", backend.persistedValue).put("requested_runtime_lane", lane)
             .put("requested_cache_k", cache).put("requested_cache_v", cache)
+            .put("requested_accelerator", requestedAccelerator).put("app_package", BuildConfig.APPLICATION_ID)
+            .put("app_version", BuildConfig.VERSION_NAME)
             .put("litertlm_coordinate", BuildConfig.HERMES_LITERTLM_COORDINATE)
             .put("android_api", Build.VERSION.SDK_INT).put("android_abi", Build.SUPPORTED_ABIS.first())
             .put("model_agency_verified", false)
@@ -108,7 +112,7 @@ class LocalModelExperimentInstrumentedTest {
             downloads.setPreferredDownloadId(record.id)
             settingsStore.save(originalSettings.copy(
                 provider = "custom", baseUrl = "", model = caseId, onDeviceBackend = backend.persistedValue,
-                localModelAccelerator = "cpu", liteRtLmSpeculativeDecodingMode = "disabled",
+                localModelAccelerator = requestedAccelerator, liteRtLmSpeculativeDecodingMode = "disabled",
                 localModelMaxTokens = 512, llamaCppRuntimeLane = lane,
                 llamaCppCacheTypeK = cache, llamaCppCacheTypeV = cache,
                 llamaCppFlashAttention = if (cache.startsWith("turbo")) "on" else "auto",
@@ -120,6 +124,7 @@ class LocalModelExperimentInstrumentedTest {
             report.put("startup_elapsed_ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt))
             reportFile.writeText(report.toString(2))
             assertTrue(status.statusMessage, status.started)
+            assertEquals("A fallback is not proof of the requested accelerator", requestedAccelerator, status.accelerator)
             val runtimeSnapshot = com.mobilefork.hermesagent.device.LocalModelRuntimeDiagnostics.readSnapshot(context)
             report.put("effective_runtime", runtimeSnapshot)
             if (backend == BackendKind.LLAMA_CPP) {

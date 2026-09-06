@@ -337,7 +337,7 @@ android {
     ndkVersion = hermesExperimentalLlamaNdkVersion
 
     defaultConfig {
-        applicationId = "com.mobilefork.hermesagent"
+        applicationId = if (hermesChaquopyLabRoot == null) "com.mobilefork.hermesagent" else "com.mobilefork.hermesagent.lab"
         minSdk = 24
         targetSdk = 35
         versionCode = hermesVersionCode()
@@ -394,6 +394,7 @@ android {
 
     buildTypes {
         debug {
+            if (hermesChaquopyLabRoot != null) versionNameSuffix = "-lab"
             buildConfigField(
                 "String",
                 "HERMES_SOURCE_DIGEST",
@@ -477,6 +478,7 @@ android {
 
     if (hermesChaquopyLabRoot != null) {
         sourceSets.getByName("androidTest").kotlin.directories += "src/chaquopyLabAndroidTest/java"
+        sourceSets.getByName("debug").manifest.srcFile("src/chaquopyLab/AndroidManifest.xml")
     }
 
     androidResources {

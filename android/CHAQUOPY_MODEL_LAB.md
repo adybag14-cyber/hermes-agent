@@ -5,6 +5,13 @@ Python dependencies into the production default. Physical ARM64 phone testing
 and version finalization follow this phase. Do not install this debug APK over
 an existing signed production app or downgrade/uninstall that app to make it fit.
 
+Lab builds install side by side as `com.mobilefork.hermesagent.lab`, labelled
+**Hermes Lab (experimental)** with a `-lab` version suffix. Their test package is
+`com.mobilefork.hermesagent.lab.test`. OAuth deep links and external automation/
+Tasker entry points are disabled in the lab overlay so it cannot intercept the
+released app's integrations. Those integrations require a later signed-candidate
+gate; these isolated checks do not certify an in-place data migration.
+
 ## Build inputs
 
 - LiteRT-LM 0.17.0; Kotlin/Compose 2.4.10; AGP 9.1.1 built-in Kotlin; Gradle 9.3.1.

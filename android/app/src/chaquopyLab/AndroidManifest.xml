@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application android:label="Hermes Lab (experimental)" tools:replace="android:label">
+        <!-- Keep the released app's OAuth callbacks and Tasker integrations exclusive.
+             This isolated package qualifies models/SDKs, not those external integrations. -->
+        <activity
+            android:name="com.mobilefork.hermesagent.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize"
+            tools:node="replace">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name="com.mobilefork.hermesagent.device.HermesTaskerPluginEditActivity" android:enabled="false" />
+        <activity android:name="com.mobilefork.hermesagent.device.HermesTaskerConditionEditActivity" android:enabled="false" />
+        <activity android:name="com.mobilefork.hermesagent.device.HermesTaskerEventEditActivity" android:enabled="false" />
+        <receiver android:name="com.mobilefork.hermesagent.device.HermesAutomationReceiver" android:enabled="false" tools:replace="android:enabled" />
+        <receiver android:name="com.mobilefork.hermesagent.device.HermesExternalTriggerReceiver" android:enabled="false" tools:replace="android:enabled" />
+        <receiver android:name="com.mobilefork.hermesagent.device.HermesTaskerPluginFireReceiver" android:enabled="false" tools:replace="android:enabled" />
+        <receiver android:name="com.mobilefork.hermesagent.device.HermesTaskerConditionQueryReceiver" android:enabled="false" tools:replace="android:enabled" />
+    </application>
+</manifest>
