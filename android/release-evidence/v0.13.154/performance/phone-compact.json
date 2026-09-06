@@ -1,0 +1,259 @@
+{
+  "benchmark": {
+    "androidx_benchmark_coordinate": "androidx.benchmark:benchmark-macro-junit4:1.4.1",
+    "compilation_mode": "Full",
+    "iteration_count": 5,
+    "profiling_mode": "None",
+    "reporting_package_compilation_mode": "run-from-apk",
+    "runner": "androidx.test.runner.AndroidJUnitRunner",
+    "suppressed_errors": [
+      "EMULATOR"
+    ],
+    "target_compiler_filter": "speed",
+    "target_debuggable": false,
+    "target_package_id": "com.mobilefork.hermesagent",
+    "target_profileable_by_shell": true,
+    "test_id": "com.mobilefork.hermesagent.macrobenchmark.HermesSettingsScrollBenchmark#settingsListFling",
+    "test_package_id": "com.mobilefork.hermesagent.macrobenchmark"
+  },
+  "benchmark_target_apk_sha256": "04b0e8e01910d203adec8bc92dcc72e51d34d0bbb6c22d84fd0cd90f9ccd16b4",
+  "benchmark_test_apk_sha256": "3e837754f099bc295eeeea3e7554726f0794ab65bc0de4ceae7a01e9577ac454",
+  "build_variant": "benchmark",
+  "collector": {
+    "benchmark_target_apk_device_path": "/data/app/~~5EDM-zROyaevknAZ-f4JXg==/com.mobilefork.hermesagent-f2jtFpFusZGwZfb1f0GNfA==/base.apk",
+    "benchmark_test_apk_device_path": "/data/app/~~egiVe4VnuC5ILY-rvCLUPg==/com.mobilefork.hermesagent.macrobenchmark-bMUGAAm5bwSAW-nq8ck9GA==/base.apk",
+    "git_object_format": "sha1",
+    "scenario": "settings-list-fling",
+    "source_digest_algorithm": "sha256-git-tree-contents-v1",
+    "source_file_count": 12610
+  },
+  "device": {
+    "acceleration_check": "accel:\n0\nWHPX(10.0.26200) is installed and usable.\naccel",
+    "acceleration_check_exit_code": 0,
+    "active_qemu_process_count": 1,
+    "android_sdk": 35,
+    "avd_name": "Hermes_Release_154_API35",
+    "boot_id": "474d7968-8467-41e3-a524-73e1498fe331",
+    "build_fingerprint": "google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+    "emulator_pid": 22568,
+    "emulator_process_name": "qemu-system-x86_64.exe",
+    "emulator_public_command": "qemu-system-x86_64.exe -avd Hermes_Release_154_API35 -port 5580 -gpu host -accel on",
+    "emulator_public_command_sha256": "fc752d72cd03d523f0d304c3cfaf4bcfa477a0cafbe2c6a6625200de9c0b95b6",
+    "emulator_raw_command_sha256": "8a21226015dc678bb21512c26ea7c61fdbe84ec0a5471013a4b9d62f40fe4baf",
+    "gpu_renderer": "Android Emulator OpenGL ES Translator (NVIDIA GeForce RTX 4090/PCIe/SSE2)",
+    "hardware_acceleration": true,
+    "model": "sdk_gphone64_x86_64",
+    "serial": "emulator-5580",
+    "supported_abis": [
+      "x86_64",
+      "arm64-v8a"
+    ]
+  },
+  "evidence_classification": {
+    "environment": "headed-hardware-accelerated-avd",
+    "representative_end_user_benchmark": false,
+    "result_kind": "validation-signal"
+  },
+  "evidence_run_id": "v0.13.154-d9e85a476915df3c-20260906-184131bst",
+  "frames": {
+    "frame_overrun_ms": {
+      "p50": 9.468188000000001,
+      "p90": 20.300869200000005,
+      "p95": 23.621805899999963,
+      "p99": 36.099456919999994
+    },
+    "frame_timing_overrun_positive": 4226,
+    "frame_timing_overrun_positive_percent": 96.39598540145985,
+    "frame_timing_total_rendered": 4384,
+    "iterations": [
+      {
+        "frame_timing_frame_count": 746,
+        "frame_timing_overrun_positive_frames": 716,
+        "frame_timing_overrun_positive_percent": 95.97855227882037,
+        "iteration": 1,
+        "perfetto_app_deadline_missed_and_dropped_frames": 0,
+        "perfetto_app_deadline_missed_frames": 29,
+        "perfetto_app_deadline_missed_or_dropped_frames": 34,
+        "perfetto_app_deadline_missed_or_dropped_percent": 4.497354497354498,
+        "perfetto_app_deadline_missed_percent": 3.835978835978836,
+        "perfetto_dropped_frames": 5,
+        "perfetto_non_deadline_self_jank_tagged_frames": 0,
+        "perfetto_other_jank_tagged_frames": 648,
+        "perfetto_overlapping_jank_tag_frames": 0,
+        "perfetto_self_jank_tagged_frames": 29,
+        "perfetto_self_jank_tagged_percent": 3.835978835978836,
+        "perfetto_surface_frame_timeline_tokens": 756,
+        "perfetto_unknown_tag_frames": 0
+      },
+      {
+        "frame_timing_frame_count": 949,
+        "frame_timing_overrun_positive_frames": 922,
+        "frame_timing_overrun_positive_percent": 97.15489989462593,
+        "iteration": 2,
+        "perfetto_app_deadline_missed_and_dropped_frames": 0,
+        "perfetto_app_deadline_missed_frames": 27,
+        "perfetto_app_deadline_missed_or_dropped_frames": 31,
+        "perfetto_app_deadline_missed_or_dropped_percent": 3.232533889468196,
+        "perfetto_app_deadline_missed_percent": 2.815432742440042,
+        "perfetto_dropped_frames": 4,
+        "perfetto_non_deadline_self_jank_tagged_frames": 2,
+        "perfetto_other_jank_tagged_frames": 835,
+        "perfetto_overlapping_jank_tag_frames": 0,
+        "perfetto_self_jank_tagged_frames": 29,
+        "perfetto_self_jank_tagged_percent": 3.0239833159541187,
+        "perfetto_surface_frame_timeline_tokens": 959,
+        "perfetto_unknown_tag_frames": 0
+      },
+      {
+        "frame_timing_frame_count": 923,
+        "frame_timing_overrun_positive_frames": 881,
+        "frame_timing_overrun_positive_percent": 95.44962080173347,
+        "iteration": 3,
+        "perfetto_app_deadline_missed_and_dropped_frames": 0,
+        "perfetto_app_deadline_missed_frames": 27,
+        "perfetto_app_deadline_missed_or_dropped_frames": 35,
+        "perfetto_app_deadline_missed_or_dropped_percent": 3.747323340471092,
+        "perfetto_app_deadline_missed_percent": 2.890792291220557,
+        "perfetto_dropped_frames": 8,
+        "perfetto_non_deadline_self_jank_tagged_frames": 1,
+        "perfetto_other_jank_tagged_frames": 795,
+        "perfetto_overlapping_jank_tag_frames": 0,
+        "perfetto_self_jank_tagged_frames": 28,
+        "perfetto_self_jank_tagged_percent": 2.9978586723768736,
+        "perfetto_surface_frame_timeline_tokens": 934,
+        "perfetto_unknown_tag_frames": 0
+      },
+      {
+        "frame_timing_frame_count": 971,
+        "frame_timing_overrun_positive_frames": 936,
+        "frame_timing_overrun_positive_percent": 96.39546858908342,
+        "iteration": 4,
+        "perfetto_app_deadline_missed_and_dropped_frames": 0,
+        "perfetto_app_deadline_missed_frames": 33,
+        "perfetto_app_deadline_missed_or_dropped_frames": 42,
+        "perfetto_app_deadline_missed_or_dropped_percent": 4.294478527607362,
+        "perfetto_app_deadline_missed_percent": 3.374233128834356,
+        "perfetto_dropped_frames": 9,
+        "perfetto_non_deadline_self_jank_tagged_frames": 1,
+        "perfetto_other_jank_tagged_frames": 831,
+        "perfetto_overlapping_jank_tag_frames": 0,
+        "perfetto_self_jank_tagged_frames": 34,
+        "perfetto_self_jank_tagged_percent": 3.476482617586912,
+        "perfetto_surface_frame_timeline_tokens": 978,
+        "perfetto_unknown_tag_frames": 0
+      },
+      {
+        "frame_timing_frame_count": 795,
+        "frame_timing_overrun_positive_frames": 771,
+        "frame_timing_overrun_positive_percent": 96.98113207547169,
+        "iteration": 5,
+        "perfetto_app_deadline_missed_and_dropped_frames": 0,
+        "perfetto_app_deadline_missed_frames": 26,
+        "perfetto_app_deadline_missed_or_dropped_frames": 31,
+        "perfetto_app_deadline_missed_or_dropped_percent": 3.8701622971285894,
+        "perfetto_app_deadline_missed_percent": 3.2459425717852683,
+        "perfetto_dropped_frames": 5,
+        "perfetto_non_deadline_self_jank_tagged_frames": 0,
+        "perfetto_other_jank_tagged_frames": 695,
+        "perfetto_overlapping_jank_tag_frames": 0,
+        "perfetto_self_jank_tagged_frames": 26,
+        "perfetto_self_jank_tagged_percent": 3.2459425717852683,
+        "perfetto_surface_frame_timeline_tokens": 801,
+        "perfetto_unknown_tag_frames": 0
+      }
+    ],
+    "metric_source": "androidx.macrobenchmark.FrameTimingMetric+HermesFrameJankMetric",
+    "p50_ms": 19.9527,
+    "p90_ms": 32.50284,
+    "p95_ms": 35.966674999999995,
+    "p99_ms": 38.252922000000005,
+    "perfetto_app_deadline_missed": 142,
+    "perfetto_app_deadline_missed_and_dropped": 0,
+    "perfetto_app_deadline_missed_or_dropped": 173,
+    "perfetto_app_deadline_missed_or_dropped_percent": 3.906955736224029,
+    "perfetto_app_deadline_missed_percent": 3.2068654019873533,
+    "perfetto_dropped": 31,
+    "perfetto_non_deadline_self_jank_tagged": 4,
+    "perfetto_other_jank_tagged": 3804,
+    "perfetto_overlapping_jank_tag": 0,
+    "perfetto_self_jank_tagged": 146,
+    "perfetto_self_jank_tagged_percent": 3.297199638663053,
+    "perfetto_surface_frame_timeline_tokens": 4428,
+    "perfetto_unknown_tag": 0
+  },
+  "launch": {
+    "cold_total_ms": 542,
+    "cold_wait_ms": 544,
+    "warm_process_pid": 6405,
+    "warm_total_ms": 197
+  },
+  "litertlm_coordinate": "com.google.ai.edge.litertlm:litertlm-android:0.17.0",
+  "memory": {
+    "total_pss_kb": 84468,
+    "total_rss_kb": 210948
+  },
+  "package_id": "com.mobilefork.hermesagent",
+  "profile": "phone-compact",
+  "raw_evidence": {
+    "host": {
+      "bytes": 614709,
+      "path": "performance/phone-compact.host.raw.json",
+      "sha256": "1e612841cb39e4a6b98a1d3f887bfc2b5ab34f7ee4b48dfbe624a1cdaa7c1b20"
+    },
+    "macrobenchmark": {
+      "bytes": 338963,
+      "path": "performance/phone-compact.macrobenchmark.raw.json",
+      "sha256": "0c14313d1a034d3cbaca0b66db07480365881208baf4a3e43be78d9184f9bb05"
+    }
+  },
+  "recorded_at_epoch_ms": 1788716970562,
+  "release_source_digest": "d9e85a476915df3c238f5cf421b7e34efd90aa3a85a44657baf7e96ed0fe7efd",
+  "schema": "hermes-android-performance-evidence-v2",
+  "screen": {
+    "density_dpi": 420,
+    "font_scale": 1.0,
+    "height_dp": 914,
+    "height_px": 2400,
+    "width_dp": 411,
+    "width_px": 1080
+  },
+  "traces": [
+    {
+      "bytes": 33588582,
+      "iteration": 1,
+      "path": "performance/phone-compact.traces/iteration-001.perfetto-trace",
+      "sha256": "c5d9938b4bb527a39dc1319ecabb32609c4e9fa34ee9c7acaf2b45fb02390c80",
+      "source_name": "HermesSettingsScrollBenchmark_settingsListFling_iter000_2026-09-06-17-44-22.perfetto-trace"
+    },
+    {
+      "bytes": 39540444,
+      "iteration": 2,
+      "path": "performance/phone-compact.traces/iteration-002.perfetto-trace",
+      "sha256": "0ff0bd7226ad783afda8956202f0c2ce1ef9b3eb55597a8e188b07077a4aa508",
+      "source_name": "HermesSettingsScrollBenchmark_settingsListFling_iter001_2026-09-06-17-45-29.perfetto-trace"
+    },
+    {
+      "bytes": 38148765,
+      "iteration": 3,
+      "path": "performance/phone-compact.traces/iteration-003.perfetto-trace",
+      "sha256": "a517bd6ed657bcd44bfa1e757d36910bce29b24e8ed8d403894a897bd3623e74",
+      "source_name": "HermesSettingsScrollBenchmark_settingsListFling_iter002_2026-09-06-17-46-36.perfetto-trace"
+    },
+    {
+      "bytes": 40777599,
+      "iteration": 4,
+      "path": "performance/phone-compact.traces/iteration-004.perfetto-trace",
+      "sha256": "ac1665e057be56b418a142bc69c22a66451d9cf6694017442799b55757aa0d0d",
+      "source_name": "HermesSettingsScrollBenchmark_settingsListFling_iter003_2026-09-06-17-47-43.perfetto-trace"
+    },
+    {
+      "bytes": 35470469,
+      "iteration": 5,
+      "path": "performance/phone-compact.traces/iteration-005.perfetto-trace",
+      "sha256": "fb82b7c9393586f08a3a08a066f5358208a9692c620fc8a05c2152675572d1a9",
+      "source_name": "HermesSettingsScrollBenchmark_settingsListFling_iter004_2026-09-06-17-48-50.perfetto-trace"
+    }
+  ],
+  "version_code": 145490,
+  "version_name": "0.13.154"
+}

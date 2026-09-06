@@ -1,0 +1,233 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=section:Settings
+artifact=headed-v0.13.154-d9e85a476915df3c-20260906-184131bst-profile-phone-411x914dp-section-7-settings
+coverage_kind=app-section
+page_id=Settings
+profile=phone-411x914dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.154
+version_code=145490
+build_variant=debug
+source_digest=d9e85a476915df3c238f5cf421b7e34efd90aa3a85a44657baf7e96ed0fe7efd
+candidate_apk_sha256=b6cd5fe3bd29944ba53896974e2021690ccff7870e9924313bc41b8a260dae4f
+instrumentation_apk_sha256=92687f3fe6367c786456ed05a7848fe698f6c2de95bc1dc5bae18775b17e6b26
+evidence_run_id=v0.13.154-d9e85a476915df3c-20260906-184131bst
+device_serial=emulator-5580
+avd_name=Hermes_Release_154_API35
+device_boot_id=474d7968-8467-41e3-a524-73e1498fe331
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=e982f224db27b5df09abdde45d81030a2e8e95a7489b22e4d42a5487854cf368
+sentinel=Settings
+sentinel=HermesSettingsPageNavigation
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #1152 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #1154 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px, Tag: 'HermesSettingsContentList'
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=100.0, reverseScrolling=false)'
+       |       CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@9359699'
+       |       Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |        |-Node #1156 at (l=42.0, t=350.0, r=1038.0, b=645.0)px, Tag: 'HermesSettingsPageNavigation'
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1158 at (l=68.0, t=371.0, r=378.0, b=424.0)px
+       |        |  | Text = '[Settings  ›  General]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1161 at (l=68.0, t=451.0, r=226.0, b=556.0)px, Tag: 'HermesSettingsPage_Overview'
+       |        |  | Role = 'Button'
+       |        |  | [Disabled]
+       |        |  | Actions = [OnClick]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1163 at (l=94.0, t=483.0, r=200.0, b=525.0)px
+       |        |  |    Text = '[General]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1164 at (l=242.0, t=451.0, r=394.0, b=556.0)px, Tag: 'HermesSettingsPage_Models'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1166 at (l=268.0, t=483.0, r=368.0, b=525.0)px
+       |        |  |    Text = '[Models]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1167 at (l=410.0, t=451.0, r=562.0, b=556.0)px, Tag: 'HermesSettingsPage_Theme'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1169 at (l=439.0, t=483.0, r=533.0, b=525.0)px
+       |        |  |    Text = '[Theme]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1170 at (l=578.0, t=451.0, r=730.0, b=556.0)px, Tag: 'HermesSettingsPage_Tools'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1172 at (l=617.0, t=483.0, r=692.0, b=525.0)px
+       |        |  |    Text = '[Tools]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1173 at (l=68.0, t=582.0, r=191.0, b=624.0)px
+       |        |    Text = '[/settings]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1175 at (l=42.0, t=677.0, r=1038.0, b=1370.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1177 at (l=84.0, t=719.0, r=459.0, b=782.0)px
+       |        |  | Text = '[Hermes Agent Fork]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1178 at (l=84.0, t=803.0, r=996.0, b=887.0)px
+       |        |  | Text = '[Fork status: Hermes Agent Fork is an independent community fork. It is not official Nous Research or Teknium software.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1179 at (l=84.0, t=908.0, r=996.0, b=1034.0)px
+       |        |  | Text = '[Start with OpenRouter or another API provider if you already have a key.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1180 at (l=84.0, t=1055.0, r=996.0, b=1244.0)px
+       |        |  | Text = '[Use Accounts for Corr3xt app sign-in with email, phone, or Google; keep provider keys in Settings.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1181 at (l=84.0, t=1265.0, r=799.0, b=1328.0)px
+       |        |    Text = '[Current provider profile: OpenRouter]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1183 at (l=42.0, t=1402.0, r=1038.0, b=2160.0)px, Tag: 'SettingsLanguagePicker'
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1185 at (l=84.0, t=1444.0, r=351.0, b=1507.0)px
+       |        |  | Text = '[App language]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1186 at (l=84.0, t=1539.0, r=974.0, b=1581.0)px
+       |        |  | Text = '[Tap a flag to save and switch the app language immediately.]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1187 at (l=84.0, t=1613.0, r=260.0, b=1666.0)px, Tag: 'SettingsLanguageCurrent'
+       |        |  | Text = '[🇬🇧 English]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1190 at (l=84.0, t=1709.0, r=424.0, b=1814.0)px, Tag: 'SettingsLanguage-en'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | ContentDescription = '[Selected language English]'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1192 at (l=147.0, t=1735.0, r=361.0, b=1788.0)px
+       |        |  |    Text = '[✓ 🇬🇧 English]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1193 at (l=445.0, t=1709.0, r=699.0, b=1814.0)px, Tag: 'SettingsLanguage-zh'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | ContentDescription = '[Switch language to 中文]'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1195 at (l=508.0, t=1735.0, r=636.0, b=1788.0)px
+       |        |  |    Text = '[🇨🇳 中文]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1196 at (l=84.0, t=1856.0, r=394.0, b=1961.0)px, Tag: 'SettingsLanguage-es'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | ContentDescription = '[Switch language to Español]'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1198 at (l=147.0, t=1882.0, r=331.0, b=1935.0)px
+       |        |  |    Text = '[🇪🇸 Español]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1199 at (l=415.0, t=1856.0, r=731.0, b=1961.0)px, Tag: 'SettingsLanguage-de'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | ContentDescription = '[Switch language to Deutsch]'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1201 at (l=478.0, t=1882.0, r=668.0, b=1935.0)px
+       |        |  |    Text = '[🇩🇪 Deutsch]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1202 at (l=84.0, t=2003.0, r=435.0, b=2108.0)px, Tag: 'SettingsLanguage-pt'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | ContentDescription = '[Switch language to Português]'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1204 at (l=147.0, t=2029.0, r=372.0, b=2082.0)px
+       |        |  |    Text = '[🇵🇹 Português]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1205 at (l=456.0, t=2003.0, r=777.0, b=2108.0)px, Tag: 'SettingsLanguage-fr'
+       |        |    Focused = 'false'
+       |        |    Role = 'Button'
+       |        |    ContentDescription = '[Switch language to Français]'
+       |        |    Actions = [OnClick, RequestFocus]
+       |        |    MergeDescendants = 'true'
+       |        |     |-Node #1207 at (l=519.0, t=2029.0, r=714.0, b=2082.0)px
+       |        |       Text = '[🇫🇷 Français]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1209 at (l=42.0, t=2192.0, r=1038.0, b=2897.0)px
+       |          IsTraversalGroup = 'true'
+       |           |-Node #1211 at (l=84.0, t=2234.0, r=368.0, b=2297.0)px
+       |           | Text = '[Agent persona]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1212 at (l=84.0, t=2329.0, r=996.0, b=2623.0)px, Tag: 'AgentPersonaPrompt'
+       |           | EditableText = ''
+       |           | TextSelectionRange = 'TextRange(0, 0)'
+       |           | IsEditable = 'true'
+       |           | ImeAction = 'Default'
+       |           | Focused = 'false'
+       |           | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1221 at (l=126.0, t=2392.0, r=593.0, b=2455.0)px
+       |           |    Text = '[Custom system prompt]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1222 at (l=84.0, t=2655.0, r=354.0, b=2697.0)px
+       |           | Text = '[0/2000 characters]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1225 at (l=84.0, t=2740.0, r=431.0, b=2845.0)px, Tag: 'SaveAgentPersonaButton'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1227 at (l=147.0, t=2766.0, r=368.0, b=2819.0)px
+       |           |    Text = '[Save persona]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1228 at (l=452.0, t=2740.0, r=665.0, b=2845.0)px, Tag: 'ClearAgentPersonaButton'
+       |             Role = 'Button'
+       |             [Disabled]
+       |             Actions = [OnClick]
+       |             MergeDescendants = 'true'
+       |              |-Node #1230 at (l=515.0, t=2766.0, r=602.0, b=2819.0)px
+       |                Text = '[Clear]'
+       |                Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #145 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+         IsTraversalGroup = 'true'
+          |-Node #149 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #154 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #156 at (l=279.0, t=171.0, r=440.0, b=234.0)px
+          | Text = '[Settings]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #157 at (l=279.0, t=234.0, r=779.0, b=276.0)px
+          | Text = '[Runtime provider and API configuration]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #159 at (l=800.0, t=191.0, r=930.0, b=255.0)px
+          | IsTraversalGroup = 'true'
+          |  |-Node #160 at (l=816.0, t=202.0, r=914.0, b=244.0)px
+          |    Text = '[ALPHA]'
+          |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #161 at (l=941.0, t=191.0, r=1048.0, b=255.0)px
+            IsTraversalGroup = 'true'
+             |-Node #162 at (l=957.0, t=202.0, r=1032.0, b=244.0)px
+               Text = '[FORK]'
+               Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

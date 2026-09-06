@@ -1,0 +1,285 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=appearance-custom-light
+artifact=headed-v0.13.154-d9e85a476915df3c-20260906-184131bst-profile-tablet-1280x900dp-theme-custom-light
+coverage_kind=custom-light-palette
+page_id=Hermes
+profile=tablet-1280x900dp
+language=en
+theme_id=custom-light
+theme_primary=#1565C0
+theme_secondary=#8E24AA
+theme_background=#FAFBFF
+theme_surface=#FFFFFF
+theme_surface_variant=#E8EEF8
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=1280
+screen_height_dp=900
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.154
+version_code=145490
+build_variant=debug
+source_digest=d9e85a476915df3c238f5cf421b7e34efd90aa3a85a44657baf7e96ed0fe7efd
+candidate_apk_sha256=b6cd5fe3bd29944ba53896974e2021690ccff7870e9924313bc41b8a260dae4f
+instrumentation_apk_sha256=92687f3fe6367c786456ed05a7848fe698f6c2de95bc1dc5bae18775b17e6b26
+evidence_run_id=v0.13.154-d9e85a476915df3c-20260906-184131bst
+device_serial=emulator-5580
+avd_name=Hermes_Release_154_Tablet_API35
+device_boot_id=c6f883d9-5095-4856-96f1-7bbb4997371d
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:15/AE3A.240806.043/12960925:userdebug/dev-keys
+screenshot_sha256=a146ff4b1efb9c793cf85bb876c2b53a15477766550bbefb438e5f91c1b9b242
+sentinel=HermesChatInput
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=48.0, r=224.0, b=1736.0)px, Tag: 'HermesPersistentNavigation'
+       | IsTraversalGroup = 'true'
+       |  |-Node #14 at (l=0.0, t=104.0, r=224.0, b=1664.0)px
+       |    [SelectableGroup]
+       |     |-Node #15 at (l=78.0, t=128.0, r=146.0, b=196.0)px
+       |     | ContentDescription = '[Hermes Agent Fork logo]'
+       |     | Role = 'Image'
+       |     |-Node #17 at (l=32.0, t=252.0, r=192.0, b=1664.0)px
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+       |       Actions = [ScrollBy, ScrollByOffset]
+       |        |-Node #18 at (l=32.0, t=252.0, r=192.0, b=364.0)px, Tag: 'HermesRailHermes'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'true'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #26 at (l=43.0, t=322.0, r=180.0, b=354.0)px
+       |        |  | Text = '[Hermes Fork]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #23 at (l=90.0, t=262.0, r=134.0, b=306.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #24 at (l=90.0, t=262.0, r=134.0, b=306.0)px
+       |        |       ContentDescription = '[Hermes Fork]'
+       |        |       Role = 'Image'
+       |        |-Node #27 at (l=32.0, t=368.0, r=192.0, b=480.0)px, Tag: 'HermesRailAccounts'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #35 at (l=62.0, t=438.0, r=161.0, b=470.0)px
+       |        |  | Text = '[Accounts]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #32 at (l=90.0, t=378.0, r=134.0, b=422.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #33 at (l=90.0, t=378.0, r=134.0, b=422.0)px
+       |        |       ContentDescription = '[Accounts]'
+       |        |       Role = 'Image'
+       |        |-Node #36 at (l=32.0, t=484.0, r=192.0, b=596.0)px, Tag: 'HermesRailNousPortal'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #44 at (l=79.0, t=554.0, r=145.0, b=586.0)px
+       |        |  | Text = '[Portal]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #41 at (l=90.0, t=494.0, r=134.0, b=538.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #42 at (l=90.0, t=494.0, r=134.0, b=538.0)px
+       |        |       ContentDescription = '[Portal]'
+       |        |       Role = 'Image'
+       |        |-Node #45 at (l=32.0, t=600.0, r=192.0, b=712.0)px, Tag: 'HermesRailDevice'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #53 at (l=76.0, t=670.0, r=148.0, b=702.0)px
+       |        |  | Text = '[Device]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #50 at (l=90.0, t=610.0, r=134.0, b=654.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #51 at (l=90.0, t=610.0, r=134.0, b=654.0)px
+       |        |       ContentDescription = '[Device]'
+       |        |       Role = 'Image'
+       |        |-Node #54 at (l=32.0, t=716.0, r=192.0, b=828.0)px, Tag: 'HermesRailKanban'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #62 at (l=72.0, t=786.0, r=152.0, b=818.0)px
+       |        |  | Text = '[Kanban]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #59 at (l=90.0, t=726.0, r=134.0, b=770.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #60 at (l=90.0, t=726.0, r=134.0, b=770.0)px
+       |        |       ContentDescription = '[Kanban]'
+       |        |       Role = 'Image'
+       |        |-Node #63 at (l=32.0, t=832.0, r=192.0, b=944.0)px, Tag: 'HermesRailTerminal'
+       |        | Role = 'Tab'
+       |        | Focused = 'false'
+       |        | Selected = 'false'
+       |        | Actions = [OnClick, RequestFocus]
+       |        | MergeDescendants = 'true'
+       |        |  |-Node #71 at (l=64.0, t=902.0, r=159.0, b=934.0)px
+       |        |  | Text = '[Terminal]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #68 at (l=90.0, t=842.0, r=134.0, b=886.0)px
+       |        |    ClearAndSetSemantics = 'true'
+       |        |     |-Node #69 at (l=90.0, t=842.0, r=134.0, b=886.0)px
+       |        |       ContentDescription = '[Terminal]'
+       |        |       Role = 'Image'
+       |        |-Node #72 at (l=32.0, t=948.0, r=192.0, b=1060.0)px, Tag: 'HermesRailSettings'
+       |          Role = 'Tab'
+       |          Focused = 'false'
+       |          Selected = 'false'
+       |          Actions = [OnClick, RequestFocus]
+       |          MergeDescendants = 'true'
+       |           |-Node #80 at (l=68.0, t=1018.0, r=156.0, b=1050.0)px
+       |           | Text = '[Settings]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #77 at (l=90.0, t=958.0, r=134.0, b=1002.0)px
+       |             ClearAndSetSemantics = 'true'
+       |              |-Node #78 at (l=90.0, t=958.0, r=134.0, b=1002.0)px
+       |                ContentDescription = '[Settings]'
+       |                Role = 'Image'
+       |-Node #81 at (l=224.0, t=48.0, r=2560.0, b=1736.0)px
+         IsTraversalGroup = 'true'
+          |-Node #2920 at (l=224.0, t=48.0, r=2560.0, b=1736.0)px
+            IsTraversalGroup = 'true'
+             |-Node #2961 at (l=240.0, t=56.0, r=2544.0, b=184.0)px
+             | IsTraversalGroup = 'true'
+             |  |-Node #2976 at (l=260.0, t=96.0, r=308.0, b=144.0)px
+             |  | ContentDescription = '[Hermes Fork]'
+             |  | Role = 'Image'
+             |  |-Node #2978 at (l=324.0, t=84.0, r=554.0, b=124.0)px
+             |  | Text = '[Hermes Fork Chat]'
+             |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |-Node #2979 at (l=324.0, t=124.0, r=423.0, b=156.0)px
+             |  | Text = '[New chat]'
+             |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |-Node #2981 at (l=2211.0, t=80.0, r=2291.0, b=160.0)px, Tag: 'HermesChatHistoryButton'
+             |  | Role = 'Button'
+             |  | Focused = 'false'
+             |  | Actions = [OnClick, RequestFocus]
+             |  | MergeDescendants = 'true'
+             |  |  |-Node #2982 at (l=2231.0, t=100.0, r=2271.0, b=140.0)px
+             |  |    ContentDescription = '[Open history]'
+             |  |    Role = 'Image'
+             |  |-Node #2983 at (l=2299.0, t=84.0, r=2436.0, b=156.0)px, Tag: 'HermesChatDisplayToggle'
+             |  | Focused = 'false'
+             |  | Role = 'Button'
+             |  | Actions = [OnClick, RequestFocus]
+             |  | MergeDescendants = 'true'
+             |  |  |-Node #2985 at (l=2315.0, t=104.0, r=2420.0, b=136.0)px
+             |  |    Text = '[Compact]'
+             |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |-Node #2986 at (l=2444.0, t=80.0, r=2524.0, b=160.0)px, Tag: 'HermesFloatingActionButton'
+             |     |-Node #2987 at (l=2444.0, t=80.0, r=2524.0, b=160.0)px, Tag: 'HermesChatPageActionsButton'
+             |       Role = 'Button'
+             |       Focused = 'false'
+             |       Actions = [OnClick, RequestFocus]
+             |       MergeDescendants = 'true'
+             |        |-Node #2988 at (l=2464.0, t=100.0, r=2504.0, b=140.0)px
+             |          ContentDescription = '[Open page actions]'
+             |          Role = 'Image'
+             |-Node #2963 at (l=240.0, t=192.0, r=2544.0, b=248.0)px, Tag: 'HermesChatReadinessStrip'
+             | IsTraversalGroup = 'true'
+             |  |-Node #2965 at (l=260.0, t=204.0, r=1247.0, b=236.0)px
+             |    Text = '[Ready · remote openrouter · anthropic/claude-sonnet-4 · Python optional · memory 0]'
+             |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |-Node #2966 at (l=240.0, t=256.0, r=2544.0, b=1472.0)px
+             | IsTraversalGroup = 'true'
+             | VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+             | CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@d8dcdd2'
+             | Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+             |  |-Node #3011 at (l=240.0, t=280.0, r=2544.0, b=606.0)px
+             |    IsTraversalGroup = 'true'
+             |     |-Node #3013 at (l=256.0, t=296.0, r=661.0, b=336.0)px
+             |     | Text = '[Welcome to Hermes Agent Fork]'
+             |     | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |     |-Node #3014 at (l=256.0, t=346.0, r=1493.0, b=378.0)px
+             |     | Text = '[Use chat for normal prompts, voice input, or native app commands like /help, /history, /provider, and /signin.]'
+             |     | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |     |-Node #3015 at (l=256.0, t=396.0, r=529.0, b=476.0)px, Tag: 'HermesSignalToolsToggle'
+             |     | Focused = 'false'
+             |     | Role = 'Button'
+             |     | Actions = [OnClick, RequestFocus]
+             |     | MergeDescendants = 'true'
+             |     |  |-Node #3017 at (l=280.0, t=416.0, r=505.0, b=456.0)px
+             |     |    Text = '[Show signal tools]'
+             |     |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |     |-Node #3019 at (l=256.0, t=502.0, r=1002.0, b=582.0)px, Tag: 'HermesEmptyChatNewChatButton'
+             |     | Focused = 'false'
+             |     | Role = 'Button'
+             |     | Actions = [OnClick, RequestFocus]
+             |     | MergeDescendants = 'true'
+             |     |  |-Node #3021 at (l=575.0, t=526.0, r=684.0, b=558.0)px
+             |     |    Text = '[New chat]'
+             |     |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |     |-Node #3022 at (l=1018.0, t=502.0, r=1765.0, b=582.0)px, Tag: 'HermesEmptyChatAccountsButton'
+             |     | Focused = 'false'
+             |     | Role = 'Button'
+             |     | Actions = [OnClick, RequestFocus]
+             |     | MergeDescendants = 'true'
+             |     |  |-Node #3024 at (l=1337.0, t=526.0, r=1447.0, b=558.0)px
+             |     |    Text = '[Accounts]'
+             |     |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |     |-Node #3025 at (l=1781.0, t=502.0, r=2528.0, b=582.0)px, Tag: 'HermesEmptyChatSettingsButton'
+             |       Focused = 'false'
+             |       Role = 'Button'
+             |       Actions = [OnClick, RequestFocus]
+             |       MergeDescendants = 'true'
+             |        |-Node #3027 at (l=2106.0, t=526.0, r=2203.0, b=558.0)px
+             |          Text = '[Settings]'
+             |          Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |-Node #2968 at (l=240.0, t=1496.0, r=408.0, b=1560.0)px, Tag: 'HermesToggleIntermediateSteps'
+             | Focused = 'false'
+             | Role = 'Button'
+             | Actions = [OnClick, RequestFocus]
+             | MergeDescendants = 'true'
+             |  |-Node #2970 at (l=256.0, t=1508.0, r=392.0, b=1548.0)px
+             |    Text = '[Hide steps]'
+             |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |-Node #2971 at (l=240.0, t=1584.0, r=2544.0, b=1728.0)px
+               IsTraversalGroup = 'true'
+                |-Node #2973 at (l=260.0, t=1600.0, r=2524.0, b=1712.0)px, Tag: 'HermesChatComposerFrame'
+                   |-Node #2990 at (l=260.0, t=1600.0, r=2524.0, b=1712.0)px, Tag: 'HermesChatComposerRow'
+                      |-Node #2991 at (l=268.0, t=1616.0, r=348.0, b=1696.0)px, Tag: 'HermesChatMoreInputActionsButton'
+                      | Role = 'Button'
+                      | Focused = 'false'
+                      | Actions = [OnClick, RequestFocus]
+                      | MergeDescendants = 'true'
+                      |  |-Node #2992 at (l=286.0, t=1634.0, r=330.0, b=1678.0)px
+                      |    ContentDescription = '[More input actions]'
+                      |    Role = 'Image'
+                      |-Node #2993 at (l=368.0, t=1600.0, r=2228.0, b=1712.0)px, Tag: 'HermesChatInput'
+                      | EditableText = ''
+                      | TextSelectionRange = 'TextRange(0, 0)'
+                      | IsEditable = 'true'
+                      | ImeAction = 'Send'
+                      | Focused = 'false'
+                      | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+                      | MergeDescendants = 'true'
+                      |  |-Node #2999 at (l=400.0, t=1632.0, r=742.0, b=1680.0)px
+                      |    Text = '[Message Hermes Fork]'
+                      |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+                      |-Node #3003 at (l=2248.0, t=1616.0, r=2328.0, b=1696.0)px, Tag: 'HermesChatMicButton'
+                      | Role = 'Button'
+                      | Focused = 'false'
+                      | Actions = [OnClick, RequestFocus]
+                      | MergeDescendants = 'true'
+                      |  |-Node #3004 at (l=2266.0, t=1634.0, r=2310.0, b=1678.0)px
+                      |    ContentDescription = '[Voice input]'
+                      |    Role = 'Image'
+                      |-Node #3007 at (l=2348.0, t=1616.0, r=2524.0, b=1696.0)px, Tag: 'HermesChatSendButton'
+                        Role = 'Button'
+                        [Disabled]
+                        Actions = [OnClick]
+                        MergeDescendants = 'true'
+                         |-Node #3009 at (l=2403.0, t=1636.0, r=2469.0, b=1676.0)px
+                           Text = '[Send]'
+                           Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
