@@ -542,13 +542,7 @@ class NativeToolCallingChatClient(
                 val toolResult = executeToolCall(toolCall)
                 executedToolCalls += 1
                 latestToolResult = toolResult
-                val activityType = when (toolCall.name) {
-                    "file_write_tool", "write_file", "file_tool" -> AgentEventType.FileAccess
-                    "terminal_tool", "terminal", "shell", "mcp_send_terminal_input",
-                    "mcp_run_in_proot", "linux_sandbox_tool", "linux_sandbox",
-                    "proot_distro_tool", "proot-distro", "proot_distro" -> AgentEventType.ProcessLog
-                    else -> AgentEventType.ToolResult
-                }
+                val activityType = nativeToolActivityType(toolCall.name)
                 onEvent(NativeAgentEvent(activityType, "${toolCall.name} result", toolResult))
                 messages.put(
                     JSONObject()
