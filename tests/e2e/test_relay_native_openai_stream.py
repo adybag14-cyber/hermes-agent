@@ -53,14 +53,10 @@ def _stream_through_relay(tmp_path, monkeypatch, response_body: bytes, *, finali
     consumer = "test.openai_relay"
     subscriber_name = "test.openai_stream"
     events = []
-    relay_finalizer_started = threading.Event()
-    allow_relay_finalizer = threading.Event()
     relay_finalizer_finished = threading.Event()
     run_relay_finalizer = relay_llm.ManagedLlmStream._relay_finalizer
 
     def run_synchronized_relay_finalizer(managed_stream, attempt):
-        relay_finalizer_started.set()
-        assert allow_relay_finalizer.wait(5), "consumer did not release Relay's finalizer"
         try:
             return run_relay_finalizer(managed_stream, attempt)
         finally:
@@ -68,14 +64,28 @@ def _stream_through_relay(tmp_path, monkeypatch, response_body: bytes, *, finali
 
     monkeypatch.setattr(relay_llm.ManagedLlmStream, "_relay_finalizer", run_synchronized_relay_finalizer)
 
+    provider_chunks = chat_completion_helpers._iter_provider_stream_chunks
+
+    def deliver_chunks_after_provider_finalization(stream, *, response=None):
+        # ManagedLlmStream advances its private event loop in __next__. Waiting
+        # inside the consumer can prevent the very finalizer we are waiting for
+        # from running. Drain this tiny fixture first to force the adverse order
+        # without depending on Relay's background scheduling or a wall-clock race.
+        chunks = list(provider_chunks(stream, response=response))
+        assert relay_finalizer_finished.is_set(), "Provider exhausted before Relay finalized"
+        assert any(finalize_before(chunk) for chunk in chunks), "Fixture lacks the target chunk"
+        yield from chunks
+
+    monkeypatch.setattr(
+        chat_completion_helpers, "_iter_provider_stream_chunks", deliver_chunks_after_provider_finalization,
+    )
+
     count_chunk = chat_completion_helpers._StreamingCall._count_chunk
 
     def count_chunk_after_relay_finalizes(self, diag, chunk):
         # ``_count_chunk`` is the first thing the consumer does with every chunk.
         if finalize_before(chunk):
-            assert relay_finalizer_started.wait(5), "Relay's finalizer did not start"
-            allow_relay_finalizer.set()
-            assert relay_finalizer_finished.wait(5), "Relay's finalizer did not finish"
+            assert relay_finalizer_finished.is_set(), "Consumer saw target chunk before Relay finalized"
         return count_chunk(self, diag, chunk)
 
     monkeypatch.setattr(chat_completion_helpers._StreamingCall, "_count_chunk", count_chunk_after_relay_finalizes)
