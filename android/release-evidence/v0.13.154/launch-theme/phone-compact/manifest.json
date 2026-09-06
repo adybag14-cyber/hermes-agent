@@ -75,11 +75,11 @@
   "schema": "hermes-host-launch-theme-evidence-v2",
   "visual_review": {
     "automated_pixel_certification": false,
-    "decision": null,
-    "method": "manual-frame-by-frame",
-    "notes": null,
-    "reviewed_at_utc": null,
-    "reviewer": null,
-    "status": "pending"
+    "decision": "pass",
+    "method": "user-acceptance",
+    "notes": "Release owner explicitly accepted the current recordings; this records user acceptance, not an asserted frame-by-frame inspection.",
+    "reviewed_at_utc": "2026-09-06T22:38:40Z",
+    "reviewer": "adybag14-cyber (release owner)",
+    "status": "reviewed"
   }
 }
