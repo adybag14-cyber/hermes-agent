@@ -41,6 +41,7 @@ Builds:
       - apt-get install -y g++ python3-pip python3-venv rustup
       - sdkmanager "cmake;3.31.6"
       - sdkmanager "ndk;27.3.13750724"
+      - sdkmanager "platforms;android-36" "build-tools;36.0.0"
     ndk: 29.0.14206865
     gradle:
       - yes

@@ -29,11 +29,12 @@ val expectedBootId = providers.gradleProperty("hermesBenchmarkExpectedBootId")
 
 android {
     namespace = "com.mobilefork.hermesagent.macrobenchmark"
-    compileSdk = 35
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         minSdk = 31
-        targetSdk = 35
+        targetSdk = 36
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR"
         testInstrumentationRunnerArguments["hermes.expectedSourceDigest"] = expectedSourceDigest.get()

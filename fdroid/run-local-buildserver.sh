@@ -181,7 +181,7 @@ verify_buildserver_id "$BUILDSERVER_ID_FILE"
 set -x
 
 source /etc/profile.d/bsenv.sh
-sdkmanager "build-tools;31.0.0" "$ANDROID_NDK_PACKAGE" "$ANDROID_CMAKE_PACKAGE"
+sdkmanager "build-tools;31.0.0" "platforms;android-36" "build-tools;36.0.0" "$ANDROID_NDK_PACKAGE" "$ANDROID_CMAKE_PACKAGE"
 [[ -n "${ANDROID_HOME:-}" ]] || fail "bsenv did not define ANDROID_HOME"
 android_sdk_root="${ANDROID_HOME%/}"
 ndk_root="${android_sdk_root}/ndk/${ANDROID_NDK_VERSION}"

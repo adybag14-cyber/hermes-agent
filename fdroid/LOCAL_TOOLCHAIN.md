@@ -2,6 +2,12 @@
 
 Hermes uses two local environments because fdroiddata contains real symbolic links that a normal Windows checkout materializes incorrectly.
 
+For v0.13.154 onward, both the generated metadata recipe and local helper install
+`platforms;android-36` and `build-tools;36.0.0`; the application targets API 36.
+The older Build Tools 31 `aapt` retained by the helper belongs to fdroidserver's
+inspection tooling, not the app compile/target SDK. Verify targetSdk in the
+public APK as well as in source configuration.
+
 ## Metadata checks in WSL2
 
 Keep a Linux checkout at `~/fdroiddata-hermes` and install the same pinned

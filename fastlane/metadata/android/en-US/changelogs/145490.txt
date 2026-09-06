@@ -1,6 +1,5 @@
-Upgrade LiteRT-LM to 0.17 and improve local-model compatibility.
-Use genuine OpenAI, Anthropic, FAL and Pydantic SDKs with source-built Android dependencies.
-Fix split-archive Python imports and tool-result presentation.
-Show terminal sandbox permission denials clearly without another model request.
-Add verified ModelScope download mirrors and improve resumed-download handling.
-Keep experimental TurboQuant and memory overrides opt-in; model quality and device support vary.
+Target Android 16 (API 36) and fix provider-browser Back navigation.
+Upgrade LiteRT-LM to 0.17 and use genuine OpenAI, Anthropic, FAL and Pydantic SDKs with source-built Android dependencies.
+Fix split-archive Python imports, tool results and sandbox permission-denial feedback.
+Add verified ModelScope mirrors and improve resumed downloads.
+TurboQuant and memory overrides remain experimental and opt-in; model quality and device support vary.

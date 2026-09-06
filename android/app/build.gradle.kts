@@ -347,13 +347,14 @@ if (hermesSourceDigest.isNotBlank()) {
 
 android {
     namespace = "com.mobilefork.hermesagent"
-    compileSdk = 35
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
     ndkVersion = hermesExperimentalLlamaNdkVersion
 
     defaultConfig {
         applicationId = if (hermesChaquopyLabRoot == null) "com.mobilefork.hermesagent" else "com.mobilefork.hermesagent.lab"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = hermesVersionCode()
         versionName = androidVersionName()
         buildConfigField(
@@ -848,7 +849,7 @@ dependencies {
     implementation("org.nanohttpd:nanohttpd:2.3.1")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.14.1")
+    testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     testImplementation("org.json:json:20240303")
     androidTestImplementation("androidx.test:core-ktx:1.6.1")

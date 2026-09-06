@@ -10,6 +10,38 @@ validator keeps historical v0.13.148–153 evidence bound to 0.16.1 and earlier
 evidence to 0.16.0. Do not relabel or regenerate those immutable records for an
 SDK upgrade. A model-lab APK is not a release-certified or phone-upgrade APK.
 
+### v0.13.154 and later policy
+
+The app and macrobenchmark compile and target API 36 with Build Tools 36.0.0.
+The signed candidate and release workflows independently inspect the APK manifest
+and reject target SDKs below 36. Run the Android 16 back-navigation instrumentation
+on an API 36-or-newer device; preserve the API 35 AVD performance baseline as a
+separate, explicitly identified compatibility measurement if used.
+
+Launch videos remain required supporting artifacts with automated identity,
+palette, decoding, and hash validation. **A pending manual review is not a
+release blocker.** A completed failing review still identifies a defect to fix.
+Record user acceptance with `review --method user-acceptance`; this does not
+claim frame-by-frame inspection. Leave future unseen recordings honestly pending
+and report the actual completed-review count, which may be zero. The mandatory
+human-review paragraphs below apply only to immutable v0.13.148-153 contracts.
+
+Physical records use `hermes-android-physical-nanbeige-repair-v2`. The
+`automatic_reconciliation.case` is either `fresh-automatic-migration` (the
+historical fields plus that case) or `already-repaired-upgrade`. For the latter,
+observe TurboQuant in the app UI before installation and after readiness,
+preserve it without reselection, and record the previous installed version/code,
+APK bytes/hash/signer, unchanged model hashes, and successful
+`adb install -r --no-streaming`. A same-version upgrade from an earlier signed
+candidate is valid only when its bytes differ from the new candidate. No
+downgrade, uninstall, data clear, external preference editing, or manufactured
+Stable selection is permitted. Set `fresh_migration_observed=false`; do not
+claim that a fresh migration occurred. Both cases retain the exact signed APK,
+real Stable runtime diagnostic, app-managed readiness, General-mode reply, and
+Stop gates. Field validation lives in
+`scripts/android_release_evidence_policy.py`; the behavioral fixture is
+`tests/hermes_android/test_android_release_upgrade_policy.py`.
+
 The v3 additions do not replace the existing six-language Device overview,
 performance, Perfetto, or real-model evidence. They add:
 
@@ -95,8 +127,9 @@ digest before touching the phone. Retain the exact APK bytes: the installed
 match this candidate's byte count and SHA-256.
 
 Before `adb install -r`, preserve the existing production app and its data. The
-required precondition is a persisted Stable selection with the exact app-scoped
-Nanbeige file already present. A production APK is not debuggable, so `run-as`
+fresh-migration precondition is a persisted Stable selection with the exact
+app-scoped Nanbeige file already present; from v0.13.154 use the already-repaired
+case above when TurboQuant is already selected. A production APK is not debuggable, so `run-as`
 cannot execute its private native library. The Stable entry point is also a
 small dynamically linked wrapper, not a portable standalone server. Extract the
 exact ARM64 runtime closure below from the signed candidate:
@@ -542,8 +575,9 @@ python scripts/android_launch_theme_evidence.py review `
 ```
 
 The review command verifies referenced artifact hashes and records the explicit
-decision. It does not analyze or self-certify pixels. A pending or failed review
-is rejected by the release-evidence validator.
+decision. It does not analyze or self-certify pixels. For v0.13.148-153, a pending
+or failed review is rejected. From v0.13.154, pending review is informational;
+an explicit failure or fabricated review claim is rejected.
 
 ## 8. Merge into the closed release layout
 
@@ -631,7 +665,7 @@ python scripts/android_release_evidence.py verify --tag $tag --perfetto-root $tr
 ```
 
 Manifest v3 hashes every added file and records the comprehensive UI capture
-count, four launch lanes, two completed human reviews, and one passing record
+count, four launch lanes, the actual completed-review count, and one passing record
 for each issue-specific lane. Any source, registry, APK identity, run ID,
 device/profile identity, direct-tool counter, 12B metadata/policy/preflight
 decision, packaged-runtime route, Debian/CA/HTTPS result, cleanup disposition,

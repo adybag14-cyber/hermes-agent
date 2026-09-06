@@ -4847,7 +4847,7 @@ def _validate_physical_nanbeige_repair_evidence(
         context,
     )
     for field, expected in {
-        "schema": PHYSICAL_NANBEIGE_REPAIR_SCHEMA,
+        "schema": release_policy.physical_schema_for_tag(tag),
         "result": "passed",
         "evidence_complete": True,
         "validation_errors": [],
@@ -5257,7 +5257,9 @@ def _validate_physical_nanbeige_repair_evidence(
         )
 
     reconciliation = _nested_object(payload, "automatic_reconciliation", context)
-    release_policy.validate_automatic_reconciliation(reconciliation, model_path, context)
+    release_policy.validate_automatic_reconciliation(
+        reconciliation, model_path, context, tag=tag, release=release, model=model,
+    )
 
     readiness = _nested_object(payload, "readiness", context)
     readiness_context = f"{context}.readiness"
@@ -5492,7 +5494,8 @@ def _validate_launch_theme_manifest(
     candidate_apk_sha256: str,
     instrumentation_apk_sha256: str,
     evidence_run_id: str,
-) -> tuple[set[PurePosixPath], int]:
+    tag: str,
+) -> tuple[set[PurePosixPath], int, bool]:
     relative_manifest = LAUNCH_THEME_PREFIX / canonical_profile / "manifest.json"
     path = evidence_dir / Path(relative_manifest.as_posix())
     context = f"launch_theme[{canonical_profile}]"
@@ -5617,7 +5620,7 @@ def _validate_launch_theme_manifest(
     )
 
     review = _nested_object(payload, "visual_review", context)
-    release_policy.validate_launch_visual_review(review, context)
+    reviewed = release_policy.validate_launch_visual_review(review, context, tag=tag)
 
     captures = payload["captures"]
     if not isinstance(captures, list) or len(captures) != 2:
@@ -5684,7 +5687,7 @@ def _validate_launch_theme_manifest(
                 raise EvidenceError(f"{context} reuses launch artifact name {name!r}")
             referenced_names.add(name)
         paths.update({video_relative, screenshot_relative, activity_relative})
-    return paths, len(captures)
+    return paths, len(captures), reviewed
 
 
 def _validate_launch_theme_evidence(
@@ -5695,11 +5698,13 @@ def _validate_launch_theme_evidence(
     candidate_apk_sha256: str,
     instrumentation_apk_sha256: str,
     evidence_run_id: str,
+    tag: str,
 ) -> tuple[set[PurePosixPath], int, int]:
     paths: set[PurePosixPath] = set()
     capture_count = 0
+    review_count = 0
     for profile, performance in zip(PROFILES, performance_records, strict=True):
-        profile_paths, profile_capture_count = _validate_launch_theme_manifest(
+        profile_paths, profile_capture_count, reviewed = _validate_launch_theme_manifest(
             evidence_dir,
             profile,
             performance,
@@ -5708,10 +5713,12 @@ def _validate_launch_theme_evidence(
             candidate_apk_sha256,
             instrumentation_apk_sha256,
             evidence_run_id,
+            tag,
         )
         paths.update(profile_paths)
         capture_count += profile_capture_count
-    return paths, capture_count, len(PROFILES)
+        review_count += int(reviewed)
+    return paths, capture_count, review_count
 
 
 def expected_evidence_paths(
@@ -5982,6 +5989,7 @@ def validate_evidence_directory(
             ui_candidate_apk_sha256,
             ui_instrumentation_apk_sha256,
             evidence_run_id,
+            tag,
         )
 
     expected_paths = expected_evidence_paths(
@@ -6242,7 +6250,7 @@ def build_manifest(
                 "required_recommended_model_ids": list(evidence.required_recommended_model_ids),
                 "requires_six_language_recommended_model_and_framework_ui_inventory": True,
                 "requires_persisted_palette_bound_launcher_and_deep_link_capture_per_profile": True,
-                **release_policy.launch_review_manifest_contract(),
+                **release_policy.launch_review_manifest_contract(normalized_tag),
                 "requires_historical_issue8_e4b_cpu_speculation_off_completion": True,
                 "requires_issue8_exact_direct_tool_and_metadata_only_12b_preflight": True,
                 "requires_issue16_fresh_debian_guest_https_and_clean_stopped_disposition": True,
@@ -6303,7 +6311,7 @@ def build_manifest(
         manifest["contract"].update(
             {
                 "requires_one_physical_arm64_nanbeige_repair_record": True,
-                "physical_nanbeige_repair_schema": PHYSICAL_NANBEIGE_REPAIR_SCHEMA,
+                "physical_nanbeige_repair_schema": release_policy.physical_schema_for_tag(normalized_tag),
                 "physical_nanbeige_repair_path": PHYSICAL_NANBEIGE_REPAIR_PATH.as_posix(),
                 "requires_source_bound_signed_release_candidate_installed_byte_for_byte": True,
                 "required_release_candidate_signer_sha256": EXPECTED_RELEASE_SIGNER_SHA256,
@@ -6326,7 +6334,7 @@ def build_manifest(
                 "requires_final_signed_apk_runtime_closure_entry_hash_binding": True,
                 "requires_stable_runtime_dependency_and_environment_binding": True,
                 "requires_no_stable_runtime_linker_or_loader_error": True,
-                **release_policy.physical_reconciliation_manifest_contract(),
+                **release_policy.physical_reconciliation_manifest_contract(normalized_tag),
                 "requires_app_managed_turboquant_readiness_and_completion_canary": True,
                 "requires_general_mode_ordinary_chat_without_unsolicited_tools": True,
                 "required_general_mode_prompt": PHYSICAL_ORDINARY_CHAT_PROMPT,
@@ -6347,7 +6355,7 @@ def build_manifest(
             }
         )
         manifest["physical_device_evidence"] = {
-            "schema": PHYSICAL_NANBEIGE_REPAIR_SCHEMA,
+            "schema": release_policy.physical_schema_for_tag(normalized_tag),
             "path": PHYSICAL_NANBEIGE_REPAIR_PATH.as_posix(),
             "classification": "physical-arm64-functional-repair-gate",
             "adb_serial_sha256": evidence.physical_adb_serial_sha256,

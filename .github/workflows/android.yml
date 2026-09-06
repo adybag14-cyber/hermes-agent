@@ -45,7 +45,7 @@ jobs:
         with:
           # Skip emulator meta-package; debug assemble/unit tests only need
           # platform-tools, platforms, build-tools, and the locked native toolchain.
-          packages: platform-tools platforms;android-35 build-tools;35.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
+          packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
 
       - name: Build the genuine Android Python SDK stack from source
         uses: ./.github/actions/prepare-android-python
@@ -123,7 +123,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
-          packages: platform-tools platforms;android-35 build-tools;35.0.0
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
 
       - name: Restore signing material
         env:
@@ -188,12 +188,12 @@ jobs:
 
           android {
               namespace = "com.mobilefork.hermesagent"
-              compileSdk = 35
+              compileSdk = 36
 
               defaultConfig {
                   applicationId = "com.mobilefork.hermesagent"
                   minSdk = 26
-                  targetSdk = 35
+                  targetSdk = 36
                   versionCode = 1
                   versionName = "play-verification"
               }
@@ -232,7 +232,7 @@ jobs:
           test -n "$apk"
           test "$(stat -c%s "$apk")" -le 167772160
           unzip -p "$apk" assets/adi-registration.properties | grep -Fx "$PLAY_REGISTRATION_SNIPPET"
-          apksigner="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          apksigner="$ANDROID_HOME/build-tools/36.0.0/apksigner"
           test -x "$apksigner"
           "$apksigner" verify --print-certs "$apk"
 

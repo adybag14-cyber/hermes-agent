@@ -716,7 +716,7 @@ def validate_captured_manifest_for_review(manifest_path: Path) -> dict[str, Any]
     }
     if not isinstance(review, dict) or set(review) != expected_review_keys:
         raise EvidenceError("launch capture visual_review object is malformed")
-    if review.get("method") != "manual-frame-by-frame" or review.get("automated_pixel_certification") is not False:
+    if review.get("method") not in {"manual-frame-by-frame", "user-acceptance"} or review.get("automated_pixel_certification") is not False:
         raise EvidenceError("launch capture visual review contract is malformed")
     return payload
 
@@ -749,7 +749,7 @@ def review(args: argparse.Namespace) -> int:
         "reviewed_at_utc": _review_timestamp(args.reviewed_at_utc),
         "decision": args.decision,
         "notes": notes,
-        "method": "manual-frame-by-frame",
+        "method": getattr(args, "method", "manual-frame-by-frame"),
         "automated_pixel_certification": False,
     }
     temporary = manifest_path.with_name(f"{manifest_path.name}.tmp")
@@ -785,6 +785,7 @@ def parser() -> argparse.ArgumentParser:
     review_parser.add_argument("--manifest", required=True, type=Path)
     review_parser.add_argument("--reviewer", required=True)
     review_parser.add_argument("--decision", required=True, choices=("pass", "fail"))
+    review_parser.add_argument("--method", choices=("manual-frame-by-frame", "user-acceptance"), default="manual-frame-by-frame")
     review_parser.add_argument("--reviewed-at-utc")
     review_parser.add_argument("--notes", required=True)
     review_parser.add_argument("--replace-existing-review", action="store_true")

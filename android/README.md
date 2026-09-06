@@ -17,7 +17,7 @@ repository's application ID.
 | Area | Supported value |
 | --- | --- |
 | Minimum Android version | Android 7.0 / API 24 |
-| Compile and target SDK | API 35 |
+| Compile and target SDK | API 36 (Android 16) |
 | Release ABIs | `arm64-v8a` for devices and `x86_64` for emulators |
 | Embedded Python | Chaquopy 17 with Python 3.13 |
 | Java bytecode | Java 17 |
@@ -379,6 +379,12 @@ comprehensive UI inventories, reviewed launch-theme captures, the scoped E4B
 lane, and the fixed issue-8 and issue-16 records. The manifest-v2 tree shown
 later in this section is retained only to explain and reproduce `v0.13.147`;
 it is incomplete for a manifest-v3 release.
+
+From v0.13.154, manual launch-video review is informational and may remain
+pending; automated capture, identity, palette, and integrity checks still gate
+the release. The versioned physical upgrade contract accepts an already-repaired
+TurboQuant installation without inventing a new migration. See the v0.13.154
+policy section of `RELEASE_EVIDENCE_V3.md` for the exact boundary.
 
 Release evidence is deliberately a two-commit operation. First commit every
 source, test, workflow, metadata, and documentation change. With that source

@@ -120,6 +120,7 @@ EXPECTED_METADATA_SUDO = (
     "      - apt-get install -y g++ python3-pip python3-venv rustup\n"
     '      - sdkmanager "cmake;3.31.6"\n'
     '      - sdkmanager "ndk;27.3.13750724"\n'
+    '      - sdkmanager "platforms;android-36" "build-tools;36.0.0"\n'
 )
 EXPECTED_METADATA_NDK = "    ndk: 29.0.14206865\n"
 EXPECTED_METADATA_GRADLE = (

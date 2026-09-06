@@ -808,6 +808,8 @@ def test_dynamic_local_imports_do_not_emit_python_bytecode(
     for name in (
         "android_fdroid_source_binding.py",
         "android_release_evidence.py",
+        "android_release_evidence_common.py",
+        "android_release_evidence_policy.py",
         "check_android_release_identity.py",
     ):
         shutil.copyfile(REPO_ROOT / "scripts" / name, isolated_scripts / name)

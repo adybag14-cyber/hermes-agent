@@ -155,7 +155,7 @@ jobs:
           # Avoid the full "tools" meta-package (pulls emulator) — zip fetch of
           # emulator has been flaky on GitHub runners and is not needed to
           # assemble/sign release APK/AAB.
-          packages: platform-tools platforms;android-35 build-tools;35.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
+          packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
 
       - name: Build the genuine Android Python SDK stack from source
         uses: ./.github/actions/prepare-android-python
@@ -225,7 +225,7 @@ jobs:
           EOF
           ./gradlew :app:bundleRelease
           sdk_root="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
-          build_tools_dir="$sdk_root/build-tools/35.0.0"
+          build_tools_dir="$sdk_root/build-tools/36.0.0"
           apksigner="$build_tools_dir/apksigner"
           aapt2="$build_tools_dir/aapt2"
           unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
@@ -259,6 +259,10 @@ jobs:
           printf '%s\n' "$badging" | grep -F "package: name='com.mobilefork.hermesagent'"
           printf '%s\n' "$badging" | grep -F "versionCode='$EXPECTED_VERSION_CODE'"
           printf '%s\n' "$badging" | grep -F "versionName='$EXPECTED_VERSION_NAME'"
+          target_sdk="$("$aapt2" dump badging "$signed_apk" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'$/\1/p")"
+          test -n "$target_sdk"
+          test "$target_sdk" -ge 36
+          printf 'Verified release targetSdk=%s (minimum 36)\n' "$target_sdk"
           aab="app/build/outputs/bundle/release/app-release.aab"
           test -f "$aab"
           python ../scripts/verify_android_source_bound_artifact.py \

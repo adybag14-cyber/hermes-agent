@@ -1,6 +1,5 @@
 package com.mobilefork.hermesagent.device
 
-import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -23,6 +22,8 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.data.AuthSessionStore
 import com.mobilefork.hermesagent.data.HermesNetworkPolicy
@@ -37,8 +38,8 @@ import com.mobilefork.hermesagent.ui.theme.hermesViewPalette
 import com.mobilefork.hermesagent.ui.theme.hermesViewPanelDrawable
 import com.mobilefork.hermesagent.ui.theme.setHermesSafeDrawingInsetsListener
 
-@Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-class HermesProviderSetupWebActivity : Activity() {
+@Suppress("DEPRECATION")
+class HermesProviderSetupWebActivity : ComponentActivity() {
     private var webView: WebView? = null
     private lateinit var setupUri: Uri
     private lateinit var titleText: TextView
@@ -46,6 +47,11 @@ class HermesProviderSetupWebActivity : Activity() {
     private var fallbackShown = false
     private var setupPageTitle = ""
     private val palette by lazy { hermesViewPalette(this) }
+    private val webHistoryBackCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            webView?.goBack()
+        }
+    }
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(newBase.hermesLocalizedContext())
@@ -53,6 +59,7 @@ class HermesProviderSetupWebActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback(this, webHistoryBackCallback)
         applyHermesViewWindowTheme(palette)
 
         val requestedUrl = intent.getStringExtra(EXTRA_URL).orEmpty()
@@ -71,15 +78,6 @@ class HermesProviderSetupWebActivity : Activity() {
         }
 
         buildViewer(requestedTitle, setupUri.toString())
-    }
-
-    override fun onBackPressed() {
-        val currentWebView = webView
-        if (currentWebView != null && currentWebView.canGoBack()) {
-            currentWebView.goBack()
-            return
-        }
-        super.onBackPressed()
     }
 
     override fun onDestroy() {
@@ -197,6 +195,10 @@ class HermesProviderSetupWebActivity : Activity() {
             }
         }
         view.webViewClient = object : WebViewClient() {
+            override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
+                webHistoryBackCallback.isEnabled = view.canGoBack()
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 return shouldOpenOutside(request.url)
             }
@@ -338,6 +340,7 @@ class HermesProviderSetupWebActivity : Activity() {
     }
 
     private fun releaseWebView() {
+        webHistoryBackCallback.isEnabled = false
         webView?.let { existing ->
             runCatching { existing.webChromeClient = null }
             runCatching { existing.webViewClient = WebViewClient() }
