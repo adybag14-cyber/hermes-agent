@@ -1,0 +1,12 @@
+name: Source-built Android Python runtime
+description: Build the pinned genuine SDK bundle from source and trusted hash-locked wheels.
+runs:
+  using: composite
+  steps:
+    - name: Prepare source-built Python runtime outside the checkout
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3.13 scripts/prepare_android_python_runtime.py prepare \
+          --output "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-runtime" \
+          --work-dir "$RUNNER_TEMP/hermes-python-source-build"

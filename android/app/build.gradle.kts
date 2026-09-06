@@ -21,6 +21,12 @@ interface HermesProcessServices {
 val hermesProcessServices = objects.newInstance<HermesProcessServices>()
 val hermesChaquopyLabRoot = providers.gradleProperty("hermesChaquopyLab").orNull
     ?.let { rootProject.file(it).canonicalFile }
+require(hermesChaquopyLabRoot == null || !providers.gradleProperty("hermesPythonBundle").isPresent) {
+    "Select either a Chaquopy lab or the source-built production Python bundle, not both"
+}
+val hermesPythonRoot = hermesChaquopyLabRoot
+    ?: providers.gradleProperty("hermesPythonBundle").orNull?.let { rootProject.file(it).canonicalFile }
+    ?: gradle.gradleUserHomeDir.resolve("hermes-python-runtime").canonicalFile
 fun fileSha256(file: File): String = file.inputStream().buffered().use { input ->
     val digest = MessageDigest.getInstance("SHA-256")
     val buffer = ByteArray(1024 * 1024)
@@ -31,21 +37,29 @@ fun fileSha256(file: File): String = file.inputStream().buffered().use { input -
     }
     digest.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
 }
-val hermesChaquopyLabReceipt = hermesChaquopyLabRoot?.let { lab ->
+val hermesPythonReceipt = hermesPythonRoot.let { lab ->
     val receipt = lab.resolve("consumer.json")
-    require(receipt.isFile && receipt.length() <= 4 * 1024 * 1024) { "Missing/oversized Chaquopy lab receipt" }
+    require(receipt.isFile && receipt.length() <= 4 * 1024 * 1024) {
+        "Missing/oversized Python source-bundle receipt; run scripts/prepare_android_python_runtime.py prepare first"
+    }
     (JsonSlurper().parse(receipt) as Map<*, *>).also {
-        require(it["schema"] == "hermes-chaquopy-consumer-v1" && it["python"] == "3.13") {
-            "Unsupported Chaquopy consumer; this Hermes experiment first qualifies Python 3.13"
+        val expectedSchema = if (hermesChaquopyLabRoot != null) "hermes-chaquopy-consumer-v1"
+            else "hermes-chaquopy-source-consumer-v1"
+        require(it["schema"] == expectedSchema && it["python"] == "3.13") {
+            "Unsupported Python consumer; Hermes uses the qualified Python 3.13 runtime"
         }
         require(it["hermes_requirements_sha256"] == fileSha256(repoRoot.resolve("requirements-android-chaquopy.txt"))) {
             "Hermes requirements changed after preparing the Chaquopy consumer"
         }
+        if (hermesChaquopyLabRoot == null) {
+            require(it["source_lock_sha256"] == fileSha256(repoRoot.resolve("hermes_android/python_runtime.lock.json")) &&
+                it["runtime_tested"] == false) { "Production Python bundle differs from the committed source lock" }
+        }
     }
 }
-fun verifyHermesChaquopyLab() {
-    val lab = hermesChaquopyLabRoot ?: return
-    val receipt = requireNotNull(hermesChaquopyLabReceipt)
+fun verifyHermesPythonBundle() {
+    val lab = hermesPythonRoot
+    val receipt = hermesPythonReceipt
     val files = receipt["files"] as List<*>
     val expected = mutableSetOf<String>()
     files.forEach { entry ->
@@ -66,7 +80,7 @@ fun verifyHermesChaquopyLab() {
         .map { it.relativeTo(lab).invariantSeparatorsPath }.toSet()
     require(actual == expected) { "Chaquopy consumer contains unrecorded or missing inputs" }
 }
-verifyHermesChaquopyLab()
+verifyHermesPythonBundle()
 val hermesVersionFile = repoRoot.resolve("hermes_cli/__init__.py")
 val releaseTag = System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()
 require(hermesChaquopyLabRoot == null || releaseTag.isBlank()) {
@@ -476,8 +490,8 @@ android {
         compose = true
     }
 
+    sourceSets.getByName("androidTest").kotlin.directories += "src/chaquopyLabAndroidTest/java"
     if (hermesChaquopyLabRoot != null) {
-        sourceSets.getByName("androidTest").kotlin.directories += "src/chaquopyLabAndroidTest/java"
         sourceSets.getByName("debug").manifest.srcFile("src/chaquopyLab/AndroidManifest.xml")
     }
 
@@ -507,33 +521,25 @@ chaquopy {
             // block, so the runtime requirements file must include all transitive
             // dependencies explicitly.
             options("--no-deps")
-            if (hermesChaquopyLabRoot == null) {
-                install("../../android/pip-stubs/anthropic-stub")
-                install("../../android/pip-stubs/fal-client-stub")
-            } else {
-                options("--no-index", "--find-links", hermesChaquopyLabRoot.resolve("wheels").absolutePath,
-                    "--only-binary", ":all:")
-            }
+            options("--no-index", "--find-links", hermesPythonRoot.resolve("wheels").absolutePath,
+                "--only-binary", ":all:")
             install("build/hermes-wheel/${hermesWheelName()}")
-            install("-r", hermesChaquopyLabRoot?.resolve("requirements.txt")?.absolutePath
-                ?: "../../requirements-android-chaquopy.txt")
+            install("-r", hermesPythonRoot.resolve("requirements.txt").absolutePath)
         }
     }
-    hermesChaquopyLabRoot?.let { lab ->
-        sourceSets.getByName("main") { srcDir(lab.resolve("python")) }
-    }
+    sourceSets.getByName("debug") { srcDir(hermesPythonRoot.resolve("python")) }
 }
 
-hermesChaquopyLabRoot?.let {
+hermesPythonRoot.let {
     afterEvaluate {
-        val receipt = requireNotNull(hermesChaquopyLabReceipt)
+        val receipt = hermesPythonReceipt
         val bootstrapVersion = receipt["bootstrap_version"] as String
         val bootstrapHash = receipt["bootstrap_sha256"] as String
         val configs = plugins.getPlugin(PythonPlugin::class.java).configs
             .filterKeys { name -> name.endsWith("RuntimeBootstrap") }.values
         check(configs.isNotEmpty()) { "Chaquopy bootstrap configurations were not found" }
         configs.forEach { config ->
-            check(config.state == Configuration.State.UNRESOLVED) { "Bootstrap resolved before experiment selection" }
+            check(config.state == Configuration.State.UNRESOLVED) { "Bootstrap resolved before source-bundle selection" }
             config.resolutionStrategy.eachDependency {
                 if (requested.group == "com.chaquo.python.runtime" && requested.name == "bootstrap") {
                     useVersion(bootstrapVersion)
@@ -541,9 +547,9 @@ hermesChaquopyLabRoot?.let {
                 }
             }
         }
-        val verifyInputs = tasks.register("verifyHermesChaquopyLab") {
+        val verifyInputs = tasks.register("verifyHermesPythonBundle") {
             doLast {
-                verifyHermesChaquopyLab()
+                verifyHermesPythonBundle()
                 configs.forEach { config ->
                     val artifact = config.resolvedConfiguration.resolvedArtifacts.single()
                     val id = artifact.moduleVersion.id

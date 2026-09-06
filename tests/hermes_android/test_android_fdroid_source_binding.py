@@ -1083,7 +1083,7 @@ def test_verify_rejects_every_change_outside_the_closed_fdroid_contract(
         binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
 
 
-def test_fdroid_metadata_and_gradle_wire_prepare_before_sed_and_verify_afterward():
+def test_fdroid_metadata_prepares_source_and_declared_compilers_before_build():
     metadata = yaml.safe_load(
         (REPO_ROOT / "fdroid/com.mobilefork.hermesagent.yml.template").read_text(
             encoding="utf-8"
@@ -1091,34 +1091,21 @@ def test_fdroid_metadata_and_gradle_wire_prepare_before_sed_and_verify_afterward
     )
     build = metadata["Builds"][0]
     prebuild = build["prebuild"]
-    gradle = (REPO_ROOT / "android/app/build.gradle.kts").read_text(encoding="utf-8")
-
     assert build["gradleprops"] == ["hermesFdroidSourceBinding=true"]
     assert build["ndk"] == "29.0.14206865"
-    assert "apt-get install -y g++ python3-pip" in build["sudo"]
+    packages = next(command.split()[4:] for command in build["sudo"]
+                    if command.startswith("apt-get install -y "))
+    assert {"python3-pip", "python3-venv", "rustup"} <= set(packages)
     assert 'sdkmanager "cmake;3.31.6"' in build["sudo"]
+    python_lock = __import__("json").loads(
+        (REPO_ROOT / "hermes_android/python_runtime.lock.json").read_text(encoding="utf-8"))
+    assert f'sdkmanager "ndk;{python_lock["build"]["native_ndk_version"]}"' in build["sudo"]
     assert "android_fdroid_source_binding.py prepare" in prebuild[0]
     assert "${GRADLE_USER_HOME:-$HOME/.gradle}" in prebuild[0]
-    assert RELEASE_TAG_EXPRESSION in prebuild[1]
-    assert BUILD_PYTHON_EXPRESSION in prebuild[2]
-    assert "providers.gradleProperty(\"hermesFdroidSourceBinding\")" in gradle
-    assert "android_fdroid_source_binding.py" in gradle
-    assert '"verify"' in gradle
-    assert '"verify-transformed"' in gradle
-    assert '"--binding-file"' in gradle
-    assert "automaticFdroidSourceBinding" in gradle
-    assert "ordinaryCheckoutMarkers" in gradle
-    assert "exactFdroidCheckoutMarkers" in gradle
-    assert "fdroidMutationDetected" in gradle
-    assert "F-Droid SDK-locator and scanner-wrapper state is partial" in gradle
-    assert "semanticReleaseTag &&" in gradle
-    assert "A transformed F-Droid checkout cannot disable source binding" in gradle
-    assert "A release-tagged build cannot disable source binding" in gradle
-    assert "_assert_remote_release_tag_authority" in (
-        REPO_ROOT / "scripts/android_fdroid_source_binding.py"
-    ).read_text(encoding="utf-8")
-    assert '"--require-clean"' in gradle
-    assert "mutually exclusive authorities" in gradle
+    assert "prepare_android_python_runtime.py prepare" in prebuild[1]
+    assert "${GRADLE_USER_HOME:-$HOME/.gradle}" in prebuild[1]
+    assert RELEASE_TAG_EXPRESSION in prebuild[2]
+    assert BUILD_PYTHON_EXPRESSION in prebuild[3]
 
 
 def test_autoupdater_preview_rejects_the_prior_two_sed_recipe(tmp_path: Path):

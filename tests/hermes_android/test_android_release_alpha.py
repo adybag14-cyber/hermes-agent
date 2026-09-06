@@ -6,6 +6,7 @@ import subprocess
 import sys
 
 import pytest
+import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -66,6 +67,21 @@ def _assert_external_actions_are_commit_pinned(workflow: str) -> None:
     action_refs = re.findall(r"^\s*-?\s*uses:\s*([^\s#]+)", workflow, flags=re.MULTILINE)
     assert action_refs
     for action_ref in action_refs:
+        if action_ref.startswith("./"):
+            action_path = Path(action_ref)
+            assert ".." not in action_path.parts
+            assert action_path.parts[:2] == (".github", "actions")
+            definition = REPO_ROOT / action_path / "action.yml"
+            assert definition.is_file()
+            local_action = yaml.safe_load(definition.read_text(encoding="utf-8"))
+            assert local_action["runs"]["using"] == "composite"
+            # A local action is bound by the checkout SHA. Any external action
+            # nested inside it still needs an immutable commit, not a tag.
+            for step in local_action["runs"]["steps"]:
+                if "uses" in step:
+                    _, separator, revision = step["uses"].partition("@")
+                    assert separator and re.fullmatch(r"[0-9a-f]{40}", revision)
+            continue
         _action, separator, revision = action_ref.partition("@")
         assert separator and re.fullmatch(r"[0-9a-f]{40}", revision), action_ref
 
@@ -187,12 +203,8 @@ def test_android_push_workflow_compiles_android_test_sources():
 
 
 def test_android_push_workflow_allows_a_cold_native_smoke_build_to_finish():
-    workflow = (REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8")
-    smoke_job = workflow.split("  smoke:\n", 1)[1].split(
-        "\n  signed-play-verification:\n", 1
-    )[0]
-
-    assert "    timeout-minutes: 45\n" in smoke_job
+    workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/android.yml").read_text(encoding="utf-8"))
+    assert 45 <= workflow["jobs"]["smoke"]["timeout-minutes"] <= 120
 
 
 def test_android_signed_device_candidate_is_default_head_bound_and_nonpublishing():

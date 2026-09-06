@@ -23,7 +23,7 @@ jobs:
   smoke:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.play_registration_snippet == '' }}
     runs-on: ${{ fromJSON(vars.HERMES_ANDROID_RUNNER || '["ubuntu-latest"]') }}
-    timeout-minutes: 45
+    timeout-minutes: 75
 
     steps:
       - name: Checkout code
@@ -45,7 +45,10 @@ jobs:
         with:
           # Skip emulator meta-package; debug assemble/unit tests only need
           # platform-tools, platforms, build-tools, and the locked native toolchain.
-          packages: platform-tools platforms;android-35 build-tools;35.0.0 ndk;29.0.14206865 cmake;3.31.6
+          packages: platform-tools platforms;android-35 build-tools;35.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
+
+      - name: Build the genuine Android Python SDK stack from source
+        uses: ./.github/actions/prepare-android-python
 
       - name: Install Python test dependencies
         run: |

@@ -14,12 +14,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
 
-/** Opt-in, non-release evidence: genuine dependencies plus the real Hermes agent loop. */
+/** Debug-only runtime evidence: genuine dependencies plus the real Hermes agent loop. */
 @RunWith(AndroidJUnit4::class)
 class ChaquopyHermesIntegrationInstrumentedTest {
     @Test
     fun sourceBuiltForkRunsGenuineSdksAndHermesAgent() {
-        assertTrue("Build with a verified -PhermesChaquopyLab bundle", BuildConfig.HERMES_CHAQUOPY_LAB)
+        assertTrue("Runtime probes are packaged only in a debug build", BuildConfig.DEBUG)
         val context = ApplicationProvider.getApplicationContext<Context>()
         HermesRuntimeManager.stop()
         HermesRuntimeManager.ensurePythonStarted(context)

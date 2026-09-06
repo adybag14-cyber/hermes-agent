@@ -127,20 +127,6 @@ def test_android_anthropic_stub_matches_project_requirement_pin():
     assert base_anthropic == f"anthropic=={stub_project['project']['version']}"
 
 
-def test_android_runtime_requirements_pin_pre_jiter_openai_sdk():
-    requirements = (REPO_ROOT / "requirements-android-chaquopy.txt").read_text(encoding="utf-8")
-
-    assert "croniter==6.0.0" in requirements
-    assert "python-dateutil==2.9.0.post0" in requirements
-    assert "pytz==2025.2" in requirements
-    assert "six==1.17.0" in requirements
-    assert "openai==1.39.0" in requirements
-    assert "httpx==0.27.2" in requirements
-    assert "pydantic==1.10.24" in requirements
-    assert "\nfirecrawl-py" not in requirements
-    assert "\npydantic_core" not in requirements
-
-
 def test_hy_memory_dependency_is_registered_as_lazy_optional_provider():
     from hermes_cli.config_defaults import DEFAULT_CONFIG
     from tools.lazy_deps import LAZY_DEPS

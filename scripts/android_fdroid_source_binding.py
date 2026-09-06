@@ -47,8 +47,8 @@ if str(SCRIPT_DIR) not in sys.path:
 
 BINDING_SCHEMA = "hermes-android-fdroid-source-binding-v1"
 BINDING_FILE_NAME = "hermes-android-fdroid-source-binding.properties"
-AUTUPDATE_VERSION_NAME = "0.13.153"
-AUTUPDATE_VERSION_CODE = "145390"
+AUTUPDATE_VERSION_NAME = "0.13.154"
+AUTUPDATE_VERSION_CODE = "145490"
 EXPECTED_REMOTE_REPOSITORY = "https://github.com/adybag14-cyber/hermes-agent.git"
 GRADLE_PATH = PurePosixPath("android/app/build.gradle.kts")
 SOURCE_DIGEST_EXCLUDED_PREFIX = PurePosixPath("android/release-evidence")
@@ -117,8 +117,9 @@ EXPECTED_BINDING_KEYS = frozenset(
 EXPECTED_METADATA_SUDO = (
     "    sudo:\n"
     "      - apt-get update\n"
-    "      - apt-get install -y g++ python3-pip\n"
+    "      - apt-get install -y g++ python3-pip python3-venv rustup\n"
     '      - sdkmanager "cmake;3.31.6"\n'
+    '      - sdkmanager "ndk;27.3.13750724"\n'
 )
 EXPECTED_METADATA_NDK = "    ndk: 29.0.14206865\n"
 EXPECTED_METADATA_GRADLE = (
@@ -135,6 +136,9 @@ EXPECTED_METADATA_PREBUILD = (
     "        ../.. --binding-file \"${GRADLE_USER_HOME:-$HOME/.gradle}/"
     "hermes-android-fdroid-source-binding.properties\"\n"
     "        --version \"$$VERSION$$\"\n"
+    "      - python3.13 ../../scripts/prepare_android_python_runtime.py prepare --output\n"
+    "        \"${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-runtime\" --work-dir\n"
+    "        \"${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-source-build-$$VERSION$$\"\n"
     "      - sed -i -e 's/System.getenv(\"HERMES_RELEASE_TAG\").orEmpty().trim()/"
     "\"v$$VERSION$$\"/'\n"
     "        build.gradle.kts\n"

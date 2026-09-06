@@ -19,10 +19,10 @@ cd ~/fdroiddata-hermes
 ```
 
 Run that preview from a fresh clone of the live `fdroiddata` metadata after the
-GitHub tag exists. `--auto` must create the local 0.13.153/145390 build recipe
+GitHub tag exists. `--auto` must create the local 0.13.154/145490 build recipe
 and resolve its exact tag commit. The autoupdater copies the prior build recipe,
 so its output is not yet eligible for the pinned build. From the same WSL shell,
-render and verify the v0.13.153 source-binding fields from the committed Hermes
+render and verify the v0.13.154 source-binding fields from the committed Hermes
 template into that generated build:
 
 ```sh
@@ -40,7 +40,7 @@ git -C "$FDROIDDATA_ROOT" diff -- \
   metadata/com.mobilefork.hermesagent.yml
 ```
 
-The render transaction requires exactly one 0.13.153/145390 build, preserves
+The render transaction requires exactly one 0.13.154/145490 build, preserves
 the autoupdater-resolved full Git commit, every historical `Builds` entry, and
 all unrelated live metadata, and overlays the exact `sudo`, `ndk`, `gradle`,
 `gradleprops`, and `prebuild` fields. It then verifies that
@@ -58,6 +58,14 @@ build without opening a GitLab merge request or changing live metadata.
 Do not use a Windows fdroiddata checkout for lint: text files in `srclibs/` which should be symlinks are otherwise parsed as invalid YAML.
 
 ## Exact build-server reproduction in Docker Desktop
+
+The v0.13.154 recipe additionally builds the genuine Python SDK dependencies
+from the immutable Chaquopy source archive in `hermes_android/python_runtime.lock.json`.
+It declares `python3-venv`, `rustup`, and native-Python NDK 27.3.13750724 alongside
+the existing application NDK 29.0.14206865. The Python source builder runs after
+the clean source-binding handoff and before the declared Gradle transformations,
+with all generated files in the external Gradle cache. Both GitHub and F-Droid
+use the same builder and hash-locked trusted wheels; see `android/PYTHON_RUNTIME.md`.
 
 Use this reachable immutable buildserver image:
 

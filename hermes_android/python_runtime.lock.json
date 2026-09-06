@@ -1,0 +1,307 @@
+{
+  "schema_version": 1,
+  "python": "3.13",
+  "bootstrap_version": "17.0.1",
+  "source": {
+    "repository": "https://github.com/adybag14-cyber/chaquopy",
+    "commit": "58329881ba7c50729e6fc2c10b63d817767f9f9f",
+    "archive_url": "https://codeload.github.com/adybag14-cyber/chaquopy/tar.gz/58329881ba7c50729e6fc2c10b63d817767f9f9f",
+    "archive_size_bytes": 8263945,
+    "archive_sha256": "945d12a04781358af595893d036ee613b667e954ccd089b4c9aa9fc359edec13",
+    "license": "MIT"
+  },
+  "build": {
+    "rust_version": "1.88.0",
+    "cibuildwheel_version": "4.2.0",
+    "native_ndk_version": "27.3.13750724",
+    "maximum_parallel_jobs": 12,
+    "source_date_epoch": 1754006400
+  },
+  "official_wheels": [
+    {
+      "filename": "aiofiles-25.1.0-py3-none-any.whl",
+      "bytes": 14668,
+      "sha256": "abe311e527c862958650f9438e859c1fa7568a141b22abcd015e120e86a85695"
+    },
+    {
+      "filename": "aiohappyeyeballs-2.7.1-py3-none-any.whl",
+      "bytes": 15038,
+      "sha256": "9243213661e29250eb41368e5daa826fc017156c3b8a11440826b2e3ed376472"
+    },
+    {
+      "filename": "aiohttp-3.14.3-cp313-cp313-android_21_arm64_v8a.whl",
+      "bytes": 506269,
+      "sha256": "2e9878ae68e4a5f1c0abe4dd497dbc3d51946f5837b56759e2a02e78fa90ef86"
+    },
+    {
+      "filename": "aiohttp-3.14.3-cp313-cp313-android_21_x86_64.whl",
+      "bytes": 515166,
+      "sha256": "f3d2669fe7dec7fc359ecdb5984b29b50d85d5d00f8c1cb61de4f4a24ee42627"
+    },
+    {
+      "filename": "aiosignal-1.4.0-py3-none-any.whl",
+      "bytes": 7490,
+      "sha256": "053243f8b92b990551949e63930a839ff0cf0b0ebbe0597b0f3fb19e1a0fe82e"
+    },
+    {
+      "filename": "annotated_types-0.8.0-py3-none-any.whl",
+      "bytes": 13427,
+      "sha256": "f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0"
+    },
+    {
+      "filename": "anthropic-0.125.0-py3-none-any.whl",
+      "bytes": 1184067,
+      "sha256": "3486013602eca76d8b12540764e53654f02cf4951110bca86cf06e67428a9f21"
+    },
+    {
+      "filename": "anyio-4.14.2-py3-none-any.whl",
+      "bytes": 125813,
+      "sha256": "9f505dda5ac9f0c8309b5e8bd445a8c2bf7246f3ce950121e45ea15bc41d1494"
+    },
+    {
+      "filename": "asyncstdlib-3.14.0-py3-none-any.whl",
+      "bytes": 44255,
+      "sha256": "cad90c590ce357da6e70c56f0e2ad9e9baaf146a8fc2ede189879da57eb8bd87"
+    },
+    {
+      "filename": "attrs-26.1.0-py3-none-any.whl",
+      "bytes": 67548,
+      "sha256": "c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309"
+    },
+    {
+      "filename": "certifi-2026.7.22-py3-none-any.whl",
+      "bytes": 136983,
+      "sha256": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775"
+    },
+    {
+      "filename": "chaquopy_libyaml-0.2.5-0-py3-none-android_24_arm64_v8a.whl",
+      "bytes": 58012,
+      "sha256": "77f594d82adf2a1baf5f8340324ef06b7f54b1b0725b7d9b4ce8367e270ad5a2"
+    },
+    {
+      "filename": "chaquopy_libyaml-0.2.5-0-py3-none-android_24_x86_64.whl",
+      "bytes": 59710,
+      "sha256": "752dc7ffa8337196a053d5a58a74c66a9f8b3cfe1afee122b97b5be7762b8a5d"
+    },
+    {
+      "filename": "charset_normalizer-3.4.7-py3-none-any.whl",
+      "bytes": 61958,
+      "sha256": "3dce51d0f5e7951f8bb4900c257dad282f49190fdbebecd4ba99bcc41fef404d"
+    },
+    {
+      "filename": "colorama-0.4.6-py2.py3-none-any.whl",
+      "bytes": 25335,
+      "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"
+    },
+    {
+      "filename": "croniter-6.0.0-py2.py3-none-any.whl",
+      "bytes": 25468,
+      "sha256": "2f878c3856f17896979b2a4379ba1f09c83e374931ea15cc835c5dd2eee9b368"
+    },
+    {
+      "filename": "distro-1.9.0-py3-none-any.whl",
+      "bytes": 20277,
+      "sha256": "7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2"
+    },
+    {
+      "filename": "docstring_parser-0.18.0-py3-none-any.whl",
+      "bytes": 22484,
+      "sha256": "b3fcbed555c47d8479be0796ef7e19c2670d428d72e96da63f3a40122860374b"
+    },
+    {
+      "filename": "fal_client-1.0.1-py3-none-any.whl",
+      "bytes": 26851,
+      "sha256": "57e900aabd45b03f788498195e4c562c79a37b06e3dd54371d81130496841ddb"
+    },
+    {
+      "filename": "filelock-3.24.3-py3-none-any.whl",
+      "bytes": 24331,
+      "sha256": "426e9a4660391f7f8a810d71b0555bce9008b0a1cc342ab1f6947d37639e002d"
+    },
+    {
+      "filename": "fire-0.7.1-py3-none-any.whl",
+      "bytes": 115945,
+      "sha256": "e43fd8a5033a9001e7e2973bab96070694b9f12f2e0ecf96d4683971b5ab1882"
+    },
+    {
+      "filename": "frozenlist-1.8.0-py3-none-any.whl",
+      "bytes": 13409,
+      "sha256": "0c18a16eab41e82c295618a77502e17b195883241c563b00f0aa5106fc4eaa0d"
+    },
+    {
+      "filename": "h11-0.16.0-py3-none-any.whl",
+      "bytes": 37515,
+      "sha256": "63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86"
+    },
+    {
+      "filename": "httpcore-1.0.9-py3-none-any.whl",
+      "bytes": 78784,
+      "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"
+    },
+    {
+      "filename": "httpx-0.28.1-py3-none-any.whl",
+      "bytes": 73517,
+      "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad"
+    },
+    {
+      "filename": "httpx_sse-0.4.3-py3-none-any.whl",
+      "bytes": 8960,
+      "sha256": "0ac1c9fe3c0afad2e0ebb25a934a59f4c7823b60792691f779fad2c5568830fc"
+    },
+    {
+      "filename": "idna-3.19-py3-none-any.whl",
+      "bytes": 68550,
+      "sha256": "815e7be7a7806d54abb586dc943addc79e8b2ee16915059658cbeff4b1b43bf4"
+    },
+    {
+      "filename": "jinja2-3.1.6-py3-none-any.whl",
+      "bytes": 134899,
+      "sha256": "85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67"
+    },
+    {
+      "filename": "markdown_it_py-4.0.0-py3-none-any.whl",
+      "bytes": 87321,
+      "sha256": "87327c59b172c5011896038353a81343b6754500a08cd7a4973bb48c6d578147"
+    },
+    {
+      "filename": "markupsafe-3.0.3-0-cp313-cp313-android_24_arm64_v8a.whl",
+      "bytes": 13436,
+      "sha256": "29252e515d0a542c677f059bdc08468ba0be42d68fc987d525667fea6d8d5652"
+    },
+    {
+      "filename": "markupsafe-3.0.3-0-cp313-cp313-android_24_x86_64.whl",
+      "bytes": 13421,
+      "sha256": "9a6aff9d2f4a14710296588afac034cf04f9c891b1b939ef1a4891ba733ef91b"
+    },
+    {
+      "filename": "mdurl-0.1.2-py3-none-any.whl",
+      "bytes": 9979,
+      "sha256": "84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"
+    },
+    {
+      "filename": "multidict-6.7.1-py3-none-any.whl",
+      "bytes": 12319,
+      "sha256": "55d97cc6dae627efa6a6e548885712d4864b81110ac76fa4e534c03819fa4a56"
+    },
+    {
+      "filename": "openai-2.54.0-py3-none-any.whl",
+      "bytes": 1660351,
+      "sha256": "89089789197ccdb87f173a03145ed1598d00795220c93e96cf712b1cbf5e5f2b"
+    },
+    {
+      "filename": "packaging-26.3-py3-none-any.whl",
+      "bytes": 129956,
+      "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+    },
+    {
+      "filename": "platformdirs-4.9.4-py3-none-any.whl",
+      "bytes": 21216,
+      "sha256": "68a9a4619a666ea6439f2ff250c12a853cd1cbd5158d258bd824a7df6be2f868"
+    },
+    {
+      "filename": "propcache-0.5.2-py3-none-any.whl",
+      "bytes": 14036,
+      "sha256": "be1ddfcbb376e3de5d2e2db1d58d6d67463e6b4f9f040c000de8e300295465fe"
+    },
+    {
+      "filename": "pydantic-2.13.5-py3-none-any.whl",
+      "bytes": 472589,
+      "sha256": "346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73"
+    },
+    {
+      "filename": "pygments-2.20.0-py3-none-any.whl",
+      "bytes": 1231151,
+      "sha256": "81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176"
+    },
+    {
+      "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
+      "bytes": 229892,
+      "sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"
+    },
+    {
+      "filename": "python_dotenv-1.2.2-py3-none-any.whl",
+      "bytes": 22101,
+      "sha256": "1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a"
+    },
+    {
+      "filename": "pytz-2025.2-py2.py3-none-any.whl",
+      "bytes": 509225,
+      "sha256": "5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"
+    },
+    {
+      "filename": "pyyaml-6.0.3-0-cp313-cp313-android_24_arm64_v8a.whl",
+      "bytes": 146123,
+      "sha256": "d8de072bb9fe7b4606b776b118ed4ad1d04de3f43fa9acf6bf43ef10cf8970cb"
+    },
+    {
+      "filename": "pyyaml-6.0.3-0-cp313-cp313-android_24_x86_64.whl",
+      "bytes": 155849,
+      "sha256": "f1874bd12140a447dbd9ff2fc9e59ddde5dd90c558364f166fe4a1cec615bb90"
+    },
+    {
+      "filename": "requests-2.33.1-py3-none-any.whl",
+      "bytes": 64947,
+      "sha256": "4e6d1ef462f3626a1f0a0a9c42dd93c63bad33f9f1c1937509b8c5c8718ab56a"
+    },
+    {
+      "filename": "rich-14.3.3-py3-none-any.whl",
+      "bytes": 310458,
+      "sha256": "793431c1f8619afa7d3b52b2cdec859562b950ea0d4b6b505397612db8d5362d"
+    },
+    {
+      "filename": "six-1.17.0-py2.py3-none-any.whl",
+      "bytes": 11050,
+      "sha256": "4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274"
+    },
+    {
+      "filename": "sniffio-1.3.1-py3-none-any.whl",
+      "bytes": 10235,
+      "sha256": "2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2"
+    },
+    {
+      "filename": "tenacity-9.1.4-py3-none-any.whl",
+      "bytes": 28926,
+      "sha256": "6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55"
+    },
+    {
+      "filename": "termcolor-3.3.0-py3-none-any.whl",
+      "bytes": 7734,
+      "sha256": "cf642efadaf0a8ebbbf4bc7a31cec2f9b5f21a9f726f4ccbb08192c9c26f43a5"
+    },
+    {
+      "filename": "tqdm-4.70.0-py3-none-any.whl",
+      "bytes": 80184,
+      "sha256": "7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953"
+    },
+    {
+      "filename": "typing_extensions-4.16.0-py3-none-any.whl",
+      "bytes": 45571,
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8"
+    },
+    {
+      "filename": "typing_inspection-0.4.4-py3-none-any.whl",
+      "bytes": 14750,
+      "sha256": "65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147"
+    },
+    {
+      "filename": "tzdata-2026.1-py2.py3-none-any.whl",
+      "bytes": 348952,
+      "sha256": "4b1d2be7ac37ceafd7327b961aa3a54e467efbdb563a23655fbfe0d39cfc42a9"
+    },
+    {
+      "filename": "urllib3-2.7.0-py3-none-any.whl",
+      "bytes": 131087,
+      "sha256": "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
+    },
+    {
+      "filename": "websockets-17.1-py3-none-any.whl",
+      "bytes": 211134,
+      "sha256": "f221081107b8c48184d99f7019604486376e7ef826037e70aad6b02540732c23"
+    },
+    {
+      "filename": "yarl-1.24.5-py3-none-any.whl",
+      "bytes": 58612,
+      "sha256": "a33700d13d9b7d84fd10947b09ff69fb9a792e519c8cb9764a3ca70baa6c23a7"
+    }
+  ]
+}

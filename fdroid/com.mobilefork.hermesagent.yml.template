@@ -32,14 +32,15 @@ Repo: https://github.com/adybag14-cyber/hermes-agent.git
 Binaries: https://github.com/adybag14-cyber/hermes-agent/releases/download/v%v/hermes-agent-android-v%v-universal.apk
 
 Builds:
-  - versionName: 0.13.153
-    versionCode: 145390
+  - versionName: 0.13.154
+    versionCode: 145490
     commit: REPLACE_WITH_RELEASE_COMMIT_HASH
     subdir: android/app
     sudo:
       - apt-get update
-      - apt-get install -y g++ python3-pip
+      - apt-get install -y g++ python3-pip python3-venv rustup
       - sdkmanager "cmake;3.31.6"
+      - sdkmanager "ndk;27.3.13750724"
     ndk: 29.0.14206865
     gradle:
       - yes
@@ -49,6 +50,9 @@ Builds:
       - python3.13 ../../scripts/android_fdroid_source_binding.py prepare --repo-root
         ../.. --binding-file "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-android-fdroid-source-binding.properties"
         --version "$$VERSION$$"
+      - python3.13 ../../scripts/prepare_android_python_runtime.py prepare --output
+        "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-runtime" --work-dir
+        "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-source-build-$$VERSION$$"
       - sed -i -e 's/System.getenv("HERMES_RELEASE_TAG").orEmpty().trim()/"v$$VERSION$$"/'
         build.gradle.kts
       - sed -i -e 's/return if (osName.contains("windows")) "python" else "python3"/return
@@ -59,5 +63,5 @@ AllowedAPKSigningKeys: 2cbdb94d6081413055af1e903d4c1d6714300b4240402d1d4c8182fda
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v0\.
 UpdateCheckData: fdroid/com.mobilefork.hermesagent.version|versionCode=(\d+)|.|versionName=(.*)
-CurrentVersion: 0.13.153
-CurrentVersionCode: 145390
+CurrentVersion: 0.13.154
+CurrentVersionCode: 145490

@@ -1,9 +1,12 @@
 pluginManagement {
     repositories {
-        providers.gradleProperty("hermesChaquopyLab").orNull?.let { configured ->
-            val lab = file(configured).canonicalFile
+        run {
+            val configured = providers.gradleProperty("hermesChaquopyLab").orNull
+                ?: providers.gradleProperty("hermesPythonBundle").orNull
+            val lab = configured?.let { file(it).canonicalFile }
+                ?: gradle.gradleUserHomeDir.resolve("hermes-python-runtime").canonicalFile
             require(lab.resolve("consumer.json").isFile && lab.resolve("maven").isDirectory) {
-                "hermesChaquopyLab must be a prepared, verified Hermes consumer bundle"
+                "Prepare the source-built Hermes Python bundle before Gradle: see android/PYTHON_RUNTIME.md"
             }
             exclusiveContent {
                 forRepository { maven { url = uri(lab.resolve("maven")) } }

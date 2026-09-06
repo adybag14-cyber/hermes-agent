@@ -300,7 +300,7 @@ be the exact live default-branch head, then trigger the default-branch-only
 repository dispatch with both the upcoming tag and immutable commit:
 
 ```powershell
-$tag = 'v0.13.153'
+$tag = 'v0.13.154'
 $candidateSha = (git rev-parse 'HEAD^{commit}').Trim()
 $defaultBranch = (gh repo view adybag14-cyber/hermes-agent `
     --json defaultBranchRef --jq '.defaultBranchRef.name').Trim()
@@ -381,7 +381,7 @@ commit checked out, obtain the identity embedded into the headed debug
 candidate and build both APKs from the same process environment:
 
 ```powershell
-$tag = 'v0.13.153'
+$tag = 'v0.13.154'
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)
@@ -933,7 +933,7 @@ source tree is clean outside the evidence directory, then commit the evidence
 before creating the tag:
 
 ```powershell
-$tag = 'v0.13.153'
+$tag = 'v0.13.154'
 python scripts/android_release_evidence.py create --tag $tag
 git add "android/release-evidence/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
@@ -1079,7 +1079,7 @@ fdroid checkupdates --auto --allow-dirty com.mobilefork.hermesagent
 ```
 
 Run this from a fresh checkout of the live F-Droid metadata after the GitHub tag
-exists. The local diff must add exactly one 0.13.153/145390 build and resolve the
+exists. The local diff must add exactly one 0.13.154/145490 build and resolve the
 tag to its full Git commit. Before the pinned build, merge only the committed
 template's source-binding fields into that autoupdater-generated build and
 verify the result:

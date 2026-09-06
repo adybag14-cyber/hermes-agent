@@ -72,7 +72,10 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
-          packages: platform-tools platforms;android-35 build-tools;35.0.0 ndk;29.0.14206865 cmake;3.31.6
+          packages: platform-tools platforms;android-35 build-tools;35.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
+
+      - name: Build the genuine Android Python SDK stack from source
+        uses: ./.github/actions/prepare-android-python
 
       - name: Verify candidate identity
         id: identity
