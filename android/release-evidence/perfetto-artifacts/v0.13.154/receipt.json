@@ -1,17 +1,17 @@
 {
-  "artifact_archive_bytes": 102442198,
-  "artifact_created_at": "2026-09-06T19:44:04Z",
-  "artifact_digest": "sha256:c3db9caa554c8f2cd980c096c33aa981e9a4a825b7bc056327ede10c59869fc7",
-  "artifact_expires_at": "2026-12-05T19:36:39Z",
-  "artifact_id": 9995910883,
-  "artifact_name": "hermes-android-perfetto-v0.13.154-d9e85a476915df3c238f5cf421b7e34efd90aa3a85a44657baf7e96ed0fe7efd",
+  "artifact_archive_bytes": 99141643,
+  "artifact_created_at": "2026-09-07T12:07:50Z",
+  "artifact_digest": "sha256:eef274f0207ec2b5979bc878cee6b7de2dcba839b0e40b06850c552de0ae5a93",
+  "artifact_expires_at": "2026-12-06T12:03:57Z",
+  "artifact_id": 10017853891,
+  "artifact_name": "hermes-android-perfetto-v0.13.154-38bfbe9aef6da87b486ebb583b59c8a0f0c2705aea1304e7f932747f99356f26",
   "repository": "adybag14-cyber/hermes-agent",
   "retention_days": 90,
   "schema": "hermes-android-perfetto-release-receipt-v1",
-  "source_manifest_sha256": "d3ee5413f11a190c4482febfc2c3e049501f1b09755f021bd7db12329c9f609c",
+  "source_manifest_sha256": "bf6b1bf3bb08d7fb61aa0fc701f48b403037102da87abd5a3c437655501d9433",
   "tag": "v0.13.154",
-  "workflow_head_sha": "457977fd4b87a41f0b20aceb73b3f15bee62456b",
+  "workflow_head_sha": "8b8e487a12a89aea0320f1f4ae0bd411c6823912",
   "workflow_run_attempt": 1,
-  "workflow_run_id": 34055434384,
-  "workflow_url": "https://github.com/adybag14-cyber/hermes-agent/actions/runs/34055434384"
+  "workflow_run_id": 34119844274,
+  "workflow_url": "https://github.com/adybag14-cyber/hermes-agent/actions/runs/34119844274"
 }
