@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="How Hermes Agent Fork handles local data, user-selected AI providers, Android permissions, retention and deletion.">
+<title>Privacy policy · Hermes Agent Fork</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#14243a;background:#fff}*{box-sizing:border-box}body{margin:0;border-top:6px solid #087f8c}main{max-width:820px;margin:auto;padding:44px 24px 72px}header{padding-bottom:20px;border-bottom:1px solid #d7e0e8}h1{font-size:clamp(2rem,6vw,2.75rem);line-height:1.15;margin:10px 0 16px}h2{font-size:1.35rem;line-height:1.3;margin-top:36px}p,li{font-size:1rem;line-height:1.75}li{margin:8px 0}a{color:#075d78;text-underline-offset:3px;overflow-wrap:anywhere}a:focus-visible{outline:3px solid #087f8c;outline-offset:4px}.eyebrow{font-weight:650;color:#075d78}.meta{color:#4a596e}.summary{padding:18px 22px;background:#edf7f8;border-left:4px solid #087f8c;margin-top:28px}code{overflow-wrap:anywhere}footer{border-top:1px solid #d7e0e8;margin-top:38px;padding-top:20px}
+</style>
+</head>
+<body><main>
+<header><p class="eyebrow">Hermes Agent Fork</p><h1>Privacy policy</h1><p class="meta">Effective date: 7 September 2026 · Android package: <code>com.mobilefork.hermesagent</code></p><p>This policy applies to Hermes Agent Fork, the independent community Android app published by the maintainer of <a href="https://github.com/adybag14-cyber/hermes-agent">adybag14-cyber/hermes-agent</a>. It is not official Nous Research or Teknium software.</p></header>
+<section class="summary" aria-label="Privacy summary"><p><strong>The publisher does not operate a backend that receives your chats, files, device-tool results or app analytics.</strong> Local model inference runs on your device. When you select or configure a remote provider or another online service, information needed for that request is sent to that service. Local inference does not make separate downloads, browsing, integrations or network-enabled tools offline.</p></section>
+<h2>1. Information used on your device</h2>
+<p>The app uses and may store chat messages and responses, conversation history, selected attachments, downloaded models, workspace files, provider configuration and credentials, preferences, and task or automation records on your device. Device tools can read information needed to perform the actions you enable. This information may include screen content, notifications, calendar entries, location, installed-app information and device diagnostics.</p>
+<p>What the app can access depends on the feature, your Android permissions, any selected files or folders, and enabled integrations. Do not place passwords, financial information or other sensitive information in prompts or accessible files unless you intend it to be used by the selected feature.</p>
+<h2>2. User-selected remote providers and services</h2>
+<p>If you configure a remote AI provider, the app sends the submitted prompt and the conversation context needed for the request to that provider. Selected attachments, images, audio or transcriptions, and relevant tool results may also be transmitted when the feature uses them. For example, configuring an OpenAI API key and using that provider sends the request content to OpenAI. Your configured credentials authenticate requests to the selected service.</p>
+<p>Network-enabled tools, provider portals, embedded web pages, browser actions, external integrations and model downloads connect to their respective services. Those services can receive request content and network information such as your IP address. Speech-recognition services may process voice input according to your device and provider settings. Other apps receive information when you use an action that shares information with them.</p>
+<p>The publisher does not receive these app requests through a publisher-operated collection backend. Each third-party service has its own privacy policy, security practices and retention rules. Review the service and endpoint you configure before use. Choosing local inference does not prevent a separately enabled tool or integration from connecting to the internet.</p>
+<h2>3. Android permissions and optional device features</h2>
+<ul>
+<li><strong>Microphone and camera:</strong> voice input and camera-based input when you use these features.</li>
+<li><strong>Files and folders:</strong> attachments, model import, workspace operations and folders you grant through Android's file picker.</li>
+<li><strong>Accessibility access:</strong> inspecting visible screen content and performing supported UI actions when you enable the service. Screen text or screenshots used as remote-model context may be sent to your selected provider.</li>
+<li><strong>Notification access:</strong> reading notifications for enabled device workflows. Notifications can contain private messages and other sensitive content. Relevant results used in remote requests may be sent to your selected provider.</li>
+<li><strong>Calendar and location:</strong> calendar workflows and location-related tools or watchers you enable. Relevant results used in remote requests may be sent to your selected provider.</li>
+<li><strong>Installed-app visibility and usage access:</strong> identifying, launching or inspecting apps and providing device-workflow information.</li>
+<li><strong>Nearby devices, Bluetooth, Wi-Fi and NFC:</strong> supported connectivity and device tools.</li>
+<li><strong>Notifications, overlays, foreground services and startup:</strong> displaying status or floating controls and running enabled runtime, watcher or automation features. Some enabled features continue while the main app screen is not visible.</li>
+<li><strong>Optional Shizuku integration:</strong> additional device operations only when configured and authorised through that integration.</li>
+</ul>
+<p>You can revoke permissions and special access in Android Settings and disable integrations or automations you no longer want. Denying access can prevent the related feature from working.</p>
+<h2>4. Publisher collection and support</h2>
+<p>The publisher does not run a backend collecting app chats, files, tool results or app analytics. If you voluntarily email support or post a repository issue, the publisher receives the information you provide, including your email address and message. Use this channel only for information needed to address the request. Repository issues are public; do not post API keys, private conversations or personal files there.</p>
+<p>Support information is used to respond to your request and investigate the reported issue. Email and repository services process that communication under their own policies.</p>
+<h2>5. Storage, retention and deletion</h2>
+<p>Local information remains on your device until it is removed through the relevant app controls, Android app-storage controls or file-management tools. Clearing this app's storage or uninstalling it removes its app-private data under Android's normal behaviour. Exported files, files in shared folders and downloads stored outside app-private storage may remain and must be deleted separately.</p>
+<p>Removing local data does not delete copies already sent to another service. Use that service's account and deletion controls or contact it directly. Disconnecting a provider prevents future use of that configuration; revoke credentials with the provider if you want to invalidate them.</p>
+<p>For deletion of support information held by the publisher, email <a href="mailto:adybag14@gmail.com">adybag14@gmail.com</a> with enough detail to identify the request, without sending credentials. Support correspondence is kept as needed to resolve the request and handle follow-up, subject to applicable retention obligations. The publisher cannot delete information controlled solely by your chosen provider.</p>
+<h2>6. Security</h2>
+<p>The app uses Android's application-storage and permission boundaries. The Android app configuration disables standard app backup and restricts cleartext traffic for its Android network components except local loopback connections. These measures are not a guarantee for every user-configured endpoint, embedded runtime, script or external integration. Use trusted HTTPS endpoints, protect your device and API keys, and review the access granted to tools.</p>
+<h2>7. This website</h2>
+<p>This privacy-policy website is a static GitHub Pages site. Its pages do not include publisher analytics, tracking scripts or advertising cookies. GitHub processes hosting requests, including network and device information, under the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a>.</p>
+<h2>8. Changes and contact</h2>
+<p>Updates to this policy will be published on this page with a revised effective date. For privacy questions or requests, contact the Hermes Agent Fork maintainer at <a href="mailto:adybag14@gmail.com">adybag14@gmail.com</a>.</p>
+<footer><p><a href="../">Hermes Agent Fork</a> · <a href="https://github.com/adybag14-cyber/hermes-agent">Source repository</a></p></footer>
+</main></body></html>
