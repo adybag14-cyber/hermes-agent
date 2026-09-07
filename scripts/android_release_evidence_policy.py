@@ -16,6 +16,29 @@ REVIEWER_RE = re.compile(r"^[^\r\n]{2,120}$")
 POLICY_UPDATE_VERSION = (0, 13, 154)
 
 
+def physical_validation_waiver(tag: str) -> dict[str, Any] | None:
+    """The release owner waived phone testing for this one stable release only."""
+    if tag.strip() != "v0.13.154":
+        return None
+    return {
+        "classification": "owner-waived-physical-validation",
+        "release_tag": "v0.13.154",
+        "physical_validation_performed": False,
+        "authorization": "Explicit release-owner instruction on 2026-09-07 to skip phone validation and publish this release.",
+        "scope": "this release only; the physical gate remains required for later releases",
+    }
+
+
+def record_physical_validation_waiver(manifest: dict[str, Any], tag: str) -> None:
+    waiver = physical_validation_waiver(tag)
+    if waiver is None:
+        return
+    manifest["physical_device_evidence"] = waiver
+    manifest["contract"]["requires_one_physical_arm64_nanbeige_repair_record"] = False
+    manifest["contract"]["physical_validation_waived_for_this_release"] = True
+    manifest["summary"].update(physical_nanbeige_repair_count=0, physical_device_models=[])
+
+
 def uses_upgrade_release_policy(tag: str) -> bool:
     match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)(?:\.\d+)?)?", tag)
     if match is None:

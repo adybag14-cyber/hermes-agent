@@ -659,7 +659,10 @@ def requires_comprehensive_ui_evidence(tag: str) -> bool:
 def requires_physical_nanbeige_repair_evidence(tag: str) -> bool:
     """Return whether the tag requires the physical ARM64 Nanbeige repair gate."""
 
-    return _tag_version_tuple(tag) >= PHYSICAL_NANBEIGE_REPAIR_MIN_VERSION
+    return (
+        _tag_version_tuple(tag) >= PHYSICAL_NANBEIGE_REPAIR_MIN_VERSION
+        and release_policy.physical_validation_waiver(tag) is None
+    )
 
 
 def litertlm_coordinate_for_tag(tag: str) -> str:
@@ -6370,6 +6373,7 @@ def build_manifest(
                 "physical_device_models": list(evidence.physical_device_models),
             }
         )
+    release_policy.record_physical_validation_waiver(manifest, normalized_tag)
     return manifest
 
 

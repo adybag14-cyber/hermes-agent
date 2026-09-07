@@ -12,6 +12,14 @@ SDK upgrade. A model-lab APK is not a release-certified or phone-upgrade APK.
 
 ### v0.13.154 and later policy
 
+**One-release owner waiver:** On 2026-09-07 the release owner explicitly asked
+to skip physical-phone validation for stable `v0.13.154` and publish the GitHub
+release. This version therefore records physical validation as **not performed,
+owner-waived**, not as passing phone evidence. The source-bound emulator, signing,
+hosted workflow, and both post-publication F-Droid gates remain required.
+The waiver does not apply to prereleases or to v0.13.155 and later; their physical
+gate remains in force. Do not reuse older API 35 phone results as API 36 proof.
+
 The app and macrobenchmark compile and target API 36 with Build Tools 36.0.0.
 The signed candidate and release workflows independently inspect the APK manifest
 and reject target SDKs below 36. Run the Android 16 back-navigation instrumentation

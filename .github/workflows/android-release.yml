@@ -286,9 +286,9 @@ jobs:
           evidence_record="release-evidence/${HERMES_RELEASE_TAG}/physical-device/nanbeige4.2-3b-q4-k-m-repair.json"
           signed_apk="app/build/outputs/apk/release/app-release.apk"
           if [ ! -f "$evidence_record" ]; then
-            # The preceding evidence verifier requires this record from v0.13.151
-            # onward. Preserve historical tag reruns whose older policy predates it.
-            printf 'No physical candidate record is required for historical tag %s\n' \
+            # The preceding verifier enforces the versioned policy, including
+            # the owner's explicit v0.13.154-only physical-validation waiver.
+            printf 'No physical candidate record is required by the verified evidence policy for %s\n' \
               "$HERMES_RELEASE_TAG"
             exit 0
           fi
