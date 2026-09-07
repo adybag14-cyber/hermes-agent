@@ -16,7 +16,7 @@ jobs:
   published-latest-compatibility:
     name: Compile against Google's published-latest LiteRT-LM
     runs-on: ubuntu-22.04
-    timeout-minutes: 35
+    timeout-minutes: 75
 
     steps:
       - name: Checkout code
@@ -75,7 +75,10 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
         with:
-          packages: platform-tools platforms;android-36 build-tools;36.0.0
+          packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
+
+      - name: Build the genuine Android Python SDK stack from source
+        uses: ./.github/actions/prepare-android-python
 
       - name: Ensure Gradle wrapper is executable
         run: chmod +x android/gradlew
