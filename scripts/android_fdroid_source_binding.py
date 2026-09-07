@@ -16,7 +16,7 @@ from committed ``HEAD`` blobs, so no prebuild handoff file is needed.
 The ``render-autoupdate-preview`` phase is a separate, local-only transaction.
 It preserves the autoupdater's resolved release commit and all unrelated live
 metadata while replacing only the target build's ``sudo``, ``ndk``, ``gradle``,
-``gradleprops``, and ``prebuild`` fields with the exact repository template
+``gradleprops``, ``scanignore``, and ``prebuild`` fields with the exact repository template
 contract. The matching
 ``verify-autoupdate-preview`` phase fails closed before a pinned buildserver run
 if that source-binding contract is missing, stale, or ambiguous.
@@ -32,6 +32,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -47,8 +48,8 @@ if str(SCRIPT_DIR) not in sys.path:
 
 BINDING_SCHEMA = "hermes-android-fdroid-source-binding-v1"
 BINDING_FILE_NAME = "hermes-android-fdroid-source-binding.properties"
-AUTUPDATE_VERSION_NAME = "0.13.154"
-AUTUPDATE_VERSION_CODE = "145490"
+AUTUPDATE_VERSION_NAME = "0.13.155"
+AUTUPDATE_VERSION_CODE = "145590"
 EXPECTED_REMOTE_REPOSITORY = "https://github.com/adybag14-cyber/hermes-agent.git"
 GRADLE_PATH = PurePosixPath("android/app/build.gradle.kts")
 SOURCE_DIGEST_EXCLUDED_PREFIX = PurePosixPath("android/release-evidence")
@@ -131,6 +132,13 @@ EXPECTED_METADATA_GRADLEPROPS = (
     "    gradleprops:\n"
     "      - hermesFdroidSourceBinding=true\n"
 )
+EXPECTED_METADATA_SCANIGNORE = (
+    "    scanignore:\n"
+    "      # The local, source-built bootstrap is hash-verified before Gradle.\n"
+    "      - android/settings.gradle.kts\n"
+    "      # Separate Windows installer; not built or packaged by Android.\n"
+    "      - apps/bootstrap-installer/src-tauri/Cargo.toml\n"
+)
 EXPECTED_METADATA_PREBUILD = (
     "    prebuild:\n"
     "      - python3.13 ../../scripts/android_fdroid_source_binding.py prepare --repo-root\n"
@@ -148,7 +156,7 @@ EXPECTED_METADATA_PREBUILD = (
     "        if (osName.contains(\"windows\")) \"python\" else \"python3.13\"/' "
     "build.gradle.kts\n"
 )
-METADATA_OVERLAY_FIELDS = ("sudo", "ndk", "gradle", "gradleprops", "prebuild")
+METADATA_OVERLAY_FIELDS = ("sudo", "ndk", "gradle", "gradleprops", "scanignore", "prebuild")
 YAML_BUILD_START_RE = re.compile(r"^  - (?P<key>[A-Za-z][A-Za-z0-9]*):(?:[ \t]*(?P<value>.*))?$")
 YAML_BUILD_FIELD_RE = re.compile(
     r"^    (?P<key>[A-Za-z][A-Za-z0-9]*):(?:[ \t]*(?P<value>.*))?$"
@@ -513,14 +521,101 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _committed_crlf_checkout_paths(
+    repo_root: Path,
+    entries: Mapping[PurePosixPath, tuple[str, str, str]],
+    paths: set[PurePosixPath],
+) -> set[PurePosixPath]:
+    """Resolve only HEAD-declared text/CRLF rules, never host or worktree filters.
+
+    Git blobs normalize text, but release wheels preserve checkout bytes. Ask
+    Git's attribute parser to interpret committed attribute blobs in an isolated
+    index; using the real checkout's attributes would trust .git/info/attributes
+    and could conceal source changes. No checkout conversion or filter executes.
+    """
+    attributes = {path: entry for path, entry in entries.items() if path.name == ".gitattributes"}
+    if not attributes or not paths:
+        return set()
+    executable = shutil.which("git")
+    if executable is None:
+        raise FdroidSourceBindingError("git is required for committed checkout attributes")
+    with tempfile.TemporaryDirectory(prefix="hermes-committed-attributes-") as temporary:
+        isolated = Path(temporary)
+        empty_config = isolated / "empty-config"
+        empty_config.write_bytes(b"")
+        template = isolated / "empty-template"
+        template.mkdir()
+        environment = _sanitized_git_subprocess_environment()
+        environment.update({
+            "GIT_CONFIG_GLOBAL": str(empty_config),
+            "GIT_CONFIG_SYSTEM": str(empty_config),
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_ATTR_NOSYSTEM": "1",
+        })
+
+        def git(*args: str, payload: bytes | None = None) -> bytes:
+            try:
+                result = subprocess.run(
+                    [executable, "-c", f"core.attributesFile={empty_config}", *args],
+                    cwd=isolated, env=environment, input=payload, capture_output=True,
+                    check=False, timeout=30,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                raise FdroidSourceBindingError("committed checkout attribute lookup failed") from exc
+            if result.returncode != 0:
+                raise FdroidSourceBindingError(
+                    "unable to resolve committed checkout attributes: "
+                    + result.stderr.decode("utf-8", errors="replace").strip()
+                )
+            return result.stdout
+
+        git("init", "-q", "--object-format=sha1", f"--template={template}")
+        index_entries = []
+        for path, (mode, kind, object_id) in sorted(attributes.items()):
+            if kind != "blob" or mode not in {"100644", "100755"}:
+                raise FdroidSourceBindingError(f"committed Git attributes are not a regular file: {path}")
+            content = _run_git(repo_root, "cat-file", "blob", object_id)
+            isolated_id = git("hash-object", "-w", "--stdin", payload=content).strip()
+            index_entries.append(b"100644 " + isolated_id + b"\t" + path.as_posix().encode("utf-8") + b"\0")
+        git("update-index", "-z", "--index-info", payload=b"".join(index_entries))
+        requested = ("text", "eol", "filter", "working-tree-encoding")
+        result = git(
+            "check-attr", "--cached", "-z", "--stdin", *requested,
+            payload=b"".join(path.as_posix().encode("utf-8") + b"\0" for path in sorted(paths)),
+        )
+        fields = result[:-1].split(b"\0") if result.endswith(b"\0") else []
+        if len(fields) != len(paths) * len(requested) * 3:
+            raise FdroidSourceBindingError("incomplete committed checkout attribute result")
+        resolved: dict[PurePosixPath, dict[str, str]] = {path: {} for path in paths}
+        for index in range(0, len(fields), 3):
+            path = PurePosixPath(fields[index].decode("utf-8"))
+            attribute = fields[index + 1].decode("ascii")
+            value = fields[index + 2].decode("utf-8")
+            if path not in resolved or attribute not in requested or attribute in resolved[path]:
+                raise FdroidSourceBindingError("ambiguous committed checkout attribute result")
+            resolved[path][attribute] = value
+
+    crlf_paths = set()
+    for path, values in resolved.items():
+        if values["eol"] != "crlf":
+            continue
+        if values["text"] != "set" or any(
+            values[name] not in {"unspecified", "unset"} for name in ("filter", "working-tree-encoding")
+        ):
+            raise FdroidSourceBindingError(f"unsupported committed CRLF checkout conversion: {path}")
+        crlf_paths.add(path)
+    return crlf_paths
+
+
 def _assert_unchanged_tracked_bytes(
     repo_root: Path,
     expected_changes: Mapping[PurePosixPath, bytes | None],
     phase: str,
 ) -> None:
+    entries = _head_tracked_entries(repo_root)
     comparable = {
         path: entry
-        for path, entry in _head_tracked_entries(repo_root).items()
+        for path, entry in entries.items()
         if entry[1] == "blob"
         and path not in expected_changes
         and not (
@@ -532,6 +627,17 @@ def _assert_unchanged_tracked_bytes(
         repo_root,
         {entry[2] for entry in comparable.values()},
     )
+    crlf_paths = _committed_crlf_checkout_paths(
+        repo_root, entries, {path for path, entry in comparable.items() if entry[0] != "120000"},
+    )
+    crlf_identities = {}
+    for path in crlf_paths:
+        object_id = comparable[path][2]
+        if object_id not in crlf_identities:
+            content = _run_git(repo_root, "cat-file", "blob", object_id)
+            if b"\r\n" in content:
+                raise FdroidSourceBindingError(f"committed CRLF text is not LF-normalized: {path}")
+            crlf_identities[object_id] = hashlib.sha256(content.replace(b"\n", b"\r\n")).hexdigest()
     for path, (mode, _entry_type, object_id) in comparable.items():
         candidate = repo_root.joinpath(*path.parts)
         expected_identity = identities.get(object_id, "")
@@ -540,6 +646,8 @@ def _assert_unchanged_tracked_bytes(
                 f"F-Droid {phase} has no committed blob identity for {path.as_posix()}"
             )
         expected_sha256 = expected_identity.removeprefix("sha256:")
+        if path in crlf_paths:
+            expected_sha256 = crlf_identities[object_id]
         if mode == "120000":
             if not candidate.is_symlink():
                 raise FdroidSourceBindingError(
@@ -995,6 +1103,7 @@ def _assert_template_metadata_contract(
         "ndk": EXPECTED_METADATA_NDK,
         "gradle": EXPECTED_METADATA_GRADLE,
         "gradleprops": EXPECTED_METADATA_GRADLEPROPS,
+        "scanignore": EXPECTED_METADATA_SCANIGNORE,
         "prebuild": EXPECTED_METADATA_PREBUILD,
     }
     for field_name, canonical in expected.items():

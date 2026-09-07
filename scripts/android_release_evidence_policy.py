@@ -17,14 +17,19 @@ POLICY_UPDATE_VERSION = (0, 13, 154)
 
 
 def physical_validation_waiver(tag: str) -> dict[str, Any] | None:
-    """The release owner waived phone testing for this one stable release only."""
-    if tag.strip() != "v0.13.154":
+    """Keep each explicit owner waiver limited to its named stable release."""
+    normalized_tag = tag.strip()
+    authorization = {
+        "v0.13.154": "Explicit release-owner instruction on 2026-09-07 to skip phone validation and publish this release.",
+        "v0.13.155": "Explicit release-owner instruction on 2026-09-07 to skip physical-phone validation for the corrective F-Droid follow-up release.",
+    }.get(normalized_tag)
+    if authorization is None:
         return None
     return {
         "classification": "owner-waived-physical-validation",
-        "release_tag": "v0.13.154",
+        "release_tag": normalized_tag,
         "physical_validation_performed": False,
-        "authorization": "Explicit release-owner instruction on 2026-09-07 to skip phone validation and publish this release.",
+        "authorization": authorization,
         "scope": "this release only; the physical gate remains required for later releases",
     }
 

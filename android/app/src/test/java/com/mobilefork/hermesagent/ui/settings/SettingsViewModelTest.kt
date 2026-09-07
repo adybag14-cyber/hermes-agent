@@ -2,6 +2,7 @@ package com.mobilefork.hermesagent.ui.settings
 
 import android.content.Intent
 import android.provider.Browser
+import androidx.lifecycle.viewModelScope
 import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.HermesRuntimeManager
 import com.mobilefork.hermesagent.backend.LocalBackendStatus
@@ -12,6 +13,10 @@ import com.mobilefork.hermesagent.data.LocalModelDownloadStore
 import com.mobilefork.hermesagent.models.VerifiedLocalModelArtifacts
 import com.mobilefork.hermesagent.models.LocalModelRuntimeSelectionAuthority
 import com.mobilefork.hermesagent.models.persistPreferredModelRuntimeSelection
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -23,6 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows
 import org.robolectric.annotation.Config
+import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -1068,6 +1074,11 @@ class SettingsViewModelTest {
         val originalDownloads = downloadStore.loadDownloads()
         val originalPreferredId = downloadStore.preferredDownloadId()
         val originalPendingId = downloadStore.pendingAutoStartRecordId()
+        val pendingFile = File.createTempFile("explicit-pending-", ".gguf", application.cacheDir)
+            .apply { writeBytes(ByteArray(1_024)) }
+        val preferredFile = File.createTempFile("explicit-preferred-", ".gguf", application.cacheDir)
+            .apply { writeBytes(ByteArray(1_024)) }
+        var downloadsViewModel: LocalModelDownloadsViewModel? = null
         val pendingA = LocalModelDownloadRecord(
             id = "explicit-start-older-pending-a",
             title = "pending-a.gguf",
@@ -1076,8 +1087,8 @@ class SettingsViewModelTest {
             filePath = "pending-a.gguf",
             revision = "main",
             runtimeFlavor = "GGUF",
-            destinationFileName = "pending-a.gguf",
-            destinationPath = "/models/pending-a.gguf",
+            destinationFileName = pendingFile.name,
+            destinationPath = pendingFile.absolutePath,
             downloadManagerId = -1L,
             totalBytes = 1_024L,
             downloadedBytes = 1_024L,
@@ -1089,8 +1100,8 @@ class SettingsViewModelTest {
             sourceUrl = "https://example.invalid/preferred-b.gguf",
             repoOrUrl = "example/preferred-b",
             filePath = "preferred-b.gguf",
-            destinationFileName = "preferred-b.gguf",
-            destinationPath = "/models/preferred-b.gguf",
+            destinationFileName = preferredFile.name,
+            destinationPath = preferredFile.absolutePath,
         )
 
         try {
@@ -1108,17 +1119,29 @@ class SettingsViewModelTest {
             assertTrue(settingsViewModel.startLocalRuntimeForFlavor("GGUF"))
             assertEquals("", downloadStore.pendingAutoStartRecordId())
             assertEquals(preferredB.id, downloadStore.preferredDownloadId())
+            val downloads = LocalModelDownloadsViewModel(application) { "" }
+            downloadsViewModel = downloads
+            // Complete the real initial file refresh before asserting the stale handoff.
+            runBlocking {
+                withTimeout(5_000L) {
+                    downloads.uiState.first { state ->
+                        state.downloads.map { it.id }.toSet().containsAll(setOf(pendingA.id, preferredB.id))
+                    }
+                }
+            }
             assertEquals(
                 LocalModelRuntimeHandoffResult.Rejected,
-                LocalModelDownloadsViewModel(application) { "" }
-                    .promoteDownloadedModelForAutoStart(pendingA.id),
+                downloads.promoteDownloadedModelForAutoStart(pendingA.id),
             )
             assertEquals(preferredB.id, downloadStore.preferredDownloadId())
         } finally {
+            downloadsViewModel?.viewModelScope?.cancel()
             settingsStore.save(originalSettings)
             downloadStore.saveDownloads(originalDownloads)
             downloadStore.setPreferredDownloadId(originalPreferredId)
             downloadStore.setPendingAutoStartRecordId(originalPendingId)
+            pendingFile.delete()
+            preferredFile.delete()
         }
     }
 

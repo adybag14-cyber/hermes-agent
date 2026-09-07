@@ -305,7 +305,7 @@ be the exact live default-branch head, then trigger the default-branch-only
 repository dispatch with both the upcoming tag and immutable commit:
 
 ```powershell
-$tag = 'v0.13.154'
+$tag = 'v0.13.155'
 $candidateSha = (git rev-parse 'HEAD^{commit}').Trim()
 $defaultBranch = (gh repo view adybag14-cyber/hermes-agent `
     --json defaultBranchRef --jq '.defaultBranchRef.name').Trim()
@@ -392,7 +392,7 @@ commit checked out, obtain the identity embedded into the headed debug
 candidate and build both APKs from the same process environment:
 
 ```powershell
-$tag = 'v0.13.154'
+$tag = 'v0.13.155'
 $sourceLine = python scripts/android_release_evidence.py source-identity --require-clean |
     Select-String '^sourceDigest='
 $sourceDigest = $sourceLine.Line.Substring('sourceDigest='.Length)
@@ -522,10 +522,10 @@ collected, generate and commit metadata only:
 
 ```powershell
 python scripts/android_perfetto_release_artifact.py create-source `
-    --tag v0.13.154 --trace-root C:\path\to\new-traces
+    --tag v0.13.155 --trace-root C:\path\to\new-traces
 ```
 
-This creates `release-evidence/perfetto-artifacts/v0.13.154/source.json`, bound
+This creates `release-evidence/perfetto-artifacts/v0.13.155/source.json`, bound
 to the measured source digest, capture run, and every trace's size/hash. Dispatch
 `android-perfetto-release.yml` on that exact reviewed commit, with the release
 tag and a unique `hermes-traces-<32 lowercase hex characters>` runner label.
@@ -543,8 +543,8 @@ file. Only after the **whole workflow succeeds**, record its authority:
 
 ```powershell
 python scripts/android_perfetto_release_artifact.py create-receipt `
-    --tag v0.13.154 --run-id <successful-run-id> --artifact-id <artifact-id>
-python scripts/android_perfetto_release_artifact.py verify-receipt --tag v0.13.154
+    --tag v0.13.155 --run-id <successful-run-id> --artifact-id <artifact-id>
+python scripts/android_perfetto_release_artifact.py verify-receipt --tag v0.13.155
 ```
 
 Commit the generated `receipt.json` with the evidence. The release workflow
@@ -984,7 +984,7 @@ source tree is clean outside the evidence directory, then commit the evidence
 before creating the tag:
 
 ```powershell
-$tag = 'v0.13.154'
+$tag = 'v0.13.155'
 python scripts/android_release_evidence.py create --tag $tag
 git add "android/release-evidence/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
@@ -1130,7 +1130,7 @@ fdroid checkupdates --auto --allow-dirty com.mobilefork.hermesagent
 ```
 
 Run this from a fresh checkout of the live F-Droid metadata after the GitHub tag
-exists. The local diff must add exactly one 0.13.154/145490 build and resolve the
+exists. The local diff must add exactly one 0.13.155/145590 build and resolve the
 tag to its full Git commit. Before the pinned build, merge only the committed
 template's source-binding fields into that autoupdater-generated build and
 verify the result:
@@ -1148,7 +1148,7 @@ bash fdroid/run-local-buildserver.sh \
 
 This transaction preserves the resolved commit, historical builds, and every
 unrelated live-metadata field. It overlays the exact `sudo`, `ndk`, `gradle`,
-`gradleprops`, and `prebuild` contract, then requires
+`gradleprops`, `scanignore`, and `prebuild` contract, then requires
 `hermesFdroidSourceBinding=true` and the leading external-digest
 `prepare` handoff. An old two-`sed` recipe or any path which can produce
 `unbound` is rejected before the container downloads or builds anything. Do not
@@ -1157,3 +1157,12 @@ copy the whole candidate template over live metadata. Do not add `--commit` or
 mounts, immutable toolchain pins, and no-MR boundary are documented in
 [`fdroid/LOCAL_TOOLCHAIN.md`](../fdroid/LOCAL_TOOLCHAIN.md). Reproducibility
 still requires that pinned build and its APK comparison before certification.
+
+The v0.13.155 source validator preserves checkout bytes dictated by committed
+Git attributes, including the packaged CRLF PowerShell resources. The recipe's
+two narrowly scoped scanner exceptions cover the verified local Python bootstrap
+Maven declaration and a separate, unbuilt Windows-installer Cargo manifest; the
+source guard still checks both files. Their rationale and exact scope are part
+of `fdroid/LOCAL_TOOLCHAIN.md`. Physical-phone validation was separately waived
+by the owner for stable v0.13.155 only; it is recorded as not performed, while
+all other pre-publication and post-publication gates remain required.

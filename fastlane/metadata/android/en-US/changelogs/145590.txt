@@ -1,0 +1,4 @@
+Fix F-Droid source binding for Git-declared CRLF files while preserving packaged PowerShell resources.
+Add narrow scanner rules for the verified local Python bootstrap and the separate Windows installer.
+Stabilize model-selection regression coverage.
+Android 16 / API 36 and LiteRT-LM 0.17 are unchanged. Physical-phone validation is owner-waived for this release; all other release gates remain required.

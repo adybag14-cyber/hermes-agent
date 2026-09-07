@@ -314,6 +314,73 @@ def test_clean_prepare_and_exact_prebuild_resolve_the_committed_github_digest(
     assert "unbound" not in binding_file.read_text(encoding="ascii")
 
 
+def _commit_crlf_resource(repo: Path, attributes_path: str = ".gitattributes") -> tuple[Path, bytes]:
+    resource = repo / "assets/skill/install.ps1"
+    resource.parent.mkdir(parents=True)
+    committed = b"Write-Output 'first'\nWrite-Output 'second'\n"
+    resource.write_bytes(committed)
+    attributes = repo / attributes_path
+    attributes.parent.mkdir(parents=True, exist_ok=True)
+    attributes.write_bytes(b"*.ps1 text eol=crlf\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "declare PowerShell checkout bytes")
+    resource.unlink()
+    _git(repo, "checkout-index", "--force", "--", "assets/skill/install.ps1")
+    checkout = committed.replace(b"\n", b"\r\n")
+    assert resource.read_bytes() == checkout
+    return resource, checkout
+
+
+@pytest.mark.parametrize("attributes_path", [".gitattributes", "assets/.gitattributes"])
+def test_binding_preserves_the_committed_checkout_line_endings(
+    source_checkout: Path, tmp_path: Path, attributes_path: str,
+):
+    resource, checkout = _commit_crlf_resource(source_checkout, attributes_path)
+    binding_module = _load_binding_module()
+    expected = binding_module.git_source_tree_identity(source_checkout)
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+
+    prepared = binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+    verified = binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
+
+    assert prepared == verified
+    assert verified.source_digest == expected.digest
+    assert resource.read_bytes() == checkout
+
+
+@pytest.mark.parametrize("mutation", ["resource-bytes", "local-attributes", "global-attributes"])
+def test_checkout_line_ending_authority_rejects_tampering_and_uncommitted_overrides(
+    source_checkout: Path, tmp_path: Path, monkeypatch, mutation: str,
+):
+    resource, checkout = _commit_crlf_resource(source_checkout)
+    binding_module = _load_binding_module()
+    binding_file = tmp_path / "gradle-home" / binding_module.BINDING_FILE_NAME
+    _apply_fdroid_buildserver_preparation(source_checkout)
+    binding_module.prepare_binding(source_checkout, binding_file, VERSION_NAME)
+    _apply_declared_fdroid_transform(source_checkout)
+    _apply_fdroid_post_prebuild_cleanup(source_checkout)
+
+    if mutation == "resource-bytes":
+        resource.write_bytes(checkout.replace(b"first", b"other"))
+    else:
+        if mutation == "local-attributes":
+            attributes = source_checkout / ".git/info/attributes"
+        else:
+            attributes = tmp_path / "host.attributes"
+            config = tmp_path / "host.gitconfig"
+            config.write_text(f'[core]\nattributesFile = "{attributes.as_posix()}"\n', encoding="utf-8")
+            monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+        attributes.write_bytes(b"*.ps1 text eol=lf\n")
+        resource.write_bytes(checkout.replace(b"\r\n", b"\n"))
+        _git(source_checkout, "diff", "--exit-code", "HEAD", "--", "assets/skill/install.ps1")
+
+    with pytest.raises(binding_module.FdroidSourceBindingError, match="tracked"):
+        binding_module.verify_binding(source_checkout, binding_file, VERSION_NAME)
+
+
 def test_prepare_rejects_a_checkout_already_changed_by_prebuild(
     source_checkout: Path,
     tmp_path: Path,
@@ -1163,7 +1230,7 @@ def test_autoupdater_preview_render_preserves_commit_history_and_unrelated_metad
 
     before_target = dict(before["Builds"][1])
     after_target = dict(after["Builds"][1])
-    for field_name in ("sudo", "ndk", "gradle", "gradleprops", "prebuild"):
+    for field_name in ("sudo", "ndk", "gradle", "gradleprops", "scanignore", "prebuild"):
         assert after_target.pop(field_name) == template_build[field_name]
         before_target.pop(field_name, None)
     assert after_target == before_target
@@ -1174,6 +1241,22 @@ def test_autoupdater_preview_render_preserves_commit_history_and_unrelated_metad
     assert 'sdkmanager "cmake;3.31.6"' in rendered_text
     assert "    ndk: 29.0.14206865" in rendered_text
     assert "unbound" not in "\n".join(template_build["prebuild"]).lower()
+
+
+@pytest.mark.parametrize("replacement", ["android/", "apps/", "**"])
+def test_autoupdater_preview_rejects_broadening_scanner_exceptions(tmp_path: Path, replacement: str):
+    binding_module = _load_binding_module()
+    metadata = tmp_path / "com.mobilefork.hermesagent.yml"
+    template = REPO_ROOT / "fdroid/com.mobilefork.hermesagent.yml.template"
+    metadata.write_text(_autoupdater_metadata(), encoding="utf-8")
+    binding_module.render_autoupdate_metadata_preview(metadata, template, VERSION_NAME, VERSION_CODE)
+    metadata.write_text(
+        metadata.read_text(encoding="utf-8").replace(
+            "      - android/settings.gradle.kts\n", f"      - {replacement}\n", 1,
+        ), encoding="utf-8",
+    )
+    with pytest.raises(binding_module.FdroidSourceBindingError, match="scanignore does not match"):
+        binding_module.verify_autoupdate_metadata_preview(metadata, template, VERSION_NAME, VERSION_CODE)
 
 
 @pytest.mark.parametrize("target_count", [0, 2])
