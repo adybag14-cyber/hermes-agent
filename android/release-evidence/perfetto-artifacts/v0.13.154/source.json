@@ -1,62 +1,62 @@
 {
-  "artifact_name": "hermes-android-perfetto-v0.13.154-d9e85a476915df3c238f5cf421b7e34efd90aa3a85a44657baf7e96ed0fe7efd",
-  "evidence_run_id": "v0.13.154-d9e85a476915df3c-20260906-184131bst",
+  "artifact_name": "hermes-android-perfetto-v0.13.154-38bfbe9aef6da87b486ebb583b59c8a0f0c2705aea1304e7f932747f99356f26",
+  "evidence_run_id": "v0.13.154-38bfbe9aef6da87b-20260907-122540bst",
   "repository": "adybag14-cyber/hermes-agent",
   "schema": "hermes-android-perfetto-release-source-v1",
-  "source_digest": "d9e85a476915df3c238f5cf421b7e34efd90aa3a85a44657baf7e96ed0fe7efd",
+  "source_digest": "38bfbe9aef6da87b486ebb583b59c8a0f0c2705aea1304e7f932747f99356f26",
   "tag": "v0.13.154",
-  "trace_bytes": 445801111,
+  "trace_bytes": 415592918,
   "trace_file_count": 10,
   "traces": [
     {
-      "bytes": 33588582,
+      "bytes": 28158824,
       "path": "phone-compact.traces/iteration-001.perfetto-trace",
-      "sha256": "c5d9938b4bb527a39dc1319ecabb32609c4e9fa34ee9c7acaf2b45fb02390c80"
+      "sha256": "d039be96e2e8badbdbadaeca966c5ccac6d06f2b7128af9a5688118de550c361"
     },
     {
-      "bytes": 39540444,
+      "bytes": 37240140,
       "path": "phone-compact.traces/iteration-002.perfetto-trace",
-      "sha256": "0ff0bd7226ad783afda8956202f0c2ce1ef9b3eb55597a8e188b07077a4aa508"
+      "sha256": "7ebf1755d063bb9ca75f70d9e6596901596b1f2a273a69cdfee91a5a801fba44"
     },
     {
-      "bytes": 38148765,
+      "bytes": 35520407,
       "path": "phone-compact.traces/iteration-003.perfetto-trace",
-      "sha256": "a517bd6ed657bcd44bfa1e757d36910bce29b24e8ed8d403894a897bd3623e74"
+      "sha256": "15abdd3181e15256fe4ad0fb493c2ec26517918a9585a6624d7d140d14540bce"
     },
     {
-      "bytes": 40777599,
+      "bytes": 34258846,
       "path": "phone-compact.traces/iteration-004.perfetto-trace",
-      "sha256": "ac1665e057be56b418a142bc69c22a66451d9cf6694017442799b55757aa0d0d"
+      "sha256": "97a78802986ebc7b2411cc9ef206c61431c7140724b70de0550e04f2381d938d"
     },
     {
-      "bytes": 35470469,
+      "bytes": 30537670,
       "path": "phone-compact.traces/iteration-005.perfetto-trace",
-      "sha256": "fb82b7c9393586f08a3a08a066f5358208a9692c620fc8a05c2152675572d1a9"
+      "sha256": "1967b381cdf6cba0184f0b6be19987fc241b83b2d04eaf5e8f56c5ca849a773c"
     },
     {
-      "bytes": 51675847,
+      "bytes": 46004559,
       "path": "tablet.traces/iteration-001.perfetto-trace",
-      "sha256": "c62dfad82609ae154e1cab9dc4e5ccdc3e8e2b78113f845fcf44be0f90899468"
+      "sha256": "040ffc67e294bddf00c039a9bf000100c512c9bee4a97f617ad39288eaa951de"
     },
     {
-      "bytes": 49030101,
+      "bytes": 54857995,
       "path": "tablet.traces/iteration-002.perfetto-trace",
-      "sha256": "2361650c0b78ddfe89ad80b2c06eefa9c6261322ae9981c79f6e08d4a3be06d8"
+      "sha256": "2e7de1834c5a96910cb6dfebc20344e2f94ace994948b927048dbc07a5d3bf20"
     },
     {
-      "bytes": 55351987,
+      "bytes": 46498391,
       "path": "tablet.traces/iteration-003.perfetto-trace",
-      "sha256": "1baca80a0105ea2114ae912d3d2497a2fbde4646405232ee933ac6f8a324b81c"
+      "sha256": "3687ba7d0ff6c2e1879e6bb4962ed80261f28db07fc2e874e116a553fe8dca76"
     },
     {
-      "bytes": 54075870,
+      "bytes": 48018907,
       "path": "tablet.traces/iteration-004.perfetto-trace",
-      "sha256": "ab37c3db1319ffcac89623464ab3f4cee592c7730a765e3e430ce51d88986150"
+      "sha256": "548460c70571f7b4eb8d345cc5cff9f21b7e021816c44f5219d93cb48f384803"
     },
     {
-      "bytes": 48141447,
+      "bytes": 54497179,
       "path": "tablet.traces/iteration-005.perfetto-trace",
-      "sha256": "6ed3db618e704a6c8245291de60f748abf8f2a55bc45c248bedab3759108f34c"
+      "sha256": "631d823411fc1eb164fe4a71e08b6e9d2b5a45d69729d7c243cad7c2ffec5253"
     }
   ]
 }
