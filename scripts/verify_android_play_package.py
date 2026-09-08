@@ -120,13 +120,25 @@ def inspect_payload(apk: Path, bundle: Path | None = None) -> dict:
                                 native.append({"path": f"{name}!/{member}", "load_alignment": min(alignments)})
         if bundle is not None:
             with zipfile.ZipFile(bundle) as aab:
-                bundle_payload = {name.removeprefix("base/") for name in aab.namelist()
+                bundle_names = aab.namelist()
+                if len(bundle_names) != len(set(bundle_names)):
+                    raise ValueError("Duplicate AAB archive entries")
+                bundle_payload = {name.removeprefix("base/"): name for name in bundle_names
                                   if name.startswith(("base/lib/", "base/assets/")) and not name.endswith("/")}
+                # AGP relocates these unchanged ART profiles from bundle metadata into APK assets.
+                # Map only the two defined paths; missing, ambiguous, or changed bytes still fail.
+                for profile in ("baseline.prof", "baseline.profm"):
+                    origin = f"BUNDLE-METADATA/com.android.tools.build.profiles/{profile}"
+                    target = f"assets/dexopt/{profile}"
+                    if origin in bundle_names:
+                        if target in bundle_payload:
+                            raise ValueError(f"Ambiguous AAB baseline profile: {profile}")
+                        bundle_payload[target] = origin
                 apk_payload = {name for name in names if name.startswith(("lib/", "assets/")) and not name.endswith("/")}
-                if bundle_payload != apk_payload:
+                if set(bundle_payload) != apk_payload:
                     raise ValueError("Play AAB and APK contain different runtime/asset inventories")
                 for name in apk_payload:
-                    if hashlib.sha256(archive.read(name)).digest() != hashlib.sha256(aab.read("base/" + name)).digest():
+                    if hashlib.sha256(archive.read(name)).digest() != hashlib.sha256(aab.read(bundle_payload[name])).digest():
                         raise ValueError(f"Play AAB and APK payload bytes differ: {name}")
     return {"native_files": native, "bundle_payload_matched": bundle is not None}
 

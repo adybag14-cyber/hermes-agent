@@ -50,3 +50,40 @@ def test_native_alignment_exclusions_and_aab_payload_comparison(tmp_path):
         archive.writestr("assets/hermes-linux/manifest.json", "{}")
     with pytest.raises(ValueError, match="Full-edition"):
         inspect_payload(apk)
+
+
+def profile_archives(tmp_path, mutation=None):
+    apk, aab = tmp_path / "profile.apk", tmp_path / "profile.aab"
+    native = {f"lib/{abi}/libhermes_android_llama_server_experimental.so": elf(machine)
+              for abi, machine in (("arm64-v8a", 183), ("x86_64", 62))}
+    profiles = {"baseline.prof": b"profile bytes", "baseline.profm": b"profile metadata bytes"}
+    with zipfile.ZipFile(apk, "w") as archive, zipfile.ZipFile(aab, "w") as bundle:
+        for name, data in native.items():
+            archive.writestr(name, data)
+            bundle.writestr("base/" + name, data)
+        for name, data in profiles.items():
+            archive.writestr("assets/dexopt/" + name, data)
+            if mutation == "missing-profile" and name == "baseline.profm":
+                continue
+            origin = "BUNDLE-METADATA/com.android.tools.build.profiles/" + name
+            bundle.writestr(origin, data + b"changed" if mutation == "changed-profile" else data)
+            if mutation == "ambiguous-profile":
+                bundle.writestr("base/assets/dexopt/" + name, data)
+            if mutation == "duplicate-entry":
+                with pytest.warns(UserWarning, match="Duplicate name"):
+                    bundle.writestr(origin, data)
+        if mutation == "extra-asset":
+            bundle.writestr("base/assets/unreviewed-runtime.dat", b"extra")
+    return apk, aab
+
+
+def test_release_profiles_keep_exact_bytes_across_agp_container_locations(tmp_path):
+    apk, aab = profile_archives(tmp_path)
+    assert inspect_payload(apk, aab)["bundle_payload_matched"]
+
+
+@pytest.mark.parametrize("mutation", ["changed-profile", "missing-profile", "ambiguous-profile", "extra-asset", "duplicate-entry"])
+def test_profile_mapping_cannot_hide_changed_missing_or_extra_payloads(tmp_path, mutation):
+    apk, aab = profile_archives(tmp_path, mutation)
+    with pytest.raises(ValueError):
+        inspect_payload(apk, aab)
