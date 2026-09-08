@@ -31,11 +31,9 @@ import xml.etree.ElementTree as ET
 
 try:
     import android_release_evidence_policy as release_policy
-    import verify_android_play_release_evidence as play_evidence
     from android_release_evidence_common import EvidenceError, _exact_keys
 except ModuleNotFoundError:  # Imported as a package rather than executed as a script.
     from scripts import android_release_evidence_policy as release_policy
-    from scripts import verify_android_play_release_evidence as play_evidence
     from scripts.android_release_evidence_common import EvidenceError, _exact_keys
 
 
@@ -57,6 +55,7 @@ COMPREHENSIVE_UI_EVIDENCE_MIN_VERSION = (0, 13, 148)
 LITERTLM_0161_MIN_VERSION = (0, 13, 148)
 LITERTLM_0170_MIN_VERSION = (0, 13, 154)
 PHYSICAL_NANBEIGE_REPAIR_MIN_VERSION = (0, 13, 151)
+PLAY_EVIDENCE_MIN_VERSION = (0, 13, 156)
 LANGUAGES = ("en", "zh", "es", "de", "pt", "fr")
 PROFILES = ("phone-compact", "tablet")
 UI_COVERAGE_PREFIX = PurePosixPath("ui-coverage")
@@ -5772,7 +5771,11 @@ def expected_evidence_paths(
         paths.update(launch_theme_paths)
     if tag is not None and requires_physical_nanbeige_repair_evidence(tag):
         paths.add(PHYSICAL_NANBEIGE_REPAIR_PATH)
-    if tag is not None and _tag_version_tuple(tag) >= play_evidence.MIN_VERSION:
+    if tag is not None and _tag_version_tuple(tag) >= PLAY_EVIDENCE_MIN_VERSION:
+        try:
+            import verify_android_play_release_evidence as play_evidence
+        except ModuleNotFoundError:
+            from scripts import verify_android_play_release_evidence as play_evidence
         paths.update(PurePosixPath("play") / path for path in play_evidence.expected_paths(artifacts))
     return paths
 
@@ -5831,7 +5834,11 @@ def validate_evidence_directory(
     if not HEX_64_RE.fullmatch(source_digest):
         raise EvidenceError("Current source digest must be one lowercase SHA-256")
     version_name, version_code = android_identity_for_tag(tag)
-    if _tag_version_tuple(tag) >= play_evidence.MIN_VERSION:
+    if _tag_version_tuple(tag) >= PLAY_EVIDENCE_MIN_VERSION:
+        try:
+            import verify_android_play_release_evidence as play_evidence
+        except ModuleNotFoundError:
+            from scripts import verify_android_play_release_evidence as play_evidence
         play_evidence.verify_directory(evidence_dir / "play", source_digest, version_name, version_code, artifacts)
     litertlm_coordinate = litertlm_coordinate_for_tag(tag)
     performance_records = [

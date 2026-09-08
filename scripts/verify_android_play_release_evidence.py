@@ -15,7 +15,6 @@ except ModuleNotFoundError:
     from scripts.android_release_evidence_common import EvidenceError
 
 
-MIN_VERSION = (0, 13, 156)
 CASES = {
     "privacy-consent-lifecycle": (
         "decline_no_http", "accept_real_http", "request_has_no_tools", "revoke_reprompts",
