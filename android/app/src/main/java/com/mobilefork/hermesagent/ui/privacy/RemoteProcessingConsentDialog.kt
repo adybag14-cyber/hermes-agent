@@ -18,6 +18,7 @@ import com.mobilefork.hermesagent.ui.i18n.*
 fun RemoteProcessingConsentDialog(target: RemoteProcessingTarget, onAccept: () -> Unit, onDecline: () -> Unit) {
     val strings = LocalHermesStrings.current
     AlertDialog(
+        containerColor = opaquePrivacyDialogColor(androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier.testTag("RemoteProcessingConsentDialog"),
         onDismissRequest = onDecline,
         title = { Text(strings.remoteProcessingTitle()) },

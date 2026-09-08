@@ -21,6 +21,7 @@ fun LocalDataDeletionControl(strings: HermesStrings) {
     }
     if (denied) Text(LocalPrivacyText.deletionDenied(strings.language))
     if (confirm) AlertDialog(
+        containerColor = opaquePrivacyDialogColor(androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier.testTag("DeleteLocalDataConfirmation"),
         onDismissRequest = { confirm = false },
         title = { Text(LocalPrivacyText.delete(strings.language)) },

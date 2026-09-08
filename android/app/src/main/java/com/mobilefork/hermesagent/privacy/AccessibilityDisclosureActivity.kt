@@ -31,6 +31,8 @@ class AccessibilityDisclosureActivity : ComponentActivity() {
             HermesTheme {
                 var failed by remember { mutableStateOf(false) }
                 AlertDialog(
+                    containerColor = com.mobilefork.hermesagent.ui.privacy.opaquePrivacyDialogColor(
+                        androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh),
                     modifier = Modifier.testTag("AccessibilityDisclosure"),
                     onDismissRequest = ::finish,
                     title = { Text(strings.accessibilityDisclosureTitle()) },

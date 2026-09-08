@@ -45,6 +45,7 @@ fun AiContentReportDialog(message: String, onDismiss: () -> Unit) {
     val confirmed = receipt?.submitted == true
     val frozen = receipt != null || busy
     AlertDialog(
+        containerColor = opaquePrivacyDialogColor(androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier.testTag("AiContentReportDialog"),
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(strings.privacyText(PrivacyText.REPORT)) },

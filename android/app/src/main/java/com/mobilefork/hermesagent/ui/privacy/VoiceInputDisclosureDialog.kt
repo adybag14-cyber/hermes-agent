@@ -12,6 +12,7 @@ import com.mobilefork.hermesagent.ui.i18n.*
 fun VoiceInputDisclosureDialog(onAccept: () -> Unit, onDecline: () -> Unit) {
     val strings = LocalHermesStrings.current
     AlertDialog(
+        containerColor = opaquePrivacyDialogColor(androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh),
         modifier = Modifier.testTag("VoiceInputDisclosure"),
         onDismissRequest = onDecline,
         title = { Text(VoicePrivacyText.title(strings.language)) },

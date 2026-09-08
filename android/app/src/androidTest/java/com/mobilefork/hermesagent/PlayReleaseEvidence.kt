@@ -19,6 +19,9 @@ internal object PlayReleaseEvidence {
         check(directory.isDirectory || directory.mkdirs())
         val file = File(directory, "$name.png")
         check(!file.exists())
+        // Compose idleness does not wait for the platform Dialog window's entrance animation.
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        android.os.SystemClock.sleep(400)
         val bitmap = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
         try {
             file.outputStream().use { check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)) }

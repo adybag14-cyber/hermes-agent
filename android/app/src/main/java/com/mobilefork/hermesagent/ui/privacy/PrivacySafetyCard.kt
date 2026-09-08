@@ -93,6 +93,7 @@ fun PrivacySafetyCard(strings: HermesStrings) {
     }
     selected?.let { receipt ->
         AlertDialog(
+            containerColor = opaquePrivacyDialogColor(MaterialTheme.colorScheme.surfaceContainerHigh),
             onDismissRequest = { if (!busy) selected = null },
             title = { Text(strings.privacyText(PrivacyText.DELETE)) },
             text = { Text(receipt.id) },
