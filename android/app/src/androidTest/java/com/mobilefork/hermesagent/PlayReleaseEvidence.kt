@@ -11,6 +11,12 @@ import java.io.File
 
 /** Optional for ordinary debug tests; the release verifier requires every source-bound record. */
 internal object PlayReleaseEvidence {
+    fun recordFileName(case: String): String {
+        // Registered model IDs contain decimal versions; path separators remain forbidden.
+        require(case.matches(Regex("[a-z0-9][a-z0-9.-]{0,79}")))
+        return "$case.json"
+    }
+
     fun capture(context: Context, name: String): JSONObject? {
         if (InstrumentationRegistry.getArguments().getString("record_play_release_evidence") != "true") return null
         val identity = ReleaseDeviceEvidenceIdentity.requireBound(context)
@@ -35,10 +41,10 @@ internal object PlayReleaseEvidence {
         check(BuildConfig.HERMES_PLAY_EDITION)
         val identity = ReleaseDeviceEvidenceIdentity.requireBound(context)
         check(identity.buildVariant == "playDebug")
-        require(case.matches(Regex("[a-z0-9][a-z0-9-]{0,79}")))
+        val fileName = recordFileName(case)
         val directory = File(context.filesDir, "hermes-play-evidence/${identity.evidenceRunId}")
         check(directory.isDirectory || directory.mkdirs())
-        val output = File(directory, "$case.json")
+        val output = File(directory, fileName)
         check(!output.exists()) { "Use a fresh run id; refusing to replace prior Play evidence" }
         val record = JSONObject()
             .put("schema", "hermes-play-release-v1").put("case", case).put("result", "passed")
