@@ -114,6 +114,12 @@ resulting `files/hermes-play-evidence/<run-id>` directory into
 `android/release-evidence/<tag>/play`. The release workflow requires
 `verify_android_play_release_evidence.py` to pass before signing/publication; missing
 cases, stale/mixed identity, ordinary full-debug evidence or a 4 KB device fail.
+From v0.13.156 onward the Full release manifest also requires and validates this
+same Play contract before hashing its files. The closed `play/` layout contains
+the three behavior-case JSON records, one `model-<model-id>.json` for each
+registered release model, and exactly six `privacy-<language>.png` screenshots.
+Missing, extra, non-regular, or stale evidence fails both entry points. Earlier
+release layouts remain unchanged.
 
 Ordinary unbound debug test passes are development evidence only. Stable v0.13.156
 has the owner's explicit physical-phone waiver; this does not certify ARM64 device

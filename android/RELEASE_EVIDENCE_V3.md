@@ -592,6 +592,12 @@ an explicit failure or fabricated review claim is rejected.
 
 ## 8. Merge into the closed release layout
 
+From v0.13.156, include the separately captured `play/` directory specified in
+`PLAY_EDITION.md`. The Full manifest invokes that source-bound Play validator
+and includes its exact JSON/screenshot path set in the closed inventory; do not
+move Play evidence outside the release tree to pass layout validation. Earlier
+tags keep their original Full-only layout.
+
 Create only the v3 additions below. Preserve all existing `ui/`,
 `performance/`, and `models/` paths required by the v2 contract.
 

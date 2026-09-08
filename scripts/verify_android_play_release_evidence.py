@@ -7,12 +7,15 @@ import hashlib
 import json
 import re
 import struct
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
-from android_release_evidence import load_registered_model_matrix
-from check_android_release_identity import validate_release_identity
+try:
+    from android_release_evidence_common import EvidenceError
+except ModuleNotFoundError:
+    from scripts.android_release_evidence_common import EvidenceError
 
 
+MIN_VERSION = (0, 13, 156)
 CASES = {
     "privacy-consent-lifecycle": (
         "decline_no_http", "accept_real_http", "request_has_no_tools", "revoke_reprompts",
@@ -36,7 +39,14 @@ ENDPOINT = "https://hermes-content-reports.adybag14.workers.dev"
 
 def require(condition: bool, message: str) -> None:
     if not condition:
-        raise ValueError(message)
+        raise EvidenceError(message)
+
+
+def expected_paths(models: list) -> set[PurePosixPath]:
+    cases = set(CASES) | {f"model-{model.model_id}" for model in models}
+    return {PurePosixPath(f"{case}.json") for case in cases} | {
+        PurePosixPath(f"privacy-{language}.png") for language in LANGUAGES
+    }
 
 
 def validate_records(records: dict, source_digest: str, version_name: str, version_code: int, models: list) -> dict:
@@ -78,7 +88,12 @@ def validate_records(records: dict, source_digest: str, version_name: str, versi
 
 
 def verify_directory(directory: Path, source_digest: str, version_name: str, version_code: int, models: list) -> dict:
-    require(directory.is_dir(), f"Missing Play evidence directory: {directory}")
+    require(directory.is_dir() and not directory.is_symlink(), f"Missing regular Play evidence directory: {directory}")
+    entries = list(directory.iterdir())
+    require(all(path.is_file() and not path.is_symlink() for path in entries), "Play evidence layout must contain only regular files")
+    actual = {PurePosixPath(path.name) for path in entries}
+    expected = expected_paths(models)
+    require(actual == expected, f"Play evidence layout mismatch; missing={sorted(expected - actual)}, unexpected={sorted(actual - expected)}")
     records = {path.stem: json.loads(path.read_text(encoding="utf-8")) for path in directory.glob("*.json")}
     result = validate_records(records, source_digest, version_name, version_code, models)
     screenshots = records["six-language-privacy"]["details"].get("screenshots", [])
@@ -96,6 +111,14 @@ def verify_directory(directory: Path, source_digest: str, version_name: str, ver
 
 
 def main() -> None:
+    # Keep the reusable evidence contract independent of the Full manifest module.
+    try:
+        from android_release_evidence import load_registered_model_matrix
+        from check_android_release_identity import validate_release_identity
+    except ModuleNotFoundError:
+        from scripts.android_release_evidence import load_registered_model_matrix
+        from scripts.check_android_release_identity import validate_release_identity
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, default=Path(__file__).resolve().parents[1])
     parser.add_argument("--tag", required=True)
