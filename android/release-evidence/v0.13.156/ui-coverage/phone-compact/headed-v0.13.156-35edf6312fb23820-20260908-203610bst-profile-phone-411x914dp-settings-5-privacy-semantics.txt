@@ -1,0 +1,164 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=settings:Privacy
+artifact=headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-5-privacy
+coverage_kind=settings-subpage
+page_id=Settings.Privacy
+profile=phone-411x914dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.156
+version_code=145690
+build_variant=debug
+source_digest=35edf6312fb238208ac3021c8b109c579bb6b358f27cbf5c98013e15b0e7d232
+candidate_apk_sha256=c04e025319ee2e4d151262567eabd8c905bbe92ac4d6a53250d77610e876e3ce
+instrumentation_apk_sha256=50789f8f9bf93ed2db870edf99a3ba7598f1b131539ddb0c66a2bd20b025eeb1
+evidence_run_id=v0.13.156-35edf6312fb23820-20260908-203610bst
+device_serial=emulator-5580
+avd_name=Hermes_Release_154_API36
+device_boot_id=316e5d56-60e4-4934-8ca7-861589ee25f6
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=2c15c30fac7c90c1e8f88eb15e25ec5f73f53923428fa5f0c1d0977de4d2ce32
+sentinel=PrivacySafetyCard
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #1162 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #1164 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px, Tag: 'HermesSettingsContentList'
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=403.0, maxValue=503.0, reverseScrolling=false)'
+       |       CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@948b602'
+       |       Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |        |-Node #1617 at (l=42.0, t=-53.0, r=1038.0, b=379.0)px, Tag: 'HermesSettingsPageNavigation'
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1619 at (l=68.0, t=-32.0, r=553.0, b=21.0)px
+       |        |  | Text = '[Settings  ›  Privacy and safety]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1622 at (l=68.0, t=48.0, r=226.0, b=153.0)px, Tag: 'HermesSettingsPage_Overview'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1624 at (l=94.0, t=80.0, r=200.0, b=122.0)px
+       |        |  |    Text = '[General]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1625 at (l=242.0, t=48.0, r=394.0, b=153.0)px, Tag: 'HermesSettingsPage_Models'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1627 at (l=268.0, t=80.0, r=368.0, b=122.0)px
+       |        |  |    Text = '[Models]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1628 at (l=410.0, t=48.0, r=562.0, b=153.0)px, Tag: 'HermesSettingsPage_Theme'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1630 at (l=439.0, t=80.0, r=533.0, b=122.0)px
+       |        |  |    Text = '[Theme]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1631 at (l=578.0, t=48.0, r=730.0, b=153.0)px, Tag: 'HermesSettingsPage_Tools'
+       |        |  | Focused = 'false'
+       |        |  | Role = 'Button'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1633 at (l=617.0, t=80.0, r=692.0, b=122.0)px
+       |        |  |    Text = '[Tools]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1634 at (l=68.0, t=185.0, r=374.0, b=290.0)px, Tag: 'HermesSettingsPage_Privacy'
+       |        |  | Role = 'Button'
+       |        |  | [Disabled]
+       |        |  | Actions = [OnClick]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1636 at (l=94.0, t=217.0, r=348.0, b=259.0)px
+       |        |  |    Text = '[Privacy and safety]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1637 at (l=68.0, t=316.0, r=303.0, b=358.0)px
+       |        |    Text = '[/settings/privacy]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1936 at (l=42.0, t=411.0, r=1038.0, b=2305.0)px, Tag: 'PrivacySafetyCard'
+       |          IsTraversalGroup = 'true'
+       |           |-Node #1939 at (l=84.0, t=453.0, r=442.0, b=516.0)px
+       |           | Text = '[Privacy and safety]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1940 at (l=84.0, t=553.0, r=525.0, b=658.0)px, Tag: 'OpenPrivacyPolicy'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1942 at (l=116.0, t=579.0, r=493.0, b=632.0)px
+       |           |    Text = '[Read the privacy policy]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1943 at (l=84.0, t=705.0, r=766.0, b=810.0)px, Tag: 'RevokeRemoteProcessingConsent'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1945 at (l=116.0, t=731.0, r=734.0, b=784.0)px
+       |           |    Text = '[Revoke remote AI processing consent]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1946 at (l=84.0, t=846.0, r=996.0, b=1539.0)px
+       |           | Text = '[Only the text you preview, reason, optional notes, app version and edition are sent to the developer's private Cloudflare service when you tap Submit report. No other chats or attachments are sent. Remove personal data and secrets. Reports help improve safety; no response is promised. Active reports expire after 30 days (cleanup within one hour); provider backups have separate retention. A private deletion receipt is saved on this device. This is not an emergency service.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1947 at (l=84.0, t=1565.0, r=475.0, b=1618.0)px
+       |           | Text = '[Report deletion receipts]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1948 at (l=84.0, t=1644.0, r=742.0, b=1707.0)px
+       |           | Text = '[No report receipts on this device.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1949 at (l=84.0, t=1733.0, r=996.0, b=2111.0)px
+       |           | Text = '[Hermes has no publisher-hosted user account. Provider sign-out and API-key removal affect local access only. Use your provider’s website to revoke credentials or delete its account and data. Local erasure cannot delete a provider account.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1950 at (l=84.0, t=2148.0, r=536.0, b=2253.0)px, Tag: 'DeleteLocalAppData'
+       |             Focused = 'false'
+       |             Role = 'Button'
+       |             Actions = [OnClick, RequestFocus]
+       |             MergeDescendants = 'true'
+       |              |-Node #1952 at (l=116.0, t=2174.0, r=504.0, b=2227.0)px
+       |                Text = '[Delete all local app data]'
+       |                Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #155 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+         IsTraversalGroup = 'true'
+          |-Node #159 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #164 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #166 at (l=279.0, t=171.0, r=440.0, b=234.0)px
+          | Text = '[Settings]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #167 at (l=279.0, t=234.0, r=779.0, b=276.0)px
+          | Text = '[Runtime provider and API configuration]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #169 at (l=800.0, t=191.0, r=930.0, b=255.0)px
+          | IsTraversalGroup = 'true'
+          |  |-Node #170 at (l=816.0, t=202.0, r=914.0, b=244.0)px
+          |    Text = '[ALPHA]'
+          |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #171 at (l=941.0, t=191.0, r=1048.0, b=255.0)px
+            IsTraversalGroup = 'true'
+             |-Node #172 at (l=957.0, t=202.0, r=1032.0, b=244.0)px
+               Text = '[FORK]'
+               Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

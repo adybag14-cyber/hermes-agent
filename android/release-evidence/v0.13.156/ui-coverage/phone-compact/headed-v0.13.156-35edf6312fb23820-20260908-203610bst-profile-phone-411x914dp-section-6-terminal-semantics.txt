@@ -1,0 +1,109 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=section:Terminal
+artifact=headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-6-terminal
+coverage_kind=app-section
+page_id=Terminal
+profile=phone-411x914dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.156
+version_code=145690
+build_variant=debug
+source_digest=35edf6312fb238208ac3021c8b109c579bb6b358f27cbf5c98013e15b0e7d232
+candidate_apk_sha256=c04e025319ee2e4d151262567eabd8c905bbe92ac4d6a53250d77610e876e3ce
+instrumentation_apk_sha256=50789f8f9bf93ed2db870edf99a3ba7598f1b131539ddb0c66a2bd20b025eeb1
+evidence_run_id=v0.13.156-35edf6312fb23820-20260908-203610bst
+device_serial=emulator-5580
+avd_name=Hermes_Release_154_API36
+device_boot_id=316e5d56-60e4-4934-8ca7-861589ee25f6
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=95db59592c7573d0cd588e08a320079164cc8f1bedef2970fcb476c775057233
+sentinel=Terminal
+sentinel=HermesManualTerminalInput
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #1101 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #1103 at (l=32.0, t=339.0, r=462.0, b=402.0)px
+       |     | Text = '[Manual Linux terminal]'
+       |     | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #1104 at (l=32.0, t=423.0, r=1048.0, b=507.0)px
+       |     | Text = '[Run host commands directly. For PRoot, use proot-distro list or proot-distro login <name> -- /bin/sh -lc 'uname -a'.]'
+       |     | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #1105 at (l=32.0, t=528.0, r=1048.0, b=1980.0)px, Tag: 'HermesManualTerminalOutput'
+       |     | IsTraversalGroup = 'true'
+       |     | VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+       |     | CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@76f5fa8'
+       |     | Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |     |-Node #1106 at (l=32.0, t=2001.0, r=1048.0, b=2169.0)px, Tag: 'HermesManualTerminalInput'
+       |     | EditableText = ''
+       |     | TextSelectionRange = 'TextRange(0, 0)'
+       |     | IsEditable = 'true'
+       |     | ImeAction = 'Default'
+       |     | Focused = 'false'
+       |     | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+       |     | MergeDescendants = 'true'
+       |     |  |-Node #1115 at (l=74.0, t=2064.0, r=278.0, b=2127.0)px
+       |     |    Text = '[Command]'
+       |     |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #1118 at (l=32.0, t=2201.0, r=410.0, b=2306.0)px, Tag: 'HermesManualTerminalRunButton'
+       |     | Role = 'Button'
+       |     | [Disabled]
+       |     | Actions = [OnClick]
+       |     | MergeDescendants = 'true'
+       |     |  |-Node #1120 at (l=189.0, t=2227.0, r=254.0, b=2280.0)px
+       |     |    Text = '[Run]'
+       |     |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #1121 at (l=431.0, t=2201.0, r=725.0, b=2306.0)px
+       |       Role = 'Button'
+       |       [Disabled]
+       |       Actions = [OnClick]
+       |       MergeDescendants = 'true'
+       |        |-Node #1123 at (l=535.0, t=2227.0, r=622.0, b=2280.0)px
+       |          Text = '[Clear]'
+       |          Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #155 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+         IsTraversalGroup = 'true'
+          |-Node #159 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #164 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+          | ContentDescription = '[Hermes Agent Fork logo]'
+          | Role = 'Image'
+          |-Node #166 at (l=279.0, t=171.0, r=451.0, b=234.0)px
+          | Text = '[Terminal]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #167 at (l=279.0, t=234.0, r=779.0, b=276.0)px
+          | Text = '[Run PRoot Linux commands manually]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #169 at (l=800.0, t=191.0, r=930.0, b=255.0)px
+          | IsTraversalGroup = 'true'
+          |  |-Node #170 at (l=816.0, t=202.0, r=914.0, b=244.0)px
+          |    Text = '[ALPHA]'
+          |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #171 at (l=941.0, t=191.0, r=1048.0, b=255.0)px
+            IsTraversalGroup = 'true'
+             |-Node #172 at (l=957.0, t=202.0, r=1032.0, b=244.0)px
+               Text = '[FORK]'
+               Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

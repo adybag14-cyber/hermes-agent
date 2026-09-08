@@ -1,0 +1,25 @@
+{
+  "contains_only_filtered_palette_state": true,
+  "identity": {
+    "avd_name": "Hermes_Release_154_API36",
+    "candidate_apk_sha256": "c04e025319ee2e4d151262567eabd8c905bbe92ac4d6a53250d77610e876e3ce",
+    "device_boot_id": "316e5d56-60e4-4934-8ca7-861589ee25f6",
+    "device_serial": "emulator-5580",
+    "evidence_run_id": "v0.13.156-35edf6312fb23820-20260908-203610bst",
+    "instrumentation_apk_sha256": "50789f8f9bf93ed2db870edf99a3ba7598f1b131539ddb0c66a2bd20b025eeb1",
+    "profile": "phone-411x914dp",
+    "source_digest": "35edf6312fb238208ac3021c8b109c579bb6b358f27cbf5c98013e15b0e7d232"
+  },
+  "palette": {
+    "card_shape": "rounded",
+    "theme_background": "#FAFBFF",
+    "theme_primary": "#1565C0",
+    "theme_secondary": "#8E24AA",
+    "theme_surface": "#FFFFFF",
+    "theme_surface_variant": "#E8EEF8",
+    "ui_font_scale": 1.0
+  },
+  "schema": "hermes-persisted-palette-state-v1",
+  "shared_preferences_xml_sha256": "23603ffade9c752ba8a7e5d3996bf76862361edfeaab1fa16c28f8b7e2a4b3fe",
+  "theme_id": "custom-light"
+}
