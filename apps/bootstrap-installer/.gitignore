@@ -1,6 +1,5 @@
 # Rust / Cargo
 /src-tauri/target/
-/src-tauri/Cargo.lock
 
 # Vite / build output
 /dist/
