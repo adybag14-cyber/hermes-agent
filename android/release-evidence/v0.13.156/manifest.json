@@ -1,0 +1,1784 @@
+{
+  "contract": {
+    "avd_metrics_are_validation_signals_not_end_user_benchmarks": true,
+    "dropped_frames_are_budgeted_with_app_deadline_misses": true,
+    "frame_timing_positive_overrun_is_nongating_avd_buffer_queue_diagnostic": true,
+    "languages": [
+      "en",
+      "zh",
+      "es",
+      "de",
+      "pt",
+      "fr"
+    ],
+    "launch_theme_capture_does_not_self_certify_pixels": true,
+    "maximum_frame_duration_cpu_p95_ms": 50.0,
+    "maximum_frame_duration_cpu_p99_ms": 100.0,
+    "maximum_perfetto_app_deadline_missed_or_dropped_percent": 10.0,
+    "minimum_frame_timing_samples_per_profile": 100,
+    "minimum_macrobenchmark_iterations_per_profile": 5,
+    "minimum_perfetto_surface_frame_timeline_tokens_per_profile": 100,
+    "only_suppressed_macrobenchmark_error": "EMULATOR",
+    "physical_validation_waived_for_this_release": true,
+    "profiles": [
+      "phone-compact",
+      "tablet"
+    ],
+    "requested_macrobenchmark_compilation_mode": "Full",
+    "required_androidx_reporting_package_compilation_mode": "run-from-apk",
+    "required_app_sections": [
+      "Hermes",
+      "Accounts",
+      "NousPortal",
+      "Device",
+      "Kanban",
+      "Terminal",
+      "Settings"
+    ],
+    "required_measured_target_compiler_filter": "speed",
+    "required_nested_settings_pages": [
+      "Overview",
+      "Models",
+      "Theme",
+      "Tools",
+      "Privacy"
+    ],
+    "required_non_overview_device_pages": [
+      "Linux",
+      "Connectivity",
+      "Files",
+      "Controls",
+      "Automations"
+    ],
+    "required_recommended_model_ids": [
+      "qwen35-08b-q4km-gguf",
+      "nanbeige4.2-3b-q4-k-m",
+      "minicpm5-1b-fable5-q4km-gguf",
+      "minicpm5-1b-web-litert-lm",
+      "vibethinker-3b-litert-lm"
+    ],
+    "requires_androidx_macrobenchmark_raw_json": true,
+    "requires_comprehensive_ui_inventory_per_profile": true,
+    "requires_hardware_accelerated_avd": true,
+    "requires_historical_issue8_e4b_cpu_speculation_off_completion": true,
+    "requires_host_raw_transcript": true,
+    "requires_human_frame_by_frame_launch_theme_review": false,
+    "requires_issue16_fresh_debian_guest_https_and_clean_stopped_disposition": true,
+    "requires_issue8_exact_direct_tool_and_metadata_only_12b_preflight": true,
+    "requires_nondebuggable_profileable_target": true,
+    "requires_one_perfetto_trace_per_iteration": true,
+    "requires_one_physical_arm64_nanbeige_repair_record": false,
+    "requires_persisted_palette_bound_launcher_and_deep_link_capture_per_profile": true,
+    "requires_runtime_health_and_nonempty_completion": true,
+    "requires_six_language_recommended_model_and_framework_ui_inventory": true,
+    "requires_zero_perfetto_unknown_or_overlapping_self_other_jank_tags": true,
+    "ui_screenshot_and_semantics_per_language_and_profile": true
+  },
+  "evidence": {
+    "file_count": 313,
+    "files": [
+      {
+        "bytes": 6693,
+        "path": "issues/issue-16-debian-sandbox.json",
+        "sha256": "5663cbd91e4fb2c6da8c63cb57cf7b95f4915d0766357fb4d510f16ab6b8db53"
+      },
+      {
+        "bytes": 8050,
+        "path": "issues/issue-8-tool-and-preflight.json",
+        "sha256": "8bf11d990777c67b97e15f9a394c792669dbe4dcd66a3f06130c997439a3e4db"
+      },
+      {
+        "bytes": 5337,
+        "path": "launch-theme/phone-compact/manifest.json",
+        "sha256": "ec268fffe78b6947aeb2bc0983df21f3c830f53ee6cec2bd00c7aca6cdbb6bd8"
+      },
+      {
+        "bytes": 32442,
+        "path": "launch-theme/phone-compact/v0.13.156-35edf6312fb23820-20260908-203610bst-phone-custom-light-launch-theme-cold-deep-link-activity.txt",
+        "sha256": "ad7973e52bf7d1ca33f5b7ae6ff7f21ee2ba26eca4c83312d14d2af228be7c1b"
+      },
+      {
+        "bytes": 570703,
+        "path": "launch-theme/phone-compact/v0.13.156-35edf6312fb23820-20260908-203610bst-phone-custom-light-launch-theme-cold-deep-link-settled.png",
+        "sha256": "a4782654322bdeac7cd7cc3c1d78c8db967ee7b8c1d782d0343bd8565165098e"
+      },
+      {
+        "bytes": 2276354,
+        "path": "launch-theme/phone-compact/v0.13.156-35edf6312fb23820-20260908-203610bst-phone-custom-light-launch-theme-cold-deep-link.mp4",
+        "sha256": "abf56ed6f7750b43944d1869042fbab09a6a16180dfc2b0664b02dddc25e3efa"
+      },
+      {
+        "bytes": 32422,
+        "path": "launch-theme/phone-compact/v0.13.156-35edf6312fb23820-20260908-203610bst-phone-custom-light-launch-theme-cold-launcher-tap-activity.txt",
+        "sha256": "a309ffa9a5fa2151bc1c69add6b04900db67081f54d58d6e718a6932ae610849"
+      },
+      {
+        "bytes": 379466,
+        "path": "launch-theme/phone-compact/v0.13.156-35edf6312fb23820-20260908-203610bst-phone-custom-light-launch-theme-cold-launcher-tap-settled.png",
+        "sha256": "f6aa45a12262e510c0ab2d9423977e897a279ed409c368b72f7f173d402c22cb"
+      },
+      {
+        "bytes": 1266090,
+        "path": "launch-theme/phone-compact/v0.13.156-35edf6312fb23820-20260908-203610bst-phone-custom-light-launch-theme-cold-launcher-tap.mp4",
+        "sha256": "b666a23629be94730f81493cf027dd9beb08cf1c5f666f6ee64a4ddcdf6f778e"
+      },
+      {
+        "bytes": 1062,
+        "path": "launch-theme/phone-compact/v0.13.156-35edf6312fb23820-20260908-203610bst-phone-custom-light-launch-theme-persisted-palette.json",
+        "sha256": "714c633542c9a662f692d62fb814f4186e0ed6e77ee80d29faf103c11189d158"
+      },
+      {
+        "bytes": 5363,
+        "path": "launch-theme/tablet/manifest.json",
+        "sha256": "976f03acfdcda9549b39c44427fcc3800a98fd7a2122fc6ec1309e17556491e8"
+      },
+      {
+        "bytes": 31623,
+        "path": "launch-theme/tablet/v0.13.156-35edf6312fb23820-20260908-203610bst-tablet-custom-light-launch-theme-cold-deep-link-activity.txt",
+        "sha256": "54936f64af735773c05db4a43bd51d6101f9ac98bc134d42165e77a78d55da95"
+      },
+      {
+        "bytes": 594715,
+        "path": "launch-theme/tablet/v0.13.156-35edf6312fb23820-20260908-203610bst-tablet-custom-light-launch-theme-cold-deep-link-settled.png",
+        "sha256": "c1981bced6593cb29fc972f08744f2b55c69a4618fb71b93f3c49337835a9b29"
+      },
+      {
+        "bytes": 1413639,
+        "path": "launch-theme/tablet/v0.13.156-35edf6312fb23820-20260908-203610bst-tablet-custom-light-launch-theme-cold-deep-link.mp4",
+        "sha256": "5615cc4f0b2f6cdbac4eacd56dc21aed377bfdb5e51745d6dd022491a55fdf3b"
+      },
+      {
+        "bytes": 31681,
+        "path": "launch-theme/tablet/v0.13.156-35edf6312fb23820-20260908-203610bst-tablet-custom-light-launch-theme-cold-launcher-tap-activity.txt",
+        "sha256": "cef5ad1bf40ed9f848686bb90f70d93bdde00c28a6e6489768b7079cfc0f1e54"
+      },
+      {
+        "bytes": 594715,
+        "path": "launch-theme/tablet/v0.13.156-35edf6312fb23820-20260908-203610bst-tablet-custom-light-launch-theme-cold-launcher-tap-settled.png",
+        "sha256": "c1981bced6593cb29fc972f08744f2b55c69a4618fb71b93f3c49337835a9b29"
+      },
+      {
+        "bytes": 1120361,
+        "path": "launch-theme/tablet/v0.13.156-35edf6312fb23820-20260908-203610bst-tablet-custom-light-launch-theme-cold-launcher-tap.mp4",
+        "sha256": "4e78a50f1af5eb23174d0b44702407a97de64d210d36e8818f0a86d41efce465"
+      },
+      {
+        "bytes": 1071,
+        "path": "launch-theme/tablet/v0.13.156-35edf6312fb23820-20260908-203610bst-tablet-custom-light-launch-theme-persisted-palette.json",
+        "sha256": "ede5db59a8a389f324ac711d76d5c1f0dcfd52798981e9c3a55775ba3cac5f93"
+      },
+      {
+        "bytes": 3181,
+        "path": "models/gemma-4-e4b-litert-lm.json",
+        "sha256": "f08328a8bf6abfc2f7fde276ffe0a0a2fd738f9c66c75e0bc458ed9bd3c06cae"
+      },
+      {
+        "bytes": 2913,
+        "path": "models/minicpm5-1b-fable5-q4-k-m.json",
+        "sha256": "5ce66b4320803092f4fd4ce3805af39467493e93e9146796aadd5b770c132242"
+      },
+      {
+        "bytes": 3469,
+        "path": "models/minicpm5-1b-web-litert-lm.json",
+        "sha256": "6f571af5f26efc92b80faa978a1a6ae44bbec80e9bd1c1015a661892420ee9b4"
+      },
+      {
+        "bytes": 2861,
+        "path": "models/nanbeige4.2-3b-q4-k-m.json",
+        "sha256": "27b2a7706126ea021eedfdd0bf03d2645abdc28cb8b1a95fc4c9ec2af7ce3980"
+      },
+      {
+        "bytes": 2801,
+        "path": "models/qwen3.5-0.8b-q4-k-m.json",
+        "sha256": "b276bc8b35a324efdf42512e5dce0aee40a5f1812692f15c93dba5fd919abbf1"
+      },
+      {
+        "bytes": 3472,
+        "path": "models/vibethinker-3b-litert-lm.json",
+        "sha256": "7bbd6c995e224ef6cc7674fce1a3785768a3325d881eecd489732403ff3e82c3"
+      },
+      {
+        "bytes": 722169,
+        "path": "performance/phone-compact.host.raw.json",
+        "sha256": "ccc029d60a68aa4160845e78b894e9f21823efd235e29b96288fb732e45d9e58"
+      },
+      {
+        "bytes": 11396,
+        "path": "performance/phone-compact.json",
+        "sha256": "477b20ad146c7ec4077e07307461a5512dd5c3ed70d34c5e58b7426d77186e92"
+      },
+      {
+        "bytes": 462483,
+        "path": "performance/phone-compact.macrobenchmark.raw.json",
+        "sha256": "dedf67759eef69429ae4a013e3c354f1197d7728b09301c88d1522a15fd17269"
+      },
+      {
+        "bytes": 37089475,
+        "path": "performance/phone-compact.traces/iteration-001.perfetto-trace",
+        "sha256": "9c8adfb793eb60493fd960fae95ce8029d1f870a3acab5dffce5448b7eb4342f"
+      },
+      {
+        "bytes": 42385801,
+        "path": "performance/phone-compact.traces/iteration-002.perfetto-trace",
+        "sha256": "26545c9f7e3a8b98f24a40a9a659871e02a9cb6425325c8126d2db3f29364dd7"
+      },
+      {
+        "bytes": 39980807,
+        "path": "performance/phone-compact.traces/iteration-003.perfetto-trace",
+        "sha256": "7da4cfc8f9eadba8b23da0ae3b4d6f26c36c34e5d76e78631289471f8f04d72c"
+      },
+      {
+        "bytes": 37363985,
+        "path": "performance/phone-compact.traces/iteration-004.perfetto-trace",
+        "sha256": "55210e851ed54972bfe48f9ecca590435b6473df158d197f483c96cc9e0f711f"
+      },
+      {
+        "bytes": 36734977,
+        "path": "performance/phone-compact.traces/iteration-005.perfetto-trace",
+        "sha256": "15eb5d86555c943d70b43683ff1a1d2b0c368a8546fb9c6137d638bccd4e690c"
+      },
+      {
+        "bytes": 644099,
+        "path": "performance/tablet.host.raw.json",
+        "sha256": "79416d1d9d60be7fd67469bfa094c95d7b0ad75714d4a5516ba1a03e19c7f824"
+      },
+      {
+        "bytes": 11397,
+        "path": "performance/tablet.json",
+        "sha256": "e41787dfdddd89d1ceac8887430792ea0ec6f9a731c1051697687c06c99cbd7b"
+      },
+      {
+        "bytes": 393606,
+        "path": "performance/tablet.macrobenchmark.raw.json",
+        "sha256": "bc590e63b8973e40d788c89985daabd82cc0b0bf42c60579d68f5eeb1008b2da"
+      },
+      {
+        "bytes": 34894737,
+        "path": "performance/tablet.traces/iteration-001.perfetto-trace",
+        "sha256": "9fcb83de357f75c956cd67d8e63842e045d575587c07cbd983997a650170d50e"
+      },
+      {
+        "bytes": 38599822,
+        "path": "performance/tablet.traces/iteration-002.perfetto-trace",
+        "sha256": "3acb8a8dc6e49e727ef9461c0cdd3afa93c34635a248be93b8ee0d6a81293cd9"
+      },
+      {
+        "bytes": 39180543,
+        "path": "performance/tablet.traces/iteration-003.perfetto-trace",
+        "sha256": "a396b9fe1aa143e8e95023d9edbd5993897b3bdcfc07ef339048abc47fd35371"
+      },
+      {
+        "bytes": 35016155,
+        "path": "performance/tablet.traces/iteration-004.perfetto-trace",
+        "sha256": "96af9911e583137244253b9ee4d98df9311a6d2943e037430b96edb61e00fa18"
+      },
+      {
+        "bytes": 34555746,
+        "path": "performance/tablet.traces/iteration-005.perfetto-trace",
+        "sha256": "9c5b7c3922beca611fe991eeaf4a61dacd3fd5115891980f147bb9e6480eeaeb"
+      },
+      {
+        "bytes": 2369,
+        "path": "play/model-minicpm5-1b-fable5-q4-k-m.json",
+        "sha256": "5b47b3894435c55d06b3592bf5e980c54753eb9b6e1f2bdec7c5a8505f11372b"
+      },
+      {
+        "bytes": 2214,
+        "path": "play/model-minicpm5-1b-web-litert-lm.json",
+        "sha256": "0278e2dcb6953856aa97e57bf294853ee4c0040b0c1337c11e1ece0344b90b09"
+      },
+      {
+        "bytes": 2214,
+        "path": "play/model-nanbeige4.2-3b-q4-k-m.json",
+        "sha256": "5940193c5df6eb044937c36fc4b443d381fd68a17748999d190da85b9f8dc407"
+      },
+      {
+        "bytes": 2190,
+        "path": "play/model-qwen3.5-0.8b-q4-k-m.json",
+        "sha256": "a6e3b6296a39497ba321a53b777a2b26399d61fd85f763105d4c403c603287a9"
+      },
+      {
+        "bytes": 2215,
+        "path": "play/model-vibethinker-3b-litert-lm.json",
+        "sha256": "07c09af335691bc81befe671d7523de85b2447fa1f60c2d8ed9702dcd09a7119"
+      },
+      {
+        "bytes": 1319,
+        "path": "play/privacy-consent-lifecycle.json",
+        "sha256": "6b8c8c5370547229b1818345cb21aeff7273b5faed1f4a8b166dd4445429a9df"
+      },
+      {
+        "bytes": 212502,
+        "path": "play/privacy-de.png",
+        "sha256": "c524cd3a7ac11f21f0e2577ae90d3a46fa08b8ade66ad8257ff425776413794d"
+      },
+      {
+        "bytes": 216333,
+        "path": "play/privacy-en.png",
+        "sha256": "d55f2af8e99dd4ef79aecb61f5eee06840b54df7c47868377b8df6dc84722716"
+      },
+      {
+        "bytes": 216536,
+        "path": "play/privacy-es.png",
+        "sha256": "02d7d347422a22a8d3658707911ee7e4a5a228f5ff61daa3c53dee66d73f2a1c"
+      },
+      {
+        "bytes": 217593,
+        "path": "play/privacy-fr.png",
+        "sha256": "e8428ba4e51ce2dd60d2c04bd65faba36036da90cba10e42c2b5d84cdda254d5"
+      },
+      {
+        "bytes": 224891,
+        "path": "play/privacy-pt.png",
+        "sha256": "a737c0a2708f00c70a5dfcc5ca2a2c25043ebd2bb384930b4d061f2b0064008f"
+      },
+      {
+        "bytes": 342948,
+        "path": "play/privacy-zh.png",
+        "sha256": "e56e8eac455ff9d03f335536affac83194da24c7c37c218fc0d2bca5de7234ae"
+      },
+      {
+        "bytes": 1347,
+        "path": "play/report-submit-delete.json",
+        "sha256": "154c48c230a87d615fb854a4ac67d89263ef7cb3b08e5995c777bf3b77a55cfa"
+      },
+      {
+        "bytes": 2595,
+        "path": "play/six-language-privacy.json",
+        "sha256": "f124e86e9b2abe7a2609d41e9f97bd73f77432b1bdf2e6f5c8b89c7fcfc1ba93"
+      },
+      {
+        "bytes": 470434,
+        "path": "ui/phone-compact/de/screen.png",
+        "sha256": "27bf0bf1b5f71a1c28bf9400cc3215525e3c7be8e37fb8497677c1cd735d10b2"
+      },
+      {
+        "bytes": 12151,
+        "path": "ui/phone-compact/de/semantics.txt",
+        "sha256": "1255caf9c8d988fa00c9b2083e9260b5e24e8ca161b3428e0115efa764e9bf87"
+      },
+      {
+        "bytes": 448088,
+        "path": "ui/phone-compact/en/screen.png",
+        "sha256": "6472b3382d419abde3b95caaf0d2d8c473dea5bf4e69fefac93e7ace55f9df0f"
+      },
+      {
+        "bytes": 11928,
+        "path": "ui/phone-compact/en/semantics.txt",
+        "sha256": "b03c085b2c3c5ec744933379f4707d57db91a71f57b63d04f5a9689716eab6d2"
+      },
+      {
+        "bytes": 467192,
+        "path": "ui/phone-compact/es/screen.png",
+        "sha256": "b4a1d163868e3aa24c442d9c37f3de9e6029bdb91b698926f0fe5e7e1c569141"
+      },
+      {
+        "bytes": 12121,
+        "path": "ui/phone-compact/es/semantics.txt",
+        "sha256": "55319f136e188153eb27aa46bbe8d6a23fe03e0ff0e98d5fa0b4095f6270d902"
+      },
+      {
+        "bytes": 464686,
+        "path": "ui/phone-compact/fr/screen.png",
+        "sha256": "2e165f20a8c6b877800147cd91155a827c89c81337d2270c7b4c90f12121abb8"
+      },
+      {
+        "bytes": 12192,
+        "path": "ui/phone-compact/fr/semantics.txt",
+        "sha256": "324597e4f78bcfaf407edad14a62085ab8dbb6bdc7c68c847675251ef58e613e"
+      },
+      {
+        "bytes": 465543,
+        "path": "ui/phone-compact/pt/screen.png",
+        "sha256": "4b98001a0d758fce5698d647fdabdff02cc3f18aa2349480724e0abb4d8b94f8"
+      },
+      {
+        "bytes": 12104,
+        "path": "ui/phone-compact/pt/semantics.txt",
+        "sha256": "5bfce01a27f69cd3c8ea08d638314a9d1763f3ba903885065dbe273639efc692"
+      },
+      {
+        "bytes": 518808,
+        "path": "ui/phone-compact/zh/screen.png",
+        "sha256": "83682532541bbb33f65d92969174f2499b55efbd15ec932c8a572184c7a2525f"
+      },
+      {
+        "bytes": 11920,
+        "path": "ui/phone-compact/zh/semantics.txt",
+        "sha256": "a9f1638af9457a9c0556b4b3af938dd169c52f8661926e0b9cc86051a94889a3"
+      },
+      {
+        "bytes": 483271,
+        "path": "ui/tablet/de/screen.png",
+        "sha256": "a6e5b15f62d29ff0f1d01f5f29b60761c5d7a7a30f380bee12fd549647ad7ea8"
+      },
+      {
+        "bytes": 21919,
+        "path": "ui/tablet/de/semantics.txt",
+        "sha256": "a1d729d530dc4b0547f1d44e4c99099b637bee8d37ed3b8ed940f6ad792cf9a2"
+      },
+      {
+        "bytes": 469662,
+        "path": "ui/tablet/en/screen.png",
+        "sha256": "1907f04db8deb32a826792ba382acc82618735ca8f53347a194fe2f79fa58847"
+      },
+      {
+        "bytes": 21592,
+        "path": "ui/tablet/en/semantics.txt",
+        "sha256": "0dc9afef92bf4ac51f822c63e55d8d34ece0151806935f5639334aa7e3d37ebe"
+      },
+      {
+        "bytes": 473570,
+        "path": "ui/tablet/es/screen.png",
+        "sha256": "c4d8798ea08e0507bc90f7e0c45670f1a900d61bcc6913cfc58ad8b37adb06e5"
+      },
+      {
+        "bytes": 21864,
+        "path": "ui/tablet/es/semantics.txt",
+        "sha256": "bb8e5843cb9353a7e683b4eccd73d99e24e88731afcda545f045934b0ab90b37"
+      },
+      {
+        "bytes": 473548,
+        "path": "ui/tablet/fr/screen.png",
+        "sha256": "cf1d8a7ab3575a80d52f7c69a68e43e091b22ace361c4d1bbc2fdd3ca7080e24"
+      },
+      {
+        "bytes": 21986,
+        "path": "ui/tablet/fr/semantics.txt",
+        "sha256": "f7d927cc683e24abcc8d23b8191219fe2186f2a8a5752ddc5ae708806e6c67f3"
+      },
+      {
+        "bytes": 475648,
+        "path": "ui/tablet/pt/screen.png",
+        "sha256": "24dbffff785f8583c9ea4f2d15eb5ca2b5c961d98931b435686add8846fb4cb2"
+      },
+      {
+        "bytes": 21849,
+        "path": "ui/tablet/pt/semantics.txt",
+        "sha256": "8b45900899c4014e2e48ddbbb095df03c63dd82136257f68f095d0fa8d701db9"
+      },
+      {
+        "bytes": 552273,
+        "path": "ui/tablet/zh/screen.png",
+        "sha256": "f29b884f95ce16f124574221509d915cb396a9806ff549fb5f9846869a767144"
+      },
+      {
+        "bytes": 21570,
+        "path": "ui/tablet/zh/semantics.txt",
+        "sha256": "5d380c28a5721f875621969ca918945b3aadb53f6330999fdf774c21096c04d6"
+      },
+      {
+        "bytes": 10033,
+        "path": "ui-coverage/phone-compact/complete-inventory.txt",
+        "sha256": "60f0cf234d2e1a99fee6058f2f7c3a0b075c1e9708e5505bf104809158698c3e"
+      },
+      {
+        "bytes": 27718,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-minicpm5-1b-fable5-q4km-gguf-semantics.txt",
+        "sha256": "4e2b2ceb900e76babaabacff82a1a5d573c129351fd052e5ab8640ef5f4c4937"
+      },
+      {
+        "bytes": 393731,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-minicpm5-1b-fable5-q4km-gguf.png",
+        "sha256": "002cb64ae1dbc18b0b5a043c977ad77512c573a3ba52b282e45506c6d22a2e5f"
+      },
+      {
+        "bytes": 27709,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-minicpm5-1b-web-litert-lm-semantics.txt",
+        "sha256": "bd125f65aa856232ef71eafd04e4c48adcb9bc79fd9e78970e86f4626c39744b"
+      },
+      {
+        "bytes": 400560,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-minicpm5-1b-web-litert-lm.png",
+        "sha256": "9f26d31458114adfb901e9250987fabad97630d01f31c7ef39506ab487690c22"
+      },
+      {
+        "bytes": 27746,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-nanbeige4.2-3b-q4-k-m-semantics.txt",
+        "sha256": "d92ebeb4ddc7d539aa55f9e9ddef7efb438fb3adc13c628df3fd166056323b93"
+      },
+      {
+        "bytes": 382064,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-nanbeige4.2-3b-q4-k-m.png",
+        "sha256": "310245743daccddb18dd34670aa8d45d16379aa07d645af59b76b64535309f39"
+      },
+      {
+        "bytes": 27655,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-qwen35-08b-q4km-gguf-semantics.txt",
+        "sha256": "7391a195a0b8b73e39ae788a9e869efda10157a703393193c15dd9e9a8190b73"
+      },
+      {
+        "bytes": 356772,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-qwen35-08b-q4km-gguf.png",
+        "sha256": "a4c66bbe20583ad1c633e8572d3b266437da28db9b1c16b5a07929f10d9396aa"
+      },
+      {
+        "bytes": 27740,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-vibethinker-3b-litert-lm-semantics.txt",
+        "sha256": "12cdb1fa5ae7a2953784ceaf5fc7a05fd7499985c8c47f415b84abfbf6caaa18"
+      },
+      {
+        "bytes": 356220,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-model-vibethinker-3b-litert-lm.png",
+        "sha256": "438541652b80f057f5967d7b03a8b3d64da78b29efbe131c2c66e7fe4f070827"
+      },
+      {
+        "bytes": 4653,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-view-provider-ui.xml",
+        "sha256": "8a909bf9945c879e3aa22fe68a132f15bae4b2f2f0cfd5989f30376b77fb8f87"
+      },
+      {
+        "bytes": 119819,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-view-provider.png",
+        "sha256": "dc936f15190e4fb14cfe509ed9e63c3154349a8ce8f85573ee1e88f98bc7042c"
+      },
+      {
+        "bytes": 5782,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-view-tasker-action-ui.xml",
+        "sha256": "08e9de4e0d6008ac3b238aaa53473170e623546a605ae3e6d66509642d65c5c0"
+      },
+      {
+        "bytes": 170745,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-view-tasker-action.png",
+        "sha256": "2264ee5aa7a6a8fc988ae9cf1244768ea1dcbc21bf0273bdb3192d65608523eb"
+      },
+      {
+        "bytes": 7172,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-view-tasker-condition-ui.xml",
+        "sha256": "87779e3ef3adcc1980379d907e080b0246932ad571881f100c0b115fbff103b6"
+      },
+      {
+        "bytes": 195538,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-view-tasker-condition.png",
+        "sha256": "819687565a86ff44f43afc51d70de0bef61f0074fb5fe3d9b9511bc02f01d368"
+      },
+      {
+        "bytes": 6355,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-view-tasker-event-ui.xml",
+        "sha256": "e1570f1108821bfaa111fc6de02047c7d9ee06866489ae9e7863866809ddbc51"
+      },
+      {
+        "bytes": 169093,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-de-view-tasker-event.png",
+        "sha256": "a4d09107c4b35c50d0c0074eb40c86731ce6bb9f2aab2296f769a89646d0bb8a"
+      },
+      {
+        "bytes": 27191,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-minicpm5-1b-fable5-q4km-gguf-semantics.txt",
+        "sha256": "96796a660637dbe7341ffcca9c93c4e0a35b8a8481c3d6485ae4151b25eef466"
+      },
+      {
+        "bytes": 398103,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-minicpm5-1b-fable5-q4km-gguf.png",
+        "sha256": "49e8ebe163f5f1990291f673497f607576f335c3a7e79c21c2148a892bc4db13"
+      },
+      {
+        "bytes": 27194,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-minicpm5-1b-web-litert-lm-semantics.txt",
+        "sha256": "f54d70a1ef1555fdad8b790eb825a78f16a1ae1ea1eb6824fceb870fb834192e"
+      },
+      {
+        "bytes": 388703,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-minicpm5-1b-web-litert-lm.png",
+        "sha256": "a4db6b8a18ff357a2af7e8b4efe0e7e4fc4f18d2c957889be85f8d116e11c795"
+      },
+      {
+        "bytes": 27206,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-nanbeige4.2-3b-q4-k-m-semantics.txt",
+        "sha256": "bf8e446d47a2f96ada3069bfc7726e16477fc4538edad7ffe4d8570e518bec1a"
+      },
+      {
+        "bytes": 375160,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-nanbeige4.2-3b-q4-k-m.png",
+        "sha256": "8d461e43d8315227dbc319d0e6feada966e9eaf2753e23891b0d883953936574"
+      },
+      {
+        "bytes": 27112,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-qwen35-08b-q4km-gguf-semantics.txt",
+        "sha256": "5db988b7eeb6e236e0872ad488fa707e4d2e62d2f93503f6bf400b8ed0b9fc42"
+      },
+      {
+        "bytes": 342642,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-qwen35-08b-q4km-gguf.png",
+        "sha256": "d04ea94927c36251f23823785dc15ac16f606b643c4a03cafeb1e1f2360f6425"
+      },
+      {
+        "bytes": 27231,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-vibethinker-3b-litert-lm-semantics.txt",
+        "sha256": "ea69f2bdc2cbeb20e4d01dbca7d2817467635c33c6dee38d5dfd359e3b1e38ab"
+      },
+      {
+        "bytes": 355492,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-en-model-vibethinker-3b-litert-lm.png",
+        "sha256": "1210e6570875370232bd4e642ce671ebbf392850cfa25b5e5e796b9ee8d9dd75"
+      },
+      {
+        "bytes": 27733,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-minicpm5-1b-fable5-q4km-gguf-semantics.txt",
+        "sha256": "133625d758ea1f97e2c31614a1f0fa52ebffdf84c2217f7a15021044917f2e22"
+      },
+      {
+        "bytes": 390253,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-minicpm5-1b-fable5-q4km-gguf.png",
+        "sha256": "980b24a40b131fbdf22069de46612a92845e609f98ff6956252fcfcf04c9b6d2"
+      },
+      {
+        "bytes": 27723,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-minicpm5-1b-web-litert-lm-semantics.txt",
+        "sha256": "62bc18454f0a2fcdeefa05fbbdbaa8d9cebd67685a60284c8ebb203bf60eb768"
+      },
+      {
+        "bytes": 386097,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-minicpm5-1b-web-litert-lm.png",
+        "sha256": "0afbef46e0db56667663c8ea6bf310637c63e693e47b4a42276d979a6b98e298"
+      },
+      {
+        "bytes": 27728,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-nanbeige4.2-3b-q4-k-m-semantics.txt",
+        "sha256": "422805aa8218fd5cc3eb751644d9c75cf85ac2176c62372976289792c596f81d"
+      },
+      {
+        "bytes": 380092,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-nanbeige4.2-3b-q4-k-m.png",
+        "sha256": "12b4c9c86385466c8ddd90283ab0fb378fed8b27457f1fe02eb9589bf7a17786"
+      },
+      {
+        "bytes": 27648,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-qwen35-08b-q4km-gguf-semantics.txt",
+        "sha256": "ba8c9ac1c35bc0aed8803cb240683e7bd3e1f2d63dfd34df5795253329591936"
+      },
+      {
+        "bytes": 349259,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-qwen35-08b-q4km-gguf.png",
+        "sha256": "768e09958ece74940e593abd3ebd23a293a0dc770417265f7334add6f9dd094a"
+      },
+      {
+        "bytes": 27770,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-vibethinker-3b-litert-lm-semantics.txt",
+        "sha256": "f6450b4cfb390753df3108d5ab6dd4148dfc32a0c531a85f1a734246ba7b383e"
+      },
+      {
+        "bytes": 354175,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-model-vibethinker-3b-litert-lm.png",
+        "sha256": "197a8f6dcff5c393d257748059b0620405e02184866e25ab8c7301a148a04dd1"
+      },
+      {
+        "bytes": 4633,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-view-provider-ui.xml",
+        "sha256": "4a70974c14f6fbe5dfbc344e8122f4ac8f80d630a5ab937afe672a9dc6ff77a3"
+      },
+      {
+        "bytes": 119586,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-view-provider.png",
+        "sha256": "76347582f95fbcd8befa712b9dd3ba762c1e6f59b9b808223665f63467fe3e0f"
+      },
+      {
+        "bytes": 5830,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-view-tasker-action-ui.xml",
+        "sha256": "4f2bf27685e822c29b8a35cfe275b218321f4e0ff116b69726db3d4ee213e6c4"
+      },
+      {
+        "bytes": 170733,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-view-tasker-action.png",
+        "sha256": "ff199321293df0aabc1a0b8aecf64d452c7e149553f2f4e38bbb1d14955c8f01"
+      },
+      {
+        "bytes": 7207,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-view-tasker-condition-ui.xml",
+        "sha256": "7ebd756c7ddd3884ce41afb51893dea0a8c6b21805dbc63297198793119cf735"
+      },
+      {
+        "bytes": 196252,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-view-tasker-condition.png",
+        "sha256": "57aa476b1f6fca064f462a890c7ca2e84912e064f50a8be4907dfe365d0a8ac9"
+      },
+      {
+        "bytes": 6414,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-view-tasker-event-ui.xml",
+        "sha256": "e7fd8fd0e80edb5bff2203796c79f3be24198d5c39692e73b9967f444ffe5f2d"
+      },
+      {
+        "bytes": 169396,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-es-view-tasker-event.png",
+        "sha256": "2b5777dc9c9eea41f2d76b924aeabe2aa68e560ba0541bf926ba6f2cdad70791"
+      },
+      {
+        "bytes": 28167,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-minicpm5-1b-fable5-q4km-gguf-semantics.txt",
+        "sha256": "a96982c0d7435aa01828df77bffc990e005b3378467055c22fe9c653256de658"
+      },
+      {
+        "bytes": 388946,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-minicpm5-1b-fable5-q4km-gguf.png",
+        "sha256": "d35f8d81572da1eb31a698f08eeb658909670280a737238d7f31071de0cc9ae6"
+      },
+      {
+        "bytes": 28147,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-minicpm5-1b-web-litert-lm-semantics.txt",
+        "sha256": "8a89639e7cdde736b27bcd30a099176a64ad2474fd3519cd49b58059f504d2e7"
+      },
+      {
+        "bytes": 384008,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-minicpm5-1b-web-litert-lm.png",
+        "sha256": "71e00d244a5e5577f00b1ff072c65d5179171038bd47b696993c83edb744c2d7"
+      },
+      {
+        "bytes": 28153,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-nanbeige4.2-3b-q4-k-m-semantics.txt",
+        "sha256": "651868ba076b8a0856626823a408141fe59c76af2e9b65d69d6d181aa24388d1"
+      },
+      {
+        "bytes": 376711,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-nanbeige4.2-3b-q4-k-m.png",
+        "sha256": "a499185adf683563d0e56d42b36c7eb2a0daf00564b9a53c777efe054a6b76d5"
+      },
+      {
+        "bytes": 28101,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-qwen35-08b-q4km-gguf-semantics.txt",
+        "sha256": "8483e598dd7af18a3dffb4e81a19bfbcd3ff878d3ab87f5e58091b1adcdf6ac2"
+      },
+      {
+        "bytes": 346914,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-qwen35-08b-q4km-gguf.png",
+        "sha256": "717c3f21268c01b1a2435694176bb6a47671154643be536ce46e3218a3bdc8c6"
+      },
+      {
+        "bytes": 28209,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-vibethinker-3b-litert-lm-semantics.txt",
+        "sha256": "69576c9d1b766871bee7a0e2d0c3c87ded12362afff03cf74df00985eb9ef8ba"
+      },
+      {
+        "bytes": 351740,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-model-vibethinker-3b-litert-lm.png",
+        "sha256": "68d237ff7a837550934f3084dffc7136df48abd2832ac9f3d7d091b52602d651"
+      },
+      {
+        "bytes": 4647,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-view-provider-ui.xml",
+        "sha256": "aa0de95dc04c563b83bf66c8019abca7272a7b483e00c970fcc2f95731e2e92b"
+      },
+      {
+        "bytes": 118104,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-view-provider.png",
+        "sha256": "bdc2965b76f67598c074cf7f4ab81eb9d90e5e4921a1afd5db4af949ffc1a293"
+      },
+      {
+        "bytes": 5820,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-view-tasker-action-ui.xml",
+        "sha256": "9960af731bc5dafffd89ebc523e261a9f4c25c3dd9436d045caaf0ee6e5af5fa"
+      },
+      {
+        "bytes": 166496,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-view-tasker-action.png",
+        "sha256": "e6336c6f8321e09a8711f124c67d2018ea3bffe07ac1d9d3b0e7b57e3e96239b"
+      },
+      {
+        "bytes": 7216,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-view-tasker-condition-ui.xml",
+        "sha256": "1b0a671931443524145b82dc81e019c1c18f638ae93a98b00766aac78d3ef4ff"
+      },
+      {
+        "bytes": 191783,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-view-tasker-condition.png",
+        "sha256": "3719141b12a4881476b7a29b988ff352a8dd895b72b42f288b02bebd69049dbd"
+      },
+      {
+        "bytes": 6441,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-view-tasker-event-ui.xml",
+        "sha256": "547d2fbb132412f4dce373c57406d11ba031e83c7f03b0533caf4b8b3dfed947"
+      },
+      {
+        "bytes": 164767,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-fr-view-tasker-event.png",
+        "sha256": "cb4288268e450ed7453ff730d2fd85a80e3fc99695d572172a15215424fcaa52"
+      },
+      {
+        "bytes": 27689,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-minicpm5-1b-fable5-q4km-gguf-semantics.txt",
+        "sha256": "27496b2c85bf88cba83b3f05dbe259f5d2d40b2543fefdcc7ef4e51d72d5dbfd"
+      },
+      {
+        "bytes": 392618,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-minicpm5-1b-fable5-q4km-gguf.png",
+        "sha256": "31a79a80ae484b176cc0999c8afe80bd2b414cecafc0c7bd19bb7d988921d33a"
+      },
+      {
+        "bytes": 27686,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-minicpm5-1b-web-litert-lm-semantics.txt",
+        "sha256": "97bb90c4243d23c77b5ec9aaaa81e606396942030a4c8863f6bc1e401d541cc6"
+      },
+      {
+        "bytes": 386824,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-minicpm5-1b-web-litert-lm.png",
+        "sha256": "bf6b5a620eab308dafecc5e2461a107eb144296dd9747faff2bf5657a0a84c77"
+      },
+      {
+        "bytes": 27692,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-nanbeige4.2-3b-q4-k-m-semantics.txt",
+        "sha256": "bfdc94fadd9b6a023cf485ec1a10af6c4bd3ab3477c3b3896279493237bcec50"
+      },
+      {
+        "bytes": 389785,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-nanbeige4.2-3b-q4-k-m.png",
+        "sha256": "3d5390147aa74582fc4d35b739aed2cc36cc6ede300a7ff2db30d5a264a7ae3f"
+      },
+      {
+        "bytes": 27636,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-qwen35-08b-q4km-gguf-semantics.txt",
+        "sha256": "103d75f9eab38c79caac7990cc2a1b8aa26a1e84ff41151dd4ad45610c3a9279"
+      },
+      {
+        "bytes": 369316,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-qwen35-08b-q4km-gguf.png",
+        "sha256": "922a479b33f5a59e96b1c01ade24478b41eb01049c4a436781817fec27403412"
+      },
+      {
+        "bytes": 27726,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-vibethinker-3b-litert-lm-semantics.txt",
+        "sha256": "cb8d956f0f5531a388a52ecad0952b851012f428439871d0e8d503d942f3e50f"
+      },
+      {
+        "bytes": 350957,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-model-vibethinker-3b-litert-lm.png",
+        "sha256": "c16bf16be567c0c89f0db13d10d65cb7df4bed02bd98b671d37ea955a19dfe88"
+      },
+      {
+        "bytes": 4626,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-view-provider-ui.xml",
+        "sha256": "32a506a544b0a5e334252434ce6b44bfa292204ea46bfef0029ed273365e3c63"
+      },
+      {
+        "bytes": 120614,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-view-provider.png",
+        "sha256": "4936d10482f864ae755822378b92dbfad0c6d289573d9568433a079c4fbb04eb"
+      },
+      {
+        "bytes": 5747,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-view-tasker-action-ui.xml",
+        "sha256": "ae7c4cd262de23744a70a1dc82391386b180fafacad7ac9bf05a66eda35a4861"
+      },
+      {
+        "bytes": 162539,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-view-tasker-action.png",
+        "sha256": "89a53f6c5e0660cd942e8670bf0e24cf567bd748403d683d6e89a3b03f948b79"
+      },
+      {
+        "bytes": 7195,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-view-tasker-condition-ui.xml",
+        "sha256": "a415502aa994cafe3a10d3f80e17cc0457eb2afb8d8862f6c8c22d0a8bb857fa"
+      },
+      {
+        "bytes": 199182,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-view-tasker-condition.png",
+        "sha256": "1bb7d019473b51d35a5821a966034421722eabc525c353e5758bf4f68a3fadd1"
+      },
+      {
+        "bytes": 6375,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-view-tasker-event-ui.xml",
+        "sha256": "625a07f322ef14637c556aa2b7fbf625e37b78cd635fd56e19aad11a7895622e"
+      },
+      {
+        "bytes": 166823,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-pt-view-tasker-event.png",
+        "sha256": "31fbb40ecbcc2ac97996d72a61bc1f220c57160d04a96d52b0c226e1053899cd"
+      },
+      {
+        "bytes": 27117,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-minicpm5-1b-fable5-q4km-gguf-semantics.txt",
+        "sha256": "f6ceb7ace93c0ee1f9ad371e7f330b41578c9a6840ba8dcb400e78c9ac7823f2"
+      },
+      {
+        "bytes": 450504,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-minicpm5-1b-fable5-q4km-gguf.png",
+        "sha256": "a8a305fa3dde01b3699a06b08f084a4ac883c0c61a0c38413de37d696b542b58"
+      },
+      {
+        "bytes": 27124,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-minicpm5-1b-web-litert-lm-semantics.txt",
+        "sha256": "ee70a0a2287c618155f9f981ecabcc23ba0a64628eea0eb03e1a3e522818da59"
+      },
+      {
+        "bytes": 430293,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-minicpm5-1b-web-litert-lm.png",
+        "sha256": "2d60dcf2beab1259d354887f94c19bf2be736d1c830a4c370eae38d3bda62bf7"
+      },
+      {
+        "bytes": 27118,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-nanbeige4.2-3b-q4-k-m-semantics.txt",
+        "sha256": "650489000439a484bc7726b0348142810f63ab618d58049a81fdbb3d33d9e1dc"
+      },
+      {
+        "bytes": 441691,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-nanbeige4.2-3b-q4-k-m.png",
+        "sha256": "4a2d0c037f2f1e1cdbe1b91b9b23f3205410f236624c446ac385996c984340ff"
+      },
+      {
+        "bytes": 27034,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-qwen35-08b-q4km-gguf-semantics.txt",
+        "sha256": "9a32e82469298ceaf0d1ed390f309d22cf74d3ee5505887812a0b1ec18c9363d"
+      },
+      {
+        "bytes": 446675,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-qwen35-08b-q4km-gguf.png",
+        "sha256": "e2f859f32906446e0aa0af0dcdcb6de1dd740cbee846af5c93cca613352ce613"
+      },
+      {
+        "bytes": 27117,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-vibethinker-3b-litert-lm-semantics.txt",
+        "sha256": "96c9ffa21e4a41521f5edb853d5932ed321fd4aa41f464fa7b9b6f6278ad3be5"
+      },
+      {
+        "bytes": 410864,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-model-vibethinker-3b-litert-lm.png",
+        "sha256": "42a234fd742a965c1a9d9d235421546fe05bc93b90406a4b6f974d8bb27b236f"
+      },
+      {
+        "bytes": 4640,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-view-provider-ui.xml",
+        "sha256": "7cca5faf4d8e0ae5d8f829e207030e26d7e77d0da4c51ef99c333a74584a8704"
+      },
+      {
+        "bytes": 124509,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-view-provider.png",
+        "sha256": "573a17472c746aee455f147acd032e79bdca5911407f9112bf0dcec38ac89ac6"
+      },
+      {
+        "bytes": 5721,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-view-tasker-action-ui.xml",
+        "sha256": "6e4143643500b06feb40e8a3ee91c056dd3025ea184f26919303c5e57a333d54"
+      },
+      {
+        "bytes": 175614,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-view-tasker-action.png",
+        "sha256": "f6c5ad97b8c38c6ed0344dcb635b91e463b17471bbe08eb90a249ef664da20fe"
+      },
+      {
+        "bytes": 7092,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-view-tasker-condition-ui.xml",
+        "sha256": "ce243661aeff90b8e100df133b20746f7a041ab152002a3a83b161bb5a576667"
+      },
+      {
+        "bytes": 195817,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-view-tasker-condition.png",
+        "sha256": "19625a3b5c52b66081c5200c06579304fc8227629458373cb2bd1a67de9d14b8"
+      },
+      {
+        "bytes": 6303,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-view-tasker-event-ui.xml",
+        "sha256": "8ce2fd35a7c710e03c4c064a3e13c5b822214fcfa39550d90492dc77d21c8b9b"
+      },
+      {
+        "bytes": 173724,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-localized-phone-411x914dp-lang-zh-view-tasker-event.png",
+        "sha256": "6c4a4ef5542411dbb529fece173ae5b9d214fec893d19bb8383b834128f40697"
+      },
+      {
+        "bytes": 19660,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-2-linux-semantics.txt",
+        "sha256": "58b5a27b9c645a097f221e6ba1574d0c2bc7ccf914d6b400238c0c4e5e1f991e"
+      },
+      {
+        "bytes": 489694,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-2-linux.png",
+        "sha256": "b9776adf096ad8be1684521998a9be564ea5c5013ba75bdb5914ec1131438282"
+      },
+      {
+        "bytes": 15426,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-3-connectivity-semantics.txt",
+        "sha256": "b523e3ce40113e33fd6398bfbba02f2295d997d3a576d4bcf58db307561d7c4e"
+      },
+      {
+        "bytes": 384467,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-3-connectivity.png",
+        "sha256": "1d9386d1ba74873ff6d9230a463902010045677ce751459bc9bf237583c5f50d"
+      },
+      {
+        "bytes": 11219,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-4-files-semantics.txt",
+        "sha256": "ced4d31b323fbf2a63ab6b52453ceba5a3e962eba7b926d26de6ea5fee6d8894"
+      },
+      {
+        "bytes": 355649,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-4-files.png",
+        "sha256": "7d61c5334953f3bc10f693869895a0bc0fad26315ddcf93a43ae5f242fcc1491"
+      },
+      {
+        "bytes": 18404,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-5-controls-semantics.txt",
+        "sha256": "5cb1cb60c76650d339462faf726f1b39aa81b0718015940f80e910a725ce0783"
+      },
+      {
+        "bytes": 439105,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-5-controls.png",
+        "sha256": "94e17f0609964c80d68efeefae7adfcded3ac71901624ddf9782391daec584ca"
+      },
+      {
+        "bytes": 11146,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-6-automations-semantics.txt",
+        "sha256": "f1563713fcbca539d296431d31e4b699e09f673f8622f9a3491257ca51d02df2"
+      },
+      {
+        "bytes": 389645,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-device-6-automations.png",
+        "sha256": "851552f6927b63187905a98a37f82a1270b18b448bf32a3411b8c7fedbd1f81c"
+      },
+      {
+        "bytes": 16659,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-font-1-min-080-semantics.txt",
+        "sha256": "dac5ac911af821fd06b7b7a9902fb96b94a851a00bb4ae693898fbf4bfc11feb"
+      },
+      {
+        "bytes": 338107,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-font-1-min-080.png",
+        "sha256": "2e9ed9960868adbd32b7dfa0a27c2ec1c468749bc6418037083e3c2db9be783e"
+      },
+      {
+        "bytes": 16903,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-font-2-max-130-semantics.txt",
+        "sha256": "5dc06d0f96918f1461dcac380234e2510c3912fd4c4f41e77cf6c20db47999cc"
+      },
+      {
+        "bytes": 397041,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-font-2-max-130.png",
+        "sha256": "6553c9d91a5ea4422544aaa36fdd72532ff7fefcb3a40a5c55fb7a70cdb597c0"
+      },
+      {
+        "bytes": 16672,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-font-3-default-100-semantics.txt",
+        "sha256": "caf410c555ee62622dc62cd75de9d1f1a14f6a45b791cdeacb0d3144610dc96f"
+      },
+      {
+        "bytes": 365016,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-font-3-default-100.png",
+        "sha256": "051a8128967b75633023ebacdb1091c5509b5e0a632262aa72fc6f423531086b"
+      },
+      {
+        "bytes": 11825,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-1-hermes-semantics.txt",
+        "sha256": "59d090453890f73e993eef3f2c3f1d02d17fc6fca8c086dc1b0dc2f25e6a5bcf"
+      },
+      {
+        "bytes": 432544,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-1-hermes.png",
+        "sha256": "62f27a56d99ef7af5ed2034ac53d5b1ea391da2535e157ef73c5b774d886c8a5"
+      },
+      {
+        "bytes": 88120,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-2-accounts-semantics.txt",
+        "sha256": "751acea57f5643ebe0f1be0be814cef29534dc322367e7c78911a430017634b8"
+      },
+      {
+        "bytes": 426640,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-2-accounts.png",
+        "sha256": "3e7d174bd5b99bc3cb46bf3d5eba36b18a85410fd349240af72aeefb257372fb"
+      },
+      {
+        "bytes": 5379,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-3-nousportal-semantics.txt",
+        "sha256": "4c348e61aa8d452a9d1f1620068181eea31c5b24ef97caffb5d9f594fba61f1a"
+      },
+      {
+        "bytes": 270396,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-3-nousportal.png",
+        "sha256": "2e9bf4fe80bde9187b074ffc7108729fb9ef2084a986d4cc7aad453cc0cb9eef"
+      },
+      {
+        "bytes": 12340,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-4-device-semantics.txt",
+        "sha256": "7fc02a4c92396c200686f23d3587317d8dc2e9f8aaf3aec2ea94795d960448ff"
+      },
+      {
+        "bytes": 477748,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-4-device.png",
+        "sha256": "6eab49eecd317d97045505227af47c5d90299b42b562db02d4d3631d3ea5c170"
+      },
+      {
+        "bytes": 10922,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-5-kanban-semantics.txt",
+        "sha256": "7c588f00d0c5e3ebf6e0cb343490009638f954480fb319a2209d3e4dfd3a6e16"
+      },
+      {
+        "bytes": 334265,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-5-kanban.png",
+        "sha256": "561e29455be73e40ca2c5c458822288227cf1222189666e953f063795f79f07f"
+      },
+      {
+        "bytes": 5932,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-6-terminal-semantics.txt",
+        "sha256": "2f13d38b3ffe7a91e17e89530c19adb6d448e1abff92d8cbbd6493f092374f92"
+      },
+      {
+        "bytes": 441533,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-6-terminal.png",
+        "sha256": "95db59592c7573d0cd588e08a320079164cc8f1bedef2970fcb476c775057233"
+      },
+      {
+        "bytes": 13232,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-7-settings-semantics.txt",
+        "sha256": "f52340744f259e76d37f8afc88f9e8c16944eb5dabeca01aa53f891328af0862"
+      },
+      {
+        "bytes": 469207,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-section-7-settings.png",
+        "sha256": "2c351ba4d425e0223bda4df781ec9d4b90b8b6b5ec6fb1b88111169c549d1a11"
+      },
+      {
+        "bytes": 13224,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-1-overview-semantics.txt",
+        "sha256": "7fff83de6fd067f521163005979f043433835530dbf3a98f8c87a2f0e3ba3423"
+      },
+      {
+        "bytes": 470583,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-1-overview.png",
+        "sha256": "6f9f91458dc6d328657db252608ecdb5fd367e7b33f859893ce6bfe33baa3a6c"
+      },
+      {
+        "bytes": 39301,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-2-models-semantics.txt",
+        "sha256": "849e786ce7505aba6dec75cc2934b1db0bfe2ee3b635bdf4da3aeb350f57bc0a"
+      },
+      {
+        "bytes": 434645,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-2-models.png",
+        "sha256": "5c226ed21083beff31192da57b80edd54510dfc7908f17e3541bacc24dbeee74"
+      },
+      {
+        "bytes": 19877,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-3-theme-semantics.txt",
+        "sha256": "3e9ec6297e212cf2b339ea7ca76bbf7d2f0e86e75bf9f005ab7c34146ff2c249"
+      },
+      {
+        "bytes": 368835,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-3-theme.png",
+        "sha256": "64992082c9938b947d109357f01056b5ba45142fee5ceceb80d3c7fef5e4e7bc"
+      },
+      {
+        "bytes": 13956,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-4-tools-semantics.txt",
+        "sha256": "eabe358e2e4fbfc83ed1b0a7b536d04a32448f2813808e94f7b2b2b4fe977e05"
+      },
+      {
+        "bytes": 473777,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-4-tools.png",
+        "sha256": "cba7ab61c5f61d5dc57ca8173f67905a0dece507ca1d10dc67c8b10e8adecd00"
+      },
+      {
+        "bytes": 10735,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-5-privacy-semantics.txt",
+        "sha256": "b507435a4208eba38f1ffb3e76c99839d9ffa1803849ef37ba8c0b6745589442"
+      },
+      {
+        "bytes": 443581,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-settings-5-privacy.png",
+        "sha256": "2c15c30fac7c90c1e8f88eb15e25ec5f73f53923428fa5f0c1d0977de4d2ce32"
+      },
+      {
+        "bytes": 16632,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-shape-1-soft-semantics.txt",
+        "sha256": "b42ee45dd8e0732dfb889d5243615018d836a00382d7bab47d4b2a238d2218ed"
+      },
+      {
+        "bytes": 338107,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-shape-1-soft.png",
+        "sha256": "2e9ed9960868adbd32b7dfa0a27c2ec1c468749bc6418037083e3c2db9be783e"
+      },
+      {
+        "bytes": 16879,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-shape-2-square-semantics.txt",
+        "sha256": "f78c154854c6ed05d01a27a93b0b410b56051b9247d41a1a7f777d7c7c7a65d1"
+      },
+      {
+        "bytes": 397041,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-shape-2-square.png",
+        "sha256": "6553c9d91a5ea4422544aaa36fdd72532ff7fefcb3a40a5c55fb7a70cdb597c0"
+      },
+      {
+        "bytes": 16642,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-shape-3-rounded-semantics.txt",
+        "sha256": "77edf672382a018669482669f32d0a9628650743b9f08ddeebcdad334be7b368"
+      },
+      {
+        "bytes": 365016,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-shape-3-rounded.png",
+        "sha256": "051a8128967b75633023ebacdb1091c5509b5e0a632262aa72fc6f423531086b"
+      },
+      {
+        "bytes": 11941,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-custom-light-semantics.txt",
+        "sha256": "9b2f246d223aa9fa3b75c129fc22639d49b38e2f6b220e87793ffb2dcd16cbf8"
+      },
+      {
+        "bytes": 458845,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-custom-light.png",
+        "sha256": "70b03d9df4eebbf86c62f13ded5968125915c79f0f3ed92e597dbe86099128e4"
+      },
+      {
+        "bytes": 16850,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-1-legacy-semantics.txt",
+        "sha256": "4b91ae90401ce5b8644feba33ebaea7267c8881d915d743aa4bfb055f9544d89"
+      },
+      {
+        "bytes": 389018,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-1-legacy.png",
+        "sha256": "2a5929bcffcee4cde83615a6f691a2a19f5f306d65aae019cca23286dcaa7a68"
+      },
+      {
+        "bytes": 16840,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-2-gold-semantics.txt",
+        "sha256": "4b7007a7637f921a42cf77b9ef58f7d24c85c6ba0191aee55c4c957748200155"
+      },
+      {
+        "bytes": 380498,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-2-gold.png",
+        "sha256": "042f0c5fcb5016f1b3ab579ed2bd24968867909e19a41f7b6ecc3c6f376b3fc0"
+      },
+      {
+        "bytes": 16851,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-3-graphite-semantics.txt",
+        "sha256": "db377926c46527eae9024b4b8ba99621e754771f930abc5403888cdbdacb8839"
+      },
+      {
+        "bytes": 393751,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-3-graphite.png",
+        "sha256": "b6f33dd80a4b826c9b24164c1a5c1c4bb52d76a2a782c124d5dc41b2069b4e59"
+      },
+      {
+        "bytes": 16856,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-4-contrast-semantics.txt",
+        "sha256": "b2b405d6fd027eef1d5014888254acb7dd3e8f82c4cbc0becfb6823d65c96f07"
+      },
+      {
+        "bytes": 369810,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-4-contrast.png",
+        "sha256": "628fa5fa94ac6fd6677cddeaea2d8664649331ac5be17786c7b43540716bdb4c"
+      },
+      {
+        "bytes": 16851,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-5-hermes-semantics.txt",
+        "sha256": "d1d9fba741c8e3abee033d6aa80663cd2628a6452a0da683a4022157d30c8e8e"
+      },
+      {
+        "bytes": 381140,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-theme-preset-5-hermes.png",
+        "sha256": "4aa1748777151a6db85b11682bc7e72742df3ff08a719a644b683a37dfd77d06"
+      },
+      {
+        "bytes": 4615,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-view-provider-ui.xml",
+        "sha256": "266e7022150e713a5f795de36f63a9a88ab68b1497e9511636756cd3c36508be"
+      },
+      {
+        "bytes": 98758,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-view-provider.png",
+        "sha256": "f46d9b6c1d7c2909af65abf4886dd8f26e5ebd80ef64b9ae49028044c038372e"
+      },
+      {
+        "bytes": 5688,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-view-tasker-action-ui.xml",
+        "sha256": "1f1fcdb62aea918f3a1e5ba65b8ce6dedd80e3b8a6f7a2e6b49ff5936d4aa656"
+      },
+      {
+        "bytes": 132145,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-view-tasker-action.png",
+        "sha256": "e4388e233f665aa1f9b0b2c40713d455b672c599aacb292448461b6cdb2de02d"
+      },
+      {
+        "bytes": 7105,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-view-tasker-condition-ui.xml",
+        "sha256": "f1c65cba4106e8a9514406985ee8587641ccf88d1093dc5dfc689fb24c680ae5"
+      },
+      {
+        "bytes": 167257,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-view-tasker-condition.png",
+        "sha256": "5c972a6010b0a88110015f180ec853b5e32e66b6b53e20c76260ebb477fc9887"
+      },
+      {
+        "bytes": 6286,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-view-tasker-event-ui.xml",
+        "sha256": "59b77ee1f64ffdd3c48fc5336a58f631e51b24a47acfcf0f47c74c003538d22c"
+      },
+      {
+        "bytes": 137255,
+        "path": "ui-coverage/phone-compact/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-phone-411x914dp-view-tasker-event.png",
+        "sha256": "11e0f6bea3e4ce9e6334b345d5535220dc95304606a80a16b748cac8d84b0a4c"
+      },
+      {
+        "bytes": 17724,
+        "path": "ui-coverage/phone-compact/localized-inventory.txt",
+        "sha256": "3f673fc7f6a73c2bb8cf457b4c1773a82bd421b76b553b99e8fb5a3204832ed0"
+      },
+      {
+        "bytes": 10174,
+        "path": "ui-coverage/tablet/complete-inventory.txt",
+        "sha256": "18aa44ebe3f288824de00449566328a1bca971598ead6ef387a023b0972fe0ed"
+      },
+      {
+        "bytes": 29374,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-2-linux-semantics.txt",
+        "sha256": "9a2afcf6e70a0a356b8ddaa6413790f8adfdec0eee0c2ec5c61e3e5c1f855fd7"
+      },
+      {
+        "bytes": 520042,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-2-linux.png",
+        "sha256": "d0f97961b31fd09b809105a0d5a610c6503a5788fbc871443364f7bb97fecf1a"
+      },
+      {
+        "bytes": 25102,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-3-connectivity-semantics.txt",
+        "sha256": "3570c004bc9d5e2f9cc01fde69406935bbb99a2283f149c729ad4b108febbf71"
+      },
+      {
+        "bytes": 425850,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-3-connectivity.png",
+        "sha256": "051d2e9a0a7dcf04da175b5a3d12b9c7146e14c7b2f02c72428c7b19d3be42ce"
+      },
+      {
+        "bytes": 20878,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-4-files-semantics.txt",
+        "sha256": "d07ce247e4dd95e2890640c1229efd7b2ca2f5ced1108d2c5a1098d2c4ebcebc"
+      },
+      {
+        "bytes": 469710,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-4-files.png",
+        "sha256": "f8c2f6043cb69ffafbe82b6538e67200f502996d89953a505e3420329fb28af3"
+      },
+      {
+        "bytes": 28098,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-5-controls-semantics.txt",
+        "sha256": "6c378e62b5388480c23aa969356e9c30629e59f975be091a7ebe1384c29468dd"
+      },
+      {
+        "bytes": 469023,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-5-controls.png",
+        "sha256": "0f6280f6e79f97678f69484b8003f8efbba58c03e6fe41b50b0e382417a64d54"
+      },
+      {
+        "bytes": 20818,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-6-automations-semantics.txt",
+        "sha256": "9ec17e287c555e9fb336df21effd4661146826e4c541f6f62645fa16691d70ee"
+      },
+      {
+        "bytes": 444411,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-device-6-automations.png",
+        "sha256": "d256d398a4f5ec65135202cd44beda03321a6ef209408a8921e523576fcfd165"
+      },
+      {
+        "bytes": 23007,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-font-1-min-080-semantics.txt",
+        "sha256": "8d96197f8c43d76ba8ab7a4f570f40fc1e7af51c4a28b4c0c7ea536ac3b5d646"
+      },
+      {
+        "bytes": 370404,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-font-1-min-080.png",
+        "sha256": "a9d6a4d758d3309e8ee8264c2e6898a7486fe68599c6960ab07b9b20e531ced6"
+      },
+      {
+        "bytes": 23044,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-font-2-max-130-semantics.txt",
+        "sha256": "634cb722312050e8a88a30a7ace0206fb7f9f05200f9802d7448b636969e7071"
+      },
+      {
+        "bytes": 411862,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-font-2-max-130.png",
+        "sha256": "bb74f30c29dca0e733dc7a8527f407bd59cd9427934a649d4ac2661e3e07ced6"
+      },
+      {
+        "bytes": 22795,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-font-3-default-100-semantics.txt",
+        "sha256": "383d51ed1c80e8fc39194cc78ba898d2f5fb3bbcc30ea5b5d66d60487598bbf0"
+      },
+      {
+        "bytes": 397137,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-font-3-default-100.png",
+        "sha256": "34c6adcf7b81dd280ec8c4423c89406a5613a85ff3bcfcd9a62e3c9e524c1d7b"
+      },
+      {
+        "bytes": 20625,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-1-hermes-semantics.txt",
+        "sha256": "d0e29d393967ccebffb5c822816686e10946ef963a6a4d40347328aaefcdcd3f"
+      },
+      {
+        "bytes": 609921,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-1-hermes.png",
+        "sha256": "e5e5cc8fb04b45f71eb9a117973690ef22e869cb2f2926a0d39d782d6e133962"
+      },
+      {
+        "bytes": 95167,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-2-accounts-semantics.txt",
+        "sha256": "e26a84ccd25c8b246c1cf7aad8f52c82c36ddde51c3b3e811281e73d9c6e7eae"
+      },
+      {
+        "bytes": 500908,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-2-accounts.png",
+        "sha256": "c275ede1937872dc599325d38189de0dec6ebf0f98782433c34bc454d16aa78b"
+      },
+      {
+        "bytes": 14140,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-3-nousportal-semantics.txt",
+        "sha256": "250288866cc4d852c370cab69f86f46ae5e1861a01e718bdc7142e2353da7158"
+      },
+      {
+        "bytes": 317439,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-3-nousportal.png",
+        "sha256": "7057f903bc516bfe403a590f08792c381fe13a595697dff98a2aff0a2df90100"
+      },
+      {
+        "bytes": 21987,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-4-device-semantics.txt",
+        "sha256": "73812c8e392c3c2a65231fcbeb45fc4a8a334d3f7ba8127b162d14a961748542"
+      },
+      {
+        "bytes": 511257,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-4-device.png",
+        "sha256": "a1f7e142c5efd48800f5d9869d06dfe58f0aa008657262f73f9207ad342d7be3"
+      },
+      {
+        "bytes": 17880,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-5-kanban-semantics.txt",
+        "sha256": "95927ddbed53aa55dd367f309b09dc34ded97689b97900a690fe83ea99cc417d"
+      },
+      {
+        "bytes": 458493,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-5-kanban.png",
+        "sha256": "acbf8bd23005fbeb1d87dcb4d86d50ffe4d07ed0a4f3fd940aafa599433c7c2f"
+      },
+      {
+        "bytes": 12038,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-6-terminal-semantics.txt",
+        "sha256": "8d2578b3bd868ea41118e850aea5e3499c01411ce5cf8e9d75ec5deb3aa3f4b5"
+      },
+      {
+        "bytes": 609601,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-6-terminal.png",
+        "sha256": "42e22b33aab800938ee63f6e72e8f02beb349de8eb6b55185ff1c19fb8c1c44a"
+      },
+      {
+        "bytes": 21794,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-7-settings-semantics.txt",
+        "sha256": "4cdb0ba02985e122d16fc4f1f3f9a0552b64673ad2c0a27f6db9e3d1038d6bf7"
+      },
+      {
+        "bytes": 518661,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-section-7-settings.png",
+        "sha256": "57dcf628fc5fa87c25af88004139e31bc37a6ea109c1b3dd43c8e9d5f415a400"
+      },
+      {
+        "bytes": 21786,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-1-overview-semantics.txt",
+        "sha256": "fb558406f7c3386445d151d4ffb4846e4dc65138841c02db693712c829d5da95"
+      },
+      {
+        "bytes": 519039,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-1-overview.png",
+        "sha256": "30b8c2cfae89513af841766e7258fcca02beae173d90122c8a401d07e31843e9"
+      },
+      {
+        "bytes": 45485,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-2-models-semantics.txt",
+        "sha256": "86d6b6ca184863f3c1d742ce69452149f2d11f7ee048699f149825a2617e61af"
+      },
+      {
+        "bytes": 449564,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-2-models.png",
+        "sha256": "506c1e3ab215f6276b48a8462079bddd8ebe3d867ee95045d55922410ede7e34"
+      },
+      {
+        "bytes": 26004,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-3-theme-semantics.txt",
+        "sha256": "a652427dc2c750d93811c8af0d37626b59a043766ec6d4bec39722254b3b6b42"
+      },
+      {
+        "bytes": 428501,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-3-theme.png",
+        "sha256": "9212b32cfa3dfe08fab8acf93d2af4ab70cebe7cc3761a49f032a8c78d4ac79a"
+      },
+      {
+        "bytes": 20084,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-4-tools-semantics.txt",
+        "sha256": "bdd79e90669612894bf8aa0e959722a137b3b63764951c43731ba52638f43656"
+      },
+      {
+        "bytes": 520798,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-4-tools.png",
+        "sha256": "d467c5e2b72261288e976a89703493ac408ca2110e9c2a9f11bb440dae57a830"
+      },
+      {
+        "bytes": 16860,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-5-privacy-semantics.txt",
+        "sha256": "2ba4cf3c7b69394a2af3ddb1f0be6c07efe6fdec832b712f1527892c20ae7464"
+      },
+      {
+        "bytes": 422864,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-settings-5-privacy.png",
+        "sha256": "011a6927d84c07574f06865528f47d07456facdfca4aa476b5575833757ea68f"
+      },
+      {
+        "bytes": 22980,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-shape-1-soft-semantics.txt",
+        "sha256": "7219dc3ee5187c779baf1b0ac55ad3789eb2831a671ed7629b0fec305f028cc6"
+      },
+      {
+        "bytes": 370404,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-shape-1-soft.png",
+        "sha256": "a9d6a4d758d3309e8ee8264c2e6898a7486fe68599c6960ab07b9b20e531ced6"
+      },
+      {
+        "bytes": 23020,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-shape-2-square-semantics.txt",
+        "sha256": "0d08ed00eb283fba7950a49d95aeab57cd86bf1cd1e8ee853dbbfdcd5e89ea93"
+      },
+      {
+        "bytes": 411862,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-shape-2-square.png",
+        "sha256": "bb74f30c29dca0e733dc7a8527f407bd59cd9427934a649d4ac2661e3e07ced6"
+      },
+      {
+        "bytes": 22765,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-shape-3-rounded-semantics.txt",
+        "sha256": "2ff17cdf42780d206db636697707ad7368033435144b57a18ad46e9e627594d6"
+      },
+      {
+        "bytes": 397137,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-shape-3-rounded.png",
+        "sha256": "34c6adcf7b81dd280ec8c4423c89406a5613a85ff3bcfcd9a62e3c9e524c1d7b"
+      },
+      {
+        "bytes": 17219,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-custom-light-semantics.txt",
+        "sha256": "853b817cd449a78f227956ea06c8f339685168c2f4fe6ea0a3b503efe48a4a8b"
+      },
+      {
+        "bytes": 593606,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-custom-light.png",
+        "sha256": "af8fea04ff996e697b822abe2f2f21d0cd61eeef3da05e7c1c8aa8f277884017"
+      },
+      {
+        "bytes": 22976,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-1-legacy-semantics.txt",
+        "sha256": "799502eab76c20475dc21a07f9b607c95f26bd3995233b6ba1133192a9ec3ec2"
+      },
+      {
+        "bytes": 436570,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-1-legacy.png",
+        "sha256": "1fdf5978c24e66d61bd443ba38d67401a2f198cc7b6bc20a304b24f3366c896d"
+      },
+      {
+        "bytes": 22966,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-2-gold-semantics.txt",
+        "sha256": "af36bae7cafbd4c26241fa610cf327bdb84358344939df199601cc54e4dec64c"
+      },
+      {
+        "bytes": 428987,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-2-gold.png",
+        "sha256": "d1b565af508271431ea625ff30abca771add95d94600f6ba87a712e5f55bdff1"
+      },
+      {
+        "bytes": 22977,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-3-graphite-semantics.txt",
+        "sha256": "cc27f3690bab6b1e3cd8c9be065668bffc6f4cadce5bba5142f9c15e47274041"
+      },
+      {
+        "bytes": 444349,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-3-graphite.png",
+        "sha256": "b0df24b45ae8f498f4140585cb048007e0f3b1b2fb1405b0e9e9e91d12bce0c7"
+      },
+      {
+        "bytes": 22982,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-4-contrast-semantics.txt",
+        "sha256": "035d280f125afd33ae0930c30f497112308fa28d03cbb799aa5dbfec1626d084"
+      },
+      {
+        "bytes": 416550,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-4-contrast.png",
+        "sha256": "5b62c4a944e51c80308d270671cc905caa1307b0dffefc475c1ac306a01c57e2"
+      },
+      {
+        "bytes": 22977,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-5-hermes-semantics.txt",
+        "sha256": "d843e43541d7b6c96ab7415c641c4e4983f8297868484bb657cc3b5e9ccfdb7e"
+      },
+      {
+        "bytes": 432823,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-theme-preset-5-hermes.png",
+        "sha256": "0d7ff4954d5936b1311b0b1649284c3dffa49c3fe4c64611293d25167baac390"
+      },
+      {
+        "bytes": 4637,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-view-provider-ui.xml",
+        "sha256": "6b6d727930d5a39bea587935840433670218d4840144f052c1cf7bb609b4ee6d"
+      },
+      {
+        "bytes": 156805,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-view-provider.png",
+        "sha256": "803fd63e788156de41aa7fb29da1ad97fc6d9497a65c6bf642eeb07a0626301b"
+      },
+      {
+        "bytes": 5716,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-view-tasker-action-ui.xml",
+        "sha256": "7451db668c6fd3155f660fa4474423514ce67fffdf66251cf25843dac66b8444"
+      },
+      {
+        "bytes": 182121,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-view-tasker-action.png",
+        "sha256": "dcadf58a7a92ac6b9a35888079372785b238238b27bf66fe93215b37b5440286"
+      },
+      {
+        "bytes": 7145,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-view-tasker-condition-ui.xml",
+        "sha256": "b1c7333b797a0380e7d0aa7179fe05c08f040828fa5a236fa5e9607bb2c7e15f"
+      },
+      {
+        "bytes": 201955,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-view-tasker-condition.png",
+        "sha256": "a2f27682a9e1a1a6cc51ea804db78c6696ba03d05e75fa95e8ed940e1c932b98"
+      },
+      {
+        "bytes": 6318,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-view-tasker-event-ui.xml",
+        "sha256": "626978f81406af3b4150e567e6094ec19ceaff7b3a5fccab5395c03dc835156b"
+      },
+      {
+        "bytes": 183353,
+        "path": "ui-coverage/tablet/headed-v0.13.156-35edf6312fb23820-20260908-203610bst-profile-tablet-1280x900dp-view-tasker-event.png",
+        "sha256": "71b5c33fa78ed969d3e0604ddf931f110a133a7842db69806e3f58847a3393c3"
+      }
+    ]
+  },
+  "historical_model_evidence": {
+    "artifact": {
+      "expected_bytes": 3654467584,
+      "file_name": "gemma-4-E4B-it.litertlm",
+      "model_id": "gemma-4-e4b-litert-lm",
+      "repository": "litert-community/gemma-4-E4B-it-litert-lm",
+      "required_llama_cpp_runtime_lane": null,
+      "revision": "9695417f248178c63a9f318c6e0c56cb917cb837",
+      "runtime": "litert-lm",
+      "sha256": "f335f2bfd1b758dc6476db16c0f41854bd6237e2658d604cbe566bcefd00a7bc"
+    },
+    "evidence_path": "models/gemma-4-e4b-litert-lm.json",
+    "excluded_from_release_matrix_and_quick_recommendations": true,
+    "required_accelerator": "cpu",
+    "required_runtime_entrypoint": "on-device-backend-manager",
+    "required_speculative_decoding": "disabled",
+    "scope": "issue-8-historical-experimental-text-only"
+  },
+  "issue_evidence": {
+    "issue_16": {
+      "failed_run_preservation_is_not_accepted_as_passing_evidence": true,
+      "path": "issues/issue-16-debian-sandbox.json",
+      "required_guest_execution_mode": "proot_distro_qemu",
+      "required_guest_path": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "required_success_disposition": "sandbox_removed_stopped",
+      "schema": "hermes-android-issue-16-debian-sandbox-v1"
+    },
+    "issue_8": {
+      "path": "issues/issue-8-tool-and-preflight.json",
+      "required_exact_prompts": [
+        "Run a command to tell me what time it is.",
+        "Check my device status"
+      ],
+      "required_model_and_provider_network_requests": 0,
+      "schema": "hermes-android-issue-8-tool-and-preflight-v1",
+      "twelve_b_artifact": {
+        "artifact_file_present": false,
+        "automatically_selected": false,
+        "catalog_declared_bytes": 6547589312,
+        "file_name": "gemma-4-12B-it.litertlm",
+        "model_id": "gemma-4-12b-litert-lm",
+        "present_in_mobile_quick_catalog": false,
+        "quick_start_eligible": false,
+        "release_certified": false,
+        "repository": "litert-community/gemma-4-12B-it-litert-lm",
+        "revision": "d7de8ec6dcf035c90999ff38560bf4c6eb45a947",
+        "sha256": "74fc29a10c20eb5b3ced6c389471a7994a0ffd657255b2a1c764262fb9054aef"
+      }
+    }
+  },
+  "physical_device_evidence": {
+    "authorization": "Explicit release-owner instruction on 2026-09-07 to waive physical-device validation for v156 only; require AVD validation and both post-release F-Droid gates, with physical Play submission videos deferred until the owner reconnects the phone.",
+    "classification": "owner-waived-physical-validation",
+    "physical_validation_performed": false,
+    "release_tag": "v0.13.156",
+    "scope": "this release only; the physical gate remains required for later releases"
+  },
+  "registered_model_matrix": [
+    {
+      "expected_bytes": 688066496,
+      "file_name": "MiniCPM5-1B-Claude-Opus-Fable5-Thinking-Q4_K_M.gguf",
+      "model_id": "minicpm5-1b-fable5-q4-k-m",
+      "repository": "GnLOLot/MiniCPM5-1B-Claude-Opus-Fable5-Thinking-GGUF",
+      "revision": "5a4ed2c3605634e7b043e8b98fa01e504b0dfbed",
+      "runtime": "llama.cpp",
+      "sha256": "b1c3bf2995e96cb792a0031e4e1497a500e9244c68ba17c24a7e6edf1fc59019"
+    },
+    {
+      "expected_bytes": 1103486896,
+      "file_name": "MiniCPM5-1B-web.litertlm",
+      "model_id": "minicpm5-1b-web-litert-lm",
+      "repository": "Tdamre/MiniCPM5-1B-litert-lm",
+      "revision": "06e61f79c625f864391fbb33049b5b46d1bfd7a6",
+      "runtime": "litert-lm",
+      "sha256": "a6d6d61fdfa0e04458fea344791d15ca304b54a40573e1b44ebab30c54d7bf1d"
+    },
+    {
+      "expected_bytes": 2574807840,
+      "file_name": "Nanbeige4.2-3B-Q4_K_M.gguf",
+      "model_id": "nanbeige4.2-3b-q4-k-m",
+      "repository": "Tdamre/Nanbeige4.2-3B-GGUF",
+      "required_llama_cpp_runtime_lane": "turboquant",
+      "revision": "128d8e87d69f9c1a30c37e40530c69deda96475d",
+      "runtime": "llama.cpp",
+      "sha256": "99c7bfb88907f7eee0a04c4314f1c46bca391819478d8cb90b3e164f09576489"
+    },
+    {
+      "expected_bytes": 532517120,
+      "file_name": "Qwen3.5-0.8B-Q4_K_M.gguf",
+      "model_id": "qwen3.5-0.8b-q4-k-m",
+      "repository": "unsloth/Qwen3.5-0.8B-GGUF",
+      "revision": "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0",
+      "runtime": "llama.cpp",
+      "sha256": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517"
+    },
+    {
+      "expected_bytes": 3446780848,
+      "file_name": "VibeThinker-3B.litertlm",
+      "model_id": "vibethinker-3b-litert-lm",
+      "repository": "Tdamre/VibeThinker-3B-litert-lm",
+      "revision": "9378fddbdce35a6ff818e0f08aa05dce6f1032aa",
+      "runtime": "litert-lm",
+      "sha256": "4cd4a856ab9fb890223d927efd4ed37268ecd1fa78559a9d27bf21daa6b8c22f"
+    }
+  ],
+  "schema": "hermes-android-release-evidence-manifest-v3",
+  "source_tree": {
+    "algorithm": "sha256-git-tree-contents-v1",
+    "digest": "35edf6312fb238208ac3021c8b109c579bb6b358f27cbf5c98013e15b0e7d232",
+    "excluded_prefix": "android/release-evidence/",
+    "file_count": 12675,
+    "git_object_format": "sha1"
+  },
+  "summary": {
+    "comprehensive_ui_capture_count": 116,
+    "device_models": [
+      "sdk_gphone64_x86_64"
+    ],
+    "historical_issue8_model_count": 1,
+    "issue16_debian_sandbox_count": 1,
+    "issue8_tool_and_preflight_count": 1,
+    "launch_theme_capture_count": 4,
+    "launch_theme_review_count": 0,
+    "model_count": 5,
+    "performance_record_count": 2,
+    "physical_device_models": [],
+    "physical_nanbeige_repair_count": 0,
+    "ui_capture_count": 12
+  },
+  "tag": "v0.13.156",
+  "tested_binaries": {
+    "benchmark_target_apk_sha256": "777d47ea5492c4a582011872a5d11bcd88e9dcc420449e26cd3e33aba4553045",
+    "benchmark_test_apk_sha256": "ec5d1de5de8956c90da4454dfe1944dc8c9e653b54c3ec95a0bce30d99c82646",
+    "evidence_run_id": "v0.13.156-35edf6312fb23820-20260908-203610bst",
+    "ui_candidate_apk_sha256": "c04e025319ee2e4d151262567eabd8c905bbe92ac4d6a53250d77610e876e3ce",
+    "ui_instrumentation_apk_sha256": "50789f8f9bf93ed2db870edf99a3ba7598f1b131539ddb0c66a2bd20b025eeb1"
+  }
+}
