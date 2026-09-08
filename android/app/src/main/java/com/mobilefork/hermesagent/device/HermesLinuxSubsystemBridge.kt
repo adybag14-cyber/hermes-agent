@@ -190,6 +190,7 @@ object HermesLinuxSubsystemBridge {
     private var installedRuntimeCache: InstalledRuntimeCache? = null
 
     fun ensureInstalled(context: Context): JSONObject {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Linux installation and execution")
         val androidAbi = selectAndroidAbi()
         val currentAppVersionCode = appVersionCode(context)
         val currentAssetFingerprint = assetManifestSha256(context, androidAbi)

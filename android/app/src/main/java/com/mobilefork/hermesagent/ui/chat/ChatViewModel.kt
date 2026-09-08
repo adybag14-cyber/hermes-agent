@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import com.mobilefork.hermesagent.privacy.RemoteProcessingConsentStore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import okhttp3.Call
@@ -492,6 +493,8 @@ internal fun usesDirectOpenAiCompatibleTransport(providerId: String): Boolean {
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val conversationStore = ConversationStore(application)
+    private val remoteConsent = RemoteChatConsentCoordinator(application)
+    val remoteConsentTarget = remoteConsent.target
     private val _uiState = MutableStateFlow(
         ChatUiState(
             activeConversationId = "",
@@ -505,6 +508,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val initializationGuard = ChatInitializationGuard()
 
     init {
+        val initialConsentRevocation = RemoteProcessingConsentStore.revocations.value
+        viewModelScope.launch {
+            RemoteProcessingConsentStore.revocations.collect { revision ->
+                if (revision <= initialConsentRevocation) return@collect
+                remoteConsent.decline()
+                stopActiveSend(status = "Remote processing consent revoked")
+            }
+        }
         val initializationGeneration = initializationGuard.capture()
         viewModelScope.launch(Dispatchers.IO) {
             val next = buildState()
@@ -571,7 +582,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun stopCurrentTask() {
+        remoteConsent.decline()
         stopActiveSend(status = "Stopped by user")
+    }
+
+    fun pauseForBackground() {
+        remoteConsent.decline()
+        stopActiveSend(status = "Paused because the Play edition left the foreground")
     }
 
     override fun onCleared() {
@@ -692,6 +709,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         sendPreparedMessage(text = snapshot.input.trim(), attachments = snapshot.attachments)
     }
 
+    fun acceptRemoteProcessingConsent() {
+        val pending = try {
+            remoteConsent.accept() ?: return
+        } catch (_: Exception) {
+            val language = AppLanguage.fromTag(AppSettingsStore(getApplication()).load().languageTag)
+            _uiState.update { it.copy(error = com.mobilefork.hermesagent.ui.i18n.PrivacyText.SAVE_FAILED.inLanguage(language)) }
+            return
+        }
+        if (pending.sessionId == conversationStore.currentSessionId()) {
+            sendPreparedMessage(pending.text, pending.attachments)
+        }
+    }
+
+    fun declineRemoteProcessingConsent() = remoteConsent.decline()
+
     fun sendQuickPrompt(prompt: String) {
         val snapshot = _uiState.value
         val decision = evaluateQuickPromptSend(prompt, snapshot)
@@ -741,6 +773,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         val sessionId = conversationStore.currentSessionId()
+        try {
+            if (!remoteConsent.admit(text, attachments, sessionId)) return
+        } catch (error: IllegalArgumentException) {
+            _uiState.update { it.copy(error = error.message.orEmpty()) }
+            return
+        }
         val priorConversationMessages = buildPriorChatRequestMessages(snapshot.messages)
         val now = System.currentTimeMillis()
         val userMessage = ChatUiMessage(UUID.randomUUID().toString(), "user", text, now, attachments)
@@ -1375,6 +1413,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 baseUrl = endpoint.baseUrl,
                 apiKey = endpoint.apiKey,
                 networkGuard = { url ->
+                    RemoteProcessingConsentStore.requireConfiguredRemoteConsent(getApplication<Application>())
                     HermesNetworkPolicy.requireExternalNetworkAllowed(
                         getApplication<Application>(),
                         url,
@@ -1609,6 +1648,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 apiKey = endpoint.apiKey,
                 httpClient = fallbackTransport.client,
                 networkGuard = { url ->
+                    RemoteProcessingConsentStore.requireConfiguredRemoteConsent(getApplication<Application>())
                     HermesNetworkPolicy.requireExternalNetworkAllowed(
                         getApplication<Application>(),
                         url,
@@ -1798,7 +1838,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             return null
         }
         val provider = settings.provider.trim().lowercase()
-        if (!usesDirectOpenAiCompatibleTransport(provider)) {
+        val playCustomProvider = com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION && provider == "custom"
+        if (!usesDirectOpenAiCompatibleTransport(provider) && !playCustomProvider) {
             return null
         }
         val preset = ProviderPresets.find(provider)
@@ -1808,7 +1849,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             return null
         }
         val apiKey = SecureSecretsStore(getApplication<Application>()).loadApiKey(provider)
-        if (apiKey.isBlank()) {
+        if (apiKey.isBlank() && !playCustomProvider) {
             return null
         }
         return ChatEndpoint(
@@ -1816,6 +1857,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             apiKey = apiKey,
             modelName = modelName,
             apiMode = if (provider in RESPONSES_API_PROVIDERS) EndpointApiMode.RESPONSES else EndpointApiMode.CHAT_COMPLETIONS,
+            nativeToolCalling = com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION,
             directProvider = true,
             providerId = provider,
         )
@@ -1842,6 +1884,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun retainConversationMemory(sessionId: String, userText: String, assistantText: String) {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return
         val fact = conversationMemoryFact(sessionId, userText, assistantText)
         if (fact.isBlank()) {
             return
@@ -1860,6 +1903,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun recallConversationMemoryContext(userText: String): String {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return ""
         return runCatching {
             JSONObject(
                 NativeBridgeInvoker.performMemoryAction(

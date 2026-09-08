@@ -69,6 +69,7 @@ object OnDeviceBackendManager {
         dangerouslySkipRamChecks: Boolean = false,
         admissionCheck: () -> Unit = {},
     ): LocalBackendStatus = withLocalBackendOwnership {
+        com.mobilefork.hermesagent.play.PlayForegroundLifetime.requireForeground()
         admissionCheck()
         val result = withBackgroundPriorityIfNeeded {
             when (BackendKind.fromPersistedValue(backendValue)) {
@@ -86,6 +87,7 @@ object OnDeviceBackendManager {
             // If selection changed while a model loaded, discard that old process before
             // releasing backend ownership; a newer queued action can then start cleanly.
             admissionCheck()
+            com.mobilefork.hermesagent.play.PlayForegroundLifetime.requireForeground()
             result
         } catch (error: Throwable) {
             stopAll()

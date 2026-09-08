@@ -24,7 +24,10 @@ object HermesNotificationActionBridge {
     const val EXTRA_NOTIFICATION_ID = "notification_id"
     const val EXTRA_NOTIFICATION_TAG = "notification_tag"
 
+    // Play has no notification permission or entry point; full keeps the runtime permission check below.
+    @android.annotation.SuppressLint("NotificationPermission")
     fun performNotificationJson(context: Context, payload: JSONObject): String {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Device notifications")
         val action = normalizeAction(payload.optString("notification_action").ifBlank { "post" })
         if (action == "cancel") {
             val id = notificationId(payload)

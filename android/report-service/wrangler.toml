@@ -1,0 +1,17 @@
+name = "hermes-content-reports"
+main = "worker.mjs"
+account_id = "3218be7fd3453af56a94673b5678580b"
+compatibility_date = "2026-09-07"
+workers_dev = true
+preview_urls = false
+
+[[d1_databases]]
+binding = "REPORTS_DB"
+database_name = "hermes-content-reports"
+database_id = "e6b5a643-0bcf-48f5-bad7-612fde69bdfd"
+
+[triggers]
+crons = ["17 * * * *"]
+
+[observability]
+enabled = false

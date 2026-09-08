@@ -46,28 +46,39 @@ def select_release_apk(path: Path) -> Path:
     )
 
 
+def stage_release_artifacts(tag: str, edition: str, apk_dir: Path, aab_dir: Path, output_dir: Path) -> tuple[Path, Path]:
+    if edition not in {"full", "play"}:
+        raise ValueError(f"Unknown Android edition: {edition}")
+    apk_src = select_release_apk(apk_dir)
+    aab_src = newest_matching(aab_dir, "*.aab")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    prefix = "hermes-agent-android" if edition == "full" else "hermes-agent-android-play"
+    apk_dest = output_dir / f"{prefix}-{tag}-universal.apk"
+    aab_dest = output_dir / f"{prefix}-{tag}.aab"
+    shutil.copy2(apk_src, apk_dest)
+    shutil.copy2(aab_src, aab_dest)
+    for artifact in (apk_dest, aab_dest):
+        checksum = sha256sum(artifact)
+        artifact.with_suffix(artifact.suffix + ".sha256").write_text(
+            f"{checksum}  {artifact.name}\n", encoding="utf-8",
+        )
+    return apk_dest, aab_dest
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Rename Android release artifacts and emit SHA256 manifests")
     parser.add_argument("--tag", required=True, help="Git tag, for example v2026.4.10")
-    parser.add_argument("--apk-dir", default="android/app/build/outputs/apk/release")
-    parser.add_argument("--aab-dir", default="android/app/build/outputs/bundle/release")
+    parser.add_argument("--edition", choices=("full", "play"), default="full")
+    parser.add_argument("--apk-dir")
+    parser.add_argument("--aab-dir")
     parser.add_argument("--output-dir", default="dist/android-release")
     args = parser.parse_args()
-
-    apk_src = select_release_apk(Path(args.apk_dir))
-    aab_src = newest_matching(Path(args.aab_dir), "*.aab")
-
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    apk_dest = output_dir / f"hermes-agent-android-{args.tag}-universal.apk"
-    aab_dest = output_dir / f"hermes-agent-android-{args.tag}.aab"
-    shutil.copy2(apk_src, apk_dest)
-    shutil.copy2(aab_src, aab_dest)
-
-    for artifact in (apk_dest, aab_dest):
-        checksum = sha256sum(artifact)
-        (artifact.with_suffix(artifact.suffix + ".sha256")).write_text(f"{checksum}  {artifact.name}\n", encoding="utf-8")
+    variant = "release" if args.edition == "full" else "playRelease"
+    for artifact in stage_release_artifacts(
+        args.tag, args.edition,
+        Path(args.apk_dir or f"android/app/build/outputs/apk/{variant}"),
+        Path(args.aab_dir or f"android/app/build/outputs/bundle/{variant}"), Path(args.output_dir),
+    ):
         print(artifact)
         print(artifact.with_suffix(artifact.suffix + ".sha256"))
 

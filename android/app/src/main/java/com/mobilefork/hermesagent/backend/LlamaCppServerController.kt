@@ -183,12 +183,14 @@ object LlamaCppServerController {
                 statusMessage = "$detail. Force stop the conflicting app or choose the Stable/LiteRT-LM path after the port is free.",
             )
         }
-        val linuxState = HermesLinuxSubsystemBridge.ensureInstalled(context)
+        val playEdition = com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION
+        val linuxState = if (playEdition) JSONObject() else HermesLinuxSubsystemBridge.ensureInstalled(context)
         val shellPath = shellPathForState(linuxState)
         val prefixPath = linuxState.optString("prefix_path")
         val homePath = linuxState.optString("home_path")
-        val llamaServerPath = selectLlamaServerPath(context, linuxState, launchConfig.lane)
-        if (shellPath.isBlank() || prefixPath.isBlank()) {
+        val llamaServerPath = if (playEdition) PlayPackagedLlamaLaunch.executable(context).absolutePath
+            else selectLlamaServerPath(context, linuxState, launchConfig.lane)
+        if (!playEdition && (shellPath.isBlank() || prefixPath.isBlank())) {
             LocalModelRuntimeDiagnostics.finishAttempt(
                 context = context,
                 attemptId = attemptId,
@@ -282,7 +284,9 @@ object LlamaCppServerController {
             } else {
                 listOf(shellPath, "-lc", command)
             }
-            val startedProcess = ProcessBuilder(shellArgs)
+            val startedProcess = if (playEdition) {
+                PlayPackagedLlamaLaunch.start(context, modelPath, port, preflight.effectiveContextTokens, launchConfig, launchApiKey)
+            } else ProcessBuilder(shellArgs)
                 .directory(File(homePath.ifBlank { prefixPath }))
                 .redirectErrorStream(true)
                 .apply {
@@ -633,6 +637,7 @@ object LlamaCppServerController {
         linuxState: JSONObject,
         lane: LlamaCppRuntimeLane,
     ): String {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return "the Play-packaged static e30664a engine"
         if (lane == LlamaCppRuntimeLane.TURBOQUANT) {
             return "the packaged experimental TurboQuant Android lane"
         }
@@ -940,7 +945,9 @@ object LlamaCppServerController {
         )
     }
 
-    private fun LlamaCppRuntimeLane.displayLabel(): String = when (this) {
+    private fun LlamaCppRuntimeLane.displayLabel(): String = if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) {
+        "Play-packaged e30664a (${persistedValue} cache profile)"
+    } else when (this) {
         LlamaCppRuntimeLane.STABLE -> "stable"
         LlamaCppRuntimeLane.TURBOQUANT -> "experimental TurboQuant"
     }

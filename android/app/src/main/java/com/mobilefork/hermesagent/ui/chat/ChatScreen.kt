@@ -107,6 +107,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.R
 import com.mobilefork.hermesagent.ui.auth.AuthViewModel
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
+import com.mobilefork.hermesagent.ui.i18n.PrivacyText
+import com.mobilefork.hermesagent.ui.i18n.privacyText
+import com.mobilefork.hermesagent.ui.i18n.playEditionSummary
+import com.mobilefork.hermesagent.ui.privacy.AiContentReportDialog
 import com.mobilefork.hermesagent.ui.shell.AppSection
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
 import kotlinx.coroutines.delay
@@ -141,6 +145,12 @@ fun ChatScreen(
     onApplyModel: (String) -> Boolean,
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val remoteConsentTarget by viewModel.remoteConsentTarget.collectAsState()
+    remoteConsentTarget?.let { target ->
+        com.mobilefork.hermesagent.ui.privacy.RemoteProcessingConsentDialog(
+            target, viewModel::acceptRemoteProcessingConsent, viewModel::declineRemoteProcessingConsent,
+        )
+    }
     var generationElapsedSeconds by remember { mutableLongStateOf(0L) }
     LaunchedEffect(uiState.isSending) {
         if (!uiState.isSending) {
@@ -211,6 +221,7 @@ fun ChatScreen(
     }
     var ttsController by remember(context) { mutableStateOf<HermesTtsController?>(null) }
     var composerActionMenuOpen by rememberSaveable { mutableStateOf(false) }
+    var voiceDisclosureOpen by remember { mutableStateOf(false) }
 
     DisposableEffect(context) {
         onDispose {
@@ -279,7 +290,7 @@ fun ChatScreen(
         return worked
     }
 
-    fun startVoiceInput() {
+    fun launchConsentedVoiceInput() {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             android.content.pm.PackageManager.PERMISSION_GRANTED
         if (granted) {
@@ -295,6 +306,14 @@ fun ChatScreen(
         }
     }
 
+    fun startVoiceInput() { voiceDisclosureOpen = true }
+    if (voiceDisclosureOpen) {
+        com.mobilefork.hermesagent.ui.privacy.VoiceInputDisclosureDialog(
+            onAccept = { voiceDisclosureOpen = false; launchConsentedVoiceInput() },
+            onDecline = { voiceDisclosureOpen = false },
+        )
+    }
+
     fun applyProvider(providerId: String): Boolean {
         return onApplyProvider(providerId)
     }
@@ -304,6 +323,10 @@ fun ChatScreen(
     }
 
     fun startAuthMethod(methodId: String): Boolean {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) {
+            onNavigateToSection(AppSection.Settings)
+            return false
+        }
         val supported = setOf("openrouter", "openai", "codex", "chatgpt", "claude", "gemini", "qwen", "qwen-coding-plan", "qwen-oauth", "zai", "google", "email", "phone")
         if (methodId !in supported) return false
         return authViewModel.startAuth(methodId)
@@ -1046,13 +1069,14 @@ private fun EmptyChatHint(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = strings.welcomeDescription,
+                text = if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION)
+                    strings.playEditionSummary() else strings.welcomeDescription,
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis,
             )
             // Collapsed by default — large signal tiles were easy to hit while targeting the drawer.
-            TextButton(
+            if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) TextButton(
                 onClick = { showSignalTools = !showSignalTools },
                 modifier = Modifier.testTag("HermesSignalToolsToggle"),
             ) {
@@ -1082,7 +1106,7 @@ private fun EmptyChatHint(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Button(
+                if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) Button(
                     onClick = onOpenAccounts,
                     modifier = Modifier
                         .weight(1f)
@@ -1203,6 +1227,8 @@ private fun ChatMessageActionMenu(
 ) {
     val strings = LocalHermesStrings.current
     var expanded by rememberSaveable(message.id) { mutableStateOf(false) }
+    var reportOpen by remember(message.id) { mutableStateOf(false) }
+    if (reportOpen) AiContentReportDialog(message.content) { reportOpen = false }
     Box {
         IconButton(
             onClick = { expanded = true },
@@ -1218,6 +1244,13 @@ private fun ChatMessageActionMenu(
             )
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            if (message.role != "user" && message.content.isNotBlank()) {
+                DropdownMenuItem(
+                    text = { Text(strings.privacyText(PrivacyText.REPORT)) },
+                    modifier = Modifier.testTag("AiReportAction"),
+                    onClick = { expanded = false; reportOpen = true },
+                )
+            }
             DropdownMenuItem(
                 text = { Text(strings.copyMessageLabel()) },
                 onClick = {
@@ -2272,7 +2305,8 @@ private fun ChatComposer(
                                         onSignalQuickAction(action)
                                     },
                                 )
-                                QuietMetaText(text = strings.chatCommandsTip(isListening), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION)
+                                    QuietMetaText(text = strings.chatCommandsTip(isListening), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -2518,6 +2552,7 @@ private fun SignalIntelligenceQuickActionGrid(
     compact: Boolean = false,
     onSignalQuickAction: (SignalIntelligenceQuickAction) -> Unit,
 ) {
+    if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return
     val buttonColors = if (compact) {
         ButtonDefaults.buttonColors(
             containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),

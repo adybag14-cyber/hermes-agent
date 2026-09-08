@@ -103,18 +103,30 @@ internal class HermesGestureDispatchOperation(
 
 object HermesAccessibilityController {
     @Volatile
-    private var service: HermesAccessibilityService? = null
+    private var boundService: HermesAccessibilityService? = null
+    private val service: HermesAccessibilityService?
+        get() = boundService?.takeIf {
+            com.mobilefork.hermesagent.privacy.PrivacyConsentStore(it).accessibilityAllowed()
+        }
     @Volatile
     private var lastForegroundPackageName: String = ""
 
     fun bind(service: HermesAccessibilityService) {
-        this.service = service
+        this.boundService = service
     }
 
     fun unbind(service: HermesAccessibilityService) {
-        if (this.service === service) {
-            this.service = null
+        if (this.boundService === service) {
+            this.boundService = null
         }
+    }
+
+    fun revokeConsent(context: Context) {
+        com.mobilefork.hermesagent.privacy.PrivacyConsentStore(context).revokeAccessibility()
+        val connected = boundService
+        boundService = null
+        lastForegroundPackageName = ""
+        connected?.disableSelf()
     }
 
     fun isServiceConnected(): Boolean = service != null
@@ -192,7 +204,7 @@ object HermesAccessibilityController {
         return true
     }
 
-    fun currentForegroundPackageName(): String = lastForegroundPackageName
+    fun currentForegroundPackageName(): String = if (service != null) lastForegroundPackageName else ""
 
     private fun dispatchGesture(path: Path, durationMs: Long): Boolean {
         val connectedService = service ?: return false

@@ -121,6 +121,7 @@ object HermesRuntimeManager {
     private var remoteStopFailureDetail: String? = null
 
     fun ensurePythonStarted(context: Context) {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Python agent execution")
         if (Python.isStarted() && androidPythonIdentityReady) {
             return
         }
@@ -250,8 +251,10 @@ object HermesRuntimeManager {
         }
 
         return try {
-            HermesLinuxSubsystemBridge.ensureInstalled(appContext)
-            refreshPythonRuntimeEnvironment(appContext)
+            if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) {
+                HermesLinuxSubsystemBridge.ensureInstalled(appContext)
+                refreshPythonRuntimeEnvironment(appContext)
+            }
             val selectedBackendAtRouting = expectedLocalBackend?.let {
                 BackendKind.fromPersistedValue(
                     AppSettingsStore(appContext).load().onDeviceBackend,
@@ -390,6 +393,11 @@ object HermesRuntimeManager {
         baseUrl: String,
         admissionCheck: () -> Unit,
     ): RuntimeState {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) {
+            // Remote Play requests go directly through the foreground, no-tool Android client.
+            return RuntimeState(started = false, hermesHome = File(context.filesDir, "hermes-home").absolutePath)
+        }
+        com.mobilefork.hermesagent.privacy.RemoteProcessingConsentStore.requireConfiguredRemoteConsent(context)
         ensurePythonStarted(context)
         refreshPythonRuntimeEnvironment(context)
         val effectiveBaseUrl = ProviderPresets.runtimeConfigBaseUrl(provider, baseUrl)

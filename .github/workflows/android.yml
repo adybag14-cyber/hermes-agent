@@ -70,6 +70,15 @@ jobs:
       - name: Verify latest LiteRT-LM Android SDK
         run: python scripts/check_android_litertlm_version.py
 
+      - name: Set up Node 24 for private reporting service tests
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+
+      - name: Test private report delivery, deletion, retention and quotas
+        working-directory: android/report-service
+        run: node --test worker.test.mjs
+
       - name: Ensure Gradle wrapper is executable
         run: chmod +x android/gradlew
 
@@ -85,6 +94,22 @@ jobs:
           ./gradlew :app:compileBenchmarkKotlin :macrobenchmark:compileBenchmarkKotlin \
             -PskipHermesAndroidLinuxAssets=true
           ./gradlew :app:assembleDebug
+
+      - name: Build and validate the separate Play edition
+        working-directory: android
+        env:
+          SOURCE_DATE_EPOCH: "315532800"
+        run: |
+          export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
+          ./gradlew :app:testPlayDebugUnitTest -PhermesTestBuildType=playDebug \
+            --tests 'com.mobilefork.hermesagent.play.*' --tests 'com.mobilefork.hermesagent.privacy.*' \
+            --tests 'com.mobilefork.hermesagent.ui.chat.PlayChatOperationTest' \
+            --tests 'com.mobilefork.hermesagent.ui.i18n.PrivacyStringsTest'
+          ./gradlew :app:compilePlayDebugAndroidTestKotlin \
+            :app:assemblePlayDebug :app:bundlePlayDebug :app:lintPlayDebug -PhermesTestBuildType=playDebug
+          python ../scripts/verify_android_play_package.py app/build/outputs/apk/playDebug/app-playDebug.apk \
+            --bundle app/build/outputs/bundle/playDebug/app-playDebug.aab \
+            --apkanalyzer "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
 
       - name: Verify generated runtimes inside the APK
         run: |

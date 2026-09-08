@@ -89,6 +89,7 @@ object NativeAndroidShellTool {
         packageHttpClient: OkHttpClient? = null,
         cancellationRequested: () -> Boolean = { false },
     ): JSONObject {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Shell execution")
         var acquired = false
         try {
             executionLock.lockInterruptibly()

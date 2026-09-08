@@ -50,6 +50,7 @@ class HermesPrivilegedShellUserService : IHermesPrivilegedShellService.Stub {
 
     @Synchronized
     override fun runCommand(command: String, timeoutSeconds: Int): String {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Privileged shell execution")
         val normalizedCommand = command.trim()
         if (normalizedCommand.isBlank()) {
             return finish(

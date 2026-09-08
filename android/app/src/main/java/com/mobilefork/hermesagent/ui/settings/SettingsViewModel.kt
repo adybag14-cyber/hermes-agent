@@ -1420,6 +1420,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             runCatching {
                 withContext(Dispatchers.IO) {
                     val currentBeforeSave = settingsStore.load()
+                    if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION && snapshot.onDeviceBackend == "none") {
+                        com.mobilefork.hermesagent.play.PlayNetworkPolicy.validateRemoteSettings(snapshot.provider, snapshot.baseUrl)
+                    }
                     val persistedLlamaCppSettings = resolveLlamaCppAdvancedSettingsForSave(
                         existing = currentBeforeSave,
                         draft = snapshot,
@@ -1513,7 +1516,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     } else {
                         ProviderPresets.runtimeConfigBaseUrl(snapshot.provider, snapshot.baseUrl)
                     }
-                    settingsSaveGeneration.performLongIfCurrent(generation) {
+                    if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) settingsSaveGeneration.performLongIfCurrent(generation) {
                         HermesRuntimeManager.ensurePythonStarted(app)
                         PythonRuntimeWriteAuthority.writeIfCurrent(generation) {
                             Python.getInstance().getModule("hermes_android.config_bridge").callAttr(
@@ -1532,7 +1535,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                         settingsSaveGeneration.performLongIfCurrent(generation) {
                             PythonRuntimeWriteAuthority.writeIfCurrent(generation) {
                                 secretsStore.saveApiKey(snapshot.provider, providerApiKey)
-                                Python.getInstance().getModule("hermes_android.auth_bridge").callAttr(
+                                if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) Python.getInstance().getModule("hermes_android.auth_bridge").callAttr(
                                     "write_provider_api_key",
                                     snapshot.provider,
                                     providerApiKey,
@@ -1540,17 +1543,24 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                             }
                         }
                     }
+                    val consentTarget = com.mobilefork.hermesagent.privacy.RemoteProcessingTarget.fromSettings(settingsStore.load())
+                    val remoteConsentGranted = consentTarget == null ||
+                        com.mobilefork.hermesagent.privacy.RemoteProcessingConsentStore(app).allowed(consentTarget)
+                    val requireRemoteRuntime = !com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION && remoteConsentGranted
                     val (finalRuntimeState, finalLocalBackendStatus) = settingsSaveGeneration.performLongIfCurrent(generation) {
-                        HermesRuntimeManager.ensureStarted(
+                        (if (backendKind == BackendKind.NONE && !requireRemoteRuntime) {
+                            HermesRuntimeManager.RuntimeState(started = false)
+                        } else HermesRuntimeManager.ensureStarted(
                             app,
                             admissionCheck = { settingsSaveGeneration.requireCurrent(generation) },
-                        ) to OnDeviceBackendManager.currentStatus()
+                        )) to OnDeviceBackendManager.currentStatus()
                     }
                     settingsRuntimeTransitionFailureMessage(
                         backendKind = backendKind,
                         offlineAirplaneMode = snapshot.offlineAirplaneMode,
                         localBackendStatus = finalLocalBackendStatus,
                         runtimeState = finalRuntimeState,
+                        remoteRuntimeRequired = requireRemoteRuntime,
                     )?.let { failureMessage ->
                         return@withContext settingsSaveGeneration.withCurrent(generation) {
                             SettingsSaveResult(
@@ -1575,6 +1585,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     }
                     val statusMessage = when {
                         useLocalBackend -> strings.onDeviceBackendReady()
+                        com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION || !remoteConsentGranted ->
+                            com.mobilefork.hermesagent.ui.i18n.PlaySettingsText.saved(strings.language)
                         snapshot.offlineAirplaneMode ->
                             strings.offlineAirplaneKeptRemoteFallbackDisabled(finalLocalBackendStatus.statusMessage)
                         backendKind != BackendKind.NONE ->
@@ -1748,6 +1760,7 @@ internal fun settingsRuntimeTransitionFailureMessage(
     offlineAirplaneMode: Boolean,
     localBackendStatus: LocalBackendStatus,
     runtimeState: HermesRuntimeManager.RuntimeState,
+    remoteRuntimeRequired: Boolean = true,
 ): String? {
     settingsSaveUnsafeTransitionMessage(localBackendStatus)?.let { return it }
     if (backendKind != BackendKind.NONE && !localBackendStatus.started) {
@@ -1758,7 +1771,7 @@ internal fun settingsRuntimeTransitionFailureMessage(
     if (backendKind != BackendKind.NONE && !runtimeState.started) {
         return runtimeState.error ?: "The selected local backend was not published as ready."
     }
-    if (backendKind == BackendKind.NONE && !offlineAirplaneMode && !runtimeState.started) {
+    if (remoteRuntimeRequired && backendKind == BackendKind.NONE && !offlineAirplaneMode && !runtimeState.started) {
         return runtimeState.error ?: "The remote Hermes runtime did not start."
     }
     return null

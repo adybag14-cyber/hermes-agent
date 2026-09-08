@@ -69,6 +69,7 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.HermesAgent">
+        <meta-data android:name="com.mobilefork.hermesagent.DISTRIBUTION" android:value="${hermesDistribution}" />
         <uses-native-library
             android:name="libvndksupport.so"
             android:required="false" />
@@ -104,6 +105,8 @@
             android:name=".device.HermesProviderSetupWebActivity"
             android:exported="false"
             android:resizeableActivity="true" />
+
+        <activity android:name=".privacy.AccessibilityDisclosureActivity" android:exported="false" />
 
         <activity
             android:name=".device.HermesTaskerPluginEditActivity"

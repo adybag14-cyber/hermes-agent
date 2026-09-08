@@ -179,6 +179,7 @@ object HermesPrivilegedAccessBridge {
     }
 
     fun performAction(context: Context, action: String): HermesPrivilegedActionResult {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Privileged device control")
         val appContext = context.applicationContext
         return when (action) {
             "open_developer_options" -> launchIntent(
@@ -214,6 +215,7 @@ object HermesPrivilegedAccessBridge {
     }
 
     fun performStructuredActionJson(context: Context, action: String, arguments: JSONObject = JSONObject()): String {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Privileged device control")
         val normalizedAction = normalizeStructuredAction(action)
             ?: return JSONObject()
                 .put("success", false)
@@ -353,6 +355,7 @@ object HermesPrivilegedAccessBridge {
 
     @Synchronized
     fun runShellCommandJson(context: Context, command: String, timeoutSeconds: Int = DEFAULT_SHELL_TIMEOUT_SECONDS): String {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Privileged shell execution")
         val status = readStatus(context)
         if (!status.shizukuBinderAlive) {
             return privilegedShellUnavailable(

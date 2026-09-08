@@ -373,6 +373,8 @@ android {
             (liteRtLmLocalAar != null).toString(),
         )
         buildConfigField("boolean", "HERMES_CHAQUOPY_LAB", (hermesChaquopyLabRoot != null).toString())
+        buildConfigField("boolean", "HERMES_PLAY_EDITION", "false")
+        manifestPlaceholders["hermesDistribution"] = "full"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -449,7 +451,25 @@ android {
             manifestPlaceholders["hermesBenchmarkLiteRtLmCoordinate"] =
                 "com.google.ai.edge.litertlm:litertlm-android:$liteRtLmVersion"
         }
+        create("playDebug") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
+            buildConfigField("boolean", "HERMES_PLAY_EDITION", "true")
+            manifestPlaceholders["hermesDistribution"] = "play"
+        }
+        create("playRelease") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            buildConfigField("boolean", "HERMES_PLAY_EDITION", "true")
+            manifestPlaceholders["hermesDistribution"] = "play"
+        }
     }
+
+    testBuildType = providers.gradleProperty("hermesTestBuildType").orElse("debug").get().also {
+        require(it in setOf("debug", "playDebug")) { "Use debug or playDebug for Android instrumentation" }
+    }
+    sourceSets.getByName("playDebug").manifest.srcFile("src/play/AndroidManifest.xml")
+    sourceSets.getByName("playRelease").manifest.srcFile("src/play/AndroidManifest.xml")
 
     testOptions {
         unitTests {
@@ -695,14 +715,18 @@ val prepareHermesAndroidExperimentalLlamaServer = tasks.register<Exec>("prepareH
 
 if (!skipHermesAndroidLinuxAssets) {
     androidComponents.onVariants { variant ->
-        variant.sources.assets?.addGeneratedSourceDirectory(prepareHermesAndroidLinuxAssets) {
-            generatedHermesLinuxAssetsDir
+        if (!variant.name.startsWith("play")) {
+            variant.sources.assets?.addGeneratedSourceDirectory(prepareHermesAndroidLinuxAssets) {
+                generatedHermesLinuxAssetsDir
+            }
         }
         variant.sources.assets?.addGeneratedSourceDirectory(prepareHermesAndroidExperimentalLlamaServer) {
             generatedHermesExperimentalLlamaAssetsDir
         }
-        variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareHermesAndroidNativeLibs) {
-            generatedHermesNativeLibsDir
+        if (!variant.name.startsWith("play")) {
+            variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareHermesAndroidNativeLibs) {
+                generatedHermesNativeLibsDir
+            }
         }
         variant.sources.jniLibs?.addGeneratedSourceDirectory(prepareHermesAndroidExperimentalLlamaServer) {
             generatedHermesExperimentalLlamaLibsDir
@@ -743,7 +767,7 @@ fun normalizeChaquopyBuildJson(variant: String) {
         return
     }
     val buildJson = layout.buildDirectory.file(
-        "python/assets/build/${variant.lowercase()}/chaquopy/build.json"
+        "python/assets/build/${variant.replaceFirstChar { it.lowercase() }}/chaquopy/build.json"
     ).get().asFile
     if (!buildJson.isFile) {
         return
@@ -763,7 +787,7 @@ fun normalizeChaquopyRequirementsImy(variant: String) {
         return
     }
     val requirementsImy = layout.buildDirectory.file(
-        "python/assets/requirements/${variant.lowercase()}/chaquopy/requirements-common.imy"
+        "python/assets/requirements/${variant.replaceFirstChar { it.lowercase() }}/chaquopy/requirements-common.imy"
     ).get().asFile
     if (!requirementsImy.isFile) {
         return

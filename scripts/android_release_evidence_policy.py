@@ -22,6 +22,7 @@ def physical_validation_waiver(tag: str) -> dict[str, Any] | None:
     authorization = {
         "v0.13.154": "Explicit release-owner instruction on 2026-09-07 to skip phone validation and publish this release.",
         "v0.13.155": "Explicit release-owner instruction on 2026-09-07 to skip physical-phone validation for the corrective F-Droid follow-up release.",
+        "v0.13.156": "Explicit release-owner instruction on 2026-09-07 to waive physical-device validation for v156 only; require AVD validation and both post-release F-Droid gates, with physical Play submission videos deferred until the owner reconnects the phone.",
     }.get(normalized_tag)
     if authorization is None:
         return None

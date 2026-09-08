@@ -45,6 +45,7 @@ object HermesLinuxSandboxBridge {
         cancellationRequested: () -> Boolean = { false },
         publicationGate: AutomationPublicationGate? = null,
     ): JSONObject {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Linux sandbox management")
         throwIfCancellationRequested(cancellationRequested)
         val normalizedAction = normalizeAction(action)
         val normalizedDistroId = normalizeArgumentValue(distroId)

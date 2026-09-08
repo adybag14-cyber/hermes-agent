@@ -105,6 +105,7 @@ object HermesTermuxPackageManager {
         requestOwned: Boolean = publicationGate != null,
     ): JSONObject {
         val app = context.applicationContext
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Native package management")
         val normalizedAction = action.trim().lowercase().ifBlank { "status" }
         throwIfPackageRequestCancelled(cancellationRequested)
         if (mirrorProfile.isNotBlank()) {

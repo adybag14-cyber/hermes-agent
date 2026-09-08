@@ -13,6 +13,10 @@ class HermesAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        if (!com.mobilefork.hermesagent.privacy.PrivacyConsentStore(this).accessibilityAllowed()) {
+            disableSelf()
+            return
+        }
         HermesAccessibilityController.bind(this)
         automationScope.launch {
             DeviceStateWriter.write(applicationContext)
@@ -20,6 +24,7 @@ class HermesAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (!com.mobilefork.hermesagent.privacy.PrivacyConsentStore(this).accessibilityAllowed()) return
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             return
         }

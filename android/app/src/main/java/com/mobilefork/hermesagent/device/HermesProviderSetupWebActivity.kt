@@ -431,6 +431,7 @@ class HermesProviderSetupWebActivity : ComponentActivity() {
             if (external.success) {
                 return external
             }
+            if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return external
             val appContext = context.applicationContext
             return runCatching {
                 appContext.startActivity(createIntent(appContext, uri, title))

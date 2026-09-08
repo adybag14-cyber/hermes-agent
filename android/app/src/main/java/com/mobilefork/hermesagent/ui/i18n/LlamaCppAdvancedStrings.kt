@@ -2,6 +2,12 @@ package com.mobilefork.hermesagent.ui.i18n
 
 /** Focused six-language copy for the expert llama.cpp runtime controls. */
 internal fun llamaCppAdvancedText(language: AppLanguage, key: String): String {
+    if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION && key in setOf("description", "stable_description", "experimental_description")) {
+        return PlaySettingsText.packagedEngine(language)
+    }
+    if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION && key == "stable") {
+        return PlaySettingsText.conventionalCache(language)
+    }
     return when (key) {
         "title" -> when (language) {
             AppLanguage.CHINESE -> "llama.cpp 高级设置"

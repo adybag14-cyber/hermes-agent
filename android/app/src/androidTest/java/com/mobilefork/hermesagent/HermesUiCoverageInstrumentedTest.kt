@@ -603,6 +603,7 @@ class HermesUiCoverageInstrumentedTest {
         SettingsPage.Models -> "HermesImportModelButton"
         SettingsPage.Theme -> "HermesAppearanceCardTop"
         SettingsPage.Tools -> "McpExternalRuntimeUnavailable"
+        SettingsPage.Privacy -> "PrivacySafetyCard"
     }
 
     private fun openAppearancePage(strings: HermesStrings) {

@@ -26,6 +26,7 @@ class HermesRuntimeService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Background runtime service")
         createNotificationChannel()
         promoteToForeground(runtime = null)
         running = true
@@ -48,6 +49,8 @@ class HermesRuntimeService : Service() {
         super.onDestroy()
     }
 
+    // This service is absent from the Play manifest and guarded at creation and start.
+    @android.annotation.SuppressLint("NotificationPermission")
     private fun startOrRefreshForeground() {
         promoteToForeground(runtime = null)
         running = true
@@ -55,7 +58,11 @@ class HermesRuntimeService : Service() {
             DeviceStateWriter.write(applicationContext)
             val runtime = HermesRuntimeManager.ensureStarted(applicationContext)
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            manager.notify(NOTIFICATION_ID, buildNotification(runtime))
+            if (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(
+                    this@HermesRuntimeService, android.Manifest.permission.POST_NOTIFICATIONS,
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                manager.notify(NOTIFICATION_ID, buildNotification(runtime))
+            }
             running = true
             DeviceStateWriter.write(applicationContext)
         }
@@ -129,6 +136,7 @@ class HermesRuntimeService : Service() {
         private var running: Boolean = false
 
         fun start(context: Context) {
+            com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Persistent background agent")
             val intent = Intent(context, HermesRuntimeService::class.java)
             runCatching {
                 context.startService(intent)

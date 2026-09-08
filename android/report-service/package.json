@@ -1,0 +1,8 @@
+{
+  "name": "hermes-private-content-reports",
+  "version": "0.13.156",
+  "private": true,
+  "type": "module",
+  "scripts": {"test": "node --test worker.test.mjs"},
+  "engines": {"node": ">=24 <25"}
+}

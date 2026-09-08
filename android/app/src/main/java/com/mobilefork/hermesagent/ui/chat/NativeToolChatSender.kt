@@ -568,6 +568,7 @@ internal class NativeToolOperationLaneGuard {
 internal object NativeToolChatSender {
     private val operationLaneGuard = NativeToolOperationLaneGuard()
     fun extractTypedDirectToolName(prompt: String): String? {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return null
         val authority = NativeDirectToolAuthorityParser.parse(prompt)
         return authority.toolName?.takeIf { authority.isTypedInvocation }
     }
@@ -590,18 +591,21 @@ internal object NativeToolChatSender {
     }
 
     fun extractDirectDiagnosticsArguments(prompt: String): JSONObject? {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return null
         val authority = NativeDirectToolAuthorityParser.parse(prompt)
         if (!authority.allows("android_device_diagnostics_tool")) return null
         return authority.arguments().takeIf { it.optString("action").isNotBlank() }
     }
 
     fun extractDirectReadOnlyTerminalCommand(prompt: String): String? {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return null
         val authority = NativeDirectToolAuthorityParser.parse(prompt)
         if (authority.source != NativeDirectToolAuthority.Source.CLOSED_NATURAL_READ_ONLY_TERMINAL) return null
         return authority.arguments().optString("command").takeIf { it.isNotBlank() }
     }
 
     fun extractDirectLinuxSandboxPrompt(prompt: String): Boolean {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return false
         val authority = NativeDirectToolAuthorityParser.parse(prompt)
         return authority.isTypedInvocation &&
             (authority.allows("linux_sandbox_tool") || authority.allows("mcp_run_in_proot")) &&
@@ -656,6 +660,10 @@ internal object NativeToolChatSender {
         relevantMemoryContext: String,
         onEvent: (NativeAgentEvent) -> Unit = {},
     ): NativeToolChatOperation<NativeToolChatSendResult> {
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) {
+            return preparePlayChatOperation(context, baseUrl, modelName, apiKey, providerId,
+                sessionId, userText, userContentParts, priorMessages)
+        }
         return prepareOperation(context) { client ->
             val result = client.send(
                 baseUrl = baseUrl,

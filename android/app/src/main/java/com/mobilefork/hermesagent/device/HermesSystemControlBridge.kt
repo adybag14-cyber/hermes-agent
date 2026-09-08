@@ -223,6 +223,7 @@ object HermesSystemControlBridge {
         derivedDeviceStateWriter: (Context) -> Unit,
     ): HermesSystemActionResult {
         val appContext = context.applicationContext
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Device-control actions")
         if (publicationGate != null && isUncancellablePrivilegedAction(action)) {
             return HermesSystemActionResult(
                 success = false,
@@ -327,7 +328,9 @@ object HermesSystemControlBridge {
                 Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS),
                 "Opened usage access settings",
             )
-            "open_accessibility_settings" -> launchIntent(appContext, action, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "Opened accessibility settings")
+            "open_accessibility_settings" -> launchIntent(appContext, action,
+                com.mobilefork.hermesagent.privacy.AccessibilityDisclosureActivity.intent(appContext),
+                "Opened Hermes accessibility disclosure; user consent and Android permission are separate")
             "open_developer_options",
             "open_wireless_debugging_settings",
             "open_shizuku_app",

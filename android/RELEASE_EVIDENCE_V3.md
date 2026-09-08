@@ -14,10 +14,13 @@ SDK upgrade. A model-lab APK is not a release-certified or phone-upgrade APK.
 
 **Version-scoped owner waivers:** On 2026-09-07 the release owner explicitly
 waived physical-phone validation for stable `v0.13.154`, then separately waived
-it for the corrective `v0.13.155` follow-up. Each version records validation as
+it for the corrective `v0.13.155` follow-up. The owner then separately waived
+physical validation for stable `v0.13.156` while requiring PC AVD validation,
+publication, both post-release F-Droid checks, and later physical Play submission
+videos when the phone is reconnected. Each version records validation as
 **not performed, owner-waived**, not as passing phone evidence. The source-bound
 emulator, signing, hosted workflow, and both post-publication F-Droid gates remain
-required. Neither waiver applies to prereleases or v0.13.156 and later; their
+required. These waivers do not apply to prereleases or v0.13.157 and later; their
 physical gate remains in force. Do not reuse older API 35 phone results as API 36 proof.
 
 The app and macrobenchmark compile and target API 36 with Build Tools 36.0.0.

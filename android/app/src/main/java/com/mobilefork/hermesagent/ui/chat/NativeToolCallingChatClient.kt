@@ -201,6 +201,7 @@ class NativeToolCallingChatClient(
     }
 
     private fun beforeToolDispatch(toolName: String) {
+        com.mobilefork.hermesagent.play.DistributionPolicy.requireFullEdition("Agent tool execution")
         ensureNotCancelled()
         onToolDispatch(toolName)
         // An observer is normally a no-op, but keeping this second check makes the boundary

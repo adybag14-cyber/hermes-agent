@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <!-- Play is a foreground AI client. Full-edition automation is not a declared Play capability. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" tools:node="remove" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />
+    <!-- Lint inspects these removal directives as permission requests; the binary validator forbids both. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:node="remove" tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:node="remove" tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.BLUETOOTH" tools:node="remove" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" tools:node="remove" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:node="remove" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:node="remove" />
+    <uses-permission android:name="android.permission.NFC" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" tools:node="remove" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" tools:node="remove" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" tools:node="remove" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove" />
+    <uses-permission android:name="moe.shizuku.manager.permission.API" tools:node="remove" />
+    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" tools:node="remove" />
+    <uses-feature android:name="android.hardware.nfc" tools:node="remove" />
+    <uses-feature android:name="android.hardware.usb.host" tools:node="remove" />
+    <uses-feature android:name="android.hardware.bluetooth" tools:node="remove" />
+    <uses-feature android:name="android.hardware.bluetooth_le" tools:node="remove" />
+    <queries tools:node="replace">
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent>
+        <intent><action android:name="android.media.action.IMAGE_CAPTURE" /></intent>
+    </queries>
+    <application android:label="Hermes Agent Fork — Play" tools:replace="android:label">
+        <activity android:name=".MainActivity" tools:node="remove" />
+        <activity android:name=".play.PlayActivity" android:exported="true" android:resizeableActivity="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".privacy.AccessibilityDisclosureActivity" tools:node="remove" />
+        <activity android:name=".device.HermesProviderSetupWebActivity" tools:node="remove" />
+        <activity android:name=".device.HermesTaskerPluginEditActivity" tools:node="remove" />
+        <activity android:name=".device.HermesTaskerConditionEditActivity" tools:node="remove" />
+        <activity android:name=".device.HermesTaskerEventEditActivity" tools:node="remove" />
+        <service android:name=".backend.HermesRuntimeService" tools:node="remove" />
+        <service android:name=".device.HermesFloatingButtonService" tools:node="remove" />
+        <service android:name=".device.HermesLogcatWatcherService" tools:node="remove" />
+        <service android:name=".device.HermesSensorWatcherService" tools:node="remove" />
+        <service android:name=".device.HermesCalendarWatcherService" tools:node="remove" />
+        <service android:name=".device.HermesLocationWatcherService" tools:node="remove" />
+        <service android:name=".device.HermesAccessibilityService" tools:node="remove" />
+        <service android:name=".device.HermesNotificationListenerService" tools:node="remove" />
+        <service android:name=".device.HermesQuickSettingsTileService" tools:node="remove" />
+        <receiver android:name=".device.HermesAutomationWidgetProvider" tools:node="remove" />
+        <receiver android:name=".device.HermesAutomationReceiver" tools:node="remove" />
+        <receiver android:name=".device.HermesExternalTriggerReceiver" tools:node="remove" />
+        <receiver android:name=".device.HermesTaskerPluginFireReceiver" tools:node="remove" />
+        <receiver android:name=".device.HermesTaskerConditionQueryReceiver" tools:node="remove" />
+        <provider android:name="rikka.shizuku.ShizukuProvider" tools:node="remove" />
+        <meta-data android:name="moe.shizuku.client.V3_SUPPORT" tools:node="remove" />
+    </application>
+</manifest>

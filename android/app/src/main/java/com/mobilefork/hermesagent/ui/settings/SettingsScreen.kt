@@ -2,6 +2,8 @@
 
 package com.mobilefork.hermesagent.ui.settings
 
+import com.mobilefork.hermesagent.ui.i18n.playEditionSummary
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +66,7 @@ enum class SettingsPage(val route: String, val label: String) {
     Models("/settings/models", "Models"),
     Theme("/settings/theme", "Theme"),
     Tools("/settings/tools", "Tools"),
+    Privacy("/settings/privacy", "Privacy and safety"),
 }
 
 internal val appearanceCardShapes = listOf("rounded", "soft", "square")
@@ -121,6 +124,11 @@ fun SettingsScreen(
                             onSelectPage = { selectedPageName = it.name },
                             strings = strings,
                         )
+                    }
+                    if (selectedPage == SettingsPage.Privacy) {
+                    item {
+                        com.mobilefork.hermesagent.ui.privacy.PrivacySafetyCard(strings)
+                    }
                     }
                     if (selectedPage == SettingsPage.Overview) {
                     item {
@@ -271,7 +279,7 @@ fun SettingsScreen(
                             strings = strings,
                         )
                     }
-                    item {
+                    if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) item {
                         AgentEndpointCard(
                             loopbackUrl = uiState.agentLoopbackUrl,
                             lanUrl = uiState.agentLanUrl,
@@ -283,7 +291,7 @@ fun SettingsScreen(
                         )
                     }
                     }
-                    if (selectedPage == SettingsPage.Tools) {
+                    if (selectedPage == SettingsPage.Tools && !com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) {
                     item {
                         McpSettingsSection(selectedProviderId = uiState.provider)
                     }
@@ -645,7 +653,9 @@ private fun SettingsPageNavigation(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                SettingsPage.entries.forEach { page ->
+                SettingsPage.entries.filter {
+                    !com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION || it != SettingsPage.Tools
+                }.forEach { page ->
                     Button(
                         onClick = { onSelectPage(page) },
                         modifier = Modifier.testTag("HermesSettingsPage_${page.name}"),
@@ -705,7 +715,9 @@ private fun ModelGenerationConfigCard(
         ) {
             Text(settingsGenerationText(language, "configurations"), style = MaterialTheme.typography.titleMedium)
             TabRow(selectedTabIndex = selectedTab.ordinal) {
-                ModelConfigTab.entries.forEach { tab ->
+                ModelConfigTab.entries.filter {
+                    !com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION || it != ModelConfigTab.ToolGuidance
+                }.forEach { tab ->
                     Tab(
                         modifier = Modifier.testTag("LocalModelConfigTab-${tab.name}"),
                         selected = selectedTab == tab,
@@ -1478,9 +1490,10 @@ private fun SettingsHelpCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(strings.settingsHelpStart)
+            Text(if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION)
+                strings.playEditionSummary() else strings.settingsHelpStart)
             // Accounts keeps app sign-in separate from provider key setup.
-            Text(strings.settingsHelpAccounts)
+            if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) Text(strings.settingsHelpAccounts)
             Text(strings.currentProviderProfile(providerLabel))
         }
     }
@@ -1531,7 +1544,10 @@ private fun RemoteFallbackCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                ProviderPresets.androidSettingsDefaults.forEach { preset ->
+                ProviderPresets.androidSettingsDefaults.filter {
+                    !com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION ||
+                        com.mobilefork.hermesagent.play.PlayNetworkPolicy.supportsProvider(it.id)
+                }.forEach { preset ->
                     Button(
                         onClick = { onSelectProvider(preset.id) },
                         enabled = preset.id != providerId,
@@ -1541,7 +1557,9 @@ private fun RemoteFallbackCard(
                 }
             }
             Text(strings.currentProviderProfile(providerLabel), style = MaterialTheme.typography.bodySmall)
-            providerPreset?.apiKeyUrl?.takeIf { it.isNotBlank() }?.let { apiKeyUrl ->
+            providerPreset?.apiKeyUrl?.takeIf {
+                it.isNotBlank() && !com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION
+            }?.let { apiKeyUrl ->
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1558,7 +1576,7 @@ private fun RemoteFallbackCard(
                     }
                 }
             }
-            Button(onClick = onImportProviderCredential) {
+            if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) Button(onClick = onImportProviderCredential) {
                 Text(strings.importSavedProviderCredential())
             }
             if (status.isNotBlank()) {

@@ -4197,6 +4197,7 @@ data class HermesStrings(
     fun optionalApiTokenLabel(): String = tr("API token (optional)", "API 令牌（可选）", "Token API (opcional)", "API-Token (optional)", "Token de API (opcional)", "Jeton API (facultatif)")
 
     fun settingsPageLabel(page: String): String = when (page) {
+        "Privacy" -> privacyText(PrivacyText.PRIVACY)
         "Models" -> tr("Models", "模型", "Modelos", "Modelle", "Modelos", "Modèles")
         "Theme" -> tr("Theme", "主题", "Tema", "Design", "Tema", "Thème")
         "Tools" -> tr("Tools", "工具", "Herramientas", "Werkzeuge", "Ferramentas", "Outils")

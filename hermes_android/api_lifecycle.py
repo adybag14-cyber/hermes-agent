@@ -70,6 +70,9 @@ class OwnedApiRuntimeMixin:
             self._owned_shutdown_requested = True
 
     def _run_conversation_with_owned_runtime(self, agent: Any, **kwargs: Any) -> Dict[str, Any]:
+        from hermes_android.privacy import require_remote_processing_consent
+
+        require_remote_processing_consent()
         return self._run_with_owned_runtime(lambda: agent.run_conversation(**kwargs))
 
     def _register_owned_agent(self, agent: Any) -> bool:

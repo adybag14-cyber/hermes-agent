@@ -25,10 +25,10 @@ cd ~/fdroiddata-hermes
 ```
 
 Run that preview from a fresh clone of the live `fdroiddata` metadata after the
-GitHub tag exists. `--auto` must create the local 0.13.155/145590 build recipe
+GitHub tag exists. `--auto` must create the local 0.13.156/145690 build recipe
 and resolve its exact tag commit. The autoupdater copies the prior build recipe,
 so its output is not yet eligible for the pinned build. From the same WSL shell,
-render and verify the v0.13.155 source-binding fields from the committed Hermes
+render and verify the v0.13.156 source-binding fields from the committed Hermes
 template into that generated build:
 
 ```sh
@@ -46,7 +46,7 @@ git -C "$FDROIDDATA_ROOT" diff -- \
   metadata/com.mobilefork.hermesagent.yml
 ```
 
-The render transaction requires exactly one 0.13.155/145590 build, preserves
+The render transaction requires exactly one 0.13.156/145690 build, preserves
 the autoupdater-resolved full Git commit, every historical `Builds` entry, and
 all unrelated live metadata, and overlays the exact `sudo`, `ndk`, `gradle`,
 `gradleprops`, `scanignore`, and `prebuild` fields. It then verifies that
@@ -73,15 +73,15 @@ the clean source-binding handoff and before the declared Gradle transformations,
 with all generated files in the external Gradle cache. Both GitHub and F-Droid
 use the same builder and hash-locked trusted wheels; see `android/PYTHON_RUNTIME.md`.
 
-The v0.13.155 recipe records two exact scanner exceptions. The computed Maven
+The v0.13.156 recipe records one exact scanner exception. The computed Maven
 path in `android/settings.gradle.kts` is the local source-built Python bootstrap
 repository, restricted by `exclusiveContent` to `com.chaquo.python.runtime:bootstrap`.
 Its source lock, requirements hash, complete file inventory, sizes, and hashes are
 verified before Gradle consumes it. The pinned scanner mistakes `lab.resolve(`
-for an unknown remote URL. `apps/bootstrap-installer/src-tauri/Cargo.toml` belongs
-to the separate Windows Tauri installer, which is neither an Android Gradle
-project nor part of the private Android runtime wheel. Its missing lockfile is
-not an Android build dependency. These two paths remain source-integrity checked;
+for an unknown remote URL. The separate Windows Tauri installer now tracks its
+generated `apps/bootstrap-installer/src-tauri/Cargo.lock`, so its manifest no
+longer needs the v0.13.155 scanner exception. Both installer files and the
+Android settings remain source-integrity checked;
 the complete scanner still runs, and the metadata verifier rejects omitted,
 additional, or broadened scanner exceptions. No whole-directory scan exclusion
 or `--skip-scan` is used.
