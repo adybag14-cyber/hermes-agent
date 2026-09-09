@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Join the Hermes Agent Fork tester group, then opt in to the Google Play closed test when the release is available.">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'; upgrade-insecure-requests">
+  <title>Join the Play test · Hermes Agent Fork</title>
+  <link rel="canonical" href="https://adybag14-cyber.github.io/hermes-agent/testing/">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to signup steps</a>
+  <header class="site-header">
+    <a class="brand" href="../">Hermes Agent Fork</a>
+    <a href="../privacy-policy/">Privacy policy</a>
+  </header>
+  <main id="main">
+    <div class="intro">
+      <p class="eyebrow">Android · Google Play edition · Adults 18+</p>
+      <h1>Join the Play test</h1>
+      <p>Use the same Google account for both steps. Joining the group makes you eligible; Google Play asks you to opt in separately.</p>
+    </div>
+
+    <div class="signup-layout">
+      <ol class="steps" aria-label="Tester signup steps">
+        <li class="step">
+          <div class="step-heading"><span class="step-number" aria-hidden="true">1</span><h2>Join the tester group</h2></div>
+          <p>Open the group on Google, sign in with the account you use in the Play Store, and choose <strong>Join group</strong>.</p>
+          <a class="button primary" href="https://groups.google.com/g/hermes-agent-fork-testers/about" target="_blank" rel="noopener noreferrer">Join Hermes testers <span class="new-tab">(opens Google Groups)</span></a>
+          <p class="small">You can choose <strong>No email</strong> in your Google Groups subscription settings. The member list and email addresses are restricted to the group’s owners and managers.</p>
+        </li>
+        <li class="step pending">
+          <div class="step-heading"><span class="step-number" aria-hidden="true">2</span><h2>Opt in on Google Play</h2></div>
+          <p id="release-status">The Alpha release is still being prepared and is not available to closed testers yet. You can join the group now; this step will open after Google review and rollout.</p>
+          <!-- Enable the official opt-in link only after verifying the closed release is available.
+               https://play.google.com/apps/testing/com.mobilefork.hermesagent -->
+          <button class="button" type="button" disabled aria-describedby="release-status">Play opt-in opens after release</button>
+          <p class="small">Once available, open the official testing page and choose <strong>Become a tester</strong>. Then install the app through Google Play.</p>
+        </li>
+      </ol>
+
+      <aside class="status-panel" aria-labelledby="status-title">
+        <p class="eyebrow">Current status</p>
+        <h2 id="status-title">Group signup is open</h2>
+        <p class="status-note">Google Play Alpha is not live yet.</p>
+        <dl>
+          <div><dt>Test type</dt><dd>Closed Alpha</dd></div>
+          <div><dt>App</dt><dd>Hermes Agent Fork</dd></div>
+          <div><dt>Edition</dt><dd>Play: foreground AI chat and packaged local inference</dd></div>
+        </dl>
+        <p class="small">This is an independent community fork, not official Nous Research or Teknium software.</p>
+      </aside>
+    </div>
+
+    <section class="details" aria-labelledby="before-you-join">
+      <h2 id="before-you-join">Before you join</h2>
+      <details>
+        <summary>Does joining the group complete my Play signup?</summary>
+        <p>No. Group membership controls eligibility. Google Play’s own opt-in step is separate, and only becomes useful when the closed release is available. This page does not claim that you have completed that step.</p>
+      </details>
+      <details>
+        <summary>Which Google account should I use?</summary>
+        <p>Use the account selected in the Play Store on your Android device. If you have several Google accounts, check which one is active on both the group page and the Play testing page.</p>
+        <p>If you already joined the app’s internal test, leave that test before opting in to the closed test. Internal testing is not the same as the closed Alpha.</p>
+      </details>
+      <details>
+        <summary>What is expected of testers?</summary>
+        <p>Try the app in ordinary use and report reproducible problems. Include the app version, Android version, steps to reproduce, and what you expected. Do not include API keys, passwords or private conversations.</p>
+        <p>Joining this group alone does not start Google Play’s qualifying test period. Please keep feedback genuine; creating accounts or joining a list is not a substitute for testing.</p>
+      </details>
+      <details>
+        <summary>What information does this page collect?</summary>
+        <p>This page has no email form, account database, analytics script or embedded sign-in widget. Your membership and test choices are handled on Google’s own pages. The group owners and managers can see your membership and email address.</p>
+        <p>GitHub processes requests to host this page, and Google processes group membership and Play opt-in under their own policies. Read our <a href="../privacy-policy/">privacy policy</a> for details. You can leave the Google Group and opt out of the Play test using Google’s controls.</p>
+      </details>
+    </section>
+
+    <footer>
+      <a href="../privacy-policy/">Privacy and deletion</a>
+      <a href="https://support.google.com/googleplay/android-developer/answer/9845334?hl=en" target="_blank" rel="noopener noreferrer">How Google Play testing works</a>
+      <a href="https://github.com/adybag14-cyber/hermes-agent" target="_blank" rel="noopener noreferrer">Source repository</a>
+    </footer>
+  </main>
+</body>
+</html>
