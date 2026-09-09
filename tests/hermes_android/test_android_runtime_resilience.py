@@ -11,7 +11,6 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     boot_screen = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/boot/BootScreen.kt").read_text(encoding="utf-8")
     chat_view_model = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatViewModel.kt").read_text(encoding="utf-8")
     native_tool_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/NativeToolCallingChatClient.kt").read_text(encoding="utf-8")
-    sse_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/api/HermesSseClient.kt").read_text(encoding="utf-8")
 
     assert "class HermesApplication : Application()" in application
     assert "instance = this" in application
@@ -54,10 +53,8 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     assert "androidSystemStatusReply(parsed)?.let { return it }" in native_tool_client
     assert '"available_privileged_actions"' in native_tool_client
 
-    assert 'internal fun parseStream(' in sse_client
-    assert 'parseStream(source, onDelta, onComplete, onError, onStatus)' in sse_client
-    assert 'runCatching { extractStreamEvent(payload) }' in sse_client
-    assert 'catch (error: Exception)' in sse_client
+    # Stream failures and tool events are executed against real responses in
+    # HermesSseClientTest, not inferred from a source-level call signature.
 
 
 def test_android_python_runtime_smoke_resets_local_backend_selection_before_remote_runtime_probe():

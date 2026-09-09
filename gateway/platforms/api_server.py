@@ -3689,7 +3689,9 @@ class APIServerAdapter(OwnedApiRuntimeMixin, OpenAICompatRoutesMixin, BasePlatfo
             self._register_owned_task_id(effective_task_id)
             if stop_event.is_set():
                 raise InterruptedError("API request was cancelled before agent construction")
-            with self._profile_scope(request_profile):
+            with self._profile_scope(request_profile), self._android_mcp_constructor_context(
+                effective_task_id, bool(conversation_history),
+            ):
                 tokens = self._bind_api_server_session(
                     chat_id=session_id or "", session_key=gateway_session_key or session_id or "",
                     session_id=session_id or "",

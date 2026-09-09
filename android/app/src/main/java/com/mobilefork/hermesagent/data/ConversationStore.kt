@@ -25,7 +25,11 @@ data class StoredConversation(
     val title: String,
     val updatedAtEpochMs: Long,
     val messages: List<StoredConversationMessage>,
-)
+    val titleSource: ConversationTitleSource = ConversationTitleSource.AUTOMATIC,
+) {
+    val isDefaultTitle: Boolean
+        get() = titleSource == ConversationTitleSource.AUTOMATIC && title == ConversationTitles.DEFAULT
+}
 
 data class ConversationSummary(
     val sessionId: String,
@@ -33,6 +37,7 @@ data class ConversationSummary(
     val preview: String,
     val updatedAtEpochMs: Long,
     val messageCount: Int,
+    val isDefaultTitle: Boolean = false,
 )
 
 class ConversationStore(context: Context) {
@@ -59,6 +64,7 @@ class ConversationStore(context: Context) {
                     preview = conversation.messages.lastOrNull()?.content?.trim().orEmpty(),
                     updatedAtEpochMs = conversation.updatedAtEpochMs,
                     messageCount = conversation.messages.size,
+                    isDefaultTitle = conversation.isDefaultTitle,
                 )
             }
             .sortedByDescending { it.updatedAtEpochMs }
@@ -81,9 +87,11 @@ class ConversationStore(context: Context) {
         val now = System.currentTimeMillis()
         val conversation = StoredConversation(
             sessionId = UUID.randomUUID().toString(),
-            title = title,
+            title = ConversationTitles.normalize(title).ifBlank { DEFAULT_TITLE },
             updatedAtEpochMs = now,
             messages = emptyList(),
+            titleSource = if (title.isBlank() || title == DEFAULT_TITLE) ConversationTitleSource.AUTOMATIC
+                else ConversationTitleSource.MANUAL,
         )
         val updated = (readConversations() + conversation).sortedByDescending { it.updatedAtEpochMs }
         writeConversations(updated)
@@ -102,7 +110,9 @@ class ConversationStore(context: Context) {
         if (messages.isEmpty()) return
         val conversations = readConversations().toMutableList()
         val index = conversations.indexOfFirst { it.sessionId == sessionId }
-        val base = if (index >= 0) conversations[index] else createShellConversation(sessionId)
+        // Only creation/switch actions own session selection. Late callbacks cannot recreate a deleted chat.
+        if (index < 0) return
+        val base = conversations[index]
         val updatedMessages = base.messages.toMutableList()
         messages.forEach { message ->
             val existingIndex = updatedMessages.indexOfFirst { it.id == message.id }
@@ -113,7 +123,7 @@ class ConversationStore(context: Context) {
             }
         }
         val updatedConversation = base.copy(
-            title = deriveTitle(base.title, updatedMessages),
+            title = deriveTitle(base, updatedMessages),
             updatedAtEpochMs = maxOf(
                 base.updatedAtEpochMs,
                 messages.maxOf { message -> message.createdAtEpochMs },
@@ -121,18 +131,13 @@ class ConversationStore(context: Context) {
             ),
             messages = updatedMessages,
         )
-        if (index >= 0) {
-            conversations[index] = updatedConversation
-        } else {
-            conversations += updatedConversation
-        }
+        conversations[index] = updatedConversation
         writeConversations(conversations.sortedByDescending { it.updatedAtEpochMs })
-        preferences.edit().putString(KEY_SESSION_ID, sessionId).apply()
     }
 
     @Synchronized
     fun insertMessageBefore(sessionId: String, beforeMessageId: String, message: StoredConversationMessage) {
-        val conversation = loadConversation(sessionId) ?: return upsertMessage(sessionId, message)
+        val conversation = loadConversation(sessionId) ?: return
         if (conversation.messages.any { it.id == message.id }) return
         val beforeIndex = conversation.messages.indexOfFirst { it.id == beforeMessageId }
         val updatedMessages = conversation.messages.toMutableList().apply {
@@ -140,7 +145,7 @@ class ConversationStore(context: Context) {
         }
         replaceConversation(
             conversation.copy(
-                title = deriveTitle(conversation.title, updatedMessages),
+                title = deriveTitle(conversation, updatedMessages),
                 updatedAtEpochMs = System.currentTimeMillis(),
                 messages = updatedMessages,
             ),
@@ -155,7 +160,7 @@ class ConversationStore(context: Context) {
         }
         replaceConversation(
             conversation.copy(
-                title = deriveTitle(conversation.title, updatedMessages),
+                title = deriveTitle(conversation, updatedMessages),
                 updatedAtEpochMs = System.currentTimeMillis(),
                 messages = updatedMessages,
             )
@@ -181,7 +186,7 @@ class ConversationStore(context: Context) {
         }
         replaceConversation(
             conversation.copy(
-                title = deriveTitle(conversation.title, updatedMessages),
+                title = deriveTitle(conversation, updatedMessages),
                 updatedAtEpochMs = System.currentTimeMillis(),
                 messages = updatedMessages,
             ),
@@ -200,13 +205,34 @@ class ConversationStore(context: Context) {
 
     @Synchronized
     fun clearConversation(sessionId: String): StoredConversation {
+        val currentId = preferences.getString(KEY_SESSION_ID, null)
         val remaining = readConversations().filterNot { it.sessionId == sessionId }
         writeConversations(remaining)
-        val next = remaining.firstOrNull()?.let {
+        val next = (remaining.firstOrNull { it.sessionId == currentId } ?: remaining.firstOrNull())?.let {
             preferences.edit().putString(KEY_SESSION_ID, it.sessionId).apply()
             it
         } ?: createNewConversation()
         return next
+    }
+
+    @Synchronized
+    fun renameConversation(sessionId: String, title: String): Boolean {
+        val normalized = ConversationTitles.normalize(title)
+        if (normalized.isBlank()) return false
+        val conversation = loadConversation(sessionId) ?: return false
+        replaceConversation(conversation.copy(title = normalized, titleSource = ConversationTitleSource.MANUAL))
+        return true
+    }
+
+    @Synchronized
+    fun regenerateConversationTitle(sessionId: String): Boolean {
+        val conversation = loadConversation(sessionId) ?: return false
+        replaceConversation(conversation.copy(
+            title = ConversationTitles.regenerate(conversation.messages),
+            titleSource = if (conversation.messages.none { it.role == "user" && it.content.isNotBlank() })
+                ConversationTitleSource.AUTOMATIC else ConversationTitleSource.LOCAL_REGENERATED,
+        ))
+        return true
     }
 
     @Synchronized
@@ -231,7 +257,7 @@ class ConversationStore(context: Context) {
             if (message.id == messageId) message.copy(content = newContent) else message
         }
         conversations[index] = conversation.copy(
-            title = deriveTitle(conversation.title, updatedMessages),
+            title = deriveTitle(conversation, updatedMessages),
             updatedAtEpochMs = System.currentTimeMillis(),
             messages = updatedMessages,
         )
@@ -262,22 +288,9 @@ class ConversationStore(context: Context) {
     private fun replaceConversation(updatedConversation: StoredConversation) {
         val conversations = readConversations().toMutableList()
         val index = conversations.indexOfFirst { it.sessionId == updatedConversation.sessionId }
-        if (index >= 0) {
-            conversations[index] = updatedConversation
-        } else {
-            conversations += updatedConversation
-        }
+        if (index < 0) return
+        conversations[index] = updatedConversation
         writeConversations(conversations.sortedByDescending { it.updatedAtEpochMs })
-        preferences.edit().putString(KEY_SESSION_ID, updatedConversation.sessionId).apply()
-    }
-
-    private fun createShellConversation(sessionId: String): StoredConversation {
-        return StoredConversation(
-            sessionId = sessionId,
-            title = DEFAULT_TITLE,
-            updatedAtEpochMs = System.currentTimeMillis(),
-            messages = emptyList(),
-        )
     }
 
     private fun readConversations(): List<StoredConversation> {
@@ -307,24 +320,15 @@ class ConversationStore(context: Context) {
         preferences.edit().putString(KEY_CONVERSATIONS, array.toString()).apply()
     }
 
-    private fun deriveTitle(existingTitle: String, messages: List<StoredConversationMessage>): String {
-        val firstUserText = messages.firstOrNull { it.role == "user" }
-            ?.content
-            ?.trim()
-            .orEmpty()
-            .removePrefix("/")
-            .ifBlank { existingTitle }
-        if (firstUserText.isBlank()) {
-            return existingTitle.ifBlank { DEFAULT_TITLE }
-        }
-        val collapsed = firstUserText.replace(Regex("\\s+"), " ")
-        return if (collapsed.length > 48) collapsed.take(45) + "..." else collapsed
-    }
+    private fun deriveTitle(conversation: StoredConversation, messages: List<StoredConversationMessage>): String =
+        if (conversation.titleSource == ConversationTitleSource.AUTOMATIC)
+            ConversationTitles.automatic(conversation.title, messages) else conversation.title
 
     private fun StoredConversation.toJson(): JSONObject {
         return JSONObject().apply {
             put("sessionId", sessionId)
             put("title", title)
+            put("titleSource", titleSource.persistedValue)
             put("updatedAtEpochMs", updatedAtEpochMs)
             put(
                 "messages",
@@ -349,6 +353,7 @@ class ConversationStore(context: Context) {
             title = optString("title", DEFAULT_TITLE),
             updatedAtEpochMs = optLong("updatedAtEpochMs", System.currentTimeMillis()),
             messages = messages,
+            titleSource = ConversationTitleSource.fromPersistedValue(optString("titleSource")),
         )
     }
 

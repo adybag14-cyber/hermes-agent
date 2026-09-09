@@ -36,6 +36,75 @@ class ConversationStoreRobotest {
     }
 
     @Test
+    fun chosenTitleSurvivesMessageBatchesStreamingAndReload() {
+        val conversation = store.createNewConversation("我的项目计划")
+        store.upsertMessages(conversation.sessionId, listOf(
+            StoredConversationMessage("question", "user", "你好", 1L),
+            StoredConversationMessage("reply", "assistant", "", 2L),
+        ))
+        store.updateMessageContentInMemory(conversation.sessionId, "reply", "Streaming reply")
+        store.flushCacheToDisk()
+        store = ConversationStore(RuntimeEnvironment.getApplication())
+        assertEquals("我的项目计划", store.loadConversation(conversation.sessionId)?.title)
+        val active = store.createNewConversation()
+        assertFalse(store.renameConversation(conversation.sessionId, " \n\t "))
+        assertTrue(store.renameConversation(conversation.sessionId, "New chat"))
+        store.insertMessageBefore(conversation.sessionId, "reply", StoredConversationMessage("call", "tool_call", "pwd", 3L))
+        store.updateMessageContent(conversation.sessionId, "reply", "Complete reply")
+        assertEquals(active.sessionId, store.currentSessionId())
+        assertEquals("New chat", store.loadConversation(conversation.sessionId)?.title)
+        assertFalse(store.listConversationSummaries().first { it.sessionId == conversation.sessionId }.isDefaultTitle)
+    }
+
+    @Test
+    fun legacyHistoryCanRegenerateLocallyWithoutChangingMessagesOrActiveSelection() {
+        val context = RuntimeEnvironment.getApplication()
+        val legacy = """[{"sessionId":"legacy","title":"你好","updatedAtEpochMs":1,"messages":[
+            {"id":"greeting","role":"user","content":"你好！","createdAtEpochMs":1},
+            {"id":"reply","role":"assistant","content":"provider text is not a title source","createdAtEpochMs":2},
+            {"id":"question","role":"user","content":"请检查安卓存储空间和可用内存","createdAtEpochMs":3}
+        ]}]"""
+        context.getSharedPreferences("hermes_android_conversation", 0).edit()
+            .putString("conversations_json", legacy).putString("session_id", "legacy").commit()
+        store = ConversationStore(context)
+        val messagesBefore = store.loadConversation("legacy")!!.messages
+        val active = store.createNewConversation()
+        assertTrue(store.regenerateConversationTitle("legacy"))
+        assertEquals(active.sessionId, store.currentSessionId())
+        assertEquals("请检查安卓存储空间和可用内存", store.loadConversation("legacy")!!.title)
+        assertEquals(messagesBefore, store.loadConversation("legacy")!!.messages)
+        store.updateMessageContentInMemory("legacy", "reply", "New streamed result")
+        store.flushCacheToDisk()
+        store = ConversationStore(context)
+        assertEquals("请检查安卓存储空间和可用内存", store.loadConversation("legacy")!!.title)
+        assertTrue(store.renameConversation("legacy", "😀".repeat(100)))
+        val title = store.loadConversation("legacy")!!.title
+        assertEquals(96, title.codePointCount(0, title.length))
+        assertTrue(title.endsWith("…"))
+    }
+
+    @Test
+    fun deletionPreservesAnotherActiveChatAndLateEventsCannotResurrectDeletedChat() {
+        val active = store.createNewConversation()
+        val inactive = store.createNewConversation()
+        val newest = store.createNewConversation()
+        store.switchConversation(active.sessionId)
+        store.clearConversation(inactive.sessionId)
+        assertEquals(active.sessionId, store.currentSessionId())
+        store.upsertMessage(inactive.sessionId, StoredConversationMessage("late", "assistant", "late", 1L))
+        store.insertMessageBefore(inactive.sessionId, "late", StoredConversationMessage("tool", "tool_result", "late", 2L))
+        store.flushCacheToDisk()
+        store = ConversationStore(RuntimeEnvironment.getApplication())
+        assertEquals(null, store.loadConversation(inactive.sessionId))
+        assertEquals(active.sessionId, store.currentSessionId())
+        store.clearConversation(active.sessionId)
+        assertEquals(newest.sessionId, store.currentSessionId())
+        store.clearConversation(newest.sessionId)
+        assertTrue(store.currentConversationMessages().isEmpty())
+        assertFalse(store.currentSessionId() in setOf(active.sessionId, inactive.sessionId, newest.sessionId))
+    }
+
+    @Test
     fun terminalPlaceholderUpdateOnlyReplacesBlankAssistantContent() {
         val conversation = store.createNewConversation()
         store.upsertMessage(
@@ -108,6 +177,8 @@ class ConversationStoreRobotest {
             "clearSession",
             "updateMessageContentInMemory",
             "flushCacheToDisk",
+            "renameConversation",
+            "regenerateConversationTitle",
         )
 
         writerNames.forEach { writerName ->

@@ -10,6 +10,30 @@ fun HermesStrings.playEditionSummary(): String = when (language) {
 }
 
 object PlaySettingsText {
+    fun localModelHelp(strings: HermesStrings, playEdition: Boolean): String {
+        if (!playEdition) return strings.llamaCppDescription
+        return when (strings.language) {
+            AppLanguage.ENGLISH -> "Run supported GGUF models on this device with the inference engine packaged in the Play app. No Linux installation is needed."
+            AppLanguage.CHINESE -> "使用 Play 应用内置的推理引擎，在此设备上运行支持的 GGUF 模型。无需安装 Linux。"
+            AppLanguage.SPANISH -> "Ejecuta modelos GGUF compatibles en este dispositivo con el motor de inferencia incluido en la app Play. No necesitas instalar Linux."
+            AppLanguage.GERMAN -> "Führen Sie unterstützte GGUF-Modelle mit der in der Play-App enthaltenen Inferenz-Engine auf diesem Gerät aus. Keine Linux-Installation erforderlich."
+            AppLanguage.PORTUGUESE -> "Execute modelos GGUF compatíveis neste dispositivo com o motor de inferência incluído no app Play. Não é necessário instalar Linux."
+            AppLanguage.FRENCH -> "Exécutez les modèles GGUF compatibles sur cet appareil avec le moteur d'inférence intégré à l'application Play. Aucune installation Linux n'est nécessaire."
+        }
+    }
+
+    fun remoteProviderHelp(strings: HermesStrings, playEdition: Boolean): String {
+        if (!playEdition) return strings.remoteFallbackDescription()
+        return when (strings.language) {
+            AppLanguage.ENGLISH -> "Choose a supported remote provider and enter an existing API credential. Tapping a provider fills common defaults; this Play app does not open account signup or payment pages. Sending a message requires your consent."
+            AppLanguage.CHINESE -> "选择支持的远程服务商，并输入已有的 API 凭据。点击服务商可填入常用默认值；此 Play 应用不会打开账户注册或付款页面。发送消息需要您的同意。"
+            AppLanguage.SPANISH -> "Elige un proveedor remoto compatible e introduce una credencial API existente. Al tocarlo se rellenan valores comunes; esta app Play no abre páginas de registro ni pago. Enviar mensajes requiere tu consentimiento."
+            AppLanguage.GERMAN -> "Wählen Sie einen unterstützten Fernanbieter und geben Sie einen vorhandenen API-Schlüssel ein. Antippen setzt Standardwerte; die Play-App öffnet keine Registrierungs- oder Zahlungsseiten. Nachrichten erfordern Ihre Zustimmung."
+            AppLanguage.PORTUGUESE -> "Escolha um provedor remoto compatível e insira uma credencial API existente. Ao tocar nele, os padrões são preenchidos; este app Play não abre páginas de cadastro ou pagamento. O envio exige seu consentimento."
+            AppLanguage.FRENCH -> "Choisissez un fournisseur distant compatible et saisissez un identifiant API existant. Le toucher remplit les valeurs courantes ; cette application Play n'ouvre pas de pages d'inscription ou de paiement. L'envoi requiert votre consentement."
+        }
+    }
+
     fun conventionalCache(language: AppLanguage): String = when (language) {
         AppLanguage.ENGLISH -> "Conventional cache profile"
         AppLanguage.CHINESE -> "常规缓存配置"

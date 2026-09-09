@@ -602,7 +602,7 @@ class HermesUiCoverageInstrumentedTest {
         SettingsPage.Overview -> "SettingsLanguagePicker"
         SettingsPage.Models -> "HermesImportModelButton"
         SettingsPage.Theme -> "HermesAppearanceCardTop"
-        SettingsPage.Tools -> "McpExternalRuntimeUnavailable"
+        SettingsPage.Tools -> "McpRuntimeStatus"
         SettingsPage.Privacy -> "PrivacySafetyCard"
     }
 

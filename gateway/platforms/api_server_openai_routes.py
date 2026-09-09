@@ -23,7 +23,7 @@ except ImportError:  # pragma: no cover - mirrors api_server's optional import
 # Logger parity with the origin module (moved log records keep their name).
 logger = logging.getLogger("gateway.platforms.api_server")
 
-async def _iter_stream_items(stream_q, agent_task, response):
+async def _iter_stream_items(stream_q, agent_task, response, *, request=None):
     """Yield agent stream items until EOS, writing SSE keepalives while idle.
 
     Yields the ``None`` sentinel once so callers can run EOS-only work; when ``agent_task``
@@ -33,6 +33,14 @@ async def _iter_stream_items(stream_q, agent_task, response):
 
     last_activity = time.monotonic()
     while True:
+        if request is not None:
+            transport = request.transport
+            # A buffered keepalive can succeed even after the client closed its
+            # socket. Observe aiohttp's connection state while a tool is silent
+            # so Stop reaches the existing interrupt path without waiting for
+            # another tool result or several keepalive intervals.
+            if transport is None or transport.is_closing() is True:
+                raise ConnectionResetError("SSE client connection closed")
         try:
             item = await asyncio.wait_for(stream_q.get(), timeout=0.5)
         except asyncio.TimeoutError:
@@ -497,6 +505,12 @@ class OpenAICompatRoutesMixin:
             gateway_session_key=gateway_session_key, **agent_overrides, route=route)
         if stream:
             _stream_q = ThreadSafeAsyncQueue()
+            from hermes_android.runtime_identity import is_embedded_android_runtime
+            from hermes_android.tool_activity import android_tool_activity_details
+
+            include_android_details = (
+                is_embedded_android_runtime() and request.headers.get("X-Hermes-Tool-Activity") == "v1"
+            )
             # tool_call_ids with an emitted "running": a "completed" without one (internal/
             # filtered tools) is dropped rather than orphaned on the wire.
             _started_tool_call_ids: set[str] = set()
@@ -507,17 +521,20 @@ class OpenAICompatRoutesMixin:
                     return
                 _started_tool_call_ids.add(tool_call_id)
                 from agent.display import build_tool_preview, get_tool_emoji
-                label = build_tool_preview(function_name, function_args) or function_name
+                label = _redact_api_error_text(build_tool_preview(function_name, function_args) or function_name, limit=240)
                 _stream_q.put_threadsafe(("__tool_progress__", {
                     "tool": function_name, "emoji": get_tool_emoji(function_name), "label": label,
-                    "toolCallId": tool_call_id, "status": "running"}))
+                    "toolCallId": tool_call_id, "status": "running",
+                    **(android_tool_activity_details(function_args) if include_android_details else {})}))
 
             def _on_tool_complete(tool_call_id, function_name, function_args, function_result):
                 if not tool_call_id or tool_call_id not in _started_tool_call_ids:
                     return
                 _started_tool_call_ids.discard(tool_call_id)
                 _stream_q.put_threadsafe(("__tool_progress__", {
-                    "tool": function_name, "toolCallId": tool_call_id, "status": "completed"}))
+                    "tool": function_name, "toolCallId": tool_call_id, "status": "completed",
+                    **(android_tool_activity_details(function_args, function_result, completed=True)
+                       if include_android_details else {})}))
 
             # tool_progress_callback deliberately NOT wired: it would duplicate the structured
             # start/complete callbacks (which carry the tool_call id).
@@ -626,7 +643,7 @@ class OpenAICompatRoutesMixin:
                     "choices": [{"index": 0, "delta": delta, "finish_reason": finish_reason}], **extra}
         try:
             await response.write(_sse_frame(_chunk({"role": "assistant"})))
-            async for delta in _iter_stream_items(stream_q, agent_task, response):
+            async for delta in _iter_stream_items(stream_q, agent_task, response, request=request):
                 if delta is None:
                     break
                 if isinstance(delta, tuple) and len(delta) == 2 and delta[0] == "__tool_progress__":
@@ -662,6 +679,10 @@ class OpenAICompatRoutesMixin:
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
             await _abandon_agent_task(agent_ref, agent_task, "SSE client disconnected")
             logger.info("SSE client disconnected; interrupted agent task %s", completion_id)
+        except asyncio.CancelledError:
+            await _abandon_agent_task(agent_ref, agent_task, "SSE task cancelled",
+                                     reap_source="api_server_sse_cancelled", await_cancel=False)
+            raise
         except Exception:
             # Agent crashed mid-stream: an error chunk beats a TransferEncodingError.
             import traceback as _tb
@@ -691,7 +712,7 @@ class OpenAICompatRoutesMixin:
             instructions=instructions, conversation=conversation, store=store, session_id=session_id)
         try:
             await st.emit_created()
-            async for item in _iter_stream_items(stream_q, agent_task, response):
+            async for item in _iter_stream_items(stream_q, agent_task, response, request=request):
                 if item is None:  # EOS sentinel
                     st.cancel_batch_timer()
                     await st.flush_batch()

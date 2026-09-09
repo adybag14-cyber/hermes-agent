@@ -24,8 +24,9 @@ repository's application ID.
 | Release artifacts | One universal APK and one Android App Bundle |
 | F-Droid update source | Signed Git tags, via `fdroid/com.mobilefork.hermesagent.version` |
 
-The release APK is intentionally universal. There are no 32-bit ABI splits and
-there is no Play-only build.
+The Full release APK is intentionally universal. There are no 32-bit ABI splits.
+The separate Play edition uses the `playDebug` / `playRelease` build types and
+does not expose the Full edition's arbitrary-command or external MCP runtime.
 
 ## First run
 
@@ -46,14 +47,64 @@ there is no Play-only build.
    function/tool-calling training; describing a command in prose is not the
    same as emitting a tool call.
 
-The embedded Android runtime deliberately exposes only its audited
-in-process tool profile. External MCP stdio/SSE/HTTP sessions, user plugin and
-context-engine code, process-backed ACP/Codex provider modes, and the async
-web/vision tools are unavailable because the app cannot yet prove that their
-threads and child processes have stopped before switching runtimes. Existing
-MCP JSON is retained for export but is not loaded or executed. These limits are
-specific to the embedded Android app; they do not remove the corresponding
-desktop or CLI features.
+The embedded Android runtime exposes its audited in-process tool profile.
+The v157 candidate additionally supports explicitly enabled external MCP tools
+on the existing Full-edition **Python-agent chat route**, including the custom
+OpenAI-compatible provider route. Known-provider direct streaming and native
+on-device model chat retain their existing routes; enabling MCP does not reroute
+those chats through Python. The Play edition cannot enable external MCP.
+
+User plugin and context-engine code, process-backed ACP/Codex provider modes,
+and the async web/vision tools remain unavailable because their separate
+lifecycles have not been validated in the embedded app. These restrictions do
+not remove the corresponding desktop or CLI features.
+
+### External MCP in the Full edition
+
+Open **Settings > Tools > MCP configuration**. Existing JSON is preserved on
+upgrade, but it does not grant consent: external servers remain off until the
+user accepts the disclosure. A server can receive tool inputs, execute commands,
+and return data which the selected AI provider may receive. Only enable trusted
+servers. Disabling the switch revokes calls and stops owned connections.
+
+The supervisor uses the official MCP Python SDK on the already-owned API-server
+event loop, without the desktop MCP thread/global loader. It supports stdio,
+legacy SSE, and Streamable HTTP. Stdio requires an already-installed,
+Android-compatible executable; Hermes does not install Node, a Python CLI, or
+server packages automatically. Add command arguments and environment settings in
+Advanced JSON. Entries marked `autoStart` start with the Python runtime after
+consent; other enabled entries start on manual reload.
+
+Connection setup, tool calls and cleanup have bounded deadlines. HTTP JSON and
+individual SSE/stdio frames have a 1 MiB pre-parse limit; schemas/catalogs and
+model-visible results have additional limits. HTTPS verifies certificates; the
+client does not follow redirects or accept compressed responses. Sampling, elicitation,
+external schema references and automatic resource/media fetching are not
+enabled. Credentials must use HTTPS outside loopback.
+
+Newly loaded tools apply to new conversations. Existing conversations keep a
+persisted, credential-free schema snapshot so reload does not rewrite their
+prompt prefix. Revoked or changed tools cannot execute through an old snapshot.
+Stop and tool timeouts close the affected connection; reload it explicitly
+before reuse. If cleanup cannot be proved, runtime replacement is blocked and
+the UI asks the user to force stop and reopen the app. Terminal commands may
+coexist only with positively identified MCP process owners.
+
+### Conversation history and resource diagnostics
+
+Long-press a conversation, or use its **Chat actions** button, to rename it,
+regenerate its title, or delete it after confirmation. Regeneration selects text
+already saved in that conversation; it makes no AI request. The separate core
+AI auto-title feature is disabled in the Android profile. Manual titles are
+preserved while messages stream. Deleting an inactive chat keeps the active
+chat selected, and late callbacks cannot recreate a deleted conversation.
+
+The activity timeline shows actual tool starts/results and public progress
+events, not inferred execution steps. The readiness strip's saved-facts count
+is not RAM. Runtime diagnostics separately measure writable app storage, kernel
+memory availability, embedded Python, shell-visible Python executables, and the
+installed/bundled skill directories. A full read-only Android system partition
+does not mean the app's writable data partition is full.
 
 Large local models need substantially more free memory than their file size.
 Hermes checks current memory headroom before starting, but Android can still

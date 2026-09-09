@@ -82,8 +82,8 @@ internal fun preparePlayChatOperation(
                 )
                 RemoteProcessingConsentStore.requireConfiguredRemoteConsent(context)
             }
-            val content = if (responsesApi) extractAssistantContentFromResponse(rawBody)
-                else extractAssistantContentFromChatCompletion(rawBody)
+            val content = assistantDisplayText(if (responsesApi) extractAssistantContentFromResponse(rawBody)
+                else extractAssistantContentFromChatCompletion(rawBody))
             com.mobilefork.hermesagent.play.PlayForegroundLifetime.requireForeground()
             check(content.isNotBlank()) { "AI provider returned no displayable answer" }
             // The entire response is screened before publication; unreviewed deltas never reach the UI.

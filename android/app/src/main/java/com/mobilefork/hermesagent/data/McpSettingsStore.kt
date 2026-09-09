@@ -1,6 +1,7 @@
 package com.mobilefork.hermesagent.data
 
 import android.content.Context
+import com.mobilefork.hermesagent.BuildConfig
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -26,6 +27,7 @@ data class McpSettings(
     val mode: McpConfigurationMode = McpConfigurationMode.SIMPLE,
     val configText: String = McpSettingsDefaults.simpleConfigText(),
     val providerPromptCacheResendEnabled: Boolean = false,
+    val externalMcpEnabled: Boolean = false,
     val lastStatusMessage: String = McpSettingsMessages.SIMPLE_READY,
     val lastReloadEpochMs: Long = 0L,
 )
@@ -130,6 +132,7 @@ class McpSettingsStore(context: Context) {
             ),
             configText = configText,
             providerPromptCacheResendEnabled = preferences.getBoolean(KEY_PROVIDER_PROMPT_CACHE_RESEND, false),
+            externalMcpEnabled = externalMcpAllowed(),
             lastStatusMessage = preferences.getString(KEY_LAST_STATUS, McpSettingsMessages.SIMPLE_READY).orEmpty()
                 .ifBlank { McpSettingsMessages.SIMPLE_READY },
             lastReloadEpochMs = preferences.getLong(KEY_LAST_RELOAD_EPOCH_MS, 0L),
@@ -137,6 +140,17 @@ class McpSettingsStore(context: Context) {
     }
 
     fun configFilePath(): String = configFile.absolutePath
+
+    fun externalMcpAllowed(): Boolean = !BuildConfig.HERMES_PLAY_EDITION &&
+        preferences.getBoolean(KEY_EXTERNAL_MCP_ENABLED, false)
+
+    fun saveExternalMcpEnabled(enabled: Boolean): McpSettings {
+        check(!enabled || !BuildConfig.HERMES_PLAY_EDITION) { "External MCP is unavailable in the Play edition" }
+        check(preferences.edit().putBoolean(KEY_EXTERNAL_MCP_ENABLED, enabled).commit()) {
+            "MCP consent could not be saved"
+        }
+        return load()
+    }
 
     fun saveMode(mode: McpConfigurationMode): McpSettings {
         val status = when (mode) {
@@ -507,6 +521,7 @@ class McpSettingsStore(context: Context) {
         private const val KEY_MODE = "mode"
         private const val KEY_CONFIG_TEXT = "config_text"
         private const val KEY_PROVIDER_PROMPT_CACHE_RESEND = "provider_prompt_cache_resend_enabled"
+        private const val KEY_EXTERNAL_MCP_ENABLED = "external_mcp_enabled_v157"
         private const val KEY_LAST_STATUS = "last_status"
         private const val KEY_LAST_RELOAD_EPOCH_MS = "last_reload_epoch_ms"
     }

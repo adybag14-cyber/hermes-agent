@@ -43,10 +43,13 @@ def filter_android_tool_definitions(definitions: list[dict]) -> list[dict]:
     from toolsets import resolve_toolset
 
     allowed = set(resolve_toolset("hermes-android-app", include_registry=False))
-    return [
+    fixed = [
         definition for definition in definitions
         if definition.get("function", {}).get("name") in allowed
     ]
+    from hermes_android.mcp_tools import constructor_tool_definitions
+
+    return fixed + constructor_tool_definitions()
 
 
 def require_android_worker_unwound(agent, worker, *, join_timeout: float = 0.0) -> None:

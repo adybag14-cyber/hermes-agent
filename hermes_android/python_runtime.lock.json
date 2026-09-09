@@ -89,6 +89,11 @@
       "sha256": "3dce51d0f5e7951f8bb4900c257dad282f49190fdbebecd4ba99bcc41fef404d"
     },
     {
+      "filename": "click-8.4.2-py3-none-any.whl",
+      "bytes": 119243,
+      "sha256": "e6f9f66136c816745b9d65817da91d61d957fb16e02e4dcd0552553c5a197b76"
+    },
+    {
       "filename": "colorama-0.4.6-py2.py3-none-any.whl",
       "bytes": 25335,
       "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"
@@ -139,9 +144,19 @@
       "sha256": "2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"
     },
     {
+      "filename": "httpcore2-2.7.0-py3-none-any.whl",
+      "bytes": 81506,
+      "sha256": "1452f589fe23f55b44546cd884294c41a29330af902bc0b71a761fd52d18f92b"
+    },
+    {
       "filename": "httpx-0.28.1-py3-none-any.whl",
       "bytes": 73517,
       "sha256": "d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad"
+    },
+    {
+      "filename": "httpx2-2.7.0-py3-none-any.whl",
+      "bytes": 90234,
+      "sha256": "ed2a2719c696789e09493bd8e2bec3d8bd925cc6e26b68389ec25ade132f7bf4"
     },
     {
       "filename": "httpx_sse-0.4.3-py3-none-any.whl",
@@ -154,9 +169,24 @@
       "sha256": "815e7be7a7806d54abb586dc943addc79e8b2ee16915059658cbeff4b1b43bf4"
     },
     {
+      "filename": "importlib_metadata-8.7.1-py3-none-any.whl",
+      "bytes": 27865,
+      "sha256": "5a1f80bf1daa489495071efbb095d75a634cf28a8bc299581244063b53176151"
+    },
+    {
       "filename": "jinja2-3.1.6-py3-none-any.whl",
       "bytes": 134899,
       "sha256": "85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67"
+    },
+    {
+      "filename": "jsonschema-4.26.0-py3-none-any.whl",
+      "bytes": 90630,
+      "sha256": "d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce"
+    },
+    {
+      "filename": "jsonschema_specifications-2025.9.1-py3-none-any.whl",
+      "bytes": 18437,
+      "sha256": "98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe"
     },
     {
       "filename": "markdown_it_py-4.0.0-py3-none-any.whl",
@@ -174,6 +204,16 @@
       "sha256": "9a6aff9d2f4a14710296588afac034cf04f9c891b1b939ef1a4891ba733ef91b"
     },
     {
+      "filename": "mcp-2.0.0-py3-none-any.whl",
+      "bytes": 349980,
+      "sha256": "1cb4c75d2d2c7b8c1d756355e5d82a39f2822cc7f13e22a2051d7ca3592349d6"
+    },
+    {
+      "filename": "mcp_types-2.0.0-py3-none-any.whl",
+      "bytes": 69649,
+      "sha256": "6b2de797ca2797f568b79529e1b25948e34de511bcc0bd82fef1039a6d1b8eb0"
+    },
+    {
       "filename": "mdurl-0.1.2-py3-none-any.whl",
       "bytes": 9979,
       "sha256": "84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"
@@ -187,6 +227,11 @@
       "filename": "openai-2.54.0-py3-none-any.whl",
       "bytes": 1660351,
       "sha256": "89089789197ccdb87f173a03145ed1598d00795220c93e96cf712b1cbf5e5f2b"
+    },
+    {
+      "filename": "opentelemetry_api-1.39.1-py3-none-any.whl",
+      "bytes": 66356,
+      "sha256": "2edd8463432a7f8443edce90972169b195e7d6a05500cd29e6d13898187c9950"
     },
     {
       "filename": "packaging-26.3-py3-none-any.whl",
@@ -204,6 +249,11 @@
       "sha256": "be1ddfcbb376e3de5d2e2db1d58d6d67463e6b4f9f040c000de8e300295465fe"
     },
     {
+      "filename": "pycparser-3.0-py3-none-any.whl",
+      "bytes": 48172,
+      "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992"
+    },
+    {
       "filename": "pydantic-2.13.5-py3-none-any.whl",
       "bytes": 472589,
       "sha256": "346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73"
@@ -214,6 +264,11 @@
       "sha256": "81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176"
     },
     {
+      "filename": "pyjwt-2.13.0-py3-none-any.whl",
+      "bytes": 31274,
+      "sha256": "66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728"
+    },
+    {
       "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
       "bytes": 229892,
       "sha256": "a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427"
@@ -222,6 +277,11 @@
       "filename": "python_dotenv-1.2.2-py3-none-any.whl",
       "bytes": 22101,
       "sha256": "1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a"
+    },
+    {
+      "filename": "python_multipart-0.0.32-py3-none-any.whl",
+      "bytes": 30042,
+      "sha256": "ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23"
     },
     {
       "filename": "pytz-2025.2-py2.py3-none-any.whl",
@@ -237,6 +297,11 @@
       "filename": "pyyaml-6.0.3-0-cp313-cp313-android_24_x86_64.whl",
       "bytes": 155849,
       "sha256": "f1874bd12140a447dbd9ff2fc9e59ddde5dd90c558364f166fe4a1cec615bb90"
+    },
+    {
+      "filename": "referencing-0.37.0-py3-none-any.whl",
+      "bytes": 26766,
+      "sha256": "381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231"
     },
     {
       "filename": "requests-2.33.1-py3-none-any.whl",
@@ -259,6 +324,16 @@
       "sha256": "2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2"
     },
     {
+      "filename": "sse_starlette-3.3.2-py3-none-any.whl",
+      "bytes": 14270,
+      "sha256": "5c3ea3dad425c601236726af2f27689b74494643f57017cafcb6f8c9acfbb862"
+    },
+    {
+      "filename": "starlette-1.3.1-py3-none-any.whl",
+      "bytes": 73632,
+      "sha256": "c7372aae11c3c3f26a42df7bd626cec2f47d03483d261d369516a615a53714c6"
+    },
+    {
       "filename": "tenacity-9.1.4-py3-none-any.whl",
       "bytes": 28926,
       "sha256": "6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55"
@@ -272,6 +347,11 @@
       "filename": "tqdm-4.70.0-py3-none-any.whl",
       "bytes": 80184,
       "sha256": "7f585706bfddbdebf89daac705b2dfcc16890130727d3197ca62c732b4310953"
+    },
+    {
+      "filename": "truststore-0.10.4-py3-none-any.whl",
+      "bytes": 18660,
+      "sha256": "adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981"
     },
     {
       "filename": "typing_extensions-4.16.0-py3-none-any.whl",
@@ -294,6 +374,11 @@
       "sha256": "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
     },
     {
+      "filename": "uvicorn-0.41.0-py3-none-any.whl",
+      "bytes": 68783,
+      "sha256": "29e35b1d2c36a04b9e180d4007ede3bcb32a85fbdfd6c6aeb3f26839de088187"
+    },
+    {
       "filename": "websockets-17.1-py3-none-any.whl",
       "bytes": 211134,
       "sha256": "f221081107b8c48184d99f7019604486376e7ef826037e70aad6b02540732c23"
@@ -302,6 +387,58 @@
       "filename": "yarl-1.24.5-py3-none-any.whl",
       "bytes": 58612,
       "sha256": "a33700d13d9b7d84fd10947b09ff69fb9a792e519c8cb9764a3ca70baa6c23a7"
+    },
+    {
+      "filename": "zipp-3.23.0-py3-none-any.whl",
+      "bytes": 10276,
+      "sha256": "071652d6115ed432f5ce1d34c336c0adfd6a884660d1e9712a256d3d3bd4b14e"
     }
-  ]
+  ],
+  "mcp_native": {
+    "builder_sha256": "0c92e9a9693f1a30f888bef589327409016d57f1f4cb4267ae0982a5d84fbdb9",
+    "packages": {
+      "cffi": {
+        "version": "2.0.0",
+        "url": "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz",
+        "filename": "cffi-2.0.0.tar.gz",
+        "source_directory": "cffi-2.0.0",
+        "bytes": 523588,
+        "sha256": "44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529"
+      },
+      "cryptography": {
+        "version": "50.0.1",
+        "url": "https://files.pythonhosted.org/packages/bb/ad/5d6702db60b1e40b41ef513b6967ff5848f307d50f8449baf1634f5908f1/cryptography-50.0.1.tar.gz",
+        "filename": "cryptography-50.0.1.tar.gz",
+        "source_directory": "cryptography-50.0.1",
+        "bytes": 880381,
+        "sha256": "5dd9bda1c12b4162f6ff568eeb5e0ff956c28d14406e875cfe8a63a2d414ff20"
+      },
+      "rpds-py": {
+        "version": "0.30.0",
+        "url": "https://files.pythonhosted.org/packages/20/af/3f2f423103f1113b36230496629986e0ef7e199d2aa8392452b484b38ced/rpds_py-0.30.0.tar.gz",
+        "filename": "rpds_py-0.30.0.tar.gz",
+        "source_directory": "rpds_py-0.30.0",
+        "bytes": 69469,
+        "sha256": "dd8ff7cf90014af0c0f787eea34794ebf6415242ee1d6fa91eaba725cc441e84"
+      }
+    },
+    "libraries": {
+      "openssl": {
+        "version": "3.5.8",
+        "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.8/openssl-3.5.8.tar.gz",
+        "filename": "openssl-3.5.8.tar.gz",
+        "source_directory": "openssl-3.5.8",
+        "bytes": 53213818,
+        "sha256": "a8f84a39918ec6415ce765d9b429d313ba97b8143169c172e734b9514464f5b2"
+      },
+      "libffi": {
+        "version": "3.8.0",
+        "url": "https://github.com/libffi/libffi/releases/download/v3.8.0/libffi-3.8.0.tar.gz",
+        "filename": "libffi-3.8.0.tar.gz",
+        "source_directory": "libffi-3.8.0",
+        "bytes": 1581626,
+        "sha256": "7da3e2d9a171eb0a038f592ecad3ff2bb2550f3496d87b3b29ad0cf4430c0db4"
+      }
+    }
+  }
 }

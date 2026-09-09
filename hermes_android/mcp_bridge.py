@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -73,13 +74,35 @@ def sync_android_mcp_config(
     *,
     force: bool = False,
 ) -> dict[str, Any]:
-    _ = hermes_home, force
+    from hermes_android.mcp_runtime import external_mcp_allowed
 
-    # This module is reached from the Android app before the embedded Python
-    # server has necessarily installed its bootstrap environment.  External
-    # MCP transports create global loops and subprocesses whose lifetime is not
-    # owned by the Android runtime, so the Android bridge must reject them by
-    # identity rather than by a late environment-variable check.
+    allowed = external_mcp_allowed()
+    if force:
+        if allowed:
+            from hermes_android import server_bridge
+        else:
+            server_bridge = sys.modules.get("hermes_android.server_bridge")
+        from hermes_android.mcp_runtime import reload_owned_mcp
+
+        handle = getattr(server_bridge, "_ACTIVE_HANDLE", None)
+        if handle is None or not handle.thread.is_alive():
+            if allowed:
+                return {"synced": False, "reason": "python_agent_runtime_not_running",
+                        "server_count": 0, "registered_tools": []}
+        else:
+            owner = getattr(handle.adapter, "_android_mcp", None)
+            if owner is None:
+                return {"synced": False, "reason": "owned_mcp_runtime_not_ready",
+                        "server_count": 0, "registered_tools": []}
+            try:
+                return owner.run_sync(reload_owned_mcp(handle.adapter, hermes_home))
+            except (RuntimeError, ValueError, OSError):
+                return {"synced": False, "reason": "mcp_reload_failed", "enabled": allowed,
+                        "requires_app_restart": bool(owner.supervisor.failure), "server_count": 0, "registered_tools": []}
+
+    # Imports and the legacy default bridge path stay passive. Only an explicit
+    # reload through the verified API-server owner above can start transports;
+    # a retained config or a late environment flag cannot manufacture ownership.
     return {
         "synced": False,
         "reason": "embedded_runtime_external_mcp_disabled",
@@ -90,3 +113,18 @@ def sync_android_mcp_config(
 
 def reload_android_mcp_config(hermes_home: str | Path) -> str:
     return json.dumps(sync_android_mcp_config(hermes_home, force=True), sort_keys=True)
+
+
+def current_android_mcp_status() -> str:
+    bridge = sys.modules.get("hermes_android.server_bridge")
+    handle = getattr(bridge, "_ACTIVE_HANDLE", None)
+    if handle is None or not handle.thread.is_alive():
+        return json.dumps({"synced": False, "reason": "python_agent_runtime_not_running"})
+    owner = getattr(handle.adapter, "_android_mcp", None)
+    if owner is None:
+        return json.dumps({"synced": False, "reason": "owned_mcp_runtime_not_ready"})
+
+    async def read_status():
+        return {"synced": True, "reason": "owned_runtime", **owner.supervisor.status()}
+
+    return json.dumps(owner.run_sync(read_status()))

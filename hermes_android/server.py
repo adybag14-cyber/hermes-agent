@@ -218,9 +218,16 @@ def start_local_api_server(
     )
     future = None
     connect_coro = None
+
+    async def connect_with_owned_mcp():
+        from hermes_android.mcp_runtime import initialize_owned_mcp
+
+        await initialize_owned_mcp(adapter, runtime.hermes_home)
+        return await adapter.connect()
+
     try:
         thread.start()
-        connect_coro = adapter.connect()
+        connect_coro = connect_with_owned_mcp()
         try:
             future = asyncio.run_coroutine_threadsafe(connect_coro, loop)
         except BaseException:

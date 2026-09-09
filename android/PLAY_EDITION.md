@@ -1,4 +1,4 @@
-# Play edition and v0.13.156 review boundary
+# Play edition and v0.13.157 review boundary
 
 The Play edition is a separate distribution of the same application source. The
 full GitHub/F-Droid APK retains Linux, Python-agent tools, accessibility-assisted
@@ -97,8 +97,8 @@ distribution, privacy, transport and translation tests run under the Play flag.
 
 Release filenames:
 
-- Full: `hermes-agent-android-v0.13.156-universal.apk` and matching `.aab`.
-- Play: `hermes-agent-android-play-v0.13.156-universal.apk` and matching `.aab`.
+- Full: `hermes-agent-android-v0.13.157-universal.apk` and matching `.aab`.
+- Play: `hermes-agent-android-play-v0.13.157-universal.apk` and matching `.aab`.
 
 `verify_android_play_package.py` checks the binary package boundary and optional
 APK/AAB payload equality. It does not claim runtime execution or Google approval.
@@ -121,8 +121,8 @@ registered release model, and exactly six `privacy-<language>.png` screenshots.
 Missing, extra, non-regular, or stale evidence fails both entry points. Earlier
 release layouts remain unchanged.
 
-Ordinary unbound debug test passes are development evidence only. Stable v0.13.156
-has the owner's explicit physical-phone waiver; this does not certify ARM64 device
+Ordinary unbound debug test passes are development evidence only. Stable v0.13.157
+has the owner's separate, version-scoped physical-phone waiver; this does not certify ARM64 device
 behavior or waive the emulator, hosted release or two post-release F-Droid gates.
 Physical-device submission videos are deferred until the owner reconnects the
 phone. Google review/approval and central F-Droid publication are external states.

@@ -25,10 +25,10 @@ cd ~/fdroiddata-hermes
 ```
 
 Run that preview from a fresh clone of the live `fdroiddata` metadata after the
-GitHub tag exists. `--auto` must create the local 0.13.156/145690 build recipe
+GitHub tag exists. `--auto` must create the local 0.13.157/145790 build recipe
 and resolve its exact tag commit. The autoupdater copies the prior build recipe,
 so its output is not yet eligible for the pinned build. From the same WSL shell,
-render and verify the v0.13.156 source-binding fields from the committed Hermes
+render and verify the v0.13.157 source-binding fields from the committed Hermes
 template into that generated build:
 
 ```sh
@@ -46,7 +46,7 @@ git -C "$FDROIDDATA_ROOT" diff -- \
   metadata/com.mobilefork.hermesagent.yml
 ```
 
-The render transaction requires exactly one 0.13.156/145690 build, preserves
+The render transaction requires exactly one 0.13.157/145790 build, preserves
 the autoupdater-resolved full Git commit, every historical `Builds` entry, and
 all unrelated live metadata, and overlays the exact `sudo`, `ndk`, `gradle`,
 `gradleprops`, `scanignore`, and `prebuild` fields. It then verifies that
@@ -72,6 +72,11 @@ the existing application NDK 29.0.14206865. The Python source builder runs after
 the clean source-binding handoff and before the declared Gradle transformations,
 with all generated files in the external Gradle cache. Both GitHub and F-Droid
 use the same builder and hash-locked trusted wheels; see `android/PYTHON_RUNTIME.md`.
+
+The v0.13.157 recipe also declares `make` and `pkg-config` for the source-built
+MCP dependencies (OpenSSL, libffi, cffi, cryptography and rpds-py). The exact
+metadata verifier includes those dependencies; no extra broad scanner exception
+is added. Runtime validation remains separate from the source/ELF closure audit.
 
 The v0.13.156 recipe records one exact scanner exception. The computed Maven
 path in `android/settings.gradle.kts` is the local source-built Python bootstrap

@@ -49,8 +49,9 @@ class PlayChatOperationTest {
             assertEquals(0, server.requestCount)
             RemoteProcessingConsentStore(app).accept(requireNotNull(RemoteProcessingTarget.fromSettings(settings)))
             assertThrows(IllegalArgumentException::class.java) { operation("https://different.example").execute() }
-            server.enqueue(MockResponse().setBody("""{"choices":[{"message":{"role":"assistant","content":"I can explain that command, not run it."}}]}"""))
+            server.enqueue(MockResponse().setBody("""{"choices":[{"message":{"role":"assistant","content":"<think>\n\n</think>\n\nI can explain that command, not run it."}}]}"""))
             val result = operation().execute()
+            assertEquals("I can explain that command, not run it.", result.content)
             assertEquals(0, result.executedToolCalls)
             assertEquals(1, result.modelRequestCount)
             val recorded = server.takeRequest()

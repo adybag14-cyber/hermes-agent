@@ -23404,23 +23404,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("cards", JSONArray().put(card("Tools", "Hermes can inspect its tool catalog and pick the right native tool before acting.")))
     }
 
-    private fun memorySummaryJson(context: Context): JSONObject {
-        val activityManager = context.getSystemService(ActivityManager::class.java)
-        val info = ActivityManager.MemoryInfo()
-        activityManager?.getMemoryInfo(info)
-        return JSONObject()
-            .put("available_bytes", info.availMem)
-            .put("available_label", formatBytes(context, info.availMem))
-            .put("total_bytes", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) info.totalMem else 0L)
-            .put("total_label", if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) formatBytes(context, info.totalMem) else "unknown")
-            .put("low_memory", info.lowMemory)
-            .put("threshold_bytes", info.threshold)
-            .put("threshold_label", formatBytes(context, info.threshold))
-            .put("app_data_free_bytes", context.filesDir.freeSpace)
-            .put("app_data_total_bytes", context.filesDir.totalSpace)
-            .put("app_data_free_label", formatBytes(context, context.filesDir.freeSpace))
-            .put("app_data_total_label", formatBytes(context, context.filesDir.totalSpace))
-    }
+    private fun memorySummaryJson(context: Context): JSONObject = AndroidResourceSnapshot.memorySummary(context)
 
     private fun runningAppMemoryJson(context: Context, limit: Int): JSONArray {
         val activityManager = context.getSystemService(ActivityManager::class.java) ?: return JSONArray()

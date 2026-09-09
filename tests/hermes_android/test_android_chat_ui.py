@@ -61,23 +61,9 @@ def test_chat_view_model_persists_history_and_supports_native_command_feedback()
     assert 'Speaking the latest Hermes reply' not in chat_view_model  # UI handles TTS feedback
 
 
-def test_sse_client_surfaces_custom_endpoint_disconnects_and_uses_longer_stream_timeout():
-    sse_client = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/api/HermesSseClient.kt").read_text(encoding="utf-8")
-    sse_test = (REPO_ROOT / "android/app/src/test/java/com/mobilefork/hermesagent/api/HermesSseClientTest.kt").read_text(encoding="utf-8")
-
-    assert 'DEFAULT_HTTP_CLIENT' in sse_client
-    assert '.readTimeout(120, TimeUnit.SECONDS)' in sse_client
-    assert '.header("Accept", "text/event-stream")' in sse_client
-    assert 'Custom endpoint stream closed before the endpoint sent [DONE]' in sse_client
-    assert 'endpointTransportErrorMessage(error)' in sse_client
-    assert 'sseDataPayload(line)' in sse_client
-    assert 'line.startsWith("data:")' in sse_client
-    assert 'sawFinishReason' in sse_client
-    assert 'streamChatCompletion_reports_endpoint_hint_when_sse_stream_closes_before_done' in sse_test
-    assert 'streamChatCompletion_accepts_finishReasonAsCompletionWhenDoneFrameIsMissing' in sse_test
-    assert 'streamChatCompletion_accepts_dataFramesWithoutSpaceAndKeepAliveLines' in sse_test
-
-
+# SSE parsing/disconnect coverage lives in HermesSseClientTest (real HTTP
+# responses) and FullMcpRuntimeInstrumentedTest (the installed app's real route).
+# Do not tie that behavior to helper names or their location in a Kotlin file.
 
 def test_empty_chat_layout_scrolls_welcome_state_on_small_or_large_font_screens():
     chat_screen = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatScreen.kt").read_text(encoding="utf-8")

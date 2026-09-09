@@ -16,6 +16,7 @@ class HermesSseClient(
     private val httpClient: OkHttpClient = DEFAULT_HTTP_CLIENT,
     private val networkGuard: (String) -> Unit = {},
     internal val beforeCallRegistration: () -> Unit = {},
+    private val includeToolActivity: Boolean = false,
 ) {
     private val normalizedBaseUrl = HermesEndpointUrl.normalizeBaseUrl(baseUrl)
     private val callLock = Any()
@@ -23,6 +24,9 @@ class HermesSseClient(
     private var cancelled = false
     @Volatile
     private var activeCall: Call? = null
+    @Volatile
+    var receivedToolActivity: Boolean = false
+        private set
 
     fun cancel() {
         val call = synchronized(callLock) {
@@ -38,6 +42,7 @@ class HermesSseClient(
         onComplete: () -> Unit,
         onError: (String) -> Unit,
         onStatus: (String) -> Unit = {},
+        onToolActivity: (HermesToolActivity) -> Unit = {},
     ) {
         try {
             // Keep streaming and non-streaming retries on one request contract. In
@@ -51,6 +56,7 @@ class HermesSseClient(
                 .header("Accept", "text/event-stream")
                 .header("Cache-Control", "no-cache")
                 .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            if (includeToolActivity) builder.header("X-Hermes-Tool-Activity", "v1")
             if (!apiKey.isNullOrBlank()) {
                 builder.header("Authorization", "Bearer $apiKey")
             }
@@ -74,7 +80,7 @@ class HermesSseClient(
                         onError("SSE response body was empty")
                         return
                     }
-                    parseStream(source, onDelta, onComplete, onError, onStatus)
+                    parseStream(source, onDelta, onComplete, onError, onStatus, onToolActivity)
                 }
             } finally {
                 clearCall(call)
@@ -90,6 +96,7 @@ class HermesSseClient(
         onComplete: () -> Unit,
         onError: (String) -> Unit,
         onStatus: (String) -> Unit = {},
+        onToolActivity: (HermesToolActivity) -> Unit = {},
     ) {
         try {
             val payload = request.toResponsesPayload()
@@ -101,6 +108,7 @@ class HermesSseClient(
                 .header("Accept", "text/event-stream")
                 .header("Cache-Control", "no-cache")
                 .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+            if (includeToolActivity) builder.header("X-Hermes-Tool-Activity", "v1")
             if (!apiKey.isNullOrBlank()) {
                 builder.header("Authorization", "Bearer $apiKey")
             }
@@ -124,7 +132,7 @@ class HermesSseClient(
                         onError("Responses SSE response body was empty")
                         return
                     }
-                    parseStream(source, onDelta, onComplete, onError, onStatus)
+                    parseStream(source, onDelta, onComplete, onError, onStatus, onToolActivity)
                 }
             } finally {
                 clearCall(call)
@@ -163,13 +171,15 @@ class HermesSseClient(
         onComplete: () -> Unit,
         onError: (String) -> Unit,
         onStatus: (String) -> Unit = {},
+        onToolActivity: (HermesToolActivity) -> Unit = {},
     ) {
         var sawDataFrame = false
         var sawFinishReason = false
         var sawAssistantText = false
-        while (!source.exhausted()) {
-            val line = source.readUtf8Line() ?: break
-            val payload = sseDataPayload(line) ?: continue
+        val activityDecoder = HermesToolActivityDecoder()
+        for (frame in source.hermesSseFrames()) {
+            if (cancelled) return
+            val payload = frame.data
             if (payload.isBlank()) {
                 continue
             }
@@ -177,13 +187,26 @@ class HermesSseClient(
                 sawDataFrame = true
                 onStatus("Endpoint stream is live; waiting for assistant text")
             }
-            if (payload == "[DONE]") {
+            if (payload.trim() == "[DONE]") {
                 if (sawAssistantText) {
                     onComplete()
                 } else {
                     onError(NO_ASSISTANT_TEXT_ERROR)
                 }
                 return
+            }
+            val activity = runCatching {
+                // Only the negotiated, owned agent route supplies execution
+                // evidence. Direct providers cannot manufacture local tool rows.
+                if (includeToolActivity) activityDecoder.decode(frame.event, payload) else null
+            }.getOrElse { error ->
+                onError(error.message ?: error.javaClass.simpleName)
+                return
+            }
+            if (activity != null) {
+                receivedToolActivity = true
+                onToolActivity(activity)
+                continue
             }
             val event = runCatching { extractStreamEvent(payload) }.getOrElse { error ->
                 onError(error.message ?: error.javaClass.simpleName)
@@ -212,13 +235,6 @@ class HermesSseClient(
                 },
             )
         }
-    }
-
-    private fun sseDataPayload(line: String): String? {
-        if (!line.startsWith("data:")) {
-            return null
-        }
-        return line.removePrefix("data:").trim()
     }
 
     private data class StreamEvent(

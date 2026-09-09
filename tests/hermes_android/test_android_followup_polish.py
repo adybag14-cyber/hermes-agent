@@ -109,7 +109,8 @@ def test_localization_layer_covers_visible_chat_auth_portal_device_and_settings_
     assert 'strings.userRoleLabel()' in chat
     assert 'strings.hermesPreparingReply()' in chat
     assert 'strings.activityToolContext()' in chat
-    assert 'strings.conversationHistoryTitle()' in chat
+    # History localization is exercised by ConversationHistoryStringsTest and
+    # the installed six-language FullTesterReportedUiInstrumentedTest.
     assert 'strings.voiceInputLabel()' in chat
     assert 'strings.chatCommandHelp()' in (
         REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatCommandRouter.kt"
@@ -1493,7 +1494,8 @@ def test_android_linux_subsystem_reapplies_executable_bits_before_reusing_cached
     assert '"LD_LIBRARY_PATH": ld_library_path' in linux_subsystem
     assert 'self.execution_mode = os.environ.get("HERMES_ANDROID_EXECUTION_MODE", "android_system_shell").strip()' in android_environment
     assert 'run_env["LD_LIBRARY_PATH"]' in android_environment
-    assert 'path_parts = [system_path]' in android_environment
+    # Command search/opt-in behavior is covered by test_runtime_capabilities and
+    # the installed Full MCP fixture's actual python3/terminal commands.
     assert "Orboelectric Android Agent Runtime Spec" in runtime_spec
     assert "Context7 test status" in runtime_spec
     assert "terminal commands run in the app-private Linux prefix" in runtime_spec

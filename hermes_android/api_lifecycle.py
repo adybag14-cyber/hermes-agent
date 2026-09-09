@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import nullcontext
 import logging
 import threading
 from typing import Any, Dict
@@ -23,6 +24,13 @@ class OwnedApiRuntimeMixin:
         self._owned_shutdown_requested = False
         self._owned_runtime_failure_detail = ""
         self._enforce_owned_runtime_shutdown = is_embedded_android_runtime()
+        self._android_mcp = None
+
+    def _android_mcp_constructor_context(self, session_id, has_history):
+        owner = getattr(self, "_android_mcp", None)
+        if not self._enforce_owned_runtime_shutdown or owner is None:
+            return nullcontext()
+        return owner.construction(session_id, has_history=has_history)
 
     def _publish_prepared_agent(self, agent: Any) -> None:
         try:
@@ -181,6 +189,9 @@ class OwnedApiRuntimeMixin:
             self._site = None
 
         self._idempotency_cache.cancel_inflight_for_shutdown()
+        mcp_owner = getattr(self, "_android_mcp", None)
+        if mcp_owner is not None:
+            await mcp_owner.supervisor.shutdown()
         current = asyncio.current_task()
         tasks = [
             task
@@ -302,6 +313,9 @@ class OwnedApiRuntimeMixin:
             failures.append(f"adapter database cleanup failed: {exc}")
         if failures:
             raise RuntimeError("; ".join(failures))
+        mcp_owner = getattr(self, "_android_mcp", None)
+        if mcp_owner is not None:
+            mcp_owner.release_registrations()
         for task_id in task_ids:
             process_registry.release_task_ownership(task_id)
         with self._owned_agent_lock:

@@ -105,6 +105,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.R
+import com.mobilefork.hermesagent.api.assistantDisplayText
 import com.mobilefork.hermesagent.ui.auth.AuthViewModel
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.i18n.PrivacyText
@@ -483,7 +484,9 @@ fun ChatScreen(
                     verticalArrangement = Arrangement.spacedBy(contentSpacing),
                 ) {
                     ChatHeaderCard(
-                        title = uiState.activeConversationTitle,
+                        title = if (uiState.conversationSummaries.firstOrNull {
+                            it.id == uiState.activeConversationId
+                        }?.isDefaultTitle == true) strings.newChat else uiState.activeConversationTitle,
                         chatDisplayMode = chatDisplayMode,
                         navigationSections = chatDrawerNavigationSections(),
                         drawerActions = shellActions,
@@ -524,6 +527,9 @@ fun ChatScreen(
                 if (uiState.isShowingHistory) {
                     ConversationHistoryList(
                         summaries = uiState.conversationSummaries,
+                        onRename = viewModel::renameConversation,
+                        onRegenerateTitle = viewModel::regenerateConversationTitle,
+                        onDelete = viewModel::deleteConversation,
                         onOpenConversation = { id ->
                             dismissKeyboard()
                             viewModel.openConversation(id)
@@ -743,7 +749,7 @@ private fun ChatHeaderCard(
     onOpenActions: (() -> Unit)? = null,
 ) {
     val strings = LocalHermesStrings.current
-    val displayTitle = if (title.equals("New chat", ignoreCase = true)) strings.newChat else title
+    val displayTitle = title
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
@@ -1203,6 +1209,7 @@ private fun ChatBubble(
                     }
                     HighlightedMessageText(
                         text = message.content.ifBlank { "…" },
+                        assistantText = message.role == "assistant",
                         color = contentColor,
                         keywordHighlightingEnabled = keywordHighlightingEnabled,
                     )
@@ -1355,6 +1362,7 @@ private fun CompactChatTurn(
                     }
                     HighlightedMessageText(
                         text = assistantMessage.content.ifBlank { "…" },
+                        assistantText = true,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         keywordHighlightingEnabled = keywordHighlightingEnabled,
                     )
@@ -1539,9 +1547,12 @@ private fun HighlightedMessageText(
     text: String,
     color: androidx.compose.ui.graphics.Color,
     keywordHighlightingEnabled: Boolean,
+    assistantText: Boolean = false,
 ) {
     val strings = LocalHermesStrings.current
-    val displayText = remember(text, strings.language) { sanitizeChatDisplayText(text, strings) }
+    val displayText = remember(text, strings.language, assistantText) {
+        sanitizeChatDisplayText(if (assistantText) assistantDisplayText(text) else text, strings)
+    }
     if (!keywordHighlightingEnabled || text.isBlank()) {
         SelectionContainer {
             Text(text = displayText, color = color, style = MaterialTheme.typography.bodyMedium)
@@ -2068,73 +2079,6 @@ private fun hasToolActivity(content: String): Boolean {
         "bluetooth_scan" in lower ||
         "radio_signal_status" in lower ||
         "sensor_snapshot" in lower
-}
-
-@Composable
-private fun ConversationHistoryList(
-    summaries: List<ChatConversationSummary>,
-    onOpenConversation: (String) -> Unit,
-    onStartNew: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val strings = LocalHermesStrings.current
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(strings.conversationHistoryTitle(), style = MaterialTheme.typography.headlineSmall)
-            Button(onClick = onStartNew) {
-                Text(strings.newChat.ifBlank { "New chat" })
-            }
-        }
-        if (summaries.isEmpty()) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.large,
-            ) {
-                Text(
-                    text = strings.noConversationHistory(),
-                    modifier = Modifier.padding(16.dp),
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(summaries, key = { it.id }) { summary ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.large,
-                        onClick = { onOpenConversation(summary.id) },
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Text(summary.title, style = MaterialTheme.typography.titleMedium)
-                            if (summary.preview.isNotBlank()) {
-                                Text(summary.preview, style = MaterialTheme.typography.bodySmall)
-                            }
-                            Text(
-                                text = "${summary.updatedLabel} · ${strings.messageCount(summary.messageCount)}",
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 @Composable

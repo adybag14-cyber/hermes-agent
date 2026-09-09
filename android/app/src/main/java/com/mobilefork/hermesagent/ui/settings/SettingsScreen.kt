@@ -1537,7 +1537,9 @@ private fun RemoteFallbackCard(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(strings.remoteFallbackTitle(), style = MaterialTheme.typography.titleMedium)
-            Text(strings.remoteFallbackDescription(), style = MaterialTheme.typography.bodySmall)
+            Text(com.mobilefork.hermesagent.ui.i18n.PlaySettingsText.remoteProviderHelp(
+                strings, com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION),
+                style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("HermesRemoteProviderHelp"))
             Text(strings.providerLabel(), style = MaterialTheme.typography.titleSmall)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -1690,7 +1692,9 @@ private fun OnDeviceInferenceCard(
                     Text(strings.remoteOnly())
                 }
             }
-            Text(strings.llamaCppDescription, style = MaterialTheme.typography.bodySmall)
+            Text(com.mobilefork.hermesagent.ui.i18n.PlaySettingsText.localModelHelp(
+                strings, com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION),
+                style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("HermesLocalModelHelp"))
             Text(strings.liteRtLmDescription, style = MaterialTheme.typography.bodySmall)
             Text(strings.gemma4MtpTitle(), style = MaterialTheme.typography.titleSmall)
             Text(strings.gemma4MtpDescription(), style = MaterialTheme.typography.bodySmall)

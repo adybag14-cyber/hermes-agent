@@ -58,6 +58,18 @@ def test_ensure_android_defaults_replaces_valid_but_unsafe_api_profile(tmp_path,
     assert updated["platform_toolsets"]["api_server"] == DEFAULT_ANDROID_API_SERVER_TOOLSETS
 
 
+def test_android_local_titles_disable_real_core_ai_title_requests_without_changing_other_auxiliary_settings(tmp_path, monkeypatch):
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    from agent.title_generator import _auto_title_enabled
+
+    updated = ensure_android_defaults({"platform_toolsets": {"api_server": ["hermes-android-app"]},
+        "auxiliary": {"title_generation": {"enabled": True, "model": "saved-model"},
+                      "compression": {"model": "preserved-compression-model"}}})
+    assert not _auto_title_enabled()
+    assert updated["auxiliary"]["title_generation"]["model"] == "saved-model"
+    assert updated["auxiliary"]["compression"] == {"model": "preserved-compression-model"}
+
+
 @pytest.mark.parametrize(
     "entry",
     [

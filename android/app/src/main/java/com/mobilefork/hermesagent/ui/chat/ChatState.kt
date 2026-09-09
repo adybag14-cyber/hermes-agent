@@ -43,6 +43,7 @@ data class ChatConversationSummary(
     val preview: String,
     val updatedLabel: String,
     val messageCount: Int,
+    val isDefaultTitle: Boolean = false,
 )
 
 data class ChatAttachment(

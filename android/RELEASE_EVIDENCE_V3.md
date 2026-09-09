@@ -17,10 +17,12 @@ waived physical-phone validation for stable `v0.13.154`, then separately waived
 it for the corrective `v0.13.155` follow-up. The owner then separately waived
 physical validation for stable `v0.13.156` while requiring PC AVD validation,
 publication, both post-release F-Droid checks, and later physical Play submission
-videos when the phone is reconnected. Each version records validation as
+videos when the phone is reconnected. On 2026-09-09 the owner separately waived
+physical validation for stable `v0.13.157` while requesting the Full tester fixes,
+then authorized the signed release and Google Play submission. Each version records validation as
 **not performed, owner-waived**, not as passing phone evidence. The source-bound
 emulator, signing, hosted workflow, and both post-publication F-Droid gates remain
-required. These waivers do not apply to prereleases or v0.13.157 and later; their
+required. These waivers do not apply to prereleases or v0.13.158 and later; their
 physical gate remains in force. Do not reuse older API 35 phone results as API 36 proof.
 
 The app and macrobenchmark compile and target API 36 with Build Tools 36.0.0.

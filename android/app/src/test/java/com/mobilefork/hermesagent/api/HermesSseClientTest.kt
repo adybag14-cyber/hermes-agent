@@ -21,6 +21,103 @@ import kotlin.concurrent.thread
 
 class HermesSseClientTest {
     @Test
+    fun namedToolEventsAreCorrelatedAndKeptOutOfAssistantText() {
+        val frames = """
+            event: hermes.tool.progress
+            data: {"toolCallId":"call-1","tool":"terminal","status":"running",
+            data: "arguments":"pwd"}
+
+            event: hermes.tool.progress
+            data: {"toolCallId":"call-1","tool":"terminal","status":"running","arguments":"duplicate"}
+
+            event: hermes.tool.progress
+            data: {"toolCallId":"orphan","tool":"terminal","status":"completed","result":"orphan"}
+
+            event: hermes.tool.progress
+            data: {"toolCallId":"call-1","tool":"terminal","status":"completed","result":"/app/workspace"}
+
+            data: {"choices":[{"delta":{"content":"Done."}}]}
+
+            data: [DONE]
+
+        """.trimIndent() + "\n"
+        val client = HermesSseClient("http://127.0.0.1:15436", httpClient = singleResponseClient(frames), includeToolActivity = true)
+        val activity = mutableListOf<HermesToolActivity>()
+        val text = mutableListOf<String>()
+        var completed = false
+        client.streamChatCompletion(sampleRequest(), { text += it }, { completed = true }, { throw AssertionError(it) },
+            onToolActivity = { activity += it })
+        assertTrue(completed)
+        assertTrue(client.receivedToolActivity)
+        assertEquals(listOf(HermesToolPhase.RUNNING, HermesToolPhase.COMPLETED), activity.map { it.phase })
+        assertEquals(listOf("call-1", "call-1"), activity.map { it.callId })
+        assertEquals(listOf("pwd", "/app/workspace"), activity.map { it.detail })
+        assertEquals(listOf("Done."), text)
+    }
+
+    @Test
+    fun toolOnlyDisconnectRetainsExecutionEvidenceAndOversizedFramesFailBoundedly() {
+        val body = "event: hermes.tool.progress\ndata: {\"toolCallId\":\"call-1\",\"tool\":\"terminal\",\"status\":\"running\"}\n\n"
+        val client = HermesSseClient("http://127.0.0.1:15436", httpClient = singleResponseClient(body), includeToolActivity = true)
+        var error: String? = null
+        client.streamChatCompletion(sampleRequest(), {}, { throw AssertionError("Unexpected completion") }, { error = it })
+        assertTrue(client.receivedToolActivity)
+        assertNotNull(error)
+        val oversized = HermesSseClient("http://127.0.0.1:15436", httpClient = singleResponseClient("data: " + "x".repeat(300000)))
+        var oversizeError: String? = null
+        oversized.streamChatCompletion(sampleRequest(), {}, { throw AssertionError("Unexpected completion") }, { oversizeError = it })
+        assertTrue(oversizeError.orEmpty().contains("size limit"))
+        assertFalse(oversized.receivedToolActivity)
+    }
+
+    @Test
+    fun responsesToolItemsAndStopKeepActivitySeparateFromReasoningAndLateText() {
+        val frames = """
+            data: {"type":"response.reasoning.delta","delta":"not public activity"}
+
+            data: {"type":"response.output_item.added","item":{"type":"function_call","call_id":"call-1","name":"read_file","arguments":"{}"}}
+
+            data: {"type":"response.output_item.done","item":{"type":"function_call_output","call_id":"call-1","output":[{"type":"input_text","text":"file contents"}]}}
+
+            data: {"type":"response.output_text.delta","delta":"Late answer"}
+
+            data: [DONE]
+
+        """.trimIndent() + "\n"
+        val client = HermesSseClient("http://127.0.0.1:15436", httpClient = singleResponseClient(frames), includeToolActivity = true)
+        val activity = mutableListOf<HermesToolActivity>()
+        val text = mutableListOf<String>()
+        client.streamResponse(sampleRequest(), { text += it }, { throw AssertionError("Stopped stream completed") }, {},
+            onToolActivity = { activity += it; if (it.phase == HermesToolPhase.COMPLETED) client.cancel() })
+        assertEquals(listOf(HermesToolPhase.RUNNING, HermesToolPhase.COMPLETED), activity.map { it.phase })
+        assertEquals("file contents\n", activity.last().detail)
+        assertTrue(text.isEmpty())
+    }
+
+    @Test
+    fun directProviderCannotPublishLocalToolExecutionEvents() {
+        val frames = """
+            event: hermes.tool.progress
+            data: {"toolCallId":"untrusted","tool":"terminal","status":"running","arguments":"not executed"}
+
+            data: {"type":"response.output_item.added","item":{"type":"function_call","call_id":"also-untrusted","name":"terminal","arguments":"{}"}}
+
+            data: {"choices":[{"delta":{"content":"Provider text only."}}]}
+
+            data: [DONE]
+
+        """.trimIndent() + "\n"
+        val client = HermesSseClient("https://provider.example.test", httpClient = singleResponseClient(frames))
+        val text = StringBuilder()
+        var complete = false
+        client.streamChatCompletion(sampleRequest(), { text.append(it) }, { complete = true }, { throw AssertionError(it) },
+            onToolActivity = { throw AssertionError("A direct provider forged local execution evidence") })
+        assertTrue(complete)
+        assertEquals("Provider text only.", text.toString())
+        assertFalse(client.receivedToolActivity)
+    }
+
+    @Test
     fun cancelBeforeCallRegistrationIsStickyAndCannotAffectAnotherClient() {
         val registrationReached = CountDownLatch(1)
         val releaseRegistration = CountDownLatch(1)

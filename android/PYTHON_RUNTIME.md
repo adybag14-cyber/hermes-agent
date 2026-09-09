@@ -17,6 +17,15 @@ pure-Python msgpack mode, and compiles the fork's Python bootstrap. No custom
 prebuilt wheel or bootstrap download is accepted. The app's separate C++ lane
 continues to use NDK 29; neither compiler silently substitutes for the other.
 
+The v157 MCP SDK set adds source-built cffi, cryptography and rpds-py for both
+ABIs. `scripts/build_android_mcp_wheels.py` and its source archives are bound by
+the same lock. OpenSSL and libffi are built statically from the pinned upstream
+sources with their licenses retained. The cryptography build has two narrow
+Android build-script adaptations: the CPython target header path, and an
+explicit link to `libpython3.13.so` instead of relying on the generic abi3 shim.
+Every native MCP extension must declare the real interpreter as a dependency;
+packaging/alignment checks alone cannot prove that Chaquopy can import it.
+
 The Java/JNI runtime and Gradle plugin remain upstream Chaquopy 17.0.0. Only the
 source-built Python bootstrap uses fork version 17.0.1, including the corrected
 split-archive importer. All bootstrap code objects and license files are
@@ -25,7 +34,7 @@ bootstrap with its upstream Gradle compiler output, then runs the app matrix.
 
 ## Preparation
 
-Use Linux Python 3.13, `python3-venv`, `g++`, `rustup`, and the declared SDK/NDKs.
+Use Linux Python 3.13, `python3-venv`, `g++`, `make`, `pkg-config`, `rustup`, and the declared SDK/NDKs.
 Windows release preparation uses the pinned F-Droid buildserver container from
 `fdroid/LOCAL_TOOLCHAIN.md`, working on the container filesystem. Do not install
 target Android wheels into a host interpreter or retag host wheels.
@@ -63,3 +72,11 @@ and source-bound release evidence remain mandatory. After GitHub publication,
 fresh updater detection and pinned-buildserver comparison with the public APK
 are both required; a prepared bundle or successful Gradle build is not either
 post-release gate.
+
+`FullMcpRuntimeInstrumentedTest` runs the actual SDK native imports, encrypted
+round trip, real HTTP/SSE servers, an Android stdio fixture, terminal coexistence,
+Stop/reload, and a Python-agent tool round trip to a loopback-only AI fixture.
+Its fixture script lives in `src/androidTest/assets`, not the application APK.
+`FullTesterReportedUiInstrumentedTest` exercises the real app shell's history
+actions and six-language consent dialogs without remote networking. Neither
+test uses private tester messages or real provider credentials.

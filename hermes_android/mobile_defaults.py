@@ -85,8 +85,23 @@ def ensure_android_defaults(config: dict[str, Any] | None = None, *, persist: bo
         loaded["platform_toolsets"] = platform_toolsets
 
     current = _configured_api_server_toolsets(loaded)
+    changed = current != DEFAULT_ANDROID_API_SERVER_TOOLSETS
     if current != DEFAULT_ANDROID_API_SERVER_TOOLSETS:
         platform_toolsets["api_server"] = list(DEFAULT_ANDROID_API_SERVER_TOOLSETS)
-        if persist:
-            save_config(loaded)
+    # Android history owns local titles. The core's separate automatic title
+    # upgrade would spend an extra model request and start a detached thread
+    # without updating those app titles, including after a local regeneration.
+    auxiliary = loaded.get("auxiliary")
+    if not isinstance(auxiliary, dict):
+        auxiliary = {}
+        loaded["auxiliary"] = auxiliary
+    title_generation = auxiliary.get("title_generation")
+    if not isinstance(title_generation, dict):
+        title_generation = {}
+        auxiliary["title_generation"] = title_generation
+    if title_generation.get("enabled") is not False:
+        title_generation["enabled"] = False
+        changed = True
+    if persist and changed:
+        save_config(loaded)
     return loaded

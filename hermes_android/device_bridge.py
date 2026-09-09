@@ -265,9 +265,13 @@ def read_device_capabilities() -> dict[str, Any]:
         "to work on those files directly. Use workspace read_file/write_file/search_files/patch only "
         "for imported copies or scratch files."
     )
+    from hermes_android.runtime_capabilities import read_runtime_capabilities
+
+    payload["runtime_capabilities"] = read_runtime_capabilities(_hermes_home())
     payload["linux_guide"] = (
-        "The Android Linux suite exposes a real local bash-based command subsystem. Use terminal/process "
-        "for direct CLI execution inside the extracted command prefix shown in linux_prefix_path."
+        "The embedded terminal uses Android's system shell and installed commands, not a complete desktop Linux/Python CLI. "
+        "Inspect runtime_capabilities for the actual shell executables, app-data storage, RAM and skills directory. "
+        "Use bounded foreground terminal commands; detached background processes are not supported."
     )
     payload["accessibility_guide"] = (
         "Enable Hermes accessibility, inspect the visible UI with android_ui_snapshot, then trigger a "

@@ -26,6 +26,8 @@ import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
 import com.mobilefork.hermesagent.data.SecureSecretsStore
 import com.mobilefork.hermesagent.device.HermesHyMemoryBridge
+import com.mobilefork.hermesagent.ui.i18n.AppLanguage
+import com.mobilefork.hermesagent.ui.i18n.savedFactsLabel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,7 +91,9 @@ internal fun chatReadinessUiState(
         append(backendLabel)
         append(" · Python ")
         append(pythonReadinessLabel(pythonReady, remoteReadyWithoutPython))
-        append(" · memory ")
+        append(" · ")
+        append(savedFactsLabel(AppLanguage.fromTag(settings.languageTag)))
+        append(' ')
         append(memoryCount.coerceAtLeast(0))
     }
     return ChatReadinessUiState(line = line, ready = ready)

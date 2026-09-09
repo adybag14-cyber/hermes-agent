@@ -46,10 +46,10 @@ def make_bundle(tmp_path, lock_file, requirements, lock):
 def test_committed_requirements_have_complete_official_hash_coverage():
     lock = runtime.load_lock()
     selected = runtime.pins(runtime.REQUIREMENTS.read_text())
-    assert runtime.CUSTOM <= set(selected)
+    assert runtime.source_built_packages(lock) <= set(selected)
     text = runtime.official_requirements(lock, runtime.REQUIREMENTS.read_text())
     lines = text.splitlines()
-    assert {line.split("==")[0] for line in lines} == set(selected) - runtime.CUSTOM
+    assert {line.split("==")[0] for line in lines} == set(selected) - runtime.source_built_packages(lock)
     assert all(" --hash=sha256:" in line for line in lines)
 
 

@@ -32,13 +32,13 @@ Repo: https://github.com/adybag14-cyber/hermes-agent.git
 Binaries: https://github.com/adybag14-cyber/hermes-agent/releases/download/v%v/hermes-agent-android-v%v-universal.apk
 
 Builds:
-  - versionName: 0.13.156
-    versionCode: 145690
+  - versionName: 0.13.157
+    versionCode: 145790
     commit: REPLACE_WITH_RELEASE_COMMIT_HASH
     subdir: android/app
     sudo:
       - apt-get update
-      - apt-get install -y g++ python3-pip python3-venv rustup
+      - apt-get install -y g++ make pkg-config python3-pip python3-venv rustup
       - sdkmanager "cmake;3.31.6"
       - sdkmanager "ndk;27.3.13750724"
       - sdkmanager "platforms;android-36" "build-tools;36.0.0"
@@ -67,5 +67,5 @@ AllowedAPKSigningKeys: 2cbdb94d6081413055af1e903d4c1d6714300b4240402d1d4c8182fda
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v0\.
 UpdateCheckData: fdroid/com.mobilefork.hermesagent.version|versionCode=(\d+)|.|versionName=(.*)
-CurrentVersion: 0.13.156
-CurrentVersionCode: 145690
+CurrentVersion: 0.13.157
+CurrentVersionCode: 145790

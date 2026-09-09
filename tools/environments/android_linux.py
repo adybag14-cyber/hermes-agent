@@ -35,6 +35,7 @@ _ANDROID_QUIESCENCE_CONFIRMATION_SECONDS = 0.1
 class _AndroidProcessOwner:
     baseline_process_ids: frozenset[int]
     owner_token: str
+    kind: str = "terminal"
 
 
 _ANDROID_PROCESS_OWNERS: dict[int, _AndroidProcessOwner] = {}
@@ -145,6 +146,10 @@ def _terminate_android_process_owner(
     clean_since: float | None = None
 
     def remaining() -> tuple[set[int], set[int]]:
+        # A stdio server may exit before cleanup begins. Reap the retained
+        # direct child before /proc inspection: a zombie has an empty environ
+        # and must not be mistaken for a live unmarked replacement process.
+        _direct_process_reaped(process_group_id)
         current = _same_uid_process_ids()
         if current is None:
             raise RuntimeError("Android app-UID process inventory is unavailable")
@@ -159,7 +164,16 @@ def _terminate_android_process_owner(
             for pid in candidates
             if _process_owner_token(pid) == owner.owner_token
         }
-        ambiguous = candidates - owned - set(owner.baseline_process_ids)
+        # A persistent MCP child is not an orphan of an unrelated terminal
+        # command. Exempt only a positively identified, still-retained owner;
+        # an arbitrary environment marker or a familiar PID is not authority.
+        with _ANDROID_PROCESS_OWNER_LOCK:
+            other_tokens = {
+                other.owner_token for other in _ANDROID_PROCESS_OWNERS.values()
+                if other.owner_token != owner.owner_token
+            }
+        other_owned = {pid for pid in candidates if _process_owner_token(pid) in other_tokens}
+        ambiguous = candidates - owned - other_owned - set(owner.baseline_process_ids)
         observed_owned.update(owned)
         observed_ambiguous.update(ambiguous)
         return owned, ambiguous
@@ -424,7 +438,7 @@ def _android_process_admission_error() -> str:
     if restart_detail:
         return restart_detail
     with _ANDROID_PROCESS_OWNER_LOCK:
-        owner_ids = sorted(_ANDROID_PROCESS_OWNERS)
+        owner_ids = sorted(pid for pid, owner in _ANDROID_PROCESS_OWNERS.items() if owner.kind != "mcp")
     if not owner_ids:
         return ""
     owner_text = f" (owners: {', '.join(str(pid) for pid in owner_ids)})" if owner_ids else ""
@@ -495,18 +509,11 @@ class AndroidLinuxEnvironment(BaseEnvironment):
 
         run_env = build_subprocess_env(extra=self.env)
 
-        system_path = "/system/bin:/system/xbin:/vendor/bin:/odm/bin"
-        existing_path = run_env.get("PATH", "")
-        path_parts = [system_path]
-        if existing_path:
-            path_parts.append(existing_path)
-        if (
-            self.bin_path
-            and run_env.get("HERMES_ANDROID_ALLOW_PREFIX_BIN") == "1"
-            and self.bin_path not in path_parts
-        ):
-            path_parts.append(self.bin_path)
-        run_env["PATH"] = ":".join(path_parts)
+        from hermes_android.runtime_capabilities import android_command_path
+
+        run_env["PATH"] = android_command_path(
+            run_env.get("PATH", ""), self.bin_path, run_env.get("HERMES_ANDROID_ALLOW_PREFIX_BIN") == "1",
+        )
 
         if self.prefix_path:
             run_env["PREFIX"] = self.prefix_path

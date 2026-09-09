@@ -13,6 +13,7 @@ import com.mobilefork.hermesagent.api.ChatMessage
 import com.mobilefork.hermesagent.api.HermesEndpointUrl
 import com.mobilefork.hermesagent.api.HermesApiClient
 import com.mobilefork.hermesagent.api.HermesSseClient
+import com.mobilefork.hermesagent.api.HermesToolActivity
 import com.mobilefork.hermesagent.backend.BackendKind
 import com.mobilefork.hermesagent.backend.HermesRuntimeManager
 import com.mobilefork.hermesagent.backend.LocalBackendStatus
@@ -30,6 +31,7 @@ import com.mobilefork.hermesagent.data.StoredConversationMessage
 import com.mobilefork.hermesagent.device.AutomationPublicationGate
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
+import com.mobilefork.hermesagent.ui.i18n.toolStreamInterrupted
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -661,6 +663,36 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun hideHistory() {
         _uiState.update { it.copy(isShowingHistory = false) }
+    }
+
+    fun renameConversation(sessionId: String, title: String) {
+        if (conversationStore.renameConversation(sessionId, title)) refreshHistoryMetadata()
+    }
+
+    fun regenerateConversationTitle(sessionId: String) {
+        if (conversationStore.regenerateConversationTitle(sessionId)) refreshHistoryMetadata()
+    }
+
+    fun deleteConversation(sessionId: String) {
+        if (sessionId == _uiState.value.activeConversationId) {
+            initializationGuard.invalidate()
+            stopActiveSend(status = "Stopped by user")
+            val next = conversationStore.clearConversation(sessionId)
+            _uiState.value = buildState(next.sessionId, next.messages.toUiMessages(), isShowingHistory = true)
+        } else {
+            conversationStore.clearConversation(sessionId)
+            refreshHistoryMetadata()
+        }
+    }
+
+    private fun refreshHistoryMetadata() {
+        _uiState.update { state ->
+            state.copy(
+                activeConversationTitle = conversationStore.loadConversation(state.activeConversationId)?.title
+                    ?: state.activeConversationTitle,
+                conversationSummaries = loadSummaries(),
+            )
+        }
     }
 
     fun openConversation(sessionId: String) {
@@ -1317,32 +1349,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     priorMessages = priorConversationMessages,
                     relevantMemoryContext = memoryContext,
                     onEvent = event@ { event ->
-                        val eventMessage = ChatUiMessage(
-                            id = UUID.randomUUID().toString(),
-                            role = event.type.persistedRole,
-                            content = buildString {
-                                append(event.title)
-                                if (event.content.isNotBlank()) {
-                                    append('\n')
-                                    append(event.content)
-                                }
-                            },
-                            createdAtEpochMs = System.currentTimeMillis(),
-                        )
-                        sendCoordinator.mutateIfActive(sendRequest) {
-                            conversationStore.insertMessageBefore(
-                                sessionId = sessionId,
-                                beforeMessageId = assistantMessageId,
-                                message = eventMessage.toStoredMessage(),
-                            )
-                            _uiState.update { state ->
-                                val finalIndex = state.messages.indexOfFirst { it.id == assistantMessageId }
-                                val updated = state.messages.toMutableList().apply {
-                                    if (finalIndex >= 0) add(finalIndex, eventMessage) else add(eventMessage)
-                                }
-                                state.copy(messages = updated)
-                            }
-                        }
+                        appendOwnedToolActivity(sendCoordinator, sendRequest, conversationStore, _uiState, event)
                     },
                 )
                 if (!sendCoordinator.attachNetwork(
@@ -1412,6 +1419,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             val client = HermesSseClient(
                 baseUrl = endpoint.baseUrl,
                 apiKey = endpoint.apiKey,
+                includeToolActivity = !com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION && !endpoint.directProvider,
                 networkGuard = { url ->
                     RemoteProcessingConsentStore.requireConfiguredRemoteConsent(getApplication<Application>())
                     HermesNetworkPolicy.requireExternalNetworkAllowed(
@@ -1467,6 +1475,20 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 reasoningFormat = if (suppressLocalLlamaReasoning) "none" else null,
                 chatTemplateEnableThinking = if (suppressLocalLlamaReasoning) false else null,
             )
+            val handleStreamFailure: (String) -> Unit = { error ->
+                if (mayReplayFailedStream(client.receivedToolActivity, agentEndpoint = !endpoint.directProvider)) {
+                    if (sendCoordinator.isActive(sendRequest)) tryNonStreamingEndpointFallback(
+                        endpoint, request, sendRequest, error,
+                    )
+                } else {
+                    sendCoordinator.finishIfActive(sendRequest) {
+                        val message = currentStrings().toolStreamInterrupted()
+                        finalizeOwnedAssistantMessage(sessionId, assistantMessageId, message)
+                        _uiState.update { it.copy(isSending = false, error = message, status = "") }
+                        true
+                    }
+                }
+            }
             runCatching {
                 val onDelta: (String) -> Unit = onDelta@ { delta ->
                     sendCoordinator.mutateIfActive(sendRequest) { ownedRequest ->
@@ -1549,15 +1571,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         retainConversationMemory(sessionId, text, assistantContent)
                     }
                 }
-                val onError: (String) -> Unit = { error ->
-                    if (sendCoordinator.isActive(sendRequest)) {
-                        tryNonStreamingEndpointFallback(
-                            endpoint = endpoint,
-                            request = request,
-                            sendRequest = sendRequest,
-                            streamError = error,
-                        )
-                    }
+                val onError = handleStreamFailure
+                val onToolActivity: (HermesToolActivity) -> Unit = { event ->
+                    if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) appendOwnedToolActivity(
+                        sendCoordinator, sendRequest, conversationStore, _uiState, event.toTimelineEvent(),
+                        eventId = "tool-$assistantMessageId-${event.callId}-${event.phase}",
+                    )
                 }
                 val onStatus: (String) -> Unit = { status ->
                     sendCoordinator.mutateIfActive(sendRequest) {
@@ -1573,6 +1592,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         onComplete = onComplete,
                         onError = onError,
                         onStatus = onStatus,
+                        onToolActivity = onToolActivity,
                     )
                 } else {
                     client.streamChatCompletion(
@@ -1581,18 +1601,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                         onComplete = onComplete,
                         onError = onError,
                         onStatus = onStatus,
+                        onToolActivity = onToolActivity,
                     )
                 }
             }.onFailure { error ->
                 val message = error.message ?: error.javaClass.simpleName
-                if (sendCoordinator.isActive(sendRequest)) {
-                    tryNonStreamingEndpointFallback(
-                        endpoint = endpoint,
-                        request = request,
-                        sendRequest = sendRequest,
-                        streamError = message,
-                    )
-                }
+                handleStreamFailure(message)
             }
         }
         sendJob.invokeOnCompletion {
@@ -1944,6 +1958,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 preview = summary.preview,
                 updatedLabel = DateFormat.format("MMM d, HH:mm", summary.updatedAtEpochMs).toString(),
                 messageCount = summary.messageCount,
+                isDefaultTitle = summary.isDefaultTitle,
             )
         }
     }

@@ -6,6 +6,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -222,7 +223,9 @@ def test_native_toolchain_contract_matches_lock_gradle_and_fdroid_metadata(
     )
     assert "ndkVersion = hermesExperimentalLlamaNdkVersion" in gradle
     assert f'    ndk: {fdroid_contract["ANDROID_NDK_VERSION"]}' in metadata
-    assert "      - apt-get install -y g++ python3-pip" in metadata
+    setup_commands = yaml.safe_load(metadata)["Builds"][0]["sudo"]
+    install = next(shlex.split(command) for command in setup_commands if command.startswith("apt-get install "))
+    assert {"g++", "make", "pkg-config", "python3-pip", "python3-venv", "rustup"} <= set(install)
     assert f'      - sdkmanager "{fdroid_contract["ANDROID_CMAKE_PACKAGE"]}"' in metadata
 
 

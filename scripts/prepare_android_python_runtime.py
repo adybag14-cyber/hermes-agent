@@ -21,6 +21,11 @@ import tarfile
 import urllib.request
 import venv
 
+if __package__:
+    from . import build_android_mcp_wheels as mcp_wheels
+else:
+    import build_android_mcp_wheels as mcp_wheels
+
 ROOT = Path(__file__).resolve().parents[1]
 LOCK = ROOT / "hermes_android/python_runtime.lock.json"
 REQUIREMENTS = ROOT / "requirements-android-chaquopy.txt"
@@ -58,6 +63,10 @@ def pins(text):
     return result
 
 
+def source_built_packages(lock):
+    return CUSTOM | set(lock.get("mcp_native", {}).get("packages", {}))
+
+
 def inventory(root):
     files = []
     for path in sorted(root.rglob("*")):
@@ -81,6 +90,9 @@ def load_lock(path=LOCK, requirements=REQUIREMENTS):
             or not 0 < source["archive_size_bytes"] < 64 * 1024 * 1024):
         raise ValueError("Chaquopy source must be an immutable, checksum-bound archive")
     selected = pins(requirements.read_text(encoding="utf-8"))
+    if "mcp_native" in lock:
+        mcp_wheels.validate_sources(lock["mcp_native"], selected)
+    custom = source_built_packages(lock)
     wheel_packages = set()
     names = set()
     for wheel in lock["official_wheels"]:
@@ -91,11 +103,11 @@ def load_lock(path=LOCK, requirements=REQUIREMENTS):
             raise ValueError("Invalid/duplicate official wheel identity")
         package, version = name.split("-")[:2]
         package = canonical_name(package)
-        if package in CUSTOM or selected.get(package) != version:
+        if package in custom or selected.get(package) != version:
             raise ValueError("Official wheel does not match the selected requirements")
         names.add(name)
         wheel_packages.add(package)
-    if wheel_packages != set(selected) - CUSTOM or not CUSTOM <= set(selected):
+    if wheel_packages != set(selected) - custom or not custom <= set(selected):
         raise ValueError("Official wheel lock does not cover the complementary package set")
     return lock
 
@@ -165,7 +177,7 @@ def run(command, *, cwd, env, timeout=3600):
 def official_requirements(lock, requirements):
     lines = []
     for package, version in sorted(pins(requirements).items()):
-        if package in CUSTOM:
+        if package in source_built_packages(lock):
             continue
         hashes = sorted({item["sha256"] for item in lock["official_wheels"]
                          if canonical_name(item["filename"].split("-")[0]) == package})
@@ -223,6 +235,10 @@ def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS):
     run([python, "-m", "build", "--no-isolation", "--wheel", "--outdir", wheels,
          work / "source-msgpack/msgpack-1.2.2"], cwd=source,
         env=environment | {"MSGPACK_PUREPYTHON": "1"}, timeout=600)
+    if "mcp_native" in lock:
+        mcp_report = mcp_wheels.build(lock["mcp_native"], work=work / "mcp-native", wheel_dir=wheels,
+                                     helpers=helpers, python=python, environment=environment)
+        (stage / "mcp-native-build.json").write_text(json.dumps(mcp_report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     bootstrap = work / "bootstrap"
     run([python, helpers / "build_bootstrap.py", "--python", "3.13", "--output", bootstrap],
         cwd=source, env=environment, timeout=180)
