@@ -1,5 +1,9 @@
 import copy
 import io
+import json
+import shlex
+import shutil
+import subprocess
 import tarfile
 import tomllib
 import zipfile
@@ -80,3 +84,32 @@ def test_native_extensions_must_resolve_the_embedded_android_interpreter():
         for missing in ([], ["libc.so"], ["libpython3.so"]):
             with pytest.raises(ValueError, match="directly link"):
                 mcp_build.require_android_python_link({"native_libraries": [{**library, "needed": missing}]}, package)
+
+
+@pytest.mark.linux_only
+def test_rust_native_output_is_independent_of_nested_build_home(tmp_path):
+    compiler = shutil.which("rustc")
+    if compiler is None:
+        pytest.skip("Native source-build regression requires the declared Rust toolchain")
+    objects = []
+    for layout in ("external", "nested"):
+        build_home = tmp_path / layout / "home"
+        work = (build_home if layout == "nested" else tmp_path / layout) / "work"
+        source = work / "mcp-native" / "package"
+        cargo_home = work / "cargo"
+        source.mkdir(parents=True)
+        dependency = cargo_home / "registry" / "dependency.rs"
+        dependency.parent.mkdir(parents=True)
+        dependency.write_text("pub fn provenance() -> &'static str { file!() }\n", encoding="utf-8")
+        main = source / "lib.rs"
+        main.write_text(f'#[path = {json.dumps(str(dependency))}] mod dependency;\n'
+                        "#[no_mangle] pub fn source_path() -> &'static str { file!() }\n"
+                        "#[no_mangle] pub fn dependency_path() -> &'static str { dependency::provenance() }\n",
+                        encoding="utf-8")
+        output = work / "fixture.o"
+        subprocess.run([compiler, str(main), "--crate-type=lib", "--crate-name=remap_fixture", "--edition=2021",
+                        "--emit=obj", "-C", "debuginfo=0", "-o", str(output),
+                        *shlex.split(mcp_build.native_rust_flags(source, cargo_home, build_home))],
+                       check=True, capture_output=True, text=True, timeout=30)
+        objects.append(output.read_bytes())
+    assert objects[0] == objects[1], "Build-home nesting must not change native source or dependency provenance"

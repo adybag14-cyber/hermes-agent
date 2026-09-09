@@ -395,7 +395,7 @@
     }
   ],
   "mcp_native": {
-    "builder_sha256": "0c92e9a9693f1a30f888bef589327409016d57f1f4cb4267ae0982a5d84fbdb9",
+    "builder_sha256": "0ee079d10ca1a6182fdd3ffb5ea77ac5dedf7f21785ab87d80d22040fbad4eaf",
     "packages": {
       "cffi": {
         "version": "2.0.0",

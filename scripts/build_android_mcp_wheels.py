@@ -215,6 +215,16 @@ def require_android_python_link(audit: dict, package: str) -> None:
         raise ValueError("Native MCP extension must directly link the Android Python 3.13 interpreter")
 
 
+def native_rust_flags(source: Path, cargo_home: Path, build_home: Path) -> str:
+    flags = "-C link-arg=-Wl,--build-id=none -C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"
+    # rustc uses the last matching prefix. Keep broad HOME first so a CI work
+    # directory nested under it cannot override the source/Cargo normalization.
+    for root, replacement in ((build_home, "/hermes-build-home"), (cargo_home, "/hermes-cargo"),
+                              (source, "/hermes-source")):
+        flags += " --remap-path-prefix=" + str(root) + "=" + replacement
+    return flags
+
+
 def build(config: dict, *, work: Path, wheel_dir: Path, helpers: Path, python: Path, environment: dict) -> dict:
     # Only verified source helpers may supply the build runner and artifact auditor.
     sys.path.insert(0, str(helpers))
@@ -277,10 +287,7 @@ def build(config: dict, *, work: Path, wheel_dir: Path, helpers: Path, python: P
             output.mkdir()
             c_flags = "-O2 -fPIC -ffile-prefix-map=" + str(source) + "=/hermes-source -I" + str(ffi_prefix / "include")
             linker_flags = "-L" + str(ffi_prefix / "lib") + " -Wl,--exclude-libs,ALL -Wl,--build-id=none -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384"
-            rust_flags = "-C link-arg=-Wl,--build-id=none -C link-arg=-Wl,-z,max-page-size=16384 -C link-arg=-Wl,-z,common-page-size=16384"
-            for root, replacement in ((source, "/hermes-source"), (Path(base_env["CARGO_HOME"]), "/hermes-cargo"),
-                                      (Path.home(), "/hermes-build-home")):
-                rust_flags += " --remap-path-prefix=" + str(root) + "=" + replacement
+            rust_flags = native_rust_flags(source, Path(base_env["CARGO_HOME"]), Path.home())
             build_vars = {"ANDROID_API_LEVEL": "24", "MATURIN_PEP517_ARGS": "--locked", "RUSTFLAGS": rust_flags,
                           "CFLAGS": c_flags, "LDFLAGS": linker_flags,
                           **native_library_environment(package, openssl_prefix, ffi_prefix, ffi_stage)}
