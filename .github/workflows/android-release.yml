@@ -336,7 +336,8 @@ jobs:
           signed_apk="app/build/outputs/apk/release/app-release.apk"
           if [ ! -f "$evidence_record" ]; then
             # The preceding verifier enforces the versioned policy, including
-            # the owner's separately authorized v0.13.154 through v0.13.157 waivers.
+            # historical v0.13.154–157 waivers and the owner's standing optional
+            # physical-validation policy for v0.13.158 and later.
             printf 'No physical candidate record is required by the verified evidence policy for %s\n' \
               "$HERMES_RELEASE_TAG"
             exit 0

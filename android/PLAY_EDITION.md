@@ -122,7 +122,10 @@ Missing, extra, non-regular, or stale evidence fails both entry points. Earlier
 release layouts remain unchanged.
 
 Ordinary unbound debug test passes are development evidence only. Stable v0.13.157
-has the owner's separate, version-scoped physical-phone waiver; this does not certify ARM64 device
-behavior or waive the emulator, hosted release or two post-release F-Droid gates.
-Physical-device submission videos are deferred until the owner reconnects the
-phone. Google review/approval and central F-Droid publication are external states.
+retains its historical physical-phone waiver. The owner's standing instruction
+of 2026-09-12 makes physical on-device validation optional extra checking for all
+future releases; a disconnected phone or absent physical video is not a release
+gate. This does not certify ARM64 device behavior or waive the required AVD,
+hosted release or two post-release F-Droid gates. Physical checks/videos can be
+performed when separately requested. Google review/approval and central F-Droid
+publication are external states.

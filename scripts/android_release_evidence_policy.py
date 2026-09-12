@@ -14,10 +14,12 @@ except ModuleNotFoundError:  # Imported as a package rather than executed as a s
 
 REVIEWER_RE = re.compile(r"^[^\r\n]{2,120}$")
 POLICY_UPDATE_VERSION = (0, 13, 154)
+OPTIONAL_PHYSICAL_VERSION = (0, 13, 158)
+POLICY_TAG_RE = re.compile(r"v(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)(?:\.\d+)?)?")
 
 
 def physical_validation_waiver(tag: str) -> dict[str, Any] | None:
-    """Keep each explicit owner waiver limited to its named stable release."""
+    """Preserve historical waivers and apply the owner's standing future policy."""
     normalized_tag = tag.strip()
     authorization = {
         "v0.13.154": "Explicit release-owner instruction on 2026-09-07 to skip phone validation and publish this release.",
@@ -26,7 +28,16 @@ def physical_validation_waiver(tag: str) -> dict[str, Any] | None:
         "v0.13.157": "Explicit release-owner instruction on 2026-09-09 to waive physical-device validation for v157 only while addressing the Full-edition tester reports; emulator, signing, hosted release and both post-release F-Droid gates remain required.",
     }.get(normalized_tag)
     if authorization is None:
-        return None
+        match = POLICY_TAG_RE.fullmatch(normalized_tag)
+        if match is None or tuple(int(part) for part in match.groups()) < OPTIONAL_PHYSICAL_VERSION:
+            return None
+        return {
+            "classification": "optional-physical-validation",
+            "release_tag": normalized_tag,
+            "physical_validation_performed": False,
+            "authorization": "Explicit release-owner instruction on 2026-09-12: physical on-device validation is optional extra checking for all future releases, not a release gate; required AVD, source, signing, hosted release and both F-Droid gates remain unchanged.",
+            "scope": "standing policy for this and future releases; physical checking is performed only when separately requested",
+        }
     return {
         "classification": "owner-waived-physical-validation",
         "release_tag": normalized_tag,
@@ -43,11 +54,13 @@ def record_physical_validation_waiver(manifest: dict[str, Any], tag: str) -> Non
     manifest["physical_device_evidence"] = waiver
     manifest["contract"]["requires_one_physical_arm64_nanbeige_repair_record"] = False
     manifest["contract"]["physical_validation_waived_for_this_release"] = True
+    if waiver["classification"] == "optional-physical-validation":
+        manifest["contract"]["physical_validation_optional"] = True
     manifest["summary"].update(physical_nanbeige_repair_count=0, physical_device_models=[])
 
 
 def uses_upgrade_release_policy(tag: str) -> bool:
-    match = re.fullmatch(r"v(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)(?:\.\d+)?)?", tag)
+    match = POLICY_TAG_RE.fullmatch(tag)
     if match is None:
         raise EvidenceError(f"Invalid Android release policy tag: {tag!r}")
     return tuple(int(part) for part in match.groups()) >= POLICY_UPDATE_VERSION

@@ -10,12 +10,12 @@ from scripts.android_release_evidence_common import EvidenceError
 from tests.hermes_android import test_android_release_evidence_v151 as historical
 
 
-def test_v157_owner_waiver_does_not_claim_phone_validation_or_extend_to_other_tags():
+def test_v157_owner_waiver_preserves_its_historical_record():
     waiver = policy.physical_validation_waiver("v0.13.157")
     assert waiver["release_tag"] == "v0.13.157"
     assert waiver["physical_validation_performed"] is False
     assert waiver["classification"] == "owner-waived-physical-validation"
-    assert policy.physical_validation_waiver("v0.13.158") is None
+    assert waiver["scope"] == "this release only; the physical gate remains required for later releases"
     assert policy.physical_validation_waiver("v0.13.157-rc.1") is None
     assert policy.physical_validation_waiver("v0.13.153") is None
 

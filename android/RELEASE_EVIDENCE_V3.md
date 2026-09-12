@@ -22,8 +22,14 @@ physical validation for stable `v0.13.157` while requesting the Full tester fixe
 then authorized the signed release and Google Play submission. Each version records validation as
 **not performed, owner-waived**, not as passing phone evidence. The source-bound
 emulator, signing, hosted workflow, and both post-publication F-Droid gates remain
-required. These waivers do not apply to prereleases or v0.13.158 and later; their
-physical gate remains in force. Do not reuse older API 35 phone results as API 36 proof.
+required. Those historical records remain unchanged, including their original
+waiver scope. On 2026-09-12 the owner confirmed that physical on-device validation
+is optional extra checking for this and all future releases, not a release gate.
+From v0.13.158 onward, including prereleases, the policy records physical checks
+as **not performed, optional** when absent; no per-version waiver or connected
+phone is required. v0.13.157 retains its already-authorized immutable waiver.
+Required AVD, source, signing, hosted workflow and both post-publication F-Droid
+gates are unchanged. Do not reuse older API 35 phone results as API 36 proof.
 
 The app and macrobenchmark compile and target API 36 with Build Tools 36.0.0.
 The signed candidate and release workflows independently inspect the APK manifest
@@ -110,6 +116,12 @@ $testSha = (Get-FileHash $testApk -Algorithm SHA256).Hash.ToLowerInvariant()
 ```
 
 ### 1A. Certify the signed Nanbeige repair candidate on physical ARM64 (v0.13.151+)
+
+This section describes historical physical certification and the procedure for
+optional extra checking when the owner requests it. It is not a publication gate
+under the standing 2026-09-12 policy. Keep optional new physical diagnostics in
+private supporting evidence rather than adding unrequired files to the closed
+release inventory; never claim unperformed physical validation as passing.
 
 The physical record is separate from the headed-AVD candidate pair. First push
 the clean source commit to the repository's default branch, then request the
