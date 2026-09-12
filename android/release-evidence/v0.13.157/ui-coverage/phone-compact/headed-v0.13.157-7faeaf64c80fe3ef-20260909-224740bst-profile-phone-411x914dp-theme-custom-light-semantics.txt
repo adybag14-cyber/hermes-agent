@@ -1,0 +1,259 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=appearance-custom-light
+artifact=headed-v0.13.157-7faeaf64c80fe3ef-20260909-224740bst-profile-phone-411x914dp-theme-custom-light
+coverage_kind=custom-light-palette
+page_id=Hermes
+profile=phone-411x914dp
+language=en
+theme_id=custom-light
+theme_primary=#1565C0
+theme_secondary=#8E24AA
+theme_background=#FAFBFF
+theme_surface=#FFFFFF
+theme_surface_variant=#E8EEF8
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.157
+version_code=145790
+build_variant=debug
+source_digest=7faeaf64c80fe3effd6a34a9ef2d3d85e40b984876e6a2adbea6b6bf0c872027
+candidate_apk_sha256=553170bada3d2e9de069d1ed1677353ce49c2e6a3f34474a69c29f8b72ffb099
+instrumentation_apk_sha256=6fbf8c470630b20a383c8639a5a7c3162ecec4ec2cca797948cd447fe1100df2
+evidence_run_id=v0.13.157-7faeaf64c80fe3ef-20260909-224740bst
+device_serial=emulator-5580
+avd_name=Hermes_Release_157_SDK05_API36
+device_boot_id=83da5500-9f03-450d-bd68-cb42280a5dee
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=e4c3a1a055351f0b960bc86ad73b2aceb5ca512cb64051f5bfda6b32d7561db5
+sentinel=HermesChatInput
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=128.0, r=1080.0, b=2337.0)px
+         IsTraversalGroup = 'true'
+          |-Node #3304 at (l=0.0, t=128.0, r=1080.0, b=2337.0)px
+            IsTraversalGroup = 'true'
+             |-Node #3308 at (l=21.0, t=139.0, r=1059.0, b=307.0)px
+             | IsTraversalGroup = 'true'
+             |  |-Node #3324 at (l=47.0, t=160.0, r=173.0, b=286.0)px, Tag: 'HermesChatDrawerButton'
+             |  | Role = 'Button'
+             |  | Focused = 'false'
+             |  | ContentDescription = '[Open navigation menu]'
+             |  | Actions = [OnClick, RequestFocus]
+             |  | MergeDescendants = 'true'
+             |  |-Node #3329 at (l=194.0, t=192.0, r=257.0, b=255.0)px
+             |  | ContentDescription = '[Hermes Fork]'
+             |  | Role = 'Image'
+             |  |-Node #3331 at (l=278.0, t=176.0, r=574.0, b=229.0)px
+             |  | Text = '[Hermes Fork Chat]'
+             |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |-Node #3332 at (l=278.0, t=229.0, r=604.0, b=271.0)px
+             |  | Text = '[Call the configured MCP waiting tool so I can s…]'
+             |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |-Node #3334 at (l=626.0, t=172.0, r=731.0, b=277.0)px, Tag: 'HermesChatHistoryButton'
+             |  | Role = 'Button'
+             |  | Focused = 'false'
+             |  | Actions = [OnClick, RequestFocus]
+             |  | MergeDescendants = 'true'
+             |  |  |-Node #3335 at (l=652.0, t=198.0, r=705.0, b=251.0)px
+             |  |    ContentDescription = '[Open history]'
+             |  |    Role = 'Image'
+             |  |-Node #3336 at (l=741.0, t=176.0, r=917.0, b=271.0)px, Tag: 'HermesChatDisplayToggle'
+             |  | Focused = 'false'
+             |  | Role = 'Button'
+             |  | Actions = [OnClick, RequestFocus]
+             |  | MergeDescendants = 'true'
+             |  |  |-Node #3338 at (l=762.0, t=203.0, r=896.0, b=245.0)px
+             |  |    Text = '[Compact]'
+             |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |-Node #3339 at (l=928.0, t=171.0, r=1033.0, b=276.0)px, Tag: 'HermesFloatingActionButton'
+             |     |-Node #3340 at (l=929.0, t=172.0, r=1034.0, b=277.0)px, Tag: 'HermesChatPageActionsButton'
+             |       Role = 'Button'
+             |       Focused = 'false'
+             |       Actions = [OnClick, RequestFocus]
+             |       MergeDescendants = 'true'
+             |        |-Node #3341 at (l=955.0, t=198.0, r=1008.0, b=251.0)px
+             |          ContentDescription = '[Open page actions]'
+             |          Role = 'Image'
+             |-Node #3310 at (l=21.0, t=318.0, r=1059.0, b=434.0)px, Tag: 'HermesChatReadinessStrip'
+             | IsTraversalGroup = 'true'
+             |  |-Node #3312 at (l=47.0, t=334.0, r=1033.0, b=418.0)px
+             |    Text = '[Ready · remote openrouter · anthropic/claude-sonnet-4 · Python optional · saved facts 1]'
+             |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |-Node #3314 at (l=21.0, t=445.0, r=1059.0, b=1989.0)px, Tag: 'HermesChatMessageList'
+             | IsTraversalGroup = 'true'
+             | VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+             | CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@80a4b24'
+             | Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+             |  |-Node #3364 at (l=21.0, t=445.0, r=1059.0, b=1022.0)px, Tag: 'HermesCompactChatTurn'
+             |  | IsTraversalGroup = 'true'
+             |  |  |-Node #3366 at (l=42.0, t=466.0, r=1038.0, b=644.0)px, Tag: 'HermesCompactPromptHeader'
+             |  |  | IsTraversalGroup = 'true'
+             |  |  | Focused = 'false'
+             |  |  | Actions = [OnClick, RequestFocus]
+             |  |  | MergeDescendants = 'true'
+             |  |  |  |-Node #3369 at (l=66.0, t=508.0, r=252.0, b=550.0)px
+             |  |  |  | Text = '[Your prompt]'
+             |  |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |  |-Node #3372 at (l=862.0, t=485.0, r=951.0, b=574.0)px, Tag: 'HermesMessageActionsButton'
+             |  |  |  | Role = 'Button'
+             |  |  |  | Focused = 'false'
+             |  |  |  | Actions = [OnClick, RequestFocus]
+             |  |  |  | MergeDescendants = 'true'
+             |  |  |  |  |-Node #3373 at (l=883.0, t=506.0, r=930.0, b=553.0)px
+             |  |  |  |    ContentDescription = '[Message actions]'
+             |  |  |  |    Role = 'Image'
+             |  |  |  |-Node #3374 at (l=971.0, t=497.0, r=1014.0, b=560.0)px
+             |  |  |  | Text = '[▼]'
+             |  |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |  |-Node #3375 at (l=66.0, t=584.0, r=845.0, b=626.0)px
+             |  |  |    Text = '[Call the configured MCP waiting tool so I can stop it.]'
+             |  |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3376 at (l=74.0, t=657.0, r=1038.0, b=731.0)px, Tag: 'HermesAgentEvent_tool_call'
+             |  |  | IsTraversalGroup = 'true'
+             |  |  |  |-Node #3377 at (l=74.0, t=657.0, r=1038.0, b=731.0)px, Tag: 'HermesAgentEventMessage_tool-c92af95e-3a3a-4926-b341-c4a6053f4bf4-fixture-call-1-RUNNING'
+             |  |  |    Focused = 'false'
+             |  |  |    Actions = [OnClick, RequestFocus]
+             |  |  |    MergeDescendants = 'true'
+             |  |  |     |-Node #3379 at (l=98.0, t=673.0, r=996.0, b=715.0)px
+             |  |  |     | Text = '[Tool call · mcp_wait_for_stop_ea46fb7a1e14f579]'
+             |  |  |     | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |     |-Node #3380 at (l=996.0, t=673.0, r=1014.0, b=715.0)px
+             |  |  |       Text = '[+]'
+             |  |  |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3382 at (l=42.0, t=762.0, r=42.0, b=815.0)px
+             |  |  | Text = '[]'
+             |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3384 at (l=950.0, t=745.0, r=1039.0, b=834.0)px, Tag: 'HermesMessageActionsButton'
+             |  |  | Role = 'Button'
+             |  |  | Focused = 'false'
+             |  |  | Actions = [OnClick, RequestFocus]
+             |  |  | MergeDescendants = 'true'
+             |  |  |  |-Node #3385 at (l=971.0, t=766.0, r=1018.0, b=813.0)px
+             |  |  |    ContentDescription = '[Message actions]'
+             |  |  |    Role = 'Image'
+             |  |  |-Node #3387 at (l=42.0, t=846.0, r=623.0, b=899.0)px
+             |  |  | Focused = 'false'
+             |  |  | Actions = [RequestFocus]
+             |  |  |  |-Node #3388 at (l=42.0, t=846.0, r=623.0, b=899.0)px
+             |  |  |    Text = '[This reply was stopped by the user.]'
+             |  |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3390 at (l=42.0, t=936.0, r=120.0, b=978.0)px
+             |  |  | Text = '[22:57]'
+             |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3391 at (l=950.0, t=913.0, r=1039.0, b=1002.0)px
+             |  |    Role = 'Button'
+             |  |    Focused = 'false'
+             |  |    Actions = [OnClick, RequestFocus]
+             |  |    MergeDescendants = 'true'
+             |  |     |-Node #3392 at (l=971.0, t=934.0, r=1018.0, b=981.0)px
+             |  |       ContentDescription = '[Speak reply]'
+             |  |       Role = 'Image'
+             |  |-Node #3394 at (l=21.0, t=1035.0, r=1059.0, b=1684.0)px, Tag: 'HermesCompactChatTurn'
+             |  | IsTraversalGroup = 'true'
+             |  |  |-Node #3396 at (l=42.0, t=1056.0, r=1038.0, b=1234.0)px, Tag: 'HermesCompactPromptHeader'
+             |  |  | IsTraversalGroup = 'true'
+             |  |  | Focused = 'false'
+             |  |  | Actions = [OnClick, RequestFocus]
+             |  |  | MergeDescendants = 'true'
+             |  |  |  |-Node #3399 at (l=66.0, t=1098.0, r=252.0, b=1140.0)px
+             |  |  |  | Text = '[Your prompt]'
+             |  |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |  |-Node #3402 at (l=862.0, t=1075.0, r=951.0, b=1164.0)px, Tag: 'HermesMessageActionsButton'
+             |  |  |  | Role = 'Button'
+             |  |  |  | Focused = 'false'
+             |  |  |  | Actions = [OnClick, RequestFocus]
+             |  |  |  | MergeDescendants = 'true'
+             |  |  |  |  |-Node #3403 at (l=883.0, t=1096.0, r=930.0, b=1143.0)px
+             |  |  |  |    ContentDescription = '[Message actions]'
+             |  |  |  |    Role = 'Image'
+             |  |  |  |-Node #3404 at (l=971.0, t=1087.0, r=1014.0, b=1150.0)px
+             |  |  |  | Text = '[▼]'
+             |  |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |  |-Node #3405 at (l=66.0, t=1174.0, r=636.0, b=1216.0)px
+             |  |  |    Text = '[Local runtime smoke test precondition]'
+             |  |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3407 at (l=42.0, t=1265.0, r=172.0, b=1318.0)px
+             |  |  | Text = '[Hermes]'
+             |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3409 at (l=950.0, t=1248.0, r=1039.0, b=1337.0)px, Tag: 'HermesMessageActionsButton'
+             |  |  | Role = 'Button'
+             |  |  | Focused = 'false'
+             |  |  | Actions = [OnClick, RequestFocus]
+             |  |  | MergeDescendants = 'true'
+             |  |  |  |-Node #3410 at (l=971.0, t=1269.0, r=1018.0, b=1316.0)px
+             |  |  |    ContentDescription = '[Message actions]'
+             |  |  |    Role = 'Image'
+             |  |  |-Node #3412 at (l=42.0, t=1349.0, r=1038.0, b=1561.0)px
+             |  |  | Focused = 'false'
+             |  |  | Actions = [RequestFocus]
+             |  |  |  |-Node #3413 at (l=42.0, t=1349.0, r=1038.0, b=1561.0)px
+             |  |  |    Text = '[The stream was interrupted. The agent may already have performed actions, even if their results did not arrive. Hermes did not resend this request; check the results before retrying.]'
+             |  |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3415 at (l=42.0, t=1598.0, r=120.0, b=1640.0)px
+             |  |  | Text = '[22:59]'
+             |  |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |  |  |-Node #3416 at (l=950.0, t=1575.0, r=1039.0, b=1664.0)px
+             |  |    Role = 'Button'
+             |  |    Focused = 'false'
+             |  |    Actions = [OnClick, RequestFocus]
+             |  |    MergeDescendants = 'true'
+             |  |     |-Node #3417 at (l=971.0, t=1596.0, r=1018.0, b=1643.0)px
+             |  |       ContentDescription = '[Speak reply]'
+             |  |       Role = 'Image'
+             |  |-Node #3419 at (l=21.0, t=1697.0, r=21.0, b=1700.0)px, Tag: 'HermesChatBottomAnchor'
+             |-Node #3316 at (l=21.0, t=2021.0, r=239.0, b=2105.0)px, Tag: 'HermesToggleIntermediateSteps'
+             | Focused = 'false'
+             | Role = 'Button'
+             | Actions = [OnClick, RequestFocus]
+             | MergeDescendants = 'true'
+             |  |-Node #3318 at (l=42.0, t=2037.0, r=218.0, b=2090.0)px
+             |    Text = '[Hide steps]'
+             |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+             |-Node #3319 at (l=21.0, t=2137.0, r=1059.0, b=2326.0)px
+               IsTraversalGroup = 'true'
+                |-Node #3321 at (l=47.0, t=2158.0, r=1033.0, b=2305.0)px, Tag: 'HermesChatComposerFrame'
+                   |-Node #3343 at (l=47.0, t=2158.0, r=1033.0, b=2305.0)px, Tag: 'HermesChatComposerRow'
+                      |-Node #3344 at (l=58.0, t=2180.0, r=163.0, b=2285.0)px, Tag: 'HermesChatMoreInputActionsButton'
+                      | Role = 'Button'
+                      | Focused = 'false'
+                      | Actions = [OnClick, RequestFocus]
+                      | MergeDescendants = 'true'
+                      |  |-Node #3345 at (l=82.0, t=2204.0, r=140.0, b=2262.0)px
+                      |    ContentDescription = '[More input actions]'
+                      |    Role = 'Image'
+                      |-Node #3346 at (l=189.0, t=2158.0, r=644.0, b=2305.0)px, Tag: 'HermesChatInput'
+                      | EditableText = ''
+                      | TextSelectionRange = 'TextRange(0, 0)'
+                      | IsEditable = 'true'
+                      | ImeAction = 'Send'
+                      | Focused = 'false'
+                      | Actions = [GetTextLayoutResult, SetText, InsertTextAtCursor, SetSelection, PerformImeAction, OnClick, OnLongClick, PasteText, RequestFocus]
+                      | MergeDescendants = 'true'
+                      |  |-Node #3352 at (l=231.0, t=2200.0, r=602.0, b=2263.0)px
+                      |    Text = '[Message Hermes Fork]'
+                      |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+                      |-Node #3356 at (l=671.0, t=2180.0, r=776.0, b=2285.0)px, Tag: 'HermesChatMicButton'
+                      | Role = 'Button'
+                      | Focused = 'false'
+                      | Actions = [OnClick, RequestFocus]
+                      | MergeDescendants = 'true'
+                      |  |-Node #3357 at (l=695.0, t=2204.0, r=753.0, b=2262.0)px
+                      |    ContentDescription = '[Voice input]'
+                      |    Role = 'Image'
+                      |-Node #3360 at (l=802.0, t=2180.0, r=1033.0, b=2285.0)px, Tag: 'HermesChatSendButton'
+                        Role = 'Button'
+                        [Disabled]
+                        Actions = [OnClick]
+                        MergeDescendants = 'true'
+                         |-Node #3362 at (l=876.0, t=2206.0, r=959.0, b=2259.0)px
+                           Text = '[Send]'
+                           Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]

@@ -1,0 +1,173 @@
+language=zh
+screen_width_dp=411
+screen_height_dp=914
+font_scale=1.0
+release_source_digest=7faeaf64c80fe3effd6a34a9ef2d3d85e40b984876e6a2adbea6b6bf0c872027
+candidate_apk_sha256=553170bada3d2e9de069d1ed1677353ce49c2e6a3f34474a69c29f8b72ffb099
+instrumentation_apk_sha256=6fbf8c470630b20a383c8639a5a7c3162ecec4ec2cca797948cd447fe1100df2
+evidence_run_id=v0.13.157-7faeaf64c80fe3ef-20260909-224740bst
+package_id=com.mobilefork.hermesagent
+version_name=0.13.157
+version_code=145790
+build_variant=debug
+litertlm_coordinate=com.google.ai.edge.litertlm:litertlm-android:0.17.0
+device_serial=emulator-5580
+avd_name=Hermes_Release_157_SDK05_API36
+device_boot_id=83da5500-9f03-450d-bd68-cb42280a5dee
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=6fd64ba9df316c76ff2530d233d6d4787e08bcd797b0fcca2d13923f5f920de3
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #1568 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #1570 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=350.0, reverseScrolling=false)'
+       |       Actions = [ScrollBy, ScrollByOffset]
+       |        |-Node #1571 at (l=42.0, t=350.0, r=1038.0, b=807.0)px, Tag: 'HermesDevicePageNavigation'
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1573 at (l=74.0, t=376.0, r=253.0, b=429.0)px
+       |        |  | Text = '[设备 / 概览]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1576 at (l=74.0, t=471.0, r=217.0, b=555.0)px, Tag: 'HermesDevicePage_Overview'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'true'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1579 at (l=116.0, t=492.0, r=175.0, b=534.0)px
+       |        |  |    Text = '[概览]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1580 at (l=233.0, t=471.0, r=392.0, b=555.0)px, Tag: 'HermesDevicePage_Linux'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1583 at (l=275.0, t=492.0, r=350.0, b=534.0)px
+       |        |  |    Text = '[Linux]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1584 at (l=408.0, t=471.0, r=551.0, b=555.0)px, Tag: 'HermesDevicePage_Connectivity'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1587 at (l=450.0, t=492.0, r=509.0, b=534.0)px
+       |        |  |    Text = '[连接]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1588 at (l=567.0, t=471.0, r=710.0, b=555.0)px, Tag: 'HermesDevicePage_Files'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1591 at (l=609.0, t=492.0, r=668.0, b=534.0)px
+       |        |  |    Text = '[文件]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1592 at (l=726.0, t=471.0, r=869.0, b=555.0)px, Tag: 'HermesDevicePage_Controls'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1595 at (l=768.0, t=492.0, r=827.0, b=534.0)px
+       |        |  |    Text = '[控制]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1596 at (l=74.0, t=613.0, r=246.0, b=697.0)px, Tag: 'HermesDevicePage_Automations'
+       |        |  | Focused = 'false'
+       |        |  | Selected = 'false'
+       |        |  | Role = 'Checkbox'
+       |        |  | Actions = [OnClick, RequestFocus]
+       |        |  | MergeDescendants = 'true'
+       |        |  |  |-Node #1599 at (l=116.0, t=634.0, r=204.0, b=676.0)px
+       |        |  |    Text = '[自动化]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1600 at (l=74.0, t=739.0, r=176.0, b=781.0)px
+       |        |    Text = '[/device]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1601 at (l=42.0, t=839.0, r=1038.0, b=1998.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1604 at (l=84.0, t=881.0, r=425.0, b=944.0)px
+       |        |  | Text = '[如何使用此预览版]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1605 at (l=84.0, t=965.0, r=996.0, b=1280.0)px
+       |        |  | Text = '[1. 请用自然语言提问，例如“运行 date 命令并告诉我时间”或“检查我的设备状态”。这两个精确示例会直接运行只读原生路由，无需模型。其他工具请求仍可能需要支持结构化工具调用的模型。]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1606 at (l=84.0, t=1301.0, r=996.0, b=1553.0)px
+       |        |  | Text = '[2. 如果你想让 Hermes 直接读取或编辑真实文件，请通过 Android 原生选择器授予共享文件夹访问权限，然后用自然语言说明要处理的文件。]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1607 at (l=84.0, t=1574.0, r=996.0, b=1700.0)px
+       |        |  | Text = '[3. 只有在需要草稿副本或暂存文件时，才把文件导入工作区。]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1608 at (l=84.0, t=1721.0, r=996.0, b=1847.0)px
+       |        |  | Text = '[4. 如果你希望 Hermes 检查可见 UI 并触发更精确的操作，请启用 Hermes 无障碍服务。]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1609 at (l=84.0, t=1868.0, r=996.0, b=1956.0)px
+       |        |    Text = '[工作区路径：/data/user/0/com.mobilefork.hermesagent/files/hermes-home/workspace]'
+       |        |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1610 at (l=42.0, t=2030.0, r=1038.0, b=2514.0)px
+       |        | IsTraversalGroup = 'true'
+       |        |  |-Node #1613 at (l=84.0, t=2072.0, r=340.0, b=2135.0)px
+       |        |  | Text = '[设备控制中心]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1614 at (l=84.0, t=2167.0, r=996.0, b=2255.0)px
+       |        |  | Text = '[每个页面只显示一个领域：Linux、连接、文件、系统控制或自动化。]'
+       |        |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1617 at (l=84.0, t=2287.0, r=452.0, b=2369.0)px
+       |        |  | IsTraversalGroup = 'true'
+       |        |  |  |-Node #1618 at (l=113.0, t=2305.0, r=423.0, b=2351.0)px
+       |        |  |    Text = '[Linux 就绪 · 0 个沙箱]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1619 at (l=473.0, t=2287.0, r=702.0, b=2369.0)px
+       |        |  | IsTraversalGroup = 'true'
+       |        |  |  |-Node #1620 at (l=502.0, t=2305.0, r=673.0, b=2351.0)px
+       |        |  |    Text = '[网络 · Wi-Fi]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1621 at (l=84.0, t=2390.0, r=393.0, b=2472.0)px
+       |        |  | IsTraversalGroup = 'true'
+       |        |  |  |-Node #1622 at (l=113.0, t=2408.0, r=364.0, b=2454.0)px
+       |        |  |    Text = '[工作区 · 2 个文件]'
+       |        |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |  |-Node #1623 at (l=414.0, t=2390.0, r=756.0, b=2472.0)px
+       |        |    IsTraversalGroup = 'true'
+       |        |     |-Node #1624 at (l=443.0, t=2408.0, r=727.0, b=2454.0)px
+       |        |       Text = '[自动化 · 0 个已启用]'
+       |        |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |        |-Node #1625 at (l=42.0, t=2546.0, r=643.0, b=2592.0)px
+       |          Text = '[Linux 命令套件已就绪，可运行设备端命令]'
+       |          Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |-Node #185 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+         IsTraversalGroup = 'true'
+          |-Node #189 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[打开导航菜单]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #194 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+          | ContentDescription = '[Hermes 标志]'
+          | Role = 'Image'
+          |-Node #196 at (l=279.0, t=169.0, r=365.0, b=232.0)px
+          | Text = '[设备]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #197 at (l=279.0, t=232.0, r=688.0, b=278.0)px
+          | Text = '[文件、Linux 套件与手机控制]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #199 at (l=826.0, t=191.0, r=946.0, b=255.0)px
+          | IsTraversalGroup = 'true'
+          |  |-Node #200 at (l=842.0, t=202.0, r=930.0, b=244.0)px
+          |    Text = '[预览版]'
+          |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #201 at (l=957.0, t=191.0, r=1048.0, b=255.0)px
+            IsTraversalGroup = 'true'
+             |-Node #202 at (l=973.0, t=202.0, r=1032.0, b=244.0)px
+               Text = '[分支]'
+               Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
