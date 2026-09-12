@@ -2,11 +2,30 @@ import copy
 import io
 import json
 from pathlib import Path
+import shutil
+import subprocess
+import sys
 import tarfile
 
 import pytest
 
 from scripts import prepare_android_python_runtime as runtime
+
+
+@pytest.mark.parametrize("arguments", [("--help",), ("prepare", "--help")])
+def test_cold_cli_keeps_the_source_checkout_free_of_import_caches(tmp_path, arguments):
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    for source in (Path(runtime.__file__), Path(runtime.mcp_wheels.__file__)):
+        shutil.copy2(source, scripts / source.name)
+    command = scripts / Path(runtime.__file__).name
+    result = subprocess.run(
+        [sys.executable, "-E", str(command), *arguments],
+        cwd=tmp_path, capture_output=True, text=True, timeout=20, check=True,
+    )
+    assert result.stdout
+    assert not list(scripts.rglob("__pycache__"))
+    assert not list(scripts.rglob("*.pyc"))
 
 
 @pytest.fixture

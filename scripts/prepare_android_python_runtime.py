@@ -21,6 +21,10 @@ import tarfile
 import urllib.request
 import venv
 
+if __name__ == "__main__":
+    # F-Droid rejects incidental import caches as undeclared source inputs.
+    sys.dont_write_bytecode = True
+
 if __package__:
     from . import build_android_mcp_wheels as mcp_wheels
 else:
