@@ -36,6 +36,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -115,6 +116,7 @@ fun SettingsScreen(
         viewModel.refreshAgentEndpoint(forceStart = false)
     }
 
+    CompositionLocalProvider(LocalHermesStrings provides strings) {
     MaterialTheme {
         Surface(
             modifier = modifier.fillMaxSize(),
@@ -370,6 +372,7 @@ fun SettingsScreen(
                 }
             }
         }
+    }
     }
 }
 

@@ -1,6 +1,10 @@
 package com.mobilefork.hermesagent
 
 import android.app.Application
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -16,6 +20,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.core.app.ApplicationProvider
@@ -57,10 +64,12 @@ class LlamaCppAdvancedSettingsInstrumentedTest {
 
         composeRule.setContent {
             HermesTheme {
-                SettingsScreen(
-                    viewModel = viewModel,
-                    initialPage = SettingsPage.Models,
-                )
+                Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    SettingsScreen(
+                        viewModel = viewModel,
+                        initialPage = SettingsPage.Models,
+                    )
+                }
             }
         }
         composeRule.waitForIdle()
@@ -85,67 +94,67 @@ class LlamaCppAdvancedSettingsInstrumentedTest {
                 .performScrollToNode(hasTestTag("LlamaCppAdvancedCard"))
             composeRule.onNodeWithTag("LlamaCppAdvancedCard").assertIsDisplayed()
             composeRule.onNodeWithText(llamaCppAdvancedText(language, "title"))
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertIsDisplayed()
             composeRule.onNodeWithTag("LlamaCppRuntimeLane-stable")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertTextContains(llamaCppAdvancedText(language, "stable"), substring = true)
                 .assertContentDescriptionEquals(
                     "${llamaCppAdvancedText(language, "lane")}: ${llamaCppAdvancedText(language, "stable")}",
                 )
             composeRule.onNodeWithText(llamaCppAdvancedText(language, "q5_explanation"))
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertIsDisplayed()
             composeRule.onNodeWithTag("LlamaCppAdditionalArguments")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertContentDescriptionEquals(llamaCppAdvancedText(language, "additional_arguments"))
-            composeRule.onNodeWithTag("LlamaCppCacheK-q5_0").performScrollTo().assertIsDisplayed()
-            composeRule.onNodeWithTag("LlamaCppCacheV-q5_1").performScrollTo().assertIsDisplayed()
+            composeRule.onNodeWithTag("LlamaCppCacheK-q5_0").scrollInsideSettingsViewport().assertIsDisplayed()
+            composeRule.onNodeWithTag("LlamaCppCacheV-q5_1").scrollInsideSettingsViewport().assertIsDisplayed()
             composeRule.onAllNodesWithTag("LlamaCppCacheV-turbo3").assertCountEquals(0)
 
-            composeRule.onNodeWithTag("LlamaCppRuntimeLane-turboquant").performScrollTo().performClick()
-            composeRule.onNodeWithTag("LlamaCppCacheV-turbo3").performScrollTo().performClick()
-            composeRule.onNodeWithTag("LlamaCppFlashAttention-off").performScrollTo().performClick()
+            composeRule.onNodeWithTag("LlamaCppRuntimeLane-turboquant").scrollInsideSettingsViewport().performClick()
+            composeRule.onNodeWithTag("LlamaCppCacheV-turbo3").scrollInsideSettingsViewport().performClick()
+            composeRule.onNodeWithTag("LlamaCppFlashAttention-off").scrollInsideSettingsViewport().performClick()
 
             val flashValidation = llamaCppAdvancedText(language, "invalid_quantized_v_flash_off")
             composeRule.onNodeWithTag("LlamaCppAdvancedValidationError")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertIsDisplayed()
                 .assertTextEquals(flashValidation)
                 .assertContentDescriptionEquals(flashValidation)
             composeRule.onNodeWithTag("ApplyLlamaCppAdvancedSettingsButton")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertIsNotEnabled()
 
-            composeRule.onNodeWithTag("LlamaCppFlashAttention-auto").performScrollTo().performClick()
+            composeRule.onNodeWithTag("LlamaCppFlashAttention-auto").scrollInsideSettingsViewport().performClick()
             composeRule.onAllNodesWithTag("LlamaCppAdvancedValidationError").assertCountEquals(0)
             composeRule.onNodeWithTag("ApplyLlamaCppAdvancedSettingsButton")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertIsEnabled()
 
             // A trailing blank argv line must remain in the raw draft and disable Apply.
             composeRule.onNodeWithTag("LlamaCppAdditionalArguments")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .performTextReplacement("--threads-batch\n")
             val argvValidation = llamaCppAdvancedText(language, "invalid_arguments")
             composeRule.onNodeWithTag("LlamaCppAdvancedValidationError")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertTextEquals(argvValidation)
             composeRule.onNodeWithTag("ApplyLlamaCppAdvancedSettingsButton")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertIsNotEnabled()
 
             composeRule.onNodeWithTag("LlamaCppAdditionalArguments")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .performTextReplacement("--threads-batch\n4")
             composeRule.onAllNodesWithTag("LlamaCppAdvancedValidationError").assertCountEquals(0)
             composeRule.onNodeWithTag("LlamaCppEffectiveArgumentsSummary")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertTextContains("2", substring = true)
 
             val dangerousButton = llamaCppAdvancedText(language, "danger_button")
             composeRule.onNodeWithTag("TryLlamaCppDespiteRamWarningButton")
-                .performScrollTo()
+                .scrollInsideSettingsViewport()
                 .assertTextContains(dangerousButton)
                 .assertContentDescriptionEquals(dangerousButton)
                 .performClick()
@@ -164,4 +173,18 @@ class LlamaCppAdvancedSettingsInstrumentedTest {
             composeRule.onAllNodesWithTag("LlamaCppDangerousRamDialog").assertCountEquals(0)
         }
     }
+    /** Center real controls in the content viewport, accounting for fixed tabs and the IME. */
+    private fun SemanticsNodeInteraction.scrollInsideSettingsViewport(): SemanticsNodeInteraction {
+        performScrollTo()
+        composeRule.waitForIdle()
+        val viewport = composeRule.onNodeWithTag("HermesSettingsContentList")
+        val viewportBounds = viewport.fetchSemanticsNode().boundsInRoot
+        val target = fetchSemanticsNode()
+        val targetCenter = target.positionInRoot.y + target.size.height / 2f
+        val delta = targetCenter - viewportBounds.center.y
+        viewport.performSemanticsAction(SemanticsActions.ScrollBy) { scrollBy -> scrollBy(0f, delta) }
+        composeRule.waitForIdle()
+        return this
+    }
+
 }

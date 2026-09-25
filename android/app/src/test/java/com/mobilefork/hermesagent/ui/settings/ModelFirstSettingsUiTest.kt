@@ -92,6 +92,12 @@ class ModelFirstSettingsUiTest {
         compose.onNodeWithTag("HermesSettingsPage_Theme").performClick()
         compose.onNodeWithTag("HermesSettingsPage_Models").performClick().assertIsSelected()
         compose.onNodeWithTag("HermesImportModelButton").assertIsDisplayed()
+        for (language in AppLanguage.entries) {
+            compose.runOnIdle { vm.selectLanguage(language) }
+            compose.onNodeWithTag("HermesImportModelButton")
+                .assertIsDisplayed().assertTextEquals(modelSettingsText(language, "import"))
+            compose.onNodeWithText(modelSettingsText(language, "choose")).assertIsDisplayed()
+        }
     }
 
     @Test

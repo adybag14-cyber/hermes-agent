@@ -16,6 +16,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mobilefork.hermesagent.data.AppSettings
 import com.mobilefork.hermesagent.data.AppSettingsStore
+import com.mobilefork.hermesagent.ui.i18n.modelSettingsText
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.settings.SettingsPage
 import com.mobilefork.hermesagent.ui.settings.SettingsScreen
@@ -69,6 +70,8 @@ class AgentModelSettingsInstrumentedTest {
             compose.runOnIdle { vm.selectLanguage(language) }
             compose.onNodeWithTag("HermesSettingsPage_Models").performClick().assertIsSelected()
             compose.onNodeWithTag("HermesImportModelButton").assertIsDisplayed().assertIsEnabled()
+                .assertTextEquals(modelSettingsText(language, "import"))
+            compose.onNodeWithText(modelSettingsText(language, "choose")).assertIsDisplayed()
             capture("models-${language.tag}")
             compose.onNodeWithTag("HermesSettingsContentList")
                 .performScrollToNode(hasTestTag("ModelSettings-generation"))
