@@ -108,6 +108,7 @@ jobs:
           ./gradlew :app:compilePlayDebugAndroidTestKotlin \
             :app:assemblePlayDebug :app:bundlePlayDebug :app:lintPlayDebug -PhermesTestBuildType=playDebug
           python ../scripts/verify_android_play_package.py app/build/outputs/apk/playDebug/app-playDebug.apk \
+            --allow-debug-test-host \
             --bundle app/build/outputs/bundle/playDebug/app-playDebug.aab \
             --apkanalyzer "$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
 

@@ -87,3 +87,38 @@ def test_profile_mapping_cannot_hide_changed_missing_or_extra_payloads(tmp_path,
     apk, aab = profile_archives(tmp_path, mutation)
     with pytest.raises(ValueError):
         inspect_payload(apk, aab)
+
+
+DEBUG_HOST_XML = """<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.mobilefork.hermesagent" android:versionCode="144690" android:versionName="0.13.146">
+    <uses-sdk android:targetSdkVersion="36"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <application android:allowBackup="false" android:debuggable="true">
+        <meta-data android:name="com.mobilefork.hermesagent.DISTRIBUTION" android:value="play"/>
+        <activity android:name="com.mobilefork.hermesagent.play.PlayActivity" android:exported="true"/>
+        <activity android:name="androidx.activity.ComponentActivity" android:exported="true"/>
+    </application></manifest>"""
+
+
+def test_debug_compose_host_requires_explicit_qualification_opt_in():
+    with pytest.raises(ValueError, match="Unreviewed Play activity"):
+        inspect_manifest(DEBUG_HOST_XML)
+    result = inspect_manifest(DEBUG_HOST_XML, allow_debug_test_host=True)
+    assert result["debug_test_host_allowed"] is True
+    # One invocation must not mutate the default component policy for later invocations.
+    with pytest.raises(ValueError, match="Unreviewed Play activity"):
+        inspect_manifest(DEBUG_HOST_XML)
+
+
+@pytest.mark.parametrize("mutation", [
+    ('android:debuggable="true"', 'android:debuggable="false"'),
+    ('android:debuggable="true"', ""),
+    ('android:name="androidx.activity.ComponentActivity"', 'android:name="other.UnreviewedActivity"'),
+    ('<activity android:name="androidx.activity.ComponentActivity" android:exported="true"/>',
+     '<activity android:name="androidx.activity.ComponentActivity" android:exported="true"><intent-filter/></activity>'),
+    ('</application>', '<activity android:name="androidx.activity.ComponentActivity" android:exported="true"/></application>'),
+    ('</application>', '<service android:name="other.UnreviewedService"/></application>'),
+])
+def test_debug_host_exception_cannot_approve_release_or_unreviewed_surfaces(mutation):
+    with pytest.raises(ValueError):
+        inspect_manifest(DEBUG_HOST_XML.replace(*mutation), allow_debug_test_host=True)
