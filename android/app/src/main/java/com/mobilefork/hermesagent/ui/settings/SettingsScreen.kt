@@ -248,6 +248,34 @@ fun SettingsScreen(
                             )
                         }
                     }
+                    item(key = "model-generation") {
+                        SettingsDisclosure(
+                            sectionId = "ModelSettings-generation",
+                            title = modelSettingsText(strings.language, "generation"),
+                            summary = modelSettingsText(strings.language, "generation_help"),
+                        ) {
+                            ModelGenerationConfigCard(
+                                maxTokens = uiState.localModelMaxTokens,
+                                topK = uiState.localModelTopK,
+                                topP = uiState.localModelTopP,
+                                temperature = uiState.localModelTemperature,
+                                accelerator = uiState.localModelAccelerator,
+                                toolMode = uiState.localModelToolMode,
+                                apiGenerationKnobsEnabled = uiState.apiGenerationKnobsEnabled,
+                                customSystemPrompt = uiState.customSystemPrompt,
+                                onMaxTokensChange = viewModel::updateLocalModelMaxTokens,
+                                onTopKChange = viewModel::updateLocalModelTopK,
+                                onTopPChange = viewModel::updateLocalModelTopP,
+                                onTemperatureChange = viewModel::updateLocalModelTemperature,
+                                onAcceleratorChange = viewModel::updateLocalModelAccelerator,
+                                onToolModeChange = viewModel::updateLocalModelToolMode,
+                                onApiGenerationKnobsEnabledChange = viewModel::updateApiGenerationKnobsEnabled,
+                                onPromptChange = viewModel::updateCustomSystemPrompt,
+                                onSave = viewModel::saveModelGenerationConfig,
+                                onClearPrompt = viewModel::clearAgentPersona,
+                            )
+                        }
+                    }
                     item(key = "model-runtime") {
                         SettingsDisclosure(
                             sectionId = "ModelSettings-runtime",
@@ -287,34 +315,6 @@ fun SettingsScreen(
                                 onApplyAndRestart = viewModel::applyLlamaCppAdvancedSettings,
                                 onDangerousOneShotStart = viewModel::tryLlamaCppDespiteRamWarning,
                                 language = strings.language,
-                            )
-                        }
-                    }
-                    item(key = "model-generation") {
-                        SettingsDisclosure(
-                            sectionId = "ModelSettings-generation",
-                            title = modelSettingsText(strings.language, "generation"),
-                            summary = modelSettingsText(strings.language, "generation_help"),
-                        ) {
-                            ModelGenerationConfigCard(
-                                maxTokens = uiState.localModelMaxTokens,
-                                topK = uiState.localModelTopK,
-                                topP = uiState.localModelTopP,
-                                temperature = uiState.localModelTemperature,
-                                accelerator = uiState.localModelAccelerator,
-                                toolMode = uiState.localModelToolMode,
-                                apiGenerationKnobsEnabled = uiState.apiGenerationKnobsEnabled,
-                                customSystemPrompt = uiState.customSystemPrompt,
-                                onMaxTokensChange = viewModel::updateLocalModelMaxTokens,
-                                onTopKChange = viewModel::updateLocalModelTopK,
-                                onTopPChange = viewModel::updateLocalModelTopP,
-                                onTemperatureChange = viewModel::updateLocalModelTemperature,
-                                onAcceleratorChange = viewModel::updateLocalModelAccelerator,
-                                onToolModeChange = viewModel::updateLocalModelToolMode,
-                                onApiGenerationKnobsEnabledChange = viewModel::updateApiGenerationKnobsEnabled,
-                                onPromptChange = viewModel::updateCustomSystemPrompt,
-                                onSave = viewModel::saveModelGenerationConfig,
-                                onClearPrompt = viewModel::clearAgentPersona,
                             )
                         }
                     }
@@ -1401,7 +1401,8 @@ private fun AppearanceCard(
                     Text(strings.keywordHighlightingTitle(), style = MaterialTheme.typography.titleSmall)
                     Text(strings.keywordHighlightingDescription(), style = MaterialTheme.typography.bodySmall)
                 }
-                Switch(checked = keywordHighlightingEnabled, onCheckedChange = onKeywordHighlightingChange)
+                Switch(checked = keywordHighlightingEnabled, onCheckedChange = onKeywordHighlightingChange,
+                    modifier = Modifier.semantics { contentDescription = strings.keywordHighlightingTitle() })
             }
             Text(
                 strings.uiFontSizeLabel(uiFontScale),
@@ -1412,7 +1413,8 @@ private fun AppearanceCard(
                 value = uiFontScale,
                 onValueChange = onUiFontScaleChange,
                 valueRange = AppSettings.MIN_UI_FONT_SCALE..AppSettings.MAX_UI_FONT_SCALE,
-                modifier = Modifier.fillMaxWidth().testTag("UiFontScaleSlider"),
+                modifier = Modifier.fillMaxWidth().testTag("UiFontScaleSlider")
+                    .semantics { contentDescription = strings.uiFontSizeLabel(uiFontScale) },
             )
             Text(strings.colourPresetsTitle(), style = MaterialTheme.typography.titleSmall)
             FlowRow(
@@ -1524,7 +1526,8 @@ private fun OfflineAirplaneCard(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                Switch(checked = enabled, onCheckedChange = onChange)
+                Switch(checked = enabled, onCheckedChange = onChange,
+                    modifier = Modifier.semantics { contentDescription = strings.offlineAirplaneModeTitle() })
             }
             Button(onClick = { onChange(!enabled) }) {
                 Text(strings.offlineAirplaneToggleLabel(enabled))

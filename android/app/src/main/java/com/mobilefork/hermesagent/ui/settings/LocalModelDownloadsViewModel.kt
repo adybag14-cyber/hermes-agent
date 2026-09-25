@@ -29,6 +29,7 @@ import com.mobilefork.hermesagent.models.clearPendingAutoStartForGeneration
 import com.mobilefork.hermesagent.models.persistPreferredModelRuntimeSelection
 import com.mobilefork.hermesagent.models.updateRuntimeSelectionSettings
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -403,7 +404,7 @@ class LocalModelDownloadsViewModel internal constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(inspectionStatus = "Importing local model from phone files…") }
             try {
-                val record = withContext(Dispatchers.IO) {
+                val record = kotlinx.coroutines.runInterruptible(Dispatchers.IO) {
                     // Copy using the transient picker grant; do not retain source permissions.
                     localModelFileImporter(context, downloadStore, uri)
                 }
@@ -429,6 +430,7 @@ class LocalModelDownloadsViewModel internal constructor(
                     )
                 }
             } catch (error: Throwable) {
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 if (error is kotlinx.coroutines.CancellationException) throw error
                 _uiState.update {
                     it.copy(inspectionStatus = error.message ?: error.javaClass.simpleName)

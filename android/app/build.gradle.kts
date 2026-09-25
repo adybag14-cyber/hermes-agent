@@ -886,4 +886,6 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // Custom build types do not inherit debugImplementation dependencies.
+    add("playDebugImplementation", "androidx.compose.ui:ui-test-manifest")
 }

@@ -168,6 +168,7 @@ object HermesModelDownloadManager {
         store: LocalModelDownloadStore,
         sourceUri: Uri,
     ): LocalModelDownloadRecord {
+        checkModelImportActive()
         val directory = modelsDirectory(context)
         val displayName = displayNameForUri(context, sourceUri)
         val fileName = sanitizeFileName(displayName)
@@ -180,12 +181,23 @@ object HermesModelDownloadManager {
         try {
             context.contentResolver.openInputStream(sourceUri)?.use { input ->
                 stagingFile.outputStream().use { output ->
-                    input.copyTo(output)
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    while (true) {
+                        checkModelImportActive()
+                        val count = input.read(buffer)
+                        // A provider can finish its final read concurrently with cancellation.
+                        checkModelImportActive()
+                        if (count < 0) break
+                        if (count > 0) output.write(buffer, 0, count)
+                    }
                     output.fd.sync()
                 }
             } ?: throw IllegalArgumentException("Unable to read selected model file")
             require(stagingFile.length() > 0L) { "The selected model file is empty" }
+            checkModelImportActive()
             return withModelExternalIoOperation {
+                // Cancellation may also arrive while waiting for the short publication lock.
+                checkModelImportActive()
                 val targetFile = directory.resolve(uniqueFileName(directory, fileName))
                 check(stagingFile.renameTo(targetFile)) {
                     "Unable to save the imported model. Check available storage."
@@ -218,6 +230,12 @@ object HermesModelDownloadManager {
             }
         } finally {
             stagingFile.delete()
+        }
+    }
+
+    private fun checkModelImportActive() {
+        if (Thread.currentThread().isInterrupted) {
+            throw java.io.InterruptedIOException("Model import was cancelled")
         }
     }
 
