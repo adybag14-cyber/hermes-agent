@@ -33,6 +33,7 @@ import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.i18n.historyText
 import com.mobilefork.hermesagent.ui.i18n.mcpRuntimeText
 import com.mobilefork.hermesagent.ui.shell.AppShellScreen
+import com.mobilefork.hermesagent.ui.shell.AppSection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -89,7 +90,7 @@ class FullTesterReportedUiInstrumentedTest {
 
             AppLanguage.entries.forEach { language ->
                 val strings = hermesStringsFor(language)
-                navigate("Settings")
+                navigate(AppSection.Settings)
                 compose.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(0)
                 compose.onNodeWithTag("HermesSettingsPage_Overview").performClick()
                 scroll("SettingsLanguage-${language.tag}")
@@ -104,7 +105,7 @@ class FullTesterReportedUiInstrumentedTest {
                 capture("${language.tag}-mcp-consent")
                 compose.onNodeWithText(strings.mcpCancel()).performClick()
                 assertFalse(mcp.externalMcpAllowed())
-                navigate("Agent")
+                navigate(AppSection.Hermes)
                 if (compose.onAllNodesWithTag("HermesHistoryActions-${sample.sessionId}").fetchSemanticsNodes().isEmpty()) {
                     compose.onNodeWithTag("HermesChatHistoryButton").performClick()
                 }
@@ -138,8 +139,8 @@ class FullTesterReportedUiInstrumentedTest {
         }
     }
 
-    private fun navigate(section: String) {
-        val destination = "HermesNav$section"
+    private fun navigate(section: AppSection) {
+        val destination = "HermesNav${section.name}"
         if (compose.onAllNodesWithTag(destination).fetchSemanticsNodes().isEmpty()) {
             val drawer = if (compose.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isNotEmpty())
                 "HermesShellDrawerButton" else "HermesChatDrawerButton"

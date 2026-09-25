@@ -277,7 +277,7 @@ class HermesUiCoverageInstrumentedTest {
             identity = "appearance-custom-light",
             name = "$prefix-theme-custom-light",
             coverageKind = "custom-light-palette",
-            pageId = "Agent",
+            pageId = AppSection.Hermes.name,
             language = AppLanguage.ENGLISH,
             themeId = "custom-light",
             sentinels = listOf("HermesChatInput"),
