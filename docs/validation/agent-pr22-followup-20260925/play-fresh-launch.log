@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.mobilefork.hermesagent/.play.PlayActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.mobilefork.hermesagent/.play.PlayActivity
+TotalTime: 1717
+WaitTime: 1719
+Complete
