@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
@@ -82,7 +83,7 @@ class FullTesterReportedUiInstrumentedTest {
             capture("zh-history-rename")
             compose.onNodeWithText(chinese.historyText(ConversationHistoryText.SAVE)).performClick()
             compose.waitUntil(5_000) { ConversationStore(app).loadConversation(sample.sessionId)?.title == "本地手动标题" }
-            compose.onNodeWithTag("HermesHistoryActions-${sample.sessionId}").performClick()
+            historyActions(sample.sessionId)
             compose.onNodeWithText(chinese.historyText(ConversationHistoryText.REGENERATE)).performClick()
             compose.waitUntil(5_000) { ConversationStore(app).loadConversation(sample.sessionId)?.title == taskText }
             assertEquals(active.sessionId, ConversationStore(app).currentSessionId())
@@ -109,7 +110,7 @@ class FullTesterReportedUiInstrumentedTest {
                 if (compose.onAllNodesWithTag("HermesHistoryActions-${sample.sessionId}").fetchSemanticsNodes().isEmpty()) {
                     compose.onNodeWithTag("HermesChatHistoryButton").performClick()
                 }
-                compose.onNodeWithTag("HermesHistoryActions-${sample.sessionId}").performClick()
+                historyActions(sample.sessionId)
                 compose.onNodeWithText(strings.historyText(ConversationHistoryText.RENAME)).assertIsDisplayed()
                 compose.onNodeWithText(strings.historyText(ConversationHistoryText.REGENERATE)).assertIsDisplayed()
                 compose.onNodeWithText(strings.historyText(ConversationHistoryText.DELETE)).assertIsDisplayed()
@@ -118,7 +119,7 @@ class FullTesterReportedUiInstrumentedTest {
                 compose.onNodeWithText(strings.historyText(ConversationHistoryText.CANCEL)).performClick()
             }
             val strings = hermesStringsFor(AppLanguage.fromTag(settings.load().languageTag))
-            compose.onNodeWithTag("HermesHistoryActions-${sample.sessionId}").performClick()
+            historyActions(sample.sessionId)
             compose.onNodeWithText(strings.historyText(ConversationHistoryText.DELETE)).performClick()
             compose.onNodeWithText(strings.historyText(ConversationHistoryText.DELETE_CONFIRM)).assertIsDisplayed()
             compose.onAllNodesWithText(strings.historyText(ConversationHistoryText.DELETE)).onLast().performClick()
@@ -139,14 +140,38 @@ class FullTesterReportedUiInstrumentedTest {
         }
     }
 
+    private fun historyActions(sessionId: String) {
+        val tag = "HermesHistoryActions-$sessionId"
+        // A native AlertDialog dismissal can outlive Compose's idle state.
+        // Persistence alone is not proof the history row is actionable again.
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag(tag).assertIsDisplayed().performClick()
+    }
+
     private fun navigate(section: AppSection) {
+        val rail = "HermesRail${section.name}"
+        if (compose.onAllNodesWithTag("HermesPersistentNavigation").fetchSemanticsNodes().isNotEmpty()) {
+            compose.onNodeWithTag(rail).performScrollTo().assertIsDisplayed().performClick()
+            compose.waitForIdle()
+            return
+        }
         val destination = "HermesNav${section.name}"
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag(destination).fetchSemanticsNodes().isNotEmpty() ||
+                compose.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isNotEmpty() ||
+                compose.onAllNodesWithTag("HermesChatDrawerButton").fetchSemanticsNodes().isNotEmpty()
+        }
         if (compose.onAllNodesWithTag(destination).fetchSemanticsNodes().isEmpty()) {
             val drawer = if (compose.onAllNodesWithTag("HermesShellDrawerButton").fetchSemanticsNodes().isNotEmpty())
                 "HermesShellDrawerButton" else "HermesChatDrawerButton"
-            compose.onNodeWithTag(drawer).performClick()
+            compose.onNodeWithTag(drawer).assertIsDisplayed().performClick()
+            compose.waitUntil(5_000) {
+                compose.onAllNodesWithTag(destination).fetchSemanticsNodes().isNotEmpty()
+            }
         }
-        compose.onNodeWithTag(destination).performClick()
+        compose.onNodeWithTag(destination).assertIsDisplayed().performClick()
         compose.waitForIdle()
     }
 
