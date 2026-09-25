@@ -63,6 +63,7 @@ import com.mobilefork.hermesagent.ui.device.DevicePage
 import com.mobilefork.hermesagent.ui.i18n.AppLanguage
 import com.mobilefork.hermesagent.ui.i18n.HermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
+import com.mobilefork.hermesagent.ui.i18n.modelSettingsText
 import com.mobilefork.hermesagent.ui.settings.AppearanceThemePreset
 import com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsViewModel
 import com.mobilefork.hermesagent.ui.settings.RecommendedLocalModelPreset
@@ -368,8 +369,7 @@ class HermesUiCoverageInstrumentedTest {
         composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
         composeRule.waitForIdle()
         val presets = LocalModelDownloadsViewModel.recommendedModelPresets
-        scrollSettingsToTag("ModelDownloadCatalog")
-        composeRule.onNodeWithTag("ModelDownloadCatalog").performClick()
+        ensureModelCatalogExpanded(AppLanguage.ENGLISH)
         scrollSettingsToTag(recommendedLocalModelCardTestTag(presets.first().id))
         listOf(presets.first(), presets.last()).distinctBy { preset -> preset.id }.forEach { preset ->
             assertRecommendedModelCardVisible(
@@ -409,8 +409,7 @@ class HermesUiCoverageInstrumentedTest {
             selectLanguage(language, strings)
             composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
             composeRule.waitForIdle()
-            scrollSettingsToTag("ModelDownloadCatalog")
-            composeRule.onNodeWithTag("ModelDownloadCatalog").performClick()
+            ensureModelCatalogExpanded(language)
             scrollSettingsToTag(recommendedLocalModelCardTestTag(targetPresets.first().id))
 
             targetPresets.forEach { preset ->
@@ -460,6 +459,18 @@ class HermesUiCoverageInstrumentedTest {
 
         assertEvidenceManifest(expectedLocalizedEvidenceIdentities(targetPresets.map { it.id }))
         writeInventory("$prefix-inventory.txt", "six-language-and-framework-localization", capturedEvidence)
+    }
+
+    private fun ensureModelCatalogExpanded(language: AppLanguage) {
+        scrollSettingsToTag("ModelDownloadCatalog")
+        val catalog = composeRule.onNodeWithTag("ModelDownloadCatalog")
+        val collapsed = modelSettingsText(language, "collapsed")
+        val expanded = modelSettingsText(language, "expanded")
+        val before = catalog.fetchSemanticsNode().config.getOrNull(SemanticsProperties.StateDescription)
+        assertTrue("Catalog must expose a localized disclosure state: $before", before == collapsed || before == expanded)
+        if (before == collapsed) catalog.performClick()
+        composeRule.waitForIdle()
+        assertEquals(expanded, catalog.fetchSemanticsNode().config.getOrNull(SemanticsProperties.StateDescription))
     }
 
     private fun assertRecommendedModelCardVisible(
@@ -1563,8 +1574,9 @@ class HermesUiCoverageInstrumentedTest {
     }
 
     private fun scrollAppearanceCardCornerIntoView() {
-        composeRule.onNodeWithTag("HermesSettingsContentList")
-            .performScrollToIndex(THEME_APPEARANCE_CARD_ITEM_INDEX)
+        // Navigation is outside this list. Start at its actual top so the card's
+        // corner, not merely its clipped bounds, is available for pixel sampling.
+        composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(0)
         try {
             composeRule.waitUntil(timeoutMillis = 5_000L) {
                 runCatching { appearanceCornerSamplingBandFitsViewport() }.getOrDefault(false)
@@ -1891,7 +1903,6 @@ class HermesUiCoverageInstrumentedTest {
         private const val SHAPE_PROOF_BACKGROUND = "#000000"
         private const val SHAPE_PROOF_SURFACE = "#000000"
         private const val SHAPE_PROOF_SURFACE_VARIANT = "#FFFFFF"
-        private const val THEME_APPEARANCE_CARD_ITEM_INDEX = 1
         private const val APPEARANCE_CORNER_REFERENCE_INSET_DP = 8
         private const val APPEARANCE_CORNER_MAX_DEPTH_DP = 24
         private const val APPEARANCE_CORNER_COLOR_TOLERANCE = 42
