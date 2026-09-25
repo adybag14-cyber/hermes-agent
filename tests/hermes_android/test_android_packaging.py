@@ -212,7 +212,8 @@ def test_android_launcher_uses_adaptive_icons():
     assert 'android:fillColor="#FFFFFFFF"' in monochrome
     assert "FDIE" not in foreground
     assert 'android:fillColor="#FF000000"' not in monochrome
-    assert "M54,21a33,33" in foreground
+    assert "M54,29L77,77" in foreground
+    assert 'android:fillType="evenOdd"' in foreground
     assert "M28,82h52" not in app_logo
     assert "M34,86h5" not in app_logo
 
