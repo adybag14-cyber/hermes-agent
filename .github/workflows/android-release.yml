@@ -387,7 +387,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           HERMES_RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          title="Hermes Agent Fork ${HERMES_RELEASE_TAG}"
+          title="Agent ${HERMES_RELEASE_TAG}"
           notes_file="RELEASE_${HERMES_RELEASE_TAG}.md"
           if gh release view "$HERMES_RELEASE_TAG" >/dev/null 2>&1; then
             edit_args=(--draft --target "$GITHUB_SHA" --title "$title")

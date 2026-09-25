@@ -28,6 +28,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
+try:
+    import android_release_evidence_policy as release_policy
+except ModuleNotFoundError:
+    from scripts import android_release_evidence_policy as release_policy
+
 
 PERFORMANCE_SCHEMA = "hermes-android-performance-evidence-v2"
 RAW_PERFORMANCE_SCHEMA = "hermes-android-performance-host-raw-v2"
@@ -313,9 +318,10 @@ class CollectorConfig:
             raise CollectorError("version_name must be a nonblank token")
         if isinstance(self.version_code, bool) or self.version_code <= 0:
             raise CollectorError("version_code must be a positive integer")
-        if self.litertlm_coordinate != LITERTLM_COORDINATE:
+        expected_coordinate = release_policy.required_litertlm_coordinate(f"v{self.version_name}")
+        if self.litertlm_coordinate != expected_coordinate:
             raise CollectorError(
-                f"litertlm_coordinate must equal the release dependency {LITERTLM_COORDINATE}"
+                f"litertlm_coordinate must equal the release dependency {expected_coordinate}"
             )
         if not self.adb.strip() or not self.emulator.strip():
             raise CollectorError("adb and emulator executable inputs must be nonblank")

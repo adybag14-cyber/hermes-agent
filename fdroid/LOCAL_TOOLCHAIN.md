@@ -25,10 +25,10 @@ cd ~/fdroiddata-hermes
 ```
 
 Run that preview from a fresh clone of the live `fdroiddata` metadata after the
-GitHub tag exists. `--auto` must create the local 0.13.157/145790 build recipe
+GitHub tag exists. `--auto` must create the local 0.13.158/145890 build recipe
 and resolve its exact tag commit. The autoupdater copies the prior build recipe,
 so its output is not yet eligible for the pinned build. From the same WSL shell,
-render and verify the v0.13.157 source-binding fields from the committed Hermes
+render and verify the v0.13.158 source-binding fields from the committed Hermes
 template into that generated build:
 
 ```sh
@@ -46,7 +46,7 @@ git -C "$FDROIDDATA_ROOT" diff -- \
   metadata/com.mobilefork.hermesagent.yml
 ```
 
-The render transaction requires exactly one 0.13.157/145790 build, preserves
+The render transaction requires exactly one 0.13.158/145890 build, preserves
 the autoupdater-resolved full Git commit, every historical `Builds` entry, and
 all unrelated live metadata, and overlays the exact `sudo`, `ndk`, `gradle`,
 `gradleprops`, `scanignore`, and `prebuild` fields. It then verifies that

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<defs><radialGradient id="background" cx="50%" cy="18%" r="90%"><stop stop-color="#205BC6"/><stop offset="1" stop-color="#07132D"/></radialGradient>
+<linearGradient id="letter" x1="0" y1="0" x2=".6" y2="1"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#D6E4FF"/></linearGradient></defs>
+<rect width="512" height="512" fill="url(#background)"/>
+<path d="M 251,77 C 235,77 224,88 217,104 L 61,429 C 52,449 64,468 85,468 L 117,468 C 132,468 140,461 147,447 L 256,205 L 366,447 C 373,461 382,468 397,468 L 426,468 C 447,468 460,449 451,429 L 295,104 C 287,87 274,77 260,77 Z" fill="url(#letter)"/>
+<path d="M 162,356 C 214,277 344,267 399,365 L 451,429 C 460,449 447,468 426,468 L 400,468 C 356,468 323,379 272,349 C 233,326 195,332 162,356 Z" fill="url(#letter)"/>
+</svg>

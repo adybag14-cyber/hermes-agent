@@ -18,7 +18,6 @@ SourceCode: https://github.com/adybag14-cyber/hermes-agent
 IssueTracker: https://github.com/adybag14-cyber/hermes-agent/issues
 Changelog: https://github.com/adybag14-cyber/hermes-agent/releases
 
-Name: Agent
 AutoName: Agent
 Description: |-
     Agent is an independent community fork. It is not official Nous Research or Teknium software.
@@ -32,8 +31,8 @@ Repo: https://github.com/adybag14-cyber/hermes-agent.git
 Binaries: https://github.com/adybag14-cyber/hermes-agent/releases/download/v%v/hermes-agent-android-v%v-universal.apk
 
 Builds:
-  - versionName: 0.13.157
-    versionCode: 145790
+  - versionName: 0.13.158
+    versionCode: 145890
     commit: REPLACE_WITH_RELEASE_COMMIT_HASH
     subdir: android/app
     sudo:
@@ -67,5 +66,5 @@ AllowedAPKSigningKeys: 2cbdb94d6081413055af1e903d4c1d6714300b4240402d1d4c8182fda
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v0\.
 UpdateCheckData: fdroid/com.mobilefork.hermesagent.version|versionCode=(\d+)|.|versionName=(.*)
-CurrentVersion: 0.13.157
-CurrentVersionCode: 145790
+CurrentVersion: 0.13.158
+CurrentVersionCode: 145890
