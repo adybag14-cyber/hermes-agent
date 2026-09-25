@@ -50,8 +50,14 @@ class LocalModelImportLifecycleTest {
             assertEquals(1, calls.get())
             owner.clear()
             assertTrue("Clearing the ViewModel must interrupt interruptible provider I/O", stopped.await(5, TimeUnit.SECONDS))
-            shadowOf(Looper.getMainLooper()).idle()
-            assertFalse(viewModel.uiState.value.isImporting)
+            // The provider's finally runs on Dispatchers.IO before the coroutine's own
+            // finally resumes on Main. Await both boundaries rather than racing that dispatch.
+            val finalizerDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+            while (viewModel.uiState.value.isImporting && System.nanoTime() < finalizerDeadline) {
+                shadowOf(Looper.getMainLooper()).idle()
+                if (viewModel.uiState.value.isImporting) Thread.sleep(5)
+            }
+            assertFalse("Import finalizer did not clear the busy state", viewModel.uiState.value.isImporting)
             assertTrue(store.loadDownloads().isEmpty())
         } finally {
             release.countDown()
