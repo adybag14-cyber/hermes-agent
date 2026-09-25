@@ -26,7 +26,7 @@ object HermesNetworkPolicy {
     }
 
     fun offlineBlockedMessage(actionLabel: String): String {
-        return "Offline airplane mode is on; Hermes blocked this $actionLabel so the app stays phone-local."
+        return "Offline airplane mode is on; Agent blocked this $actionLabel so the app stays phone-local."
     }
 
     fun isLocalNetworkUrl(url: String): Boolean {

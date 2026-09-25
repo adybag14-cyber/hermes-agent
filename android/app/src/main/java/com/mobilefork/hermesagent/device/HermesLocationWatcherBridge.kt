@@ -96,7 +96,7 @@ object HermesLocationWatcherBridge {
         if (!hasLocationPermission(appContext)) {
             return JSONObject()
                 .put("success", false)
-                .put("error", "Location permission is not granted to Hermes Agent. Grant location access before starting the watcher.")
+                .put("error", "Location permission is not granted to Agent. Grant location access before starting the watcher.")
                 .put("requires_location_permission", true)
                 .put("location_permission_granted", false)
                 .put("available_actions", JSONArray(ACTIONS))
@@ -112,7 +112,7 @@ object HermesLocationWatcherBridge {
         if (providers.isEmpty()) {
             return JSONObject(statusJson(appContext))
                 .put("success", false)
-                .put("error", "No Android location providers are available for Hermes to watch")
+                .put("error", "No Android location providers are available for Agent to watch")
                 .toString()
         }
         persistWatcherRequest(appContext, intervalMs, minDistanceMeters, providers)
@@ -152,7 +152,7 @@ object HermesLocationWatcherBridge {
         if (injectedLocations == null && !hasLocationPermission(appContext)) {
             return JSONObject()
                 .put("success", false)
-                .put("error", "Location permission is not granted to Hermes Agent.")
+                .put("error", "Location permission is not granted to Agent.")
                 .put("requires_location_permission", true)
                 .put("location_permission_granted", false)
                 .put("available_actions", JSONArray(ACTIONS))

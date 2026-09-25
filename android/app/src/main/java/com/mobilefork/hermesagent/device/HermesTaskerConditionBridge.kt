@@ -67,7 +67,7 @@ object HermesTaskerConditionBridge {
         existingToken: String = "",
     ): Intent {
         val normalizedType = normalizeConditionType(conditionType)
-            ?: throw IllegalArgumentException("Choose a supported Hermes condition")
+            ?: throw IllegalArgumentException("Choose a supported Agent condition")
         val normalizedAutomationId = normalizeOptionalAutomationId(automationId)
         val normalizedVariableName = HermesAutomationStore.normalizeVariableName(variableName).orEmpty()
         val trimmedExpectedValue = expectedValue.take(MAX_EXPECTED_VALUE_CHARS)
@@ -105,26 +105,26 @@ object HermesTaskerConditionBridge {
 
     fun queryCondition(context: Context, bundle: Bundle?): QueryResult {
         if (bundle == null) {
-            return unknown("Hermes condition query is missing Locale EXTRA_BUNDLE")
+            return unknown("Agent condition query is missing Locale EXTRA_BUNDLE")
         }
         val conditionType = normalizeConditionType(bundle.getString(KEY_CONDITION_TYPE).orEmpty())
-            ?: return unknown("Hermes condition query has an unsupported condition type")
+            ?: return unknown("Agent condition query has an unsupported condition type")
         val automationId = runCatching {
             normalizeOptionalAutomationId(bundle.getString(KEY_AUTOMATION_ID).orEmpty())
         }.getOrElse {
-            return unknown("Hermes condition query has an invalid automation ID")
+            return unknown("Agent condition query has an invalid automation ID")
         }
         val variableName = HermesAutomationStore.normalizeVariableName(bundle.getString(KEY_VARIABLE_NAME).orEmpty()).orEmpty()
         val expectedValue = bundle.getString(KEY_EXPECTED_VALUE).orEmpty().take(MAX_EXPECTED_VALUE_CHARS)
         val signature = conditionSignature(conditionType, automationId, variableName, expectedValue)
         val token = bundle.getString(KEY_TOKEN).orEmpty().trim()
         if (!isAuthorizedToken(context, signature, token)) {
-            return unknown("Hermes condition token is missing or invalid")
+            return unknown("Agent condition token is missing or invalid")
         }
         return runCatching {
             evaluateCondition(context.applicationContext, conditionType, automationId, variableName, expectedValue)
         }.getOrElse { error ->
-            unknown("Hermes condition query failed: ${error.message.orEmpty()}")
+            unknown("Agent condition query failed: ${error.message.orEmpty()}")
         }
     }
 
@@ -206,7 +206,7 @@ object HermesTaskerConditionBridge {
                 variables.putString("%hermes_variable_value", value.orEmpty().take(MAX_VARIABLE_RETURN_CHARS))
                 value == expectedValue
             }
-            else -> return unknown("Unsupported Hermes condition type")
+            else -> return unknown("Unsupported Agent condition type")
         }
         variables.putString("%hermes_satisfied", satisfied.toString())
         return QueryResult(
@@ -217,10 +217,10 @@ object HermesTaskerConditionBridge {
 
     private fun validateConditionInput(conditionType: String, automationId: String, variableName: String) {
         if (conditionType in AUTOMATION_CONDITIONS && automationId.isBlank()) {
-            throw IllegalArgumentException("Automation conditions require a saved Hermes automation ID")
+            throw IllegalArgumentException("Automation conditions require a saved Agent automation ID")
         }
         if (conditionType in VARIABLE_CONDITIONS && variableName.isBlank()) {
-            throw IllegalArgumentException("Variable conditions require a Hermes variable name")
+            throw IllegalArgumentException("Variable conditions require a Agent variable name")
         }
     }
 
@@ -235,7 +235,7 @@ object HermesTaskerConditionBridge {
             return ""
         }
         require(id.length <= MAX_AUTOMATION_ID_CHARS && id.indexOf('\u0000') < 0) {
-            "Hermes automation ID is too long or invalid"
+            "Agent automation ID is too long or invalid"
         }
         return id
     }

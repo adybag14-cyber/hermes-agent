@@ -153,7 +153,7 @@ fun AppShellScreen(
         } catch (error: AppSettingsPersistenceException) {
             Toast.makeText(
                 context,
-                "Unable to save Hermes settings: ${error.message ?: error::class.java.simpleName}",
+                "Unable to save Agent settings: ${error.message ?: error::class.java.simpleName}",
                 Toast.LENGTH_LONG,
             ).show()
             false
@@ -449,7 +449,7 @@ private fun HermesTopBar(
                 }
                 if (showLogo) {
                     Image(
-                        painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
+                        painter = painterResource(id = R.drawable.agent_logo),
                         contentDescription = strings.hermesLogoDescription,
                         modifier = Modifier.size(30.dp),
                     )
@@ -568,7 +568,7 @@ private fun ShellNavigationRail(
         contentColor = MaterialTheme.colorScheme.onSurface,
         header = {
             Image(
-                painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
+                painter = painterResource(id = R.drawable.agent_logo),
                 contentDescription = strings.hermesLogoDescription,
                 modifier = Modifier
                     .padding(vertical = 12.dp)
@@ -690,7 +690,7 @@ private fun ShellNavigationDrawerOverlay(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
+                        painter = painterResource(id = R.drawable.agent_logo),
                         contentDescription = null,
                         modifier = Modifier.size(30.dp),
                     )
@@ -851,7 +851,7 @@ private fun HermesSetupScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Image(
-            painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
+            painter = painterResource(id = R.drawable.agent_logo),
             contentDescription = strings.hermesLogoDescription,
             modifier = Modifier.size(72.dp),
         )

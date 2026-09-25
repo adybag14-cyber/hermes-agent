@@ -93,7 +93,7 @@ class HermesPrivilegedShellUserService : IHermesPrivilegedShellService.Stub {
                     .put("exit_code", 125)
                     .put(
                         "error",
-                        "Hermes could not establish a safe privileged same-UID process baseline ($detail). " +
+                        "Agent could not establish a safe privileged same-UID process baseline ($detail). " +
                             "No privileged shell command was started.",
                     )
                     .put("timed_out", false)
@@ -174,7 +174,7 @@ class HermesPrivilegedShellUserService : IHermesPrivilegedShellService.Stub {
             val detachedRejectionDetail = detachedContainment.detectedOwnedPids
                 .takeIf { it.isNotEmpty() }
                 ?.let { detectedPids ->
-                    "Detached/background privileged shell processes are unsupported; Hermes stopped the " +
+                    "Detached/background privileged shell processes are unsupported; Agent stopped the " +
                         "owned process(es) before returning: ${detectedPids.joinToString(",")}"
                 }
                 .orEmpty()
@@ -211,7 +211,7 @@ class HermesPrivilegedShellUserService : IHermesPrivilegedShellService.Stub {
                         "privileged stream readers did not reach EOF".takeIf { !readersCompleted },
                     )
                     append(reasons.joinToString("; ").ifBlank { "Privileged shell cleanup could not be verified." })
-                    append(" Hermes blocked further commands until this transient Shizuku service exits.")
+                    append(" Agent blocked further commands until this transient Shizuku service exits.")
                 }
             }
             waitResult.waitFailure?.let { throw it }
@@ -300,7 +300,7 @@ class HermesPrivilegedShellUserService : IHermesPrivilegedShellService.Stub {
                         append(": ")
                         append(cleanupReasons.joinToString("; "))
                     }
-                    append(". Hermes blocked further commands until this transient Shizuku service exits.")
+                    append(". Agent blocked further commands until this transient Shizuku service exits.")
                 }
             }
             JSONObject()

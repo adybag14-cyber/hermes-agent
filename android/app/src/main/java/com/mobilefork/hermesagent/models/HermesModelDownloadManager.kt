@@ -167,42 +167,58 @@ object HermesModelDownloadManager {
         context: Context,
         store: LocalModelDownloadStore,
         sourceUri: Uri,
-    ): LocalModelDownloadRecord = withModelExternalIoOperation {
+    ): LocalModelDownloadRecord {
         val directory = modelsDirectory(context)
         val displayName = displayNameForUri(context, sourceUri)
-        val targetFile = directory.resolve(uniqueFileName(directory, sanitizeFileName(displayName)))
-        context.contentResolver.openInputStream(sourceUri)?.use { input ->
-            targetFile.outputStream().use { output -> input.copyTo(output) }
-        } ?: throw IllegalArgumentException("Unable to read selected model file")
-        if (!targetFile.isImportableModelFile()) {
-            runCatching { targetFile.delete() }
-            throw IllegalArgumentException("Selected file must be a non-empty .gguf, .litertlm, or Android .task model")
+        val fileName = sanitizeFileName(displayName)
+        require(isImportableModelPath(fileName, 1L)) {
+            "Select a .gguf, .litertlm, or Android .task model file"
         }
-        val now = System.currentTimeMillis()
-        val record = LocalModelDownloadRecord(
-            title = targetFile.name,
-            sourceUrl = sourceUri.toString(),
-            repoOrUrl = "Local file",
-            filePath = displayName,
-            revision = "local",
-            runtimeFlavor = runtimeFlavorForLocalFile(targetFile),
-            destinationFileName = targetFile.name,
-            destinationPath = targetFile.absolutePath,
-            downloadManagerId = -1L,
-            totalBytes = targetFile.length(),
-            downloadedBytes = targetFile.length(),
-            status = "completed",
-            statusMessage = "Imported from phone files",
-            supportsResume = false,
-            updatedAtEpochMs = now,
-        )
+        // Process death can leave a .part file, never a discoverable completed model.
+        // Keep slow provider reads outside the shared publication lock.
+        val stagingFile = File.createTempFile(".agent-import-", ".part", directory)
         try {
-            store.upsertDownload(record)
-        } catch (error: Throwable) {
-            runCatching { targetFile.delete() }
-            throw error
+            context.contentResolver.openInputStream(sourceUri)?.use { input ->
+                stagingFile.outputStream().use { output ->
+                    input.copyTo(output)
+                    output.fd.sync()
+                }
+            } ?: throw IllegalArgumentException("Unable to read selected model file")
+            require(stagingFile.length() > 0L) { "The selected model file is empty" }
+            return withModelExternalIoOperation {
+                val targetFile = directory.resolve(uniqueFileName(directory, fileName))
+                check(stagingFile.renameTo(targetFile)) {
+                    "Unable to save the imported model. Check available storage."
+                }
+                try {
+                    val record = LocalModelDownloadRecord(
+                        title = displayName,
+                        sourceUrl = sourceUri.toString(),
+                        repoOrUrl = "Local file",
+                        filePath = displayName,
+                        revision = "local",
+                        runtimeFlavor = runtimeFlavorForLocalFile(targetFile),
+                        destinationFileName = targetFile.name,
+                        destinationPath = targetFile.absolutePath,
+                        downloadManagerId = -1L,
+                        totalBytes = targetFile.length(),
+                        downloadedBytes = targetFile.length(),
+                        status = "completed",
+                        statusMessage = "Imported from phone files",
+                        supportsResume = false,
+                        updatedAtEpochMs = System.currentTimeMillis(),
+                    )
+                    store.upsertDownload(record)
+                    record
+                } catch (error: Throwable) {
+                    // Roll back before discovery can observe a failed record publication.
+                    targetFile.delete()
+                    throw error
+                }
+            }
+        } finally {
+            stagingFile.delete()
         }
-        return record
     }
 
     fun inspectCandidate(context: Context, draft: ModelDownloadDraft, hfToken: String): ModelDownloadInspection {
@@ -382,8 +398,8 @@ object HermesModelDownloadManager {
         val inspection = inspectCandidate(context, draft, hfToken)
         val targetFile = modelsDirectory(context).resolve(uniqueFileName(modelsDirectory(context), inspection.destinationFileName))
         val request = DownloadManager.Request(Uri.parse(inspection.sourceUrl)).apply {
-            setTitle("Hermes model: ${inspection.title}")
-            setDescription("Downloading a local model for Hermes")
+            setTitle("Agent model: ${inspection.title}")
+            setDescription("Downloading a local model for Agent")
             setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             // setVisibleInDownloadsUi is deprecated since API 33; keeping for backward compat on older devices
             @Suppress("DEPRECATION")
@@ -634,7 +650,7 @@ object HermesModelDownloadManager {
                 return ModelRemovalResult(
                     removed = false,
                     statusMessage = stopped.statusMessage.ifBlank {
-                        "The active local runtime could not be stopped safely. Force stop and reopen Hermes before removing this model."
+                        "The active local runtime could not be stopped safely. Force stop and reopen Agent before removing this model."
                     },
                     requiresAppRestart = true,
                 )
@@ -672,7 +688,7 @@ object HermesModelDownloadManager {
             if (cancelFailure != null) {
                 return ModelRemovalResult(
                     removed = true,
-                    statusMessage = "Removed the model selection, but Hermes could not cancel its Android download: " +
+                    statusMessage = "Removed the model selection, but Agent could not cancel its Android download: " +
                         (cancelFailure.message ?: cancelFailure.javaClass.simpleName),
                     removedRecordIds = associatedRecordIds + removedRecordIds,
                 )
@@ -686,7 +702,7 @@ object HermesModelDownloadManager {
         if (!fileRemoved) {
             return ModelRemovalResult(
                 removed = true,
-                statusMessage = "Removed the model selection, but Hermes could not delete " +
+                statusMessage = "Removed the model selection, but Agent could not delete " +
                     modelFile?.name.orEmpty().ifBlank { "the model file" },
                 removedRecordIds = associatedRecordIds + removedRecordIds,
             )
@@ -987,7 +1003,7 @@ object HermesModelDownloadManager {
                         repoId = aliasRepoId,
                         revision = aliasRevision,
                         filePath = aliasRuntimeNative,
-                        compatibilityHint = "huggingface.co/$repoId does not publish a native LiteRT-LM artifact, so Hermes will download ${aliasRuntimeNative.substringAfterLast('/')} from the mobile-ready repo $aliasRepoId.",
+                        compatibilityHint = "huggingface.co/$repoId does not publish a native LiteRT-LM artifact, so Agent will download ${aliasRuntimeNative.substringAfterLast('/')} from the mobile-ready repo $aliasRepoId.",
                     )
                 }
             }
@@ -1019,7 +1035,7 @@ object HermesModelDownloadManager {
 
     private fun noLiteRtArtifactMessage(repoId: String, aliasRepoId: String?): String {
         return if (!aliasRepoId.isNullOrBlank()) {
-            "huggingface.co/$repoId does not publish a .litertlm or .task file. Hermes recommends $aliasRepoId for LiteRT-LM, or you can enter an exact .litertlm/.task file path."
+            "huggingface.co/$repoId does not publish a .litertlm or .task file. Agent recommends $aliasRepoId for LiteRT-LM, or you can enter an exact .litertlm/.task file path."
         } else {
             "huggingface.co/$repoId does not publish a .litertlm or .task file. Enter an exact .litertlm/.task file path or choose a repo that ships LiteRT-LM artifacts."
         }
@@ -1045,7 +1061,7 @@ object HermesModelDownloadManager {
         val prefix = if (explicitSelection) {
             "Using the exact file you selected"
         } else {
-            "No clear $runtimeFlavor artifact was found, so Hermes selected ${filePath.substringAfterLast('/')}"
+            "No clear $runtimeFlavor artifact was found, so Agent selected ${filePath.substringAfterLast('/')}"
         }
         return "$prefix. Downloading is allowed; the selected backend will decide at load time whether it can run this file."
     }

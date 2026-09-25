@@ -29,7 +29,7 @@ class Android16BackNavigationInstrumentedTest {
         assertTrue("Installed APK must target Android 16", context.applicationInfo.targetSdkVersion >= 36)
         val server = object : NanoHTTPD("127.0.0.1", 0) {
             override fun serve(session: IHTTPSession): Response = newFixedLengthResponse(
-                Response.Status.OK, "text/html", "<!doctype html><title>Hermes back test</title><p>${session.uri}</p>",
+                Response.Status.OK, "text/html", "<!doctype html><title>Agent back test</title><p>${session.uri}</p>",
             )
         }
         server.start(10_000, false)

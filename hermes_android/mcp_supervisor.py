@@ -209,7 +209,7 @@ class McpSupervisor:
     async def _stop_connections(self):
         results = await asyncio.gather(*(item.stop() for item in self.connections.values()), return_exceptions=True)
         if any(isinstance(item, BaseException) for item in results):
-            self.failure = "MCP shutdown was not verified; force stop and reopen Hermes"
+            self.failure = "MCP shutdown was not verified; force stop and reopen Agent"
             raise RuntimeError(self.failure) from next(item for item in results if isinstance(item, BaseException))
         from tools.environments.android_linux import android_command_execution_requires_restart
 
@@ -277,5 +277,5 @@ class McpSupervisor:
             return await connection.call(binding["tool"], arguments)
         except BaseException:
             if connection.stopping and (not connection.task.done() or not connection.cleanup_verified):
-                self.failure = "MCP cancellation did not unwind safely; force stop and reopen Hermes"
+                self.failure = "MCP cancellation did not unwind safely; force stop and reopen Agent"
             raise

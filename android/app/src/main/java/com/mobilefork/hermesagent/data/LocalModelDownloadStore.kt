@@ -333,7 +333,7 @@ class LocalModelDownloadStore internal constructor(
         try {
             if (!commitEditor(editorForSnapshot(persisted))) {
                 throw LocalModelDownloadPersistenceException(
-                    "Hermes could not persist the local model download state. Check available storage and try again.",
+                    "Agent could not persist the local model download state. Check available storage and try again.",
                 )
             }
         } catch (error: Throwable) {
@@ -343,7 +343,7 @@ class LocalModelDownloadStore internal constructor(
             runCatching { editorForSnapshot(rollback).apply() }
             if (error is LocalModelDownloadPersistenceException) throw error
             throw LocalModelDownloadPersistenceException(
-                "Hermes could not persist the local model download state. Check available storage and try again.",
+                "Agent could not persist the local model download state. Check available storage and try again.",
                 error,
             )
         }

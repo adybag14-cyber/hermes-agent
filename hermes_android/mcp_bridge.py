@@ -1,4 +1,4 @@
-"""Sync Android MCP JSON config into Hermes runtime config.yaml."""
+"""Sync Android MCP JSON config into Agent runtime config.yaml."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def android_server_to_runtime_config(name: str, server: dict[str, Any]) -> dict[
     if transport == NATIVE_TRANSPORT:
         return {
             "transport": NATIVE_TRANSPORT,
-            "description": server.get("description") or "Hermes Android native tools",
+            "description": server.get("description") or "Agent Android native tools",
             "auto_start": bool(server.get("autoStart", True)),
         }
 

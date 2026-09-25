@@ -29,5 +29,5 @@ object HermesClipboardActionBridge {
             .put("error", message)
     }
 
-    private const val DEFAULT_LABEL = "Hermes"
+    private const val DEFAULT_LABEL = "Agent"
 }

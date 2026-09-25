@@ -131,12 +131,12 @@ class AuthSecureStorageInstrumentedTest {
             var status = ""
             while (SystemClock.elapsedRealtime() < deadline) {
                 status = viewModel.uiState.value.status
-                if (status.contains("Imported saved Hermes credential") || status.contains("failed")) {
+                if (status.contains("Imported saved Agent credential") || status.contains("failed")) {
                     break
                 }
                 Thread.sleep(250L)
             }
-            assertTrue(status, status.contains("Imported saved Hermes credential"))
+            assertTrue(status, status.contains("Imported saved Agent credential"))
             assertEquals("qwen-import-access", SecureSecretsStore(app).loadApiKey("qwen-oauth"))
             assertEquals("qwen-import-access", viewModel.uiState.value.apiKey)
         } finally {

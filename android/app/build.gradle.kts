@@ -259,7 +259,7 @@ val keystoreProperties = Properties().apply {
     }
 }
 val hasReleaseKeystore = keystoreProperties.isNotEmpty()
-val liteRtLmStableVersion = "0.17.0"
+val liteRtLmStableVersion = "0.17.1"
 val liteRtLmVersion = providers.gradleProperty("hermesLiteRtLmVersion")
     .getOrElse(liteRtLmStableVersion)
     .trim()
@@ -862,7 +862,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     implementation("org.json:json:20240303")
-    // Release/F-Droid builds use the exact stable default (0.17.0). Developers can compile
+    // Release/F-Droid builds use the exact stable default declared above. Developers can compile
     // an upstream preview version or a locally built LiteRT-LM main-branch AAR
     // without weakening the reproducible release pin.
     if (liteRtLmLocalAar != null) {
@@ -872,6 +872,8 @@ dependencies {
     }
     implementation("org.nanohttpd:nanohttpd:2.3.1")
 
+    testImplementation(composeBom)
+    testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.16.1")
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")

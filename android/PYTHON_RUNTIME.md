@@ -5,7 +5,7 @@ The normal application now selects the genuine SDK set in
 Pydantic 2.13 and their Android dependencies. Production packaging no longer
 installs the raising Anthropic/FAL placeholders. The interpreter remains
 Chaquopy's Python **3.13**; standalone Python 3.14 dependency tests are not a
-claim that the complete Hermes app supports 3.14.
+claim that the complete Agent app supports 3.14.
 
 ## Build inputs
 
@@ -66,7 +66,7 @@ code, licenses or dependency relationships. Python bootstrap ZIP entries and
 PYC headers are deterministic. The closed receipt explicitly says
 `runtime_tested: false`.
 
-Debug builds include the genuine SDK/Hermes-loop instrumentation probes. Release
+Debug builds include the genuine SDK/Agent-loop instrumentation probes. Release
 builds exclude those probe modules. The actual app/device gates, signed upgrade,
 and source-bound release evidence remain mandatory. After GitHub publication,
 fresh updater detection and pinned-buildserver comparison with the public APK

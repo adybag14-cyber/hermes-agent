@@ -531,7 +531,7 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                     _uiState.update {
                         it.copy(
                             systemMessage = removalFailure.message
-                                ?: "Hermes could not persist removal of ${model.catalogEntry.displayName}",
+                                ?: "Agent could not persist removal of ${model.catalogEntry.displayName}",
                         )
                     }
                 }
@@ -597,7 +597,7 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                 _uiState.update {
                     it.copy(
                         systemMessage = preferenceFailure.message
-                            ?: "Hermes could not persist the preferred model",
+                            ?: "Agent could not persist the preferred model",
                     )
                 }
             }
@@ -727,7 +727,7 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
                 _uiState.update {
                     it.copy(
                         systemMessage = failure?.message
-                            ?: "Hermes could not cancel the pending model handoff",
+                            ?: "Agent could not cancel the pending model handoff",
                     )
                 }
             }
@@ -812,7 +812,7 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
             ModelCatalogEntry(
                 id = "gemma-4-e2b-litert-lm",
                 displayName = "Gemma 4 E2B (LiteRT-LM)",
-                description = "Experimental text-only Google Gemma 4 E2B LiteRT-LM artifact. Hermes has not certified its image, audio, MTP, tool-use, or device-accelerator paths; choose a release-certified model for one-tap setup.",
+                description = "Experimental text-only Google Gemma 4 E2B LiteRT-LM artifact. Agent has not certified its image, audio, MTP, tool-use, or device-accelerator paths; choose a release-certified model for one-tap setup.",
                 repoId = "litert-community/gemma-4-E2B-it-litert-lm",
                 revision = "7fa1d78473894f7e736a21d920c3aa80f950c0db",
                 supportedBackends = listOf(ModelRuntimeBackend.LITERT_LM),
@@ -828,7 +828,7 @@ class ModelManagerViewModel(application: Application) : AndroidViewModel(applica
             ModelCatalogEntry(
                 id = "gemma-4-e4b-litert-lm",
                 displayName = "Gemma 4 E4B (LiteRT-LM)",
-                description = "Experimental text-only Google Gemma 4 E4B LiteRT-LM artifact for high-memory devices. Hermes has not certified its image, audio, MTP, tool-use, Snapdragon/Adreno, or NPU paths, and it is not selected automatically.",
+                description = "Experimental text-only Google Gemma 4 E4B LiteRT-LM artifact for high-memory devices. Agent has not certified its image, audio, MTP, tool-use, Snapdragon/Adreno, or NPU paths, and it is not selected automatically.",
                 repoId = "litert-community/gemma-4-E4B-it-litert-lm",
                 revision = "9695417f248178c63a9f318c6e0c56cb917cb837",
                 supportedBackends = listOf(ModelRuntimeBackend.LITERT_LM),

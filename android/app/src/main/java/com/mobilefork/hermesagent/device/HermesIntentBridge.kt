@@ -288,7 +288,7 @@ object HermesIntentBridge {
 
     private fun grantContentUriReadAccess(context: Context, intent: Intent, uri: Uri): List<String> {
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        intent.clipData = ClipData.newUri(context.contentResolver, "Hermes file", uri)
+        intent.clipData = ClipData.newUri(context.contentResolver, "Agent file", uri)
 
         val packageManager = context.packageManager
         val targetPackages = linkedSetOf<String>()

@@ -38,7 +38,7 @@ object HermesNotificationActionBridge {
             if (cancelResult.isFailure) {
                 return notificationErrorJson(
                     action = "notification_cancel",
-                    message = "Unable to cancel Hermes notification",
+                    message = "Unable to cancel Agent notification",
                     throwable = cancelResult.exceptionOrNull(),
                 )
             }
@@ -48,7 +48,7 @@ object HermesNotificationActionBridge {
                 .put("action", "notification_cancel")
                 .put("notification_id", id)
                 .put("notification_tag", tag ?: "")
-                .put("message", "Cancelled Hermes notification")
+                .put("message", "Cancelled Agent notification")
                 .toString()
         }
         if (action != "post") {
@@ -67,7 +67,7 @@ object HermesNotificationActionBridge {
                 .put("exit_code", 1)
                 .put("action", "notification_post")
                 .put("requires_permission", Manifest.permission.POST_NOTIFICATIONS)
-                .put("message", "Grant notification permission before posting Hermes notifications.")
+                .put("message", "Grant notification permission before posting Agent notifications.")
                 .toString()
         }
         val channelId = payload.optString("channel_id").ifBlank { DEFAULT_CHANNEL_ID }.take(MAX_NOTIFICATION_FIELD_CHARS)
@@ -87,7 +87,7 @@ object HermesNotificationActionBridge {
             .ifBlank { payload.optString("short_critical_text") }
             .take(MAX_NOTIFICATION_FIELD_CHARS)
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_nav_hermes)
+            .setSmallIcon(R.drawable.ic_nav_agent)
             .setContentTitle(title.ifBlank { context.getString(R.string.app_name) })
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
@@ -110,7 +110,7 @@ object HermesNotificationActionBridge {
         }
         buttonResult.buttons.forEachIndexed { index, button ->
             builder.addAction(
-                R.drawable.ic_nav_hermes,
+                R.drawable.ic_nav_agent,
                 button.title,
                 pendingIntentForButton(context, notificationId, tag, index, button),
             )
@@ -121,7 +121,7 @@ object HermesNotificationActionBridge {
         if (notifyResult.isFailure) {
             return notificationErrorJson(
                 action = "notification_post",
-                message = "Unable to post Hermes notification",
+                message = "Unable to post Agent notification",
                 throwable = notifyResult.exceptionOrNull(),
             )
         }
@@ -138,7 +138,7 @@ object HermesNotificationActionBridge {
             .put("progress_value", progress.spec?.current ?: 0)
             .put("progress_indeterminate", progress.spec?.indeterminate ?: false)
             .put("status_text", statusText)
-            .put("message", "Posted Hermes notification")
+            .put("message", "Posted Agent notification")
             .toString()
     }
 
@@ -157,7 +157,7 @@ object HermesNotificationActionBridge {
                 .put("success", true)
                 .put("exit_code", 0)
                 .put("action", "notification_button_cancel")
-                .put("message", "Dismissed Hermes notification")
+                .put("message", "Dismissed Agent notification")
             BUTTON_ACTION_RUN_AUTOMATION -> {
                 val automationId = intent.getStringExtra(EXTRA_AUTOMATION_ID).orEmpty()
                 if (automationId.isBlank()) {
@@ -208,7 +208,7 @@ object HermesNotificationActionBridge {
         if (manager.getNotificationChannel(channelId) != null) {
             return
         }
-        val channelName = payload.optString("channel_name").ifBlank { "Hermes automation" }
+        val channelName = payload.optString("channel_name").ifBlank { "Agent automation" }
             .take(MAX_NOTIFICATION_FIELD_CHARS)
         val channel = NotificationChannel(channelId, channelName, importance(payload.optString("importance")))
         manager.createNotificationChannel(channel)
@@ -393,13 +393,13 @@ object HermesNotificationActionBridge {
                 .put("success", false)
                 .put("exit_code", 1)
                 .put("action", "notification_button_open_app")
-                .put("error", started.exceptionOrNull()?.message ?: "Unable to open Hermes")
+                .put("error", started.exceptionOrNull()?.message ?: "Unable to open Agent")
         }
         return JSONObject()
             .put("success", true)
             .put("exit_code", 0)
             .put("action", "notification_button_open_app")
-            .put("message", "Opened Hermes")
+            .put("message", "Opened Agent")
     }
 
     private fun dismissNotification(context: Context, id: Int, tag: String?) {

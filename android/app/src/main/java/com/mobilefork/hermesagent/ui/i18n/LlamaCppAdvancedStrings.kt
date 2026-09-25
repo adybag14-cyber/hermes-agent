@@ -154,12 +154,12 @@ internal fun llamaCppAdvancedText(language: AppLanguage, key: String): String {
             AppLanguage.ENGLISH -> "One argv token per line, for example:\n--threads-batch\n4\n--perf"
         }
         "arguments_description" -> when (language) {
-            AppLanguage.CHINESE -> "每一行都是一个独立的 argv 参数，不是 shell 命令。标志的值必须放在下一行；Hermes 会先拒绝不安全格式、受应用管理的参数及已审核标志的错误参数数量，所选后端会在受控重启时验证其余语义。"
-            AppLanguage.SPANISH -> "Cada línea es un token argv, no un comando de shell. Pon cada valor en otra línea; Hermes rechaza el formato inseguro, los controles de la app y la aridad errónea de opciones revisadas. El backend elegido valida el resto al reiniciar de forma controlada."
-            AppLanguage.GERMAN -> "Jede Zeile ist ein argv-Argument, kein Shell-Befehl. Werte stehen in eigenen Zeilen; Hermes weist unsicheres Format, app-eigene Optionen und falsche Wertanzahlen geprüfter Flags ab. Weitere Semantik prüft das gewählte Backend beim kontrollierten Neustart."
-            AppLanguage.PORTUGUESE -> "Cada linha é um token argv, não um comando de shell. Coloque cada valor noutra linha; o Hermes rejeita formato inseguro, controles do app e aridade errada de flags revistas. O backend escolhido valida o restante no reinício controlado."
-            AppLanguage.FRENCH -> "Chaque ligne est un élément argv, pas une commande shell. Placez chaque valeur sur sa propre ligne ; Hermes refuse le format dangereux, les options gérées par l’app et l’arité erronée des indicateurs vérifiés. Le backend choisi valide le reste au redémarrage contrôlé."
-            AppLanguage.ENGLISH -> "Each line is one argv token, not a shell command. Put each value on its own line; Hermes rejects unsafe syntax, app-owned controls, and wrong arity for reviewed flags. The selected backend validates remaining semantics during the controlled restart."
+            AppLanguage.CHINESE -> "每一行都是一个独立的 argv 参数，不是 shell 命令。标志的值必须放在下一行；Agent 会先拒绝不安全格式、受应用管理的参数及已审核标志的错误参数数量，所选后端会在受控重启时验证其余语义。"
+            AppLanguage.SPANISH -> "Cada línea es un token argv, no un comando de shell. Pon cada valor en otra línea; Agent rechaza el formato inseguro, los controles de la app y la aridad errónea de opciones revisadas. El backend elegido valida el resto al reiniciar de forma controlada."
+            AppLanguage.GERMAN -> "Jede Zeile ist ein argv-Argument, kein Shell-Befehl. Werte stehen in eigenen Zeilen; Agent weist unsicheres Format, app-eigene Optionen und falsche Wertanzahlen geprüfter Flags ab. Weitere Semantik prüft das gewählte Backend beim kontrollierten Neustart."
+            AppLanguage.PORTUGUESE -> "Cada linha é um token argv, não um comando de shell. Coloque cada valor noutra linha; o Agent rejeita formato inseguro, controles do app e aridade errada de flags revistas. O backend escolhido valida o restante no reinício controlado."
+            AppLanguage.FRENCH -> "Chaque ligne est un élément argv, pas une commande shell. Placez chaque valeur sur sa propre ligne ; Agent refuse le format dangereux, les options gérées par l’app et l’arité erronée des indicateurs vérifiés. Le backend choisi valide le reste au redémarrage contrôlé."
+            AppLanguage.ENGLISH -> "Each line is one argv token, not a shell command. Put each value on its own line; Agent rejects unsafe syntax, app-owned controls, and wrong arity for reviewed flags. The selected backend validates remaining semantics during the controlled restart."
         }
         "effective" -> when (language) {
             AppLanguage.CHINESE -> "有效配置"
@@ -202,12 +202,12 @@ internal fun llamaCppAdvancedText(language: AppLanguage, key: String): String {
             AppLanguage.ENGLISH -> "A quantized V cache requires Flash Attention; it cannot be set to Off."
         }
         "invalid_arguments" -> when (language) {
-            AppLanguage.CHINESE -> "附加参数无效。每行必须是一个 argv 参数，值紧跟在标志后的下一行；不支持 --flag=value。Hermes 管理的模型、端口、缓存、Flash Attention 和线程标志不能在此覆盖。"
-            AppLanguage.SPANISH -> "Los argumentos adicionales no son válidos. Cada línea debe ser un token argv y el valor va en la línea posterior a su bandera; --flag=valor no es compatible. Aquí no se pueden sustituir los controles gestionados por Hermes."
-            AppLanguage.GERMAN -> "Die Zusatzargumente sind ungültig. Jede Zeile muss ein argv-Argument sein; der Wert folgt seinem Flag in der nächsten Zeile. --flag=wert wird nicht unterstützt, und von Hermes verwaltete Einstellungen sind gesperrt."
-            AppLanguage.PORTUGUESE -> "Os argumentos adicionais são inválidos. Cada linha deve ser um token argv, com o valor na linha após a flag; --flag=valor não é aceito. Controles geridos pelo Hermes não podem ser substituídos aqui."
-            AppLanguage.FRENCH -> "Les arguments supplémentaires sont invalides. Chaque ligne doit être un élément argv, la valeur suivant son indicateur à la ligne suivante ; --flag=valeur n’est pas accepté. Les réglages gérés par Hermes sont verrouillés."
-            AppLanguage.ENGLISH -> "Additional arguments are invalid. Each line must be one argv token, with a value on the line after its flag; --flag=value is not supported. Hermes-managed controls cannot be overridden here."
+            AppLanguage.CHINESE -> "附加参数无效。每行必须是一个 argv 参数，值紧跟在标志后的下一行；不支持 --flag=value。Agent 管理的模型、端口、缓存、Flash Attention 和线程标志不能在此覆盖。"
+            AppLanguage.SPANISH -> "Los argumentos adicionales no son válidos. Cada línea debe ser un token argv y el valor va en la línea posterior a su bandera; --flag=valor no es compatible. Aquí no se pueden sustituir los controles gestionados por Agent."
+            AppLanguage.GERMAN -> "Die Zusatzargumente sind ungültig. Jede Zeile muss ein argv-Argument sein; der Wert folgt seinem Flag in der nächsten Zeile. --flag=wert wird nicht unterstützt, und von Agent verwaltete Einstellungen sind gesperrt."
+            AppLanguage.PORTUGUESE -> "Os argumentos adicionais são inválidos. Cada linha deve ser um token argv, com o valor na linha após a flag; --flag=valor não é aceito. Controles geridos pelo Agent não podem ser substituídos aqui."
+            AppLanguage.FRENCH -> "Les arguments supplémentaires sont invalides. Chaque ligne doit être un élément argv, la valeur suivant son indicateur à la ligne suivante ; --flag=valeur n’est pas accepté. Les réglages gérés par Agent sont verrouillés."
+            AppLanguage.ENGLISH -> "Additional arguments are invalid. Each line must be one argv token, with a value on the line after its flag; --flag=value is not supported. Agent-managed controls cannot be overridden here."
         }
         "saved" -> when (language) {
             AppLanguage.CHINESE -> "llama.cpp 高级设置已保存；正在应用本地运行时。"
@@ -226,12 +226,12 @@ internal fun llamaCppAdvancedText(language: AppLanguage, key: String): String {
             AppLanguage.ENGLISH -> "Dangerous one-shot RAM override"
         }
         "danger_description" -> when (language) {
-            AppLanguage.CHINESE -> "仅对下一次启动尝试跳过 Hermes 的 RAM 容量阻止。该覆盖不会保存或导出；Android 仍可能杀死应用或使设备无响应。"
-            AppLanguage.SPANISH -> "Omite el bloqueo de capacidad de RAM de Hermes solo en el próximo intento. No se guarda ni exporta; Android aún puede cerrar la app o bloquear el dispositivo."
-            AppLanguage.GERMAN -> "Überspringt die Hermes-RAM-Sperre nur beim nächsten Startversuch. Nicht gespeichert oder exportiert; Android kann die App trotzdem beenden oder das Gerät blockieren."
-            AppLanguage.PORTUGUESE -> "Ignora o bloqueio de capacidade de RAM do Hermes apenas na próxima tentativa. Não é salvo nem exportado; o Android ainda pode encerrar o app ou travar o aparelho."
-            AppLanguage.FRENCH -> "Ignore le blocage de capacité RAM de Hermes uniquement au prochain essai. Rien n’est enregistré ni exporté ; Android peut toujours arrêter l’app ou figer l’appareil."
-            AppLanguage.ENGLISH -> "Skips Hermes’ RAM-capacity block for the next startup attempt only. It is not saved or exported; Android may still kill the app or make the device unresponsive."
+            AppLanguage.CHINESE -> "仅对下一次启动尝试跳过 Agent 的 RAM 容量阻止。该覆盖不会保存或导出；Android 仍可能杀死应用或使设备无响应。"
+            AppLanguage.SPANISH -> "Omite el bloqueo de capacidad de RAM de Agent solo en el próximo intento. No se guarda ni exporta; Android aún puede cerrar la app o bloquear el dispositivo."
+            AppLanguage.GERMAN -> "Überspringt die Agent-RAM-Sperre nur beim nächsten Startversuch. Nicht gespeichert oder exportiert; Android kann die App trotzdem beenden oder das Gerät blockieren."
+            AppLanguage.PORTUGUESE -> "Ignora o bloqueio de capacidade de RAM do Agent apenas na próxima tentativa. Não é salvo nem exportado; o Android ainda pode encerrar o app ou travar o aparelho."
+            AppLanguage.FRENCH -> "Ignore le blocage de capacité RAM de Agent uniquement au prochain essai. Rien n’est enregistré ni exporté ; Android peut toujours arrêter l’app ou figer l’appareil."
+            AppLanguage.ENGLISH -> "Skips Agent’ RAM-capacity block for the next startup attempt only. It is not saved or exported; Android may still kill the app or make the device unresponsive."
         }
         "danger_button" -> when (language) {
             AppLanguage.CHINESE -> "忽略 RAM 警告尝试一次"
@@ -250,12 +250,12 @@ internal fun llamaCppAdvancedText(language: AppLanguage, key: String): String {
             AppLanguage.ENGLISH -> "Confirm dangerous startup attempt?"
         }
         "danger_dialog_body" -> when (language) {
-            AppLanguage.CHINESE -> "Hermes 将仅在这一次尝试中忽略 RAM 预检。模型仍需有效且可读；其他安全检查保持启用。设备可能严重变慢、应用可能崩溃，未保存的数据可能丢失。"
-            AppLanguage.SPANISH -> "Hermes ignorará la comprobación previa de RAM solo en este intento. El modelo debe seguir siendo válido y legible; las demás comprobaciones siguen activas. El dispositivo puede ralentizarse, la app puede fallar y perder datos no guardados."
-            AppLanguage.GERMAN -> "Hermes ignoriert die RAM-Vorprüfung nur für diesen Versuch. Das Modell muss gültig und lesbar bleiben; andere Sicherheitsprüfungen bleiben aktiv. Das Gerät kann stark langsamer werden, die App abstürzen und ungespeicherte Daten verloren gehen."
-            AppLanguage.PORTUGUESE -> "O Hermes ignorará a pré-verificação de RAM apenas nesta tentativa. O modelo ainda deve ser válido e legível; as demais verificações continuam ativas. O aparelho pode ficar muito lento, o app pode falhar e dados não salvos podem ser perdidos."
-            AppLanguage.FRENCH -> "Hermes ignorera le précontrôle RAM uniquement pour cet essai. Le modèle doit rester valide et lisible ; les autres contrôles restent actifs. L’appareil peut beaucoup ralentir, l’app peut planter et des données non enregistrées peuvent être perdues."
-            AppLanguage.ENGLISH -> "Hermes will ignore the RAM preflight for this attempt only. The model must still be valid and readable; every other safety check stays enabled. The device may slow severely, the app may crash, and unsaved data may be lost."
+            AppLanguage.CHINESE -> "Agent 将仅在这一次尝试中忽略 RAM 预检。模型仍需有效且可读；其他安全检查保持启用。设备可能严重变慢、应用可能崩溃，未保存的数据可能丢失。"
+            AppLanguage.SPANISH -> "Agent ignorará la comprobación previa de RAM solo en este intento. El modelo debe seguir siendo válido y legible; las demás comprobaciones siguen activas. El dispositivo puede ralentizarse, la app puede fallar y perder datos no guardados."
+            AppLanguage.GERMAN -> "Agent ignoriert die RAM-Vorprüfung nur für diesen Versuch. Das Modell muss gültig und lesbar bleiben; andere Sicherheitsprüfungen bleiben aktiv. Das Gerät kann stark langsamer werden, die App abstürzen und ungespeicherte Daten verloren gehen."
+            AppLanguage.PORTUGUESE -> "O Agent ignorará a pré-verificação de RAM apenas nesta tentativa. O modelo ainda deve ser válido e legível; as demais verificações continuam ativas. O aparelho pode ficar muito lento, o app pode falhar e dados não salvos podem ser perdidos."
+            AppLanguage.FRENCH -> "Agent ignorera le précontrôle RAM uniquement pour cet essai. Le modèle doit rester valide et lisible ; les autres contrôles restent actifs. L’appareil peut beaucoup ralentir, l’app peut planter et des données non enregistrées peuvent être perdues."
+            AppLanguage.ENGLISH -> "Agent will ignore the RAM preflight for this attempt only. The model must still be valid and readable; every other safety check stays enabled. The device may slow severely, the app may crash, and unsaved data may be lost."
         }
         "cancel" -> when (language) {
             AppLanguage.CHINESE -> "取消"

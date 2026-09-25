@@ -108,7 +108,7 @@ internal data class LlamaCppLaunchConfig(
             if (token.startsWith("-")) {
                 val candidateFlagName = canonicalFlagName(token.substringBefore('='))
                 appOwnedFlagOwner(candidateFlagName)?.let { owner ->
-                    return invalid("Additional flag '$candidateFlagName' conflicts with Hermes-managed $owner")
+                    return invalid("Additional flag '$candidateFlagName' conflicts with Agent-managed $owner")
                 }
             }
             if ('=' in token && token.startsWith("-")) {

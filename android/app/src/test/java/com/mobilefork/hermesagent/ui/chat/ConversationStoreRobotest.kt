@@ -152,7 +152,7 @@ class ConversationStoreRobotest {
             store.updateBlankMessageContent(
                 sessionId = conversation.sessionId,
                 messageId = "assistant-placeholder",
-                newContent = "Hermes could not complete this reply.",
+                newContent = "Agent could not complete this reply.",
             ),
         )
         assertEquals(

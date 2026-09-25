@@ -220,7 +220,7 @@ object HermesRuntimeManager {
             currentState = RuntimeState(
                 started = false,
                 hermesHome = File(appContext.filesDir, "hermes-home").absolutePath,
-                error = "$detail Force stop and reopen Hermes before starting another backend.",
+                error = "$detail Force stop and reopen Agent before starting another backend.",
             )
             return currentState
         }
@@ -299,7 +299,7 @@ object HermesRuntimeManager {
                 is BackendRouteResult.RemoteOwnershipFailed -> RuntimeState(
                     started = false,
                     hermesHome = File(appContext.filesDir, "hermes-home").absolutePath,
-                    error = "${route.reason} Force stop and reopen Hermes before starting another backend.",
+                    error = "${route.reason} Force stop and reopen Agent before starting another backend.",
                 )
                 is BackendRouteResult.RemoteDisabled -> RuntimeState(
                     started = false,
@@ -372,7 +372,7 @@ object HermesRuntimeManager {
         }
         val failureBoundary = if (status.requiresAppRestart) {
             "Remote provider startup was not attempted because the previous local runtime " +
-                "did not stop safely. Force stop and reopen Hermes before retrying."
+                "did not stop safely. Force stop and reopen Agent before retrying."
         } else {
             "Remote provider startup was not attempted because a local backend is explicitly selected."
         }
@@ -509,7 +509,7 @@ object HermesRuntimeManager {
             remoteStopFailureDetail = detail
             currentState = RuntimeState(
                 started = false,
-                error = "$detail Force stop and reopen Hermes before starting another backend.",
+                error = "$detail Force stop and reopen Agent before starting another backend.",
             )
             currentState
         }
@@ -555,7 +555,7 @@ object HermesRuntimeManager {
                 started = false,
                 localBackendKind = localStatus.backendKind,
                 error = localStatus.statusMessage.ifBlank {
-                    "The local native runtime did not stop safely. Force stop and reopen Hermes."
+                    "The local native runtime did not stop safely. Force stop and reopen Agent."
                 },
             )
         }
@@ -609,7 +609,7 @@ object HermesRuntimeManager {
             val reason = localBackendStatus.statusMessage.ifBlank {
                 "The previous local runtime did not stop safely."
             }
-            return "$reason Remote fallback is disabled until Hermes is force stopped and reopened."
+            return "$reason Remote fallback is disabled until Agent is force stopped and reopened."
         }
         if (selectedLocalBackend == BackendKind.NONE || localBackendStatus.started) {
             return null

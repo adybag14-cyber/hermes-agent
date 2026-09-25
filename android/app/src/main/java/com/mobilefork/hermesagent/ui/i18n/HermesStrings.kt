@@ -185,12 +185,12 @@ data class HermesStrings(
     }
 
     fun messageClipboardLabel(): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 消息"
-        AppLanguage.SPANISH -> "Mensaje de Hermes"
-        AppLanguage.GERMAN -> "Hermes-Nachricht"
-        AppLanguage.PORTUGUESE -> "Mensagem do Hermes"
-        AppLanguage.FRENCH -> "Message Hermes"
-        AppLanguage.ENGLISH -> "Hermes message"
+        AppLanguage.CHINESE -> "Agent 消息"
+        AppLanguage.SPANISH -> "Mensaje de Agent"
+        AppLanguage.GERMAN -> "Agent-Nachricht"
+        AppLanguage.PORTUGUESE -> "Mensagem do Agent"
+        AppLanguage.FRENCH -> "Message Agent"
+        AppLanguage.ENGLISH -> "Agent message"
     }
 
     fun toolCallLabel(): String = when (language) {
@@ -230,12 +230,12 @@ data class HermesStrings(
     }
 
     fun forkDisclosure(): String = when (language) {
-        AppLanguage.CHINESE -> "分支状态：Hermes Agent Fork 是独立社区分支，并非 Nous Research 或 Teknium 官方软件。"
-        AppLanguage.SPANISH -> "Estado del fork: Hermes Agent Fork es un fork comunitario independiente. No es software oficial de Nous Research ni de Teknium."
-        AppLanguage.GERMAN -> "Fork-Status: Hermes Agent Fork ist ein unabhängiger Community-Fork. Es ist keine offizielle Software von Nous Research oder Teknium."
-        AppLanguage.PORTUGUESE -> "Status do fork: Hermes Agent Fork é um fork comunitário independente. Não é software oficial da Nous Research nem da Teknium."
-        AppLanguage.FRENCH -> "Statut du fork : Hermes Agent Fork est un fork communautaire indépendant. Ce n’est pas un logiciel officiel de Nous Research ni de Teknium."
-        AppLanguage.ENGLISH -> "Fork status: Hermes Agent Fork is an independent community fork. It is not official Nous Research or Teknium software."
+        AppLanguage.CHINESE -> "分支状态：Agent 是独立社区分支，并非 Nous Research 或 Teknium 官方软件。"
+        AppLanguage.SPANISH -> "Estado del fork: Agent es un fork comunitario independiente. No es software oficial de Nous Research ni de Teknium."
+        AppLanguage.GERMAN -> "Fork-Status: Agent ist ein unabhängiger Community-Fork. Es ist keine offizielle Software von Nous Research oder Teknium."
+        AppLanguage.PORTUGUESE -> "Status do fork: Agent é um fork comunitário independente. Não é software oficial da Nous Research nem da Teknium."
+        AppLanguage.FRENCH -> "Statut du fork : Agent est un fork communautaire indépendant. Ce n’est pas un logiciel officiel de Nous Research ni de Teknium."
+        AppLanguage.ENGLISH -> "Fork status: Agent is an independent community fork. It is not official Nous Research or Teknium software."
     }
 
     fun currentProviderProfile(providerLabel: String): String {
@@ -289,21 +289,21 @@ data class HermesStrings(
     }
 
     fun customEndpointConnectionHint(): String = when (language) {
-        AppLanguage.CHINESE -> "自定义 OpenAI 兼容端点可以是裸主机、/v1 URL 或完整 /v1/chat/completions URL；Hermes 会规范化它，并使用服务器上完全匹配的模型名称。如果流提前关闭，Hermes 会在聊天中显示连接诊断。"
-        AppLanguage.SPANISH -> "Los endpoints personalizados compatibles con OpenAI pueden ser un host sin esquema, una URL /v1 o una URL completa /v1/chat/completions; Hermes los normaliza y usa el nombre exacto del modelo del servidor. Si el flujo se cierra antes de tiempo, Hermes muestra diagnósticos de conexión en el chat."
-        AppLanguage.GERMAN -> "Benutzerdefinierte OpenAI-kompatible Endpunkte können ein Roh-Host, eine /v1-URL oder eine vollständige /v1/chat/completions-URL sein; Hermes normalisiert sie und nutzt den exakten Modellnamen des Servers. Wenn der Stream vorzeitig endet, zeigt Hermes im Chat Verbindungsdiagnosen an."
-        AppLanguage.PORTUGUESE -> "Endpoints personalizados compatíveis com OpenAI podem ser um host sem esquema, uma URL /v1 ou uma URL completa /v1/chat/completions; o Hermes normaliza e usa o nome exato do modelo do servidor. Se o stream fechar antes do esperado, o Hermes mostra diagnósticos de conexão no chat."
-        AppLanguage.FRENCH -> "Les endpoints personnalisés compatibles OpenAI peuvent être un hôte brut, une URL /v1 ou une URL complète /v1/chat/completions; Hermes les normalise et utilise le nom exact du modèle côté serveur. Si le flux se ferme prématurément, Hermes affiche des diagnostics de connexion dans le chat."
-        AppLanguage.ENGLISH -> "Custom OpenAI-compatible endpoints can be a raw host, a /v1 URL, or a full /v1/chat/completions URL; Hermes normalizes them and uses the exact model name from the server. If the stream closes early, Hermes shows connection diagnostics in chat."
+        AppLanguage.CHINESE -> "自定义 OpenAI 兼容端点可以是裸主机、/v1 URL 或完整 /v1/chat/completions URL；Agent 会规范化它，并使用服务器上完全匹配的模型名称。如果流提前关闭，Agent 会在聊天中显示连接诊断。"
+        AppLanguage.SPANISH -> "Los endpoints personalizados compatibles con OpenAI pueden ser un host sin esquema, una URL /v1 o una URL completa /v1/chat/completions; Agent los normaliza y usa el nombre exacto del modelo del servidor. Si el flujo se cierra antes de tiempo, Agent muestra diagnósticos de conexión en el chat."
+        AppLanguage.GERMAN -> "Benutzerdefinierte OpenAI-kompatible Endpunkte können ein Roh-Host, eine /v1-URL oder eine vollständige /v1/chat/completions-URL sein; Agent normalisiert sie und nutzt den exakten Modellnamen des Servers. Wenn der Stream vorzeitig endet, zeigt Agent im Chat Verbindungsdiagnosen an."
+        AppLanguage.PORTUGUESE -> "Endpoints personalizados compatíveis com OpenAI podem ser um host sem esquema, uma URL /v1 ou uma URL completa /v1/chat/completions; o Agent normaliza e usa o nome exato do modelo do servidor. Se o stream fechar antes do esperado, o Agent mostra diagnósticos de conexão no chat."
+        AppLanguage.FRENCH -> "Les endpoints personnalisés compatibles OpenAI peuvent être un hôte brut, une URL /v1 ou une URL complète /v1/chat/completions; Agent les normalise et utilise le nom exact du modèle côté serveur. Si le flux se ferme prématurément, Agent affiche des diagnostics de connexion dans le chat."
+        AppLanguage.ENGLISH -> "Custom OpenAI-compatible endpoints can be a raw host, a /v1 URL, or a full /v1/chat/completions URL; Agent normalizes them and uses the exact model name from the server. If the stream closes early, Agent shows connection diagnostics in chat."
     }
 
     fun customEndpointPreview(url: String): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 将尝试：$url"
-        AppLanguage.SPANISH -> "Hermes intentara: $url"
-        AppLanguage.GERMAN -> "Hermes versucht: $url"
-        AppLanguage.PORTUGUESE -> "Hermes tentara: $url"
-        AppLanguage.FRENCH -> "Hermes essaiera: $url"
-        AppLanguage.ENGLISH -> "Hermes will try: $url"
+        AppLanguage.CHINESE -> "Agent 将尝试：$url"
+        AppLanguage.SPANISH -> "Agent intentara: $url"
+        AppLanguage.GERMAN -> "Agent versucht: $url"
+        AppLanguage.PORTUGUESE -> "Agent tentara: $url"
+        AppLanguage.FRENCH -> "Agent essaiera: $url"
+        AppLanguage.ENGLISH -> "Agent will try: $url"
     }
 
     fun endpointStatusIndicatorLabel(): String = when (language) {
@@ -352,12 +352,12 @@ data class HermesStrings(
     }
 
     fun providerDirectCallHelp(): String = when (language) {
-        AppLanguage.CHINESE -> "选择 Hermes 要直接调用的提供商。提供商密钥或令牌在这里保存；应用账户登录请使用账户页面。"
-        AppLanguage.SPANISH -> "Elige el proveedor al que Hermes llamará directamente. Guarda aquí claves o tokens de proveedor; usa Cuentas para iniciar sesión en la app."
-        AppLanguage.GERMAN -> "Wähle den Anbieter, den Hermes direkt aufrufen soll. Speichere Anbieter-Schlüssel oder Tokens hier; nutze Konten für die App-Anmeldung."
-        AppLanguage.PORTUGUESE -> "Escolha o provedor que o Hermes vai chamar diretamente. Salve chaves ou tokens de provedor aqui; use Contas para login no app."
-        AppLanguage.FRENCH -> "Choisissez le fournisseur que Hermes doit appeler directement. Enregistrez ici les clés ou jetons fournisseur ; utilisez Comptes pour la connexion à l’application."
-        AppLanguage.ENGLISH -> "Choose the provider you want Hermes to call directly. Save provider keys or tokens here; use Accounts for app sign-in."
+        AppLanguage.CHINESE -> "选择 Agent 要直接调用的提供商。提供商密钥或令牌在这里保存；应用账户登录请使用账户页面。"
+        AppLanguage.SPANISH -> "Elige el proveedor al que Agent llamará directamente. Guarda aquí claves o tokens de proveedor; usa Cuentas para iniciar sesión en la app."
+        AppLanguage.GERMAN -> "Wähle den Anbieter, den Agent direkt aufrufen soll. Speichere Anbieter-Schlüssel oder Tokens hier; nutze Konten für die App-Anmeldung."
+        AppLanguage.PORTUGUESE -> "Escolha o provedor que o Agent vai chamar diretamente. Salve chaves ou tokens de provedor aqui; use Contas para login no app."
+        AppLanguage.FRENCH -> "Choisissez le fournisseur que Agent doit appeler directement. Enregistrez ici les clés ou jetons fournisseur ; utilisez Comptes pour la connexion à l’application."
+        AppLanguage.ENGLISH -> "Choose the provider you want Agent to call directly. Save provider keys or tokens here; use Accounts for app sign-in."
     }
 
     fun providerDisplayLabel(providerId: String, fallbackLabel: String): String {
@@ -588,12 +588,12 @@ data class HermesStrings(
     }
 
     fun offlineAirplaneModeDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "阻止 Hermes 联网功能，同时保留本地文件、本机模型运行时和设备端自动化。"
-        AppLanguage.SPANISH -> "Bloquea las funciones de internet de Hermes y mantiene archivos locales, runtimes localhost y automatización en el dispositivo."
-        AppLanguage.GERMAN -> "Blockiert Hermes-Internetfunktionen, während lokale Dateien, localhost-Modellruntimes und Geräteautomation verfügbar bleiben."
-        AppLanguage.PORTUGUESE -> "Bloqueia recursos de internet do Hermes mantendo arquivos locais, runtimes localhost e automação no dispositivo."
-        AppLanguage.FRENCH -> "Bloque les fonctions Internet de Hermes tout en gardant fichiers locaux, runtimes localhost et automatisation sur l’appareil."
-        AppLanguage.ENGLISH -> "Blocks Hermes internet features while keeping local files, localhost model runtimes, and on-device automation available."
+        AppLanguage.CHINESE -> "阻止 Agent 联网功能，同时保留本地文件、本机模型运行时和设备端自动化。"
+        AppLanguage.SPANISH -> "Bloquea las funciones de internet de Agent y mantiene archivos locales, runtimes localhost y automatización en el dispositivo."
+        AppLanguage.GERMAN -> "Blockiert Agent-Internetfunktionen, während lokale Dateien, localhost-Modellruntimes und Geräteautomation verfügbar bleiben."
+        AppLanguage.PORTUGUESE -> "Bloqueia recursos de internet do Agent mantendo arquivos locais, runtimes localhost e automação no dispositivo."
+        AppLanguage.FRENCH -> "Bloque les fonctions Internet de Agent tout en gardant fichiers locaux, runtimes localhost et automatisation sur l’appareil."
+        AppLanguage.ENGLISH -> "Blocks Agent internet features while keeping local files, localhost model runtimes, and on-device automation available."
     }
 
     fun offlineAirplaneToggleLabel(enabled: Boolean): String = if (enabled) {
@@ -618,21 +618,21 @@ data class HermesStrings(
 
     fun offlineAirplaneStatus(enabled: Boolean): String = if (enabled) {
         when (language) {
-            AppLanguage.CHINESE -> "离线飞行模式已开启。Hermes 会阻止门户、提供商设置、模型下载和 HTTP 自动化；本地后端与 localhost 仍可用。"
-            AppLanguage.SPANISH -> "El modo avión offline está activado. Hermes bloqueará portal, configuración de proveedores, descargas de modelos y automatizaciones HTTP; los backends locales y localhost siguen disponibles."
-            AppLanguage.GERMAN -> "Offline-Flugmodus ist aktiv. Hermes blockiert Portal, Anbieter-Setup, Modell-Downloads und HTTP-Automationen; lokale Backends und localhost bleiben verfügbar."
-            AppLanguage.PORTUGUESE -> "O modo avião offline está ativado. O Hermes bloqueará portal, configuração de provedores, downloads de modelos e automações HTTP; backends locais e localhost seguem disponíveis."
-            AppLanguage.FRENCH -> "Le mode avion hors ligne est activé. Hermes bloque le portail, la configuration fournisseur, les téléchargements de modèles et les automatisations HTTP ; les backends locaux et localhost restent disponibles."
-            AppLanguage.ENGLISH -> "Offline airplane mode is on. Hermes will block portal, provider setup, model downloads, and HTTP automations while local backends and localhost stay available."
+            AppLanguage.CHINESE -> "离线飞行模式已开启。Agent 会阻止门户、提供商设置、模型下载和 HTTP 自动化；本地后端与 localhost 仍可用。"
+            AppLanguage.SPANISH -> "El modo avión offline está activado. Agent bloqueará portal, configuración de proveedores, descargas de modelos y automatizaciones HTTP; los backends locales y localhost siguen disponibles."
+            AppLanguage.GERMAN -> "Offline-Flugmodus ist aktiv. Agent blockiert Portal, Anbieter-Setup, Modell-Downloads und HTTP-Automationen; lokale Backends und localhost bleiben verfügbar."
+            AppLanguage.PORTUGUESE -> "O modo avião offline está ativado. O Agent bloqueará portal, configuração de provedores, downloads de modelos e automações HTTP; backends locais e localhost seguem disponíveis."
+            AppLanguage.FRENCH -> "Le mode avion hors ligne est activé. Agent bloque le portail, la configuration fournisseur, les téléchargements de modèles et les automatisations HTTP ; les backends locaux et localhost restent disponibles."
+            AppLanguage.ENGLISH -> "Offline airplane mode is on. Agent will block portal, provider setup, model downloads, and HTTP automations while local backends and localhost stay available."
         }
     } else {
         when (language) {
-            AppLanguage.CHINESE -> "离线飞行模式已关闭。Hermes 联网功能已恢复。"
-            AppLanguage.SPANISH -> "El modo avión offline está desactivado. Las funciones de internet de Hermes vuelven a estar disponibles."
-            AppLanguage.GERMAN -> "Offline-Flugmodus ist aus. Hermes-Internetfunktionen sind wieder verfügbar."
-            AppLanguage.PORTUGUESE -> "O modo avião offline está desativado. Os recursos de internet do Hermes estão disponíveis novamente."
-            AppLanguage.FRENCH -> "Le mode avion hors ligne est désactivé. Les fonctions Internet de Hermes sont de nouveau disponibles."
-            AppLanguage.ENGLISH -> "Offline airplane mode is off. Hermes internet features are available again."
+            AppLanguage.CHINESE -> "离线飞行模式已关闭。Agent 联网功能已恢复。"
+            AppLanguage.SPANISH -> "El modo avión offline está desactivado. Las funciones de internet de Agent vuelven a estar disponibles."
+            AppLanguage.GERMAN -> "Offline-Flugmodus ist aus. Agent-Internetfunktionen sind wieder verfügbar."
+            AppLanguage.PORTUGUESE -> "O modo avião offline está desativado. Os recursos de internet do Agent estão disponíveis novamente."
+            AppLanguage.FRENCH -> "Le mode avion hors ligne est désactivé. Les fonctions Internet de Agent sont de nouveau disponibles."
+            AppLanguage.ENGLISH -> "Offline airplane mode is off. Agent internet features are available again."
         }
     }
 
@@ -760,11 +760,11 @@ data class HermesStrings(
 
     fun appearancePresetLabel(presetId: String, fallbackLabel: String): String = when (presetId) {
         "hermes" -> when (language) {
-            AppLanguage.CHINESE -> "Hermes 翡翠绿"
-            AppLanguage.SPANISH -> "Esmeralda Hermes"
-            AppLanguage.GERMAN -> "Hermes-Smaragd"
-            AppLanguage.PORTUGUESE -> "Esmeralda Hermes"
-            AppLanguage.FRENCH -> "Émeraude Hermes"
+            AppLanguage.CHINESE -> "Agent 翡翠绿"
+            AppLanguage.SPANISH -> "Esmeralda Agent"
+            AppLanguage.GERMAN -> "Agent-Smaragd"
+            AppLanguage.PORTUGUESE -> "Esmeralda Agent"
+            AppLanguage.FRENCH -> "Émeraude Agent"
             AppLanguage.ENGLISH -> fallbackLabel
         }
         "legacy" -> when (language) {
@@ -824,12 +824,12 @@ data class HermesStrings(
     }
 
     fun settingsSaveStarted(): String = when (language) {
-        AppLanguage.CHINESE -> "正在保存设置并重启 Hermes 运行时…"
-        AppLanguage.SPANISH -> "Guardando ajustes y reiniciando el runtime de Hermes…"
-        AppLanguage.GERMAN -> "Einstellungen werden gespeichert und Hermes-Runtime wird neu gestartet…"
-        AppLanguage.PORTUGUESE -> "Salvando configurações e reiniciando o runtime do Hermes…"
-        AppLanguage.FRENCH -> "Enregistrement des réglages et redémarrage du runtime Hermes…"
-        AppLanguage.ENGLISH -> "Saving settings and restarting Hermes runtime..."
+        AppLanguage.CHINESE -> "正在保存设置并重启 Agent 运行时…"
+        AppLanguage.SPANISH -> "Guardando ajustes y reiniciando el runtime de Agent…"
+        AppLanguage.GERMAN -> "Einstellungen werden gespeichert und Agent-Runtime wird neu gestartet…"
+        AppLanguage.PORTUGUESE -> "Salvando configurações e reiniciando o runtime do Agent…"
+        AppLanguage.FRENCH -> "Enregistrement des réglages et redémarrage du runtime Agent…"
+        AppLanguage.ENGLISH -> "Saving settings and restarting Agent runtime..."
     }
 
     fun settingsSavedBackendRestarted(): String = when (language) {
@@ -860,12 +860,12 @@ data class HermesStrings(
     }
 
     fun settingsSavedPreservedCredential(): String = when (language) {
-        AppLanguage.CHINESE -> "设置已保存，后端已重启。空白 API 密钥栏保留了已有 Hermes 凭据。"
-        AppLanguage.SPANISH -> "Ajustes guardados y backend reiniciado. El campo de clave API vacío conservó las credenciales Hermes existentes."
-        AppLanguage.GERMAN -> "Einstellungen gespeichert und Backend neu gestartet. Das leere API-Schlüsselfeld hat vorhandene Hermes-Zugangsdaten beibehalten."
-        AppLanguage.PORTUGUESE -> "Configurações salvas e backend reiniciado. O campo de chave API vazio manteve as credenciais Hermes existentes."
-        AppLanguage.FRENCH -> "Réglages enregistrés et backend redémarré. Le champ de clé API vide a conservé les identifiants Hermes existants."
-        AppLanguage.ENGLISH -> "Settings saved and backend restarted. Blank API key field left existing Hermes credentials untouched."
+        AppLanguage.CHINESE -> "设置已保存，后端已重启。空白 API 密钥栏保留了已有 Agent 凭据。"
+        AppLanguage.SPANISH -> "Ajustes guardados y backend reiniciado. El campo de clave API vacío conservó las credenciales Agent existentes."
+        AppLanguage.GERMAN -> "Einstellungen gespeichert und Backend neu gestartet. Das leere API-Schlüsselfeld hat vorhandene Agent-Zugangsdaten beibehalten."
+        AppLanguage.PORTUGUESE -> "Configurações salvas e backend reiniciado. O campo de chave API vazio manteve as credenciais Agent existentes."
+        AppLanguage.FRENCH -> "Réglages enregistrés et backend redémarré. Le champ de clé API vide a conservé les identifiants Agent existants."
+        AppLanguage.ENGLISH -> "Settings saved and backend restarted. Blank API key field left existing Agent credentials untouched."
     }
 
     fun settingsSaveFailed(errorName: String): String = when (language) {
@@ -878,12 +878,12 @@ data class HermesStrings(
     }
 
     fun onDeviceBackendReady(): String = when (language) {
-        AppLanguage.CHINESE -> "设备端后端已就绪，Hermes 运行时已重启"
-        AppLanguage.SPANISH -> "Backend en el dispositivo listo y runtime de Hermes reiniciado"
-        AppLanguage.GERMAN -> "On-Device-Backend bereit und Hermes-Runtime neu gestartet"
-        AppLanguage.PORTUGUESE -> "Backend no dispositivo pronto e runtime do Hermes reiniciado"
-        AppLanguage.FRENCH -> "Backend sur l’appareil prêt et runtime Hermes redémarré"
-        AppLanguage.ENGLISH -> "On-device backend ready and Hermes runtime restarted"
+        AppLanguage.CHINESE -> "设备端后端已就绪，Agent 运行时已重启"
+        AppLanguage.SPANISH -> "Backend en el dispositivo listo y runtime de Agent reiniciado"
+        AppLanguage.GERMAN -> "On-Device-Backend bereit und Agent-Runtime neu gestartet"
+        AppLanguage.PORTUGUESE -> "Backend no dispositivo pronto e runtime do Agent reiniciado"
+        AppLanguage.FRENCH -> "Backend sur l’appareil prêt et runtime Agent redémarré"
+        AppLanguage.ENGLISH -> "On-device backend ready and Agent runtime restarted"
     }
 
     fun offlineAirplaneKeptRemoteFallbackDisabled(statusMessage: String): String = when (language) {
@@ -896,12 +896,12 @@ data class HermesStrings(
     }
 
     fun stayedOnSavedRemoteProvider(statusMessage: String): String = when (language) {
-        AppLanguage.CHINESE -> "$statusMessage。Hermes 保持使用已保存的远程提供商。"
-        AppLanguage.SPANISH -> "$statusMessage. Hermes permaneció en tu proveedor remoto guardado."
-        AppLanguage.GERMAN -> "$statusMessage. Hermes blieb beim gespeicherten Remote-Anbieter."
-        AppLanguage.PORTUGUESE -> "$statusMessage. O Hermes permaneceu no provedor remoto salvo."
-        AppLanguage.FRENCH -> "$statusMessage. Hermes est resté sur le fournisseur distant enregistré."
-        AppLanguage.ENGLISH -> "$statusMessage. Hermes stayed on your saved remote provider."
+        AppLanguage.CHINESE -> "$statusMessage。Agent 保持使用已保存的远程提供商。"
+        AppLanguage.SPANISH -> "$statusMessage. Agent permaneció en tu proveedor remoto guardado."
+        AppLanguage.GERMAN -> "$statusMessage. Agent blieb beim gespeicherten Remote-Anbieter."
+        AppLanguage.PORTUGUESE -> "$statusMessage. O Agent permaneceu no provedor remoto salvo."
+        AppLanguage.FRENCH -> "$statusMessage. Agent est resté sur le fournisseur distant enregistré."
+        AppLanguage.ENGLISH -> "$statusMessage. Agent stayed on your saved remote provider."
     }
 
     fun compactPromptLabel(expanded: Boolean): String = if (expanded) {
@@ -942,21 +942,21 @@ data class HermesStrings(
     }
 
     fun hermesPreparingReply(): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 正在准备回复"
-        AppLanguage.SPANISH -> "Hermes está preparando una respuesta"
-        AppLanguage.GERMAN -> "Hermes bereitet eine Antwort vor"
-        AppLanguage.PORTUGUESE -> "Hermes está preparando uma resposta"
-        AppLanguage.FRENCH -> "Hermes prépare une réponse"
-        AppLanguage.ENGLISH -> "Hermes is preparing a reply"
+        AppLanguage.CHINESE -> "Agent 正在准备回复"
+        AppLanguage.SPANISH -> "Agent está preparando una respuesta"
+        AppLanguage.GERMAN -> "Agent bereitet eine Antwort vor"
+        AppLanguage.PORTUGUESE -> "Agent está preparando uma resposta"
+        AppLanguage.FRENCH -> "Agent prépare une réponse"
+        AppLanguage.ENGLISH -> "Agent is preparing a reply"
     }
 
     fun generationElapsedLabel(elapsed: String): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 正在处理 · 已用时 $elapsed"
-        AppLanguage.SPANISH -> "Hermes está trabajando · $elapsed transcurridos"
-        AppLanguage.GERMAN -> "Hermes arbeitet · $elapsed vergangen"
-        AppLanguage.PORTUGUESE -> "Hermes está trabalhando · $elapsed decorridos"
-        AppLanguage.FRENCH -> "Hermes travaille · temps écoulé : $elapsed"
-        AppLanguage.ENGLISH -> "Hermes is working · $elapsed elapsed"
+        AppLanguage.CHINESE -> "Agent 正在处理 · 已用时 $elapsed"
+        AppLanguage.SPANISH -> "Agent está trabajando · $elapsed transcurridos"
+        AppLanguage.GERMAN -> "Agent arbeitet · $elapsed vergangen"
+        AppLanguage.PORTUGUESE -> "Agent está trabalhando · $elapsed decorridos"
+        AppLanguage.FRENCH -> "Agent travaille · temps écoulé : $elapsed"
+        AppLanguage.ENGLISH -> "Agent is working · $elapsed elapsed"
     }
 
     fun stoppedReplyMessage(): String = when (language) {
@@ -978,12 +978,12 @@ data class HermesStrings(
     }
 
     fun failedReplyMessage(): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 无法完成此回复。请查看上方错误并重试。"
-        AppLanguage.SPANISH -> "Hermes no pudo completar esta respuesta. Revisa el error anterior e inténtalo de nuevo."
-        AppLanguage.GERMAN -> "Hermes konnte diese Antwort nicht abschließen. Prüfe den Fehler oben und versuche es erneut."
-        AppLanguage.PORTUGUESE -> "O Hermes não conseguiu concluir esta resposta. Verifique o erro acima e tente novamente."
-        AppLanguage.FRENCH -> "Hermes n’a pas pu terminer cette réponse. Vérifiez l’erreur ci-dessus et réessayez."
-        AppLanguage.ENGLISH -> "Hermes could not complete this reply. Review the error above and try again."
+        AppLanguage.CHINESE -> "Agent 无法完成此回复。请查看上方错误并重试。"
+        AppLanguage.SPANISH -> "Agent no pudo completar esta respuesta. Revisa el error anterior e inténtalo de nuevo."
+        AppLanguage.GERMAN -> "Agent konnte diese Antwort nicht abschließen. Prüfe den Fehler oben und versuche es erneut."
+        AppLanguage.PORTUGUESE -> "O Agent não conseguiu concluir esta resposta. Verifique o erro acima e tente novamente."
+        AppLanguage.FRENCH -> "Agent n’a pas pu terminer cette réponse. Vérifiez l’erreur ci-dessus et réessayez."
+        AppLanguage.ENGLISH -> "Agent could not complete this reply. Review the error above and try again."
     }
 
     fun attachmentCount(count: Int): String = when (language) {
@@ -1068,12 +1068,12 @@ data class HermesStrings(
     }
 
     fun noConversationHistory(): String = when (language) {
-        AppLanguage.CHINESE -> "还没有会话历史。开始新的 Hermes 聊天即可创建。"
-        AppLanguage.SPANISH -> "Aún no hay historial. Inicia un nuevo chat de Hermes para crearlo."
-        AppLanguage.GERMAN -> "Noch kein Gesprächsverlauf. Starte einen neuen Hermes-Chat, um einen anzulegen."
-        AppLanguage.PORTUGUESE -> "Ainda não há histórico. Inicie um novo chat do Hermes para criar um."
-        AppLanguage.FRENCH -> "Aucun historique pour l’instant. Lancez un nouveau chat Hermes pour en créer un."
-        AppLanguage.ENGLISH -> "No conversation history yet. Start a new Hermes chat to create one."
+        AppLanguage.CHINESE -> "还没有会话历史。开始新的 Agent 聊天即可创建。"
+        AppLanguage.SPANISH -> "Aún no hay historial. Inicia un nuevo chat de Agent para crearlo."
+        AppLanguage.GERMAN -> "Noch kein Gesprächsverlauf. Starte einen neuen Agent-Chat, um einen anzulegen."
+        AppLanguage.PORTUGUESE -> "Ainda não há histórico. Inicie um novo chat do Agent para criar um."
+        AppLanguage.FRENCH -> "Aucun historique pour l’instant. Lancez un nouveau chat Agent pour en créer un."
+        AppLanguage.ENGLISH -> "No conversation history yet. Start a new Agent chat to create one."
     }
 
     fun messageCount(count: Int): String = when (language) {
@@ -1206,12 +1206,12 @@ data class HermesStrings(
             AppLanguage.FRENCH -> "Conversation précédente effacée"
             AppLanguage.ENGLISH -> text
         }
-        "Wait for Hermes to finish before editing a sent message." -> when (language) {
-            AppLanguage.CHINESE -> "请等待 Hermes 完成后再编辑已发送的消息。"
-            AppLanguage.SPANISH -> "Espera a que Hermes termine antes de editar un mensaje enviado."
-            AppLanguage.GERMAN -> "Warte, bis Hermes fertig ist, bevor du eine gesendete Nachricht bearbeitest."
-            AppLanguage.PORTUGUESE -> "Aguarde o Hermes terminar antes de editar uma mensagem enviada."
-            AppLanguage.FRENCH -> "Attendez la fin de Hermes avant de modifier un message envoyé."
+        "Wait for Agent to finish before editing a sent message." -> when (language) {
+            AppLanguage.CHINESE -> "请等待 Agent 完成后再编辑已发送的消息。"
+            AppLanguage.SPANISH -> "Espera a que Agent termine antes de editar un mensaje enviado."
+            AppLanguage.GERMAN -> "Warte, bis Agent fertig ist, bevor du eine gesendete Nachricht bearbeitest."
+            AppLanguage.PORTUGUESE -> "Aguarde o Agent terminar antes de editar uma mensagem enviada."
+            AppLanguage.FRENCH -> "Attendez la fin de Agent avant de modifier un message envoyé."
             AppLanguage.ENGLISH -> text
         }
         "Editing sent message; send to resubmit." -> when (language) {
@@ -1238,31 +1238,31 @@ data class HermesStrings(
             AppLanguage.FRENCH -> "Envoyez ou effacez le brouillon avant d’exécuter une action rapide de signal."
             AppLanguage.ENGLISH -> text
         }
-        "Starting Hermes runtime…" -> when (language) {
-            AppLanguage.CHINESE -> "正在启动 Hermes 运行时…"
-            AppLanguage.SPANISH -> "Iniciando el runtime de Hermes…"
-            AppLanguage.GERMAN -> "Hermes-Laufzeit wird gestartet…"
-            AppLanguage.PORTUGUESE -> "Iniciando o runtime do Hermes…"
-            AppLanguage.FRENCH -> "Démarrage du runtime Hermes…"
+        "Starting Agent runtime…" -> when (language) {
+            AppLanguage.CHINESE -> "正在启动 Agent 运行时…"
+            AppLanguage.SPANISH -> "Iniciando el runtime de Agent…"
+            AppLanguage.GERMAN -> "Agent-Laufzeit wird gestartet…"
+            AppLanguage.PORTUGUESE -> "Iniciando o runtime do Agent…"
+            AppLanguage.FRENCH -> "Démarrage du runtime Agent…"
             AppLanguage.ENGLISH -> text
         }
         "Stopped by user" -> tr(
             "Stopped by user", "已由用户停止", "Detenido por el usuario", "Vom Benutzer gestoppt", "Parado pelo usuário", "Arrêté par l’utilisateur",
         )
-        "Hermes is replying…" -> when (language) {
-            AppLanguage.CHINESE -> "Hermes 正在回复…"
-            AppLanguage.SPANISH -> "Hermes está respondiendo…"
-            AppLanguage.GERMAN -> "Hermes antwortet…"
-            AppLanguage.PORTUGUESE -> "Hermes está respondendo…"
-            AppLanguage.FRENCH -> "Hermes répond…"
+        "Agent is replying…" -> when (language) {
+            AppLanguage.CHINESE -> "Agent 正在回复…"
+            AppLanguage.SPANISH -> "Agent está respondiendo…"
+            AppLanguage.GERMAN -> "Agent antwortet…"
+            AppLanguage.PORTUGUESE -> "Agent está respondendo…"
+            AppLanguage.FRENCH -> "Agent répond…"
             AppLanguage.ENGLISH -> text
         }
-        "Hermes is reading the image…" -> when (language) {
-            AppLanguage.CHINESE -> "Hermes 正在读取图片…"
-            AppLanguage.SPANISH -> "Hermes está leyendo la imagen…"
-            AppLanguage.GERMAN -> "Hermes liest das Bild…"
-            AppLanguage.PORTUGUESE -> "Hermes está lendo a imagem…"
-            AppLanguage.FRENCH -> "Hermes lit l’image…"
+        "Agent is reading the image…" -> when (language) {
+            AppLanguage.CHINESE -> "Agent 正在读取图片…"
+            AppLanguage.SPANISH -> "Agent está leyendo la imagen…"
+            AppLanguage.GERMAN -> "Agent liest das Bild…"
+            AppLanguage.PORTUGUESE -> "Agent está lendo a imagem…"
+            AppLanguage.FRENCH -> "Agent lit l’image…"
             AppLanguage.ENGLISH -> text
         }
         else -> if (text.startsWith("Opened ")) {
@@ -1376,9 +1376,9 @@ data class HermesStrings(
             )
         }
         is DeviceOperationStatus.DocumentImported -> tr(
-            "Imported ${status.fileName} into the Hermes workspace", "已将 ${status.fileName} 导入 Hermes 工作区",
-            "Se importó ${status.fileName} al espacio de trabajo de Hermes", "${status.fileName} wurde in den Hermes-Arbeitsbereich importiert",
-            "${status.fileName} foi importado para o espaço de trabalho do Hermes", "${status.fileName} a été importé dans l’espace de travail Hermes",
+            "Imported ${status.fileName} into the Agent workspace", "已将 ${status.fileName} 导入 Agent 工作区",
+            "Se importó ${status.fileName} al espacio de trabajo de Agent", "${status.fileName} wurde in den Agent-Arbeitsbereich importiert",
+            "${status.fileName} foi importado para o espaço de trabalho do Agent", "${status.fileName} a été importé dans l’espace de travail Agent",
         )
         is DeviceOperationStatus.ImportFailed -> tr(
             "Document import failed", "文档导入失败", "Falló la importación del documento", "Dokumentimport fehlgeschlagen",
@@ -1424,27 +1424,27 @@ data class HermesStrings(
             )
         }
         DeviceOperationStatus.AccessibilityEnableRequired -> tr(
-            "Enable Hermes accessibility in Android settings first", "请先在 Android 设置中启用 Hermes 无障碍服务",
-            "Activa primero la accesibilidad de Hermes en los ajustes de Android",
-            "Aktiviere zuerst Hermes-Barrierefreiheit in den Android-Einstellungen",
-            "Ative primeiro a acessibilidade do Hermes nas configurações do Android",
-            "Activez d’abord l’accessibilité Hermes dans les paramètres Android",
+            "Enable Agent accessibility in Android settings first", "请先在 Android 设置中启用 Agent 无障碍服务",
+            "Activa primero la accesibilidad de Agent en los ajustes de Android",
+            "Aktiviere zuerst Agent-Barrierefreiheit in den Android-Einstellungen",
+            "Ative primeiro a acessibilidade do Agent nas configurações do Android",
+            "Activez d’abord l’accessibilité Agent dans les paramètres Android",
         )
         DeviceOperationStatus.AccessibilityNotConnected -> tr(
-            "Hermes accessibility is enabled but not connected yet", "Hermes 无障碍服务已启用，但尚未连接",
-            "La accesibilidad de Hermes está activada, pero aún no está conectada",
-            "Hermes-Barrierefreiheit ist aktiviert, aber noch nicht verbunden",
-            "A acessibilidade do Hermes está ativada, mas ainda não conectada",
-            "L’accessibilité Hermes est activée, mais pas encore connectée",
+            "Agent accessibility is enabled but not connected yet", "Agent 无障碍服务已启用，但尚未连接",
+            "La accesibilidad de Agent está activada, pero aún no está conectada",
+            "Agent-Barrierefreiheit ist aktiviert, aber noch nicht verbunden",
+            "A acessibilidade do Agent está ativada, mas ainda não conectada",
+            "L’accessibilité Agent est activée, mais pas encore connectée",
         )
         is DeviceOperationStatus.PermissionResult -> when (status.permission) {
             DevicePermission.Notifications -> tr(
-                if (status.granted) "Notifications enabled for Hermes runtime alerts" else "Notification permission was denied",
-                if (status.granted) "已为 Hermes 运行时提醒启用通知" else "通知权限被拒绝",
-                if (status.granted) "Notificaciones activadas para las alertas del runtime de Hermes" else "Se denegó el permiso de notificaciones",
-                if (status.granted) "Benachrichtigungen für Hermes-Laufzeitwarnungen aktiviert" else "Benachrichtigungsberechtigung wurde verweigert",
-                if (status.granted) "Notificações ativadas para alertas do runtime Hermes" else "A permissão de notificação foi negada",
-                if (status.granted) "Notifications activées pour les alertes du runtime Hermes" else "L’autorisation de notification a été refusée",
+                if (status.granted) "Notifications enabled for Agent runtime alerts" else "Notification permission was denied",
+                if (status.granted) "已为 Agent 运行时提醒启用通知" else "通知权限被拒绝",
+                if (status.granted) "Notificaciones activadas para las alertas del runtime de Agent" else "Se denegó el permiso de notificaciones",
+                if (status.granted) "Benachrichtigungen für Agent-Laufzeitwarnungen aktiviert" else "Benachrichtigungsberechtigung wurde verweigert",
+                if (status.granted) "Notificações ativadas para alertas do runtime Agent" else "A permissão de notificação foi negada",
+                if (status.granted) "Notifications activées pour les alertes du runtime Agent" else "L’autorisation de notification a été refusée",
             )
             DevicePermission.Bluetooth -> tr(
                 if (status.granted) "Bluetooth access granted" else "Bluetooth access was denied",
@@ -1503,36 +1503,36 @@ data class HermesStrings(
         val target = deviceSystemControlTarget(action)
         return when (action) {
             "start_background_runtime" -> if (succeeded) tr(
-                "Hermes background runtime started", "Hermes 后台运行时已启动", "Runtime de Hermes en segundo plano iniciado",
-                "Hermes-Hintergrundlaufzeit gestartet", "Runtime do Hermes em segundo plano iniciado", "Runtime Hermes en arrière-plan démarré",
+                "Agent background runtime started", "Agent 后台运行时已启动", "Runtime de Agent en segundo plano iniciado",
+                "Agent-Hintergrundlaufzeit gestartet", "Runtime do Agent em segundo plano iniciado", "Runtime Agent en arrière-plan démarré",
             ) else tr(
-                "Could not start the Hermes background runtime", "无法启动 Hermes 后台运行时", "No se pudo iniciar el runtime de Hermes en segundo plano",
-                "Hermes-Hintergrundlaufzeit konnte nicht gestartet werden", "Não foi possível iniciar o runtime do Hermes em segundo plano",
-                "Impossible de démarrer le runtime Hermes en arrière-plan",
+                "Could not start the Agent background runtime", "无法启动 Agent 后台运行时", "No se pudo iniciar el runtime de Agent en segundo plano",
+                "Agent-Hintergrundlaufzeit konnte nicht gestartet werden", "Não foi possível iniciar o runtime do Agent em segundo plano",
+                "Impossible de démarrer le runtime Agent en arrière-plan",
             )
             "stop_background_runtime" -> if (succeeded) tr(
-                "Hermes background runtime stopped", "Hermes 后台运行时已停止", "Runtime de Hermes en segundo plano detenido",
-                "Hermes-Hintergrundlaufzeit gestoppt", "Runtime do Hermes em segundo plano parado", "Runtime Hermes en arrière-plan arrêté",
+                "Agent background runtime stopped", "Agent 后台运行时已停止", "Runtime de Agent en segundo plano detenido",
+                "Agent-Hintergrundlaufzeit gestoppt", "Runtime do Agent em segundo plano parado", "Runtime Agent en arrière-plan arrêté",
             ) else tr(
-                "Could not stop the Hermes background runtime", "无法停止 Hermes 后台运行时", "No se pudo detener el runtime de Hermes en segundo plano",
-                "Hermes-Hintergrundlaufzeit konnte nicht gestoppt werden", "Não foi possível parar o runtime do Hermes em segundo plano",
-                "Impossible d’arrêter le runtime Hermes en arrière-plan",
+                "Could not stop the Agent background runtime", "无法停止 Agent 后台运行时", "No se pudo detener el runtime de Agent en segundo plano",
+                "Agent-Hintergrundlaufzeit konnte nicht gestoppt werden", "Não foi possível parar o runtime do Agent em segundo plano",
+                "Impossible d’arrêter le runtime Agent en arrière-plan",
             )
             "start_floating_button" -> if (succeeded) tr(
-                "Hermes floating button started", "Hermes 浮动按钮已启动", "Botón flotante de Hermes iniciado",
-                "Schwebende Hermes-Schaltfläche gestartet", "Botão flutuante do Hermes iniciado", "Bouton flottant Hermes démarré",
+                "Agent floating button started", "Agent 浮动按钮已启动", "Botón flotante de Agent iniciado",
+                "Schwebende Agent-Schaltfläche gestartet", "Botão flutuante do Agent iniciado", "Bouton flottant Agent démarré",
             ) else tr(
-                "Could not start the Hermes floating button", "无法启动 Hermes 浮动按钮", "No se pudo iniciar el botón flotante de Hermes",
-                "Schwebende Hermes-Schaltfläche konnte nicht gestartet werden", "Não foi possível iniciar o botão flutuante do Hermes",
-                "Impossible de démarrer le bouton flottant Hermes",
+                "Could not start the Agent floating button", "无法启动 Agent 浮动按钮", "No se pudo iniciar el botón flotante de Agent",
+                "Schwebende Agent-Schaltfläche konnte nicht gestartet werden", "Não foi possível iniciar o botão flutuante do Agent",
+                "Impossible de démarrer le bouton flottant Agent",
             )
             "stop_floating_button" -> if (succeeded) tr(
-                "Hermes floating button stopped", "Hermes 浮动按钮已停止", "Botón flotante de Hermes detenido",
-                "Schwebende Hermes-Schaltfläche gestoppt", "Botão flutuante do Hermes parado", "Bouton flottant Hermes arrêté",
+                "Agent floating button stopped", "Agent 浮动按钮已停止", "Botón flotante de Agent detenido",
+                "Schwebende Agent-Schaltfläche gestoppt", "Botão flutuante do Agent parado", "Bouton flottant Agent arrêté",
             ) else tr(
-                "Could not stop the Hermes floating button", "无法停止 Hermes 浮动按钮", "No se pudo detener el botón flotante de Hermes",
-                "Schwebende Hermes-Schaltfläche konnte nicht gestoppt werden", "Não foi possível parar o botão flutuante do Hermes",
-                "Impossible d’arrêter le bouton flottant Hermes",
+                "Could not stop the Agent floating button", "无法停止 Agent 浮动按钮", "No se pudo detener el botón flotante de Agent",
+                "Schwebende Agent-Schaltfläche konnte nicht gestoppt werden", "Não foi possível parar o botão flutuante do Agent",
+                "Impossible d’arrêter le bouton flottant Agent",
             )
             else -> if (succeeded) tr(
                 "Opened $target", "已打开$target", "Se abrió $target", "$target geöffnet", "$target aberto", "$target ouvert",
@@ -1545,7 +1545,7 @@ data class HermesStrings(
 
     private fun deviceSystemControlTarget(action: String): String = when (action) {
         "open_wifi_panel" -> tr("Wi-Fi and internet controls", "Wi-Fi 和互联网控制", "los controles de Wi-Fi e internet", "WLAN- und Internetsteuerung", "os controles de Wi-Fi e internet", "les contrôles Wi-Fi et Internet")
-        "open_notification_settings" -> tr("Hermes notification settings", "Hermes 通知设置", "los ajustes de notificaciones de Hermes", "Hermes-Benachrichtigungseinstellungen", "as configurações de notificação do Hermes", "les réglages de notification Hermes")
+        "open_notification_settings" -> tr("Agent notification settings", "Agent 通知设置", "los ajustes de notificaciones de Agent", "Agent-Benachrichtigungseinstellungen", "as configurações de notificação do Agent", "les réglages de notification Agent")
         "open_bluetooth_settings" -> tr("Bluetooth settings", "蓝牙设置", "los ajustes de Bluetooth", "Bluetooth-Einstellungen", "as configurações de Bluetooth", "les réglages Bluetooth")
         "open_connected_devices_settings" -> tr("connected-device settings", "已连接设备设置", "los ajustes de dispositivos conectados", "Einstellungen für verbundene Geräte", "as configurações de dispositivos conectados", "les réglages des appareils connectés")
         "open_mobile_network_settings" -> tr("mobile network settings", "移动网络设置", "los ajustes de red móvil", "Mobilfunkeinstellungen", "as configurações de rede móvel", "les réglages du réseau mobile")
@@ -1559,12 +1559,12 @@ data class HermesStrings(
     }
 
     fun newChatActionDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "开始新的 Hermes 会话。"
-        AppLanguage.SPANISH -> "Inicia una nueva conversación de Hermes."
-        AppLanguage.GERMAN -> "Startet eine neue Hermes-Unterhaltung."
-        AppLanguage.PORTUGUESE -> "Inicia uma nova conversa do Hermes."
-        AppLanguage.FRENCH -> "Lance une nouvelle conversation Hermes."
-        AppLanguage.ENGLISH -> "Start a fresh Hermes conversation."
+        AppLanguage.CHINESE -> "开始新的 Agent 会话。"
+        AppLanguage.SPANISH -> "Inicia una nueva conversación de Agent."
+        AppLanguage.GERMAN -> "Startet eine neue Agent-Unterhaltung."
+        AppLanguage.PORTUGUESE -> "Inicia uma nova conversa do Agent."
+        AppLanguage.FRENCH -> "Lance une nouvelle conversation Agent."
+        AppLanguage.ENGLISH -> "Start a fresh Agent conversation."
     }
 
     fun backToChatActionDescription(): String = when (language) {
@@ -1577,21 +1577,21 @@ data class HermesStrings(
     }
 
     fun historyActionDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "浏览之前的 Hermes 会话。"
-        AppLanguage.SPANISH -> "Explora conversaciones anteriores de Hermes."
-        AppLanguage.GERMAN -> "Durchsucht frühere Hermes-Unterhaltungen."
-        AppLanguage.PORTUGUESE -> "Navega por conversas anteriores do Hermes."
-        AppLanguage.FRENCH -> "Parcourt les conversations Hermes précédentes."
-        AppLanguage.ENGLISH -> "Browse previous Hermes conversations."
+        AppLanguage.CHINESE -> "浏览之前的 Agent 会话。"
+        AppLanguage.SPANISH -> "Explora conversaciones anteriores de Agent."
+        AppLanguage.GERMAN -> "Durchsucht frühere Agent-Unterhaltungen."
+        AppLanguage.PORTUGUESE -> "Navega por conversas anteriores do Agent."
+        AppLanguage.FRENCH -> "Parcourt les conversations Agent précédentes."
+        AppLanguage.ENGLISH -> "Browse previous Agent conversations."
     }
 
     fun newChatInlineActionDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "不离开 Hermes 即可开始新的会话。"
-        AppLanguage.SPANISH -> "Inicia una nueva conversación sin salir de Hermes."
-        AppLanguage.GERMAN -> "Startet eine neue Unterhaltung, ohne Hermes zu verlassen."
-        AppLanguage.PORTUGUESE -> "Inicia uma nova conversa sem sair do Hermes."
-        AppLanguage.FRENCH -> "Lance une nouvelle conversation sans quitter Hermes."
-        AppLanguage.ENGLISH -> "Start a fresh conversation without leaving Hermes."
+        AppLanguage.CHINESE -> "不离开 Agent 即可开始新的会话。"
+        AppLanguage.SPANISH -> "Inicia una nueva conversación sin salir de Agent."
+        AppLanguage.GERMAN -> "Startet eine neue Unterhaltung, ohne Agent zu verlassen."
+        AppLanguage.PORTUGUESE -> "Inicia uma nova conversa sem sair do Agent."
+        AppLanguage.FRENCH -> "Lance une nouvelle conversation sans quitter Agent."
+        AppLanguage.ENGLISH -> "Start a fresh conversation without leaving Agent."
     }
 
     fun clearConversationActionDescription(): String = when (language) {
@@ -1765,27 +1765,27 @@ data class HermesStrings(
     }
 
     fun bootStatusText(status: String): String = when (status) {
-        "Opening Hermes…" -> bootOpeningStatus()
-        "Hermes shell ready" -> bootShellReadyStatus()
+        "Opening Agent…" -> bootOpeningStatus()
+        "Agent shell ready" -> bootShellReadyStatus()
         else -> status
     }
 
     fun bootOpeningStatus(): String = when (language) {
-        AppLanguage.CHINESE -> "正在打开 Hermes…"
-        AppLanguage.SPANISH -> "Abriendo Hermes…"
-        AppLanguage.GERMAN -> "Hermes wird geöffnet…"
-        AppLanguage.PORTUGUESE -> "Abrindo Hermes…"
-        AppLanguage.FRENCH -> "Ouverture de Hermes…"
-        AppLanguage.ENGLISH -> "Opening Hermes…"
+        AppLanguage.CHINESE -> "正在打开 Agent…"
+        AppLanguage.SPANISH -> "Abriendo Agent…"
+        AppLanguage.GERMAN -> "Agent wird geöffnet…"
+        AppLanguage.PORTUGUESE -> "Abrindo Agent…"
+        AppLanguage.FRENCH -> "Ouverture de Agent…"
+        AppLanguage.ENGLISH -> "Opening Agent…"
     }
 
     fun bootShellReadyStatus(): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 外壳已就绪"
-        AppLanguage.SPANISH -> "Shell de Hermes lista"
-        AppLanguage.GERMAN -> "Hermes-Shell bereit"
-        AppLanguage.PORTUGUESE -> "Shell do Hermes pronta"
-        AppLanguage.FRENCH -> "Shell Hermes prête"
-        AppLanguage.ENGLISH -> "Hermes shell ready"
+        AppLanguage.CHINESE -> "Agent 外壳已就绪"
+        AppLanguage.SPANISH -> "Shell de Agent lista"
+        AppLanguage.GERMAN -> "Agent-Shell bereit"
+        AppLanguage.PORTUGUESE -> "Shell do Agent pronta"
+        AppLanguage.FRENCH -> "Shell Agent prête"
+        AppLanguage.ENGLISH -> "Agent shell ready"
     }
 
     fun topKLabel(): String = when (language) {
@@ -1825,21 +1825,21 @@ data class HermesStrings(
     }
 
     fun agentEndpointDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "其他代理应用可通过此 OpenAI 兼容端点连接 Hermes。"
-        AppLanguage.SPANISH -> "Otras apps agenticas pueden conectarse a Hermes mediante este endpoint compatible con OpenAI."
-        AppLanguage.GERMAN -> "Andere Agenten-Apps können über diesen OpenAI-kompatiblen Endpunkt mit Hermes verbinden."
-        AppLanguage.PORTUGUESE -> "Outros apps agenticos podem conectar ao Hermes por este endpoint compatível com OpenAI."
-        AppLanguage.FRENCH -> "D’autres apps agentiques peuvent se connecter à Hermes via ce point de terminaison compatible OpenAI."
-        AppLanguage.ENGLISH -> "Other agentic apps can connect to Hermes through this OpenAI-compatible endpoint."
+        AppLanguage.CHINESE -> "其他代理应用可通过此 OpenAI 兼容端点连接 Agent。"
+        AppLanguage.SPANISH -> "Otras apps agenticas pueden conectarse a Agent mediante este endpoint compatible con OpenAI."
+        AppLanguage.GERMAN -> "Andere Agenten-Apps können über diesen OpenAI-kompatiblen Endpunkt mit Agent verbinden."
+        AppLanguage.PORTUGUESE -> "Outros apps agenticos podem conectar ao Agent por este endpoint compatível com OpenAI."
+        AppLanguage.FRENCH -> "D’autres apps agentiques peuvent se connecter à Agent via ce point de terminaison compatible OpenAI."
+        AppLanguage.ENGLISH -> "Other agentic apps can connect to Agent through this OpenAI-compatible endpoint."
     }
 
     fun agentEndpointNotReady(): String = when (language) {
-        AppLanguage.CHINESE -> "启动 Hermes 运行时后显示端点。"
-        AppLanguage.SPANISH -> "Inicia el runtime de Hermes para mostrar el endpoint."
-        AppLanguage.GERMAN -> "Starte die Hermes-Laufzeit, um den Endpunkt anzuzeigen."
-        AppLanguage.PORTUGUESE -> "Inicie o runtime do Hermes para mostrar o endpoint."
-        AppLanguage.FRENCH -> "Démarrez le runtime Hermes pour afficher le point de terminaison."
-        AppLanguage.ENGLISH -> "Start the Hermes runtime to reveal the endpoint."
+        AppLanguage.CHINESE -> "启动 Agent 运行时后显示端点。"
+        AppLanguage.SPANISH -> "Inicia el runtime de Agent para mostrar el endpoint."
+        AppLanguage.GERMAN -> "Starte die Agent-Laufzeit, um den Endpunkt anzuzeigen."
+        AppLanguage.PORTUGUESE -> "Inicie o runtime do Agent para mostrar o endpoint."
+        AppLanguage.FRENCH -> "Démarrez le runtime Agent pour afficher le point de terminaison."
+        AppLanguage.ENGLISH -> "Start the Agent runtime to reveal the endpoint."
     }
 
     fun agentEndpointLoopbackLabel(): String = when (language) {
@@ -1951,12 +1951,12 @@ data class HermesStrings(
     }
 
     fun mcpStoredConfigNotExecuted(): String = tr(
-        "Any existing MCP JSON is retained at this path for export or migration only; Hermes does not load or execute it on Android.",
-        "现有 MCP JSON 仅保留在此路径以供导出或迁移；Hermes 不会在 Android 上加载或执行它。",
-        "El JSON MCP existente se conserva en esta ruta solo para exportarlo o migrarlo; Hermes no lo carga ni lo ejecuta en Android.",
-        "Vorhandenes MCP-JSON bleibt an diesem Pfad nur für Export oder Migration erhalten; Hermes lädt oder führt es unter Android nicht aus.",
-        "O JSON MCP existente é mantido neste caminho apenas para exportação ou migração; o Hermes não o carrega nem executa no Android.",
-        "Le JSON MCP existant est conservé à cet emplacement uniquement pour l’export ou la migration ; Hermes ne le charge ni ne l’exécute sur Android.",
+        "Any existing MCP JSON is retained at this path for export or migration only; Agent does not load or execute it on Android.",
+        "现有 MCP JSON 仅保留在此路径以供导出或迁移；Agent 不会在 Android 上加载或执行它。",
+        "El JSON MCP existente se conserva en esta ruta solo para exportarlo o migrarlo; Agent no lo carga ni lo ejecuta en Android.",
+        "Vorhandenes MCP-JSON bleibt an diesem Pfad nur für Export oder Migration erhalten; Agent lädt oder führt es unter Android nicht aus.",
+        "O JSON MCP existente é mantido neste caminho apenas para exportação ou migração; o Agent não o carrega nem executa no Android.",
+        "Le JSON MCP existant est conservé à cet emplacement uniquement pour l’export ou la migration ; Agent ne le charge ni ne l’exécute sur Android.",
     )
 
     fun mcpSimpleMode(): String = when (language) {
@@ -2077,12 +2077,12 @@ data class HermesStrings(
     }
 
     fun mcpProviderCacheResendDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "开启后，Hermes 可为支持输入令牌缓存的提供商重发稳定的历史/工具输出上下文。关闭后会阻止缓存上下文重发。"
-        AppLanguage.SPANISH -> "Al activarlo, Hermes puede reenviar contexto estable previo o de herramientas para caché de tokens de entrada. Desactivado bloquea ese reenvío."
-        AppLanguage.GERMAN -> "Aktiviert kann Hermes stabilen früheren oder Tool-Ausgabe-Kontext für Anbieter mit Eingabetoken-Cache erneut senden. Deaktiviert blockiert dieses erneute Senden."
-        AppLanguage.PORTUGUESE -> "Quando ativado, o Hermes pode reenviar contexto estável anterior ou de ferramentas para cache de tokens de entrada. Desativado bloqueia esse reenvio."
-        AppLanguage.FRENCH -> "Activé, Hermes peut renvoyer un contexte stable précédent ou d’outils pour le cache de jetons d’entrée. Désactivé, ce renvoi est bloqué."
-        AppLanguage.ENGLISH -> "When enabled, Hermes may resend stable prior/tool-output context for provider input-token caching. When disabled, cached context resend is blocked."
+        AppLanguage.CHINESE -> "开启后，Agent 可为支持输入令牌缓存的提供商重发稳定的历史/工具输出上下文。关闭后会阻止缓存上下文重发。"
+        AppLanguage.SPANISH -> "Al activarlo, Agent puede reenviar contexto estable previo o de herramientas para caché de tokens de entrada. Desactivado bloquea ese reenvío."
+        AppLanguage.GERMAN -> "Aktiviert kann Agent stabilen früheren oder Tool-Ausgabe-Kontext für Anbieter mit Eingabetoken-Cache erneut senden. Deaktiviert blockiert dieses erneute Senden."
+        AppLanguage.PORTUGUESE -> "Quando ativado, o Agent pode reenviar contexto estável anterior ou de ferramentas para cache de tokens de entrada. Desativado bloqueia esse reenvio."
+        AppLanguage.FRENCH -> "Activé, Agent peut renvoyer un contexte stable précédent ou d’outils pour le cache de jetons d’entrée. Désactivé, ce renvoi est bloqué."
+        AppLanguage.ENGLISH -> "When enabled, Agent may resend stable prior/tool-output context for provider input-token caching. When disabled, cached context resend is blocked."
     }
 
     fun mcpAddDialogTitle(): String = when (language) {
@@ -2095,12 +2095,12 @@ data class HermesStrings(
     }
 
     fun mcpAddDialogDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "输入 MCP 命令或服务器名称，并添加备注。Hermes 会写入草稿配置；安装命令后再测试/刷新。"
-        AppLanguage.SPANISH -> "Introduce el comando o nombre del servidor MCP y una nota. Hermes escribirá un borrador; pruébalo/actualízalo cuando el comando esté instalado."
-        AppLanguage.GERMAN -> "Gib den MCP-Befehl oder Servernamen und eine Notiz ein. Hermes schreibt einen Entwurf; teste/aktualisiere ihn, sobald der Befehl installiert ist."
-        AppLanguage.PORTUGUESE -> "Insira o comando ou nome do servidor MCP e uma nota. O Hermes grava um rascunho; teste/atualize quando o comando estiver instalado."
-        AppLanguage.FRENCH -> "Saisissez la commande ou le nom du serveur MCP et une note. Hermes écrit un brouillon ; testez/actualisez quand la commande est installée."
-        AppLanguage.ENGLISH -> "Enter an MCP command or server name and a note. Hermes writes a draft config; test / refresh once the command is installed."
+        AppLanguage.CHINESE -> "输入 MCP 命令或服务器名称，并添加备注。Agent 会写入草稿配置；安装命令后再测试/刷新。"
+        AppLanguage.SPANISH -> "Introduce el comando o nombre del servidor MCP y una nota. Agent escribirá un borrador; pruébalo/actualízalo cuando el comando esté instalado."
+        AppLanguage.GERMAN -> "Gib den MCP-Befehl oder Servernamen und eine Notiz ein. Agent schreibt einen Entwurf; teste/aktualisiere ihn, sobald der Befehl installiert ist."
+        AppLanguage.PORTUGUESE -> "Insira o comando ou nome do servidor MCP e uma nota. O Agent grava um rascunho; teste/atualize quando o comando estiver instalado."
+        AppLanguage.FRENCH -> "Saisissez la commande ou le nom du serveur MCP et une note. Agent écrit un brouillon ; testez/actualisez quand la commande est installée."
+        AppLanguage.ENGLISH -> "Enter an MCP command or server name and a note. Agent writes a draft config; test / refresh once the command is installed."
     }
 
     fun mcpServerNameLabel(): String = when (language) {
@@ -2230,19 +2230,19 @@ data class HermesStrings(
                 AppLanguage.ENGLISH -> text
             }
             text.startsWith("Provider cache resend enabled") -> when (language) {
-                AppLanguage.CHINESE -> "已启用提供商缓存重发。Hermes 仅会对允许的提供商重发稳定上下文。"
-                AppLanguage.SPANISH -> "Reenvío de caché activado. Hermes solo reenvía contexto estable a proveedores que lo permitan."
-                AppLanguage.GERMAN -> "Anbieter-Cache erneut senden ist aktiv. Hermes sendet stabilen Kontext nur an erlaubende Anbieter."
-                AppLanguage.PORTUGUESE -> "Reenvio de cache ativado. O Hermes só reenvia contexto estável a provedores que permitem."
-                AppLanguage.FRENCH -> "Renvoi du cache activé. Hermes ne renvoie le contexte stable qu’aux fournisseurs qui l’autorisent."
+                AppLanguage.CHINESE -> "已启用提供商缓存重发。Agent 仅会对允许的提供商重发稳定上下文。"
+                AppLanguage.SPANISH -> "Reenvío de caché activado. Agent solo reenvía contexto estable a proveedores que lo permitan."
+                AppLanguage.GERMAN -> "Anbieter-Cache erneut senden ist aktiv. Agent sendet stabilen Kontext nur an erlaubende Anbieter."
+                AppLanguage.PORTUGUESE -> "Reenvio de cache ativado. O Agent só reenvia contexto estável a provedores que permitem."
+                AppLanguage.FRENCH -> "Renvoi du cache activé. Agent ne renvoie le contexte stable qu’aux fournisseurs qui l’autorisent."
                 AppLanguage.ENGLISH -> text
             }
             text.startsWith("Provider cache resend disabled") -> when (language) {
-                AppLanguage.CHINESE -> "已关闭提供商缓存重发。Hermes 不会重发缓存的历史/工具输出上下文。"
-                AppLanguage.SPANISH -> "Reenvío de caché desactivado. Hermes no reenviará contexto previo o de herramientas."
-                AppLanguage.GERMAN -> "Anbieter-Cache erneut senden ist deaktiviert. Hermes sendet keinen gecachten Verlauf oder Tool-Kontext erneut."
-                AppLanguage.PORTUGUESE -> "Reenvio de cache desativado. O Hermes não reenviará histórico ou contexto de ferramentas."
-                AppLanguage.FRENCH -> "Renvoi du cache désactivé. Hermes ne renverra pas l’historique ou le contexte d’outils."
+                AppLanguage.CHINESE -> "已关闭提供商缓存重发。Agent 不会重发缓存的历史/工具输出上下文。"
+                AppLanguage.SPANISH -> "Reenvío de caché desactivado. Agent no reenviará contexto previo o de herramientas."
+                AppLanguage.GERMAN -> "Anbieter-Cache erneut senden ist deaktiviert. Agent sendet keinen gecachten Verlauf oder Tool-Kontext erneut."
+                AppLanguage.PORTUGUESE -> "Reenvio de cache desativado. O Agent não reenviará histórico ou contexto de ferramentas."
+                AppLanguage.FRENCH -> "Renvoi du cache désactivé. Agent ne renverra pas l’historique ou le contexte d’outils."
                 AppLanguage.ENGLISH -> text
             }
             else -> text
@@ -2255,31 +2255,31 @@ data class HermesStrings(
         }
         val replacements = when (language) {
             AppLanguage.CHINESE -> listOf(
-                "Hermes Android local tools exposed to the agent runtime" to "Hermes Android 本地工具已暴露给代理运行时",
+                "Agent Android local tools exposed to the agent runtime" to "Agent Android 本地工具已暴露给代理运行时",
                 "User-added MCP server draft" to "用户添加的 MCP 服务器草稿",
                 "Use Test / refresh after the command is installed on this device." to "命令安装到此设备后，请使用测试/刷新。",
                 "Use Test \\/ refresh after the command is installed on this device." to "命令安装到此设备后，请使用测试/刷新。",
             )
             AppLanguage.SPANISH -> listOf(
-                "Hermes Android local tools exposed to the agent runtime" to "Herramientas locales de Hermes Android expuestas al runtime del agente",
+                "Agent Android local tools exposed to the agent runtime" to "Herramientas locales de Agent Android expuestas al runtime del agente",
                 "User-added MCP server draft" to "Borrador de servidor MCP añadido por el usuario",
                 "Use Test / refresh after the command is installed on this device." to "Usa Probar/actualizar cuando el comando esté instalado en este dispositivo.",
                 "Use Test \\/ refresh after the command is installed on this device." to "Usa Probar/actualizar cuando el comando esté instalado en este dispositivo.",
             )
             AppLanguage.GERMAN -> listOf(
-                "Hermes Android local tools exposed to the agent runtime" to "Lokale Hermes-Android-Tools für die Agentenlaufzeit",
+                "Agent Android local tools exposed to the agent runtime" to "Lokale Agent-Android-Tools für die Agentenlaufzeit",
                 "User-added MCP server draft" to "Vom Nutzer hinzugefügter MCP-Serverentwurf",
                 "Use Test / refresh after the command is installed on this device." to "Nach Installation des Befehls auf diesem Gerät Testen/aktualisieren verwenden.",
                 "Use Test \\/ refresh after the command is installed on this device." to "Nach Installation des Befehls auf diesem Gerät Testen/aktualisieren verwenden.",
             )
             AppLanguage.PORTUGUESE -> listOf(
-                "Hermes Android local tools exposed to the agent runtime" to "Ferramentas locais do Hermes Android expostas ao runtime do agente",
+                "Agent Android local tools exposed to the agent runtime" to "Ferramentas locais do Agent Android expostas ao runtime do agente",
                 "User-added MCP server draft" to "Rascunho de servidor MCP adicionado pelo usuário",
                 "Use Test / refresh after the command is installed on this device." to "Use Testar/atualizar depois que o comando estiver instalado neste dispositivo.",
                 "Use Test \\/ refresh after the command is installed on this device." to "Use Testar/atualizar depois que o comando estiver instalado neste dispositivo.",
             )
             AppLanguage.FRENCH -> listOf(
-                "Hermes Android local tools exposed to the agent runtime" to "Outils locaux Hermes Android exposés au runtime de l’agent",
+                "Agent Android local tools exposed to the agent runtime" to "Outils locaux Agent Android exposés au runtime de l’agent",
                 "User-added MCP server draft" to "Brouillon de serveur MCP ajouté par l’utilisateur",
                 "Use Test / refresh after the command is installed on this device." to "Utilisez Tester/actualiser une fois la commande installée sur cet appareil.",
                 "Use Test \\/ refresh after the command is installed on this device." to "Utilisez Tester/actualiser une fois la commande installée sur cet appareil.",
@@ -2393,12 +2393,12 @@ data class HermesStrings(
     }
 
     fun chatCommandProviderApplied(providerId: String): String = when (language) {
-        AppLanguage.CHINESE -> "已应用提供商 $providerId，并重启 Hermes 后端。"
-        AppLanguage.SPANISH -> "Proveedor $providerId aplicado y backend de Hermes reiniciado."
-        AppLanguage.GERMAN -> "Anbieter $providerId angewendet und Hermes-Backend neu gestartet."
-        AppLanguage.PORTUGUESE -> "Provedor $providerId aplicado e backend do Hermes reiniciado."
-        AppLanguage.FRENCH -> "Fournisseur $providerId appliqué et backend Hermes redémarré."
-        AppLanguage.ENGLISH -> "Applied provider $providerId and restarted the Hermes backend."
+        AppLanguage.CHINESE -> "已应用提供商 $providerId，并重启 Agent 后端。"
+        AppLanguage.SPANISH -> "Proveedor $providerId aplicado y backend de Agent reiniciado."
+        AppLanguage.GERMAN -> "Anbieter $providerId angewendet und Agent-Backend neu gestartet."
+        AppLanguage.PORTUGUESE -> "Provedor $providerId aplicado e backend do Agent reiniciado."
+        AppLanguage.FRENCH -> "Fournisseur $providerId appliqué et backend Agent redémarré."
+        AppLanguage.ENGLISH -> "Applied provider $providerId and restarted the Agent backend."
     }
 
     fun chatCommandUnknownProvider(providerId: String): String = when (language) {
@@ -2420,12 +2420,12 @@ data class HermesStrings(
     }
 
     fun chatCommandModelUpdated(modelName: String): String = when (language) {
-        AppLanguage.CHINESE -> "已将当前 Hermes 模型更新为“$modelName”，并重启后端。"
-        AppLanguage.SPANISH -> "Modelo activo de Hermes actualizado a '$modelName' y backend reiniciado."
-        AppLanguage.GERMAN -> "Aktives Hermes-Modell auf '$modelName' aktualisiert und Backend neu gestartet."
-        AppLanguage.PORTUGUESE -> "Modelo Hermes ativo atualizado para '$modelName' e backend reiniciado."
-        AppLanguage.FRENCH -> "Modèle Hermes actif mis à jour vers '$modelName' et backend redémarré."
-        AppLanguage.ENGLISH -> "Updated the active Hermes model to '$modelName' and restarted the backend."
+        AppLanguage.CHINESE -> "已将当前 Agent 模型更新为“$modelName”，并重启后端。"
+        AppLanguage.SPANISH -> "Modelo activo de Agent actualizado a '$modelName' y backend reiniciado."
+        AppLanguage.GERMAN -> "Aktives Agent-Modell auf '$modelName' aktualisiert und Backend neu gestartet."
+        AppLanguage.PORTUGUESE -> "Modelo Agent ativo atualizado para '$modelName' e backend reiniciado."
+        AppLanguage.FRENCH -> "Modèle Agent actif mis à jour vers '$modelName' et backend redémarré."
+        AppLanguage.ENGLISH -> "Updated the active Agent model to '$modelName' and restarted the backend."
     }
 
     fun chatCommandModelFailed(modelName: String): String = when (language) {
@@ -2447,12 +2447,12 @@ data class HermesStrings(
     }
 
     fun chatCommandOpenRouterOAuth(): String = when (language) {
-        AppLanguage.CHINESE -> "已在浏览器中打开 OpenRouter OAuth。请批准 Hermes 保存用户可控 API 密钥，或在设置中粘贴 OpenRouter API 密钥。"
-        AppLanguage.SPANISH -> "OAuth de OpenRouter abierto en el navegador. Autoriza a Hermes a guardar una clave API controlada por ti, o pega una clave API de OpenRouter en Ajustes."
-        AppLanguage.GERMAN -> "OpenRouter OAuth im Browser geöffnet. Erlaube Hermes, einen nutzergesteuerten API-Schlüssel zu speichern, oder füge ihn in Einstellungen ein."
-        AppLanguage.PORTUGUESE -> "OAuth do OpenRouter aberto no navegador. Autorize o Hermes a salvar uma chave API controlada por você, ou cole uma chave OpenRouter em Configurações."
-        AppLanguage.FRENCH -> "OAuth OpenRouter ouvert dans le navigateur. Autorisez Hermes à enregistrer une clé API contrôlée par vous, ou collez une clé OpenRouter dans Réglages."
-        AppLanguage.ENGLISH -> "Opened OpenRouter OAuth in your browser. Approve Hermes to save a user-controlled API key, or paste an OpenRouter API key in Settings."
+        AppLanguage.CHINESE -> "已在浏览器中打开 OpenRouter OAuth。请批准 Agent 保存用户可控 API 密钥，或在设置中粘贴 OpenRouter API 密钥。"
+        AppLanguage.SPANISH -> "OAuth de OpenRouter abierto en el navegador. Autoriza a Agent a guardar una clave API controlada por ti, o pega una clave API de OpenRouter en Ajustes."
+        AppLanguage.GERMAN -> "OpenRouter OAuth im Browser geöffnet. Erlaube Agent, einen nutzergesteuerten API-Schlüssel zu speichern, oder füge ihn in Einstellungen ein."
+        AppLanguage.PORTUGUESE -> "OAuth do OpenRouter aberto no navegador. Autorize o Agent a salvar uma chave API controlada por você, ou cole uma chave OpenRouter em Configurações."
+        AppLanguage.FRENCH -> "OAuth OpenRouter ouvert dans le navigateur. Autorisez Agent à enregistrer une clé API contrôlée par vous, ou collez une clé OpenRouter dans Réglages."
+        AppLanguage.ENGLISH -> "Opened OpenRouter OAuth in your browser. Approve Agent to save a user-controlled API key, or paste an OpenRouter API key in Settings."
     }
 
     fun chatCommandLegacyQwenOAuth(): String = when (language) {
@@ -2465,21 +2465,21 @@ data class HermesStrings(
     }
 
     fun chatCommandProviderTokenSetup(method: String): String = when (language) {
-        AppLanguage.CHINESE -> "已在设置中准备 $method API 密钥/令牌配置，并在浏览器中打开提供商设置页。请在该处粘贴提供商凭据以驱动 Hermes。"
-        AppLanguage.SPANISH -> "Configuración de clave API/token de $method preparada en Ajustes y página de proveedor abierta en el navegador. Pega allí la credencial para alimentar Hermes."
-        AppLanguage.GERMAN -> "$method API-Schlüssel/Token-Setup in Einstellungen vorbereitet und Anbieter-Setup im Browser geöffnet. Füge dort die Zugangsdaten ein, um Hermes zu betreiben."
-        AppLanguage.PORTUGUESE -> "Configuração de chave API/token de $method preparada em Configurações e página do provedor aberta no navegador. Cole a credencial ali para alimentar o Hermes."
-        AppLanguage.FRENCH -> "Configuration clé API/jeton $method préparée dans Réglages et page fournisseur ouverte dans le navigateur. Collez l’identifiant fournisseur pour alimenter Hermes."
-        AppLanguage.ENGLISH -> "Prepared $method API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Hermes."
+        AppLanguage.CHINESE -> "已在设置中准备 $method API 密钥/令牌配置，并在浏览器中打开提供商设置页。请在该处粘贴提供商凭据以驱动 Agent。"
+        AppLanguage.SPANISH -> "Configuración de clave API/token de $method preparada en Ajustes y página de proveedor abierta en el navegador. Pega allí la credencial para alimentar Agent."
+        AppLanguage.GERMAN -> "$method API-Schlüssel/Token-Setup in Einstellungen vorbereitet und Anbieter-Setup im Browser geöffnet. Füge dort die Zugangsdaten ein, um Agent zu betreiben."
+        AppLanguage.PORTUGUESE -> "Configuração de chave API/token de $method preparada em Configurações e página do provedor aberta no navegador. Cole a credencial ali para alimentar o Agent."
+        AppLanguage.FRENCH -> "Configuration clé API/jeton $method préparée dans Réglages et page fournisseur ouverte dans le navigateur. Collez l’identifiant fournisseur pour alimenter Agent."
+        AppLanguage.ENGLISH -> "Prepared $method API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Agent."
     }
 
     fun chatCommandCorr3xtSignIn(method: String): String = when (language) {
-        AppLanguage.CHINESE -> "已为 $method 打开 Corr3xt 应用登录。请在浏览器中完成，然后返回 Hermes。"
-        AppLanguage.SPANISH -> "Inicio de sesión Corr3xt abierto para $method. Complétalo en el navegador y vuelve a Hermes."
-        AppLanguage.GERMAN -> "Corr3xt-App-Anmeldung für $method geöffnet. Schließe sie im Browser ab und kehre zu Hermes zurück."
-        AppLanguage.PORTUGUESE -> "Login Corr3xt aberto para $method. Complete no navegador e volte ao Hermes."
-        AppLanguage.FRENCH -> "Connexion Corr3xt ouverte pour $method. Terminez dans le navigateur puis revenez à Hermes."
-        AppLanguage.ENGLISH -> "Opened Corr3xt app sign-in for $method. Complete it in your browser, then come back to Hermes."
+        AppLanguage.CHINESE -> "已为 $method 打开 Corr3xt 应用登录。请在浏览器中完成，然后返回 Agent。"
+        AppLanguage.SPANISH -> "Inicio de sesión Corr3xt abierto para $method. Complétalo en el navegador y vuelve a Agent."
+        AppLanguage.GERMAN -> "Corr3xt-App-Anmeldung für $method geöffnet. Schließe sie im Browser ab und kehre zu Agent zurück."
+        AppLanguage.PORTUGUESE -> "Login Corr3xt aberto para $method. Complete no navegador e volte ao Agent."
+        AppLanguage.FRENCH -> "Connexion Corr3xt ouverte pour $method. Terminez dans le navigateur puis revenez à Agent."
+        AppLanguage.ENGLISH -> "Opened Corr3xt app sign-in for $method. Complete it in your browser, then come back to Agent."
     }
 
     fun chatCommandSignInFailed(method: String): String = when (language) {
@@ -2492,12 +2492,12 @@ data class HermesStrings(
     }
 
     fun chatCommandSpeakingLatest(): String = when (language) {
-        AppLanguage.CHINESE -> "正在朗读最新 Hermes 回复。"
-        AppLanguage.SPANISH -> "Leyendo la última respuesta de Hermes."
-        AppLanguage.GERMAN -> "Neueste Hermes-Antwort wird vorgelesen."
-        AppLanguage.PORTUGUESE -> "Lendo a resposta Hermes mais recente."
-        AppLanguage.FRENCH -> "Lecture de la dernière réponse Hermes."
-        AppLanguage.ENGLISH -> "Speaking the latest Hermes reply."
+        AppLanguage.CHINESE -> "正在朗读最新 Agent 回复。"
+        AppLanguage.SPANISH -> "Leyendo la última respuesta de Agent."
+        AppLanguage.GERMAN -> "Neueste Agent-Antwort wird vorgelesen."
+        AppLanguage.PORTUGUESE -> "Lendo a resposta Agent mais recente."
+        AppLanguage.FRENCH -> "Lecture de la dernière réponse Agent."
+        AppLanguage.ENGLISH -> "Speaking the latest Agent reply."
     }
 
     fun chatCommandNoReplyToSpeak(): String = when (language) {
@@ -2582,12 +2582,12 @@ data class HermesStrings(
     }
 
     fun retryHermes(): String = when (language) {
-        AppLanguage.CHINESE -> "重试 Hermes"
-        AppLanguage.SPANISH -> "Reintentar Hermes"
-        AppLanguage.GERMAN -> "Hermes erneut versuchen"
-        AppLanguage.PORTUGUESE -> "Tentar Hermes novamente"
-        AppLanguage.FRENCH -> "Réessayer Hermes"
-        AppLanguage.ENGLISH -> "Retry Hermes"
+        AppLanguage.CHINESE -> "重试 Agent"
+        AppLanguage.SPANISH -> "Reintentar Agent"
+        AppLanguage.GERMAN -> "Agent erneut versuchen"
+        AppLanguage.PORTUGUESE -> "Tentar Agent novamente"
+        AppLanguage.FRENCH -> "Réessayer Agent"
+        AppLanguage.ENGLISH -> "Retry Agent"
     }
 
     fun gettingStartedTitle(): String = when (language) {
@@ -2617,30 +2617,30 @@ data class HermesStrings(
             AppLanguage.ENGLISH -> "2. Settings: choose a provider, confirm the base URL/model, and save your API key or token."
         }
         3 -> when (language) {
-            AppLanguage.CHINESE -> "3. 设备：如果希望 Hermes 直接编辑真实手机文件，请授予共享文件夹访问权限。"
-            AppLanguage.SPANISH -> "3. Equipo: concede acceso a carpeta compartida si quieres que Hermes edite archivos móviles reales."
-            AppLanguage.GERMAN -> "3. Gerät: Erteile Freigabeordner-Zugriff, wenn Hermes echte mobile Dateien direkt bearbeiten soll."
-            AppLanguage.PORTUGUESE -> "3. Aparelho: conceda acesso à pasta compartilhada se quiser que Hermes edite arquivos móveis reais."
-            AppLanguage.FRENCH -> "3. Appareil : accordez l’accès au dossier partagé pour que Hermes modifie de vrais fichiers mobiles."
-            AppLanguage.ENGLISH -> "3. Device: grant shared-folder access if you want Hermes to edit real mobile files directly."
+            AppLanguage.CHINESE -> "3. 设备：如果希望 Agent 直接编辑真实手机文件，请授予共享文件夹访问权限。"
+            AppLanguage.SPANISH -> "3. Equipo: concede acceso a carpeta compartida si quieres que Agent edite archivos móviles reales."
+            AppLanguage.GERMAN -> "3. Gerät: Erteile Freigabeordner-Zugriff, wenn Agent echte mobile Dateien direkt bearbeiten soll."
+            AppLanguage.PORTUGUESE -> "3. Aparelho: conceda acesso à pasta compartilhada se quiser que Agent edite arquivos móveis reais."
+            AppLanguage.FRENCH -> "3. Appareil : accordez l’accès au dossier partagé pour que Agent modifie de vrais fichiers mobiles."
+            AppLanguage.ENGLISH -> "3. Device: grant shared-folder access if you want Agent to edit real mobile files directly."
         }
         else -> when (language) {
-            AppLanguage.CHINESE -> "4. Hermes 聊天：运行时就绪后，可使用语音输入、聊天命令或齿轮按钮执行页面操作。"
-            AppLanguage.SPANISH -> "4. Chat Hermes: usa voz, comandos de chat o el botón de engranaje cuando el runtime esté listo."
-            AppLanguage.GERMAN -> "4. Hermes-Chat: Nutze Spracheingabe, Chat-Befehle oder das Zahnrad, sobald die Runtime bereit ist."
-            AppLanguage.PORTUGUESE -> "4. Chat Hermes: use voz, comandos de chat ou o botão de engrenagem quando o runtime estiver pronto."
-            AppLanguage.FRENCH -> "4. Chat Hermes : utilisez la voix, les commandes ou le bouton engrenage quand le runtime est prêt."
-            AppLanguage.ENGLISH -> "4. Hermes chat: use voice input, chat commands, or the cog button for page-specific actions once the runtime is ready."
+            AppLanguage.CHINESE -> "4. Agent 聊天：运行时就绪后，可使用语音输入、聊天命令或齿轮按钮执行页面操作。"
+            AppLanguage.SPANISH -> "4. Chat Agent: usa voz, comandos de chat o el botón de engranaje cuando el runtime esté listo."
+            AppLanguage.GERMAN -> "4. Agent-Chat: Nutze Spracheingabe, Chat-Befehle oder das Zahnrad, sobald die Runtime bereit ist."
+            AppLanguage.PORTUGUESE -> "4. Chat Agent: use voz, comandos de chat ou o botão de engrenagem quando o runtime estiver pronto."
+            AppLanguage.FRENCH -> "4. Chat Agent : utilisez la voix, les commandes ou le bouton engrenage quand le runtime est prêt."
+            AppLanguage.ENGLISH -> "4. Agent chat: use voice input, chat commands, or the cog button for page-specific actions once the runtime is ready."
         }
     }
 
     fun apiKeyHelp(): String = when (language) {
-        AppLanguage.CHINESE -> "粘贴所选提供商的 API 密钥或访问令牌，然后点保存以重启本地 Hermes 后端并应用新配置。"
-        AppLanguage.SPANISH -> "Pega la clave API o token de acceso del proveedor seleccionado y pulsa Guardar para reiniciar el backend local de Hermes con la nueva configuración."
-        AppLanguage.GERMAN -> "Füge den API-Schlüssel oder Zugriffstoken für den gewählten Anbieter ein und tippe auf Speichern, um das lokale Hermes-Backend mit der neuen Konfiguration neu zu starten."
-        AppLanguage.PORTUGUESE -> "Cole a chave API ou token de acesso do provedor selecionado e toque em Salvar para reiniciar o backend local do Hermes com a nova configuração."
-        AppLanguage.FRENCH -> "Collez la clé API ou le jeton d’accès du fournisseur sélectionné puis appuyez sur Enregistrer pour redémarrer le backend local Hermes avec la nouvelle configuration."
-        AppLanguage.ENGLISH -> "Paste the API key or access token for the selected provider, then tap Save to restart the local Hermes backend with the new config."
+        AppLanguage.CHINESE -> "粘贴所选提供商的 API 密钥或访问令牌，然后点保存以重启本地 Agent 后端并应用新配置。"
+        AppLanguage.SPANISH -> "Pega la clave API o token de acceso del proveedor seleccionado y pulsa Guardar para reiniciar el backend local de Agent con la nueva configuración."
+        AppLanguage.GERMAN -> "Füge den API-Schlüssel oder Zugriffstoken für den gewählten Anbieter ein und tippe auf Speichern, um das lokale Agent-Backend mit der neuen Konfiguration neu zu starten."
+        AppLanguage.PORTUGUESE -> "Cole a chave API ou token de acesso do provedor selecionado e toque em Salvar para reiniciar o backend local do Agent com a nova configuração."
+        AppLanguage.FRENCH -> "Collez la clé API ou le jeton d’accès du fournisseur sélectionné puis appuyez sur Enregistrer pour redémarrer le backend local Agent avec la nouvelle configuration."
+        AppLanguage.ENGLISH -> "Paste the API key or access token for the selected provider, then tap Save to restart the local Agent backend with the new config."
     }
 
     fun openProviderKeyPage(providerLabel: String): String = when (language) {
@@ -2671,12 +2671,12 @@ data class HermesStrings(
     }
 
     fun importSavedProviderCredential(): String = when (language) {
-        AppLanguage.CHINESE -> "使用已保存的 Hermes 凭据"
-        AppLanguage.SPANISH -> "Usar credencial Hermes guardada"
-        AppLanguage.GERMAN -> "Gespeicherte Hermes-Zugangsdaten nutzen"
-        AppLanguage.PORTUGUESE -> "Usar credencial Hermes salva"
-        AppLanguage.FRENCH -> "Utiliser l’identifiant Hermes enregistré"
-        AppLanguage.ENGLISH -> "Use saved Hermes credential"
+        AppLanguage.CHINESE -> "使用已保存的 Agent 凭据"
+        AppLanguage.SPANISH -> "Usar credencial Agent guardada"
+        AppLanguage.GERMAN -> "Gespeicherte Agent-Zugangsdaten nutzen"
+        AppLanguage.PORTUGUESE -> "Usar credencial Agent salva"
+        AppLanguage.FRENCH -> "Utiliser l’identifiant Agent enregistré"
+        AppLanguage.ENGLISH -> "Use saved Agent credential"
     }
 
     fun copyAuthSignInUrl(): String = when (language) {
@@ -2716,30 +2716,30 @@ data class HermesStrings(
     }
 
     fun toolProfileLinuxSummary(): String = when (language) {
-        AppLanguage.CHINESE -> "请直接描述任务，例如“运行 date 命令并告诉我时间”或“检查我的设备状态”。Hermes 会为命令选择 terminal_tool，为设备检查选择 android_device_diagnostics_tool。"
-        AppLanguage.SPANISH -> "Describe la tarea directamente, por ejemplo, «Ejecuta date y dime la hora» o «Comprueba el estado de mi dispositivo». Hermes elige terminal_tool para comandos y android_device_diagnostics_tool para comprobaciones."
-        AppLanguage.GERMAN -> "Beschreibe die Aufgabe direkt, etwa „Führe date aus und nenne mir die Uhrzeit“ oder „Prüfe meinen Gerätestatus“. Hermes wählt terminal_tool für Befehle und android_device_diagnostics_tool für Geräteprüfungen."
-        AppLanguage.PORTUGUESE -> "Descreva a tarefa diretamente, por exemplo, “Execute date e diga a hora” ou “Verifique o status do meu dispositivo”. O Hermes escolhe terminal_tool para comandos e android_device_diagnostics_tool para verificações."
-        AppLanguage.FRENCH -> "Décrivez directement la tâche, par exemple « Exécute date et donne-moi l’heure » ou « Vérifie l’état de mon appareil ». Hermes choisit terminal_tool pour les commandes et android_device_diagnostics_tool pour les vérifications."
-        AppLanguage.ENGLISH -> "Describe the task directly, for example, “Run the date command and tell me the time” or “Check my device status.” Hermes selects terminal_tool for commands and android_device_diagnostics_tool for device checks."
+        AppLanguage.CHINESE -> "请直接描述任务，例如“运行 date 命令并告诉我时间”或“检查我的设备状态”。Agent 会为命令选择 terminal_tool，为设备检查选择 android_device_diagnostics_tool。"
+        AppLanguage.SPANISH -> "Describe la tarea directamente, por ejemplo, «Ejecuta date y dime la hora» o «Comprueba el estado de mi dispositivo». Agent elige terminal_tool para comandos y android_device_diagnostics_tool para comprobaciones."
+        AppLanguage.GERMAN -> "Beschreibe die Aufgabe direkt, etwa „Führe date aus und nenne mir die Uhrzeit“ oder „Prüfe meinen Gerätestatus“. Agent wählt terminal_tool für Befehle und android_device_diagnostics_tool für Geräteprüfungen."
+        AppLanguage.PORTUGUESE -> "Descreva a tarefa diretamente, por exemplo, “Execute date e diga a hora” ou “Verifique o status do meu dispositivo”. O Agent escolhe terminal_tool para comandos e android_device_diagnostics_tool para verificações."
+        AppLanguage.FRENCH -> "Décrivez directement la tâche, par exemple « Exécute date et donne-moi l’heure » ou « Vérifie l’état de mon appareil ». Agent choisit terminal_tool pour les commandes et android_device_diagnostics_tool pour les vérifications."
+        AppLanguage.ENGLISH -> "Describe the task directly, for example, “Run the date command and tell me the time” or “Check my device status.” Agent selects terminal_tool for commands and android_device_diagnostics_tool for device checks."
     }
 
     fun toolProfileAccessibilitySummary(): String = when (language) {
-        AppLanguage.CHINESE -> "启用 Hermes 无障碍服务后，android_ui_tool 可检查可见界面并执行获准的界面操作。"
-        AppLanguage.SPANISH -> "Tras activar el servicio de accesibilidad de Hermes, android_ui_tool puede inspeccionar la interfaz visible y realizar acciones autorizadas."
-        AppLanguage.GERMAN -> "Nach Aktivierung des Hermes-Barrierefreiheitsdienstes kann android_ui_tool die sichtbare Oberfläche prüfen und erlaubte UI-Aktionen ausführen."
-        AppLanguage.PORTUGUESE -> "Depois de ativar o serviço de acessibilidade do Hermes, android_ui_tool pode inspecionar a interface visível e executar ações autorizadas."
-        AppLanguage.FRENCH -> "Après activation du service d’accessibilité Hermes, android_ui_tool peut inspecter l’interface visible et effectuer les actions autorisées."
-        AppLanguage.ENGLISH -> "After you enable the Hermes accessibility service, android_ui_tool can inspect the visible interface and perform approved UI actions."
+        AppLanguage.CHINESE -> "启用 Agent 无障碍服务后，android_ui_tool 可检查可见界面并执行获准的界面操作。"
+        AppLanguage.SPANISH -> "Tras activar el servicio de accesibilidad de Agent, android_ui_tool puede inspeccionar la interfaz visible y realizar acciones autorizadas."
+        AppLanguage.GERMAN -> "Nach Aktivierung des Agent-Barrierefreiheitsdienstes kann android_ui_tool die sichtbare Oberfläche prüfen und erlaubte UI-Aktionen ausführen."
+        AppLanguage.PORTUGUESE -> "Depois de ativar o serviço de acessibilidade do Agent, android_ui_tool pode inspecionar a interface visível e executar ações autorizadas."
+        AppLanguage.FRENCH -> "Après activation du service d’accessibilité Agent, android_ui_tool peut inspecter l’interface visible et effectuer les actions autorisées."
+        AppLanguage.ENGLISH -> "After you enable the Agent accessibility service, android_ui_tool can inspect the visible interface and perform approved UI actions."
     }
 
     fun toolProfileCommandSuiteSummary(): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 会自动选择兼容且已启用的工具；无需输入工具名称。不支持结构化工具调用的模型可能只用文字回答，而不会实际运行工具。"
-        AppLanguage.SPANISH -> "Hermes selecciona automáticamente una herramienta compatible y habilitada; no hace falta escribir su nombre. Los modelos sin llamadas estructuradas pueden responder en texto sin ejecutar nada."
-        AppLanguage.GERMAN -> "Hermes wählt automatisch ein kompatibles, aktiviertes Werkzeug; der Werkzeugname muss nicht eingegeben werden. Modelle ohne strukturierte Werkzeugaufrufe antworten möglicherweise nur als Text."
-        AppLanguage.PORTUGUESE -> "O Hermes seleciona automaticamente uma ferramenta compatível e ativada; não é preciso digitar o nome. Modelos sem chamadas estruturadas podem responder em texto sem executar a ferramenta."
-        AppLanguage.FRENCH -> "Hermes sélectionne automatiquement un outil compatible et activé ; vous n’avez pas à saisir son nom. Les modèles sans appel d’outil structuré peuvent répondre en texte sans l’exécuter."
-        AppLanguage.ENGLISH -> "Hermes automatically selects a compatible enabled tool; you do not need to type a tool name. Models without structured tool-calling may answer in prose without running it."
+        AppLanguage.CHINESE -> "Agent 会自动选择兼容且已启用的工具；无需输入工具名称。不支持结构化工具调用的模型可能只用文字回答，而不会实际运行工具。"
+        AppLanguage.SPANISH -> "Agent selecciona automáticamente una herramienta compatible y habilitada; no hace falta escribir su nombre. Los modelos sin llamadas estructuradas pueden responder en texto sin ejecutar nada."
+        AppLanguage.GERMAN -> "Agent wählt automatisch ein kompatibles, aktiviertes Werkzeug; der Werkzeugname muss nicht eingegeben werden. Modelle ohne strukturierte Werkzeugaufrufe antworten möglicherweise nur als Text."
+        AppLanguage.PORTUGUESE -> "O Agent seleciona automaticamente uma ferramenta compatível e ativada; não é preciso digitar o nome. Modelos sem chamadas estruturadas podem responder em texto sem executar a ferramenta."
+        AppLanguage.FRENCH -> "Agent sélectionne automatiquement un outil compatible et activé ; vous n’avez pas à saisir son nom. Les modèles sans appel d’outil structuré peuvent répondre en texte sans l’exécuter."
+        AppLanguage.ENGLISH -> "Agent automatically selects a compatible enabled tool; you do not need to type a tool name. Models without structured tool-calling may answer in prose without running it."
     }
 
     fun toolProfileExcludedSummary(blocked: String): String = when (language) {
@@ -2770,12 +2770,12 @@ data class HermesStrings(
             AppLanguage.ENGLISH -> "1. Ask in plain language, for example, “Run the date command and tell me the time” or “Check my device status.” Those two exact examples use read-only native routes without a model. Other tool requests may require a model with structured tool-calling."
         }
         2 -> when (language) {
-            AppLanguage.CHINESE -> "2. 如果你想让 Hermes 直接读取或编辑真实文件，请通过 Android 原生选择器授予共享文件夹访问权限，然后用自然语言说明要处理的文件。"
-            AppLanguage.SPANISH -> "2. Concede una carpeta compartida desde el selector nativo de Android para que Hermes lea o edite los archivos reales y luego describe la tarea en lenguaje natural."
-            AppLanguage.GERMAN -> "2. Gewähre über den nativen Android-Auswahldialog einen freigegebenen Ordner, damit Hermes echte Dateien lesen oder bearbeiten kann, und beschreibe die Aufgabe dann in natürlicher Sprache."
-            AppLanguage.PORTUGUESE -> "2. Conceda uma pasta compartilhada no seletor nativo do Android para o Hermes ler ou editar os arquivos reais e depois descreva a tarefa em linguagem natural."
-            AppLanguage.FRENCH -> "2. Accordez un dossier partagé via le sélecteur natif Android pour que Hermes lise ou modifie les vrais fichiers, puis décrivez la tâche en langage naturel."
-            AppLanguage.ENGLISH -> "2. Grant a shared folder from Android's native picker so Hermes can read or edit the real files, then describe the file task in plain language."
+            AppLanguage.CHINESE -> "2. 如果你想让 Agent 直接读取或编辑真实文件，请通过 Android 原生选择器授予共享文件夹访问权限，然后用自然语言说明要处理的文件。"
+            AppLanguage.SPANISH -> "2. Concede una carpeta compartida desde el selector nativo de Android para que Agent lea o edite los archivos reales y luego describe la tarea en lenguaje natural."
+            AppLanguage.GERMAN -> "2. Gewähre über den nativen Android-Auswahldialog einen freigegebenen Ordner, damit Agent echte Dateien lesen oder bearbeiten kann, und beschreibe die Aufgabe dann in natürlicher Sprache."
+            AppLanguage.PORTUGUESE -> "2. Conceda uma pasta compartilhada no seletor nativo do Android para o Agent ler ou editar os arquivos reais e depois descreva a tarefa em linguagem natural."
+            AppLanguage.FRENCH -> "2. Accordez un dossier partagé via le sélecteur natif Android pour que Agent lise ou modifie les vrais fichiers, puis décrivez la tâche en langage naturel."
+            AppLanguage.ENGLISH -> "2. Grant a shared folder from Android's native picker so Agent can read or edit the real files, then describe the file task in plain language."
         }
         3 -> when (language) {
             AppLanguage.CHINESE -> "3. 只有在需要草稿副本或暂存文件时，才把文件导入工作区。"
@@ -2786,12 +2786,12 @@ data class HermesStrings(
             AppLanguage.ENGLISH -> "3. Import files into the workspace only when you want scratch copies or staging files."
         }
         4 -> when (language) {
-            AppLanguage.CHINESE -> "4. 如果你希望 Hermes 检查可见 UI 并触发更精确的操作，请启用 Hermes 无障碍服务。"
-            AppLanguage.SPANISH -> "4. Activa la accesibilidad de Hermes si quieres que inspeccione la UI visible y lance acciones más precisas además de Inicio, Atrás, Recientes, Notificaciones y Ajustes rápidos."
-            AppLanguage.GERMAN -> "4. Aktiviere die Hermes-Barrierefreiheit, wenn Hermes die sichtbare UI prüfen und gezielte Aktionen zusätzlich zu Start, Zurück, Letzte Apps, Benachrichtigungen und Schnelleinstellungen auslösen soll."
-            AppLanguage.PORTUGUESE -> "4. Ative a acessibilidade do Hermes se quiser que ele inspecione a UI visível e acione ações mais precisas além de Início, Voltar, Recentes, Notificações e Ajustes rápidos."
-            AppLanguage.FRENCH -> "4. Activez l’accessibilité Hermes si vous voulez qu’il inspecte l’interface visible et déclenche des actions ciblées en plus de Accueil, Retour, Récents, Notifications et Réglages rapides."
-            AppLanguage.ENGLISH -> "4. Enable Hermes accessibility if you want Hermes to inspect the visible UI and trigger targeted actions in addition to Home / Back / Recents / Notifications / Quick settings."
+            AppLanguage.CHINESE -> "4. 如果你希望 Agent 检查可见 UI 并触发更精确的操作，请启用 Agent 无障碍服务。"
+            AppLanguage.SPANISH -> "4. Activa la accesibilidad de Agent si quieres que inspeccione la UI visible y lance acciones más precisas además de Inicio, Atrás, Recientes, Notificaciones y Ajustes rápidos."
+            AppLanguage.GERMAN -> "4. Aktiviere die Agent-Barrierefreiheit, wenn Agent die sichtbare UI prüfen und gezielte Aktionen zusätzlich zu Start, Zurück, Letzte Apps, Benachrichtigungen und Schnelleinstellungen auslösen soll."
+            AppLanguage.PORTUGUESE -> "4. Ative a acessibilidade do Agent se quiser que ele inspecione a UI visível e acione ações mais precisas além de Início, Voltar, Recentes, Notificações e Ajustes rápidos."
+            AppLanguage.FRENCH -> "4. Activez l’accessibilité Agent si vous voulez qu’il inspecte l’interface visible et déclenche des actions ciblées en plus de Accueil, Retour, Récents, Notifications et Réglages rapides."
+            AppLanguage.ENGLISH -> "4. Enable Agent accessibility if you want Agent to inspect the visible UI and trigger targeted actions in addition to Home / Back / Recents / Notifications / Quick settings."
         }
         else -> ""
     }
@@ -3084,12 +3084,12 @@ data class HermesStrings(
     }
 
     fun portalActionDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "在 Hermes 启动时打开门户页面。"
-        AppLanguage.SPANISH -> "Abre la página del portal mientras Hermes arranca."
-        AppLanguage.GERMAN -> "Öffnet die Portal-Seite, während Hermes startet."
-        AppLanguage.PORTUGUESE -> "Abre a página do portal enquanto o Hermes inicia."
-        AppLanguage.FRENCH -> "Ouvre la page du portail pendant le démarrage de Hermes."
-        AppLanguage.ENGLISH -> "Open the portal page while Hermes boots."
+        AppLanguage.CHINESE -> "在 Agent 启动时打开门户页面。"
+        AppLanguage.SPANISH -> "Abre la página del portal mientras Agent arranca."
+        AppLanguage.GERMAN -> "Öffnet die Portal-Seite, während Agent startet."
+        AppLanguage.PORTUGUESE -> "Abre a página do portal enquanto o Agent inicia."
+        AppLanguage.FRENCH -> "Ouvre la page du portail pendant le démarrage de Agent."
+        AppLanguage.ENGLISH -> "Open the portal page while Agent boots."
     }
 
     fun deviceActionDescription(): String = when (language) {
@@ -3237,12 +3237,12 @@ data class HermesStrings(
     }
 
     fun authApiKeyFallbackDescription(label: String): String = when (language) {
-        AppLanguage.CHINESE -> "Hermes 会预选 $label，密钥会保存在 Android 加密存储中，并同步到本地 Python 运行时环境。"
-        AppLanguage.SPANISH -> "Hermes preseleccionará $label, guardará la clave en el almacenamiento cifrado de Android y la sincronizará con el runtime local de Python."
-        AppLanguage.GERMAN -> "Hermes wählt $label vor, speichert den Schlüssel verschlüsselt unter Android und synchronisiert ihn mit der lokalen Python-Runtime."
-        AppLanguage.PORTUGUESE -> "O Hermes vai pré-selecionar $label, salvar a chave no armazenamento criptografado do Android e sincronizá-la com o runtime Python local."
-        AppLanguage.FRENCH -> "Hermes présélectionnera $label, enregistrera la clé dans le stockage chiffré Android et la synchronisera avec le runtime Python local."
-        AppLanguage.ENGLISH -> "Hermes will preselect $label, save the key in Android encrypted storage, and sync it into the local Python runtime."
+        AppLanguage.CHINESE -> "Agent 会预选 $label，密钥会保存在 Android 加密存储中，并同步到本地 Python 运行时环境。"
+        AppLanguage.SPANISH -> "Agent preseleccionará $label, guardará la clave en el almacenamiento cifrado de Android y la sincronizará con el runtime local de Python."
+        AppLanguage.GERMAN -> "Agent wählt $label vor, speichert den Schlüssel verschlüsselt unter Android und synchronisiert ihn mit der lokalen Python-Runtime."
+        AppLanguage.PORTUGUESE -> "O Agent vai pré-selecionar $label, salvar a chave no armazenamento criptografado do Android e sincronizá-la com o runtime Python local."
+        AppLanguage.FRENCH -> "Agent présélectionnera $label, enregistrera la clé dans le stockage chiffré Android et la synchronisera avec le runtime Python local."
+        AppLanguage.ENGLISH -> "Agent will preselect $label, save the key in Android encrypted storage, and sync it into the local Python runtime."
     }
 
     fun useApiKeyInSettings(): String = when (language) {
@@ -3308,35 +3308,35 @@ data class HermesStrings(
                 AppLanguage.ENGLISH -> fallback
             }
             "chatgpt" -> when (language) {
-                AppLanguage.CHINESE -> "粘贴 ChatGPT Web 访问令牌并同步到 Hermes Android。"
-                AppLanguage.SPANISH -> "Pega un token de acceso de ChatGPT Web y sincronízalo con Hermes Android."
-                AppLanguage.GERMAN -> "Füge ein ChatGPT-Web-Zugriffstoken ein und synchronisiere es mit Hermes Android."
-                AppLanguage.PORTUGUESE -> "Cole um token de acesso do ChatGPT Web e sincronize-o com o Hermes Android."
-                AppLanguage.FRENCH -> "Collez un jeton d’accès ChatGPT Web et synchronisez-le avec Hermes Android."
+                AppLanguage.CHINESE -> "粘贴 ChatGPT Web 访问令牌并同步到 Agent Android。"
+                AppLanguage.SPANISH -> "Pega un token de acceso de ChatGPT Web y sincronízalo con Agent Android."
+                AppLanguage.GERMAN -> "Füge ein ChatGPT-Web-Zugriffstoken ein und synchronisiere es mit Agent Android."
+                AppLanguage.PORTUGUESE -> "Cole um token de acesso do ChatGPT Web e sincronize-o com o Agent Android."
+                AppLanguage.FRENCH -> "Collez un jeton d’accès ChatGPT Web et synchronisez-le avec Agent Android."
                 AppLanguage.ENGLISH -> fallback
             }
             "claude" -> when (language) {
-                AppLanguage.CHINESE -> "使用 Anthropic / Claude API 密钥进行 Hermes Android 远程模型调用。"
-                AppLanguage.SPANISH -> "Usa una clave API de Anthropic / Claude para llamadas remotas de Hermes Android."
-                AppLanguage.GERMAN -> "Nutze einen Anthropic-/Claude-API-Schlüssel für Hermes-Android-Remote-Modellaufrufe."
-                AppLanguage.PORTUGUESE -> "Use uma chave API Anthropic / Claude para chamadas remotas do Hermes Android."
-                AppLanguage.FRENCH -> "Utilisez une clé API Anthropic / Claude pour les appels de modèle distants Hermes Android."
+                AppLanguage.CHINESE -> "使用 Anthropic / Claude API 密钥进行 Agent Android 远程模型调用。"
+                AppLanguage.SPANISH -> "Usa una clave API de Anthropic / Claude para llamadas remotas de Agent Android."
+                AppLanguage.GERMAN -> "Nutze einen Anthropic-/Claude-API-Schlüssel für Agent-Android-Remote-Modellaufrufe."
+                AppLanguage.PORTUGUESE -> "Use uma chave API Anthropic / Claude para chamadas remotas do Agent Android."
+                AppLanguage.FRENCH -> "Utilisez une clé API Anthropic / Claude pour les appels de modèle distants Agent Android."
                 AppLanguage.ENGLISH -> fallback
             }
             "gemini" -> when (language) {
-                AppLanguage.CHINESE -> "使用 Google AI Studio / Gemini API 密钥进行 Hermes Android 远程模型调用。"
-                AppLanguage.SPANISH -> "Usa una clave API de Google AI Studio / Gemini para llamadas remotas de Hermes Android."
-                AppLanguage.GERMAN -> "Nutze einen Google-AI-Studio-/Gemini-API-Schlüssel für Hermes-Android-Remote-Modellaufrufe."
-                AppLanguage.PORTUGUESE -> "Use uma chave API Google AI Studio / Gemini para chamadas remotas do Hermes Android."
-                AppLanguage.FRENCH -> "Utilisez une clé API Google AI Studio / Gemini pour les appels de modèle distants Hermes Android."
+                AppLanguage.CHINESE -> "使用 Google AI Studio / Gemini API 密钥进行 Agent Android 远程模型调用。"
+                AppLanguage.SPANISH -> "Usa una clave API de Google AI Studio / Gemini para llamadas remotas de Agent Android."
+                AppLanguage.GERMAN -> "Nutze einen Google-AI-Studio-/Gemini-API-Schlüssel für Agent-Android-Remote-Modellaufrufe."
+                AppLanguage.PORTUGUESE -> "Use uma chave API Google AI Studio / Gemini para chamadas remotas do Agent Android."
+                AppLanguage.FRENCH -> "Utilisez une clé API Google AI Studio / Gemini pour les appels de modèle distants Agent Android."
                 AppLanguage.ENGLISH -> fallback
             }
             "qwen" -> when (language) {
-                AppLanguage.CHINESE -> "使用 Qwen Cloud / DashScope API 密钥进行 Hermes Android 远程模型调用。"
-                AppLanguage.SPANISH -> "Usa una clave API de Qwen Cloud / DashScope para llamadas remotas de Hermes Android."
-                AppLanguage.GERMAN -> "Nutze einen Qwen-Cloud-/DashScope-API-Schlüssel für Hermes-Android-Remote-Modellaufrufe."
-                AppLanguage.PORTUGUESE -> "Use uma chave API Qwen Cloud / DashScope para chamadas remotas do Hermes Android."
-                AppLanguage.FRENCH -> "Utilisez une clé API Qwen Cloud / DashScope pour les appels de modèle distants Hermes Android."
+                AppLanguage.CHINESE -> "使用 Qwen Cloud / DashScope API 密钥进行 Agent Android 远程模型调用。"
+                AppLanguage.SPANISH -> "Usa una clave API de Qwen Cloud / DashScope para llamadas remotas de Agent Android."
+                AppLanguage.GERMAN -> "Nutze einen Qwen-Cloud-/DashScope-API-Schlüssel für Agent-Android-Remote-Modellaufrufe."
+                AppLanguage.PORTUGUESE -> "Use uma chave API Qwen Cloud / DashScope para chamadas remotas do Agent Android."
+                AppLanguage.FRENCH -> "Utilisez une clé API Qwen Cloud / DashScope pour les appels de modèle distants Agent Android."
                 AppLanguage.ENGLISH -> fallback
             }
             "qwen-coding-plan" -> when (language) {
@@ -3356,11 +3356,11 @@ data class HermesStrings(
                 AppLanguage.ENGLISH -> fallback
             }
             "zai" -> when (language) {
-                AppLanguage.CHINESE -> "使用 Z.AI / GLM API 密钥进行 Hermes Android 远程模型调用。"
-                AppLanguage.SPANISH -> "Usa una clave API de Z.AI / GLM para llamadas remotas de Hermes Android."
-                AppLanguage.GERMAN -> "Nutze einen Z.AI-/GLM-API-Schlüssel für Hermes-Android-Remote-Modellaufrufe."
-                AppLanguage.PORTUGUESE -> "Use uma chave API Z.AI / GLM para chamadas remotas do Hermes Android."
-                AppLanguage.FRENCH -> "Utilisez une clé API Z.AI / GLM pour les appels de modèle distants Hermes Android."
+                AppLanguage.CHINESE -> "使用 Z.AI / GLM API 密钥进行 Agent Android 远程模型调用。"
+                AppLanguage.SPANISH -> "Usa una clave API de Z.AI / GLM para llamadas remotas de Agent Android."
+                AppLanguage.GERMAN -> "Nutze einen Z.AI-/GLM-API-Schlüssel für Agent-Android-Remote-Modellaufrufe."
+                AppLanguage.PORTUGUESE -> "Use uma chave API Z.AI / GLM para chamadas remotas do Agent Android."
+                AppLanguage.FRENCH -> "Utilisez une clé API Z.AI / GLM pour les appels de modèle distants Agent Android."
                 AppLanguage.ENGLISH -> fallback
             }
             else -> fallback
@@ -3404,12 +3404,12 @@ data class HermesStrings(
     }
 
     fun offlineAirplaneLocalModelsOnly(): String = when (language) {
-        AppLanguage.CHINESE -> "离线飞行模式已开启，因此 Hermes 只会使用已导入或已下载的本地模型。"
-        AppLanguage.SPANISH -> "El modo avión sin conexión está activo, por lo que Hermes solo usará modelos locales importados o ya descargados."
-        AppLanguage.GERMAN -> "Der Offline-Flugmodus ist aktiv; Hermes nutzt daher nur importierte oder bereits heruntergeladene lokale Modelle."
-        AppLanguage.PORTUGUESE -> "O modo avião offline está ativado, então o Hermes usará apenas modelos locais importados ou já baixados."
-        AppLanguage.FRENCH -> "Le mode avion hors ligne est actif ; Hermes utilisera donc seulement les modèles locaux importés ou déjà téléchargés."
-        AppLanguage.ENGLISH -> "Offline airplane mode is on, so Hermes will only use imported or already-downloaded local models."
+        AppLanguage.CHINESE -> "离线飞行模式已开启，因此 Agent 只会使用已导入或已下载的本地模型。"
+        AppLanguage.SPANISH -> "El modo avión sin conexión está activo, por lo que Agent solo usará modelos locales importados o ya descargados."
+        AppLanguage.GERMAN -> "Der Offline-Flugmodus ist aktiv; Agent nutzt daher nur importierte oder bereits heruntergeladene lokale Modelle."
+        AppLanguage.PORTUGUESE -> "O modo avião offline está ativado, então o Agent usará apenas modelos locais importados ou já baixados."
+        AppLanguage.FRENCH -> "Le mode avion hors ligne est actif ; Agent utilisera donc seulement les modèles locaux importés ou déjà téléchargés."
+        AppLanguage.ENGLISH -> "Offline airplane mode is on, so Agent will only use imported or already-downloaded local models."
     }
 
     fun recommendedLocalModelDescription(presetId: String, fallback: String): String = when (presetId) {
@@ -3454,11 +3454,11 @@ data class HermesStrings(
             AppLanguage.ENGLISH -> fallback
         }
         "gemma4-e2b-litert-lm" -> when (language) {
-            AppLanguage.CHINESE -> "Hermes 移动聊天的一等 Gemma 4 本地运行时目标，覆盖图像能力运行时管线、MTP 加速和 Android 代理工具。"
-            AppLanguage.SPANISH -> "Objetivo local Gemma 4 de primera clase para chat móvil de Hermes, con canalización de imagen, aceleración MTP y herramientas de agente Android."
-            AppLanguage.GERMAN -> "Erstklassiges lokales Gemma-4-Laufzeitziel für Hermes Mobile Chat mit Bild-Pipeline, MTP-Beschleunigung und Android-Agentenwerkzeugen."
-            AppLanguage.PORTUGUESE -> "Alvo local Gemma 4 de primeira classe para o chat móvel do Hermes, com suporte a imagem, aceleração MTP e ferramentas de agente Android."
-            AppLanguage.FRENCH -> "Cible locale Gemma 4 de premier niveau pour le chat mobile Hermes, avec pipeline image, accélération MTP et outils d’agent Android."
+            AppLanguage.CHINESE -> "Agent 移动聊天的一等 Gemma 4 本地运行时目标，覆盖图像能力运行时管线、MTP 加速和 Android 代理工具。"
+            AppLanguage.SPANISH -> "Objetivo local Gemma 4 de primera clase para chat móvil de Agent, con canalización de imagen, aceleración MTP y herramientas de agente Android."
+            AppLanguage.GERMAN -> "Erstklassiges lokales Gemma-4-Laufzeitziel für Agent Mobile Chat mit Bild-Pipeline, MTP-Beschleunigung und Android-Agentenwerkzeugen."
+            AppLanguage.PORTUGUESE -> "Alvo local Gemma 4 de primeira classe para o chat móvel do Agent, com suporte a imagem, aceleração MTP e ferramentas de agente Android."
+            AppLanguage.FRENCH -> "Cible locale Gemma 4 de premier niveau pour le chat mobile Agent, avec pipeline image, accélération MTP et outils d’agent Android."
             AppLanguage.ENGLISH -> fallback
         }
         "gemma4-e4b-litert-lm" -> when (language) {
@@ -3545,7 +3545,7 @@ data class HermesStrings(
         val replacements = when (language) {
             AppLanguage.CHINESE -> listOf(
                 "Release-certified" to "已通过发布认证",
-                "Experimental - not tested by Hermes" to "实验性 - 未经 Hermes 测试",
+                "Experimental - not tested by Agent" to "实验性 - 未经 Agent 测试",
                 "Cleared Hugging Face token" to "已清除 Hugging Face 令牌",
                 "Saved Hugging Face token for private or gated model downloads" to "已保存用于私有或受限模型下载的 Hugging Face 令牌",
                 "Tap Refresh catalog to load signed model choices when needed." to "需要时点按刷新目录以加载已签名的模型选项。",
@@ -3562,7 +3562,7 @@ data class HermesStrings(
                 "Model candidate inspected" to "模型候选项已检查",
                 "Queued " to "已将 ",
                 " in Android DownloadManager" to " 加入 Android 下载管理器",
-                "; Hermes will start it when Android finishes the download." to " 加入队列；Android 完成下载后 Hermes 会启动它。",
+                "; Agent will start it when Android finishes the download." to " 加入队列；Android 完成下载后 Agent 会启动它。",
                 " is already downloaded. Starting runtime…" to " 已下载。正在启动运行时…",
                 "Preparing " to "正在准备 ",
                 " from signed catalog…" to "（来自签名目录）…",
@@ -3572,7 +3572,7 @@ data class HermesStrings(
                 "Opened Android Downloads" to "已打开 Android 下载",
                 "Android Downloads is not available on this device" to "此设备没有 Android 下载界面",
                 "Marked this model as the preferred local runtime candidate" to "已将此模型标记为首选本地运行时候选项",
-                "Preferred model is ready. Starting Hermes runtime…" to "首选模型已准备好。正在启动 Hermes 运行时…",
+                "Preferred model is ready. Starting Agent runtime…" to "首选模型已准备好。正在启动 Agent 运行时…",
                 "Existing model file is present on disk" to "现有模型文件已存在于磁盘上",
                 "Download file is present on disk" to "下载文件已存在于磁盘上",
                 "Imported model file is missing on disk" to "导入的模型文件在磁盘上缺失",
@@ -3587,7 +3587,7 @@ data class HermesStrings(
             )
             AppLanguage.SPANISH -> listOf(
                 "Release-certified" to "Certificado para lanzamiento",
-                "Experimental - not tested by Hermes" to "Experimental - no probado por Hermes",
+                "Experimental - not tested by Agent" to "Experimental - no probado por Agent",
                 "Cleared Hugging Face token" to "Token de Hugging Face borrado",
                 "Saved Hugging Face token for private or gated model downloads" to "Token de Hugging Face guardado para descargas privadas o restringidas",
                 "Tap Refresh catalog to load signed model choices when needed." to "Toca Actualizar catálogo para cargar modelos firmados cuando sea necesario.",
@@ -3604,7 +3604,7 @@ data class HermesStrings(
                 "Model candidate inspected" to "Candidato de modelo inspeccionado",
                 "Queued " to "En cola ",
                 " in Android DownloadManager" to " en Android DownloadManager",
-                "; Hermes will start it when Android finishes the download." to "; Hermes lo iniciará cuando Android termine la descarga.",
+                "; Agent will start it when Android finishes the download." to "; Agent lo iniciará cuando Android termine la descarga.",
                 " is already downloaded. Starting runtime…" to " ya está descargado. Iniciando runtime…",
                 "Preparing " to "Preparando ",
                 " from signed catalog…" to " desde el catálogo firmado…",
@@ -3614,7 +3614,7 @@ data class HermesStrings(
                 "Opened Android Downloads" to "Descargas de Android abiertas",
                 "Android Downloads is not available on this device" to "Descargas de Android no está disponible en este dispositivo",
                 "Marked this model as the preferred local runtime candidate" to "Este modelo se marcó como candidato local preferido del runtime",
-                "Preferred model is ready. Starting Hermes runtime…" to "El modelo preferido está listo. Iniciando el runtime de Hermes…",
+                "Preferred model is ready. Starting Agent runtime…" to "El modelo preferido está listo. Iniciando el runtime de Agent…",
                 "Existing model file is present on disk" to "El archivo de modelo existente está en el disco",
                 "Download file is present on disk" to "El archivo descargado está en el disco",
                 "Imported model file is missing on disk" to "Falta el archivo de modelo importado en el disco",
@@ -3629,7 +3629,7 @@ data class HermesStrings(
             )
             AppLanguage.GERMAN -> listOf(
                 "Release-certified" to "Für die Veröffentlichung zertifiziert",
-                "Experimental - not tested by Hermes" to "Experimentell - nicht von Hermes getestet",
+                "Experimental - not tested by Agent" to "Experimentell - nicht von Agent getestet",
                 "Cleared Hugging Face token" to "Hugging-Face-Token gelöscht",
                 "Saved Hugging Face token for private or gated model downloads" to "Hugging-Face-Token für private oder beschränkte Modell-Downloads gespeichert",
                 "Tap Refresh catalog to load signed model choices when needed." to "Tippe bei Bedarf auf Katalog aktualisieren, um signierte Modelloptionen zu laden.",
@@ -3646,7 +3646,7 @@ data class HermesStrings(
                 "Model candidate inspected" to "Modellkandidat geprüft",
                 "Queued " to "In Warteschlange: ",
                 " in Android DownloadManager" to " im Android-Downloadmanager",
-                "; Hermes will start it when Android finishes the download." to "; Hermes startet es, wenn Android den Download beendet.",
+                "; Agent will start it when Android finishes the download." to "; Agent startet es, wenn Android den Download beendet.",
                 " is already downloaded. Starting runtime…" to " ist bereits heruntergeladen. Laufzeit wird gestartet…",
                 "Preparing " to "Vorbereitung von ",
                 " from signed catalog…" to " aus dem signierten Katalog…",
@@ -3656,7 +3656,7 @@ data class HermesStrings(
                 "Opened Android Downloads" to "Android-Downloads geöffnet",
                 "Android Downloads is not available on this device" to "Android-Downloads ist auf diesem Gerät nicht verfügbar",
                 "Marked this model as the preferred local runtime candidate" to "Dieses Modell wurde als bevorzugter lokaler Laufzeitkandidat markiert",
-                "Preferred model is ready. Starting Hermes runtime…" to "Bevorzugtes Modell ist bereit. Hermes-Laufzeit wird gestartet…",
+                "Preferred model is ready. Starting Agent runtime…" to "Bevorzugtes Modell ist bereit. Agent-Laufzeit wird gestartet…",
                 "Existing model file is present on disk" to "Vorhandene Modelldatei ist auf dem Datenträger",
                 "Download file is present on disk" to "Download-Datei ist auf dem Datenträger",
                 "Imported model file is missing on disk" to "Importierte Modelldatei fehlt auf dem Datenträger",
@@ -3671,7 +3671,7 @@ data class HermesStrings(
             )
             AppLanguage.PORTUGUESE -> listOf(
                 "Release-certified" to "Certificado para lançamento",
-                "Experimental - not tested by Hermes" to "Experimental - não testado pelo Hermes",
+                "Experimental - not tested by Agent" to "Experimental - não testado pelo Agent",
                 "Cleared Hugging Face token" to "Token do Hugging Face apagado",
                 "Saved Hugging Face token for private or gated model downloads" to "Token do Hugging Face salvo para downloads privados ou restritos",
                 "Tap Refresh catalog to load signed model choices when needed." to "Toque em Atualizar catálogo para carregar modelos assinados quando necessário.",
@@ -3688,7 +3688,7 @@ data class HermesStrings(
                 "Model candidate inspected" to "Candidato de modelo inspecionado",
                 "Queued " to "Na fila ",
                 " in Android DownloadManager" to " no Android DownloadManager",
-                "; Hermes will start it when Android finishes the download." to "; o Hermes vai iniciá-lo quando o Android terminar o download.",
+                "; Agent will start it when Android finishes the download." to "; o Agent vai iniciá-lo quando o Android terminar o download.",
                 " is already downloaded. Starting runtime…" to " já está baixado. Iniciando runtime…",
                 "Preparing " to "Preparando ",
                 " from signed catalog…" to " do catálogo assinado…",
@@ -3698,7 +3698,7 @@ data class HermesStrings(
                 "Opened Android Downloads" to "Downloads do Android abertos",
                 "Android Downloads is not available on this device" to "Downloads do Android não está disponível neste dispositivo",
                 "Marked this model as the preferred local runtime candidate" to "Este modelo foi marcado como candidato local preferido do runtime",
-                "Preferred model is ready. Starting Hermes runtime…" to "O modelo preferido está pronto. Iniciando o runtime do Hermes…",
+                "Preferred model is ready. Starting Agent runtime…" to "O modelo preferido está pronto. Iniciando o runtime do Agent…",
                 "Existing model file is present on disk" to "O arquivo de modelo existente está no disco",
                 "Download file is present on disk" to "O arquivo baixado está no disco",
                 "Imported model file is missing on disk" to "O arquivo de modelo importado está ausente no disco",
@@ -3713,7 +3713,7 @@ data class HermesStrings(
             )
             AppLanguage.FRENCH -> listOf(
                 "Release-certified" to "Certifié pour la publication",
-                "Experimental - not tested by Hermes" to "Expérimental - non testé par Hermes",
+                "Experimental - not tested by Agent" to "Expérimental - non testé par Agent",
                 "Cleared Hugging Face token" to "Jeton Hugging Face effacé",
                 "Saved Hugging Face token for private or gated model downloads" to "Jeton Hugging Face enregistré pour les téléchargements privés ou restreints",
                 "Tap Refresh catalog to load signed model choices when needed." to "Touchez Actualiser le catalogue pour charger les modèles signés au besoin.",
@@ -3730,7 +3730,7 @@ data class HermesStrings(
                 "Model candidate inspected" to "Modèle candidat inspecté",
                 "Queued " to "Mis en file : ",
                 " in Android DownloadManager" to " dans Android DownloadManager",
-                "; Hermes will start it when Android finishes the download." to " ; Hermes le démarrera quand Android aura terminé le téléchargement.",
+                "; Agent will start it when Android finishes the download." to " ; Agent le démarrera quand Android aura terminé le téléchargement.",
                 " is already downloaded. Starting runtime…" to " est déjà téléchargé. Démarrage du runtime…",
                 "Preparing " to "Préparation de ",
                 " from signed catalog…" to " depuis le catalogue signé…",
@@ -3740,7 +3740,7 @@ data class HermesStrings(
                 "Opened Android Downloads" to "Téléchargements Android ouvert",
                 "Android Downloads is not available on this device" to "Téléchargements Android n’est pas disponible sur cet appareil",
                 "Marked this model as the preferred local runtime candidate" to "Ce modèle a été marqué comme candidat local préféré du runtime",
-                "Preferred model is ready. Starting Hermes runtime…" to "Le modèle préféré est prêt. Démarrage du runtime Hermes…",
+                "Preferred model is ready. Starting Agent runtime…" to "Le modèle préféré est prêt. Démarrage du runtime Agent…",
                 "Existing model file is present on disk" to "Le fichier modèle existant est présent sur le disque",
                 "Download file is present on disk" to "Le fichier téléchargé est présent sur le disque",
                 "Imported model file is missing on disk" to "Le fichier modèle importé est absent du disque",
@@ -3763,21 +3763,21 @@ data class HermesStrings(
     }
 
     fun localDownloadsExampleGuidance(): String = when (language) {
-        AppLanguage.CHINESE -> "输入任意 Hugging Face 仓库、hf:// 仓库、仓库页面 URL、resolve URL 或直接文件 URL。Hermes 会优先尝试推断与当前运行时匹配的文件；如果仓库里没有明显的 GGUF / LiteRT-LM 文件，就会退回到另一个看起来像模型工件的文件，并把最终是否可运行交给所选后端决定。若想固定具体文件，可填写仓库内文件路径。示例：GGUF 可用 `Qwen/Qwen2.5-1.5B-Instruct-GGUF`；LiteRT-LM 可用 `litert-community/Phi-4-mini-instruct`。"
-        AppLanguage.SPANISH -> "Introduce cualquier repo de Hugging Face, un repo hf://, la URL de la página del repo, una URL resolve o una URL directa al archivo. Hermes intentará priorizar un archivo nativo del runtime cuando pueda inferirlo; si el repo no expone un GGUF / LiteRT-LM claro, hará fallback a otro artefacto que parezca de modelo y dejará que el backend elegido decida si puede cargarlo. Si quieres fijar un archivo exacto, completa la ruta interna del repo. Ejemplos: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
-        AppLanguage.GERMAN -> "Gib ein beliebiges Hugging-Face-Repo, ein hf://-Repo, eine Repo-Seiten-URL, eine Resolve-URL oder eine direkte Datei-URL ein. Hermes bevorzugt nach Möglichkeit eine runtime-native Datei; wenn das Repo kein klares GGUF / LiteRT-LM-Artefakt enthält, fällt Hermes auf eine andere modellartige Datei zurück und überlässt dem gewählten Backend die endgültige Kompatibilitätsentscheidung. Wenn du eine bestimmte Datei erzwingen willst, trage den Pfad im Repo ein. Beispiele: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
-        AppLanguage.PORTUGUESE -> "Insira qualquer repositório do Hugging Face, um repositório hf://, a URL da página do repositório, uma URL resolve ou uma URL direta do arquivo. O Hermes tenta priorizar um arquivo nativo do runtime quando consegue inferi-lo; se o repositório não expuser um GGUF / LiteRT-LM claro, ele faz fallback para outro artefato com cara de modelo e deixa o backend escolhido decidir se consegue carregá-lo. Se quiser fixar um arquivo exato, preencha o caminho interno do repositório. Exemplos: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
-        AppLanguage.FRENCH -> "Saisissez n’importe quel dépôt Hugging Face, un dépôt hf://, l’URL de la page du dépôt, une URL resolve ou une URL directe de fichier. Hermes essaie de privilégier un fichier natif pour le runtime lorsqu’il peut l’inférer ; si le dépôt n’expose pas clairement un artefact GGUF / LiteRT-LM, Hermes se rabat sur un autre artefact ressemblant à un modèle et laisse le backend choisi décider s’il peut le charger. Si vous voulez forcer un fichier précis, renseignez le chemin du fichier dans le dépôt. Exemples : GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF` ; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
-        AppLanguage.ENGLISH -> "Enter any Hugging Face repo, hf:// repo, repo page URL, resolve URL, or direct file URL. Hermes will try to prefer a runtime-native file when it can infer one; if the repo does not expose a clear GGUF / LiteRT-LM artifact, Hermes falls back to another likely model artifact and lets the selected backend decide whether it can load it. If you want to pin an exact file, fill in the repo file path. Examples: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.CHINESE -> "输入任意 Hugging Face 仓库、hf:// 仓库、仓库页面 URL、resolve URL 或直接文件 URL。Agent 会优先尝试推断与当前运行时匹配的文件；如果仓库里没有明显的 GGUF / LiteRT-LM 文件，就会退回到另一个看起来像模型工件的文件，并把最终是否可运行交给所选后端决定。若想固定具体文件，可填写仓库内文件路径。示例：GGUF 可用 `Qwen/Qwen2.5-1.5B-Instruct-GGUF`；LiteRT-LM 可用 `litert-community/Phi-4-mini-instruct`。"
+        AppLanguage.SPANISH -> "Introduce cualquier repo de Hugging Face, un repo hf://, la URL de la página del repo, una URL resolve o una URL directa al archivo. Agent intentará priorizar un archivo nativo del runtime cuando pueda inferirlo; si el repo no expone un GGUF / LiteRT-LM claro, hará fallback a otro artefacto que parezca de modelo y dejará que el backend elegido decida si puede cargarlo. Si quieres fijar un archivo exacto, completa la ruta interna del repo. Ejemplos: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.GERMAN -> "Gib ein beliebiges Hugging-Face-Repo, ein hf://-Repo, eine Repo-Seiten-URL, eine Resolve-URL oder eine direkte Datei-URL ein. Agent bevorzugt nach Möglichkeit eine runtime-native Datei; wenn das Repo kein klares GGUF / LiteRT-LM-Artefakt enthält, fällt Agent auf eine andere modellartige Datei zurück und überlässt dem gewählten Backend die endgültige Kompatibilitätsentscheidung. Wenn du eine bestimmte Datei erzwingen willst, trage den Pfad im Repo ein. Beispiele: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.PORTUGUESE -> "Insira qualquer repositório do Hugging Face, um repositório hf://, a URL da página do repositório, uma URL resolve ou uma URL direta do arquivo. O Agent tenta priorizar um arquivo nativo do runtime quando consegue inferi-lo; se o repositório não expuser um GGUF / LiteRT-LM claro, ele faz fallback para outro artefato com cara de modelo e deixa o backend escolhido decidir se consegue carregá-lo. Se quiser fixar um arquivo exato, preencha o caminho interno do repositório. Exemplos: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.FRENCH -> "Saisissez n’importe quel dépôt Hugging Face, un dépôt hf://, l’URL de la page du dépôt, une URL resolve ou une URL directe de fichier. Agent essaie de privilégier un fichier natif pour le runtime lorsqu’il peut l’inférer ; si le dépôt n’expose pas clairement un artefact GGUF / LiteRT-LM, Agent se rabat sur un autre artefact ressemblant à un modèle et laisse le backend choisi décider s’il peut le charger. Si vous voulez forcer un fichier précis, renseignez le chemin du fichier dans le dépôt. Exemples : GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF` ; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
+        AppLanguage.ENGLISH -> "Enter any Hugging Face repo, hf:// repo, repo page URL, resolve URL, or direct file URL. Agent will try to prefer a runtime-native file when it can infer one; if the repo does not expose a clear GGUF / LiteRT-LM artifact, Agent falls back to another likely model artifact and lets the selected backend decide whether it can load it. If you want to pin an exact file, fill in the repo file path. Examples: GGUF `Qwen/Qwen2.5-1.5B-Instruct-GGUF`; LiteRT-LM `litert-community/Phi-4-mini-instruct`."
     }
 
     fun downloadManagerReliabilityDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "意外断线会由 Android DownloadManager 安全处理。如果手机在下载过程中关机，Hermes 会在重启后重新加载已保存的进度。若移动数据一直暂停，请打开系统下载界面，或使用下方按钮在允许移动数据 / 漫游后重新开始。"
-        AppLanguage.SPANISH -> "Android DownloadManager maneja con seguridad las pérdidas de conexión inesperadas. Si el teléfono se apaga a mitad de la descarga, Hermes volverá a cargar el progreso guardado al reiniciarse. Si los datos móviles siguen pausados, abre la pantalla de descargas del sistema o reinicia la descarga abajo permitiendo datos móviles / roaming."
-        AppLanguage.GERMAN -> "Unerwartete Verbindungsabbrüche werden vom Android-Downloadmanager sicher behandelt. Wenn sich das Telefon mitten im Download ausschaltet, lädt Hermes den gespeicherten Fortschritt nach dem Neustart erneut. Falls mobile Daten weiter pausiert bleiben, öffne die System-Downloads oder starte den Download unten mit erlaubten mobilen Daten / Roaming neu."
-        AppLanguage.PORTUGUESE -> "Perdas inesperadas de conexão são tratadas com segurança pelo Android DownloadManager. Se o telefone desligar no meio do download, o Hermes recarrega o progresso salvo após reiniciar. Se os dados móveis continuarem pausados, abra a tela de downloads do sistema ou reinicie abaixo permitindo dados móveis / roaming."
-        AppLanguage.FRENCH -> "Les pertes de connexion inattendues sont gérées en toute sécurité par Android DownloadManager. Si le téléphone s’éteint pendant le téléchargement, Hermes recharge la progression enregistrée après le redémarrage. Si les données mobiles restent bloquées, ouvrez l’écran de téléchargements système ou relancez ci-dessous en autorisant les données mobiles / l’itinérance."
-        AppLanguage.ENGLISH -> "Unexpected connection loss is handled safely by Android DownloadManager. If the phone shuts down mid-download, Hermes reloads the saved progress after restart. If mobile data stays paused, open the system Downloads screen or restart below with mobile data / roaming allowed."
+        AppLanguage.CHINESE -> "意外断线会由 Android DownloadManager 安全处理。如果手机在下载过程中关机，Agent 会在重启后重新加载已保存的进度。若移动数据一直暂停，请打开系统下载界面，或使用下方按钮在允许移动数据 / 漫游后重新开始。"
+        AppLanguage.SPANISH -> "Android DownloadManager maneja con seguridad las pérdidas de conexión inesperadas. Si el teléfono se apaga a mitad de la descarga, Agent volverá a cargar el progreso guardado al reiniciarse. Si los datos móviles siguen pausados, abre la pantalla de descargas del sistema o reinicia la descarga abajo permitiendo datos móviles / roaming."
+        AppLanguage.GERMAN -> "Unerwartete Verbindungsabbrüche werden vom Android-Downloadmanager sicher behandelt. Wenn sich das Telefon mitten im Download ausschaltet, lädt Agent den gespeicherten Fortschritt nach dem Neustart erneut. Falls mobile Daten weiter pausiert bleiben, öffne die System-Downloads oder starte den Download unten mit erlaubten mobilen Daten / Roaming neu."
+        AppLanguage.PORTUGUESE -> "Perdas inesperadas de conexão são tratadas com segurança pelo Android DownloadManager. Se o telefone desligar no meio do download, o Agent recarrega o progresso salvo após reiniciar. Se os dados móveis continuarem pausados, abra a tela de downloads do sistema ou reinicie abaixo permitindo dados móveis / roaming."
+        AppLanguage.FRENCH -> "Les pertes de connexion inattendues sont gérées en toute sécurité par Android DownloadManager. Si le téléphone s’éteint pendant le téléchargement, Agent recharge la progression enregistrée après le redémarrage. Si les données mobiles restent bloquées, ouvrez l’écran de téléchargements système ou relancez ci-dessous en autorisant les données mobiles / l’itinérance."
+        AppLanguage.ENGLISH -> "Unexpected connection loss is handled safely by Android DownloadManager. If the phone shuts down mid-download, Agent reloads the saved progress after restart. If mobile data stays paused, open the system Downloads screen or restart below with mobile data / roaming allowed."
     }
 
     fun localDownloadStatusLabel(status: String): String {
@@ -3866,12 +3866,12 @@ data class HermesStrings(
     }
 
     fun quickLocalModelsDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "选择已验证的移动模型。Hermes 会下载、设为首选，并在文件准备好后自动启动本地运行时。"
-        AppLanguage.SPANISH -> "Elige un modelo móvil validado. Hermes lo descarga, lo marca como preferido e inicia el runtime local cuando el archivo está listo."
-        AppLanguage.GERMAN -> "Wähle ein validiertes Mobilmodell. Hermes lädt es, markiert es als bevorzugt und startet die lokale Laufzeit, sobald die Datei bereit ist."
-        AppLanguage.PORTUGUESE -> "Escolha um modelo móvel validado. O Hermes baixa, marca como preferido e inicia o runtime local quando o arquivo estiver pronto."
-        AppLanguage.FRENCH -> "Choisissez un modèle mobile validé. Hermes le télécharge, le marque comme préféré et démarre le runtime local dès que le fichier est prêt."
-        AppLanguage.ENGLISH -> "Choose a validated mobile model. Hermes downloads it, marks it preferred, and starts the local runtime when the file is ready."
+        AppLanguage.CHINESE -> "选择已验证的移动模型。Agent 会下载、设为首选，并在文件准备好后自动启动本地运行时。"
+        AppLanguage.SPANISH -> "Elige un modelo móvil validado. Agent lo descarga, lo marca como preferido e inicia el runtime local cuando el archivo está listo."
+        AppLanguage.GERMAN -> "Wähle ein validiertes Mobilmodell. Agent lädt es, markiert es als bevorzugt und startet die lokale Laufzeit, sobald die Datei bereit ist."
+        AppLanguage.PORTUGUESE -> "Escolha um modelo móvel validado. O Agent baixa, marca como preferido e inicia o runtime local quando o arquivo estiver pronto."
+        AppLanguage.FRENCH -> "Choisissez un modèle mobile validé. Agent le télécharge, le marque comme préféré et démarre le runtime local dès que le fichier est prêt."
+        AppLanguage.ENGLISH -> "Choose a validated mobile model. Agent downloads it, marks it preferred, and starts the local runtime when the file is ready."
     }
 
     fun detectedModelCatalogTitle(): String = when (language) {
@@ -3884,12 +3884,12 @@ data class HermesStrings(
     }
 
     fun detectedModelCatalogDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "从已签名的 Cloudflare 目录选择一个模型。Hermes 会验证签名，然后通过 Hugging Face 下载所选文件。"
-        AppLanguage.SPANISH -> "Elige un modelo del catálogo firmado de Cloudflare. Hermes verifica la firma y descarga el archivo seleccionado desde Hugging Face."
-        AppLanguage.GERMAN -> "Wähle ein Modell aus dem signierten Cloudflare-Katalog. Hermes prüft die Signatur und lädt die ausgewählte Datei von Hugging Face."
-        AppLanguage.PORTUGUESE -> "Escolha um modelo do catálogo assinado da Cloudflare. O Hermes verifica a assinatura e baixa o arquivo selecionado pelo Hugging Face."
-        AppLanguage.FRENCH -> "Choisissez un modèle dans le catalogue Cloudflare signé. Hermes vérifie la signature puis télécharge le fichier choisi depuis Hugging Face."
-        AppLanguage.ENGLISH -> "Choose a model from the signed Cloudflare catalog. Hermes verifies the signature, then downloads the selected file from Hugging Face."
+        AppLanguage.CHINESE -> "从已签名的 Cloudflare 目录选择一个模型。Agent 会验证签名，然后通过 Hugging Face 下载所选文件。"
+        AppLanguage.SPANISH -> "Elige un modelo del catálogo firmado de Cloudflare. Agent verifica la firma y descarga el archivo seleccionado desde Hugging Face."
+        AppLanguage.GERMAN -> "Wähle ein Modell aus dem signierten Cloudflare-Katalog. Agent prüft die Signatur und lädt die ausgewählte Datei von Hugging Face."
+        AppLanguage.PORTUGUESE -> "Escolha um modelo do catálogo assinado da Cloudflare. O Agent verifica a assinatura e baixa o arquivo selecionado pelo Hugging Face."
+        AppLanguage.FRENCH -> "Choisissez un modèle dans le catalogue Cloudflare signé. Agent vérifie la signature puis télécharge le fichier choisi depuis Hugging Face."
+        AppLanguage.ENGLISH -> "Choose a model from the signed Cloudflare catalog. Agent verifies the signature, then downloads the selected file from Hugging Face."
     }
 
     fun detectedModelDropdownPlaceholder(): String = when (language) {
@@ -3947,12 +3947,12 @@ data class HermesStrings(
     }
 
     fun remoteFallbackDescription(): String = when (language) {
-        AppLanguage.CHINESE -> "本地模型不可用时，Hermes 可以使用远程 OpenAI 兼容提供商。点一个提供商即可填入常用默认值；设置会打开官方密钥或登录页面。"
-        AppLanguage.SPANISH -> "Cuando no haya un modelo local disponible, Hermes puede usar un proveedor remoto compatible con OpenAI. Toca un proveedor para rellenar valores comunes; la configuración abre la página oficial de claves o inicio de sesión."
-        AppLanguage.GERMAN -> "Wenn kein lokales Modell verfügbar ist, kann Hermes einen OpenAI-kompatiblen Remote-Anbieter nutzen. Tippe auf einen Anbieter, um Standardwerte einzutragen; die Einrichtung öffnet die offizielle Schlüssel- oder Anmeldeseite."
-        AppLanguage.PORTUGUESE -> "Quando não houver modelo local disponível, o Hermes pode usar um provedor remoto compatível com OpenAI. Toque em um provedor para preencher padrões comuns; a configuração abre a página oficial de chaves ou login."
-        AppLanguage.FRENCH -> "Quand aucun modèle local n’est disponible, Hermes peut utiliser un fournisseur distant compatible OpenAI. Touchez un fournisseur pour remplir les valeurs courantes ; la configuration ouvre la page officielle de clés ou de connexion."
-        AppLanguage.ENGLISH -> "When no local model is available, Hermes can use a remote OpenAI-compatible provider. Tap a provider to fill common defaults; setup opens the official key or sign-in page."
+        AppLanguage.CHINESE -> "本地模型不可用时，Agent 可以使用远程 OpenAI 兼容提供商。点一个提供商即可填入常用默认值；设置会打开官方密钥或登录页面。"
+        AppLanguage.SPANISH -> "Cuando no haya un modelo local disponible, Agent puede usar un proveedor remoto compatible con OpenAI. Toca un proveedor para rellenar valores comunes; la configuración abre la página oficial de claves o inicio de sesión."
+        AppLanguage.GERMAN -> "Wenn kein lokales Modell verfügbar ist, kann Agent einen OpenAI-kompatiblen Remote-Anbieter nutzen. Tippe auf einen Anbieter, um Standardwerte einzutragen; die Einrichtung öffnet die offizielle Schlüssel- oder Anmeldeseite."
+        AppLanguage.PORTUGUESE -> "Quando não houver modelo local disponível, o Agent pode usar um provedor remoto compatível com OpenAI. Toque em um provedor para preencher padrões comuns; a configuração abre a página oficial de chaves ou login."
+        AppLanguage.FRENCH -> "Quand aucun modèle local n’est disponible, Agent peut utiliser un fournisseur distant compatible OpenAI. Touchez un fournisseur pour remplir les valeurs courantes ; la configuration ouvre la page officielle de clés ou de connexion."
+        AppLanguage.ENGLISH -> "When no local model is available, Agent can use a remote OpenAI-compatible provider. Tap a provider to fill common defaults; setup opens the official key or sign-in page."
     }
 
     fun remoteOnly(): String = when (language) {
@@ -4057,12 +4057,12 @@ data class HermesStrings(
 
     fun kanbanTitle(): String = tr("Kanban", "看板", "Kanban", "Kanban", "Kanban", "Kanban")
     fun kanbanDescription(): String = tr(
-        "Human board control for the shared Hermes kanban DB. Workers still need the gateway dispatcher.",
-        "管理共享 Hermes 看板数据库。工作代理仍需网关调度器。",
-        "Control humano del tablero compartido de Hermes. Los agentes aún necesitan el despachador de la pasarela.",
-        "Manuelle Steuerung des gemeinsamen Hermes-Kanban-Boards. Worker benötigen weiterhin den Gateway-Dispatcher.",
-        "Controle humano do quadro Hermes compartilhado. Os agentes ainda precisam do despachante do gateway.",
-        "Contrôle humain du tableau Hermes partagé. Les agents ont encore besoin du répartiteur de passerelle.",
+        "Human board control for the shared Agent kanban DB. Workers still need the gateway dispatcher.",
+        "管理共享 Agent 看板数据库。工作代理仍需网关调度器。",
+        "Control humano del tablero compartido de Agent. Los agentes aún necesitan el despachador de la pasarela.",
+        "Manuelle Steuerung des gemeinsamen Agent-Kanban-Boards. Worker benötigen weiterhin den Gateway-Dispatcher.",
+        "Controle humano do quadro Agent compartilhado. Os agentes ainda precisam do despachante do gateway.",
+        "Contrôle humain du tableau Agent partagé. Les agents ont encore besoin du répartiteur de passerelle.",
     )
     fun kanbanRefresh(): String = tr("Refresh board", "刷新看板", "Actualizar tablero", "Board aktualisieren", "Atualizar quadro", "Actualiser le tableau")
     fun kanbanRefreshDescription(): String = tr(
@@ -4097,8 +4097,8 @@ data class HermesStrings(
     fun kanbanComment(): String = tr("Comment", "评论", "Comentario", "Kommentar", "Comentário", "Commentaire")
     fun kanbanAdd(): String = tr("Add", "添加", "Añadir", "Hinzufügen", "Adicionar", "Ajouter")
     fun kanbanRuntimeText(text: String): String = when (text.trim()) {
-        "Waiting for Hermes runtime…" -> tr("Waiting for Hermes runtime…", "正在等待 Hermes 运行时…", "Esperando el runtime de Hermes…", "Warten auf die Hermes-Laufzeit…", "Aguardando o runtime do Hermes…", "En attente du runtime Hermes…")
-        "Waiting for Hermes Python runtime…" -> tr("Waiting for Hermes Python runtime…", "正在等待 Hermes Python 运行时…", "Esperando el runtime Python de Hermes…", "Warten auf die Hermes-Python-Laufzeit…", "Aguardando o runtime Python do Hermes…", "En attente du runtime Python Hermes…")
+        "Waiting for Agent runtime…" -> tr("Waiting for Agent runtime…", "正在等待 Agent 运行时…", "Esperando el runtime de Agent…", "Warten auf die Agent-Laufzeit…", "Aguardando o runtime do Agent…", "En attente du runtime Agent…")
+        "Waiting for Agent Python runtime…" -> tr("Waiting for Agent Python runtime…", "正在等待 Agent Python 运行时…", "Esperando el runtime Python de Agent…", "Warten auf die Agent-Python-Laufzeit…", "Aguardando o runtime Python do Agent…", "En attente du runtime Python Agent…")
         "Board refreshed" -> tr("Board refreshed", "看板已刷新", "Tablero actualizado", "Board aktualisiert", "Quadro atualizado", "Tableau actualisé")
         "Task created" -> tr("Task created", "任务已创建", "Tarea creada", "Aufgabe erstellt", "Tarefa criada", "Tâche créée")
         "Updated" -> tr("Updated", "已更新", "Actualizado", "Aktualisiert", "Atualizado", "Mis à jour")
@@ -4152,9 +4152,9 @@ data class HermesStrings(
     )
     fun noAutomations(): String = tr("No automations", "无自动化", "Sin automatizaciones", "Keine Automatisierungen", "Sem automações", "Aucune automatisation")
     fun automationsEmpty(): String = tr(
-        "No automations yet. Ask Hermes to schedule a task or create one via agent tools.", "暂无自动化。请让 Hermes 安排任务，或通过代理工具创建一个。",
-        "Aún no hay automatizaciones. Pide a Hermes que programe una tarea o crea una con las herramientas del agente.", "Noch keine Automatisierungen. Bitte Hermes, eine Aufgabe zu planen, oder erstelle sie mit Agentenwerkzeugen.",
-        "Ainda não há automações. Peça ao Hermes para agendar uma tarefa ou crie uma pelas ferramentas do agente.", "Aucune automatisation. Demandez à Hermes de planifier une tâche ou créez-en une avec les outils de l’agent.",
+        "No automations yet. Ask Agent to schedule a task or create one via agent tools.", "暂无自动化。请让 Agent 安排任务，或通过代理工具创建一个。",
+        "Aún no hay automatizaciones. Pide a Agent que programe una tarea o crea una con las herramientas del agente.", "Noch keine Automatisierungen. Bitte Agent, eine Aufgabe zu planen, oder erstelle sie mit Agentenwerkzeugen.",
+        "Ainda não há automações. Peça ao Agent para agendar uma tarefa ou crie uma pelas ferramentas do agente.", "Aucune automatisation. Demandez à Agent de planifier une tâche ou créez-en une avec les outils de l’agent.",
     )
     fun onLabel(): String = tr("On", "开", "Activado", "Ein", "Ligado", "Activé")
     fun offLabel(): String = tr("Off", "关", "Desactivado", "Aus", "Desligado", "Désactivé")
@@ -4167,20 +4167,20 @@ data class HermesStrings(
 
     fun skillsTitle(): String = tr("Skills", "技能", "Habilidades", "Skills", "Habilidades", "Compétences")
     fun skillsDescription(): String = tr(
-        "Installed Hermes skills from hermes-home and bundled skill directories.", "来自 hermes-home 和内置技能目录的已安装 Hermes 技能。",
-        "Habilidades de Hermes instaladas desde hermes-home y los directorios incluidos.", "Installierte Hermes-Skills aus hermes-home und den mitgelieferten Skill-Verzeichnissen.",
-        "Habilidades do Hermes instaladas do hermes-home e dos diretórios incluídos.", "Compétences Hermes installées depuis hermes-home et les répertoires intégrés.",
+        "Installed Agent skills from hermes-home and bundled skill directories.", "来自 hermes-home 和内置技能目录的已安装 Agent 技能。",
+        "Habilidades de Agent instaladas desde hermes-home y los directorios incluidos.", "Installierte Agent-Skills aus hermes-home und den mitgelieferten Skill-Verzeichnissen.",
+        "Habilidades do Agent instaladas do hermes-home e dos diretórios incluídos.", "Compétences Agent installées depuis hermes-home et les répertoires intégrés.",
     )
     fun skillsEmpty(): String = tr(
-        "No skills found yet. They appear after Hermes boot syncs bundled skills.", "尚未找到技能。Hermes 启动并同步内置技能后会显示在此处。",
-        "Aún no se encontraron habilidades. Aparecerán después de que Hermes sincronice las incluidas al arrancar.", "Noch keine Skills gefunden. Sie erscheinen, nachdem Hermes beim Start die mitgelieferten Skills synchronisiert hat.",
-        "Nenhuma habilidade encontrada. Elas aparecem depois que o Hermes sincroniza as habilidades incluídas ao iniciar.", "Aucune compétence trouvée. Elles apparaîtront après la synchronisation au démarrage de Hermes.",
+        "No skills found yet. They appear after Agent boot syncs bundled skills.", "尚未找到技能。Agent 启动并同步内置技能后会显示在此处。",
+        "Aún no se encontraron habilidades. Aparecerán después de que Agent sincronice las incluidas al arrancar.", "Noch keine Skills gefunden. Sie erscheinen, nachdem Agent beim Start die mitgelieferten Skills synchronisiert hat.",
+        "Nenhuma habilidade encontrada. Elas aparecem depois que o Agent sincroniza as habilidades incluídas ao iniciar.", "Aucune compétence trouvée. Elles apparaîtront après la synchronisation au démarrage de Agent.",
     )
     fun skillsStatusText(text: String): String {
         val refreshed = Regex("Skills refreshed \\((\\d+)\\)").matchEntire(text.trim())?.groupValues?.get(1)
         if (refreshed != null) return tr("Skills refreshed ($refreshed)", "技能已刷新（$refreshed）", "Habilidades actualizadas ($refreshed)", "Skills aktualisiert ($refreshed)", "Habilidades atualizadas ($refreshed)", "Compétences actualisées ($refreshed)")
         return when (text.trim()) {
-            "Waiting for Hermes Python runtime…" -> kanbanRuntimeText(text)
+            "Waiting for Agent Python runtime…" -> kanbanRuntimeText(text)
             else -> text
         }
     }
@@ -4247,8 +4247,8 @@ data class HermesStrings(
         "Session ouverte. Les commandes suivantes s’exécutent dans ce bac à sable ; saisissez exit pour revenir à l’hôte.",
     )
     fun terminalSandboxSessionClosed(): String = tr(
-        "Returned to the Hermes host shell.", "已返回 Hermes 主机 shell。", "Se volvió al shell anfitrión de Hermes.",
-        "Zur Hermes-Host-Shell zurückgekehrt.", "Retornou ao shell host do Hermes.", "Retour au shell hôte Hermes.",
+        "Returned to the Agent host shell.", "已返回 Agent 主机 shell。", "Se volvió al shell anfitrión de Agent.",
+        "Zur Agent-Host-Shell zurückgekehrt.", "Retornou ao shell host do Agent.", "Retour au shell hôte Agent.",
     )
     fun terminalSandboxCommandLabel(name: String): String = tr(
         "Command in $name", "$name 中的命令", "Comando en $name", "Befehl in $name", "Comando em $name", "Commande dans $name",
@@ -4269,21 +4269,21 @@ data class HermesStrings(
 
     fun offlineProviderSetupBlocked(checking: Boolean): String = if (checking) {
         tr(
-            "Offline airplane mode is on; Hermes blocked this provider setup check so the app stays phone-local.",
-            "离线飞行模式已开启；Hermes 已阻止提供商设置检查，使应用保持仅在手机本地运行。",
-            "El modo avión sin conexión está activado; Hermes bloqueó la comprobación del proveedor para mantener la app en el teléfono.",
-            "Der Offline-Flugmodus ist aktiv; Hermes hat die Anbieterprüfung blockiert, damit die App auf dem Telefon bleibt.",
-            "O modo avião offline está ativado; o Hermes bloqueou a verificação do provedor para manter o app no telefone.",
-            "Le mode avion hors ligne est activé ; Hermes a bloqué la vérification du fournisseur pour garder l’application locale au téléphone.",
+            "Offline airplane mode is on; Agent blocked this provider setup check so the app stays phone-local.",
+            "离线飞行模式已开启；Agent 已阻止提供商设置检查，使应用保持仅在手机本地运行。",
+            "El modo avión sin conexión está activado; Agent bloqueó la comprobación del proveedor para mantener la app en el teléfono.",
+            "Der Offline-Flugmodus ist aktiv; Agent hat die Anbieterprüfung blockiert, damit die App auf dem Telefon bleibt.",
+            "O modo avião offline está ativado; o Agent bloqueou a verificação do provedor para manter o app no telefone.",
+            "Le mode avion hors ligne est activé ; Agent a bloqué la vérification du fournisseur pour garder l’application locale au téléphone.",
         )
     } else {
         tr(
-            "Offline airplane mode is on; Hermes blocked this provider setup page so the app stays phone-local.",
-            "离线飞行模式已开启；Hermes 已阻止提供商设置页面，使应用保持仅在手机本地运行。",
-            "El modo avión sin conexión está activado; Hermes bloqueó la página del proveedor para mantener la app en el teléfono.",
-            "Der Offline-Flugmodus ist aktiv; Hermes hat die Anbieter-Seite blockiert, damit die App auf dem Telefon bleibt.",
-            "O modo avião offline está ativado; o Hermes bloqueou a página do provedor para manter o app no telefone.",
-            "Le mode avion hors ligne est activé ; Hermes a bloqué la page du fournisseur pour garder l’application locale au téléphone.",
+            "Offline airplane mode is on; Agent blocked this provider setup page so the app stays phone-local.",
+            "离线飞行模式已开启；Agent 已阻止提供商设置页面，使应用保持仅在手机本地运行。",
+            "El modo avión sin conexión está activado; Agent bloqueó la página del proveedor para mantener la app en el teléfono.",
+            "Der Offline-Flugmodus ist aktiv; Agent hat die Anbieter-Seite blockiert, damit die App auf dem Telefon bleibt.",
+            "O modo avião offline está ativado; o Agent bloqueou a página do provedor para manter o app no telefone.",
+            "Le mode avion hors ligne est activé ; Agent a bloqué la page du fournisseur pour garder l’application locale au téléphone.",
         )
     }
 
@@ -4293,17 +4293,17 @@ data class HermesStrings(
     )
 
     fun authSignInClipboardLabel(): String = tr(
-        "Hermes sign-in URL", "Hermes 登录链接", "URL de inicio de sesión de Hermes",
-        "Hermes-Anmelde-URL", "URL de login do Hermes", "URL de connexion Hermes",
+        "Agent sign-in URL", "Agent 登录链接", "URL de inicio de sesión de Agent",
+        "Agent-Anmelde-URL", "URL de login do Agent", "URL de connexion Agent",
     )
 
     fun authOpenedOpenRouterInApp(): String = tr(
-        "Opened OpenRouter sign-in in the in-app browser. Approve Hermes; the app will receive the secure callback and save the key.",
-        "已在应用内浏览器中打开 OpenRouter 登录。批准 Hermes 后，应用会接收安全回调并保存密钥。",
-        "Se abrió OpenRouter en el navegador integrado. Autoriza Hermes; la app recibirá el callback seguro y guardará la clave.",
-        "Die OpenRouter-Anmeldung wurde im In-App-Browser geöffnet. Autorisiere Hermes; die App empfängt den sicheren Callback und speichert den Schlüssel.",
-        "O login do OpenRouter foi aberto no navegador do app. Autorize o Hermes; o app receberá o callback seguro e salvará a chave.",
-        "La connexion OpenRouter a été ouverte dans le navigateur intégré. Autorisez Hermes ; l’application recevra le callback sécurisé et enregistrera la clé.",
+        "Opened OpenRouter sign-in in the in-app browser. Approve Agent; the app will receive the secure callback and save the key.",
+        "已在应用内浏览器中打开 OpenRouter 登录。批准 Agent 后，应用会接收安全回调并保存密钥。",
+        "Se abrió OpenRouter en el navegador integrado. Autoriza Agent; la app recibirá el callback seguro y guardará la clave.",
+        "Die OpenRouter-Anmeldung wurde im In-App-Browser geöffnet. Autorisiere Agent; die App empfängt den sicheren Callback und speichert den Schlüssel.",
+        "O login do OpenRouter foi aberto no navegador do app. Autorize o Agent; o app receberá o callback seguro e salvará a chave.",
+        "La connexion OpenRouter a été ouverte dans le navigateur intégré. Autorisez Agent ; l’application recevra le callback sécurisé et enregistrera la clé.",
     )
 
     fun authOpenRouterInAppFailed(errorName: String): String = tr(
@@ -4316,12 +4316,12 @@ data class HermesStrings(
     )
 
     fun authOpenedOpenRouterExternal(): String = tr(
-        "Opened OpenRouter sign-in in an external browser because WebView is unavailable. Approve Hermes; the local callback will save the API key securely.",
-        "由于 WebView 不可用，已在外部浏览器中打开 OpenRouter 登录。批准 Hermes 后，本地回调会安全保存 API 密钥。",
-        "Se abrió OpenRouter en un navegador externo porque WebView no está disponible. Autoriza Hermes; el callback local guardará la clave API de forma segura.",
-        "Die OpenRouter-Anmeldung wurde in einem externen Browser geöffnet, da WebView nicht verfügbar ist. Autorisiere Hermes; der lokale Callback speichert den API-Schlüssel sicher.",
-        "O login do OpenRouter foi aberto em um navegador externo porque o WebView não está disponível. Autorize o Hermes; o callback local salvará a chave com segurança.",
-        "La connexion OpenRouter a été ouverte dans un navigateur externe car WebView est indisponible. Autorisez Hermes ; le callback local enregistrera la clé API de façon sécurisée.",
+        "Opened OpenRouter sign-in in an external browser because WebView is unavailable. Approve Agent; the local callback will save the API key securely.",
+        "由于 WebView 不可用，已在外部浏览器中打开 OpenRouter 登录。批准 Agent 后，本地回调会安全保存 API 密钥。",
+        "Se abrió OpenRouter en un navegador externo porque WebView no está disponible. Autoriza Agent; el callback local guardará la clave API de forma segura.",
+        "Die OpenRouter-Anmeldung wurde in einem externen Browser geöffnet, da WebView nicht verfügbar ist. Autorisiere Agent; der lokale Callback speichert den API-Schlüssel sicher.",
+        "O login do OpenRouter foi aberto em um navegador externo porque o WebView não está disponível. Autorize o Agent; o callback local salvará a chave com segurança.",
+        "La connexion OpenRouter a été ouverte dans un navigateur externe car WebView est indisponible. Autorisez Agent ; le callback local enregistrera la clé API de façon sécurisée.",
     )
 
     fun authOpenRouterExternalFailed(): String = tr(
@@ -4357,12 +4357,12 @@ data class HermesStrings(
     )
 
     fun authXaiOpened(): String = tr(
-        "Opened xAI Grok OAuth in the in-app browser. Approve SuperGrok; the local callback will return to Hermes and save tokens securely.",
-        "已在应用内浏览器中打开 xAI Grok OAuth。批准 SuperGrok 后，本地回调会返回 Hermes 并安全保存令牌。",
-        "Se abrió OAuth de xAI Grok en el navegador integrado. Autoriza SuperGrok; el callback local volverá a Hermes y guardará los tokens de forma segura.",
-        "xAI-Grok-OAuth wurde im In-App-Browser geöffnet. Autorisiere SuperGrok; der lokale Callback kehrt zu Hermes zurück und speichert die Tokens sicher.",
-        "O OAuth do xAI Grok foi aberto no navegador do app. Autorize o SuperGrok; o callback local voltará ao Hermes e salvará os tokens com segurança.",
-        "OAuth xAI Grok a été ouvert dans le navigateur intégré. Autorisez SuperGrok ; le callback local reviendra dans Hermes et enregistrera les jetons de façon sécurisée.",
+        "Opened xAI Grok OAuth in the in-app browser. Approve SuperGrok; the local callback will return to Agent and save tokens securely.",
+        "已在应用内浏览器中打开 xAI Grok OAuth。批准 SuperGrok 后，本地回调会返回 Agent 并安全保存令牌。",
+        "Se abrió OAuth de xAI Grok en el navegador integrado. Autoriza SuperGrok; el callback local volverá a Agent y guardará los tokens de forma segura.",
+        "xAI-Grok-OAuth wurde im In-App-Browser geöffnet. Autorisiere SuperGrok; der lokale Callback kehrt zu Agent zurück und speichert die Tokens sicher.",
+        "O OAuth do xAI Grok foi aberto no navegador do app. Autorize o SuperGrok; o callback local voltará ao Agent e salvará os tokens com segurança.",
+        "OAuth xAI Grok a été ouvert dans le navigateur intégré. Autorisez SuperGrok ; le callback local reviendra dans Agent et enregistrera les jetons de façon sécurisée.",
     )
 
     fun authXaiFailed(errorName: String): String = tr(
@@ -4482,18 +4482,18 @@ data class HermesStrings(
             " aus $sourceLabel", " de $sourceLabel", " depuis $sourceLabel",
         )
         return tr(
-            "Saved $label credential$source and queued a Hermes runtime restart.", "已保存 $label 凭据$source，并已安排重启 Hermes 运行时。",
-            "Credencial de $label guardada$source; se ha programado el reinicio del runtime de Hermes.",
-            "$label-Zugangsdaten$source gespeichert; ein Neustart der Hermes-Runtime wurde eingeplant.",
-            "Credencial do $label salva$source; a reinicialização do runtime do Hermes foi agendada.",
-            "Identifiant $label enregistré$source ; le redémarrage du runtime Hermes est planifié.",
+            "Saved $label credential$source and queued a Agent runtime restart.", "已保存 $label 凭据$source，并已安排重启 Agent 运行时。",
+            "Credencial de $label guardada$source; se ha programado el reinicio del runtime de Agent.",
+            "$label-Zugangsdaten$source gespeichert; ein Neustart der Agent-Runtime wurde eingeplant.",
+            "Credencial do $label salva$source; a reinicialização do runtime do Agent foi agendada.",
+            "Identifiant $label enregistré$source ; le redémarrage du runtime Agent est planifié.",
         )
     }
 
     fun authSavingCredential(label: String): String = tr(
-        "Saving $label credential and restarting Hermes…", "正在保存 $label 凭据并重启 Hermes…",
-        "Guardando la credencial de $label y reiniciando Hermes…", "$label-Zugangsdaten werden gespeichert und Hermes wird neu gestartet…",
-        "Salvando a credencial do $label e reiniciando o Hermes…", "Enregistrement de l’identifiant $label et redémarrage de Hermes…",
+        "Saving $label credential and restarting Agent…", "正在保存 $label 凭据并重启 Agent…",
+        "Guardando la credencial de $label y reiniciando Agent…", "$label-Zugangsdaten werden gespeichert und Agent wird neu gestartet…",
+        "Salvando a credencial do $label e reiniciando o Agent…", "Enregistrement de l’identifiant $label et redémarrage de Agent…",
     )
 
     fun authSaveCredentialFailed(label: String, errorName: String): String = tr(
@@ -4567,22 +4567,22 @@ data class HermesStrings(
             " $failedFallbackCount page(s) de secours n’ont pas répondu correctement ; touchez de nouveau Ouvrir pour essayer l’alternative officielle suivante.",
         ) else ""
         return tr(
-            "$label setup is reachable from Hermes: $url ($statusLabel). $reachableCount/$totalCount official page(s) responded; copied all setup URLs.$fallbackHint",
-            "Hermes 可以访问 $label 设置页面：$url（$statusLabel）。$reachableCount/$totalCount 个官方页面已响应；已复制所有设置链接。$fallbackHint",
-            "Hermes puede acceder a la configuración de $label: $url ($statusLabel). Respondieron $reachableCount/$totalCount páginas oficiales; se copiaron todas las URL.$fallbackHint",
-            "Das $label-Setup ist von Hermes erreichbar: $url ($statusLabel). $reachableCount/$totalCount offizielle Seiten antworteten; alle Setup-URLs wurden kopiert.$fallbackHint",
-            "A configuração do $label está acessível pelo Hermes: $url ($statusLabel). $reachableCount/$totalCount páginas oficiais responderam; todas as URLs foram copiadas.$fallbackHint",
-            "La configuration de $label est accessible depuis Hermes : $url ($statusLabel). $reachableCount/$totalCount pages officielles ont répondu ; toutes les URL ont été copiées.$fallbackHint",
+            "$label setup is reachable from Agent: $url ($statusLabel). $reachableCount/$totalCount official page(s) responded; copied all setup URLs.$fallbackHint",
+            "Agent 可以访问 $label 设置页面：$url（$statusLabel）。$reachableCount/$totalCount 个官方页面已响应；已复制所有设置链接。$fallbackHint",
+            "Agent puede acceder a la configuración de $label: $url ($statusLabel). Respondieron $reachableCount/$totalCount páginas oficiales; se copiaron todas las URL.$fallbackHint",
+            "Das $label-Setup ist von Agent erreichbar: $url ($statusLabel). $reachableCount/$totalCount offizielle Seiten antworteten; alle Setup-URLs wurden kopiert.$fallbackHint",
+            "A configuração do $label está acessível pelo Agent: $url ($statusLabel). $reachableCount/$totalCount páginas oficiais responderam; todas as URLs foram copiadas.$fallbackHint",
+            "La configuration de $label est accessible depuis Agent : $url ($statusLabel). $reachableCount/$totalCount pages officielles ont répondu ; toutes les URL ont été copiées.$fallbackHint",
         )
     }
 
     fun providerSetupUnreachable(label: String, failureSummary: String): String = tr(
-        "No $label setup page responded from Hermes. Copied all setup URLs. $failureSummary",
-        "Hermes 未收到任何 $label 设置页面的响应。已复制所有设置链接。$failureSummary",
-        "Ninguna página de configuración de $label respondió desde Hermes. Se copiaron todas las URL. $failureSummary",
-        "Keine $label-Setup-Seite antwortete aus Hermes. Alle Setup-URLs wurden kopiert. $failureSummary",
-        "Nenhuma página de configuração do $label respondeu pelo Hermes. Todas as URLs foram copiadas. $failureSummary",
-        "Aucune page de configuration de $label n’a répondu depuis Hermes. Toutes les URL ont été copiées. $failureSummary",
+        "No $label setup page responded from Agent. Copied all setup URLs. $failureSummary",
+        "Agent 未收到任何 $label 设置页面的响应。已复制所有设置链接。$failureSummary",
+        "Ninguna página de configuración de $label respondió desde Agent. Se copiaron todas las URL. $failureSummary",
+        "Keine $label-Setup-Seite antwortete aus Agent. Alle Setup-URLs wurden kopiert. $failureSummary",
+        "Nenhuma página de configuração do $label respondeu pelo Agent. Todas as URLs foram copiadas. $failureSummary",
+        "Aucune page de configuration de $label n’a répondu depuis Agent. Toutes les URL ont été copiées. $failureSummary",
     )
 
     fun providerSetupOpened(label: String, providerId: String, displayIndex: Int, total: Int): String {
@@ -4611,8 +4611,8 @@ data class HermesStrings(
     }
 
     fun providerSetupClipboardLabel(label: String): String = tr(
-        "Hermes $label setup URLs", "Hermes $label 设置链接", "URL de configuración de Hermes para $label",
-        "Hermes-$label-Setup-URLs", "URLs de configuração do Hermes para $label", "URL de configuration Hermes pour $label",
+        "Agent $label setup URLs", "Agent $label 设置链接", "URL de configuración de Agent para $label",
+        "Agent-$label-Setup-URLs", "URLs de configuração do Agent para $label", "URL de configuration Agent pour $label",
     )
 
     fun providerSetupCopied(label: String, fallbackCount: Int): String {
@@ -4628,50 +4628,50 @@ data class HermesStrings(
     }
 
     fun chooseSavedProviderCredential(): String = tr(
-        "Choose a saved provider before importing a Hermes credential.", "导入 Hermes 凭据前，请先选择已保存的提供商。",
-        "Elige un proveedor guardado antes de importar una credencial de Hermes.", "Wähle vor dem Importieren von Hermes-Zugangsdaten einen gespeicherten Anbieter.",
-        "Escolha um provedor salvo antes de importar uma credencial do Hermes.", "Choisissez un fournisseur enregistré avant d’importer un identifiant Hermes.",
+        "Choose a saved provider before importing a Agent credential.", "导入 Agent 凭据前，请先选择已保存的提供商。",
+        "Elige un proveedor guardado antes de importar una credencial de Agent.", "Wähle vor dem Importieren von Agent-Zugangsdaten einen gespeicherten Anbieter.",
+        "Escolha um provedor salvo antes de importar uma credencial do Agent.", "Choisissez un fournisseur enregistré avant d’importer un identifiant Agent.",
     )
 
     fun checkingSavedProviderCredential(label: String): String = tr(
-        "Checking the saved Hermes credential for $label…", "正在检查 $label 的已保存 Hermes 凭据…",
-        "Comprobando la credencial Hermes guardada para $label…", "Gespeicherte Hermes-Zugangsdaten für $label werden geprüft…",
-        "Verificando a credencial do Hermes salva para $label…", "Vérification de l’identifiant Hermes enregistré pour $label…",
+        "Checking the saved Agent credential for $label…", "正在检查 $label 的已保存 Agent 凭据…",
+        "Comprobando la credencial Agent guardada para $label…", "Gespeicherte Agent-Zugangsdaten für $label werden geprüft…",
+        "Verificando a credencial do Agent salva para $label…", "Vérification de l’identifiant Agent enregistré pour $label…",
     )
 
     fun unableToReadSavedProviderCredential(errorName: String): String = tr(
-        "Unable to read the saved Hermes credential ($errorName).", "无法读取已保存的 Hermes 凭据（$errorName）。",
-        "No se pudo leer la credencial Hermes guardada ($errorName).", "Gespeicherte Hermes-Zugangsdaten konnten nicht gelesen werden ($errorName).",
-        "Não foi possível ler a credencial do Hermes salva ($errorName).", "Impossible de lire l’identifiant Hermes enregistré ($errorName).",
+        "Unable to read the saved Agent credential ($errorName).", "无法读取已保存的 Agent 凭据（$errorName）。",
+        "No se pudo leer la credencial Agent guardada ($errorName).", "Gespeicherte Agent-Zugangsdaten konnten nicht gelesen werden ($errorName).",
+        "Não foi possível ler a credencial do Agent salva ($errorName).", "Impossible de lire l’identifiant Agent enregistré ($errorName).",
     )
 
     fun savedProviderCredentialCouldNotBeDecoded(label: String): String = tr(
-        "The saved Hermes credential for $label could not be decoded.", "无法解码 $label 的已保存 Hermes 凭据。",
-        "No se pudo decodificar la credencial Hermes guardada para $label.", "Die gespeicherten Hermes-Zugangsdaten für $label konnten nicht dekodiert werden.",
-        "Não foi possível decodificar a credencial do Hermes salva para $label.", "Impossible de décoder l’identifiant Hermes enregistré pour $label.",
+        "The saved Agent credential for $label could not be decoded.", "无法解码 $label 的已保存 Agent 凭据。",
+        "No se pudo decodificar la credencial Agent guardada para $label.", "Die gespeicherten Agent-Zugangsdaten für $label konnten nicht dekodiert werden.",
+        "Não foi possível decodificar a credencial do Agent salva para $label.", "Impossible de décoder l’identifiant Agent enregistré pour $label.",
     )
 
     fun noSavedProviderCredential(label: String): String = tr(
-        "No saved Hermes credential was found for $label.", "未找到 $label 的已保存 Hermes 凭据。",
-        "No se encontró una credencial Hermes guardada para $label.", "Keine gespeicherten Hermes-Zugangsdaten für $label gefunden.",
-        "Nenhuma credencial do Hermes salva foi encontrada para $label.", "Aucun identifiant Hermes enregistré n’a été trouvé pour $label.",
+        "No saved Agent credential was found for $label.", "未找到 $label 的已保存 Agent 凭据。",
+        "No se encontró una credencial Agent guardada para $label.", "Keine gespeicherten Agent-Zugangsdaten für $label gefunden.",
+        "Nenhuma credencial do Agent salva foi encontrada para $label.", "Aucun identifiant Agent enregistré n’a été trouvé pour $label.",
     )
 
     fun importedSavedProviderCredential(label: String): String = tr(
-        "Imported the saved Hermes credential for $label and restarted the runtime.", "已导入 $label 的 Hermes 凭据并重启运行时。",
-        "Se importó la credencial Hermes guardada para $label y se reinició el runtime.", "Gespeicherte Hermes-Zugangsdaten für $label importiert und Runtime neu gestartet.",
-        "A credencial do Hermes salva para $label foi importada e o runtime reiniciado.", "L’identifiant Hermes enregistré pour $label a été importé et le runtime redémarré.",
+        "Imported the saved Agent credential for $label and restarted the runtime.", "已导入 $label 的 Agent 凭据并重启运行时。",
+        "Se importó la credencial Agent guardada para $label y se reinició el runtime.", "Gespeicherte Agent-Zugangsdaten für $label importiert und Runtime neu gestartet.",
+        "A credencial do Agent salva para $label foi importada e o runtime reiniciado.", "L’identifiant Agent enregistré pour $label a été importé et le runtime redémarré.",
     )
 
     fun savedProviderCredentialImportFailed(errorName: String): String = tr(
-        "Saved Hermes credential import failed ($errorName).", "导入已保存的 Hermes 凭据失败（$errorName）。",
-        "Falló la importación de la credencial Hermes guardada ($errorName).", "Import gespeicherter Hermes-Zugangsdaten fehlgeschlagen ($errorName).",
-        "Falha ao importar a credencial do Hermes salva ($errorName).", "Échec de l’importation de l’identifiant Hermes enregistré ($errorName).",
+        "Saved Agent credential import failed ($errorName).", "导入已保存的 Agent 凭据失败（$errorName）。",
+        "Falló la importación de la credencial Agent guardada ($errorName).", "Import gespeicherter Agent-Zugangsdaten fehlgeschlagen ($errorName).",
+        "Falha ao importar a credencial do Agent salva ($errorName).", "Échec de l’importation de l’identifiant Agent enregistré ($errorName).",
     )
 
     fun startingLocalHermesRuntime(): String = tr(
-        "Starting the local Hermes runtime…", "正在启动本地 Hermes 运行时…", "Iniciando el runtime local de Hermes…",
-        "Lokale Hermes-Runtime wird gestartet…", "Iniciando o runtime local do Hermes…", "Démarrage du runtime Hermes local…",
+        "Starting the local Agent runtime…", "正在启动本地 Agent 运行时…", "Iniciando el runtime local de Agent…",
+        "Lokale Agent-Runtime wird gestartet…", "Iniciando o runtime local do Agent…", "Démarrage du runtime Agent local…",
     )
 
     fun localBackendReady(backend: String, model: String): String = tr(
@@ -4698,12 +4698,12 @@ data class HermesStrings(
     }
 
     fun floatingOverlayPermissionHint(): String = when (language) {
-        AppLanguage.CHINESE -> "若要让浮动 Hermes 按钮在其他应用上保持显示，请在 Android 设置中允许 Hermes 显示在其他应用上层。"
-        AppLanguage.SPANISH -> "Para mantener el botón flotante de Hermes sobre otras apps, permite que Hermes se muestre sobre otras apps en Ajustes de Android."
-        AppLanguage.GERMAN -> "Damit die schwebende Hermes-Schaltfläche über anderen Apps sichtbar bleibt, erlaube Hermes in den Android-Einstellungen die Anzeige über anderen Apps."
-        AppLanguage.PORTUGUESE -> "Para manter o botão flutuante do Hermes sobre outros apps, permita que o Hermes apareça sobre outros apps nas configurações do Android."
-        AppLanguage.FRENCH -> "Pour garder le bouton flottant Hermes au-dessus des autres apps, autorisez Hermes à s’afficher par-dessus les autres apps dans les paramètres Android."
-        AppLanguage.ENGLISH -> "To keep the floating Hermes button available over other apps, allow Hermes to draw over other apps in Android settings."
+        AppLanguage.CHINESE -> "若要让浮动 Agent 按钮在其他应用上保持显示，请在 Android 设置中允许 Agent 显示在其他应用上层。"
+        AppLanguage.SPANISH -> "Para mantener el botón flotante de Agent sobre otras apps, permite que Agent se muestre sobre otras apps en Ajustes de Android."
+        AppLanguage.GERMAN -> "Damit die schwebende Agent-Schaltfläche über anderen Apps sichtbar bleibt, erlaube Agent in den Android-Einstellungen die Anzeige über anderen Apps."
+        AppLanguage.PORTUGUESE -> "Para manter o botão flutuante do Agent sobre outros apps, permita que o Agent apareça sobre outros apps nas configurações do Android."
+        AppLanguage.FRENCH -> "Pour garder le bouton flottant Agent au-dessus des autres apps, autorisez Agent à s’afficher par-dessus les autres apps dans les paramètres Android."
+        AppLanguage.ENGLISH -> "To keep the floating Agent button available over other apps, allow Agent to draw over other apps in Android settings."
     }
 }
 
@@ -5002,7 +5002,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
         AppLanguage.CHINESE -> HermesStrings(
             language = language,
             alphaBadge = "预览版",
-            sectionHermes = "Hermes Fork",
+            sectionHermes = "Agent",
             sectionAccounts = "账户",
             sectionPortal = "门户",
             sectionDevice = "设备",
@@ -5014,31 +5014,31 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             subtitleSettings = "运行时提供商与 API 配置",
             runtimeSetupAndOnboarding = "运行时设置与引导",
             openPageActions = "打开页面操作",
-            hermesLogoDescription = "Hermes 标志",
+            hermesLogoDescription = "Agent 标志",
             settingsNewHereTitle = "首次使用？",
             settingsHelpStart = "如果你已经有 API 密钥，请先从 OpenRouter 或其他 API 提供商开始。",
             settingsHelpAccounts = "如果你想使用邮箱、电话或 Google 的 Corr3xt 应用登录流程，请使用账户页面；提供商密钥保留在设置中。",
             appLanguageTitle = "应用语言",
             appLanguageDescription = "轻点旗帜即可立即保存并切换应用语言。",
             onDeviceInferenceTitle = "端侧推理",
-            onDeviceInferenceDescription = "选择一个本地推理后端，让 Hermes 在手机上运行模型。",
+            onDeviceInferenceDescription = "选择一个本地推理后端，让 Agent 在手机上运行模型。",
             llamaCppLabel = "llama.cpp (GGUF)",
             llamaCppDescription = "使用嵌入式 Linux 套件和 GGUF 模型运行本地代理。",
             liteRtLmLabel = "LiteRT-LM",
             liteRtLmDescription = "使用 Google 的 LiteRT-LM Android 运行时加载 .litertlm 模型。",
             noCompatibleLocalModel = "尚未选择兼容的本地模型。请先下载并设为首选模型。",
-            chatTitle = "Hermes 聊天",
+            chatTitle = "Agent 聊天",
             openHistory = "打开历史记录",
             history = "历史记录",
             newChat = "新聊天",
             backToChat = "返回聊天",
             clearConversation = "清空对话",
             speakLastReply = "朗读上一条回复",
-            welcomeToHermes = "欢迎使用 Hermes",
+            welcomeToHermes = "欢迎使用 Agent",
             welcomeDescription = "可使用聊天、语音输入，或 /help、/history、/provider、/signin 等原生命令。",
             accounts = "账户",
             settings = "设置",
-            messageHermes = "向 Hermes 发送消息",
+            messageHermes = "向 Agent 发送消息",
             send = "发送",
             authIntro = "Corr3xt 用于应用登录；提供商访问使用设置中的安全 API 密钥或令牌。",
             corr3xtAuthBaseUrl = "Corr3xt 认证基础 URL",
@@ -5048,7 +5048,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signIn = "登录",
             signOut = "退出登录",
             reconnect = "重新连接",
-            hermesProviderPrefix = "Hermes 提供商",
+            hermesProviderPrefix = "Agent 提供商",
             portalTitle = "提供商门户",
             portalEmbeddedDescription = "该页面现在会自动加载嵌入式提供商门户。使用右上角按钮全屏或还原，必要时回退到浏览器。",
             fullScreenPortal = "门户全屏",
@@ -5077,7 +5077,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
         AppLanguage.SPANISH -> HermesStrings(
             language = language,
             alphaBadge = "ALFA",
-            sectionHermes = "Hermes Fork",
+            sectionHermes = "Agent",
             sectionAccounts = "Cuentas",
             sectionPortal = "Portal",
             sectionDevice = "Dispositivo",
@@ -5089,31 +5089,31 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             subtitleSettings = "Proveedor de runtime y configuración de API",
             runtimeSetupAndOnboarding = "Configuración del runtime y bienvenida",
             openPageActions = "Abrir acciones de la página",
-            hermesLogoDescription = "Logo de Hermes",
+            hermesLogoDescription = "Logo de Agent",
             settingsNewHereTitle = "¿Nuevo aquí?",
             settingsHelpStart = "Empieza con OpenRouter u otro proveedor con API si ya tienes una clave.",
             settingsHelpAccounts = "Usa Cuentas para flujos Corr3xt de la app con correo, teléfono o Google; las claves de proveedores quedan en Ajustes.",
             appLanguageTitle = "Idioma de la app",
             appLanguageDescription = "Toca una bandera para guardar y cambiar el idioma al instante.",
             onDeviceInferenceTitle = "Inferencia en el dispositivo",
-            onDeviceInferenceDescription = "Elige un backend local para que Hermes ejecute modelos en el teléfono.",
+            onDeviceInferenceDescription = "Elige un backend local para que Agent ejecute modelos en el teléfono.",
             llamaCppLabel = "llama.cpp (GGUF)",
             llamaCppDescription = "Ejecuta el agente local con la suite Linux integrada y modelos GGUF.",
             liteRtLmLabel = "LiteRT-LM",
             liteRtLmDescription = "Carga modelos .litertlm con el runtime Android de LiteRT-LM de Google.",
             noCompatibleLocalModel = "Aún no hay un modelo local compatible seleccionado. Descárgalo y márcalo como preferido primero.",
-            chatTitle = "Chat de Hermes",
+            chatTitle = "Chat de Agent",
             openHistory = "Abrir historial",
             history = "Historial",
             newChat = "Nuevo chat",
             backToChat = "Volver al chat",
             clearConversation = "Borrar conversación",
             speakLastReply = "Leer la última respuesta",
-            welcomeToHermes = "Bienvenido a Hermes",
+            welcomeToHermes = "Bienvenido a Agent",
             welcomeDescription = "Usa el chat, la voz o comandos nativos como /help, /history, /provider y /signin.",
             accounts = "Cuentas",
             settings = "Ajustes",
-            messageHermes = "Enviar mensaje a Hermes",
+            messageHermes = "Enviar mensaje a Agent",
             send = "Enviar",
             authIntro = "Corr3xt se usa para iniciar sesión en la app; los proveedores usan claves API o tokens seguros en Ajustes.",
             corr3xtAuthBaseUrl = "URL base de autenticación Corr3xt",
@@ -5123,7 +5123,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signIn = "Iniciar sesión",
             signOut = "Cerrar sesión",
             reconnect = "Reconectar",
-            hermesProviderPrefix = "Proveedor de Hermes",
+            hermesProviderPrefix = "Proveedor de Agent",
             portalTitle = "Portal del proveedor",
             portalEmbeddedDescription = "El portal incrustado ahora se carga automáticamente aquí. Usa el botón superior derecho para maximizar o minimizar la vista previa, o abre el navegador si hace falta.",
             fullScreenPortal = "Portal a pantalla completa",
@@ -5152,7 +5152,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
         AppLanguage.GERMAN -> HermesStrings(
             language = language,
             alphaBadge = "ALPHA",
-            sectionHermes = "Hermes Fork",
+            sectionHermes = "Agent",
             sectionAccounts = "Konten",
             sectionPortal = "Portal",
             sectionDevice = "Gerät",
@@ -5164,31 +5164,31 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             subtitleSettings = "Runtime-Anbieter und API-Konfiguration",
             runtimeSetupAndOnboarding = "Runtime-Einrichtung und Onboarding",
             openPageActions = "Seitenaktionen öffnen",
-            hermesLogoDescription = "Hermes-Logo",
+            hermesLogoDescription = "Agent-Logo",
             settingsNewHereTitle = "Neu hier?",
             settingsHelpStart = "Beginne mit OpenRouter oder einem anderen API-Anbieter, wenn du bereits einen Schlüssel hast.",
             settingsHelpAccounts = "Nutze Konten für Corr3xt-App-Anmeldungen mit E-Mail, Telefon oder Google; Anbieter-Schlüssel bleiben in den Einstellungen.",
             appLanguageTitle = "App-Sprache",
             appLanguageDescription = "Tippe auf eine Flagge, um die Sprache sofort zu speichern und zu wechseln.",
             onDeviceInferenceTitle = "On-Device-Inferenz",
-            onDeviceInferenceDescription = "Wähle ein lokales Backend, damit Hermes Modelle direkt auf dem Telefon ausführt.",
+            onDeviceInferenceDescription = "Wähle ein lokales Backend, damit Agent Modelle direkt auf dem Telefon ausführt.",
             llamaCppLabel = "llama.cpp (GGUF)",
             llamaCppDescription = "Führe den lokalen Agenten mit der eingebetteten Linux-Suite und GGUF-Modellen aus.",
             liteRtLmLabel = "LiteRT-LM",
             liteRtLmDescription = "Lade .litertlm-Modelle mit Googles LiteRT-LM-Android-Runtime.",
             noCompatibleLocalModel = "Noch kein kompatibles lokales Modell ausgewählt. Bitte zuerst herunterladen und als bevorzugt markieren.",
-            chatTitle = "Hermes-Chat",
+            chatTitle = "Agent-Chat",
             openHistory = "Verlauf öffnen",
             history = "Verlauf",
             newChat = "Neuer Chat",
             backToChat = "Zurück zum Chat",
             clearConversation = "Unterhaltung leeren",
             speakLastReply = "Letzte Antwort vorlesen",
-            welcomeToHermes = "Willkommen bei Hermes",
+            welcomeToHermes = "Willkommen bei Agent",
             welcomeDescription = "Nutze Chat, Spracheingabe oder native Befehle wie /help, /history, /provider und /signin.",
             accounts = "Konten",
             settings = "Einstellungen",
-            messageHermes = "Hermes Nachricht senden",
+            messageHermes = "Agent Nachricht senden",
             send = "Senden",
             authIntro = "Corr3xt wird für die App-Anmeldung genutzt; Anbieter verwenden sichere API-Schlüssel oder Tokens in den Einstellungen.",
             corr3xtAuthBaseUrl = "Corr3xt-Auth-Basis-URL",
@@ -5198,7 +5198,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signIn = "Anmelden",
             signOut = "Abmelden",
             reconnect = "Neu verbinden",
-            hermesProviderPrefix = "Hermes-Anbieter",
+            hermesProviderPrefix = "Agent-Anbieter",
             portalTitle = "Anbieterportal",
             portalEmbeddedDescription = "Das eingebettete Portal wird jetzt automatisch geladen. Nutze die Schaltfläche oben rechts zum Maximieren oder Minimieren oder wechsle bei Bedarf in den Browser.",
             fullScreenPortal = "Portal im Vollbild",
@@ -5227,7 +5227,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
         AppLanguage.PORTUGUESE -> HermesStrings(
             language = language,
             alphaBadge = "ALFA",
-            sectionHermes = "Hermes Fork",
+            sectionHermes = "Agent",
             sectionAccounts = "Contas",
             sectionPortal = "Portal",
             sectionDevice = "Dispositivo",
@@ -5239,31 +5239,31 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             subtitleSettings = "Provedor de runtime e configuração de API",
             runtimeSetupAndOnboarding = "Configuração do runtime e introdução",
             openPageActions = "Abrir ações da página",
-            hermesLogoDescription = "Logo do Hermes",
+            hermesLogoDescription = "Logo do Agent",
             settingsNewHereTitle = "Novo por aqui?",
             settingsHelpStart = "Comece com OpenRouter ou outro provedor de API se você já tiver uma chave.",
             settingsHelpAccounts = "Use Contas para fluxos Corr3xt do app com e-mail, telefone ou Google; chaves de provedores ficam nas Configurações.",
             appLanguageTitle = "Idioma do app",
             appLanguageDescription = "Toque em uma bandeira para salvar e trocar o idioma imediatamente.",
             onDeviceInferenceTitle = "Inferência no dispositivo",
-            onDeviceInferenceDescription = "Escolha um backend local para que o Hermes execute modelos no telefone.",
+            onDeviceInferenceDescription = "Escolha um backend local para que o Agent execute modelos no telefone.",
             llamaCppLabel = "llama.cpp (GGUF)",
             llamaCppDescription = "Execute o agente local com a suíte Linux integrada e modelos GGUF.",
             liteRtLmLabel = "LiteRT-LM",
             liteRtLmDescription = "Carregue modelos .litertlm com o runtime Android LiteRT-LM do Google.",
             noCompatibleLocalModel = "Ainda não existe um modelo local compatível selecionado. Baixe e marque um como preferido primeiro.",
-            chatTitle = "Chat Hermes",
+            chatTitle = "Chat Agent",
             openHistory = "Abrir histórico",
             history = "Histórico",
             newChat = "Novo chat",
             backToChat = "Voltar ao chat",
             clearConversation = "Limpar conversa",
             speakLastReply = "Ler última resposta",
-            welcomeToHermes = "Bem-vindo ao Hermes",
+            welcomeToHermes = "Bem-vindo ao Agent",
             welcomeDescription = "Use o chat, entrada por voz ou comandos nativos como /help, /history, /provider e /signin.",
             accounts = "Contas",
             settings = "Configurações",
-            messageHermes = "Mensagem para Hermes",
+            messageHermes = "Mensagem para Agent",
             send = "Enviar",
             authIntro = "O Corr3xt é usado para login no app; provedores usam chaves API ou tokens seguros nas Configurações.",
             corr3xtAuthBaseUrl = "URL base de autenticação Corr3xt",
@@ -5273,7 +5273,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signIn = "Entrar",
             signOut = "Sair",
             reconnect = "Reconectar",
-            hermesProviderPrefix = "Provedor Hermes",
+            hermesProviderPrefix = "Provedor Agent",
             portalTitle = "Portal do provedor",
             portalEmbeddedDescription = "O portal incorporado agora carrega automaticamente aqui. Use o botão no canto superior direito para maximizar ou minimizar a prévia, ou abra no navegador se precisar.",
             fullScreenPortal = "Portal em tela cheia",
@@ -5302,7 +5302,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
         AppLanguage.FRENCH -> HermesStrings(
             language = language,
             alphaBadge = "ALPHA",
-            sectionHermes = "Hermes Fork",
+            sectionHermes = "Agent",
             sectionAccounts = "Comptes",
             sectionPortal = "Portal",
             sectionDevice = "Appareil",
@@ -5314,31 +5314,31 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             subtitleSettings = "Fournisseur de runtime et configuration API",
             runtimeSetupAndOnboarding = "Configuration du runtime et accueil",
             openPageActions = "Ouvrir les actions de la page",
-            hermesLogoDescription = "Logo Hermes",
+            hermesLogoDescription = "Logo Agent",
             settingsNewHereTitle = "Nouveau ici ?",
             settingsHelpStart = "Commencez avec OpenRouter ou un autre fournisseur API si vous avez déjà une clé.",
             settingsHelpAccounts = "Utilisez Comptes pour les flux Corr3xt de l’application avec e-mail, téléphone ou Google ; les clés fournisseur restent dans Paramètres.",
             appLanguageTitle = "Langue de l’application",
             appLanguageDescription = "Touchez un drapeau pour enregistrer et changer la langue immédiatement.",
             onDeviceInferenceTitle = "Inférence sur l’appareil",
-            onDeviceInferenceDescription = "Choisissez un backend local pour que Hermes exécute des modèles sur le téléphone.",
+            onDeviceInferenceDescription = "Choisissez un backend local pour que Agent exécute des modèles sur le téléphone.",
             llamaCppLabel = "llama.cpp (GGUF)",
             llamaCppDescription = "Exécutez l’agent local avec la suite Linux intégrée et des modèles GGUF.",
             liteRtLmLabel = "LiteRT-LM",
             liteRtLmDescription = "Chargez des modèles .litertlm avec le runtime Android LiteRT-LM de Google.",
             noCompatibleLocalModel = "Aucun modèle local compatible n’est encore sélectionné. Téléchargez-en un puis marquez-le comme préféré.",
-            chatTitle = "Chat Hermes",
+            chatTitle = "Chat Agent",
             openHistory = "Ouvrir l’historique",
             history = "Historique",
             newChat = "Nouveau chat",
             backToChat = "Retour au chat",
             clearConversation = "Effacer la conversation",
             speakLastReply = "Lire la dernière réponse",
-            welcomeToHermes = "Bienvenue dans Hermes",
+            welcomeToHermes = "Bienvenue dans Agent",
             welcomeDescription = "Utilisez le chat, la voix ou des commandes natives comme /help, /history, /provider et /signin.",
             accounts = "Comptes",
             settings = "Réglages",
-            messageHermes = "Message à Hermes",
+            messageHermes = "Message à Agent",
             send = "Envoyer",
             authIntro = "Corr3xt sert à la connexion à l’application ; les fournisseurs utilisent des clés API ou jetons sécurisés dans Paramètres.",
             corr3xtAuthBaseUrl = "URL de base d’authentification Corr3xt",
@@ -5348,7 +5348,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signIn = "Se connecter",
             signOut = "Se déconnecter",
             reconnect = "Reconnecter",
-            hermesProviderPrefix = "Fournisseur Hermes",
+            hermesProviderPrefix = "Fournisseur Agent",
             portalTitle = "Portail fournisseur",
             portalEmbeddedDescription = "Le portail intégré se charge maintenant automatiquement ici. Utilisez le bouton en haut à droite pour agrandir ou réduire l’aperçu, ou ouvrez le navigateur si nécessaire.",
             fullScreenPortal = "Portail plein écran",
@@ -5377,7 +5377,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
         AppLanguage.ENGLISH -> HermesStrings(
             language = language,
             alphaBadge = "ALPHA",
-            sectionHermes = "Hermes Fork",
+            sectionHermes = "Agent",
             sectionAccounts = "Accounts",
             sectionPortal = "Portal",
             sectionDevice = "Device",
@@ -5389,31 +5389,31 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             subtitleSettings = "Runtime provider and API configuration",
             runtimeSetupAndOnboarding = "Runtime setup and onboarding",
             openPageActions = "Open page actions",
-            hermesLogoDescription = "Hermes Agent Fork logo",
-            settingsNewHereTitle = "Hermes Agent Fork",
+            hermesLogoDescription = "Agent logo",
+            settingsNewHereTitle = "Agent",
             settingsHelpStart = "Start with OpenRouter or another API provider if you already have a key.",
             settingsHelpAccounts = "Use Accounts for Corr3xt app sign-in with email, phone, or Google; keep provider keys in Settings.",
             appLanguageTitle = "App language",
             appLanguageDescription = "Tap a flag to save and switch the app language immediately.",
             onDeviceInferenceTitle = "On-device inference",
-            onDeviceInferenceDescription = "Choose a local backend so Hermes can run models directly on the phone.",
+            onDeviceInferenceDescription = "Choose a local backend so Agent can run models directly on the phone.",
             llamaCppLabel = "llama.cpp (GGUF)",
             llamaCppDescription = "Run the local agent with the embedded Linux suite and GGUF models.",
             liteRtLmLabel = "LiteRT-LM",
             liteRtLmDescription = "Load .litertlm models with Google’s LiteRT-LM Android runtime.",
             noCompatibleLocalModel = "No compatible local model is selected yet. Download one and mark it as preferred first.",
-            chatTitle = "Hermes Fork Chat",
+            chatTitle = "Agent Chat",
             openHistory = "Open history",
             history = "History",
             newChat = "New chat",
             backToChat = "Back to chat",
             clearConversation = "Clear conversation",
             speakLastReply = "Speak last reply",
-            welcomeToHermes = "Welcome to Hermes Agent Fork",
+            welcomeToHermes = "Welcome to Agent",
             welcomeDescription = "Use chat for normal prompts, voice input, or native app commands like /help, /history, /provider, and /signin.",
             accounts = "Accounts",
             settings = "Settings",
-            messageHermes = "Message Hermes Fork",
+            messageHermes = "Message Agent",
             send = "Send",
             authIntro = "Corr3xt is used for app sign-in; providers use secure API keys or tokens in Settings.",
             corr3xtAuthBaseUrl = "Corr3xt auth base URL",
@@ -5423,7 +5423,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             signIn = "Sign in",
             signOut = "Sign out",
             reconnect = "Reconnect",
-            hermesProviderPrefix = "Hermes provider",
+            hermesProviderPrefix = "Agent provider",
             portalTitle = "Provider Portal",
             portalEmbeddedDescription = "The embedded portal now auto-loads on this page. Use the top-right full screen button to maximize or minimize the preview, or fall back to the browser if verification gets stuck.",
             fullScreenPortal = "Full screen portal",
@@ -5433,7 +5433,7 @@ fun hermesStringsFor(language: AppLanguage): HermesStrings {
             localDownloadsTitle = "Hugging Face local model downloads",
             localDownloadsDescription = "Download full model files directly to the phone, keep progress in Android’s system download manager, and resume safely after network loss or a phone restart.",
             dataSaverModeTitle = "Data saver mode",
-            dataSaverModeDescription = "When enabled, large model downloads wait for Wi‑Fi / unmetered connectivity so Hermes uses only minimal mobile data.",
+            dataSaverModeDescription = "When enabled, large model downloads wait for Wi‑Fi / unmetered connectivity so Agent uses only minimal mobile data.",
             huggingFaceTokenOptional = "Hugging Face token (optional)",
             saveToken = "Save token",
             refreshDownloads = "Refresh downloads",

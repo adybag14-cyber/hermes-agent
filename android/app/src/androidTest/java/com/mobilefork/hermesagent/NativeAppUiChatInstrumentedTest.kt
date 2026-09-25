@@ -438,9 +438,9 @@ class NativeAppUiChatInstrumentedTest {
 
         ActivityScenario.launch(MainActivity::class.java).use {
             composeRule.waitUntil(timeoutMillis = BOOT_TIMEOUT_MS) {
-                composeRule.onAllNodesWithText("Hermes Fork Chat").fetchSemanticsNodes().isNotEmpty()
+                composeRule.onAllNodesWithText("Agent Chat").fetchSemanticsNodes().isNotEmpty()
             }
-            composeRule.onNodeWithText("Hermes Fork Chat").assertIsDisplayed()
+            composeRule.onNodeWithText("Agent Chat").assertIsDisplayed()
             composeRule.onNodeWithTag("HermesChatInput").assertIsDisplayed()
 
             composeRule.onNodeWithTag("HermesChatInput").performTextInput(
@@ -480,7 +480,7 @@ class NativeAppUiChatInstrumentedTest {
 
         ActivityScenario.launch(MainActivity::class.java).use {
             composeRule.waitUntil(timeoutMillis = BOOT_TIMEOUT_MS) {
-                composeRule.onAllNodesWithText("Hermes Fork Chat").fetchSemanticsNodes().isNotEmpty()
+                composeRule.onAllNodesWithText("Agent Chat").fetchSemanticsNodes().isNotEmpty()
             }
             composeRule.onNodeWithTag("HermesChatInput").performTextInput(
                 "Could you please run pwd and tell me the current working directory?",

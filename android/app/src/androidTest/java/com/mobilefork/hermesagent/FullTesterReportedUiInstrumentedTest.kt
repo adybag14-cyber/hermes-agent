@@ -104,7 +104,7 @@ class FullTesterReportedUiInstrumentedTest {
                 capture("${language.tag}-mcp-consent")
                 compose.onNodeWithText(strings.mcpCancel()).performClick()
                 assertFalse(mcp.externalMcpAllowed())
-                navigate("Hermes")
+                navigate("Agent")
                 if (compose.onAllNodesWithTag("HermesHistoryActions-${sample.sessionId}").fetchSemanticsNodes().isEmpty()) {
                     compose.onNodeWithTag("HermesChatHistoryButton").performClick()
                 }

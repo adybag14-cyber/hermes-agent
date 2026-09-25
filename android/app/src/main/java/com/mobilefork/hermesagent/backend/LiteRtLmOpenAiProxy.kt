@@ -171,7 +171,7 @@ object LiteRtLmOpenAiProxy {
         nativeStartupUnwind.get()?.let { unwind ->
             val failure = IllegalStateException(
                 "A prior native LiteRT-LM startup is still unwinding (${unwind.detail}); " +
-                    "Hermes will not construct another engine yet."
+                    "Agent will not construct another engine yet."
             )
             return StartupEngineSelection(null, "", 0L, listOf("startup blocked: ${failure.message}"), failure)
         }
@@ -276,7 +276,7 @@ object LiteRtLmOpenAiProxy {
         }
         val safeLabel = label.replace(Regex("[^A-Za-z0-9._-]"), "-")
         val executor = Executors.newSingleThreadExecutor { runnable ->
-            Thread(runnable, "Hermes-LiteRT-$safeLabel-${phase.replace(' ', '-')}").apply { isDaemon = true }
+            Thread(runnable, "Agent-LiteRT-$safeLabel-${phase.replace(' ', '-')}").apply { isDaemon = true }
         }
         val notStarted = 0
         val running = 1
@@ -357,12 +357,12 @@ object LiteRtLmOpenAiProxy {
                             poisonOnOperationFailure = poisonOnAbandonedOperationFailure,
                         )
                     },
-                    "Hermes-LiteRT-$safeLabel-abandoned-cleanup",
+                    "Agent-LiteRT-$safeLabel-abandoned-cleanup",
                 ).apply { isDaemon = true }.start()
             }
             throw StartupNativeOperationAbandonedException(
                 "$phase $reason after ${timeoutMs / 1000.0} seconds; " +
-                    "Hermes will not start another native engine until this attempt exits",
+                    "Agent will not start another native engine until this attempt exits",
                 cause,
             )
         }
@@ -389,7 +389,7 @@ object LiteRtLmOpenAiProxy {
         require(timeoutMs > 0L) { "Candidate cleanup timeout must be positive" }
         val safeLabel = label.replace(Regex("[^A-Za-z0-9._-]"), "-")
         val executor = Executors.newSingleThreadExecutor { runnable ->
-            Thread(runnable, "Hermes-LiteRT-$safeLabel-cleanup").apply { isDaemon = true }
+            Thread(runnable, "Agent-LiteRT-$safeLabel-cleanup").apply { isDaemon = true }
         }
         val notStarted = 0
         val running = 1
@@ -458,12 +458,12 @@ object LiteRtLmOpenAiProxy {
             if (cleanupBeforeStart) {
                 Thread(
                     { finishAbandonedNativeCleanup({ cleanupStartupCandidate(candidate) }, unwind) },
-                    "Hermes-LiteRT-$safeLabel-cancelled-before-start-cleanup",
+                    "Agent-LiteRT-$safeLabel-cancelled-before-start-cleanup",
                 ).apply { isDaemon = true }.start()
             }
             throw StartupNativeOperationAbandonedException(
                 "candidate cleanup $reason after ${timeoutMs / 1000.0} seconds; " +
-                    "Hermes will not start another native engine until cleanup succeeds",
+                    "Agent will not start another native engine until cleanup succeeds",
                 cause,
             )
         }
@@ -480,7 +480,7 @@ object LiteRtLmOpenAiProxy {
             val unwind = registerNativeStartupUnwind("$label candidate cleanup failed")
             markUnwindCleanupFailure(unwind, cause)
             throw StartupNativeOperationAbandonedException(
-                "candidate cleanup failed; restart Hermes before another native engine attempt",
+                "candidate cleanup failed; restart Agent before another native engine attempt",
                 cause,
             )
         } finally {
@@ -578,7 +578,7 @@ object LiteRtLmOpenAiProxy {
                 markUnwindCleanupFailure(unwind, cleanup)
                 attempts += "$label: cleanup failed (${startupFailureSummary(cleanup)})"
                 throw StartupNativeOperationAbandonedException(
-                    "$label cleanup failed; restart Hermes before another native engine attempt",
+                    "$label cleanup failed; restart Agent before another native engine attempt",
                     cleanup,
                 )
             } catch (error: Throwable) {
@@ -612,7 +612,7 @@ object LiteRtLmOpenAiProxy {
             unwind,
             unwind.copy(
                 detail = unwind.detail +
-                    "; cleanup failed (${startupFailureSummary(error)}); restart Hermes before retrying",
+                    "; cleanup failed (${startupFailureSummary(error)}); restart Agent before retrying",
             ),
         )
     }
@@ -687,7 +687,7 @@ object LiteRtLmOpenAiProxy {
                 check(active == null) {
                     val detail = active?.restartRequiredDetail.orEmpty()
                     if (detail.isBlank()) {
-                        "A prior LiteRT-LM completion is still running; Hermes will not overlap native generation"
+                        "A prior LiteRT-LM completion is still running; Agent will not overlap native generation"
                     } else {
                         "A prior LiteRT-LM completion requires an app restart ($detail)"
                     }
@@ -703,7 +703,7 @@ object LiteRtLmOpenAiProxy {
             val executionState = AtomicInteger(notStarted)
             val workerFailure = AtomicReference<Throwable?>(null)
             val executor = Executors.newSingleThreadExecutor { runnable ->
-                Thread(runnable, "Hermes-LiteRT-generation-${lease.token.take(8)}").apply { isDaemon = true }
+                Thread(runnable, "Agent-LiteRT-generation-${lease.token.take(8)}").apply { isDaemon = true }
             }
 
             fun finishLease(abandoned: Boolean) {
@@ -761,7 +761,7 @@ object LiteRtLmOpenAiProxy {
                 }
                 throw IllegalStateException(
                     "LiteRT-LM generation $reason after ${timeoutMs / 1000.0} seconds; " +
-                        "Hermes will not accept another completion or close the engine until this native call exits",
+                        "Agent will not accept another completion or close the engine until this native call exits",
                     cause,
                 )
             }
@@ -798,7 +798,7 @@ object LiteRtLmOpenAiProxy {
             if (lease.restartRequiredDetail.isNotBlank()) {
                 throw IllegalStateException(
                     "Native generation cleanup failed (${lease.restartRequiredDetail}); " +
-                        "force stop and reopen Hermes before replacing this engine"
+                        "force stop and reopen Agent before replacing this engine"
                 )
             }
         }
@@ -945,7 +945,7 @@ object LiteRtLmOpenAiProxy {
         if (shutdownFailure != null) {
             val detail =
                 "The existing LiteRT-LM runtime did not shut down safely (${startupFailureSummary(shutdownFailure)}). " +
-                    "Hermes did not construct a replacement engine. Force stop and reopen Hermes before retrying."
+                    "Agent did not construct a replacement engine. Force stop and reopen Agent before retrying."
             LocalModelRuntimeDiagnostics.finishAttempt(
                 context = context,
                 attemptId = attemptId,
@@ -1010,7 +1010,7 @@ object LiteRtLmOpenAiProxy {
                 if (candidateCleanupFailure != null) {
                     append(" Candidate cleanup did not finish safely (")
                     append(startupFailureSummary(candidateCleanupFailure))
-                    append("); force stop and reopen Hermes before retrying.")
+                    append("); force stop and reopen Agent before retrying.")
                 }
             }
             LocalModelRuntimeDiagnostics.finishAttempt(
@@ -1038,7 +1038,7 @@ object LiteRtLmOpenAiProxy {
         nativeStartupUnwind.get()?.let { unwind ->
             return IllegalStateException(
                 "A prior native LiteRT-LM operation is still unwinding (${unwind.detail}); " +
-                    "Hermes cannot report the runtime as stopped yet"
+                    "Agent cannot report the runtime as stopped yet"
             )
         }
         val current = server
@@ -1133,7 +1133,7 @@ object LiteRtLmOpenAiProxy {
                 "${accelerator.ifBlank { "unknown" }} acceleration. $preflightDetail$fallbackLabel"
         } else {
             val recovery = if (generationState == "restart_required") {
-                " Force stop and reopen Hermes before retrying."
+                " Force stop and reopen Agent before retrying."
             } else {
                 " Wait for the owning native completion to exit before retrying."
             }
@@ -1653,8 +1653,8 @@ object LiteRtLmOpenAiProxy {
             val multimodalError = lastError
             if (multimodalError is StartupNativeOperationAbandonedException) {
                 throw IllegalStateException(
-                    "LiteRT-LM native startup exceeded its safety deadline. Hermes did not start a second engine " +
-                        "while the original native call might still be exiting; restart Hermes before retrying.",
+                    "LiteRT-LM native startup exceeded its safety deadline. Agent did not start a second engine " +
+                        "while the original native call might still be exiting; restart Agent before retrying.",
                     multimodalError,
                 )
             }
@@ -1797,7 +1797,7 @@ object LiteRtLmOpenAiProxy {
                 val errorMessage = if (engineInitResult.modalityPolicy.startsWith("text-only fallback")) {
                     "image input is unavailable because LiteRT-LM fell back to text-only after multimodal adapter initialization failed on this device. Check /health modality_policy for details."
                 } else if (engineInitResult.modalityPolicy.startsWith("text-only memory guard")) {
-                    "image input is unavailable because Hermes started this large local LiteRT-LM model in text-only mode to avoid an out-of-memory crash on this device. Check /health modality_policy for details."
+                    "image input is unavailable because Agent started this large local LiteRT-LM model in text-only mode to avoid an out-of-memory crash on this device. Check /health modality_policy for details."
                 } else {
                     "image input requires a LiteRT-LM model started with image support, such as Gemma 4, Gemma 3n, or Gemma 3 vision models"
                 }
@@ -2396,7 +2396,7 @@ object LiteRtLmOpenAiProxy {
             )
             normalizedAccelerator == "npu" -> policy(
                 enabled = false,
-                description = "disabled: Hermes does not implement a separate NPU delegate; choose auto, CPU, or GPU",
+                description = "disabled: Agent does not implement a separate NPU delegate; choose auto, CPU, or GPU",
             )
             isTranslatedArm64OnX86 -> policy(
                 enabled = false,

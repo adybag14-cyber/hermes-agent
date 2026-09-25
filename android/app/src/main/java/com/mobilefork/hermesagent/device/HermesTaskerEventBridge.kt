@@ -76,7 +76,7 @@ object HermesTaskerEventBridge {
         existingToken: String = "",
     ): Intent {
         val normalizedType = normalizeEventType(eventType)
-            ?: throw IllegalArgumentException("Choose a supported Hermes event")
+            ?: throw IllegalArgumentException("Choose a supported Agent event")
         val normalizedAutomationId = normalizeOptionalAutomationId(automationId)
         val signature = eventSignature(normalizedType, normalizedAutomationId)
         val token = ensureAuthorizedToken(context, signature, existingToken)
@@ -138,22 +138,22 @@ object HermesTaskerEventBridge {
 
     fun queryEvent(context: Context, hostIntent: Intent?, bundle: Bundle?): EventResult {
         if (bundle == null) {
-            return unknown("Hermes event query is missing Locale EXTRA_BUNDLE")
+            return unknown("Agent event query is missing Locale EXTRA_BUNDLE")
         }
         val eventType = normalizeEventType(bundle.getString(KEY_EVENT_TYPE).orEmpty())
-            ?: return unknown("Hermes event query has an unsupported event type")
+            ?: return unknown("Agent event query has an unsupported event type")
         val automationId = runCatching {
             normalizeOptionalAutomationId(bundle.getString(KEY_AUTOMATION_ID).orEmpty())
         }.getOrElse {
-            return unknown("Hermes event query has an invalid automation ID")
+            return unknown("Agent event query has an invalid automation ID")
         }
         val token = bundle.getString(KEY_TOKEN).orEmpty().trim()
         if (!isAuthorizedToken(context, eventSignature(eventType, automationId), token)) {
-            return unknown("Hermes event token is missing or invalid")
+            return unknown("Agent event token is missing or invalid")
         }
-        val messageId = retrieveMessageId(hostIntent) ?: return unknown("Hermes event update is missing a verified message id")
+        val messageId = retrieveMessageId(hostIntent) ?: return unknown("Agent event update is missing a verified message id")
         val payload = readEventPayload(context.applicationContext, messageId)
-            ?: return unknown("Hermes event update is unknown or expired")
+            ?: return unknown("Agent event update is unknown or expired")
         val variables = variablesForPayload(eventType, automationId, payload)
         val satisfied = eventMatches(eventType, automationId, payload)
         variables.putString("%hermes_satisfied", satisfied.toString())
@@ -350,7 +350,7 @@ object HermesTaskerEventBridge {
             return ""
         }
         require(id.length <= MAX_AUTOMATION_ID_CHARS && id.indexOf('\u0000') < 0) {
-            "Hermes automation ID is too long or invalid"
+            "Agent automation ID is too long or invalid"
         }
         return id
     }

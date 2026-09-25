@@ -161,7 +161,7 @@ object NativeAndroidShellTool {
                 )
                 .put(
                     "package_management_hint",
-                    "Host suite packages use Hermes pkg (Termux main mirrors). " +
+                    "Host suite packages use Agent pkg (Termux main mirrors). " +
                         "Guest sandboxes use linux_sandbox_tool action=update (apt/apk).",
                 )
             if (includeLinuxSandboxStatus) {
@@ -207,7 +207,7 @@ object NativeAndroidShellTool {
                 .put("output", "")
                 .put(
                     "error",
-                    "Hermes could not establish a safe same-UID process baseline ($detail). " +
+                    "Agent could not establish a safe same-UID process baseline ($detail). " +
                         "No native shell command was started.",
                 )
                 .put("cwd", homeDir.absolutePath)
@@ -455,8 +455,8 @@ object NativeAndroidShellTool {
             ).joinToString("; ").ifBlank { "the command exceeded its ${timeoutSeconds}s deadline" }
             unsafeExecutionDetail =
                 "A previous native shell command did not unwind safely ($reason). " +
-                    "Hermes will not start another command because PRoot/QEMU descendants cannot be excluded. " +
-                    "Force stop and reopen Hermes before retrying."
+                    "Agent will not start another command because PRoot/QEMU descendants cannot be excluded. " +
+                    "Force stop and reopen Agent before retrying."
         }
         val detachedProcessRejected = detachedContainment.detectedOwnedPids.isNotEmpty()
         val exitCode = nativeShellExitCode(
@@ -468,7 +468,7 @@ object NativeAndroidShellTool {
         )
         val output = stdoutRead.text
         val detachedRejectionDetail = if (detachedProcessRejected) {
-            "Detached/background native shell processes are unsupported; Hermes stopped the owned process(es) " +
+            "Detached/background native shell processes are unsupported; Agent stopped the owned process(es) " +
                 "before returning: ${detachedContainment.detectedOwnedPids.joinToString(",")}"
         } else {
             ""
@@ -521,7 +521,7 @@ object NativeAndroidShellTool {
             .put(
                 "package_management_hint",
                 if (state.optBoolean("uses_termux", false)) {
-                    "Host suite: use pkg list/search for discovery; package changes require a signed Hermes APK. " +
+                    "Host suite: use pkg list/search for discovery; package changes require a signed Agent APK. " +
                         "Guest sandboxes: linux_sandbox_tool action=update (apt/apk). " +
                         "Packaged prefix commands are on PATH; proot-distro catalog is in downloadable_linux_sandboxes."
                 } else {
@@ -1073,7 +1073,7 @@ object NativeAndroidShellTool {
         }
         return "Android found the command but refused to execute it. $routeDetail " +
             "Downloaded ELF files in app data cannot be made executable with chmod on Android 10+. " +
-            "Use the packaged command name or update Hermes so it can repair the APK-native route; " +
+            "Use the packaged command name or update Agent so it can repair the APK-native route; " +
             "do not grant broad storage permission or retry chmod."
     }
 }

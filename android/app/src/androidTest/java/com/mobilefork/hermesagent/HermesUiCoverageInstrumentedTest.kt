@@ -276,7 +276,7 @@ class HermesUiCoverageInstrumentedTest {
             identity = "appearance-custom-light",
             name = "$prefix-theme-custom-light",
             coverageKind = "custom-light-palette",
-            pageId = "Hermes",
+            pageId = "Agent",
             language = AppLanguage.ENGLISH,
             themeId = "custom-light",
             sentinels = listOf("HermesChatInput"),
@@ -368,6 +368,8 @@ class HermesUiCoverageInstrumentedTest {
         composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
         composeRule.waitForIdle()
         val presets = LocalModelDownloadsViewModel.recommendedModelPresets
+        scrollSettingsToTag("ModelDownloadCatalog")
+        composeRule.onNodeWithTag("ModelDownloadCatalog").performClick()
         scrollSettingsToTag(recommendedLocalModelCardTestTag(presets.first().id))
         listOf(presets.first(), presets.last()).distinctBy { preset -> preset.id }.forEach { preset ->
             assertRecommendedModelCardVisible(
@@ -407,6 +409,8 @@ class HermesUiCoverageInstrumentedTest {
             selectLanguage(language, strings)
             composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
             composeRule.waitForIdle()
+            scrollSettingsToTag("ModelDownloadCatalog")
+            composeRule.onNodeWithTag("ModelDownloadCatalog").performClick()
             scrollSettingsToTag(recommendedLocalModelCardTestTag(targetPresets.first().id))
 
             targetPresets.forEach { preset ->
@@ -520,7 +524,7 @@ class HermesUiCoverageInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = probeResult,
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -1148,7 +1152,7 @@ class HermesUiCoverageInstrumentedTest {
         val palette = hermesViewPalette(activity)
         val contentRoot = activity.findViewById<ViewGroup>(android.R.id.content)
         val page = contentRoot.getChildAt(0)
-        assertTrue("$evidencePage must use the Hermes ScrollView page", page is ScrollView)
+        assertTrue("$evidencePage must use the Agent ScrollView page", page is ScrollView)
         val backdrop = page.background as? GradientDrawable
             ?: throw AssertionError("$evidencePage must use the saved-theme gradient backdrop")
         val expectedBackdrop = hermesViewBackdropDrawable(palette)
@@ -1361,7 +1365,7 @@ class HermesUiCoverageInstrumentedTest {
         assertComposeHostForeground(name)
         sentinels.forEach { sentinel -> assertComposeSentinelDisplayed(name, sentinel) }
         val semantics = composeRule.onRoot(useUnmergedTree = true).printToString(maxDepth = 160)
-        assertTrue("Hermes semantics tree $name is empty", semantics.isNotBlank())
+        assertTrue("Agent semantics tree $name is empty", semantics.isNotBlank())
         val screenshot = captureComposeRootScreenshot(name)
         if (verifyThemePixels) {
             assertScreenshotRendersPalette(screenshot, settingsStore.load())
@@ -1396,7 +1400,7 @@ class HermesUiCoverageInstrumentedTest {
             val resumed = ActivityLifecycleMonitorRegistry.getInstance()
                 .getActivitiesInStage(Stage.RESUMED)
                 .filter { activity -> activity.packageName == BuildConfig.APPLICATION_ID }
-            assertEquals("$artifact must have exactly one resumed Hermes activity", 1, resumed.size)
+            assertEquals("$artifact must have exactly one resumed Agent activity", 1, resumed.size)
             val decor = resumed.single().window.decorView
             assertTrue("$artifact Compose host decor must be attached and shown", decor.isAttachedToWindow && decor.isShown)
             assertTrue("$artifact Compose host must own window focus", decor.hasWindowFocus())
@@ -1486,12 +1490,12 @@ class HermesUiCoverageInstrumentedTest {
 
     private fun persistVerifiedPng(name: String, bitmap: Bitmap): File {
         val outputFile = File(outputDirectory(), "$name.png")
-        assertTrue("Hermes UI screenshot $name appears blank", screenshotHasVisibleContent(bitmap))
+        assertTrue("Agent UI screenshot $name appears blank", screenshotHasVisibleContent(bitmap))
         val compressed = FileOutputStream(outputFile).use { output ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
         }
-        assertTrue("Failed to encode Hermes UI screenshot $name as PNG", compressed)
-        assertTrue("Failed to persist Hermes UI screenshot $name", outputFile.length() > 8L)
+        assertTrue("Failed to encode Agent UI screenshot $name as PNG", compressed)
+        assertTrue("Failed to persist Agent UI screenshot $name", outputFile.length() > 8L)
         val signature = outputFile.inputStream().buffered().use { input -> ByteArray(8).also { input.read(it) } }
         assertArrayEquals("$name is not a PNG file", PNG_SIGNATURE, signature)
         val decoded = BitmapFactory.decodeFile(outputFile.absolutePath)
@@ -1499,7 +1503,7 @@ class HermesUiCoverageInstrumentedTest {
         try {
             assertEquals("$name decoded width changed", bitmap.width, decoded.width)
             assertEquals("$name decoded height changed", bitmap.height, decoded.height)
-            assertTrue("Decoded Hermes UI screenshot $name appears blank", screenshotHasVisibleContent(decoded))
+            assertTrue("Decoded Agent UI screenshot $name appears blank", screenshotHasVisibleContent(decoded))
         } finally {
             decoded.recycle()
         }
@@ -1667,7 +1671,7 @@ class HermesUiCoverageInstrumentedTest {
         val renderedFontSp = layouts.single().layoutInput.style.fontSize.value
         val expectedFontSp = Typography().titleSmall.fontSize.value * expectedScale
         assertEquals(
-            "$label did not render the persisted Hermes UI font scale",
+            "$label did not render the persisted Agent UI font scale",
             expectedFontSp,
             renderedFontSp,
             0.05f,

@@ -142,7 +142,7 @@ class HermesStringsTest {
         val strings = hermesStringsFor(AppLanguage.CHINESE)
         val preview = """
             {
-              "description": "Hermes Android local tools exposed to the agent runtime",
+              "description": "Agent Android local tools exposed to the agent runtime",
               "draft": "User-added MCP server draft",
               "hint": "Use Test \/ refresh after the command is installed on this device."
             }
@@ -150,13 +150,13 @@ class HermesStringsTest {
 
         val localized = strings.mcpConfigPreviewText(preview)
 
-        assertFalse(localized.contains("Hermes Android local tools exposed to the agent runtime"))
+        assertFalse(localized.contains("Agent Android local tools exposed to the agent runtime"))
         assertFalse(localized.contains("User-added MCP server draft"))
         assertFalse(localized.contains("Use Test / refresh"))
         assertFalse(localized.contains("Use Test \\/ refresh"))
         assertEquals(
             true,
-            localized.contains("Hermes Android 本地工具已暴露给代理运行时"),
+            localized.contains("Agent Android 本地工具已暴露给代理运行时"),
         )
     }
 
@@ -181,8 +181,8 @@ class HermesStringsTest {
     @Test
     fun bootStatusTextMapsEnglishRuntimeStatuses() {
         val strings = hermesStringsFor(AppLanguage.CHINESE)
-        assertEquals("正在打开 Hermes…", strings.bootStatusText("Opening Hermes…"))
-        assertEquals("Hermes 外壳已就绪", strings.bootStatusText("Hermes shell ready"))
+        assertEquals("正在打开 Agent…", strings.bootStatusText("Opening Agent…"))
+        assertEquals("Agent 外壳已就绪", strings.bootStatusText("Agent shell ready"))
     }
 
     @Test
@@ -207,7 +207,7 @@ class HermesStringsTest {
     fun localModelUiTextLocalizesCatalogAndDiskStatusForEveryNonEnglishLanguage() {
         val messages = listOf(
             "Release-certified",
-            "Experimental - not tested by Hermes",
+            "Experimental - not tested by Agent",
             "Tap Refresh catalog to load signed model choices when needed.",
             "Existing model file is present on disk",
             "Download file is present on disk",
@@ -234,18 +234,18 @@ class HermesStringsTest {
             val localized = listOf(
                 strings.selectedLanguageDescription("Español") to "Selected language Español",
                 strings.switchLanguageDescription("Deutsch") to "Switch language to Deutsch",
-                strings.kanbanDescription() to "Human board control for the shared Hermes kanban DB. Workers still need the gateway dispatcher.",
+                strings.kanbanDescription() to "Human board control for the shared Agent kanban DB. Workers still need the gateway dispatcher.",
                 strings.kanbanNewTask() to "New task",
                 strings.localMemoryTitle() to "Local memory (hy-memory)",
                 strings.automationsTitle() to "Phone automations",
-                strings.skillsDescription() to "Installed Hermes skills from hermes-home and bundled skill directories.",
+                strings.skillsDescription() to "Installed Agent skills from hermes-home and bundled skill directories.",
                 strings.streamableHttpMcpDescription() to "Edge Gallery-style remote MCP: HTTPS URL that speaks Streamable HTTP. Optional API token is sent as Authorization.",
             )
             localized.forEach { (actual, english) ->
                 assertFalse("$language should localize $english", actual == english)
                 assertFalse("$language localization should not be blank", actual.isBlank())
             }
-            assertFalse(strings.kanbanRuntimeText("Waiting for Hermes Python runtime…") == "Waiting for Hermes Python runtime…")
+            assertFalse(strings.kanbanRuntimeText("Waiting for Agent Python runtime…") == "Waiting for Agent Python runtime…")
             assertEquals(
                 strings.kanbanDescription(),
                 strings.kanbanRuntimeText(
@@ -297,7 +297,7 @@ class HermesStringsTest {
                 assertFalse(strings.signalToolsToggleLabel(false) == "Show signal tools")
                 assertFalse(strings.exitCodeLabel(0) == "Exit code 0")
                 assertFalse(strings.chatStatusText("Stopped by user") == "Stopped by user")
-                assertFalse(strings.generationElapsedLabel("2m 15s") == "Hermes is working · 2m 15s elapsed")
+                assertFalse(strings.generationElapsedLabel("2m 15s") == "Agent is working · 2m 15s elapsed")
                 assertFalse(strings.stoppedReplyMessage() == "This reply was stopped by the user.")
                 assertFalse(
                     strings.lifecycleInterruptedReplyMessage() ==
@@ -305,7 +305,7 @@ class HermesStringsTest {
                 )
                 assertFalse(
                     strings.failedReplyMessage() ==
-                        "Hermes could not complete this reply. Review the error above and try again.",
+                        "Agent could not complete this reply. Review the error above and try again.",
                 )
             }
         }

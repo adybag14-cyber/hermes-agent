@@ -268,7 +268,7 @@ class NativeAgentToolAccessInstrumentedTest {
         }
 
         private fun fileWritePayload(): JSONObject {
-            val html = "<!doctype html><html><head><title>Hermes Flappy</title></head>" +
+            val html = "<!doctype html><html><head><title>Agent Flappy</title></head>" +
                 "<body><canvas id=\"game\" width=\"320\" height=\"180\"></canvas>" +
                 "<script>window.HERMES_FLAPPY='ok';</script></body></html>"
             return completionPayload(

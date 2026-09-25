@@ -10,6 +10,7 @@ import android.net.Uri
 import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -105,7 +106,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "visual-ui-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -114,7 +115,7 @@ class DeepAppUiVisualInstrumentedTest {
             )
         }
 
-        composeRule.onNodeWithText("Hermes Fork Chat").assertIsDisplayed()
+        composeRule.onNodeWithText("Agent Chat").assertIsDisplayed()
         capture("01-hermes-chat")
         composeRule.onNodeWithTag("HermesChatInput").performTextInput("Describe the attached image and then summarize the phone status.")
         capture("02-hermes-typing")
@@ -131,10 +132,14 @@ class DeepAppUiVisualInstrumentedTest {
         scrollSettingsToTag("SaveAppearanceButton")
         scrollSettingsToTag("HermesSettingsPage_Models")
         composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
+        scrollSettingsToTag("ModelSettings-runtime")
+        composeRule.onNodeWithTag("ModelSettings-runtime").performClick()
         scrollSettingsToText("Check setup")
         scrollSettingsToTag("LiteRtLmMtpMode-auto")
         scrollSettingsToTag("LiteRtLmMtpMode-enabled")
         scrollSettingsToTag("LiteRtLmMtpMode-disabled")
+        scrollSettingsToTag("ModelDownloadCatalog")
+        composeRule.onNodeWithTag("ModelDownloadCatalog").performClick()
         scrollSettingsToText("One-tap local models")
         scrollSettingsToText("Qwen3.5 0.8B Q4_K_M (GGUF)")
         scrollSettingsToText("Gemma 4 E2B (LiteRT-LM)")
@@ -147,6 +152,8 @@ class DeepAppUiVisualInstrumentedTest {
         assertTrue(composeRule.onAllNodesWithText("Idioma de la app").fetchSemanticsNodes().isNotEmpty())
         scrollSettingsToTag("HermesSettingsPage_Models")
         composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
+        scrollSettingsToTag("ModelDownloadCatalog")
+        composeRule.onNodeWithTag("ModelDownloadCatalog").performClick()
         scrollSettingsToText("Modelos locales con un toque")
         assertTrue(composeRule.onAllNodesWithText("Descargar e iniciar").fetchSemanticsNodes().isNotEmpty())
         capture("05-settings-spanish")
@@ -181,7 +188,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "terminal-session-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -214,7 +221,7 @@ class DeepAppUiVisualInstrumentedTest {
 
         composeRule.onNodeWithTag("HermesManualTerminalInput").performTextInput("exit")
         composeRule.onNodeWithTag("HermesManualTerminalRunButton").performClick()
-        composeRule.onNodeWithText("Returned to the Hermes host shell.").fetchSemanticsNode()
+        composeRule.onNodeWithText("Returned to the Agent host shell.").fetchSemanticsNode()
     }
 
     @Test
@@ -223,7 +230,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "six-language-ui-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -249,7 +256,9 @@ class DeepAppUiVisualInstrumentedTest {
             composeRule.onNodeWithTag("HermesSettingsContentList").performScrollToIndex(0)
             composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
             composeRule.waitForIdle()
-            composeRule.onNodeWithTag("HermesSettingsPage_Models").assertIsNotEnabled()
+            composeRule.onNodeWithTag("HermesSettingsPage_Models").assertIsSelected()
+            scrollSettingsToTag("ModelSettings-generation")
+            composeRule.onNodeWithTag("ModelSettings-generation").performClick()
             scrollSettingsToTag("LocalModelConfigTab-ToolGuidance")
             composeRule.onNodeWithTag("LocalModelConfigTab-ToolGuidance").performClick()
             composeRule.onNodeWithText(settingsGenerationText(language, "tool_guidance")).fetchSemanticsNode()
@@ -286,7 +295,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "tablet-navigation-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -319,7 +328,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "human-like-typing-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -453,7 +462,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "compact-chat-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -532,7 +541,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "narrow-controls-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -576,7 +585,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "ultra-narrow-controls-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -626,7 +635,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "custom-endpoint-preview-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -637,10 +646,12 @@ class DeepAppUiVisualInstrumentedTest {
 
         navigateToShellSection("HermesNavSettings")
         composeRule.onNodeWithTag("HermesSettingsPage_Models").performClick()
+        scrollSettingsToTag("ModelSettings-provider")
+        composeRule.onNodeWithTag("ModelSettings-provider").performClick()
         scrollSettingsToTag("HermesEndpointDebugPreview")
         composeRule.onNodeWithTag("HermesEndpointDebugPreview").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(
-            "Hermes will try: http://localhost:11434/v1/chat/completions",
+            "Agent will try: http://localhost:11434/v1/chat/completions",
         ).performScrollTo().assertIsDisplayed()
         capture("12-custom-endpoint-debug-preview")
     }
@@ -660,7 +671,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "signin-openrouter-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -729,7 +740,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "signin-qwen-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -778,7 +789,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "signin-openai-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -829,7 +840,7 @@ class DeepAppUiVisualInstrumentedTest {
         composeRule.setContent {
             AppShellScreen(
                 bootUiState = BootUiState(
-                    status = "Hermes backend is ready",
+                    status = "Agent backend is ready",
                     ready = true,
                     probeResult = "accounts-provider-setup-url-test",
                     baseUrl = "http://127.0.0.1:15436/v1",
@@ -869,7 +880,7 @@ class DeepAppUiVisualInstrumentedTest {
             composeRule.setContent {
                 AppShellScreen(
                     bootUiState = BootUiState(
-                        status = "Hermes backend is ready",
+                        status = "Agent backend is ready",
                         ready = true,
                         probeResult = "corr3xt-route-test",
                         baseUrl = "http://127.0.0.1:15436/v1",
@@ -991,7 +1002,7 @@ class DeepAppUiVisualInstrumentedTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val bitmap = takeVisibleScreenshot(instrumentation)
         if (bitmap != null) {
-            assertTrue("Hermes UI screenshot $name appears blank", screenshotHasVisibleContent(bitmap))
+            assertTrue("Agent UI screenshot $name appears blank", screenshotHasVisibleContent(bitmap))
             FileOutputStream(outputFile).use { output ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
             }
@@ -1004,7 +1015,7 @@ class DeepAppUiVisualInstrumentedTest {
                 input.copyTo(output)
             }
         }
-        assertTrue("Failed to capture Hermes UI screenshot $name", outputFile.length() > 0L)
+        assertTrue("Failed to capture Agent UI screenshot $name", outputFile.length() > 0L)
     }
 
     private fun captureSemantics(name: String, language: AppLanguage) {
@@ -1015,7 +1026,7 @@ class DeepAppUiVisualInstrumentedTest {
         assertTrue("Screenshot must exist before its semantics record: $name", screenshotFile.isFile)
         val releaseIdentity = ReleaseDeviceEvidenceIdentity.requireBound(app)
         val semanticsTree = composeRule.onRoot(useUnmergedTree = true).printToString(maxDepth = 100)
-        assertTrue("Hermes semantics tree $name is empty", semanticsTree.isNotBlank())
+        assertTrue("Agent semantics tree $name is empty", semanticsTree.isNotBlank())
         outputFile.writeText(
             buildString {
                 appendLine("language=${language.tag}")
@@ -1041,7 +1052,7 @@ class DeepAppUiVisualInstrumentedTest {
             },
             Charsets.UTF_8,
         )
-        assertTrue("Failed to persist Hermes semantics tree $name", outputFile.length() > 0L)
+        assertTrue("Failed to persist Agent semantics tree $name", outputFile.length() > 0L)
     }
 
     private fun takeVisibleScreenshot(instrumentation: Instrumentation): Bitmap? {
@@ -1082,7 +1093,7 @@ class DeepAppUiVisualInstrumentedTest {
     private fun providerSetupOpenFor(uri: Uri, onMatch: (() -> Unit)? = null): Matcher<Intent> {
         return object : TypeSafeMatcher<Intent>() {
             override fun describeTo(description: Description) {
-                description.appendText("Hermes provider setup intent for ").appendValue(uri)
+                description.appendText("Agent provider setup intent for ").appendValue(uri)
             }
 
             override fun matchesSafely(intent: Intent): Boolean {

@@ -68,7 +68,7 @@ object AuthCatalog {
         AuthOption(
             id = "openrouter",
             label = "OpenRouter",
-            description = "Use an OpenRouter API key for Hermes Android remote model calls.",
+            description = "Use an OpenRouter API key for Agent Android remote model calls.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "openrouter",
             defaultBaseUrl = "https://openrouter.ai/api/v1",
@@ -78,7 +78,7 @@ object AuthCatalog {
         AuthOption(
             id = "openai",
             label = "OpenAI",
-            description = "Use an OpenAI API key for Hermes Android remote model calls. Opens setup in the in-app browser.",
+            description = "Use an OpenAI API key for Agent Android remote model calls. Opens setup in the in-app browser.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "openai",
             defaultBaseUrl = "https://api.openai.com/v1",
@@ -118,7 +118,7 @@ object AuthCatalog {
         AuthOption(
             id = "xai-oauth",
             label = "xAI Grok OAuth (SuperGrok)",
-            description = "Full Grok SuperGrok subscription OAuth (PKCE + local callback) in the Hermes in-app browser.",
+            description = "Full Grok SuperGrok subscription OAuth (PKCE + local callback) in the Agent in-app browser.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "xai-oauth",
             defaultBaseUrl = "https://api.x.ai/v1",
@@ -138,7 +138,7 @@ object AuthCatalog {
         AuthOption(
             id = "claude",
             label = "Claude",
-            description = "Use an Anthropic / Claude API key for Hermes Android remote model calls.",
+            description = "Use an Anthropic / Claude API key for Agent Android remote model calls.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "anthropic",
             defaultBaseUrl = "https://api.anthropic.com",
@@ -148,7 +148,7 @@ object AuthCatalog {
         AuthOption(
             id = "gemini",
             label = "Gemini",
-            description = "Use a Google AI Studio / Gemini API key for Hermes Android remote model calls.",
+            description = "Use a Google AI Studio / Gemini API key for Agent Android remote model calls.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "gemini",
             defaultBaseUrl = "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -158,7 +158,7 @@ object AuthCatalog {
         AuthOption(
             id = "qwen",
             label = "Qwen Cloud",
-            description = "Use a Qwen Cloud / DashScope API key for Hermes Android remote model calls.",
+            description = "Use a Qwen Cloud / DashScope API key for Agent Android remote model calls.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "alibaba",
             defaultBaseUrl = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
@@ -178,7 +178,7 @@ object AuthCatalog {
         AuthOption(
             id = "qwen-oauth",
             label = "Qwen OAuth (legacy)",
-            description = "Reuse an existing Qwen OAuth / Qwen Chat token in Hermes Android; new Qwen OAuth sign-ins were discontinued on 2026-04-15, so use Qwen Cloud for new setup.",
+            description = "Reuse an existing Qwen OAuth / Qwen Chat token in Agent Android; new Qwen OAuth sign-ins were discontinued on 2026-04-15, so use Qwen Cloud for new setup.",
             scope = AuthScope.RuntimeProvider,
             runtimeProvider = "qwen-oauth",
             defaultBaseUrl = "https://portal.qwen.ai/v1",

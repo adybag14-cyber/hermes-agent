@@ -1,7 +1,9 @@
-Hermes Agent Fork is an independent community fork for running local models and practical Android workflows on your phone.
+Agent is an independently maintained Android app for local AI chat and practical device workflows.
 
-Fork status: this Android app is a fork. It is not official Nous Research or Teknium software, and it is published under the com.mobilefork.hermesagent application ID to avoid confusion with the original Hermes project.
+Choose a model first: open Settings > Models to import a GGUF, LiteRT-LM (.litertlm), or Android .task file with the system file picker. Local import requires neither an account nor an internet connection. Choose an imported or downloaded model and use the start action; the app selects the matching runtime. Model compatibility and available memory still determine whether a model can run.
 
-Use the app to chat with local Gemma LiteRT-LM or Qwen GGUF models, attach files, dictate by voice, and keep model downloads resumable through Android DownloadManager. A remote OpenAI-compatible provider can be configured when you want API-backed chat while local models are downloading or unavailable.
+Optional online providers and downloads are separate from local files. Response preferences, runtime controls, and advanced GGUF settings are grouped under clearly labelled expandable sections. Six interface languages, Android accessibility labels, and confirmation before removing a model help keep controls understandable.
 
-Hermes Agent Fork includes native Android tool bridges for files, browser and portal fallback, app launch, accessibility-assisted UI actions, notifications, settings helpers, shortcuts, widgets, and automation records. The settings screen repeats the fork status and exposes one-tap model downloads, local import, preferred-model selection, and offline controls so you can keep work local when needed.
+The Full edition includes Android tools for files, app launch, accessibility-assisted actions, notifications, shortcuts, widgets, and automations. Permissions and remote processing remain opt-in. The Play edition has a more restricted tool set.
+
+Agent is not an official Nous Research product and is not endorsed by Nous Research or Teknium. Open-source credits and licenses are retained. The existing application identifier is kept so installed users retain their upgrade path and app data.

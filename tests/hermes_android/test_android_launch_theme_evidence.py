@@ -52,7 +52,7 @@ def write_palette_proof(path: Path, **overrides: str) -> Path:
         "evidence_identity": "appearance-custom-light",
         "artifact": "headed-run-profile-phone-411x891dp-theme-custom-light",
         "coverage_kind": "custom-light-palette",
-        "page_id": "Hermes",
+        "page_id": "Agent",
         "profile": "phone-411x891dp",
         "language": "en",
         "theme_id": "custom-light",
@@ -139,7 +139,7 @@ def test_palette_proof_is_bound_to_device_run_and_rendered_capture(tmp_path):
     with pytest.raises(MODULE.EvidenceError, match="evidence_run_id"):
         MODULE.load_palette_proof(wrong_run, valid_identity())
 
-    wrong_capture = write_palette_proof(tmp_path / "wrong-capture.txt", evidence_identity="section:Hermes")
+    wrong_capture = write_palette_proof(tmp_path / "wrong-capture.txt", evidence_identity="section:Agent")
     with pytest.raises(MODULE.EvidenceError, match="appearance-custom-light"):
         MODULE.load_palette_proof(wrong_capture, valid_identity())
 

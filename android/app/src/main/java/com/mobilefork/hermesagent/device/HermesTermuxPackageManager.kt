@@ -378,7 +378,7 @@ object HermesTermuxPackageManager {
             .put("apk_authority", authorityJson(authority))
             .put(
                 "message",
-                "Hermes does not activate host packages from live mirrors because a mirror-provided index and mirror-provided hashes are not an independent signature. Update the signed Hermes APK to change the embedded host suite. Guest Debian/Alpine packages remain updateable inside their own sandbox package manager.",
+                "Agent does not activate host packages from live mirrors because a mirror-provided index and mirror-provided hashes are not an independent signature. Update the signed Agent APK to change the embedded host suite. Guest Debian/Alpine packages remain updateable inside their own sandbox package manager.",
             )
     }
 
@@ -463,7 +463,7 @@ object HermesTermuxPackageManager {
             .put(
                 "hint",
                 "Host suite uses Termux-style pkg (linux_host_pkg_tool). " +
-                    "All host package changes require a signed Hermes APK; live mirror indexes are discovery-only and never an activation trust boundary. " +
+                    "All host package changes require a signed Agent APK; live mirror indexes are discovery-only and never an activation trust boundary. " +
                     "Guest distro packages use linux_sandbox_tool action=update (apt/apk).",
             )
     }

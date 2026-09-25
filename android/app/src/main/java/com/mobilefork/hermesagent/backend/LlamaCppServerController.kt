@@ -167,7 +167,7 @@ object LlamaCppServerController {
         }
         if (!isLoopbackPortAvailable(port)) {
             val detail =
-                "Hermes did not start llama.cpp because 127.0.0.1:$port is already in use by an unowned process"
+                "Agent did not start llama.cpp because 127.0.0.1:$port is already in use by an unowned process"
             LocalModelRuntimeDiagnostics.finishAttempt(
                 context = context,
                 attemptId = attemptId,
@@ -261,7 +261,7 @@ object LlamaCppServerController {
         // a listener it did not launch.
         if (!isLoopbackPortAvailable(port)) {
             val detail =
-                "Hermes did not start llama.cpp because 127.0.0.1:$port became occupied by an unowned process before launch"
+                "Agent did not start llama.cpp because 127.0.0.1:$port became occupied by an unowned process before launch"
             LocalModelRuntimeDiagnostics.finishAttempt(
                 context = context,
                 attemptId = attemptId,
@@ -508,7 +508,7 @@ object LlamaCppServerController {
     private fun llamaStopFailureMessage(target: String, failure: Throwable): String {
         val reason = failure.message?.lineSequence()?.firstOrNull().orEmpty()
             .ifBlank { failure.javaClass.simpleName }
-        return "The existing llama.cpp process did not stop safely ($reason). Hermes did not start $target. Force stop and reopen Hermes before retrying."
+        return "The existing llama.cpp process did not stop safely ($reason). Agent did not start $target. Force stop and reopen Agent before retrying."
     }
 
     internal fun stopOwnedProcess(

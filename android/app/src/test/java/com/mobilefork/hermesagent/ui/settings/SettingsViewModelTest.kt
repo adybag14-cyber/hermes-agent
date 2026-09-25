@@ -569,7 +569,7 @@ class SettingsViewModelTest {
 
     @Test
     fun settingsSaveSurfacesUnsafeLocalShutdownInsteadOfStartingRemoteRuntime() {
-        val message = "LiteRT-LM did not stop safely. Force stop and reopen Hermes."
+        val message = "LiteRT-LM did not stop safely. Force stop and reopen Agent."
 
         assertEquals(
             message,

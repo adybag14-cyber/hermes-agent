@@ -71,7 +71,7 @@ object HermesLinuxSandboxCatalog {
                     image = "fedora:latest",
                     packageManager = "dnf",
                     profile = "modern",
-                    reason = "Good for newer toolchains and RPM workflows without pinning Hermes to one Fedora release.",
+                    reason = "Good for newer toolchains and RPM workflows without pinning Agent to one Fedora release.",
                     name = "hermes-fedora",
                 ),
             )

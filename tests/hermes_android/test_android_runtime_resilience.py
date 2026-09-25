@@ -29,7 +29,7 @@ def test_android_boot_and_chat_paths_guard_local_backend_failures_instead_of_cra
     assert 'startupDelayMillis = if (firstRefresh) FIRST_SHELL_REFRESH_DELAY_MS else 0L' in boot_view_model
     assert 'private const val FIRST_SHELL_REFRESH_DELAY_MS = 150L' in boot_view_model
     assert 'delay(startupDelayMillis)' in boot_view_model
-    assert 'BootUiState(status = "Hermes shell ready", ready = true)' in boot_view_model
+    assert 'BootUiState(status = "Agent shell ready", ready = true)' in boot_view_model
     assert 'checkHealth(' not in boot_view_model
     assert 'HermesRuntimeManager.ensureStarted' not in boot_view_model
     assert 'init {' not in boot_view_model

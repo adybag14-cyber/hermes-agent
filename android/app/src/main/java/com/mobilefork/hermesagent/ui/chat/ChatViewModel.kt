@@ -771,7 +771,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun stageMessageEdit(messageId: String) {
         val snapshot = _uiState.value
         if (snapshot.isSending) {
-            _uiState.update { it.copy(status = "Wait for Hermes to finish before editing a sent message.") }
+            _uiState.update { it.copy(status = "Wait for Agent to finish before editing a sent message.") }
             return
         }
         val message = snapshot.messages.firstOrNull { it.id == messageId && it.role == "user" } ?: return
@@ -832,7 +832,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     attachments = emptyList(),
                     isSending = true,
                     error = "",
-                    status = "Starting Hermes runtime…",
+                    status = "Starting Agent runtime…",
                     isShowingHistory = false,
                 )
             }
@@ -1288,7 +1288,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.update {
                         it.copy(
                             isSending = false,
-                            error = runtime.error ?: "Hermes runtime is not ready",
+                            error = runtime.error ?: "Agent runtime is not ready",
                             status = "",
                         )
                     }
@@ -1759,7 +1759,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun ChatEndpoint.streamingStatus(hasAttachments: Boolean): String {
-        val action = if (hasAttachments) "Hermes is reading the image" else "Hermes is replying"
+        val action = if (hasAttachments) "Agent is reading the image" else "Agent is replying"
         return if (nativeToolCalling) {
             "$action on-device…"
         } else {
@@ -1772,7 +1772,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         if (nativeToolCalling || !clean.looksLikeEndpointDisconnect()) {
             return clean
         }
-        return "$clean Hermes normalizes raw hosts, /v1 URLs, and /v1/chat/completions URLs, but the host must still be reachable, the model name must match the server exactly, and streaming endpoints must stay open until [DONE]."
+        return "$clean Agent normalizes raw hosts, /v1 URLs, and /v1/chat/completions URLs, but the host must still be reachable, the model name must match the server exactly, and streaming endpoints must stay open until [DONE]."
     }
 
     private fun ChatEndpoint.debugLabel(): String {

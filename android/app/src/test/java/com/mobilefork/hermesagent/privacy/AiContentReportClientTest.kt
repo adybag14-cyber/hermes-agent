@@ -11,6 +11,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.util.concurrent.TimeUnit
 
 @RunWith(RobolectricTestRunner::class)
 @Config(application = android.app.Application::class)
@@ -20,6 +21,8 @@ class AiContentReportClientTest {
         MockWebServer().use { server ->
             server.start()
             val context = RuntimeEnvironment.getApplication()
+            val settings = AppSettingsStore(context)
+            settings.save(settings.load().copy(offlineAirplaneMode = false))
             val client = AiContentReportClient(context, OkHttpClient.Builder().addInterceptor { chain ->
                 val original = chain.request()
                 assertTrue(original.url.toString().startsWith(AiContentReportClient.ENDPOINT + "/v1/reports"))
@@ -34,7 +37,7 @@ class AiContentReportClientTest {
                 client.submit(pending, AiReportReason.HATE, "Edited preview only", "User notes")
             }
             assertEquals(pending, AiReportReceiptStore(context).load().single())
-            val submittedBody = JSONObject(server.takeRequest().body.readUtf8())
+            val submittedBody = JSONObject(requireNotNull(server.takeRequest(5, TimeUnit.SECONDS)) { "The expected loopback request was not sent" }.body.readUtf8())
             assertEquals("Edited preview only", submittedBody.getString("message"))
             assertEquals("User notes", submittedBody.getString("notes"))
             assertEquals(setOf("schema", "request_id", "deletion_secret", "reason", "message", "notes", "app_version", "edition"),
@@ -43,13 +46,13 @@ class AiContentReportClientTest {
                 .put("received", true).put("report_id", pending.id).toString()))
             val confirmed = client.submit(pending, AiReportReason.HATE, "Edited preview only", "User notes")
             assertTrue(confirmed.submitted)
-            assertEquals(submittedBody.toString(), JSONObject(server.takeRequest().body.readUtf8()).toString())
+            assertEquals(submittedBody.toString(), JSONObject(requireNotNull(server.takeRequest(5, TimeUnit.SECONDS)) { "The expected loopback request was not sent" }.body.readUtf8()).toString())
             val saved = context.getSharedPreferences("ai-report-receipts-v1", 0).all.toString()
             assertFalse(saved.contains("Edited preview"))
             assertFalse(saved.contains("User notes"))
             server.enqueue(MockResponse().setResponseCode(204))
             client.delete(confirmed)
-            val deletion = server.takeRequest()
+            val deletion = requireNotNull(server.takeRequest(5, TimeUnit.SECONDS)) { "The expected loopback request was not sent" }
             assertEquals("DELETE", deletion.method)
             assertEquals(pending.deletionSecret, JSONObject(deletion.body.readUtf8()).getString("deletion_secret"))
             assertTrue(AiReportReceiptStore(context).load().isEmpty())

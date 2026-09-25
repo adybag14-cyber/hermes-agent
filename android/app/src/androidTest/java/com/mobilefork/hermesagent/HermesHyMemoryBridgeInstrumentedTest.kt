@@ -37,7 +37,7 @@ class HermesHyMemoryBridgeInstrumentedTest {
         assertEquals("hy_memory_tool", initialStatus.getString("tool_name"))
         assertEquals("hindsight_memory_tool", initialStatus.getString("compatibility_alias"))
 
-        val sentinel = "Hermes hy memory validation sentinel violet-714 retained correctly"
+        val sentinel = "Agent hy memory validation sentinel violet-714 retained correctly"
         val retain = JSONObject(
             HermesHyMemoryBridge.performActionJson(
                 app,

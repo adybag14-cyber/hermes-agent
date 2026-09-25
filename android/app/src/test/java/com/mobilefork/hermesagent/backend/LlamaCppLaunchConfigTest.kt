@@ -205,7 +205,7 @@ class LlamaCppLaunchConfigTest {
         rejected.forEach { token ->
             val validation = LlamaCppLaunchConfig(additionalArguments = listOf(token)).validate()
             assertFalse("Pinned e306 flag $token must remain app-owned", validation.valid)
-            assertTrue(validation.error, validation.error.contains("Hermes-managed"))
+            assertTrue(validation.error, validation.error.contains("Agent-managed"))
         }
     }
 
@@ -225,7 +225,7 @@ class LlamaCppLaunchConfigTest {
         rejected.forEach { (token, expectedOwner) ->
             val validation = LlamaCppLaunchConfig(additionalArguments = listOf(token)).validate()
             assertFalse("Pinned e306 flag $token must remain app-owned", validation.valid)
-            assertTrue(validation.error, validation.error.contains("Hermes-managed $expectedOwner"))
+            assertTrue(validation.error, validation.error.contains("Agent-managed $expectedOwner"))
         }
     }
 
@@ -245,7 +245,7 @@ class LlamaCppLaunchConfigTest {
             assertTrue(
                 validation.error,
                 validation.error.contains(
-                    "Hermes-managed server presets, model download, and resource policy",
+                    "Agent-managed server presets, model download, and resource policy",
                 ),
             )
         }
@@ -273,7 +273,7 @@ class LlamaCppLaunchConfigTest {
             val validation = LlamaCppLaunchConfig(additionalArguments = listOf(flag)).validate()
 
             assertFalse("Pinned llama-server alias $flag must remain app-owned", validation.valid)
-            assertTrue(validation.error, validation.error.contains("Hermes-managed $expectedOwner"))
+            assertTrue(validation.error, validation.error.contains("Agent-managed $expectedOwner"))
         }
     }
 
@@ -301,7 +301,7 @@ class LlamaCppLaunchConfigTest {
                 assertFalse("Pinned ${lane.persistedValue} paging flag $flag must remain app-owned", validation.valid)
                 assertTrue(
                     validation.error,
-                    validation.error.contains("Hermes-managed RAM admission and paging policy"),
+                    validation.error.contains("Agent-managed RAM admission and paging policy"),
                 )
             }
         }
@@ -384,7 +384,7 @@ class LlamaCppLaunchConfigTest {
         ).forEach { flag ->
             val validation = LlamaCppLaunchConfig(additionalArguments = listOf(flag)).validate()
             assertFalse("$flag must remain app-owned", validation.valid)
-            assertTrue(validation.error, validation.error.contains("Hermes-managed"))
+            assertTrue(validation.error, validation.error.contains("Agent-managed"))
         }
     }
 
@@ -424,7 +424,7 @@ class LlamaCppLaunchConfigTest {
         ).validate()
 
         assertFalse(validation.valid)
-        assertTrue(validation.error, validation.error.contains("Hermes-managed loopback server binding"))
+        assertTrue(validation.error, validation.error.contains("Agent-managed loopback server binding"))
     }
 
     @Test

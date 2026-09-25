@@ -288,7 +288,7 @@ object HermesDeviceDiagnosticsBridge {
                 openSettingsJson(appContext, Settings.ACTION_USAGE_ACCESS_SETTINGS, "Opened usage access settings")
             }.toString()
             "open_app_settings" -> publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
-                openAppSettingsJson(appContext, "Opened Hermes app settings")
+                openAppSettingsJson(appContext, "Opened Agent app settings")
             }.toString()
             "open_location_settings" -> publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
                 openSettingsJson(appContext, Settings.ACTION_LOCATION_SOURCE_SETTINGS, "Opened Android location settings")
@@ -301,7 +301,7 @@ object HermesDeviceDiagnosticsBridge {
             }.toString()
             "open_camera_permission_settings", "open_diagnostics_permission_settings" ->
                 publishDiagnosticsMutation(normalizedAction, cancellationRequested, publicationGate) {
-                    openAppSettingsJson(appContext, "Opened Hermes app permission settings")
+                    openAppSettingsJson(appContext, "Opened Agent app permission settings")
                 }.toString()
             else -> JSONObject()
                 .put("success", false)
@@ -408,7 +408,7 @@ object HermesDeviceDiagnosticsBridge {
                 "cards",
                 JSONArray()
                     .put(card("Memory", "${topMemoryApps.length()} visible running app/process rows ranked by PSS memory."))
-                    .put(card("Storage", if (usageAccess) "${topStorageApps.length()} installed apps ranked by app/data/cache bytes." else "Usage Access is required before Hermes can rank app storage usage.")),
+                    .put(card("Storage", if (usageAccess) "${topStorageApps.length()} installed apps ranked by app/data/cache bytes." else "Usage Access is required before Agent can rank app storage usage.")),
             )
     }
 
@@ -2252,7 +2252,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "sensor_workflow_advisor_report")
-            .put("report_scope", "Passive accelerometer, gyroscope, rotation, ambient, sampling-policy, and system-runway workflow advisor for motion-aware Hermes/Gemma tasks.")
+            .put("report_scope", "Passive accelerometer, gyroscope, rotation, ambient, sampling-policy, and system-runway workflow advisor for motion-aware Agent/Gemma tasks.")
             .put(
                 "source_report_actions",
                 JSONArray()
@@ -2449,7 +2449,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("requires_camera_permission_for_capture", !hasPermission(appContext, Manifest.permission.CAMERA))
             .put("camera_count", cameras.length())
             .put("cameras", cameras)
-            .put("notes", JSONArray().put("Hermes can inspect camera capabilities without capture; photo/video capture still requires the Camera permission and UI flow."))
+            .put("notes", JSONArray().put("Agent can inspect camera capabilities without capture; photo/video capture still requires the Camera permission and UI flow."))
             .put("cards", JSONArray().put(card("Camera", "${cameras.length()} camera device entries available.")))
     }
 
@@ -2725,7 +2725,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_radio_advisor_directives",
                 JSONArray()
-                    .put("Use radio_signal_advisor_matrix first when the user asks what AM/FM, SDR, or broad RF work Hermes can actually perform.")
+                    .put("Use radio_signal_advisor_matrix first when the user asks what AM/FM, SDR, or broad RF work Agent can actually perform.")
                     .put("Use radio_receiver_candidates to choose the exact receiver or bridge route; public Android AM/FM scan rows stay unavailable unless bridge samples are supplied.")
                     .put("Treat radio_signal_graph_sample_rows as receiver-provided samples only; do not infer wider spectrum coverage beyond reported frequency, span, and sample-rate metadata."),
             )
@@ -2834,7 +2834,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_radio_signal_decision_directives",
                 JSONArray()
-                    .put("Use radio_signal_decision_packet when the user asks what AM/FM, SDR, radio bridge, or broad RF evidence Hermes can safely show.")
+                    .put("Use radio_signal_decision_packet when the user asks what AM/FM, SDR, radio bridge, or broad RF evidence Agent can safely show.")
                     .put("Treat radio_signal_graph_sample_rows as receiver-provided samples only; public Android does not provide a general AM/FM or arbitrary RF scanner.")
                     .put("Use radio_signal_claim_boundaries before blaming Wi-Fi, Bluetooth, MediaTek, GPU backend, AM/FM reception, or external SDR setup for observed instability.")
                     .put("Open radio_signal_decision_routes to choose the next passive card, bridge sample schema, or user-supplied receiver sample action."),
@@ -4314,7 +4314,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "mcp_tool_server_registry_report")
-            .put("report_scope", "Kai-style MCP tool-server registry, native Hermes tool equivalents, Streamable HTTP endpoint gaps, reconnect policy, and Gemma-visible routing guidance.")
+            .put("report_scope", "Kai-style MCP tool-server registry, native Agent tool equivalents, Streamable HTTP endpoint gaps, reconnect policy, and Gemma-visible routing guidance.")
             .put(
                 "source_report_actions",
                 JSONArray()
@@ -4343,7 +4343,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put("server_name", "Context7")
                     .put("diagnostic_status", "external_mcp_client_missing")
                     .put("test_prompt", "Ask for current library docs through a configured Context7 MCP endpoint.")
-                    .put("expected_native_response", "Hermes must disclose that in-app Context7 requires an external MCP bridge, then offer native HTTP/browser fallback when available.")
+                    .put("expected_native_response", "Agent must disclose that in-app Context7 requires an external MCP bridge, then offer native HTTP/browser fallback when available.")
                     .put("source_action", "mcp_tool_server_registry_report"),
             )
             .put("mcp_tool_server_registry", registryRows)
@@ -4355,7 +4355,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_mcp_registry_directives",
                 JSONArray()
-                    .put("Use native Hermes tools first for diagnostics, memory, UI, Android system, automation, terminal, file, and simple HTTP work.")
+                    .put("Use native Agent tools first for diagnostics, memory, UI, Android system, automation, terminal, file, and simple HTTP work.")
                     .put("Provider endpoints, custom OpenAI-compatible endpoints, and local on-device model endpoints can all use the native Android tool bridge; external MCP server sessions are a separate bridge.")
                     .put("Treat Streamable HTTP MCP endpoints, startup auto-reconnect, Context7, DeepWiki, Globalping, and Find-A-Domain as explicit future external-server gaps until a configured MCP bridge exists.")
                     .put("For Context7 tests, return the context7_test_diagnostic row rather than claiming an in-app Context7 session is connected.")
@@ -4368,7 +4368,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "MCP Tool Server Registry",
-                            body = "${registryRows.length()} Kai-inspired tool-server row(s) mapping curated MCP servers to current Hermes native equivalents and external bridge gaps.",
+                            body = "${registryRows.length()} Kai-inspired tool-server row(s) mapping curated MCP servers to current Agent native equivalents and external bridge gaps.",
                             graphType = "mcp_tool_server_registry",
                             rows = registryRows,
                         ),
@@ -4423,7 +4423,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "agent_environment_report")
-            .put("report_scope", "Hermes agent environment, Kai parity and operations, tool sandbox status, wireless/radio/sensor inputs, and SOC/backend compatibility context.")
+            .put("report_scope", "Agent agent environment, Kai parity and operations, tool sandbox status, wireless/radio/sensor inputs, and SOC/backend compatibility context.")
             .put("android_device_identity", deviceIdentityJson())
             .put("soc_profile", socProfile)
             .put("preferred_local_model", preferredModel)
@@ -4461,9 +4461,9 @@ object HermesDeviceDiagnosticsBridge {
                     .put("Use SOC and LiteRT backend policy fields to avoid Snapdragon-only assumptions and keep MediaTek/Mali/PowerVR devices on GPU-first with CPU fallback when available.")
                     .put("Use hy_memory_tool and operator heartbeat/status rows to retain durable context and expose autonomous task readiness.")
                     .put("Use Settings Agent persona plus secret-free app settings export/import for Kai-style customizable soul/system prompt behavior.")
-                    .put("Use kai_operations_matrix to route Kai-style provider fallback, tool bridge, configurable persona, encrypted storage, secret-free settings backup, automation backup, TTS, image, and shell-boundary work through native Hermes surfaces.")
+                    .put("Use kai_operations_matrix to route Kai-style provider fallback, tool bridge, configurable persona, encrypted storage, secret-free settings backup, automation backup, TTS, image, and shell-boundary work through native Agent surfaces.")
                     .put("Use agent_tool_sandbox_matrix before executing tools so Gemma can see which surfaces are app-sandboxed, permission-gated, privileged, remote-dispatch capable, or MCP-equivalent.")
-                    .put("Use mcp_tool_server_registry_report before promising Kai MCP server parity so Gemma can distinguish native Hermes equivalents from future Streamable HTTP MCP bridge gaps."),
+                    .put("Use mcp_tool_server_registry_report before promising Kai MCP server parity so Gemma can distinguish native Agent equivalents from future Streamable HTTP MCP bridge gaps."),
             )
             .put(
                 "cards",
@@ -4487,7 +4487,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "Kai Operations",
-                            body = "${kaiOperationsRows.length()} operation row(s) mapping Kai-style provider fallback, configurable persona, tool bridge, secure storage, settings/automation backup, TTS, and shell capabilities onto Hermes Android routes.",
+                            body = "${kaiOperationsRows.length()} operation row(s) mapping Kai-style provider fallback, configurable persona, tool bridge, secure storage, settings/automation backup, TTS, and shell capabilities onto Agent Android routes.",
                             graphType = "kai_operations_matrix",
                             rows = kaiOperationsRows,
                         ),
@@ -4503,7 +4503,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "MCP Tool Servers",
-                            body = "${mcpRegistryRows.length()} MCP server registry row(s) mapping Kai curated servers to native Hermes tools or explicit external-server gaps.",
+                            body = "${mcpRegistryRows.length()} MCP server registry row(s) mapping Kai curated servers to native Agent tools or explicit external-server gaps.",
                             graphType = "mcp_tool_server_registry",
                             rows = mcpRegistryRows,
                         ),
@@ -4540,13 +4540,13 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Native tool catalog bridge",
                     ready = true,
                     valueLabel = "tool_catalog",
-                    detail = "Hermes exposes diagnostics, memory, terminal, file, Android system, UI, and automation tools through an in-app native registry before any external server is needed.",
+                    detail = "Agent exposes diagnostics, memory, terminal, file, Android system, UI, and automation tools through an in-app native registry before any external server is needed.",
                     recommendation = "Call android_device_diagnostics_tool action=tool_catalog or a narrow native report before adding an MCP dependency.",
                     fraction = 0.96f,
-                    serverName = "Hermes Native Tool Catalog",
+                    serverName = "Agent Native Tool Catalog",
                     serverSlug = "hermes_native_tool_catalog",
                     serverKind = "native_registry",
-                    curatedCategory = "Hermes native",
+                    curatedCategory = "Agent native",
                     nativeEquivalentAction = "android_device_diagnostics_tool:tool_catalog",
                     routeStatus = "native_tool_bridge",
                     remoteEndpointRequired = false,
@@ -4561,8 +4561,8 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Streamable HTTP MCP endpoint",
                     ready = false,
                     valueLabel = "future external bridge",
-                    detail = "Kai can connect to Streamable HTTP MCP endpoints; Hermes currently has no persisted external MCP endpoint client or startup session reconnect path.",
-                    recommendation = "Disclose this gap and use native Hermes tools or simple HTTP automation where possible until an MCP endpoint bridge is configured.",
+                    detail = "Kai can connect to Streamable HTTP MCP endpoints; Agent currently has no persisted external MCP endpoint client or startup session reconnect path.",
+                    recommendation = "Disclose this gap and use native Agent tools or simple HTTP automation where possible until an MCP endpoint bridge is configured.",
                     fraction = 0.35f,
                     serverName = "Streamable HTTP MCP endpoint",
                     serverSlug = "streamable_http_mcp_endpoint",
@@ -4582,7 +4582,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Fetch web content server",
                     ready = true,
                     valueLabel = "HTTP automation equivalent",
-                    detail = "Simple URL fetches can route through android_automation_tool perform_http_request/http_get, but Hermes does not expose a full Fetch MCP session contract.",
+                    detail = "Simple URL fetches can route through android_automation_tool perform_http_request/http_get, but Agent does not expose a full Fetch MCP session contract.",
                     recommendation = "Use android_automation_tool perform_http_request for simple public fetches; disclose that markdown conversion/server tools are not a full MCP server session.",
                     fraction = if (httpAutomationReady) 0.82f else 0.62f,
                     serverName = "Fetch",
@@ -4603,7 +4603,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "DeepWiki repository docs server",
                     ready = false,
                     valueLabel = "external docs MCP needed",
-                    detail = "Hermes can browse or fetch docs through generic tools, but it has no curated DeepWiki MCP server integration for repository-aware docs answers.",
+                    detail = "Agent can browse or fetch docs through generic tools, but it has no curated DeepWiki MCP server integration for repository-aware docs answers.",
                     recommendation = "Use browser or HTTP fetch when available and disclose that DeepWiki MCP parity needs an external server bridge.",
                     fraction = 0.4f,
                     serverName = "DeepWiki",
@@ -4624,7 +4624,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Sequential Thinking planning server",
                     ready = true,
                     valueLabel = "native planner equivalent",
-                    detail = "Hermes exposes top-card priorities, self-checks, observation routes, and evidence bundles as structured rows for step-by-step planning.",
+                    detail = "Agent exposes top-card priorities, self-checks, observation routes, and evidence bundles as structured rows for step-by-step planning.",
                     recommendation = "Use agent_card_priority_report, agent_self_check_report, and agent_signal_evidence_report before multi-step Android plans.",
                     fraction = 0.86f,
                     serverName = "Sequential Thinking",
@@ -4645,7 +4645,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Context7 documentation server",
                     ready = false,
                     valueLabel = "external docs MCP needed",
-                    detail = "Hermes has no in-app Context7 MCP client. Library docs should be treated as external-tool work rather than native Android sensor or diagnostics context.",
+                    detail = "Agent has no in-app Context7 MCP client. Library docs should be treated as external-tool work rather than native Android sensor or diagnostics context.",
                     recommendation = "Use context7_test_diagnostic for a real diagnostic target; disclose that Context7 parity needs a configured external MCP server or a separate docs tool.",
                     fraction = 0.35f,
                     serverName = "Context7",
@@ -4666,7 +4666,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Globalping network probe server",
                     ready = false,
                     valueLabel = "external probe MCP needed",
-                    detail = "Hermes can read local device and Wi-Fi/Bluetooth/radio context, but it does not provide global ping, traceroute, or DNS probe orchestration.",
+                    detail = "Agent can read local device and Wi-Fi/Bluetooth/radio context, but it does not provide global ping, traceroute, or DNS probe orchestration.",
                     recommendation = "Use local network diagnostics only when exposed; disclose that global probe parity needs a remote MCP or service bridge.",
                     fraction = 0.3f,
                     serverName = "Globalping",
@@ -4687,7 +4687,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "CoinGecko market data server",
                     ready = true,
                     valueLabel = "generic HTTP route",
-                    detail = "Public market-data requests can use generic HTTP automation when the user supplies or approves an endpoint, but Hermes has no curated CoinGecko schema wrapper.",
+                    detail = "Public market-data requests can use generic HTTP automation when the user supplies or approves an endpoint, but Agent has no curated CoinGecko schema wrapper.",
                     recommendation = "Use simple HTTP only for explicit public API reads; do not imply a curated market-data MCP integration.",
                     fraction = if (httpAutomationReady) 0.7f else 0.5f,
                     serverName = "CoinGecko",
@@ -4708,7 +4708,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Manifold Markets server",
                     ready = true,
                     valueLabel = "generic HTTP route",
-                    detail = "Prediction-market data can route through generic HTTP automation when an approved public endpoint is available, but Hermes has no curated Manifold MCP schema wrapper.",
+                    detail = "Prediction-market data can route through generic HTTP automation when an approved public endpoint is available, but Agent has no curated Manifold MCP schema wrapper.",
                     recommendation = "Use simple HTTP for explicit public reads and disclose missing curated odds/market helpers.",
                     fraction = if (httpAutomationReady) 0.68f else 0.48f,
                     serverName = "Manifold Markets",
@@ -4729,7 +4729,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Find-A-Domain server",
                     ready = false,
                     valueLabel = "external domain MCP needed",
-                    detail = "Hermes has no domain-availability scanner across large TLD catalogs; generic HTTP does not provide the same curated lookup workflow.",
+                    detail = "Agent has no domain-availability scanner across large TLD catalogs; generic HTTP does not provide the same curated lookup workflow.",
                     recommendation = "Disclose that domain availability parity requires an external MCP or dedicated domain service integration.",
                     fraction = 0.3f,
                     serverName = "Find-A-Domain",
@@ -4755,7 +4755,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 capabilityRow(
                     category = "mcp_tool_server_route",
-                    label = "Prefer native Hermes tools first",
+                    label = "Prefer native Agent tools first",
                     ready = true,
                     valueLabel = "$nativeToolCount native tool(s), $diagnosticsActionCount diagnostics action(s)",
                     detail = "Native Android tools already cover diagnostics, memory, UI, Android system, automation, terminal, file, and card-manifest work without an external server session.",
@@ -4792,7 +4792,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Disclose remote MCP gaps",
                     ready = true,
                     valueLabel = "explicit gap row",
-                    detail = "Streamable HTTP MCP, curated server schemas, server tools/resources/prompts, and external session state are not implemented as native Hermes Android diagnostics yet.",
+                    detail = "Streamable HTTP MCP, curated server schemas, server tools/resources/prompts, and external session state are not implemented as native Agent Android diagnostics yet.",
                     recommendation = "When asked for Context7, DeepWiki, Globalping, Find-A-Domain, or custom MCP endpoints, answer with the gap and suggest native alternatives.",
                     fraction = 0.72f,
                     extra = JSONObject()
@@ -4808,7 +4808,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Startup reconnect policy",
                     ready = false,
                     valueLabel = "not implemented",
-                    detail = "Hermes does not yet persist external MCP server sessions or auto-reconnect to those sessions on app startup.",
+                    detail = "Agent does not yet persist external MCP server sessions or auto-reconnect to those sessions on app startup.",
                     recommendation = "Treat Kai auto-reconnect as future parity work and do not imply background MCP sessions are active.",
                     fraction = 0.25f,
                     extra = JSONObject()
@@ -4824,7 +4824,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Keep credentials out of exports",
                     ready = true,
                     valueLabel = "secret-free routing",
-                    detail = "Native Hermes settings export/import and diagnostics rows avoid raw provider credentials; external MCP endpoints should follow the same redaction boundary.",
+                    detail = "Native Agent settings export/import and diagnostics rows avoid raw provider credentials; external MCP endpoints should follow the same redaction boundary.",
                     recommendation = "Do not include API keys, bearer tokens, or endpoint secrets in MCP registry rows, card manifests, or app settings exports.",
                     fraction = 0.9f,
                     extra = JSONObject()
@@ -4924,7 +4924,7 @@ object HermesDeviceDiagnosticsBridge {
                     extra = JSONObject()
                         .put("tool_action", "android_automation_tool:operator_heartbeat")
                         .put("source_surface", "operator_standby")
-                        .put("sandbox_scope", "Hermes automation records, notifications, widgets, and user-approved Android intents")
+                        .put("sandbox_scope", "Agent automation records, notifications, widgets, and user-approved Android intents")
                         .put("permission_gate", "user-created automation records and Android permission prompts")
                         .put("host_access", "Android app/device APIs only")
                         .put("remote_dispatch_capable", automationStatus.optBoolean("remote_dispatch_compatible", true))
@@ -4937,7 +4937,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Terminal/Linux workspace surface",
                     ready = true,
                     valueLabel = "terminal_tool",
-                    detail = "Shell work runs inside the Hermes app workspace/native shell boundary and should not be treated as root, host, or unrestricted Android access.",
+                    detail = "Shell work runs inside the Agent app workspace/native shell boundary and should not be treated as root, host, or unrestricted Android access.",
                     recommendation = "Prefer Android-native structured tools first; use terminal_tool for short workspace commands, file inspection, and local helper scripts.",
                     fraction = 0.8f,
                     extra = JSONObject()
@@ -4967,7 +4967,7 @@ object HermesDeviceDiagnosticsBridge {
                         .put("tool_action", "android_system_tool:status")
                         .put("source_surface", "shizuku_sui_bridge")
                         .put("sandbox_scope", "user-granted Shizuku/Sui privileged Android bridge")
-                        .put("permission_gate", "Shizuku/Sui running plus Hermes permission grant")
+                        .put("permission_gate", "Shizuku/Sui running plus Agent permission grant")
                         .put("host_access", "Android shell UID only after explicit grant")
                         .put("remote_dispatch_capable", false)
                         .put("mcp_parity_status", "privileged tool gate"),
@@ -4990,7 +4990,7 @@ object HermesDeviceDiagnosticsBridge {
                         .put("tool_action", "android_ui_tool:status")
                         .put("source_surface", "accessibility_ui_bridge")
                         .put("sandbox_scope", "visible Android UI and screenshot/accessibility snapshot only")
-                        .put("permission_gate", "user-enabled Hermes accessibility service")
+                        .put("permission_gate", "user-enabled Agent accessibility service")
                         .put("host_access", "foreground Android UI only")
                         .put("remote_dispatch_capable", false)
                         .put("mcp_parity_status", "visual/control tool route"),
@@ -5002,8 +5002,8 @@ object HermesDeviceDiagnosticsBridge {
                     label = "External MCP/server parity surface",
                     ready = true,
                     valueLabel = "registry report",
-                    detail = "Hermes maps Kai MCP-style work to native terminal, file, Android system, UI, automation, diagnostics, memory, and simple HTTP routes; external Streamable HTTP MCP endpoints remain an explicit future bridge.",
-                    recommendation = "Call mcp_tool_server_registry_report before promising Kai MCP parity, then choose a native Hermes tool before adding an external MCP dependency.",
+                    detail = "Agent maps Kai MCP-style work to native terminal, file, Android system, UI, automation, diagnostics, memory, and simple HTTP routes; external Streamable HTTP MCP endpoints remain an explicit future bridge.",
+                    recommendation = "Call mcp_tool_server_registry_report before promising Kai MCP parity, then choose a native Agent tool before adding an external MCP dependency.",
                     fraction = 0.8f,
                     extra = JSONObject()
                         .put("tool_action", "android_device_diagnostics_tool:mcp_tool_server_registry_report")
@@ -5069,18 +5069,18 @@ object HermesDeviceDiagnosticsBridge {
             blockers.put("Current Android target appears to be an emulator or virtual device; the requested end-to-end goal requires a physical phone")
         }
         if (!tikTok.optBoolean("installed")) {
-            blockers.put("TikTok is not installed or visible to Hermes (${TIKTOK_PACKAGES.joinToString()})")
+            blockers.put("TikTok is not installed or visible to Agent (${TIKTOK_PACKAGES.joinToString()})")
         }
         if (!instagram.optBoolean("installed")) {
-            blockers.put("Instagram is not installed or visible to Hermes ($INSTAGRAM_PACKAGE)")
+            blockers.put("Instagram is not installed or visible to Agent ($INSTAGRAM_PACKAGE)")
         }
         if (!gmail.optBoolean("installed")) {
-            blockers.put("Gmail is not installed or visible to Hermes ($GMAIL_PACKAGE)")
+            blockers.put("Gmail is not installed or visible to Agent ($GMAIL_PACKAGE)")
         }
         if (!HermesAccessibilityController.isServiceEnabled(appContext)) {
-            blockers.put("Hermes accessibility service is not enabled; UI snapshots, typing, scrolling, and send/post taps need it")
+            blockers.put("Agent accessibility service is not enabled; UI snapshots, typing, scrolling, and send/post taps need it")
         } else if (!HermesAccessibilityController.isServiceConnected()) {
-            blockers.put("Hermes accessibility service is enabled but not connected yet; open Hermes or toggle the service before UI actions")
+            blockers.put("Agent accessibility service is enabled but not connected yet; open Agent or toggle the service before UI actions")
         }
         if (!preferredModel.optBoolean("ready")) {
             blockers.put("No preferred local model file is ready; use the local model import button or download a model first")
@@ -5353,7 +5353,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "agent_self_check_report")
-            .put("report_scope", "Kai-style passive Hermes self-check for heartbeat readiness, wireless/radio/sensor observability, MediaTek/non-Adreno backend guardrails, expandable cards, and next diagnostic routes.")
+            .put("report_scope", "Kai-style passive Agent self-check for heartbeat readiness, wireless/radio/sensor observability, MediaTek/non-Adreno backend guardrails, expandable cards, and next diagnostic routes.")
             .put(
                 "source_report_actions",
                 JSONArray()
@@ -5459,7 +5459,7 @@ object HermesDeviceDiagnosticsBridge {
                 label = "Start with current evidence bundle",
                 ready = signalEvidenceReport.optInt("signal_evidence_count", 0) > 0,
                 valueLabel = "${signalEvidenceReport.optInt("signal_evidence_count", 0)} evidence row(s)",
-                detail = "Signal evidence is the first passive bundle for what Hermes can currently view across Wi-Fi, Bluetooth, motion, radio boundaries, backend state, and local inference fit.",
+                detail = "Signal evidence is the first passive bundle for what Agent can currently view across Wi-Fi, Bluetooth, motion, radio boundaries, backend state, and local inference fit.",
                 recommendation = "Open this before answering broad nearby-signal or Gemma-visibility questions.",
                 fraction = if (signalEvidenceReport.optBoolean("success", false)) 0.96f else 0.35f,
                 openNextAction = "agent_signal_evidence_report",
@@ -5572,7 +5572,7 @@ object HermesDeviceDiagnosticsBridge {
                 label = "Open Kai/MCP registry",
                 ready = mcpRegistryReport.optBoolean("success", false),
                 valueLabel = "$mcpReadyCount/$mcpTotalCount MCP row(s) ready",
-                detail = "MCP registry rows map Kai curated servers and tool-server expectations to native Hermes tools, simple HTTP routes, or Streamable HTTP gaps.",
+                detail = "MCP registry rows map Kai curated servers and tool-server expectations to native Agent tools, simple HTTP routes, or Streamable HTTP gaps.",
                 recommendation = "Open mcp_tool_server_registry_report before promising Context7, DeepWiki, Globalping, Fetch, CoinGecko, Manifold, Find-A-Domain, or custom MCP parity.",
                 fraction = if (mcpTotalCount > 0) (mcpReadyCount.toFloat() / mcpTotalCount).coerceIn(0.45f, 0.9f) else 0.4f,
                 openNextAction = "mcp_tool_server_registry_report",
@@ -5631,7 +5631,7 @@ object HermesDeviceDiagnosticsBridge {
         .put(agentSignalNextActionRouteRow(
             label = "Open current evidence first",
             valueLabel = "agent_signal_evidence_report",
-            detail = "Use the compact evidence matrix before answering what Hermes can currently view from nearby signals, sensors, or radio limits.",
+            detail = "Use the compact evidence matrix before answering what Agent can currently view from nearby signals, sensors, or radio limits.",
             recommendation = "Start here for broad visibility questions.",
             fraction = 0.95f,
             sourceAction = "agent_signal_evidence_report",
@@ -5717,7 +5717,7 @@ object HermesDeviceDiagnosticsBridge {
         .put(agentSignalNextActionRouteRow(
             label = "Open Kai/MCP registry",
             valueLabel = "mcp_tool_server_registry_report",
-            detail = "Maps Kai-style tool-server expectations to native Hermes tools, HTTP routes, or future external MCP bridge gaps.",
+            detail = "Maps Kai-style tool-server expectations to native Agent tools, HTTP routes, or future external MCP bridge gaps.",
             recommendation = "Use before promising MCP tool-server availability or external server integration.",
             fraction = 0.8f,
             sourceAction = "mcp_tool_server_registry_report",
@@ -5951,7 +5951,7 @@ object HermesDeviceDiagnosticsBridge {
 
     private fun agentSignalActiveRefreshRouteRows(): JSONArray = JSONArray()
         .put(agentSignalActiveRefreshRouteRow(
-            label = "Open Hermes app permissions",
+            label = "Open Agent app permissions",
             valueLabel = "open_app_settings",
             detail = "Use this when Wi-Fi, Bluetooth, camera, or notification runtime permissions are missing and the user explicitly wants to change them.",
             recommendation = "Return to the passive analyzer after the user changes permissions.",
@@ -6320,8 +6320,8 @@ object HermesDeviceDiagnosticsBridge {
                 label = "Cross-signal evidence for Gemma",
                 ready = signalEvidenceRows.length() >= 6,
                 valueLabel = "${signalEvidenceRows.length()} evidence row(s)",
-                detail = "Signal evidence bundles expose what Hermes can currently view across Wi-Fi, Bluetooth, motion sensors, AM/FM/RF boundaries, backend guardrails, card graph types, and source report actions.",
-                recommendation = "Open agent_signal_evidence_report when the user asks what Hermes/Gemma can see from nearby signals or device sensors right now.",
+                detail = "Signal evidence bundles expose what Agent can currently view across Wi-Fi, Bluetooth, motion sensors, AM/FM/RF boundaries, backend guardrails, card graph types, and source report actions.",
+                recommendation = "Open agent_signal_evidence_report when the user asks what Agent/Gemma can see from nearby signals or device sensors right now.",
                 fraction = if (signalEvidenceRows.length() > 0) 0.9f else 0.35f,
                 evidenceStatus = "gemma_evidence_bundle_ready",
                 sourceActions = listOf("agent_signal_evidence_report", "agent_signal_briefing_report", "agent_signal_timeline_report"),
@@ -6381,7 +6381,7 @@ object HermesDeviceDiagnosticsBridge {
         .put(agentCapabilityUpgradeRouteRow(
             label = "Open current signal evidence",
             valueLabel = "agent_signal_evidence_report",
-            detail = "Shows what Hermes can currently view across nearby signals, motion sensors, radio boundaries, backend state, and card graph types.",
+            detail = "Shows what Agent can currently view across nearby signals, motion sensors, radio boundaries, backend state, and card graph types.",
             recommendation = "Use before answering what Gemma is viewing or before linking Wi-Fi/Bluetooth/sensor/radio evidence.",
             fraction = 0.92f,
             sourceAction = "agent_signal_evidence_report",
@@ -6410,7 +6410,7 @@ object HermesDeviceDiagnosticsBridge {
         .put(agentCapabilityUpgradeRouteRow(
             label = "Verify Kai MCP parity boundaries",
             valueLabel = "mcp_tool_server_registry_report",
-            detail = "Maps Kai curated MCP servers to native Hermes equivalents, simple HTTP routes, or future Streamable HTTP gaps.",
+            detail = "Maps Kai curated MCP servers to native Agent equivalents, simple HTTP routes, or future Streamable HTTP gaps.",
             recommendation = "Use before promising external tool-server features such as Context7, DeepWiki, Globalping, or custom MCP endpoints.",
             fraction = 0.82f,
             sourceAction = "mcp_tool_server_registry_report",
@@ -6617,7 +6617,7 @@ object HermesDeviceDiagnosticsBridge {
                 label = "Kai agent experience parity",
                 ready = true,
                 valueLabel = "memory, persona, tools, heartbeat",
-                detail = "Research maps Kai-style persistent memory, editable system persona, multi-provider fallback, tool execution, MCP, heartbeat, encrypted local storage, TTS, image attachments, and Android shell workspace concepts to Hermes reports.",
+                detail = "Research maps Kai-style persistent memory, editable system persona, multi-provider fallback, tool execution, MCP, heartbeat, encrypted local storage, TTS, image attachments, and Android shell workspace concepts to Agent reports.",
                 recommendation = "Use agent_environment_report, mcp_tool_server_registry_report, and agent_self_check_report before promising Kai-style behavior.",
                 fraction = 0.84f,
                 extra = JSONObject()
@@ -6632,7 +6632,7 @@ object HermesDeviceDiagnosticsBridge {
                 label = "Kai interactive screen parity",
                 ready = true,
                 valueLabel = "generated screen route",
-                detail = "Research maps Kai-style generated interactive screens to Hermes HTML/file tool and Android open-uri routes plus top-card graph planning.",
+                detail = "Research maps Kai-style generated interactive screens to Agent HTML/file tool and Android open-uri routes plus top-card graph planning.",
                 recommendation = "Use agent_card_priority_report and safe file/open-uri tooling for generated dashboards instead of embedding unmanaged external UI behavior.",
                 fraction = 0.78f,
                 extra = JSONObject()
@@ -6647,7 +6647,7 @@ object HermesDeviceDiagnosticsBridge {
                 label = "WiFiAnalyzer graph and metadata parity",
                 ready = true,
                 valueLabel = "AP, channel, rating, filter, export",
-                detail = "Research maps WiFiAnalyzer-style nearby AP identity, channel signal graphs, signal history, channel rating, 2.4/5/6 GHz bands, channel width metadata, complete/compact AP detail, estimated distance, filters, pause/resume, export, and OUI lookup to Hermes Wi-Fi analyzer reports.",
+                detail = "Research maps WiFiAnalyzer-style nearby AP identity, channel signal graphs, signal history, channel rating, 2.4/5/6 GHz bands, channel width metadata, complete/compact AP detail, estimated distance, filters, pause/resume, export, and OUI lookup to Agent Wi-Fi analyzer reports.",
                 recommendation = "Use wifi_analyzer_report as the passive overview, then open channel graph, rating, utilization, AP detail, export, or advisor cards.",
                 fraction = 0.9f,
                 extra = JSONObject()
@@ -6659,11 +6659,11 @@ object HermesDeviceDiagnosticsBridge {
         .put(
             capabilityRow(
                 category = "agent_research_parity",
-                label = "Hermes-only nearby signal expansion",
+                label = "Agent-only nearby signal expansion",
                 ready = true,
                 valueLabel = "Bluetooth, radio, motion, backend",
-                detail = "Hermes extends the Wi-Fi/Kai research map with Bluetooth proximity metadata, AM/FM/SDR receiver boundaries, motion sensor workflow rows, and MediaTek/non-Adreno backend launch guardrails.",
-                recommendation = "Use agent_signal_evidence_report and agent_objective_gap_matrix to keep these Hermes-specific additions tied to proof boundaries.",
+                detail = "Agent extends the Wi-Fi/Kai research map with Bluetooth proximity metadata, AM/FM/SDR receiver boundaries, motion sensor workflow rows, and MediaTek/non-Adreno backend launch guardrails.",
+                recommendation = "Use agent_signal_evidence_report and agent_objective_gap_matrix to keep these Agent-specific additions tied to proof boundaries.",
                 fraction = 0.86f,
                 extra = JSONObject()
                     .put("research_source_url", "local_hermes_extension")
@@ -6725,7 +6725,7 @@ object HermesDeviceDiagnosticsBridge {
                 label = "Local Android source gates",
                 ready = false,
                 valueLabel = "external command evidence required",
-                detail = "Required local evidence: python source guards, focused Android unit tests, and git diff whitespace checks after Hermes diagnostics/card changes.",
+                detail = "Required local evidence: python source guards, focused Android unit tests, and git diff whitespace checks after Agent diagnostics/card changes.",
                 recommendation = "Run bash scripts/run_tests.sh tests/hermes_android/test_android_chat_ui.py tests/hermes_android/test_android_fdroid_listing_images.py -q, focused :app:testDebugUnitTest, and git diff --check before release claims.",
                 fraction = 0.42f,
                 extra = JSONObject()
@@ -7078,7 +7078,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Inspect heartbeat and automation state",
                     ready = heartbeatReady,
                     valueLabel = if (heartbeatReady) "operator_heartbeat" else "operator_standby_status",
-                    detail = "Routes to Hermes automation standby state without implying unrestricted background prompt execution.",
+                    detail = "Routes to Agent automation standby state without implying unrestricted background prompt execution.",
                     recommendation = "Use when a task needs Kai-style status visibility, remote dispatch, or scheduling readiness.",
                     fraction = if (heartbeatReady) 0.9f else 0.45f,
                     extra = JSONObject().put("tool_action", "android_automation_tool:operator_standby_status"),
@@ -7091,7 +7091,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = true,
                     valueLabel = "agent_signal_evidence_report",
                     detail = "Routes to compact Gemma-readable evidence for Wi-Fi, Bluetooth, motion sensors, radio boundaries, and local inference fit.",
-                    recommendation = "Use before explaining what Hermes can currently see.",
+                    recommendation = "Use before explaining what Agent can currently see.",
                     fraction = 0.88f,
                     extra = JSONObject().put("tool_action", "agent_signal_evidence_report"),
                 ),
@@ -7269,7 +7269,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "agent_signal_evidence_report")
-            .put("report_scope", "Compact Gemma-readable evidence bundle for what Hermes can currently view across Wi-Fi, Bluetooth, motion sensors, AM/FM/RF boundaries, and local inference readiness.")
+            .put("report_scope", "Compact Gemma-readable evidence bundle for what Agent can currently view across Wi-Fi, Bluetooth, motion sensors, AM/FM/RF boundaries, and local inference readiness.")
             .put("source_report_actions", signalEvidenceSourceActions())
             .put("wifi_evidence_summary", observationSummaryJson(wifiReport, "wifi_analyzer_report"))
             .put("bluetooth_evidence_summary", observationSummaryJson(bluetoothReport, "bluetooth_analyzer_report"))
@@ -7289,7 +7289,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_observation_directives",
                 JSONArray()
-                    .put("Read signal_evidence_matrix before answering what Hermes can currently view from nearby signals, motion sensors, radio limits, or local inference readiness.")
+                    .put("Read signal_evidence_matrix before answering what Agent can currently view from nearby signals, motion sensors, radio limits, or local inference readiness.")
                     .put("Treat analyzer summaries as passive evidence; request refresh=true only when the user needs live Wi-Fi, Bluetooth, or motion samples.")
                     .put("Use signal_evidence_routes and signal_evidence_graph_types to open the exact expandable card before turning evidence into a user-facing explanation.")
                     .put("Use accelerator_preflight_report and local_inference_compatibility_report evidence before promising Gemma 4 multimodal or non-Adreno local acceleration behavior."),
@@ -7604,7 +7604,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "agent_signal_observation_packet_report")
-            .put("report_scope", "Compact Gemma-visible signal observation packet that joins passive evidence, expanded top-card snapshots, graph routes, replay freshness, and claim boundaries before describing what Hermes can see from Wi-Fi, Bluetooth, radio, motion, backend, and release-proof surfaces.")
+            .put("report_scope", "Compact Gemma-visible signal observation packet that joins passive evidence, expanded top-card snapshots, graph routes, replay freshness, and claim boundaries before describing what Agent can see from Wi-Fi, Bluetooth, radio, motion, backend, and release-proof surfaces.")
             .put("source_report_actions", agentSignalObservationPacketSourceActions())
             .put("signal_evidence_summary", observationSummaryJson(evidenceReport, "agent_signal_evidence_report"))
             .put("signal_briefing_summary", observationSummaryJson(briefingReport, "agent_signal_briefing_report"))
@@ -7628,7 +7628,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_signal_observation_packet_directives",
                 JSONArray()
-                    .put("Read agent_signal_observation_packet before answering what Hermes, Gemma, or the agent can see from nearby Wi-Fi, Bluetooth, radio, motion, top-card, backend, or release-proof surfaces.")
+                    .put("Read agent_signal_observation_packet before answering what Agent, Gemma, or the agent can see from nearby Wi-Fi, Bluetooth, radio, motion, top-card, backend, or release-proof surfaces.")
                     .put("Use agent_signal_observation_visual_slots to decide which expanded top card represents the current modality before turning metadata into a user-facing explanation.")
                     .put("Use agent_signal_observation_graph_routes for the exact source_action, graph_type, active_refresh_action, passive_fallback_action, permission_gate, and hardware_gate instead of guessing.")
                     .put("Treat observation_status, freshness_status, proof_status, and claim_scope as hard wording boundaries; passive packets are not live scans until the active refresh route has actually run."),
@@ -7946,7 +7946,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_signal_briefing_directives",
                 JSONArray()
-                    .put("Read agent_signal_briefing_matrix before answering what Hermes is viewing from nearby signals, sensors, radio boundaries, and backend readiness.")
+                    .put("Read agent_signal_briefing_matrix before answering what Agent is viewing from nearby signals, sensors, radio boundaries, and backend readiness.")
                     .put("Use agent_top_card_slots to choose the exact expandable card before explaining Wi-Fi graphs, Bluetooth metadata, motion quality, AM/FM limits, or MediaTek backend risk.")
                     .put("Use agent_signal_metadata_keys to cite the JSON fields behind the visible card instead of summarizing unsupported hardware or hidden permissions.")
                     .put("Prefer passive analyzer reports first; request live Wi-Fi, Bluetooth, motion, or radio bridge refresh only when the user needs current data."),
@@ -8317,7 +8317,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_signal_timeline_directives",
                 JSONArray()
-                    .put("Read agent_signal_timeline when the user asks what Hermes, Gemma, or the agent recently saw from nearby Wi-Fi, Bluetooth, sensors, radio, or backend state.")
+                    .put("Read agent_signal_timeline when the user asks what Agent, Gemma, or the agent recently saw from nearby Wi-Fi, Bluetooth, sensors, radio, or backend state.")
                     .put("Treat timeline rows as passive evidence unless the row's open_next_action explicitly requests a fresh Wi-Fi, Bluetooth, motion, or radio bridge read.")
                     .put("Use agent_signal_refresh_routes to ask for the minimum live refresh needed instead of refreshing every scanner.")
                     .put("Keep MediaTek, Mali, PowerVR, Xclipse, and CPU fallback state attached to the same timeline so local multimodal claims do not assume Snapdragon/Adreno hardware."),
@@ -8472,7 +8472,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put("Use each row's open_next_action, source_action, graph_type, refresh_policy, and permission_gate fields instead of guessing which card to open.")
                     .put("Prefer passive refresh=false analyzer reports for planning; ask for live Wi-Fi, Bluetooth, motion, or radio samples only when current data is required.")
                     .put("Open agent_card_open_sequence when the user asks what to inspect first or which expandable card should be shown next.")
-                    .put("Use kai_interactive_screen_parity to map Kai-style memory, heartbeat, provider fallback, tool sandbox, image, and generated-screen behavior to Hermes Android surfaces.")
+                    .put("Use kai_interactive_screen_parity to map Kai-style memory, heartbeat, provider fallback, tool sandbox, image, and generated-screen behavior to Agent Android surfaces.")
                     .put("Open gpu_backend_risk_report and mediatek_readiness_report before promising MediaTek, Mali, PowerVR, Xclipse, or non-Adreno local acceleration."),
             )
             .put(
@@ -8497,7 +8497,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "Kai Interactive Parity",
-                            body = "${kaiParityRows.length()} Kai-style context row(s) mapping memory, heartbeat, provider fallback, tools, images, and generated screens to Hermes surfaces.",
+                            body = "${kaiParityRows.length()} Kai-style context row(s) mapping memory, heartbeat, provider fallback, tools, images, and generated screens to Agent surfaces.",
                             graphType = "kai_interactive_screen_parity",
                             rows = kaiParityRows,
                         ),
@@ -8695,7 +8695,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "agent_capability_upgrade_report")
-            .put("report_scope", "Full Hermes upgrade objective audit across WiFiAnalyzer-style Wi-Fi analysis, Bluetooth scanner cards, AM/FM/SDR radio boundaries, motion sensors, MediaTek/non-Adreno backend compatibility, Kai/MCP parity, Gemma-readable top cards, and validation boundaries.")
+            .put("report_scope", "Full Agent upgrade objective audit across WiFiAnalyzer-style Wi-Fi analysis, Bluetooth scanner cards, AM/FM/SDR radio boundaries, motion sensors, MediaTek/non-Adreno backend compatibility, Kai/MCP parity, Gemma-readable top cards, and validation boundaries.")
             .put(
                 "source_report_actions",
                 JSONArray()
@@ -8736,7 +8736,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_upgrade_audit_directives",
                 JSONArray()
-                    .put("Read agent_upgrade_objective_matrix before claiming Hermes has completed the full Wi-Fi, Bluetooth, radio, sensor, MediaTek, Kai, MCP, and top-card upgrade objective.")
+                    .put("Read agent_upgrade_objective_matrix before claiming Agent has completed the full Wi-Fi, Bluetooth, radio, sensor, MediaTek, Kai, MCP, and top-card upgrade objective.")
                     .put("Treat rows marked bridge_required or physical_device_validation_required as incomplete for runtime proof until phone or receiver evidence exists.")
                     .put("Use source_actions and card_graph_types on each row to open the exact diagnostic card instead of relying on prose.")
                     .put("Use agent_upgrade_route_matrix to choose the next verification action when a row is not ready or only passively supported."),
@@ -8747,7 +8747,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "Upgrade Objective Matrix",
-                            body = "${upgradeRows.length()} objective row(s) tying the requested Hermes upgrade domains to concrete report actions, card graph types, and validation boundaries.",
+                            body = "${upgradeRows.length()} objective row(s) tying the requested Agent upgrade domains to concrete report actions, card graph types, and validation boundaries.",
                             graphType = "agent_upgrade_objective_matrix",
                             rows = upgradeRows,
                         ),
@@ -8774,7 +8774,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "agent_objective_coverage_report")
-            .put("report_scope", "Requirement-by-requirement coverage map for the requested Hermes capability jump, separating implemented analyzer/card surfaces from remaining validation, bridge, permission, and release evidence.")
+            .put("report_scope", "Requirement-by-requirement coverage map for the requested Agent capability jump, separating implemented analyzer/card surfaces from remaining validation, bridge, permission, and release evidence.")
             .put(
                 "research_source_urls",
                 JSONArray()
@@ -8810,9 +8810,9 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_objective_coverage_directives",
                 JSONArray()
-                    .put("Read agent_objective_coverage_matrix before claiming the full Hermes upgrade objective is complete.")
+                    .put("Read agent_objective_coverage_matrix before claiming the full Agent upgrade objective is complete.")
                     .put("Treat agent_objective_gap_matrix rows with bridge_required, permission_gate, release_validation_required, or physical_device_validation_required as incomplete proof until the named evidence exists.")
-                    .put("Use agent_research_parity_matrix to map Kai and WiFiAnalyzer research features to Hermes reports without copying external app behavior or licenses.")
+                    .put("Use agent_research_parity_matrix to map Kai and WiFiAnalyzer research features to Agent reports without copying external app behavior or licenses.")
                     .put("Open the source_actions and graph_type fields on each row before summarizing Wi-Fi, Bluetooth, radio, sensor, Kai, MCP, or non-Adreno readiness to the user."),
             )
             .put(
@@ -8837,7 +8837,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put(
                         graphCard(
                             title = "Research Parity Map",
-                            body = "${researchRows.length()} research row(s) map Kai and WiFiAnalyzer feature families to Hermes Android report surfaces.",
+                            body = "${researchRows.length()} research row(s) map Kai and WiFiAnalyzer feature families to Agent Android report surfaces.",
                             graphType = "agent_research_parity_matrix",
                             rows = researchRows,
                         ),
@@ -8854,7 +8854,7 @@ object HermesDeviceDiagnosticsBridge {
         return JSONObject()
             .put("success", true)
             .put("action", "agent_release_validation_report")
-            .put("report_scope", "Gemma-readable Android, GitHub release, signed-artifact, checksum, and F-Droid validation checklist for deciding whether the Hermes upgrade can be called release-ready.")
+            .put("report_scope", "Gemma-readable Android, GitHub release, signed-artifact, checksum, and F-Droid validation checklist for deciding whether the Agent upgrade can be called release-ready.")
             .put("app_release_identity", identity)
             .put(
                 "source_report_actions",
@@ -8877,7 +8877,7 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "gemma_release_validation_directives",
                 JSONArray()
-                    .put("Do not claim the full Hermes upgrade is release-ready until agent_release_validation_matrix has current external command, workflow, tag, and artifact evidence.")
+                    .put("Do not claim the full Agent upgrade is release-ready until agent_release_validation_matrix has current external command, workflow, tag, and artifact evidence.")
                     .put("Use agent_release_artifact_gates before referencing GitHub APK/AAB assets, checksums, Binaries, or reproducible-build metadata.")
                     .put("Use fdroid_release_metadata_matrix before answering F-Droid readiness questions or claiming tagged Fastlane graphics are present.")
                     .put("Keep physical-device validation separate from source/unit-test validation for MediaTek, non-Adreno backend, live Wi-Fi/Bluetooth, motion sensors, and radio bridge rows."),
@@ -10336,8 +10336,8 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Capture live signal diagnostics",
                     ready = runbookRows.length() > 0,
                     valueLabel = "${runbookRows.length()} runbook row(s)",
-                    detail = "Use Hermes actions first for structured rows, then capture Android dumps only as supporting evidence for the phone bundle.",
-                    recommendation = "Run Wi-Fi/Bluetooth actions inside Hermes when permissions allow; keep dumps as external audit artifacts.",
+                    detail = "Use Agent actions first for structured rows, then capture Android dumps only as supporting evidence for the phone bundle.",
+                    recommendation = "Run Wi-Fi/Bluetooth actions inside Agent when permissions allow; keep dumps as external audit artifacts.",
                     fraction = if (runbookRows.length() > 0) 0.82f else 0.38f,
                     sourceAction = "agent_signal_permission_runbook_report",
                     graphType = "phone_validation_command_routes",
@@ -10688,7 +10688,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Persistent memory",
                     ready = true,
                     valueLabel = "${hindsightStatus.optInt("memory_count", 0)} local row(s)",
-                    detail = "Hermes retains, recalls, reflects, and promotes local memories into compact prompt context.",
+                    detail = "Agent retains, recalls, reflects, and promotes local memories into compact prompt context.",
                     recommendation = "Parallels Kai persistent memory and promotion behavior.",
                     fraction = 0.9f,
                     extra = JSONObject().put("parity_source", "Kai persistent memory"),
@@ -10700,7 +10700,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Customizable soul / system prompt",
                     ready = true,
                     valueLabel = if (personaStatus.optBoolean("custom_system_prompt_enabled", false)) "custom persona enabled" else "default persona",
-                    detail = "Hermes stores a bounded user-editable custom_system_prompt in app settings and appends it to native chat system prompts without exporting provider secrets.",
+                    detail = "Agent stores a bounded user-editable custom_system_prompt in app settings and appends it to native chat system prompts without exporting provider secrets.",
                     recommendation = "Use Settings > Agent persona or import_app_settings to carry a Kai-style custom system prompt between installs.",
                     fraction = if (personaStatus.optBoolean("custom_system_prompt_enabled", false)) 0.95f else 0.8f,
                     extra = JSONObject()
@@ -10716,7 +10716,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "On-device LiteRT inference",
                     ready = preferredModel.optBoolean("ready"),
                     valueLabel = preferredModel.optString("runtime_flavor").ifBlank { "LiteRT/GGUF capable" },
-                    detail = "Hermes supports local LiteRT-LM/GGUF model records, Gemma multimodal routing, and SOC-aware backend fallback.",
+                    detail = "Agent supports local LiteRT-LM/GGUF model records, Gemma multimodal routing, and SOC-aware backend fallback.",
                     recommendation = "Keep model readiness and backend health visible before offline work.",
                     fraction = if (preferredModel.optBoolean("ready")) 1f else 0.55f,
                     extra = JSONObject().put("parity_source", "Kai on-device inference"),
@@ -10728,7 +10728,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Multi-provider priority and fallback",
                     ready = modelRouting.optBoolean("role_routing_supported", false) || modelRouting.optBoolean("single_runtime_fallback", false),
                     valueLabel = modelRouting.optString("active_provider_label").ifBlank { modelRouting.optString("active_provider").ifBlank { "provider route" } },
-                    detail = "Hermes exposes active provider/model routing plus local LiteRT fallback and Android-native action execution roles.",
+                    detail = "Agent exposes active provider/model routing plus local LiteRT fallback and Android-native action execution roles.",
                     recommendation = "Use android_automation_tool operator_model_routing before choosing remote provider, local LiteRT, or Android-native execution.",
                     fraction = if (modelRouting.optBoolean("role_routing_supported", false) || modelRouting.optBoolean("single_runtime_fallback", false)) 0.9f else 0.45f,
                     extra = JSONObject().put("parity_source", "Kai multi-service fallback"),
@@ -10740,7 +10740,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Tool execution",
                     ready = true,
                     valueLabel = "native Android tools",
-                    detail = "Hermes exposes terminal, file, Android system, UI, automation, diagnostics, and memory tools to the local agent.",
+                    detail = "Agent exposes terminal, file, Android system, UI, automation, diagnostics, and memory tools to the local agent.",
                     recommendation = "Prefer native Android APIs first, then Linux/shell tooling when the task truly needs it.",
                     fraction = 0.95f,
                     extra = JSONObject().put("parity_source", "Kai tool execution and Linux sandbox"),
@@ -10752,7 +10752,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "MCP and external tool equivalents",
                     ready = true,
                     valueLabel = "registry report",
-                    detail = "Hermes maps Kai-style tool-server work to terminal, file, system, UI, automation, diagnostics, memory, and simple HTTP routes while Streamable HTTP MCP-server parity remains an explicit future bridge.",
+                    detail = "Agent maps Kai-style tool-server work to terminal, file, system, UI, automation, diagnostics, memory, and simple HTTP routes while Streamable HTTP MCP-server parity remains an explicit future bridge.",
                     recommendation = "Call mcp_tool_server_registry_report first, then choose the narrow native tool before adding an external MCP server dependency.",
                     fraction = 0.8f,
                     extra = JSONObject()
@@ -10778,7 +10778,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Encrypted credentials and local storage",
                     ready = true,
                     valueLabel = "secure secrets store",
-                    detail = "Hermes stores provider credentials in AndroidX encrypted preferences with sealed integrity envelopes and keeps app state local unless a provider route is selected.",
+                    detail = "Agent stores provider credentials in AndroidX encrypted preferences with sealed integrity envelopes and keeps app state local unless a provider route is selected.",
                     recommendation = "Use provider auth/session stores for credentials and keep diagnostic exports free of raw secrets.",
                     fraction = 0.9f,
                     extra = JSONObject().put("parity_source", "Kai encrypted storage"),
@@ -10790,7 +10790,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "App settings and automation backup",
                     ready = true,
                     valueLabel = "settings + automation export",
-                    detail = "Hermes can export/import a secret-free app settings bundle plus automation bundles with records and variables.",
+                    detail = "Agent can export/import a secret-free app settings bundle plus automation bundles with records and variables.",
                     recommendation = "Use android_automation_tool export_app_settings/import_app_settings for app preferences and export_automations/import_automations for workflow migration.",
                     fraction = 0.9f,
                     extra = JSONObject().put("parity_source", "Kai settings export/import"),
@@ -10802,7 +10802,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Text to speech",
                     ready = true,
                     valueLabel = "speak last reply",
-                    detail = "Hermes exposes Android TextToSpeech through chat speak buttons and the /speak last command.",
+                    detail = "Agent exposes Android TextToSpeech through chat speak buttons and the /speak last command.",
                     recommendation = "Use the chat TTS route for read-aloud responses and keep automation audio actions separate from assistant speech.",
                     fraction = 0.8f,
                     extra = JSONObject().put("parity_source", "Kai text to speech"),
@@ -10882,7 +10882,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Persona and system prompt route",
                     ready = true,
                     valueLabel = if (personaStatus.optBoolean("custom_system_prompt_enabled", false)) "custom prompt active" else "default prompt active",
-                    detail = "The native chat prompt merges Hermes tool instructions, the user's custom agent persona, and promoted local memory context in that order.",
+                    detail = "The native chat prompt merges Agent tool instructions, the user's custom agent persona, and promoted local memory context in that order.",
                     recommendation = "Use Settings Agent persona for behavior changes and export_app_settings/import_app_settings to migrate the prompt without secrets.",
                     fraction = if (personaStatus.optBoolean("custom_system_prompt_enabled", false)) 0.95f else 0.8f,
                     extra = JSONObject()
@@ -10925,7 +10925,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Scheduled task compatibility route",
                     ready = true,
                     valueLabel = "schedule_task/list_tasks/cancel_task",
-                    detail = "Hermes maps Kai-style scheduled task tool names to native Android automation notification records with time/day, interval, or explicit phone triggers.",
+                    detail = "Agent maps Kai-style scheduled task tool names to native Android automation notification records with time/day, interval, or explicit phone triggers.",
                     recommendation = "Use schedule_task for reminder-like Android automations, list_tasks to inspect them, and cancel_task with task_id to remove them; background AI prompt execution remains explicit and is not implied.",
                     fraction = 0.85f,
                     extra = JSONObject()
@@ -10957,7 +10957,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Android shell boundary route",
                     ready = true,
                     valueLabel = "terminal workspace",
-                    detail = "Hermes routes shell work through the terminal tool and app workspace while keeping Android host, root, and permission boundaries explicit.",
+                    detail = "Agent routes shell work through the terminal tool and app workspace while keeping Android host, root, and permission boundaries explicit.",
                     recommendation = "Use terminal_tool for bounded foreground workspace commands and prefer Android-native tools when device APIs provide structured data. Persistent terminal background commands are disabled because detached Android descendant ownership cannot be certified.",
                     fraction = 0.8f,
                     extra = JSONObject()
@@ -11004,7 +11004,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = true,
                     valueLabel = "single observation report",
                     detail = "Combines passive Wi-Fi, Bluetooth, sensor, radio, SOC, local model, and Kai operation summaries before the model chooses a next tool.",
-                    recommendation = "Use this first when the user asks what Hermes can currently see about nearby signals or device readiness.",
+                    recommendation = "Use this first when the user asks what Agent can currently see about nearby signals or device readiness.",
                     fraction = 0.95f,
                     extra = JSONObject().put("tool_action", "agent_observation_report"),
                 ),
@@ -11131,7 +11131,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = kaiOperationsCount > 0,
                     valueLabel = "$kaiOperationsCount operation row(s)",
                     detail = "Provider fallback, native tool bridge, encrypted storage/backup, heartbeat, TTS, image attachment, and shell-boundary rows are visible from the Kai Operations card.",
-                    recommendation = "Use these rows before routing a Kai-style workflow through Hermes tools, cards, local model, or generated HTML screens.",
+                    recommendation = "Use these rows before routing a Kai-style workflow through Agent tools, cards, local model, or generated HTML screens.",
                     fraction = if (kaiOperationsCount > 0) 0.9f else 0.35f,
                     extra = JSONObject().put("tool_action", "agent_environment_report"),
                 ),
@@ -11414,7 +11414,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = readyDomainCount > 0,
                     valueLabel = "$readyDomainCount/5 evidence domain(s)",
                     detail = "Bundles passive Wi-Fi, Bluetooth, motion sensor, AM/FM/RF boundary, and local inference compatibility evidence for Gemma before natural-language reasoning.",
-                    recommendation = "Read this bundle first when the user asks what Hermes can currently view or infer from nearby signals and phone context.",
+                    recommendation = "Read this bundle first when the user asks what Agent can currently view or infer from nearby signals and phone context.",
                     fraction = (readyDomainCount / 5f).coerceIn(0.25f, 0.95f),
                     extra = JSONObject()
                         .put("evidence_key", "current_signal_bundle")
@@ -11607,7 +11607,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = true,
                     valueLabel = "agent_signal_evidence_report",
                     detail = "Use for the compact current-evidence view across Wi-Fi, Bluetooth, sensors, radio boundaries, and local inference compatibility.",
-                    recommendation = "Run first for user questions about what Hermes or Gemma can currently view from nearby signals.",
+                    recommendation = "Run first for user questions about what Agent or Gemma can currently view from nearby signals.",
                     fraction = 0.95f,
                     extra = JSONObject().put("tool_action", "agent_signal_evidence_report"),
                 ),
@@ -13333,7 +13333,7 @@ object HermesDeviceDiagnosticsBridge {
             graphType = "radio_signal_graph",
             refreshPolicy = "bridge_samples_required",
             permissionGate = "vendor_radio_bridge_or_external_sdr",
-            detail = "AM/FM signal graph rows require vendor tuner or SDR sample input before Hermes can show station-like data.",
+            detail = "AM/FM signal graph rows require vendor tuner or SDR sample input before Agent can show station-like data.",
         )
         putCanonicalCardManifestRoute(
             rows = rows,
@@ -13388,7 +13388,7 @@ object HermesDeviceDiagnosticsBridge {
             graphType = "mcp_tool_server_registry",
             refreshPolicy = "passive_registry_first",
             permissionGate = "external_mcp_endpoint_future_bridge",
-            detail = "MCP registry cards map Kai curated servers to native Hermes equivalents, simple HTTP routes, or external Streamable HTTP gaps.",
+            detail = "MCP registry cards map Kai curated servers to native Agent equivalents, simple HTTP routes, or external Streamable HTTP gaps.",
             force = true,
         )
         putCanonicalCardManifestRoute(
@@ -13680,8 +13680,8 @@ object HermesDeviceDiagnosticsBridge {
                     openNextAction = "agent_card_priority_report",
                     ready = environmentReport.optBoolean("success", false),
                     valueLabel = "${environmentReport.optInt("kai_operations_count", 0)} Kai operation row(s)",
-                    detail = "Maps persistent memory, heartbeat, provider fallback, image attachment, generated-screen, MCP/tool bridge, and sandbox context onto Hermes Android cards.",
-                    recommendation = "Use when the user compares Hermes with Kai or asks what the mobile agent can surface interactively.",
+                    detail = "Maps persistent memory, heartbeat, provider fallback, image attachment, generated-screen, MCP/tool bridge, and sandbox context onto Agent Android cards.",
+                    recommendation = "Use when the user compares Agent with Kai or asks what the mobile agent can surface interactively.",
                     fraction = if (environmentReport.optBoolean("success", false)) 0.9f else 0.35f,
                     refreshPolicy = "passive_agent_readiness",
                     permissionGate = "settings_and_local_state",
@@ -13698,7 +13698,7 @@ object HermesDeviceDiagnosticsBridge {
                     openNextAction = "mcp_tool_server_registry_report",
                     ready = environmentReport.optBoolean("success", false),
                     valueLabel = "${environmentReport.optInt("ready_mcp_tool_server_count", 0)}/${environmentReport.optInt("mcp_tool_server_count", 0)} server row(s) ready",
-                    detail = "Maps Kai MCP server support, curated server categories, Streamable HTTP gaps, native Hermes equivalents, and simple HTTP routes into a top-card surface.",
+                    detail = "Maps Kai MCP server support, curated server categories, Streamable HTTP gaps, native Agent equivalents, and simple HTTP routes into a top-card surface.",
                     recommendation = "Open before promising Context7, DeepWiki, Globalping, Fetch, CoinGecko, Manifold, Find-A-Domain, or custom MCP parity.",
                     fraction = if (environmentReport.optBoolean("success", false)) 0.86f else 0.35f,
                     refreshPolicy = "passive_registry_first",
@@ -13717,7 +13717,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = true,
                     valueLabel = "objective audit",
                     detail = "Maps WiFiAnalyzer-style Wi-Fi analysis, Bluetooth scanner cards, radio bridge boundaries, motion sensors, MediaTek/non-Adreno backend guardrails, Kai/MCP parity, Gemma evidence, and validation gaps into one top-card report.",
-                    recommendation = "Open before claiming the broad Hermes upgrade objective is complete or before choosing the next missing capability slice.",
+                    recommendation = "Open before claiming the broad Agent upgrade objective is complete or before choosing the next missing capability slice.",
                     fraction = 0.88f,
                     refreshPolicy = "passive_full_objective_audit",
                     permissionGate = "source_report_permissions_and_phone_validation",
@@ -13773,7 +13773,7 @@ object HermesDeviceDiagnosticsBridge {
                     graphType = "agent_self_check_matrix",
                     openNextAction = "agent_self_check_report",
                     detail = "Establish heartbeat, analyzer, permission, backend, and route readiness before making broad claims.",
-                    recommendation = "Use this when a user asks what Hermes can inspect right now.",
+                    recommendation = "Use this when a user asks what Agent can inspect right now.",
                     fraction = 0.98f,
                 ),
             )
@@ -13862,7 +13862,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Persistent memory and persona context",
                     ready = environmentReady,
                     valueLabel = "agent_environment_report",
-                    detail = "Hermes surfaces local memory/persona readiness and persistent context boundaries as agent-readable rows.",
+                    detail = "Agent surfaces local memory/persona readiness and persistent context boundaries as agent-readable rows.",
                     openNextAction = "agent_environment_report",
                     graphType = "kai_parity_matrix",
                     fraction = if (environmentReady) 0.9f else 0.35f,
@@ -13906,7 +13906,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Generated screen and expandable card parity",
                     ready = true,
                     valueLabel = "agent_card_priority_report",
-                    detail = "Hermes does not rely on opaque generated screens; it exposes ranked expandable diagnostic cards with graph_type, open_next_action, refresh_policy, and permission gates.",
+                    detail = "Agent does not rely on opaque generated screens; it exposes ranked expandable diagnostic cards with graph_type, open_next_action, refresh_policy, and permission gates.",
                     openNextAction = "agent_card_priority_report",
                     graphType = "agent_card_priority_matrix",
                     fraction = 0.9f,
@@ -13951,7 +13951,7 @@ object HermesDeviceDiagnosticsBridge {
             ready = ready,
             valueLabel = valueLabel,
             detail = detail,
-            recommendation = "Use this row to compare Kai-style interactive agent affordances with the concrete Hermes Android card or tool surface.",
+            recommendation = "Use this row to compare Kai-style interactive agent affordances with the concrete Agent Android card or tool surface.",
             fraction = fraction,
             extra = JSONObject()
                 .put("graph_type", graphType)
@@ -15077,7 +15077,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = readyDomainCount >= minOf(3, domainCount.coerceAtLeast(1)),
                     valueLabel = "$readyDomainCount/$domainCount domains ready",
                     detail = "session_status=$sessionStatus; fused Wi-Fi graph, Bluetooth trend, motion/IMU, radio/RF, top-card, refresh, and MediaTek/backend evidence into one passive-first snapshot.",
-                    recommendation = "Open this row before answering what Hermes can currently see or which signal card should drive the next agent action.",
+                    recommendation = "Open this row before answering what Agent can currently see or which signal card should drive the next agent action.",
                     fraction = if (readyDomainCount == domainCount && domainCount > 0) 0.96f else 0.62f + (readyDomainCount.toFloat() / domainCount.coerceAtLeast(1).toFloat() * 0.28f),
                     extra = JSONObject()
                         .put("session_snapshot_status", sessionStatus)
@@ -15805,7 +15805,7 @@ object HermesDeviceDiagnosticsBridge {
                 sourceAction = "mcp_tool_server_registry_report",
                 graphType = "mcp_tool_server_registry",
                 keys = listOf("mcp_tool_server_registry", "mcp_tool_server_routes", "gemma_mcp_registry_directives"),
-                recommendation = "Use these keys to compare Kai MCP server parity with current Hermes native tools, simple HTTP routes, and external-server gaps.",
+                recommendation = "Use these keys to compare Kai MCP server parity with current Agent native tools, simple HTTP routes, and external-server gaps.",
             ))
             .put(agentSignalMetadataKeyRow(
                 label = "Upgrade audit metadata keys",
@@ -15813,7 +15813,7 @@ object HermesDeviceDiagnosticsBridge {
                 sourceAction = "agent_capability_upgrade_report",
                 graphType = "agent_upgrade_objective_matrix",
                 keys = listOf("agent_upgrade_objective_matrix", "agent_upgrade_route_matrix", "gemma_upgrade_audit_directives"),
-                recommendation = "Use these keys before making broad claims about the full Hermes upgrade objective or the next missing capability slice.",
+                recommendation = "Use these keys before making broad claims about the full Agent upgrade objective or the next missing capability slice.",
             ))
     }
 
@@ -16056,7 +16056,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Cached Wi-Fi trend memory",
                     ready = cachedWifiHistory.length() > 0,
                     valueLabel = "${cachedWifiHistory.length()} tracked AP(s)",
-                    detail = "Hermes keeps bounded Wi-Fi RSSI history so Gemma can compare current, average, min/max, trend, and last-seen metadata after scans.",
+                    detail = "Agent keeps bounded Wi-Fi RSSI history so Gemma can compare current, average, min/max, trend, and last-seen metadata after scans.",
                     recommendation = "Run wifi_scan periodically when diagnosing changing signal strength or room-to-room network quality.",
                     fraction = if (cachedWifiHistory.length() > 0) (cachedWifiHistory.length() / 8f).coerceIn(0.35f, 1f) else 0.25f,
                     extra = JSONObject().put("tool_action", "wifi_scan"),
@@ -16082,7 +16082,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Cached Bluetooth trend memory",
                     ready = cachedBluetoothHistory.length() > 0,
                     valueLabel = "${cachedBluetoothHistory.length()} tracked device(s)",
-                    detail = "Hermes keeps bounded Bluetooth RSSI history so Gemma can compare current, average, min/max, trend, proximity, and last-seen metadata after BLE scans.",
+                    detail = "Agent keeps bounded Bluetooth RSSI history so Gemma can compare current, average, min/max, trend, proximity, and last-seen metadata after BLE scans.",
                     recommendation = "Run bluetooth_signal_history after scans when diagnosing moving beacons, wearables, controllers, or audio devices.",
                     fraction = if (cachedBluetoothHistory.length() > 0) (cachedBluetoothHistory.length() / 8f).coerceIn(0.35f, 1f) else 0.25f,
                     extra = JSONObject().put("tool_action", "bluetooth_signal_history"),
@@ -16106,7 +16106,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Cached motion trend memory",
                     ready = cachedMotionHistory.length() > 0,
                     valueLabel = "${cachedMotionHistory.length()} tracked sensor(s)",
-                    detail = "Hermes keeps bounded IMU magnitude history so Gemma can compare current, average, range, trend, stability, current vector, and recent series after sensor samples.",
+                    detail = "Agent keeps bounded IMU magnitude history so Gemma can compare current, average, range, trend, stability, current vector, and recent series after sensor samples.",
                     recommendation = "Run motion_sensor_history when diagnosing movement changes, orientation shifts, device handling, or sensor stability.",
                     fraction = if (cachedMotionHistory.length() > 0) (cachedMotionHistory.length() / MOTION_HISTORY_SENSOR_TYPES.size.toFloat()).coerceIn(0.35f, 1f) else 0.25f,
                     extra = JSONObject().put("tool_action", "motion_sensor_history"),
@@ -16118,7 +16118,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Motion pose fusion",
                     ready = cachedMotionPoseEstimates.length() > 0 || motionSensors.isNotEmpty(),
                     valueLabel = if (cachedMotionPoseEstimates.length() > 0) "${cachedMotionPoseEstimates.length()} pose row(s)" else "sample needed",
-                    detail = "Hermes fuses accelerometer/gravity, magnetic-field, rotation-vector, gyroscope, and linear-acceleration rows into pose, heading, angular-motion, and acceleration-state context for Gemma.",
+                    detail = "Agent fuses accelerometer/gravity, magnetic-field, rotation-vector, gyroscope, and linear-acceleration rows into pose, heading, angular-motion, and acceleration-state context for Gemma.",
                     recommendation = "Use motion_pose or sensor_snapshot with accelerometer, magnetic_field, rotation_vector, gyroscope, and linear_acceleration before orientation-aware automations.",
                     fraction = if (cachedMotionPoseEstimates.length() > 0) 0.9f else if (motionSensors.isNotEmpty()) 0.55f else 0.2f,
                     extra = JSONObject().put("tool_action", "motion_pose"),
@@ -16235,7 +16235,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Channel signal graph",
                     ready = channelGraphCount > 0,
                     valueLabel = "$channelGraphCount AP envelope row(s)",
-                    detail = "Hermes maps each nearby AP onto a WiFiAnalyzer-style channel graph envelope with dBm, channel width, channel span, frequency span, and overlap pressure.",
+                    detail = "Agent maps each nearby AP onto a WiFiAnalyzer-style channel graph envelope with dBm, channel width, channel span, frequency span, and overlap pressure.",
                     recommendation = "Use wifi_channel_graph when the user asks what the channel graph looks like or which visible APs overlap by width.",
                     fraction = if (channelGraphCount > 0) 1f else if (scanReady) 0.55f else 0.35f,
                     extra = JSONObject()
@@ -16249,7 +16249,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Channel rating",
                     ready = channelRatingCount > 0,
                     valueLabel = "$channelRatingCount channel score row(s)",
-                    detail = "Hermes scores candidate 2.4GHz, 5GHz, and 6GHz channels from crowding, overlap, signal strength, width metadata, and 6GHz preferred candidate channels.",
+                    detail = "Agent scores candidate 2.4GHz, 5GHz, and 6GHz channels from crowding, overlap, signal strength, width metadata, and 6GHz preferred candidate channels.",
                     recommendation = "Use wifi_channel_rating to pick a candidate channel instead of judging only by strongest RSSI.",
                     fraction = if (channelRatingCount > 0) 1f else if (scanReady) 0.55f else 0.35f,
                     extra = JSONObject()
@@ -16263,7 +16263,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Channel utilization occupancy",
                     ready = channelUtilizationCount > 0,
                     valueLabel = "$channelUtilizationCount utilization row(s)",
-                    detail = "Hermes infers channel occupancy from visible AP counts, overlap, RSSI pressure, channel width, security modes, and SSID samples. It does not claim airtime counters that Android scan APIs do not expose.",
+                    detail = "Agent infers channel occupancy from visible AP counts, overlap, RSSI pressure, channel width, security modes, and SSID samples. It does not claim airtime counters that Android scan APIs do not expose.",
                     recommendation = "Use wifi_channel_utilization when the user asks which Wi-Fi channels look busy, noisy, crowded, or interference-heavy.",
                     fraction = if (channelUtilizationCount > 0) 0.95f else if (scanReady) 0.6f else 0.35f,
                     extra = JSONObject()
@@ -16291,7 +16291,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Pause/resume scan control",
                     ready = true,
                     valueLabel = "scan_mode ready",
-                    detail = "Hermes accepts scan_mode=paused to reuse cached AP rows/history without active startScan, and scan_mode=resumed to request a fresh Android scan on direct Wi-Fi actions.",
+                    detail = "Agent accepts scan_mode=paused to reuse cached AP rows/history without active startScan, and scan_mode=resumed to request a fresh Android scan on direct Wi-Fi actions.",
                     recommendation = "Pause repeated scans during passive review; resume only when the user asks for a fresh nearby Wi-Fi reading.",
                     fraction = 0.9f,
                     extra = JSONObject()
@@ -16305,7 +16305,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Band coverage and 2.4/5/6GHz visibility",
                     ready = observedBandCount > 0 || scanReady,
                     valueLabel = "$observedBandCount observed band(s)",
-                    detail = "Hermes summarizes observed 2.4GHz, 5GHz, and 6GHz AP counts with channels, widths, standards, security attention, hidden SSIDs, and best rated channel hints.",
+                    detail = "Agent summarizes observed 2.4GHz, 5GHz, and 6GHz AP counts with channels, widths, standards, security attention, hidden SSIDs, and best rated channel hints.",
                     recommendation = "Use wifi_scan or wifi_analyzer_report before advising channel plans so Gemma can see which bands are actually visible on this device.",
                     fraction = if (observedBandCount > 0) 0.95f else if (scanReady) 0.6f else 0.35f,
                     extra = JSONObject()
@@ -16333,7 +16333,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Agent AP semantic and risk labels",
                     ready = semanticCount > 0,
                     valueLabel = "$semanticCount AP semantic row(s)",
-                    detail = "Hermes labels likely private routers, public/guest hotspots, hidden SSIDs, passpoint/venue APs, mesh/repeater candidates, IoT/device APs, and open/WEP/WPS attention rows for Gemma-readable reasoning.",
+                    detail = "Agent labels likely private routers, public/guest hotspots, hidden SSIDs, passpoint/venue APs, mesh/repeater candidates, IoT/device APs, and open/WEP/WPS attention rows for Gemma-readable reasoning.",
                     recommendation = "Use wifi_ap_details or wifi_analyzer_report when the user asks what nearby networks are or which ones deserve security attention.",
                     fraction = if (semanticCount > 0) 0.95f else if (scanReady) 0.6f else 0.35f,
                     extra = JSONObject()
@@ -16347,7 +16347,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Vendor/OUI lookup",
                     ready = vendorCount > 0,
                     valueLabel = "$vendorCount vendor group(s)",
-                    detail = "Hermes uses local OUI prefix hints from scan metadata and does not perform network lookups for vendor labels.",
+                    detail = "Agent uses local OUI prefix hints from scan metadata and does not perform network lookups for vendor labels.",
                     recommendation = "Use vendor rows as hints, and preserve BSSID/OUI fields for Gemma when explaining nearby infrastructure.",
                     fraction = if (vendorCount > 0) 0.9f else 0.45f,
                     extra = JSONObject()
@@ -16375,7 +16375,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Current connection link telemetry",
                     ready = connectionReadyCount > 0,
                     valueLabel = "$connectionReadyCount/$connectionLinkCount ready row(s)",
-                    detail = "Hermes exposes the active Wi-Fi association as a Gemma-visible card with SSID/BSSID redaction status, RSSI, link speed, frequency/channel, band, Wi-Fi standard, security, and scan-match metadata.",
+                    detail = "Agent exposes the active Wi-Fi association as a Gemma-visible card with SSID/BSSID redaction status, RSSI, link speed, frequency/channel, band, Wi-Fi standard, security, and scan-match metadata.",
                     recommendation = "Use wifi_connection_link when the user asks about the current Wi-Fi connection, not just nearby access points.",
                     fraction = if (connectionReadyCount > 0) 0.92f else if (wifiAvailable) 0.45f else 0.2f,
                     extra = JSONObject()
@@ -16403,7 +16403,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Wi-Fi safety boundary",
                     ready = true,
                     valueLabel = "analysis only",
-                    detail = "Hermes reports signal, channel, metadata, and export rows; it is not a password cracking, phishing, or network intrusion tool.",
+                    detail = "Agent reports signal, channel, metadata, and export rows; it is not a password cracking, phishing, or network intrusion tool.",
                     recommendation = "Keep analysis limited to observable Android scan metadata and user-authorized workflows.",
                     fraction = 1f,
                     extra = JSONObject().put("feature_source", "WiFiAnalyzer privacy boundary"),
@@ -16545,7 +16545,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Wi-Fi service availability",
                     ready = wifiAvailable,
                     valueLabel = if (wifiAvailable) "service present" else "no Wi-Fi service",
-                    detail = "Android must expose WifiManager before Hermes can read scan result metadata.",
+                    detail = "Android must expose WifiManager before Agent can read scan result metadata.",
                     recommendation = "Report lack of Wi-Fi hardware or service honestly instead of fabricating nearby AP rows.",
                     fraction = if (wifiAvailable) 1f else 0.1f,
                     extra = JSONObject().put("constraint_type", "hardware_service"),
@@ -16609,7 +16609,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Analysis and privacy boundary",
                     ready = true,
                     valueLabel = "metadata only",
-                    detail = "Hermes Wi-Fi analysis uses Android scan metadata and local OUI hints; it does not crack passwords, phish, or probe networks.",
+                    detail = "Agent Wi-Fi analysis uses Android scan metadata and local OUI hints; it does not crack passwords, phish, or probe networks.",
                     recommendation = "Keep user-facing answers scoped to signal, channel, metadata, and user-authorized troubleshooting.",
                     fraction = 1f,
                     extra = JSONObject().put("constraint_type", "privacy_safety"),
@@ -16639,7 +16639,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Identify paired devices",
                     ready = bluetoothAvailable && canReadPaired,
                     valueLabel = if (deviceCount > 0) "$deviceCount device row(s)" else if (canReadPaired) "inventory ready" else "permission gated",
-                    detail = "Hermes can read bonded-device identity, type, class, and pairing metadata when Android grants Bluetooth connect access.",
+                    detail = "Agent can read bonded-device identity, type, class, and pairing metadata when Android grants Bluetooth connect access.",
                     recommendation = "Use bluetooth_scan for paired-device inventory before explaining remembered headsets, wearables, controllers, or beacons.",
                     fraction = if (bluetoothAvailable && canReadPaired) 0.9f else 0.4f,
                     extra = JSONObject()
@@ -16672,7 +16672,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Pause/resume BLE scan control",
                     ready = true,
                     valueLabel = "scan_mode ready",
-                    detail = "Hermes accepts scan_mode=paused to reuse paired/passive rows and cached RSSI history without starting BluetoothLeScanner, and scan_mode=resumed to request a fresh BLE sample on direct Bluetooth actions.",
+                    detail = "Agent accepts scan_mode=paused to reuse paired/passive rows and cached RSSI history without starting BluetoothLeScanner, and scan_mode=resumed to request a fresh BLE sample on direct Bluetooth actions.",
                     recommendation = "Pause repeated BLE scans during passive review; resume only when the user asks for a fresh nearby Bluetooth reading.",
                     fraction = 0.9f,
                     extra = JSONObject()
@@ -16700,7 +16700,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "RSSI trend history graph",
                     ready = historyCount > 0 || (bluetoothLeSupported && canScanNearby),
                     valueLabel = if (historyCount > 0) "$historyCount tracked device(s)" else "scan route ready",
-                    detail = "Hermes keeps bounded Bluetooth RSSI history from BLE scan observations so Gemma can compare current, average, min/max, trend, and last-seen metadata.",
+                    detail = "Agent keeps bounded Bluetooth RSSI history from BLE scan observations so Gemma can compare current, average, min/max, trend, and last-seen metadata.",
                     recommendation = "Use bluetooth_signal_history after scans when the user asks whether nearby Bluetooth devices are approaching, fading, or stable.",
                     fraction = if (historyCount > 0) (historyCount / 8f).coerceIn(0.45f, 1f) else if (bluetoothLeSupported && canScanNearby) 0.7f else 0.3f,
                     extra = JSONObject()
@@ -16742,11 +16742,11 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Device detail and export rows",
                     ready = deviceCount > 0 || metadataCount > 0 || canReadPaired || canScanNearby,
                     valueLabel = if (deviceCount > 0) "$deviceCount detail candidate(s)" else "detail route ready",
-                    detail = "Hermes can expand Bluetooth rows into per-device detail/export records with identity, class, bond state, proximity, services, manufacturer IDs, advertisement fields, and metadata completeness evidence.",
+                    detail = "Agent can expand Bluetooth rows into per-device detail/export records with identity, class, bond state, proximity, services, manufacturer IDs, advertisement fields, and metadata completeness evidence.",
                     recommendation = "Use bluetooth_device_details for inspection cards and bluetooth_export when the user asks for JSON or CSV Bluetooth device metadata.",
                     fraction = if (deviceCount > 0 || metadataCount > 0) 0.95f else if (canReadPaired || canScanNearby) 0.72f else 0.35f,
                     extra = JSONObject()
-                        .put("feature_source", "Hermes Bluetooth device detail/export rows")
+                        .put("feature_source", "Agent Bluetooth device detail/export rows")
                         .put("tool_action", "bluetooth_device_details"),
                 ),
             )
@@ -16756,7 +16756,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Device category hints",
                     ready = categoryCount > 0 || metadataCount > 0 || canReadPaired || canScanNearby,
                     valueLabel = if (categoryCount > 0) "$categoryCount category group(s)" else "class inference ready",
-                    detail = "Hermes groups Bluetooth class, device type, and metadata summary rows so Gemma can reason about audio, wearable, HID, beacon, and unknown devices.",
+                    detail = "Agent groups Bluetooth class, device type, and metadata summary rows so Gemma can reason about audio, wearable, HID, beacon, and unknown devices.",
                     recommendation = "Use category rows as hints, not final identity, because Android metadata can be sparse or vendor-specific.",
                     fraction = if (categoryCount > 0 || metadataCount > 0) 0.9f else if (canReadPaired || canScanNearby) 0.7f else 0.35f,
                     extra = JSONObject()
@@ -16774,7 +16774,7 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Show Bluetooth cards before long explanations when the user asks what nearby devices or metadata the agent can see.",
                     fraction = 0.9f,
                     extra = JSONObject()
-                        .put("feature_source", "Hermes diagnostic cards")
+                        .put("feature_source", "Agent diagnostic cards")
                         .put("tool_action", "bluetooth_analyzer_report"),
                 ),
             )
@@ -16784,7 +16784,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Bluetooth safety boundary",
                     ready = true,
                     valueLabel = "metadata only",
-                    detail = "Hermes reports Android-exposed Bluetooth metadata and does not pair, connect, track people, exploit devices, or bypass OS permissions.",
+                    detail = "Agent reports Android-exposed Bluetooth metadata and does not pair, connect, track people, exploit devices, or bypass OS permissions.",
                     recommendation = "Keep analysis scoped to user-authorized nearby/paired metadata and explain missing permission or hardware gates directly.",
                     fraction = 1f,
                     extra = JSONObject().put("feature_source", "Bluetooth privacy boundary"),
@@ -16916,7 +16916,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Bluetooth service availability",
                     ready = bluetoothAvailable,
                     valueLabel = if (bluetoothAvailable) "service present" else "no Bluetooth service",
-                    detail = "Android must expose a Bluetooth adapter or service before Hermes can read paired or nearby Bluetooth metadata.",
+                    detail = "Android must expose a Bluetooth adapter or service before Agent can read paired or nearby Bluetooth metadata.",
                     recommendation = "Report missing Bluetooth hardware or service honestly instead of inventing nearby device rows.",
                     fraction = if (bluetoothAvailable) 1f else 0.1f,
                     extra = JSONObject().put("constraint_type", "hardware_service"),
@@ -17001,7 +17001,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Analysis and privacy boundary",
                     ready = true,
                     valueLabel = if (bluetoothLeSupported) "metadata only" else "no BLE metadata",
-                    detail = "Hermes analyzes Android-exposed paired and advertisement metadata; it does not connect, pair, track identities, or bypass the OS permission model.",
+                    detail = "Agent analyzes Android-exposed paired and advertisement metadata; it does not connect, pair, track identities, or bypass the OS permission model.",
                     recommendation = "Keep Bluetooth answers scoped to observable metadata and user-authorized troubleshooting.",
                     fraction = 1f,
                     extra = JSONObject().put("constraint_type", "privacy_safety"),
@@ -18430,7 +18430,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = sensorServiceAvailable,
                     valueLabel = if (sensorServiceAvailable) "public sensor API" else "sensor service gated",
                     detail = "claim_scope=Android-reported accelerometer, gyroscope, rotation-vector, magnetic, gravity, and linear-acceleration metadata only | active_sample_requested=${samplingStatus.optBoolean("active_sample_requested", false)}",
-                    recommendation = "Do not imply hidden hardware, vendor-private IMU streams, or background collection beyond user-approved Hermes workflows.",
+                    recommendation = "Do not imply hidden hardware, vendor-private IMU streams, or background collection beyond user-approved Agent workflows.",
                     fraction = if (sensorServiceAvailable) 0.9f else 0.25f,
                     extra = JSONObject()
                         .put("claim_scope", "Android-reported motion sensor metadata and bounded samples only")
@@ -18637,7 +18637,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Motion and orientation sensors",
                     ready = sensorServiceAvailable && motionSensorCount > 0,
                     valueLabel = if (motionSensorCount > 0) "$motionSensorCount motion type(s)" else "no motion rows",
-                    detail = "Hermes can expose accelerometer, gyroscope, gravity, linear-acceleration, and rotation-vector metadata when Android reports those sensors.",
+                    detail = "Agent can expose accelerometer, gyroscope, gravity, linear-acceleration, and rotation-vector metadata when Android reports those sensors.",
                     recommendation = "Use sensor_snapshot for the exact motion types needed by the workflow instead of sampling every sensor.",
                     fraction = if (motionSensorCount > 0) (motionSensorCount / MOTION_SENSOR_TYPES.size.toFloat()).coerceIn(0.35f, 1f) else 0.2f,
                     extra = JSONObject()
@@ -18701,7 +18701,7 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Use motion_sensor_history when comparing movement or orientation changes across recent samples instead of relying on one point in time.",
                     fraction = if (motionHistoryCount > 0) (motionHistoryCount / MOTION_HISTORY_SENSOR_TYPES.size.toFloat()).coerceIn(0.35f, 1f) else 0.3f,
                     extra = JSONObject()
-                        .put("feature_source", "Hermes motion sensor history")
+                        .put("feature_source", "Agent motion sensor history")
                         .put("tool_action", "motion_sensor_history"),
                 ),
             )
@@ -18715,7 +18715,7 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Use motion_pose or sensor_snapshot when the workflow needs orientation claims rather than raw vector magnitudes.",
                     fraction = if (motionPoseEstimateCount > 0) 0.95f else if (hasRotationContext || hasAccelerometer) 0.65f else 0.25f,
                     extra = JSONObject()
-                        .put("feature_source", "Hermes IMU fusion")
+                        .put("feature_source", "Agent IMU fusion")
                         .put("tool_action", "motion_pose"),
                 ),
             )
@@ -18729,7 +18729,7 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Use motion_sensor_quality before orientation-sensitive workflows or before treating raw accelerometer/gyroscope values as stable evidence.",
                     fraction = if (motionSensorQualityCount > 0) (readyMotionSensorQualityCount / motionSensorQualityCount.toFloat()).coerceIn(0.35f, 0.95f) else 0.3f,
                     extra = JSONObject()
-                        .put("feature_source", "Hermes IMU quality gates")
+                        .put("feature_source", "Agent IMU quality gates")
                         .put("tool_action", "motion_sensor_quality"),
                 ),
             )
@@ -18768,7 +18768,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = wakeUpSensorCount > 0 || directChannelSensorCount > 0,
                     valueLabel = "$wakeUpSensorCount wake-up, $directChannelSensorCount direct",
                     detail = "Wake-up and direct-channel fields help the agent explain power and low-latency limits without relying on a specific SOC vendor.",
-                    recommendation = "Treat these as hardware hints; normal Hermes sampling still stays in the Android app permission model.",
+                    recommendation = "Treat these as hardware hints; normal Agent sampling still stays in the Android app permission model.",
                     fraction = if (wakeUpSensorCount > 0 || directChannelSensorCount > 0) 0.85f else 0.45f,
                     extra = JSONObject()
                         .put("feature_source", "Sensor hardware flags")
@@ -18781,11 +18781,11 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Sensor watcher automation route",
                     ready = availableSensors.isNotEmpty(),
                     valueLabel = if (availableSensors.isNotEmpty()) "watcher route ready" else "no sensor types",
-                    detail = "Hermes automation can route explicit sensor events through saved watcher records for motion-aware workflows.",
+                    detail = "Agent automation can route explicit sensor events through saved watcher records for motion-aware workflows.",
                     recommendation = "Use start_sensor_watcher only for intentional workflows and keep one-shot sensor_snapshot as the default diagnostic path.",
                     fraction = if (availableSensors.isNotEmpty()) 0.8f else 0.25f,
                     extra = JSONObject()
-                        .put("feature_source", "Hermes automation watcher")
+                        .put("feature_source", "Agent automation watcher")
                         .put("tool_action", "start_sensor_watcher"),
                 ),
             )
@@ -18799,7 +18799,7 @@ object HermesDeviceDiagnosticsBridge {
                     recommendation = "Show sensor cards before long explanations when the user asks what motion or ambient context the agent can see.",
                     fraction = 0.9f,
                     extra = JSONObject()
-                        .put("feature_source", "Hermes diagnostic cards")
+                        .put("feature_source", "Agent diagnostic cards")
                         .put("tool_action", "sensor_analyzer_report"),
                 ),
             )
@@ -18809,7 +18809,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Sensor privacy and power boundary",
                     ready = true,
                     valueLabel = "bounded sampling",
-                    detail = "Hermes reports Android-exposed sensor metadata and bounded one-shot samples; it does not infer hidden location or run endless background polling by default.",
+                    detail = "Agent reports Android-exposed sensor metadata and bounded one-shot samples; it does not infer hidden location or run endless background polling by default.",
                     recommendation = "Keep sensor answers scoped to user-authorized local context, sensor availability, and explicit automation records.",
                     fraction = 1f,
                     extra = JSONObject().put("feature_source", "Sensor safety boundary"),
@@ -18947,7 +18947,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Route sensor watcher automation",
                     ready = availableSensors.isNotEmpty(),
                     valueLabel = "start_sensor_watcher",
-                    detail = "Use for explicit, saved Hermes automations that react to sensor events instead of ad hoc chat diagnostics.",
+                    detail = "Use for explicit, saved Agent automations that react to sensor events instead of ad hoc chat diagnostics.",
                     recommendation = "Create watcher records deliberately and expose thresholds clearly to the user.",
                     fraction = if (availableSensors.isNotEmpty()) 0.75f else 0.25f,
                     extra = JSONObject().put("tool_action", "start_sensor_watcher"),
@@ -18983,7 +18983,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Sensor service availability",
                     ready = sensorServiceAvailable,
                     valueLabel = if (sensorServiceAvailable) "service present" else "no SensorManager",
-                    detail = "Android must expose SensorManager before Hermes can read motion, orientation, ambient, or hardware metadata rows.",
+                    detail = "Android must expose SensorManager before Agent can read motion, orientation, ambient, or hardware metadata rows.",
                     recommendation = "Report missing sensor service honestly instead of inventing motion or ambient rows.",
                     fraction = if (sensorServiceAvailable) 1f else 0.1f,
                     extra = JSONObject().put("constraint_type", "hardware_service"),
@@ -19043,7 +19043,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Analysis and privacy boundary",
                     ready = true,
                     valueLabel = "local metadata",
-                    detail = "Hermes uses local Android sensor metadata and bounded readings; it does not infer hidden location, identify people, or poll forever by default.",
+                    detail = "Agent uses local Android sensor metadata and bounded readings; it does not infer hidden location, identify people, or poll forever by default.",
                     recommendation = "Keep sensor explanations scoped to observable local context and explicit user workflows.",
                     fraction = 1f,
                     extra = JSONObject().put("constraint_type", "privacy_safety"),
@@ -19071,7 +19071,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("default_timeout_ms", DEFAULT_SENSOR_TIMEOUT_MS)
             .put("max_timeout_ms", MAX_SENSOR_TIMEOUT_MS)
             .put("passive_report_default", true)
-            .put("android_sensor_policy_note", "Normal Android sensors can be read through SensorManager, but Hermes keeps analyzer reports passive and bounds one-shot sampling to reduce latency and power use.")
+            .put("android_sensor_policy_note", "Normal Android sensors can be read through SensorManager, but Agent keeps analyzer reports passive and bounds one-shot sampling to reduce latency and power use.")
     }
 
     private fun signalWorkflowRouteRows(
@@ -19457,7 +19457,7 @@ object HermesDeviceDiagnosticsBridge {
                 accessPath = "OEM Broadcast Radio HAL bridge, vendor app bridge, or external SDR",
                 scanState = if (vendorBroadcastRadioDeclared) "vendor_bridge_required" else "external_or_vendor_receiver_required",
                 reason = if (vendorBroadcastRadioDeclared) {
-                    "Device declares a broadcast-radio feature, but Hermes still needs an OEM/vendor bridge to receive AM station rows."
+                    "Device declares a broadcast-radio feature, but Agent still needs an OEM/vendor bridge to receive AM station rows."
                 } else {
                     "No public Android AM tuner scan API is available; AM station rows require a vendor bridge or SDR receiver."
                 },
@@ -19481,7 +19481,7 @@ object HermesDeviceDiagnosticsBridge {
                 accessPath = "OEM Broadcast Radio HAL bridge, vendor FM app bridge, or external SDR",
                 scanState = if (vendorBroadcastRadioDeclared) "vendor_bridge_required" else "external_or_vendor_receiver_required",
                 reason = if (vendorBroadcastRadioDeclared) {
-                    "Device declares a broadcast-radio feature, but Hermes still needs a vendor bridge to read FM tuner, station, or RDS rows."
+                    "Device declares a broadcast-radio feature, but Agent still needs a vendor bridge to read FM tuner, station, or RDS rows."
                 } else {
                     "No public Android FM tuner/RDS scan API is available; FM station rows require a vendor bridge or SDR receiver."
                 },
@@ -20153,7 +20153,7 @@ object HermesDeviceDiagnosticsBridge {
                 ready = vendorBroadcastRadioDeclared,
                 valueLabel = if (vendorBroadcastRadioDeclared) "feature declared" else "no feature",
                 detail = "Checks vendor feature names such as android.hardware.broadcastradio, android.hardware.radio, android.hardware.fm, and android.hardware.fmradio.",
-                recommendation = "Treat this as a hardware hint only; it is not proof that Hermes can tune or read station rows through public APIs.",
+                recommendation = "Treat this as a hardware hint only; it is not proof that Agent can tune or read station rows through public APIs.",
                 fraction = if (vendorBroadcastRadioDeclared) 0.65f else 0.35f,
                 extra = JSONObject().put("feature_names", JSONArray(BROADCAST_RADIO_FEATURE_NAMES)),
             ),
@@ -20246,7 +20246,7 @@ object HermesDeviceDiagnosticsBridge {
                 label = "Route external SDR setup",
                 ready = false,
                 valueLabel = "external bridge",
-                detail = "No receiver bridge is bundled for arbitrary RF samples, so Hermes should surface setup requirements instead of empty scan rows.",
+                detail = "No receiver bridge is bundled for arbitrary RF samples, so Agent should surface setup requirements instead of empty scan rows.",
                 recommendation = "Use a future SDR bridge/tool only after it reports sample rate, center frequency, span, and power rows.",
                 fraction = 0.3f,
                 extra = JSONObject().put("tool_action", "tool_catalog"),
@@ -20284,7 +20284,7 @@ object HermesDeviceDiagnosticsBridge {
                 label = "External receiver requirement",
                 ready = false,
                 valueLabel = "required for broad RF",
-                detail = "Broad RF and microwave-like spectrum analysis needs receiver hardware that can provide samples to Hermes.",
+                detail = "Broad RF and microwave-like spectrum analysis needs receiver hardware that can provide samples to Agent.",
                 recommendation = "Do not invent spectrum rows; ask for an SDR/vendor bridge and verify sample metadata first.",
                 fraction = 0.25f,
                 extra = JSONObject().put("constraint_type", "external_receiver"),
@@ -20821,7 +20821,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = true,
                     valueLabel = if (statusReport.optBoolean("am_fm_public_android_scan_supported", false)) "public scan available" else "public AM/FM scan unavailable",
                     detail = "public_android_am_fm=${statusReport.optBoolean("am_fm_public_android_scan_supported", false)} | general_spectrum=${statusReport.optBoolean("general_radio_spectrum_supported", false)} | microwave=${statusReport.optBoolean("microwave_spectrum_supported", false)}",
-                    recommendation = "Do not claim Hermes can silently scan AM/FM or arbitrary RF from public Android APIs; require vendor or external receiver samples for graph evidence.",
+                    recommendation = "Do not claim Agent can silently scan AM/FM or arbitrary RF from public Android APIs; require vendor or external receiver samples for graph evidence.",
                     fraction = 0.9f,
                     extra = JSONObject()
                         .put("source_action", "radio_signal_status")
@@ -22043,7 +22043,7 @@ object HermesDeviceDiagnosticsBridge {
                     toolAction = "soc_compatibility_report",
                     graphType = "soc_backend_matrix",
                     detail = "mediatek=${socProfile.optBoolean("likely_mediatek", false)}; mali=${socProfile.optBoolean("likely_mali_gpu", false)}; powervr_img=${socProfile.optBoolean("likely_powervr_img_gpu", false)}; adreno=$likelyAdreno; arm=$supportsArm; x86=$supportsX86.",
-                    recommendation = "Classify the phone before launch so Hermes does not assume Snapdragon/Adreno behavior on MediaTek, Mali, PowerVR/IMG, Xclipse, Exynos, Tensor, Unisoc, or unknown ARM devices.",
+                    recommendation = "Classify the phone before launch so Agent does not assume Snapdragon/Adreno behavior on MediaTek, Mali, PowerVR/IMG, Xclipse, Exynos, Tensor, Unisoc, or unknown ARM devices.",
                     fraction = when {
                         likelyNonAdreno -> 0.96f
                         likelyAdreno || supportsArm -> 0.82f
@@ -22413,7 +22413,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = selectedBackendReady,
                     valueLabel = selectedLabel,
                     detail = "offline_airplane_mode=$offlineAirplaneMode | selected=${selectedBackend.persistedValue}",
-                    recommendation = "Use LiteRT-LM GPU/CPU for supported Android local inference or llama.cpp for GGUF models. AICore/NPU is not a Hermes backend.",
+                    recommendation = "Use LiteRT-LM GPU/CPU for supported Android local inference or llama.cpp for GGUF models. AICore/NPU is not a Agent backend.",
                     fraction = if (selectedBackendReady) 0.9f else 0.35f,
                     extra = JSONObject().put("source_surface", "AppSettingsStore.onDeviceBackend"),
                 ),
@@ -22665,7 +22665,7 @@ object HermesDeviceDiagnosticsBridge {
                     ready = true,
                     valueLabel = "soc_compatibility_report",
                     detail = "Use for SOC family, GPU hint, ABI candidate, MediaTek/Mali/PowerVR coverage, and LiteRT-LM backend policy cards.",
-                    recommendation = "Run this report when the user asks whether a non-Snapdragon phone can use Hermes local inference.",
+                    recommendation = "Run this report when the user asks whether a non-Snapdragon phone can use Agent local inference.",
                     fraction = 0.95f,
                     extra = JSONObject().put("tool_action", "soc_compatibility_report"),
                 ),
@@ -22780,7 +22780,7 @@ object HermesDeviceDiagnosticsBridge {
                     label = "Public Android capability probes",
                     ready = true,
                     valueLabel = "feature API first",
-                    detail = "Hermes uses Android SDK feature, permission, sensor, Wi-Fi, Bluetooth, camera, storage, ABI, and Build fields before making backend decisions.",
+                    detail = "Agent uses Android SDK feature, permission, sensor, Wi-Fi, Bluetooth, camera, storage, ABI, and Build fields before making backend decisions.",
                     recommendation = "Prefer public API probes and explicit rows over hard-coded SOC brand assumptions.",
                     fraction = 0.9f,
                     extra = JSONObject().put("constraint_type", "android_api"),
@@ -23105,10 +23105,10 @@ object HermesDeviceDiagnosticsBridge {
 
     private fun showActiveOverlayJson(context: Context, arguments: JSONObject): JSONObject {
         val message = arguments.optString("message")
-            .ifBlank { "Hermes is active and working on the current task." }
+            .ifBlank { "Agent is active and working on the current task." }
         val payload = JSONObject()
             .put("scene_id", arguments.optString("scene_id").ifBlank { "hermes-active-status" })
-            .put("scene_title", arguments.optString("title").ifBlank { "Hermes Active" })
+            .put("scene_title", arguments.optString("title").ifBlank { "Agent Active" })
             .put("scene_text", message)
             .put("scene_button_text", arguments.optString("button_text").ifBlank { "Dismiss" })
             .put("position", arguments.optString("position").ifBlank { "top" })
@@ -23214,7 +23214,7 @@ object HermesDeviceDiagnosticsBridge {
                         detail = if (connected) {
                             "Accessibility bridge returned the active package and semantic screen hash."
                         } else {
-                            error.ifBlank { "Hermes accessibility service is not connected." }
+                            error.ifBlank { "Agent accessibility service is not connected." }
                         },
                         metadata = JSONObject()
                             .put("accessibility_connected", connected)
@@ -23356,7 +23356,7 @@ object HermesDeviceDiagnosticsBridge {
     }
 
     private fun nativeSelfTestOutput(rows: JSONArray): String {
-        val lines = mutableListOf("Hermes native tool self-test")
+        val lines = mutableListOf("Agent native tool self-test")
         for (index in 0 until rows.length()) {
             val row = rows.optJSONObject(index) ?: continue
             val state = if (row.optBoolean("ready", false)) "ready" else row.optString("status_label").ifBlank { "not_ready" }
@@ -23381,13 +23381,13 @@ object HermesDeviceDiagnosticsBridge {
             .put(
                 "native_tools",
                 JSONArray()
-                    .put(toolJson("terminal_tool", "Run short Android shell commands inside the Hermes workspace.", "command"))
-                    .put(toolJson("file_write_tool", "Write UTF-8 text files inside the Hermes workspace.", "path, content, append"))
+                    .put(toolJson("terminal_tool", "Run short Android shell commands inside the Agent workspace.", "command"))
+                    .put(toolJson("file_write_tool", "Write UTF-8 text files inside the Agent workspace.", "path, content, append"))
                     .put(toolJson("android_system_tool", "Read phone state and open settings or user-granted Shizuku/Sui actions.", "action, package_name, permission"))
                     .put(toolJson("android_ui_tool", "Inspect and control visible Android UI through accessibility and screenshots.", "action, selectors, coordinates"))
-                    .put(toolJson("schedule_task", "Kai-compatible scheduled reminder alias backed by Hermes native Android automation notification records, not background AI prompt execution.", "task, title, task_id, time, at, interval_minutes, days_of_week, enabled"))
-                    .put(toolJson("list_tasks", "Kai-compatible alias for listing saved Hermes Android automation task records.", "limit"))
-                    .put(toolJson("cancel_task", "Kai-compatible alias for deleting a saved Hermes Android automation by task_id.", "task_id"))
+                    .put(toolJson("schedule_task", "Kai-compatible scheduled reminder alias backed by Agent native Android automation notification records, not background AI prompt execution.", "task, title, task_id, time, at, interval_minutes, days_of_week, enabled"))
+                    .put(toolJson("list_tasks", "Kai-compatible alias for listing saved Agent Android automation task records.", "limit"))
+                    .put(toolJson("cancel_task", "Kai-compatible alias for deleting a saved Agent Android automation by task_id.", "task_id"))
                     .put(toolJson("android_automation_tool", "Run/open/create saved automations, watcher tasks, overlays, notifications, widgets, Tasker-style triggers, Kai-compatible scheduled task aliases, and secret-free app settings export/import.", "action, trigger, task_id, data_uri, bundle_json, settings_json"))
                     .put(toolJson("android_device_diagnostics_tool", "Inspect resource-heavy apps, redacted last-crash logs, diagnostics log export, Wi-Fi signals/channel graph envelopes/channel ratings/AP detail and export rows/vendor OUI/filter facets plus active Wi-Fi band/security/signal/SSID/RSSI filters, Bluetooth nearby devices/service UUID labels/manufacturer names/proximity/history/filter facets, camera, sensors, SOC compatibility, overlay, Gemma-visible signal evidence bundles and agent observation dashboards, radio/RF capability limits, Kai-style agent environment parity, and the social/Gmail end-to-end phone preflight.", "action, limit, detail_limit, export_format, scan_mode, refresh, filter_band, filter_security, filter_signal, filter_ssid, min_rssi_dbm, max_rssi_dbm, filter_device_name, filter_bluetooth_service, filter_bluetooth_manufacturer, filter_bluetooth_category, filter_bluetooth_proximity, sensor_types, timeout_ms"))
                     .put(toolJson("hy_memory_tool", "Retain, recall, reflect, and promote local HY Memory rows with tags, entities, keywords, recency, reinforcement, and reusable prompt context.", "action, content, query, tags, category")),
@@ -23401,7 +23401,7 @@ object HermesDeviceDiagnosticsBridge {
                     .put("reflect", "Periodically consolidate repeated facts into fresher summaries and keep raw evidence links.")
                     .put("promoted_context", "Expose high-reuse memories as compact prompt context after repeated recall/retention hits."),
             )
-            .put("cards", JSONArray().put(card("Tools", "Hermes can inspect its tool catalog and pick the right native tool before acting.")))
+            .put("cards", JSONArray().put(card("Tools", "Agent can inspect its tool catalog and pick the right native tool before acting.")))
     }
 
     private fun memorySummaryJson(context: Context): JSONObject = AndroidResourceSnapshot.memorySummary(context)
@@ -25326,7 +25326,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("json_array_key", "bluetooth_device_details")
             .put("csv_key", if (normalizedFormat == "csv" || normalizedFormat == "both") "bluetooth_device_export_csv" else JSONObject.NULL)
             .put("included_fields", JSONArray(BLUETOOTH_DEVICE_EXPORT_FIELDS))
-            .put("privacy_note", "Export rows are produced from Android-exposed paired and BLE scan metadata; Hermes does not connect, pair, or perform internet vendor lookups.")
+            .put("privacy_note", "Export rows are produced from Android-exposed paired and BLE scan metadata; Agent does not connect, pair, or perform internet vendor lookups.")
     }
 
     internal fun bluetoothDeviceCsv(details: JSONArray): String {
@@ -25956,7 +25956,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("refresh_accepted", refreshAccepted)
             .put("paused_uses_cached_scan_results", scanMode == BLUETOOTH_SCAN_MODE_PAUSED)
             .put("resumed_requests_active_scan", scanMode == BLUETOOTH_SCAN_MODE_RESUMED)
-            .put("android_scope", "Per diagnostic request; Android exposes paired devices and cached Hermes history, while active BLE scans require permission and may be sparse.")
+            .put("android_scope", "Per diagnostic request; Android exposes paired devices and cached Agent history, while active BLE scans require permission and may be sparse.")
             .put("agent_instruction", bluetoothScanModeInstruction(scanMode, userRefreshRequested, effectiveRefreshRequested, refreshAccepted))
     }
 
@@ -26144,7 +26144,7 @@ object HermesDeviceDiagnosticsBridge {
             JSONObject()
                 .put("success", false)
                 .put("action", "open_app_settings")
-                .put("error", error.message ?: "Unable to open Hermes app settings")
+                .put("error", error.message ?: "Unable to open Agent app settings")
         }
     }
 
@@ -26919,7 +26919,7 @@ object HermesDeviceDiagnosticsBridge {
             .put("json_array_key", "wifi_access_point_details")
             .put("csv_key", if (normalizedFormat == "csv" || normalizedFormat == "both") "wifi_access_point_export_csv" else JSONObject.NULL)
             .put("included_fields", JSONArray(WIFI_AP_EXPORT_FIELDS))
-            .put("privacy_note", "Export rows are produced from Android's local Wi-Fi scan cache; Hermes does not perform internet vendor lookups.")
+            .put("privacy_note", "Export rows are produced from Android's local Wi-Fi scan cache; Agent does not perform internet vendor lookups.")
     }
 
     internal fun wifiAccessPointCsv(details: JSONArray): String {
@@ -28742,7 +28742,7 @@ object HermesDeviceDiagnosticsBridge {
                 if (refreshRequested && !refreshAccepted) {
                     "Android did not accept the active refresh request; cached scan results may still be current enough for analysis."
                 } else {
-                    "Android may throttle active Wi-Fi scans; Hermes reports scan age when Android exposes timestamps."
+                    "Android may throttle active Wi-Fi scans; Agent reports scan age when Android exposes timestamps."
                 },
             )
     }

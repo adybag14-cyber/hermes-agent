@@ -299,7 +299,7 @@ object HermesAutomationBridge {
             .put("request_owned_bulk_mutation_blocked", true)
             .put(
                 "error",
-                "Hermes blocked this chat-owned bulk automation action before parsing or mutation because its preference, scheduler, worker, or service changes cannot be committed as one Stop-safe operation. Use the manual Automation screen for imports and watcher lifecycle changes.",
+                "Agent blocked this chat-owned bulk automation action before parsing or mutation because its preference, scheduler, worker, or service changes cannot be committed as one Stop-safe operation. Use the manual Automation screen for imports and watcher lifecycle changes.",
             )
             .toString()
     }
@@ -496,9 +496,9 @@ object HermesAutomationBridge {
                 if (executionIds.isEmpty()) {
                     "No executionIds were supplied."
                 } else if (terminalIds.isNotEmpty()) {
-                    "Hermes found completed local Android executions. Local automation runs are synchronous, so completed executions do not need renewed leases."
+                    "Agent found completed local Android executions. Local automation runs are synchronous, so completed executions do not need renewed leases."
                 } else {
-                    "No matching Hermes execution records were found."
+                    "No matching Agent execution records were found."
                 },
             )
             .put("standby_namespace", "/standby")
@@ -539,7 +539,7 @@ object HermesAutomationBridge {
                 modelRoleJson("planner", activeProvider, activeModel, activeProviderLabel, activeBaseUrl, visionCapable = false),
                 modelRoleJson("supervisor", activeProvider, activeModel, activeProviderLabel, activeBaseUrl, visionCapable = false),
                 modelRoleJson("executor_vlm", activeProvider, activeModel, activeProviderLabel, activeBaseUrl, visionCapable = visionCapable),
-                modelRoleJson("executor_action", "hermes_android_tools", "android_automation_tool", "Hermes Android tools", "", visionCapable = false),
+                modelRoleJson("executor_action", "hermes_android_tools", "android_automation_tool", "Agent Android tools", "", visionCapable = false),
                 modelRoleJson("summarizer", activeProvider, activeModel, activeProviderLabel, activeBaseUrl, visionCapable = false),
             )
         )
@@ -564,11 +564,11 @@ object HermesAutomationBridge {
             .put("roles", routingRoles)
             .put(
                 "routing_strategy",
-                "OpenGUI-style role routing is exposed to remote dispatchers. Hermes defaults planner, supervisor, VLM, and summarizer roles to the active local LiteRT-LM or remote provider, while action execution stays on Android-native tools.",
+                "OpenGUI-style role routing is exposed to remote dispatchers. Agent defaults planner, supervisor, VLM, and summarizer roles to the active local LiteRT-LM or remote provider, while action execution stays on Android-native tools.",
             )
             .put(
                 "execution_state_strategy",
-                "Hermes keeps OpenGUI-compatible standby state, run history, execution lifecycle requests, UI review guards, and structured result summaries in the Android automation store so remote dispatchers can resume supervision from the latest phone-side result.",
+                "Agent keeps OpenGUI-compatible standby state, run history, execution lifecycle requests, UI review guards, and structured result summaries in the Android automation store so remote dispatchers can resume supervision from the latest phone-side result.",
             )
             .put(
                 "structured_result_schema",
@@ -597,7 +597,7 @@ object HermesAutomationBridge {
                     listOf(
                         "OpenGUI /models",
                         "OpenGUI /model-routing",
-                        "Hermes android_automation_tool operator_model_routing",
+                        "Agent android_automation_tool operator_model_routing",
                     )
                 )
             )
@@ -671,7 +671,7 @@ object HermesAutomationBridge {
                 .put("handled", false)
                 .put("status", "no_active_execution")
                 .put("action", action)
-                .put("message", "No active Hermes remote execution is available for $action. Local Android automations run synchronously; pass execution_id to inspect a completed run.")
+                .put("message", "No active Agent remote execution is available for $action. Local Android automations run synchronously; pass execution_id to inspect a completed run.")
                 .put("compatible_lifecycle_actions", JSONArray(listOf("cancel", "pause", "resume")))
                 .toString()
         }
@@ -688,7 +688,7 @@ object HermesAutomationBridge {
                 .put("status", "not_found")
                 .put("action", action)
                 .put("execution_id", executionId)
-                .put("message", "No Hermes remote execution matched execution_id=$executionId.")
+                .put("message", "No Agent remote execution matched execution_id=$executionId.")
                 .put("compatible_lifecycle_actions", JSONArray(listOf("cancel", "pause", "resume")))
                 .toString()
         }
@@ -702,9 +702,9 @@ object HermesAutomationBridge {
             else -> "unsupported"
         }
         val message = if (terminal) {
-            "Hermes found execution_id=$executionId, but the local Android run is already $currentStatus. Synchronous completed runs cannot be $action."
+            "Agent found execution_id=$executionId, but the local Android run is already $currentStatus. Synchronous completed runs cannot be $action."
         } else {
-            "Hermes recorded an OpenGUI-compatible $action request for execution_id=$executionId."
+            "Agent recorded an OpenGUI-compatible $action request for execution_id=$executionId."
         }
         return JSONObject()
             .put("success", true)
@@ -756,8 +756,8 @@ object HermesAutomationBridge {
                     listOf(
                         "OpenGUI devices",
                         "OpenGUI /devices",
-                        "Hermes android_automation_tool operator_devices",
-                        "Hermes android_automation_tool operator_standby_status",
+                        "Agent android_automation_tool operator_devices",
+                        "Agent android_automation_tool operator_standby_status",
                     )
                 )
             )
@@ -826,8 +826,8 @@ object HermesAutomationBridge {
                 JSONArray(
                     listOf(
                         "OpenGUI /status [executionId]",
-                        "Hermes android_automation_tool operator_execution_status",
-                        "Hermes android_automation_tool run_history",
+                        "Agent android_automation_tool operator_execution_status",
+                        "Agent android_automation_tool run_history",
                     )
                 )
             )
@@ -1279,7 +1279,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_SHELL,
             payload = command,
-            defaultLabel = "Hermes shell automation",
+            defaultLabel = "Agent shell automation",
         )
     }
 
@@ -1301,7 +1301,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_FILE_WRITE,
             payload = payload,
-            defaultLabel = "Hermes file write automation",
+            defaultLabel = "Agent file write automation",
         )
     }
 
@@ -1316,7 +1316,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_FILE_DELETE,
             payload = path,
-            defaultLabel = "Hermes file delete automation",
+            defaultLabel = "Agent file delete automation",
         )
     }
 
@@ -1333,7 +1333,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_SYSTEM_ACTION,
             payload = systemAction,
-            defaultLabel = "Hermes Android system automation",
+            defaultLabel = "Agent Android system automation",
         )
     }
 
@@ -1385,7 +1385,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_UI_ACTION,
             payload = payload.toString(),
-            defaultLabel = "Hermes UI automation",
+            defaultLabel = "Agent UI automation",
         )
     }
 
@@ -1407,7 +1407,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_APP_LAUNCH,
             payload = packageName,
-            defaultLabel = "Hermes app launch automation",
+            defaultLabel = "Agent app launch automation",
         )
     }
 
@@ -1427,7 +1427,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_INTENT,
             payload = payload.toString(),
-            defaultLabel = "Hermes Android intent automation",
+            defaultLabel = "Agent Android intent automation",
         )
     }
 
@@ -1486,7 +1486,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_INTENT,
             payload = payload.toString(),
-            defaultLabel = "Hermes email draft automation",
+            defaultLabel = "Agent email draft automation",
         )
     }
 
@@ -1696,7 +1696,7 @@ object HermesAutomationBridge {
             arguments = recordArguments,
             actionType = ACTION_TYPE_SHIZUKU_ACTION,
             payload = payload.toString(),
-            defaultLabel = "Hermes Shizuku automation",
+            defaultLabel = "Agent Shizuku automation",
             forceUseShizuku = true,
         )
     }
@@ -1710,7 +1710,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_SUNRISE_SUNSET,
             payload = payload.toString(),
-            defaultLabel = "Hermes sunrise/sunset automation",
+            defaultLabel = "Agent sunrise/sunset automation",
         )
     }
 
@@ -1787,7 +1787,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_NOTIFICATION_ACTION,
             payload = payload.toString(),
-            defaultLabel = "Hermes notification automation",
+            defaultLabel = "Agent notification automation",
         )
     }
 
@@ -1832,7 +1832,7 @@ object HermesAutomationBridge {
         if (recordArguments.optString("notification_title").isBlank()) {
             recordArguments.put(
                 "notification_title",
-                title.ifBlank { recordArguments.optString("label").ifBlank { "Hermes scheduled task" } },
+                title.ifBlank { recordArguments.optString("label").ifBlank { "Agent scheduled task" } },
             )
         }
         if (recordArguments.optString("notification_text").isBlank()) {
@@ -1905,7 +1905,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_VARIABLE_ACTION,
             payload = payload.toString(),
-            defaultLabel = "Hermes variable automation",
+            defaultLabel = "Agent variable automation",
         )
     }
 
@@ -1921,7 +1921,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_WAIT,
             payload = payload,
-            defaultLabel = "Hermes wait automation",
+            defaultLabel = "Agent wait automation",
         )
     }
 
@@ -1944,7 +1944,7 @@ object HermesAutomationBridge {
         }
         val label = stringArgument(arguments, "clipboard_label", "label_text", "clip_label")
             ?.take(MAX_CLIPBOARD_LABEL_CHARS)
-            ?: "Hermes"
+            ?: "Agent"
         if (label.indexOf('\u0000') >= 0) {
             return errorJson("create_clipboard_task label must not contain NUL bytes")
         }
@@ -1958,7 +1958,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_CLIPBOARD_ACTION,
             payload = payload,
-            defaultLabel = "Hermes clipboard automation",
+            defaultLabel = "Agent clipboard automation",
         )
     }
 
@@ -1971,7 +1971,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_VIBRATION_ACTION,
             payload = payload.toString(),
-            defaultLabel = "Hermes vibration automation",
+            defaultLabel = "Agent vibration automation",
         )
     }
 
@@ -1984,7 +1984,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_AUDIO_ACTION,
             payload = payload.toString(),
-            defaultLabel = "Hermes audio automation",
+            defaultLabel = "Agent audio automation",
         )
     }
 
@@ -1997,7 +1997,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_HTTP_REQUEST,
             payload = payload.toString(),
-            defaultLabel = "Hermes HTTP request automation",
+            defaultLabel = "Agent HTTP request automation",
         )
     }
 
@@ -2010,7 +2010,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_OVERLAY_SCENE,
             payload = payload.toString(),
-            defaultLabel = "Hermes overlay scene automation",
+            defaultLabel = "Agent overlay scene automation",
         )
     }
 
@@ -2023,7 +2023,7 @@ object HermesAutomationBridge {
             arguments = arguments,
             actionType = ACTION_TYPE_TOAST_ACTION,
             payload = payload.toString(),
-            defaultLabel = "Hermes toast automation",
+            defaultLabel = "Agent toast automation",
         )
     }
 
@@ -3600,7 +3600,7 @@ object HermesAutomationBridge {
             return JSONObject(errorJson("Unsupported saved clipboard action: $clipboardAction"))
         }
         val text = expandVariables(payload.optString("text"), variables)
-        val label = expandVariables(payload.optString("label").ifBlank { "Hermes" }, variables)
+        val label = expandVariables(payload.optString("label").ifBlank { "Agent" }, variables)
             .take(MAX_CLIPBOARD_LABEL_CHARS)
         return HermesClipboardActionBridge.setClipboardJson(context, text, label)
     }
@@ -5274,12 +5274,12 @@ object HermesAutomationBridge {
                         "OpenGUI POST /executions/heartbeat/batch {executionIds}",
                         "OpenGUI /status [executionId]",
                         "OpenGUI /models",
-                        "Hermes android_automation_tool operator_heartbeat",
-                        "Hermes android_automation_tool operator_batch_heartbeat",
-                        "Hermes android_automation_tool run_remote_dispatch",
-                        "Hermes android_automation_tool operator_execution_status",
-                        "Hermes android_automation_tool operator_model_routing",
-                        "token-protected Hermes external broadcast",
+                        "Agent android_automation_tool operator_heartbeat",
+                        "Agent android_automation_tool operator_batch_heartbeat",
+                        "Agent android_automation_tool run_remote_dispatch",
+                        "Agent android_automation_tool operator_execution_status",
+                        "Agent android_automation_tool operator_model_routing",
+                        "token-protected Agent external broadcast",
                     )
                 )
             )
@@ -5405,7 +5405,7 @@ object HermesAutomationBridge {
         val createdAt = json.optLong("created_at_epoch_ms", now).takeIf { it > 0L } ?: now
         return HermesAutomationRecord(
             id = id,
-            label = json.optString("label").ifBlank { "Imported Hermes automation" }.take(80),
+            label = json.optString("label").ifBlank { "Imported Agent automation" }.take(80),
             actionType = actionType,
             command = command,
             useShizuku = json.optBoolean("use_shizuku", actionType == ACTION_TYPE_SHIZUKU_ACTION),
@@ -6405,7 +6405,7 @@ object HermesAutomationBridge {
             .put("handled", false)
             .put("status", "not_allowed")
             .put("parsed_command", parsed.toJson())
-            .put("message", "Hermes rejected this OpenGUI-compatible IM command because it did not match the supplied allowlist.")
+            .put("message", "Agent rejected this OpenGUI-compatible IM command because it did not match the supplied allowlist.")
             .put("access", access.toJson())
             .put("compatible_prefixes", JSONArray(listOf("!opengui", "/opengui", "/")))
             .toString()
@@ -6419,7 +6419,7 @@ object HermesAutomationBridge {
             .put("parsed_command", parsed.toJson())
             .put(
                 "message",
-                "Hermes recognized this OpenGUI IM command, but local Android automations run synchronously in this bridge. Use operator_execution_status for completed runs, or disable/delete saved automations.",
+                "Agent recognized this OpenGUI IM command, but local Android automations run synchronously in this bridge. Use operator_execution_status for completed runs, or disable/delete saved automations.",
             )
             .toString()
     }
@@ -6442,7 +6442,7 @@ object HermesAutomationBridge {
         }
         return JSONObject()
             .put("name", "opengui")
-            .put("description", "Control Hermes Android remote automations")
+            .put("description", "Control Agent Android remote automations")
             .put("subcommands", subcommands)
     }
 
@@ -6487,21 +6487,21 @@ object HermesAutomationBridge {
     }
 
     private val OPENGUI_COMPATIBLE_COMMAND_HELP = listOf(
-        "Hermes OpenGUI-compatible remote commands",
+        "Agent OpenGUI-compatible remote commands",
         "/opengui <subcommand> - raw slash-command compatible form",
-        "/tasks - list saved Hermes automations",
+        "/tasks - list saved Agent automations",
         "/run <id> - run a matching saved remote-dispatch automation",
         "/do <description> - dispatch to an enabled automation with the same label",
         "/status [executionId] - inspect recent execution status",
-        "/devices - list this standby Hermes device",
+        "/devices - list this standby Agent device",
         "/models - show OpenGUI-style model role routing for planner, supervisor, VLM, executor, and summarizer roles",
         "/pause [executionId], /resume [executionId] [feedback], and /cancel [executionId] return OpenGUI-compatible lifecycle state for recent runs",
     )
 
     private val OPENGUI_SLASH_COMMANDS = listOf(
-        "help" to "Show Hermes OpenGUI-compatible commands",
-        "devices" to "List online Hermes standby devices",
-        "tasks" to "List saved Hermes automations",
+        "help" to "Show Agent OpenGUI-compatible commands",
+        "devices" to "List online Agent standby devices",
+        "tasks" to "List saved Agent automations",
         "run" to "Run an existing remote-dispatch automation by id or label",
         "do" to "Dispatch a natural-language task to a matching enabled automation",
         "status" to "Show recent execution status",

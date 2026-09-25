@@ -751,7 +751,7 @@ def test_server_bridge_retains_and_poisons_handle_when_stop_fails():
     server_bridge._ACTIVE_HANDLE = handle
     server_bridge._UNSAFE_STOP_ERROR = ""
     try:
-        with pytest.raises(RuntimeError, match="Force stop and reopen Hermes"):
+        with pytest.raises(RuntimeError, match="Force stop and reopen Agent"):
             server_bridge.stop_server()
         assert server_bridge._ACTIVE_HANDLE is handle
         status = json.loads(server_bridge.current_server_status())
@@ -760,7 +760,7 @@ def test_server_bridge_retains_and_poisons_handle_when_stop_fails():
         assert "agent/tool workers" in status["error"]
         with (
             patch("hermes_android.server_bridge.start_local_api_server") as retry,
-            pytest.raises(RuntimeError, match="Force stop and reopen Hermes"),
+            pytest.raises(RuntimeError, match="Force stop and reopen Agent"),
         ):
             server_bridge.ensure_server("/tmp/hermes")
         retry.assert_not_called()
@@ -778,7 +778,7 @@ def test_server_bridge_poison_blocks_retry_after_unwound_startup_cannot_be_verif
     unsafe_handle.thread.is_alive.return_value = True
     unsafe_handle.shutdown_complete.is_set.return_value = False
     startup_error = AndroidServerStartupError(
-        "startup worker is still alive; force stop and reopen Hermes",
+        "startup worker is still alive; force stop and reopen Agent",
         unsafe_handle=unsafe_handle,
     )
     server_bridge._ACTIVE_HANDLE = None
@@ -802,7 +802,7 @@ def test_server_bridge_poison_blocks_retry_after_unwound_startup_cannot_be_verif
         retry.assert_not_called()
         status = json.loads(server_bridge.current_server_status())
         assert status == {
-            "error": "startup worker is still alive; force stop and reopen Hermes",
+            "error": "startup worker is still alive; force stop and reopen Agent",
             "requires_app_restart": True,
             "started": False,
         }

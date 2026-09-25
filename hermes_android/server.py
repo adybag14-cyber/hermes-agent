@@ -77,7 +77,7 @@ class AndroidServerHandle:
                 "Android local API server thread did not stop within "
                 f"{bounded_timeout:.1f} seconds; its default-executor agent/tool "
                 "work may still be active, so a replacement server is forbidden "
-                "until Hermes is force-stopped and reopened"
+                "until Agent is force-stopped and reopened"
             )
             if shutdown_error is not None:
                 raise error from shutdown_error
@@ -95,7 +95,7 @@ class AndroidServerHandle:
         return (
             "Android local API server thread exited without proving that pending "
             "tasks, async generators, and default-executor agent/tool workers "
-            f"stopped cleanly{suffix}. Force stop and reopen Hermes before retrying."
+            f"stopped cleanly{suffix}. Force stop and reopen Agent before retrying."
         )
 
 
@@ -248,12 +248,12 @@ def start_local_api_server(
         if cleanup_failure is not None:
             raise AndroidServerStartupError(
                 "Timed out starting the Android local API server and its worker "
-                "did not stop safely. Force stop and reopen Hermes before retrying.",
+                "did not stop safely. Force stop and reopen Agent before retrying.",
                 unsafe_handle=handle,
             ) from cleanup_failure
         raise TimeoutError(
             "Timed out starting the Android local API server after "
-            f"{connect_timeout:.0f} seconds. Free phone storage, retry Hermes, "
+            f"{connect_timeout:.0f} seconds. Free phone storage, retry Agent, "
             "or switch to a local LiteRT-LM backend with a completed model."
         ) from exc
     except Exception as exc:
@@ -265,7 +265,7 @@ def start_local_api_server(
         if cleanup_failure is not None:
             raise AndroidServerStartupError(
                 "Android local API server startup failed and its worker did not "
-                "stop safely. Force stop and reopen Hermes before retrying.",
+                "stop safely. Force stop and reopen Agent before retrying.",
                 unsafe_handle=handle,
             ) from cleanup_failure
         raise RuntimeError(f"Failed to start Android local API server: {exc}") from exc
@@ -278,7 +278,7 @@ def start_local_api_server(
         if cleanup_failure is not None:
             raise AndroidServerStartupError(
                 "Android local API server startup was interrupted and its worker "
-                "did not stop safely. Force stop and reopen Hermes before retrying.",
+                "did not stop safely. Force stop and reopen Agent before retrying.",
                 unsafe_handle=handle,
             ) from cleanup_failure
         raise

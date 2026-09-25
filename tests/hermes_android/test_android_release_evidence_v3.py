@@ -76,7 +76,7 @@ def _write_capture(
     language: str = "en",
     framework: bool = False,
     palette: dict[str, str] | None = None,
-    page_id: str = "Hermes",
+    page_id: str = "Agent",
     sentinels: tuple[str, ...] | None = None,
 ) -> dict[str, str]:
     declared_sentinels = sentinels or (f"Visible {identity}",)

@@ -157,7 +157,7 @@ class PlayPrivacyInstrumentedTest {
                 scenario.onActivity { activity ->
                     activity.setContentForReportTest()
                 }
-                ui.onNodeWithTag("AiReportPreview").assertTextContains("Synthetic Hermes Play UI verification", substring = true)
+                ui.onNodeWithTag("AiReportPreview").assertTextContains("Synthetic Agent Play UI verification", substring = true)
                 assertEquals(before, receipts.load().map { it.id }.toSet())
                 ui.onNodeWithTag("AiReportCancel").performClick()
                 ui.onNodeWithTag("AiContentReportDialog").assertDoesNotExist()
@@ -190,7 +190,7 @@ private fun PlayActivity.setContentForReportTest() {
     setContent {
         com.mobilefork.hermesagent.ui.theme.HermesTheme {
             if (open) com.mobilefork.hermesagent.ui.privacy.AiContentReportDialog(
-                "Synthetic Hermes Play UI verification. No user content. Delete after test.",
+                "Synthetic Agent Play UI verification. No user content. Delete after test.",
                 onDismiss = { open = false },
             )
         }

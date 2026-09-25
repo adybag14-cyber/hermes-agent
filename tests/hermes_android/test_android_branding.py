@@ -15,8 +15,8 @@ def test_android_manifest_uses_hermes_theme_and_icon():
 def test_android_brand_resources_exist_and_define_hermes_palette():
     colors = (REPO_ROOT / "android/app/src/main/res/values/colors.xml").read_text(encoding="utf-8")
     themes = (REPO_ROOT / "android/app/src/main/res/values/themes.xml").read_text(encoding="utf-8")
-    icon = (REPO_ROOT / "android/app/src/main/res/drawable/ic_hermes_logo.xml").read_text(encoding="utf-8")
-    fork_icon = REPO_ROOT / "android/app/src/main/res/drawable/hermes_agent_fork_logo.xml"
+    icon = (REPO_ROOT / "android/app/src/main/res/drawable/agent_logo.xml").read_text(encoding="utf-8")
+    fork_icon = REPO_ROOT / "android/app/src/main/res/drawable/agent_logo.xml"
     strings = (REPO_ROOT / "android/app/src/main/res/values/strings.xml").read_text(encoding="utf-8")
 
     assert 'name="hermes_primary"' in colors
@@ -28,10 +28,10 @@ def test_android_brand_resources_exist_and_define_hermes_palette():
     assert '@color/hermes_background' in themes
     assert '@color/hermes_surface_dark' in themes
     assert 'viewportWidth="108"' in icon
-    assert '#5B2E8C' in icon
+    assert '#54D6C7' in icon
     assert fork_icon.is_file()
-    assert 'android:fillColor="#21C7A8"' in fork_icon.read_text(encoding="utf-8")
-    assert '<string name="app_name">Hermes Agent Fork</string>' in strings
+    assert 'android:fillColor="#54D6C7"' in fork_icon.read_text(encoding="utf-8")
+    assert '<string name="app_name">Agent</string>' in strings
 
 
 def test_app_shell_has_compact_brand_bar_drawer_navigation_and_custom_icons():
@@ -46,8 +46,8 @@ def test_app_shell_has_compact_brand_bar_drawer_navigation_and_custom_icons():
     assert 'ShellNavigationDrawerItem(' in app_shell
     assert 'showNavigationDrawer' in app_shell
     assert 'NavigationBar(' not in app_shell
-    assert 'R.drawable.hermes_agent_fork_logo' in app_shell
-    assert 'R.drawable.ic_nav_hermes' in shell_models
+    assert 'R.drawable.agent_logo' in app_shell
+    assert 'R.drawable.ic_nav_agent' in shell_models
     assert 'R.drawable.ic_nav_accounts' in shell_models
     assert 'R.drawable.ic_nav_portal' in shell_models
     assert 'R.drawable.ic_nav_device' in shell_models
@@ -57,7 +57,7 @@ def test_app_shell_has_compact_brand_bar_drawer_navigation_and_custom_icons():
     assert 'Color(0xFF24D6A3)' in theme_file
     assert 'enableEdgeToEdge' in main_activity
     for name in [
-        'ic_nav_hermes.xml',
+        'ic_nav_agent.xml',
         'ic_nav_accounts.xml',
         'ic_nav_portal.xml',
         'ic_nav_device.xml',

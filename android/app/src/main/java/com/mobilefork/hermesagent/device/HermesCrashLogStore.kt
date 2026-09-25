@@ -115,7 +115,7 @@ object HermesCrashLogStore {
         val appContext = context.applicationContext
         val snapshot = statusSnapshot(appContext)
         val builder = StringBuilder()
-            .appendLine("Hermes diagnostics logs")
+            .appendLine("Agent diagnostics logs")
             .appendLine("Generated: ${formatTimestamp(System.currentTimeMillis())}")
             .appendLine("Crash capture installed: ${snapshot.captureInstalled}")
             .appendLine("PII filter: emails, bearer/API tokens, phone-like numbers, and obvious user paths are redacted.")
@@ -300,15 +300,15 @@ object HermesCrashLogStore {
     private fun processExitMessage(reason: Int, description: String): String {
         val explanation = when (reason) {
             ApplicationExitInfo.REASON_LOW_MEMORY ->
-                "Android terminated Hermes under memory pressure; Java crash capture cannot run after an LMKD kill."
+                "Android terminated Agent under memory pressure; Java crash capture cannot run after an LMKD kill."
             ApplicationExitInfo.REASON_CRASH_NATIVE ->
-                "Hermes exited in native code; inspect the local-model runtime attempt and bounded process trace."
+                "Agent exited in native code; inspect the local-model runtime attempt and bounded process trace."
             ApplicationExitInfo.REASON_ANR ->
                 "Android recorded an application-not-responding exit."
             ApplicationExitInfo.REASON_INITIALIZATION_FAILURE ->
                 "Android recorded a process initialization failure."
             ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE ->
-                "Android terminated Hermes for excessive resource usage."
+                "Android terminated Agent for excessive resource usage."
             else -> "Android recorded a ${processExitReasonLabel(reason)} process exit."
         }
         return if (description.isBlank()) explanation else "$explanation ${description.take(400)}"

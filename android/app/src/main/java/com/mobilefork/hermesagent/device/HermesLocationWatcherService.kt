@@ -121,8 +121,8 @@ class HermesLocationWatcherService : Service(), LocationListener {
             else -> "Watching $registeredCount location provider(s)"
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_nav_hermes)
-            .setContentTitle("Hermes location watcher")
+            .setSmallIcon(R.drawable.ic_nav_agent)
+            .setContentTitle("Agent location watcher")
             .setContentText(contentText)
             .setContentIntent(openAppPendingIntent())
             .setOngoing(true)
@@ -153,10 +153,10 @@ class HermesLocationWatcherService : Service(), LocationListener {
         }
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Hermes location watcher",
+            "Agent location watcher",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps Hermes location automations active"
+            description = "Keeps Agent location automations active"
         }
         manager.createNotificationChannel(channel)
     }

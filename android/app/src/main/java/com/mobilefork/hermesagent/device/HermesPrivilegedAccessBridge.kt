@@ -85,9 +85,9 @@ internal class PrivilegedShellRetryGate {
     private fun poison(reason: String) {
         unsafeDetail =
             "A previous privileged shell command did not unwind safely ($reason). " +
-            "Hermes will not bind another Shizuku user service because stopping only the service PID " +
+            "Agent will not bind another Shizuku user service because stopping only the service PID " +
             "cannot prove that its privileged descendants ended. Restart Shizuku, then force stop and " +
-            "reopen Hermes before retrying."
+            "reopen Agent before retrying."
     }
 }
 
@@ -234,7 +234,7 @@ object HermesPrivilegedAccessBridge {
             return structuredError(normalizedAction, "package_name is not a valid Android package name", packageName = packageName)
         }
         if (normalizedAction in SELF_PROTECTING_ACTIONS && packageName == appContext.packageName) {
-            return structuredError(normalizedAction, "Hermes will not disable, force-stop, or clear itself", packageName = packageName)
+            return structuredError(normalizedAction, "Agent will not disable, force-stop, or clear itself", packageName = packageName)
         }
 
         val permission = if (normalizedAction in PERMISSION_ACTIONS) {
@@ -365,7 +365,7 @@ object HermesPrivilegedAccessBridge {
         }
         if (!status.shizukuPermissionGranted) {
             return privilegedShellUnavailable(
-                "Shizuku permission is not granted to Hermes Agent.",
+                "Shizuku permission is not granted to Agent.",
                 status,
             )
         }
@@ -420,7 +420,7 @@ object HermesPrivilegedAccessBridge {
                 return JSONObject()
                     .put("success", false)
                     .put("exit_code", 124)
-                    .put("error", "Timed out while connecting to Hermes Shizuku user service")
+                    .put("error", "Timed out while connecting to Agent Shizuku user service")
                     .put("user_service_tag", serviceTag)
                     .put("shizuku_privilege_label", status.shizukuPrivilegeLabel)
                     .toString()
@@ -431,7 +431,7 @@ object HermesPrivilegedAccessBridge {
                     return JSONObject()
                         .put("success", false)
                         .put("exit_code", -1)
-                        .put("error", "Hermes Shizuku user service disconnected before command execution")
+                        .put("error", "Agent Shizuku user service disconnected before command execution")
                         .put("user_service_tag", serviceTag)
                         .put("shizuku_privilege_label", status.shizukuPrivilegeLabel)
                         .toString()
@@ -504,7 +504,7 @@ object HermesPrivilegedAccessBridge {
             return HermesPrivilegedActionResult(
                 success = false,
                 action = action,
-                message = "Shizuku permission was denied. Open Shizuku and allow Hermes Agent manually.",
+                message = "Shizuku permission was denied. Open Shizuku and allow Agent manually.",
             )
         }
         return runCatching {
@@ -512,7 +512,7 @@ object HermesPrivilegedAccessBridge {
             HermesPrivilegedActionResult(
                 success = true,
                 action = action,
-                message = "Requested Shizuku permission for Hermes Agent",
+                message = "Requested Shizuku permission for Agent",
             )
         }.getOrElse { error ->
             HermesPrivilegedActionResult(

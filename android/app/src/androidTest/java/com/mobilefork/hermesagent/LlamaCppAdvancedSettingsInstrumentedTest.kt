@@ -65,6 +65,11 @@ class LlamaCppAdvancedSettingsInstrumentedTest {
         }
         composeRule.waitForIdle()
 
+        composeRule.onNodeWithTag("HermesSettingsContentList")
+            .performScrollToNode(hasTestTag("ModelSettings-advanced"))
+        composeRule.onNodeWithTag("ModelSettings-advanced").performClick()
+        composeRule.waitForIdle()
+
         AppLanguage.entries.forEach { language ->
             composeRule.runOnIdle {
                 viewModel.selectLanguage(language)

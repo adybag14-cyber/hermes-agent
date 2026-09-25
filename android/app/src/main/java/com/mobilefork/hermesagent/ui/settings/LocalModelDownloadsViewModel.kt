@@ -99,6 +99,7 @@ data class LocalModelDownloadsUiState(
     val runtimeFlavor: String = "GGUF",
     val huggingFaceToken: String = "",
     val inspectionStatus: String = "",
+    val isImporting: Boolean = false,
     val candidateSummary: String = "",
     val candidateRamWarning: String = "",
     val pendingAutoStartRecordId: String = "",
@@ -298,13 +299,13 @@ class LocalModelDownloadsViewModel internal constructor(
                             inspectionStatus = when {
                                 pendingFailure != null ->
                                     pendingFailure.message
-                                        ?: "Hermes could not persist the pending model handoff"
+                                        ?: "Agent could not persist the pending model handoff"
                                 !pendingAccepted ->
                                     "The model record changed before runtime handoff. Refresh Models and try again."
                                 record.status == "completed" ->
                                     "${record.title} is already downloaded. Starting runtime…"
                                 else ->
-                                    "Queued ${record.title}; Hermes will start it when Android finishes the download."
+                                    "Queued ${record.title}; Agent will start it when Android finishes the download."
                             },
                             candidateSummary = it.candidateSummary.ifBlank { record.statusMessage },
                             candidateRamWarning = record.ramWarning,
@@ -395,21 +396,17 @@ class LocalModelDownloadsViewModel internal constructor(
     }
 
     fun importLocalModelFile(uri: Uri) {
+        if (_uiState.value.isImporting) return
+        _uiState.update { it.copy(isImporting = true) }
         val context = getApplication<Application>()
         val ownedPendingAutoStartIntent = downloadStore.pendingAutoStartIntent()
         viewModelScope.launch {
             _uiState.update { it.copy(inspectionStatus = "Importing local model from phone files…") }
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    runCatching {
-                        context.contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                        )
-                    }
+            try {
+                val record = withContext(Dispatchers.IO) {
+                    // Copy using the transient picker grant; do not retain source permissions.
                     localModelFileImporter(context, downloadStore, uri)
                 }
-            }.onSuccess { record ->
                 val pendingClearFailure = if (ownedPendingAutoStartIntent == null) {
                     null
                 } else {
@@ -425,16 +422,19 @@ class LocalModelDownloadsViewModel internal constructor(
                         inspectionStatus = if (pendingClearFailure == null) {
                             "Imported ${record.title}. Use & Start to make it the preferred local model."
                         } else {
-                            "Imported ${record.title}, but ${pendingClearFailure.message ?: "Hermes could not persist pending-handoff cleanup"}"
+                            "Imported ${record.title}, but ${pendingClearFailure.message ?: "Agent could not persist pending-handoff cleanup"}"
                         },
                         candidateSummary = "Local file · ${record.runtimeFlavor} · ${Formatter.formatShortFileSize(context, record.totalBytes)}",
                         candidateRamWarning = "",
                     )
                 }
-            }.onFailure { error ->
+            } catch (error: Throwable) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
                 _uiState.update {
                     it.copy(inspectionStatus = error.message ?: error.javaClass.simpleName)
                 }
+            } finally {
+                _uiState.update { it.copy(isImporting = false) }
             }
         }
     }
@@ -541,13 +541,13 @@ class LocalModelDownloadsViewModel internal constructor(
                             inspectionStatus = when {
                                 pendingFailure != null ->
                                     pendingFailure.message
-                                        ?: "Hermes could not persist the pending model handoff"
+                                        ?: "Agent could not persist the pending model handoff"
                                 !pendingAccepted ->
                                     "The model record changed before runtime handoff. Refresh Models and try again."
                                 record.status == "completed" ->
                                     "${record.title} is already downloaded. Starting runtime…"
                                 else ->
-                                    "Queued ${record.title}; Hermes will start it when Android finishes the download."
+                                    "Queued ${record.title}; Agent will start it when Android finishes the download."
                             },
                             candidateSummary = it.candidateSummary.ifBlank { record.statusMessage },
                             candidateRamWarning = record.ramWarning,
@@ -682,7 +682,7 @@ class LocalModelDownloadsViewModel internal constructor(
                     _uiState.update {
                         it.copy(
                             inspectionStatus = error.message
-                                ?: "Hermes could not persist the refreshed model download state",
+                                ?: "Agent could not persist the refreshed model download state",
                         )
                     }
                 }
@@ -729,7 +729,7 @@ class LocalModelDownloadsViewModel internal constructor(
                     _uiState.update {
                         it.copy(
                             inspectionStatus = error.message
-                                ?: "Hermes could not persist the model removal state",
+                                ?: "Agent could not persist the model removal state",
                         )
                     }
                 }
@@ -751,7 +751,7 @@ class LocalModelDownloadsViewModel internal constructor(
             _uiState.update {
                 it.copy(
                     inspectionStatus = restartFailure.message
-                        ?: "Hermes could not persist the restarted model download",
+                        ?: "Agent could not persist the restarted model download",
                 )
             }
             return
@@ -806,7 +806,7 @@ class LocalModelDownloadsViewModel internal constructor(
                 _uiState.update {
                     it.copy(
                         inspectionStatus = preferredFailure.message
-                            ?: "Hermes could not persist the preferred model",
+                            ?: "Agent could not persist the preferred model",
                     )
                 }
             }
@@ -858,7 +858,7 @@ class LocalModelDownloadsViewModel internal constructor(
                 _uiState.update {
                     it.copy(
                         inspectionStatus = preferredFailure.message
-                            ?: "Hermes could not persist the preferred model handoff",
+                            ?: "Agent could not persist the preferred model handoff",
                     )
                 }
             }
@@ -875,7 +875,7 @@ class LocalModelDownloadsViewModel internal constructor(
         if (!LocalModelRuntimeSelectionAuthority.runIfCurrent(selectionGeneration) {
                 _uiState.update {
                     it.copy(
-                        inspectionStatus = "Preferred model is ready. Handing off to Hermes runtime…",
+                        inspectionStatus = "Preferred model is ready. Handing off to Agent runtime…",
                     )
                 }
             }
@@ -903,7 +903,7 @@ class LocalModelDownloadsViewModel internal constructor(
             _uiState.update {
                 it.copy(
                     inspectionStatus = clearFailure.message
-                        ?: "Hermes could not persist completion of the model handoff",
+                        ?: "Agent could not persist completion of the model handoff",
                 )
             }
             return false
@@ -921,7 +921,7 @@ class LocalModelDownloadsViewModel internal constructor(
         _uiState.update {
             it.copy(
                 pendingAutoStartRecordId = "",
-                inspectionStatus = "Preferred model is ready. Starting Hermes runtime…",
+                inspectionStatus = "Preferred model is ready. Starting Agent runtime…",
             )
         }
         return true
@@ -945,7 +945,7 @@ class LocalModelDownloadsViewModel internal constructor(
                 _uiState.update {
                     it.copy(
                         inspectionStatus = failure?.message
-                            ?: "Hermes could not cancel the previous pending model handoff",
+                            ?: "Agent could not cancel the previous pending model handoff",
                     )
                 }
             }
@@ -981,7 +981,7 @@ class LocalModelDownloadsViewModel internal constructor(
                 _uiState.update {
                     it.copy(
                         inspectionStatus = error.message
-                            ?: "Hermes could not persist the required llama.cpp runtime lane",
+                            ?: "Agent could not persist the required llama.cpp runtime lane",
                     )
                 }
             }

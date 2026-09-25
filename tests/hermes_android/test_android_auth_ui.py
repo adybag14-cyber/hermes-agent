@@ -321,7 +321,7 @@ def test_settings_can_import_saved_python_provider_credentials_without_blank_ove
     assert "val providerApiKey = parsedCredential.apiKey" in settings_view_model
     assert "if (providerApiKey.isNotBlank())" in settings_view_model
     assert "strings.settingsSavedPreservedCredential()" in settings_view_model
-    assert "Blank API key field left existing Hermes credentials untouched" in strings
+    assert "Blank API key field left existing Agent credentials untouched" in strings
     assert "write_provider_auth_bundle" in settings_view_model
     assert "write_runtime_config" in settings_view_model
     assert "def read_provider_auth_bundle_json(provider: str) -> str:" in auth_bridge

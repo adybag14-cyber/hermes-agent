@@ -274,13 +274,13 @@ def read_device_capabilities() -> dict[str, Any]:
         "Use bounded foreground terminal commands; detached background processes are not supported."
     )
     payload["accessibility_guide"] = (
-        "Enable Hermes accessibility, inspect the visible UI with android_ui_snapshot, then trigger a "
+        "Enable Agent accessibility, inspect the visible UI with android_ui_snapshot, then trigger a "
         "targeted click/focus/set_text/scroll action with android_ui_action."
     )
     payload["system_guide"] = (
         "Use android_system_action for high-level Android settings and background-runtime actions such as "
         "Wi-Fi/internet controls, Bluetooth settings, NFC, overlay permission, notification settings, "
-        "notification access, and Hermes background persistence."
+        "notification access, and Agent background persistence."
     )
     return payload
 

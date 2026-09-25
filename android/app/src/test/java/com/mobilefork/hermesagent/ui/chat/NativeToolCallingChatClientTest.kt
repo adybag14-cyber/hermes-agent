@@ -124,7 +124,7 @@ class NativeToolCallingChatClientTest {
         assertTrue(content.contains("Alpine 3.21"))
         assertTrue(content.contains("memory_search/memory_add/memory_delete/memory_list"))
         assertTrue(content.contains("full upgrade objective audit reports"))
-        assertTrue(content.contains("what Hermes/Gemma can see from nearby signals"))
+        assertTrue(content.contains("what Agent/Gemma can see from nearby signals"))
         assertTrue(content.contains("action=agent_native_tool_self_test_report"))
         assertTrue(content.contains("never invent class-loading failures"))
         assertTrue(content.contains("User-configured agent persona"))
@@ -133,7 +133,7 @@ class NativeToolCallingChatClientTest {
         assertTrue(content.contains("validate floating overlay"))
         assertTrue(content.contains("Promoted local memory context"))
         assertTrue(content.startsWith("User-configured agent persona"))
-        assertTrue(content.indexOf("User-configured agent persona") < content.indexOf("You are Hermes running inside the native Android app"))
+        assertTrue(content.indexOf("User-configured agent persona") < content.indexOf("You are Agent running inside the native Android app"))
         assertTrue(content.indexOf("Relevant local memory context") < content.indexOf("Promoted local memory context"))
         assertTrue(content.indexOf("User-configured agent persona") < content.indexOf("Promoted local memory context"))
     }
@@ -689,7 +689,7 @@ class NativeToolCallingChatClientTest {
     @Test
     fun extractsImplicitSignalEvidenceForNearbySignalQuestionsOnly() {
         val parsed = NativeToolCallingChatClient.extractImplicitSignalEvidenceArguments(
-            "What can Hermes see from nearby Wi-Fi, Bluetooth, and radio signals right now?",
+            "What can Agent see from nearby Wi-Fi, Bluetooth, and radio signals right now?",
         )
 
         requireNotNull(parsed)
@@ -767,7 +767,7 @@ class NativeToolCallingChatClientTest {
         )
         assertEquals(
             "agent_objective_coverage_report",
-            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the Hermes upgrade coverage report for the full objective.")?.getString("action"),
+            NativeToolCallingChatClient.extractImplicitAndroidDiagnosticsArguments("Show the Agent upgrade coverage report for the full objective.")?.getString("action"),
         )
         assertEquals(
             "agent_release_validation_report",
@@ -1159,14 +1159,14 @@ class NativeToolCallingChatClientTest {
     @Test
     fun extractsExplicitRadioSignalGraphDiagnosticQuickActionArguments() {
         val parsed = NativeToolCallingChatClient.extractExplicitAndroidDiagnosticsArguments(
-            "Run android_device_diagnostics_tool action=radio_signal_graph sample_source=vendor_fm_bridge receiver_id=fm_vendor_or_sdr station_label=\"Hermes FM\" frequency_mhz=99.5 rssi_dbm=-58 snr_db=31 modulation=fm rds_program_service=HERMES",
+            "Run android_device_diagnostics_tool action=radio_signal_graph sample_source=vendor_fm_bridge receiver_id=fm_vendor_or_sdr station_label=\"Agent FM\" frequency_mhz=99.5 rssi_dbm=-58 snr_db=31 modulation=fm rds_program_service=HERMES",
         )
 
         requireNotNull(parsed)
         assertEquals("radio_signal_graph", parsed.getString("action"))
         assertEquals("vendor_fm_bridge", parsed.getString("sample_source"))
         assertEquals("fm_vendor_or_sdr", parsed.getString("receiver_id"))
-        assertEquals("Hermes FM", parsed.getString("station_label"))
+        assertEquals("Agent FM", parsed.getString("station_label"))
         assertEquals("99.5", parsed.getString("frequency_mhz"))
         assertEquals("-58", parsed.getString("rssi_dbm"))
         assertEquals("31", parsed.getString("snr_db"))
@@ -1608,7 +1608,7 @@ class NativeToolCallingChatClientTest {
                 JSONArray().put(
                     JSONObject()
                         .put("category", "mcp_tool_server_route")
-                        .put("label", "Prefer native Hermes tools first")
+                        .put("label", "Prefer native Agent tools first")
                         .put("ready", true)
                         .put("value_label", "native tools")
                         .put("tool_action", "android_device_diagnostics_tool:tool_catalog")
@@ -1660,7 +1660,7 @@ class NativeToolCallingChatClientTest {
         assertEquals("Context7", mcpRegistry.getJSONObject(0).getString("mcp_server_name"))
         assertEquals("external_mcp_needed", mcpRegistry.getJSONObject(0).getString("route_status"))
         assertFalse(mcpRegistry.getJSONObject(0).getBoolean("streamable_http_supported"))
-        assertEquals("Prefer native Hermes tools first", mcpRoutes.getJSONObject(0).getString("label"))
+        assertEquals("Prefer native Agent tools first", mcpRoutes.getJSONObject(0).getString("label"))
         assertEquals("native_tool_first", mcpRoutes.getJSONObject(0).getString("route_policy"))
         assertEquals("Analyze nearby Wi-Fi", readiness.getJSONObject(0).getString("label"))
     }
@@ -2653,7 +2653,7 @@ class NativeToolCallingChatClientTest {
                 JSONArray().put(
                     JSONObject()
                         .put("category", "bluetooth_device_candidate")
-                        .put("label", "Hermes Heart")
+                        .put("label", "Agent Heart")
                         .put("ready", true)
                         .put("value_label", "-47 dBm near")
                         .put("candidate_score", 94)
@@ -2681,7 +2681,7 @@ class NativeToolCallingChatClientTest {
         assertEquals("array", matrix.getString("type"))
         assertEquals("Bluetooth advisor decision 0", matrix.getJSONArray("items").getJSONObject(0).getString("label"))
         assertEquals("bluetooth_device_details", matrix.getJSONArray("items").getJSONObject(0).getString("tool_action"))
-        assertEquals("Hermes Heart", candidates.getJSONObject(0).getString("label"))
+        assertEquals("Agent Heart", candidates.getJSONObject(0).getString("label"))
         assertEquals(94, candidates.getJSONObject(0).getInt("candidate_score"))
         assertEquals("Heart Rate", candidates.getJSONObject(0).getJSONArray("service_labels").getString(0))
         assertEquals("Use bluetooth_signal_advisor_matrix first.", parsed.getJSONArray("gemma_bluetooth_advisor_directives").getString(0))
@@ -3181,9 +3181,9 @@ class NativeToolCallingChatClientTest {
         repeat(24) { index ->
             details.put(
                 JSONObject()
-                    .put("display_label", "Hermes Heart $index")
+                    .put("display_label", "Agent Heart $index")
                     .put("device_name", "Heart Strap $index")
-                    .put("advertised_name", "Hermes Heart $index")
+                    .put("advertised_name", "Agent Heart $index")
                     .put("address", "AA:BB:CC:00:11:$index")
                     .put("device_type", "le")
                     .put("device_category", "wearable_health")
@@ -3215,7 +3215,7 @@ class NativeToolCallingChatClientTest {
                     .put("csv_key", "bluetooth_device_export_csv")
                     .put("included_fields", JSONArray().put("display_label").put("metadata_completeness_score")),
             )
-            .put("bluetooth_device_export_csv", "display_label,metadata_completeness_score\n" + (0 until 24).joinToString("\n") { "Hermes Heart $it,92" })
+            .put("bluetooth_device_export_csv", "display_label,metadata_completeness_score\n" + (0 until 24).joinToString("\n") { "Agent Heart $it,92" })
             .put("cards", JSONArray().put(JSONObject().put("title", "Bluetooth Device Details").put("body", "24 details")))
             .toString()
 
@@ -3226,10 +3226,10 @@ class NativeToolCallingChatClientTest {
         assertEquals(24, parsed.getInt("bluetooth_device_detail_count"))
         assertEquals(24, parsed.getInt("bluetooth_filtered_device_count"))
         assertEquals("both", parsed.getJSONObject("bluetooth_device_export").getString("format"))
-        assertEquals("Hermes Heart 0", compactedDetails.getJSONArray("items").getJSONObject(0).getString("display_label"))
+        assertEquals("Agent Heart 0", compactedDetails.getJSONArray("items").getJSONObject(0).getString("display_label"))
         assertEquals(92, compactedDetails.getJSONArray("items").getJSONObject(0).getInt("metadata_completeness_score"))
         assertTrue(compactedDetails.getJSONArray("items").getJSONObject(0).getString("evidence_summary").contains("Heart Rate"))
-        assertTrue(parsed.getString("bluetooth_device_export_csv").contains("Hermes Heart 0"))
+        assertTrue(parsed.getString("bluetooth_device_export_csv").contains("Agent Heart 0"))
     }
 
     @Test

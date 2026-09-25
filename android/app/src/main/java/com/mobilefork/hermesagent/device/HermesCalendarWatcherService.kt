@@ -67,8 +67,8 @@ class HermesCalendarWatcherService : Service() {
             else -> "Watching calendar events for $enabledCount saved automation(s)"
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_nav_hermes)
-            .setContentTitle("Hermes calendar watcher")
+            .setSmallIcon(R.drawable.ic_nav_agent)
+            .setContentTitle("Agent calendar watcher")
             .setContentText(contentText)
             .setContentIntent(openAppPendingIntent())
             .setOngoing(true)
@@ -99,10 +99,10 @@ class HermesCalendarWatcherService : Service() {
         }
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Hermes calendar watcher",
+            "Agent calendar watcher",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps Hermes calendar automations active"
+            description = "Keeps Agent calendar automations active"
         }
         manager.createNotificationChannel(channel)
     }

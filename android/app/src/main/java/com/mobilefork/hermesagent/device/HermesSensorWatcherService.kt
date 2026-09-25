@@ -114,8 +114,8 @@ class HermesSensorWatcherService : Service(), SensorEventListener {
             else -> "Watching $registeredCount sensor type(s)"
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_nav_hermes)
-            .setContentTitle("Hermes sensor watcher")
+            .setSmallIcon(R.drawable.ic_nav_agent)
+            .setContentTitle("Agent sensor watcher")
             .setContentText(contentText)
             .setContentIntent(openAppPendingIntent())
             .setOngoing(true)
@@ -146,10 +146,10 @@ class HermesSensorWatcherService : Service(), SensorEventListener {
         }
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Hermes sensor watcher",
+            "Agent sensor watcher",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps Hermes sensor automations active"
+            description = "Keeps Agent sensor automations active"
         }
         manager.createNotificationChannel(channel)
     }

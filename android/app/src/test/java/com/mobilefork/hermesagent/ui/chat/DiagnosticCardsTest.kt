@@ -1191,9 +1191,9 @@ class DiagnosticCardsTest {
                             "rows",
                             JSONArray().put(
                                 JSONObject()
-                                    .put("display_label", "Hermes Heart")
+                                    .put("display_label", "Agent Heart")
                                     .put("device_name", "Heart Strap")
-                                    .put("advertised_name", "Hermes Heart")
+                                    .put("advertised_name", "Agent Heart")
                                     .put("device_type", "le")
                                     .put("device_category", "wearable_health")
                                     .put("bond_state", "bonded")
@@ -1216,7 +1216,7 @@ class DiagnosticCardsTest {
         val row = card.rows.single()
 
         assertEquals("bluetooth_device_detail", card.graphType)
-        assertEquals("Hermes Heart", row.label)
+        assertEquals("Agent Heart", row.label)
         assertEquals("-48 dBm", row.valueLabel)
         assertTrue(row.detail.contains("health or fitness device"))
         assertTrue(row.detail.contains("services Heart Rate"))
@@ -1694,7 +1694,7 @@ class DiagnosticCardsTest {
                                 JSONArray().put(
                                     JSONObject()
                                         .put("category", "mcp_tool_server_route")
-                                        .put("label", "Prefer native Hermes tools first")
+                                        .put("label", "Prefer native Agent tools first")
                                         .put("ready", true)
                                         .put("value_label", "native tools")
                                         .put("detail", "Use native tools before external MCP servers.")
@@ -1794,7 +1794,7 @@ class DiagnosticCardsTest {
         assertEquals("external docs MCP needed", mcpRegistryRow.valueLabel)
         assertTrue(mcpRegistryRow.detail.contains("mcp tool server registry"))
         assertTrue(mcpRegistryRow.detail.contains("external MCP server"))
-        assertEquals("Prefer native Hermes tools first", mcpRouteRow.label)
+        assertEquals("Prefer native Agent tools first", mcpRouteRow.label)
         assertEquals("native tools", mcpRouteRow.valueLabel)
         assertTrue(mcpRouteRow.detail.contains("mcp tool server route"))
         assertTrue(mcpRouteRow.detail.contains("tool_catalog"))
@@ -1950,8 +1950,8 @@ class DiagnosticCardsTest {
                                         .put("label", "Generated screen and expandable card parity")
                                         .put("ready", true)
                                         .put("value_label", "agent_card_priority_report")
-                                        .put("detail", "Hermes maps Kai-style generated screens to expandable cards.")
-                                        .put("recommendation", "Compare against Hermes cards.")
+                                        .put("detail", "Agent maps Kai-style generated screens to expandable cards.")
+                                        .put("recommendation", "Compare against Agent cards.")
                                         .put("fraction", 0.9),
                                 ),
                             ),
@@ -2309,7 +2309,7 @@ class DiagnosticCardsTest {
                             JSONArray()
                                 .put(
                                     JSONObject()
-                                        .put("label", "Hermes FM")
+                                        .put("label", "Agent FM")
                                         .put("band", "FM broadcast")
                                         .put("frequency_mhz", 99.5)
                                         .put("receiver_id", "fm_vendor_or_sdr")
@@ -2341,7 +2341,7 @@ class DiagnosticCardsTest {
 
         val rows = extractDiagnosticCards(content).single().rows
 
-        assertEquals("Hermes FM", rows[0].label)
+        assertEquals("Agent FM", rows[0].label)
         assertEquals("-58 dBm", rows[0].valueLabel)
         assertTrue(rows[0].detail.contains("99.5 MHz"))
         assertTrue(rows[0].detail.contains("receiver fm_vendor_or_sdr"))
@@ -2936,7 +2936,7 @@ class DiagnosticCardsTest {
                                     .put("label", "Nearby device decision")
                                     .put("ready", true)
                                     .put("value_label", "-47 dBm near")
-                                    .put("detail", "candidate=Hermes Heart | score=94")
+                                    .put("detail", "candidate=Agent Heart | score=94")
                                     .put("recommendation", "Use bluetooth_device_details.")
                                     .put("fraction", 0.94),
                             ),
@@ -2969,7 +2969,7 @@ class DiagnosticCardsTest {
                             JSONArray().put(
                                 JSONObject()
                                     .put("category", "bluetooth_device_candidate")
-                                    .put("label", "Hermes Heart")
+                                    .put("label", "Agent Heart")
                                     .put("ready", true)
                                     .put("value_label", "-47 dBm near")
                                     .put("detail", "category=wearable_health | services=Heart Rate")
@@ -2983,7 +2983,7 @@ class DiagnosticCardsTest {
 
         val row = extractDiagnosticCards(content).single().rows.single()
 
-        assertEquals("Hermes Heart", row.label)
+        assertEquals("Agent Heart", row.label)
         assertEquals("-47 dBm near", row.valueLabel)
         assertTrue(row.detail.contains("bluetooth device candidate"))
         assertTrue(row.detail.contains("Inspect details"))

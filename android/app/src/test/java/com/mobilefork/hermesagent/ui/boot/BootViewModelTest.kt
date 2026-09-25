@@ -10,7 +10,7 @@ class BootViewModelTest {
     fun bootUiState_defaultsToOpeningShellWithoutProbeState() {
         val state = BootUiState()
 
-        assertEquals("Opening Hermes…", state.status)
+        assertEquals("Opening Agent…", state.status)
         assertFalse(state.ready)
         assertEquals("", state.probeResult)
         assertEquals("", state.baseUrl)
@@ -19,9 +19,9 @@ class BootViewModelTest {
 
     @Test
     fun bootUiState_readyStateDoesNotRequireHealthProbe() {
-        val state = BootUiState(status = "Hermes shell ready", ready = true)
+        val state = BootUiState(status = "Agent shell ready", ready = true)
 
-        assertEquals("Hermes shell ready", state.status)
+        assertEquals("Agent shell ready", state.status)
         assertTrue(state.ready)
         assertEquals("", state.probeResult)
         assertEquals("", state.baseUrl)

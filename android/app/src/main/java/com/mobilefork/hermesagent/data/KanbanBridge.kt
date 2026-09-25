@@ -35,7 +35,7 @@ object KanbanBridge {
         if (!Python.isStarted()) {
             return JSONObject()
                 .put("ok", false)
-                .put("error", "Python runtime is not started yet. Wait for Hermes boot to finish.")
+                .put("error", "Python runtime is not started yet. Wait for Agent boot to finish.")
         }
         return runCatching {
             val raw = Python.getInstance()

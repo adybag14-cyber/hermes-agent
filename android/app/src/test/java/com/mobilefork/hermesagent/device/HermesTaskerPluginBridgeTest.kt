@@ -93,9 +93,9 @@ class HermesTaskerPluginBridgeTest {
             conditionType = HermesTaskerConditionBridge.CONDITION_VARIABLE_EQUALS,
             variableName = "%READY",
             expectedValue = "yes",
-            label = "Hermes ready",
+            label = "Agent ready",
         )
-        assertEquals("Hermes ready", resultIntent.getStringExtra(HermesTaskerConditionBridge.EXTRA_STRING_BLURB))
+        assertEquals("Agent ready", resultIntent.getStringExtra(HermesTaskerConditionBridge.EXTRA_STRING_BLURB))
         val bundle = HermesTaskerConditionBridge.bundleFromIntent(resultIntent)
         assertNotNull(bundle)
 
@@ -191,9 +191,9 @@ class HermesTaskerPluginBridgeTest {
             context = context,
             eventType = HermesTaskerEventBridge.EVENT_AUTOMATION_SUCCEEDED,
             automationId = record.id,
-            label = "Hermes success",
+            label = "Agent success",
         )
-        assertEquals("Hermes success", resultIntent.getStringExtra(HermesTaskerEventBridge.EXTRA_STRING_BLURB))
+        assertEquals("Agent success", resultIntent.getStringExtra(HermesTaskerEventBridge.EXTRA_STRING_BLURB))
 
         val payload = JSONObject()
             .put(HermesTaskerEventBridge.PAYLOAD_EVENT_TYPE, HermesTaskerEventBridge.EVENT_AUTOMATION_FINISHED)

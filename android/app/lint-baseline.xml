@@ -1167,23 +1167,9 @@
             column="1"/>
     </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.ic_hermes_logo` appears to be unused"
-        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/ic_hermes_logo.xml"
-            line="2"
-            column="1"/>
-    </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.nous_hermes_logo` appears to be unused">
-        <location
-            file="src/main/res/drawable/nous_hermes_logo.png"/>
-    </issue>
+
+
 
     <issue
         id="UnusedResources"
@@ -1196,12 +1182,7 @@
             column="13"/>
     </issue>
 
-    <issue
-        id="IconLocation"
-        message="Found bitmap drawable `res/drawable/nous_hermes_logo.png` in densityless folder">
-        <location
-            file="src/main/res/drawable/nous_hermes_logo.png"/>
-    </issue>
+
 
     <issue
         id="ReportShortcutUsage"

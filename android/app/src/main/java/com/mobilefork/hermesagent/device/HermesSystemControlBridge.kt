@@ -309,7 +309,7 @@ object HermesSystemControlBridge {
             "open_privacy_settings" -> launchIntent(appContext, action, settingsIntent("android.settings.PRIVACY_SETTINGS"), "Opened privacy settings")
             "open_print_settings" -> launchIntent(appContext, action, settingsIntent("android.settings.ACTION_PRINT_SETTINGS"), "Opened print settings")
             "open_system_notification_settings" -> launchIntent(appContext, action, settingsIntent("android.settings.NOTIFICATION_SETTINGS"), "Opened system notification settings")
-            "open_notification_settings" -> launchIntent(appContext, action, notificationSettingsIntent(appContext), "Opened Hermes notification settings")
+            "open_notification_settings" -> launchIntent(appContext, action, notificationSettingsIntent(appContext), "Opened Agent notification settings")
             "open_notification_listener_settings" -> launchIntent(
                 appContext,
                 action,
@@ -330,7 +330,7 @@ object HermesSystemControlBridge {
             )
             "open_accessibility_settings" -> launchIntent(appContext, action,
                 com.mobilefork.hermesagent.privacy.AccessibilityDisclosureActivity.intent(appContext),
-                "Opened Hermes accessibility disclosure; user consent and Android permission are separate")
+                "Opened Agent accessibility disclosure; user consent and Android permission are separate")
             "open_developer_options",
             "open_wireless_debugging_settings",
             "open_shizuku_app",
@@ -353,13 +353,13 @@ object HermesSystemControlBridge {
                 DeviceCapabilityStore(appContext).saveBackgroundPersistenceEnabled(true)
                 HermesRuntimeService.start(appContext)
                 if (refreshDerivedDeviceState) derivedDeviceStateWriter(appContext)
-                HermesSystemActionResult(success = true, action = action, message = "Started Hermes background runtime")
+                HermesSystemActionResult(success = true, action = action, message = "Started Agent background runtime")
             }
             "stop_background_runtime" -> {
                 DeviceCapabilityStore(appContext).saveBackgroundPersistenceEnabled(false)
                 HermesRuntimeService.stop(appContext)
                 if (refreshDerivedDeviceState) derivedDeviceStateWriter(appContext)
-                HermesSystemActionResult(success = true, action = action, message = "Stopped Hermes background runtime persistence")
+                HermesSystemActionResult(success = true, action = action, message = "Stopped Agent background runtime persistence")
             }
             "start_floating_button" -> {
                 if (!Settings.canDrawOverlays(appContext)) {
@@ -368,7 +368,7 @@ object HermesSystemControlBridge {
                     HermesSystemActionResult(
                         success = false,
                         action = action,
-                        message = "Grant Android draw-over-other-apps permission before starting the Hermes floating button.",
+                        message = "Grant Android draw-over-other-apps permission before starting the Agent floating button.",
                     )
                 } else {
                     val started = HermesFloatingButtonService.start(appContext)
@@ -377,7 +377,7 @@ object HermesSystemControlBridge {
                     HermesSystemActionResult(
                         success = started,
                         action = action,
-                        message = if (started) "Started Hermes floating button" else "Android blocked the Hermes floating button service start",
+                        message = if (started) "Started Agent floating button" else "Android blocked the Agent floating button service start",
                     )
                 }
             }
@@ -385,7 +385,7 @@ object HermesSystemControlBridge {
                 DeviceCapabilityStore(appContext).saveFloatingButtonEnabled(false)
                 HermesFloatingButtonService.stop(appContext)
                 if (refreshDerivedDeviceState) derivedDeviceStateWriter(appContext)
-                HermesSystemActionResult(success = true, action = action, message = "Stopped Hermes floating button")
+                HermesSystemActionResult(success = true, action = action, message = "Stopped Agent floating button")
             }
             else -> HermesSystemActionResult(success = false, action = action, message = "Unsupported Android system action: $action")
         }

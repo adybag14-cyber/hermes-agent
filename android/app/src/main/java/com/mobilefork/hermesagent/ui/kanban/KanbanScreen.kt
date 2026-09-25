@@ -83,7 +83,7 @@ class KanbanViewModel(application: Application) : AndroidViewModel(application) 
             val filter = _uiState.value.statusFilter
             val statusArg = filter.takeUnless { it == "all" }
             // Chaquopy can still be booting when the user opens Kanban early.
-            var merged = KanbanBoardSnapshot(ok = false, error = "Waiting for Hermes runtime…")
+            var merged = KanbanBoardSnapshot(ok = false, error = "Waiting for Agent runtime…")
             repeat(12) { attempt ->
                 val (ensure, snapshot) = withContext(Dispatchers.IO) {
                     val ensured = KanbanBridge.ensureBoard(getApplication())
@@ -100,7 +100,7 @@ class KanbanViewModel(application: Application) : AndroidViewModel(application) 
                 _uiState.update {
                     it.copy(
                         loading = true,
-                        statusMessage = "Waiting for Hermes Python runtime…",
+                        statusMessage = "Waiting for Agent Python runtime…",
                         error = "",
                     )
                 }
