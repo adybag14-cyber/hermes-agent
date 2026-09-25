@@ -260,6 +260,9 @@ class ReleaseEvidencePayloadValidator:
                 config.release_source_digest,
                 config.version_name,
                 config.version_code,
+                litertlm_coordinate=release_evidence.litertlm_coordinate_for_tag(
+                    f"v{config.version_name}"
+                ),
                 artifact_path_overrides={
                     f"performance/{config.profile}.host.raw.json": host_raw_path,
                     f"performance/{config.profile}.macrobenchmark.raw.json": macrobenchmark_raw_path,

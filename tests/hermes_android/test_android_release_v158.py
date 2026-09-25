@@ -26,3 +26,27 @@ def test_collector_rejects_stale_runtime_coordinate_without_invalidating_older_e
     current.validate()
     with pytest.raises(collector.CollectorError, match="release dependency"):
         replace(current, litertlm_coordinate=old.litertlm_coordinate).validate()
+
+
+@pytest.mark.parametrize("version,coordinate", [
+    ("0.13.157", "com.google.ai.edge.litertlm:litertlm-android:0.17.0"),
+    ("0.13.158", "com.google.ai.edge.litertlm:litertlm-android:0.17.1"),
+])
+def test_serialized_payload_validation_receives_versioned_runtime_contract(tmp_path, monkeypatch, version, coordinate):
+    release = fixtures._load_module("android_release_evidence", "scripts/android_release_evidence.py")
+    collector = fixtures._load_module("android_collect_performance_evidence", "scripts/android_collect_performance_evidence.py")
+    config = replace(fixtures._config(collector, tmp_path), version_name=version,
+                     litertlm_coordinate=coordinate)
+    observed = []
+
+    def validate(*args, **kwargs):
+        observed.append((args, kwargs))
+
+    monkeypatch.setattr(release, "_validate_performance", validate)
+    monkeypatch.setattr(collector, "_load_release_evidence_module", lambda: release)
+    collector.ReleaseEvidencePayloadValidator().validate(
+        tmp_path / "normalized.json", tmp_path / "host.json", tmp_path / "macro.json", (), config,
+    )
+    assert len(observed) == 1
+    assert observed[0][1]["litertlm_coordinate"] == coordinate
+    assert observed[0][0][3] == version
