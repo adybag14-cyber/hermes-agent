@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "scope": "live public v0.13.157 updater; not discovery of unpublished Agent PR22",
+  "fdroidserver_revision": "8f52ae3ce287bc28964db544b970b88dce9c38bf",
+  "fdroiddata_commit": "564195a1cd9e20717967233f63e5716de9568ce6",
+  "version_name": "0.13.157",
+  "version_code": 145790,
+  "source_commit": "0fa5b85c810e02bc640ad911053c2b8666a29d4f",
+  "metadata_sha256": "b4e3146ec004a436c6dc9eeba1886550c603337b351c770080f145e88281b836",
+  "history_preserved": true,
+  "binaries_preserved": true,
+  "signer_preserved": true,
+  "submitted": false
+}

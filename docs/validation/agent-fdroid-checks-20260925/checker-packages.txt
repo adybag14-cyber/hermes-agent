@@ -1,0 +1,6 @@
+openjdk-21-jdk-headless:amd64	21.0.12.1+1-1~deb13u1
+python3	3.13.5-1
+python3-pytest	8.3.5-2
+python3-pytest-asyncio	0.25.1-1
+python3-pytest-timeout	2.3.1-1
+sdkmanager	0.7.1-1~bpo13+1

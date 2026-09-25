@@ -1,0 +1,32 @@
+{
+  "schema": "agent-fdroid-candidate-v1",
+  "status": "passed",
+  "checked_at": "2026-09-25T16:24:33.878206+00:00",
+  "source_commit": "c7bec5659b9b9f76ac523443331713f0d44a1a15",
+  "source_digest": "be36acc13193f0938ff1dc9517340f53f8ef3809c78d9e84f2ae6e30d18dfb09",
+  "source_files": 12737,
+  "scope": "unpublished PR22 candidate build; not public-release certification",
+  "helper_recipe_builds_succeeded": 1,
+  "prebuild_source_binding_enforced": true,
+  "postbuild_cleanliness_probe": "rejected generated build outputs; prebuild-only verifier unchanged",
+  "dex_source_digest_verified": true,
+  "source_scan_skipped": false,
+  "genuine_python_bundle_verified": true,
+  "package_name": "com.mobilefork.hermesagent",
+  "app_label": "Agent",
+  "version_name": "0.13.157",
+  "version_code": 145790,
+  "target_sdk": 36,
+  "apk_bytes": 349478187,
+  "apk_sha256": "aa6a38d891197b455e78108d077052a5c54081c125bdcc985d95e4bf3f48ad90",
+  "apk_path_in_checker": "/home/vagrant/tmp/com.mobilefork.hermesagent_145790.apk",
+  "signing": "unsigned candidate",
+  "published": false,
+  "physical_tests": "not performed, explicitly skipped",
+  "public_binary_comparison": false,
+  "cache_mode": "validated candidate dependencies reused",
+  "scanner_log_lines": [
+    "2026-09-25 16:17:38,769 INFO: Scanning source for common problems...",
+    "2026-09-25 16:17:38,996 INFO: Removing gradle-wrapper.jar at android/gradle/wrapper/gradle-wrapper.jar"
+  ]
+}

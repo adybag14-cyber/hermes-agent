@@ -1,0 +1,87 @@
+[
+  {
+    "file": "apk-badging.txt",
+    "bytes": 7095,
+    "sha256": "706da4300de06284086395de018626740825b8572175ae5cb8d4618fc85bc2c8"
+  },
+  {
+    "file": "apk-runtime-package.json",
+    "bytes": 369,
+    "sha256": "a9dd74f55a1845f28c2f6772454e22a006b07fc32e82a7a65b80dfa640c62ecf"
+  },
+  {
+    "file": "apk-source-binding.log",
+    "bytes": 137,
+    "sha256": "f81308fc54f49c78b247e62b88d2ffab971d4918e44a460aaeab9aaaddad1fa3"
+  },
+  {
+    "file": "candidate-fixture.json",
+    "bytes": 412,
+    "sha256": "18c89981e316e2849e48c77bbd2a888465aa99eb54fcc647bc4e1c3f13c1f586"
+  },
+  {
+    "file": "candidate-result.json",
+    "bytes": 1439,
+    "sha256": "5a53b144a49c7f122af38edce2910a582398ca87476b46238ea55bcba3bef345"
+  },
+  {
+    "file": "checker-packages.txt",
+    "bytes": 182,
+    "sha256": "df4eb2375a3a9b5a6c2b0f10057de7d9dcf218533ba96b94aff549b71816d938"
+  },
+  {
+    "file": "checker-tests-final.log",
+    "bytes": 1444,
+    "sha256": "7fbd0591ca4cc26528333fbf60f9e15ea725e777d9d02eee331f46041fc88fc7"
+  },
+  {
+    "file": "comparison-result.json",
+    "bytes": 1154,
+    "sha256": "7fd1c132f33c98f013f0649cfd209b9179e30ee23977d2f4c9187ce4c7ec24e2"
+  },
+  {
+    "file": "environments.json",
+    "bytes": 1488,
+    "sha256": "024553284f4ebda5e85ad61604412f8026ef9626d3f10ad06bc63b178b8781a8"
+  },
+  {
+    "file": "fdroid-build.log",
+    "bytes": 378994,
+    "sha256": "fc3859dfd4679b28d96fc7373fa18076f85874d649f50b85aaabcfa42430a5cb"
+  },
+  {
+    "file": "public-updater.diff",
+    "bytes": 2091,
+    "sha256": "2b8324d8e225013686dc5effba782ebbc0b85ae93b37ce4c0f56e22d87b19ee5"
+  },
+  {
+    "file": "reference-build.log",
+    "bytes": 162002,
+    "sha256": "e03d34f287ac9ebe01f42eeffd049506ed1e32367534be7dfb06da7874bfe755"
+  },
+  {
+    "file": "reference-source-identity.txt",
+    "bytes": 140,
+    "sha256": "7de8bb385e8f842b9622bc8ba9d05b8126ea4d463d4e56e3e538c60d31b51734"
+  },
+  {
+    "file": "runtime-inventory.json",
+    "bytes": 919,
+    "sha256": "89989589bb5834aed9eeb9ffb0808dc651606a4d04256e7b10bed4afe8ba924d"
+  },
+  {
+    "file": "source-binding-postbuild.log",
+    "bytes": 1274,
+    "sha256": "2951245a9777d43361b7962d2b397ee267fd852e5f1e78b8d5c012ca42ccef40"
+  },
+  {
+    "file": "toolchain-contract.txt",
+    "bytes": 1215,
+    "sha256": "e704fd7a230167f65d29014b9809d1a8e6e357a8f7ab77362b7cd4a61b91a860"
+  },
+  {
+    "file": "updater-result.json",
+    "bytes": 565,
+    "sha256": "740d964f3338027914ed89bf27325dd6acc7394b6c766f3d22ed13186e7e6c0d"
+  }
+]
