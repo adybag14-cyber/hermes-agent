@@ -54,7 +54,7 @@ class ModelFirstSettingsUiTest {
     fun modelPickerIsVisibleBeforeRuntimeSettingsAndAfterChangingTabs() {
         val application = RuntimeEnvironment.getApplication()
         val store = AppSettingsStore(application)
-        store.save(store.load().copy(offlineAirplaneMode = true, languageTag = "en"))
+        store.save(store.load().copy(offlineAirplaneMode = true, languageTag = "en", llamaCppRuntimeLane = "stable"))
         val vm = SettingsViewModel(application)
         owner.put("settings", vm)
         val localModels = LocalModelDownloadsViewModel(application, huggingFaceTokenLoader = { "" })
@@ -72,6 +72,18 @@ class ModelFirstSettingsUiTest {
             }
         }
         compose.onNodeWithTag("HermesImportModelButton").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithTag("HermesSettingsContentList")
+            .performScrollToNode(hasTestTag("ModelSettings-advanced"))
+        compose.onNodeWithTag("ModelSettings-advanced").performClick()
+        val advancedChoice = compose.onNodeWithTag("LlamaCppRuntimeLane-turboquant")
+        advancedChoice.performScrollTo().performClick().assertIsSelected()
+        compose.onNodeWithTag("HermesSettingsPage_Models").assertIsSelected()
+        compose.runOnIdle { assertEquals("turboquant", vm.uiState.value.llamaCppRuntimeLane) }
+        val navigationBottom = compose.onNodeWithTag("HermesSettingsPageNavigation")
+            .fetchSemanticsNode().boundsInRoot.bottom
+        assertTrue("Scrolled controls must not sit underneath fixed tabs",
+            advancedChoice.fetchSemanticsNode().boundsInRoot.top >= navigationBottom)
+
         compose.onNodeWithTag("HermesSettingsContentList")
             .performScrollToNode(hasTestTag("ModelSettings-generation"))
         compose.onNodeWithTag("ModelSettings-generation").assertIsDisplayed()

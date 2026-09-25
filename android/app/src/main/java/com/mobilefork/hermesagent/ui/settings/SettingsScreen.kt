@@ -122,27 +122,33 @@ fun SettingsScreen(
             contentColor = MaterialTheme.colorScheme.onBackground,
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                LazyColumn(
-                    state = listState,
+                // Keep navigation outside the scroll viewport: a sticky overlay can cover
+                // a control brought into view by keyboard, accessibility, or test scrolling.
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
                         .widthIn(max = 920.dp)
+                        .fillMaxSize()
                         .imePadding()
-                        .testTag("HermesSettingsContentList")
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    contentPadding = PaddingValues(bottom = extraBottomSpacing),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    stickyHeader {
-                        SettingsPageNavigation(
-                            selectedPage = selectedPage,
-                            onSelectPage = { page ->
-                        selectedPageName = page.name
-                        listScope.launch { listState.scrollToItem(0) }
-                    },
-                            strings = strings,
-                        )
-                    }
+                    SettingsPageNavigation(
+                        selectedPage = selectedPage,
+                        onSelectPage = { page ->
+                            selectedPageName = page.name
+                            listScope.launch { listState.scrollToItem(0) }
+                        },
+                        strings = strings,
+                    )
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .testTag("HermesSettingsContentList"),
+                        contentPadding = PaddingValues(bottom = extraBottomSpacing),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                     if (selectedPage == SettingsPage.Privacy) {
                     item {
                         com.mobilefork.hermesagent.ui.privacy.PrivacySafetyCard(strings)
@@ -359,6 +365,7 @@ fun SettingsScreen(
                         item {
                             Text(uiState.status, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                         }
+                    }
                     }
                 }
             }

@@ -4,6 +4,10 @@ import android.accessibilityservice.AccessibilityService
 import android.app.Application
 import android.graphics.Bitmap
 import android.os.SystemClock
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.lifecycle.ViewModelStore
@@ -48,7 +52,13 @@ class AgentModelSettingsInstrumentedTest {
     private fun showSettings(): SettingsViewModel {
         val vm = SettingsViewModel(app)
         owner.put("settings", vm)
-        compose.setContent { HermesTheme { SettingsScreen(viewModel = vm, initialPage = SettingsPage.Models) } }
+        compose.setContent {
+            HermesTheme {
+                Box(Modifier.fillMaxSize().safeDrawingPadding()) {
+                    SettingsScreen(viewModel = vm, initialPage = SettingsPage.Models)
+                }
+            }
+        }
         compose.onNodeWithTag("HermesImportModelButton").assertIsDisplayed().assertIsEnabled()
         return vm
     }
