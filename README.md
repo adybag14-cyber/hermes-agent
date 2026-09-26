@@ -22,4 +22,6 @@ The Android runtime uses an exact stable LiteRT-LM dependency, checked against G
 
 This repository also retains the upstream-derived CLI and desktop sources. Their established module, command, protocol, and storage identifiers have not been globally renamed as part of the Android presentation change. See the [contributor instructions](AGENTS.md) and [MIT license](LICENSE).
 
+For the retained Windows command-line tooling, use the [PowerShell installer](scripts/install.ps1). This is separate from installing the Android APK.
+
 A candidate branch or debug build is not a new public store release. Release publication, signed upgrades, and device/model qualification use the repository's separate release gates.
