@@ -1,4 +1,4 @@
-"""List (and best-effort toggle) Hermes skills for the Android settings UI.
+"""List (and best-effort toggle) Agent skills for the Android settings UI.
 
 Scans ``hermes_home/skills`` plus common skill directories (bundled / optional).
 Builtin/bundled trees may be read-only; listing still works.
@@ -185,7 +185,7 @@ def _enabled_for_name(name: str, skills_cfg: dict[str, Any] | None) -> bool:
 def _toggle_supported(skills_cfg: dict[str, Any] | None) -> bool:
     """True when runtime config is available so we can read/write enablement.
 
-    Prefer ``skills.enabled`` (allowlist) when present; otherwise use Hermes'
+    Prefer ``skills.enabled`` (allowlist) when present; otherwise use Agent'
     native ``skills.disabled`` denylist on toggle. If config cannot be loaded,
     listing still works with enabled=true for every skill.
     """

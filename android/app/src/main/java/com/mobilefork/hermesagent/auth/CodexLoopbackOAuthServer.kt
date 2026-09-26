@@ -115,7 +115,7 @@ object CodexLoopbackOAuthServer {
         }
         val state = callbackUri.getQueryParameter("state").orEmpty()
         if (state.isBlank() || state != pending.state) {
-            writeResponse(client, "400 Bad Request", html("State mismatch", "Return to Hermes and try again."))
+            writeResponse(client, "400 Bad Request", html("State mismatch", "Return to Agent and try again."))
             return
         }
         val error = callbackUri.getQueryParameter("error_description")
@@ -180,7 +180,7 @@ object CodexLoopbackOAuthServer {
             <title>$t</title>
             <style>body{font-family:sans-serif;padding:24px;background:#111;color:#eee}h1{font-size:1.2rem}</style>
             </head><body><h1>$t</h1><p>$m</p>
-            <p>You can close this tab and return to Hermes.</p></body></html>
+            <p>You can close this tab and return to Agent.</p></body></html>
         """.trimIndent()
     }
 

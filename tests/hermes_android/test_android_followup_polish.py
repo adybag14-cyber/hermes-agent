@@ -116,8 +116,8 @@ def test_localization_layer_covers_visible_chat_auth_portal_device_and_settings_
         REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatCommandRouter.kt"
     ).read_text(encoding="utf-8")
     assert 'strings.localDownloadsExampleGuidance()' in downloads_section
-    assert 'strings.downloadManagerReliabilityDescription()' in downloads_section
-    assert 'strings.importModelFromPhoneFiles()' in downloads_section
+    assert 'modelSettingsText(strings.language, "download_help")' in downloads_section
+    assert 'modelSettingsText(strings.language, "import")' in downloads_section
     assert 'strings.recommendedLocalModelDescription(preset.id, preset.description)' in downloads_section
     assert 'strings.localModelUiText(uiState.workerCatalogStatus)' in downloads_section
     assert 'LaunchedEffect(strings.language)' in portal
@@ -343,7 +343,7 @@ def test_android_diagnostics_exposes_agent_environment_report_for_kai_parity():
     assert 'https://github.com/VREMSoftwareDevelopment/WiFiAnalyzer' in diagnostics_bridge
     assert 'Upgrade Objective Matrix' in diagnostics_bridge
     assert 'Upgrade Verification Routes' in diagnostics_bridge
-    assert 'Full Hermes upgrade objective audit' in diagnostics_bridge
+    assert 'Full Agent upgrade objective audit' in diagnostics_bridge
     assert 'MCP Tool Servers' in diagnostics_bridge
     assert 'MCP Routing Policy' in diagnostics_bridge
     assert 'Streamable HTTP MCP endpoint' in diagnostics_bridge
@@ -459,7 +459,7 @@ def test_android_diagnostics_exposes_agent_self_check_report_for_kai_heartbeat_a
     assert 'agentSelfCheckRouteRows(' in diagnostics_bridge
     assert '"agent_self_check_matrix"' in diagnostics_bridge
     assert '"agent_self_check_routes"' in diagnostics_bridge
-    assert 'Kai-style passive Hermes self-check' in diagnostics_bridge
+    assert 'Kai-style passive Agent self-check' in diagnostics_bridge
     assert 'Kai-style heartbeat surface' in diagnostics_bridge
     assert 'Wi-Fi Analyzer card coverage' in diagnostics_bridge
     assert 'Bluetooth proximity card coverage' in diagnostics_bridge
@@ -693,7 +693,7 @@ def test_android_diagnostics_exposes_signal_evidence_bundle_for_gemma_visible_cu
     assert '"sensor_types" to "accelerometer,gyroscope,linear_acceleration,rotation_vector"' in chat_client
     assert 'diagnosticArguments("radio_signal_graph")' in chat_client
     assert 'diagnosticArguments("soc_compatibility_report")' in chat_client
-    assert 'what Hermes/Gemma can see from nearby signals' in chat_client
+    assert 'what Agent/Gemma can see from nearby signals' in chat_client
     assert 'first call android_device_diagnostics_tool action=agent_signal_evidence_report' in chat_client
     assert '"signal_evidence_matrix"' in chat_client
     assert '"signal_evidence_routes"' in chat_client
@@ -1934,8 +1934,8 @@ def test_chat_endpoint_url_normalization_and_floating_icon_are_guarded():
     assert 'HermesEndpointUrl.chatCompletionsUrl(baseUrl)' in settings
     assert '.testTag("HermesEndpointDebugPreview")' in settings
     assert 'fun customEndpointPreview(url: String)' in strings
-    assert 'Hermes will try: $url' in strings
-    assert 'Hermes normalizes raw hosts, /v1 URLs, and /v1/chat/completions URLs' in (
+    assert 'Agent will try: $url' in strings
+    assert 'Agent normalizes raw hosts, /v1 URLs, and /v1/chat/completions URLs' in (
         REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatViewModel.kt"
     ).read_text(encoding="utf-8")
     assert 'private fun HermesFloatingActionIcon(' not in chat

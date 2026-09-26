@@ -1,0 +1,1014 @@
+{
+  "full-jvm": [
+    {
+      "suite": "com.mobilefork.hermesagent.api.AssistantDisplayTextTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b1f3a77dbf2ebc42f6b51adb139455880606bf1b2db6d4d58299149bfd05693d"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.api.HermesApiClientTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "8040dbc4d846dbe6a0b14b282302e9615d322b71631fb0901a7f33121631094d"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.api.HermesEndpointUrlTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "d916c1272c776b428d10d53344a20d5e7c4c75790610a76c1148ddceb0e51fde"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.api.HermesSseClientTest",
+      "tests": 19,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "49af897903a793cb15c7da912c82d7472fbade70f3891498f637079ef785cf84"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.auth.AuthCatalogTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ea4cbddcff2c2683c4ede355d7bfc73cfd0eaa418480b75ae662ebf9f76b6661"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.auth.CodexOAuthClientTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "e8d4d62a1994fd88fa6e688f30b656bc113337037670ef3f63a7d4271aa5bf6e"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.auth.Corr3xtAuthClientTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "6cbc181d4bc4207af6b92e0eeea390bbc7ba9f6c852915c192d0c1c2bd3e909f"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.auth.OpenRouterLoopbackOAuthServerTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "16c320ca24e80e847b03194486aa2943e777a545f263842beccca2a75674ca35"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.auth.OpenRouterOAuthClientTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "e52878964ece75dcef73859f936e78bd503e544b72428f650c7f666ac7758782"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.auth.ProviderSetupUrlProbeTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "c8eb1236e3af8249d0c34bc247fc14dbda2ee5e4995929ba78723ae4dc545a1e"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.auth.XaiOAuthClientTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "e005990d0ee05e9b7a3404ffadd56f3b4bafe1d080745971ae4c70f7211ea172"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.backend.GgufArtifactInspectorTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a9a8b3d16e1352c2f0f255fe9f89acd8325ff68ad1bba926d21e5d1bb5efae8d"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.backend.HermesRuntimeManagerTest",
+      "tests": 17,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "8e3758aa515e94e351a11c276cb5c43bc089652bc9996a426dfef37a25171702"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.backend.LiteRtLmOpenAiProxyTest",
+      "tests": 56,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7a65dc0c9df0e1237edd4565b69cab382904c79d59ced921946d1223ad7f45a5"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.backend.LlamaCppLaunchConfigTest",
+      "tests": 25,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a93413be71d3ec41362bd52336e80733f84db2b09be57687e08636ecd336ef39"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.backend.LlamaCppServerControllerTest",
+      "tests": 16,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5ac68eb2734619b6fd17dfbc75d0b122d7fcc8c4b23eb5f9ac4e8ad560afe730"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.backend.OnDeviceBackendPolicyTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "aff6e12e99f968fbd6a2ed18c96182977b2bcab304e20fb4ad3d53644325d5ef"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.backend.OnDeviceBackendRuntimeLaneAdmissionRobotest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "f9145f302b4d5f4c9153f4e0475c6d31b8e1ad93196dad4a06c26c844a390c92"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.backend.OnDeviceBackendRuntimeLaneReconciliationTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "164ba0f9f4b2bcf762825a6f40971e773813a131a3a73091efcf20830261afcd"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.data.AuthSessionStoreTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b2dcefccf4cd9ac7daa1380bb4bc211a22d87de52c6e6a8bb3428ec965a56623"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.data.SecretIntegrityEnvelopeTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "88affef6d40cc8715ee6184cb7b85df1b343dcb3f02ef6c3f5dce3dd55ee8d5f"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.AlpineSandboxAgentRoutingRobotest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "60787eb93bd56889dfcb17ca2f16e695326740010a9b005b879ec13a53a05872"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.Android16NavigationTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "cbe4413d51d1e77da4442c2c6e5b8f6e7bd4465a53b462e18c375abf0245ce54"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.AndroidResourceSnapshotRobotest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "42a0bddd5c28b011bf08fcdf6c0d7c2a4123b5865a54fb038e1b958a42570713"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.FifteenAlpineAgentCommandsRobotest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "57ee6b8fdf2888063b4453ecc56fdd28a0231b3d9d8a39d741d4c8ac91840494"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesAccessibilityUiBridgeTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "72711219c874e4fd5a29843ecd2587e6ab0e1d646791247b7c9abd192ed46bde"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesAppControlBridgeTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7a1a812373d6e9d6f8dcd01c910b54b5d20103d82e4402984b993dceb7f32e73"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesAutomationBridgeOpenGuiCompatTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b9877c21fa51ce3f75a30fa3e29c04a11b0bfc2df750f963148f54e7a3269736"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesAutomationStoreTest",
+      "tests": 51,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "206be369f6f19751e16753321a088b78650867f74cc31cb6e9db19ff4e3667d8"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesCrashLogStoreTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "11e22cfb1290e3b4a18cf11a6fabf4ed558769a341522b3190a6184aca4159a5"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesDeviceDiagnosticsBridgeTest",
+      "tests": 84,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "3dd2c7d72702468c01df3b4e62517a00553971c86a1eed8876b9dbc09e83e0e1"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesExternalBrowserLauncherTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "2942323b1c15b6bc005d1972d5809b0a1e8bf2851787db14f432055dbd02f463"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesExternalUiLocalizationTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ca34d029dd3e729fcd63f63a083d38be169fa9a900a5a84e827e931c6cdcd586"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesHindsightMemoryBridgeTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5418387a98d1e30c7d0047a7567e048cb8bbb6c398dd579a98e6da181b053b36"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesIntentBridgeTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "22e4c3956c89cd33bdb7943c672e693c9aabb2d056dbecab9d89775767f1cedb"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesLinuxSandboxMutationGateRobotest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a2df4f5e2b38dc48297e525820260f5cfed8c66c6bd71599ddb8a99130d571ba"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesLinuxSubsystemBridgeMigrationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "610848023fd62795e76bf170b0cefbdbad9449136cbf93f0b08c3a9383899393"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesOverlaySceneBridgeTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "79fd80b670edef16023e14ead565b664a8d34f7ebbf2231549f2dd616a428fa6"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesProviderSetupWebActivityTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5a906a66b35cb9661293940fcf892a6d87e38d039bbc8f8828994f0f75611bfd"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesShellProcessCompatTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "6c1c26e475c7f973907e32a9e5ea8a28cb1b8c464c63ae46096a2387b9b9ac5d"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesSystemControlBridgeTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ad539a301f84e4796fcff561785800f02aeffbb88ec85684d0a1f00d13efcad1"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesTaskerImportBridgeTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "062b459f3a8bb85836b5fe270c49dc5fc6998d11a1f943c6af4b2d3e21d5a697"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesTaskerPluginBridgeTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b230db98c2fa8592ecdf10b1f8458ffa9b20e3d1aaced0751971c1329807f3e5"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesTermuxPackageManagerTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "900473c3cc9996411ae0d15be2d615863a8f833717f438f6f64bd240fec12b1a"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.HermesTermuxPackageMutationGateRobotest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "6672bf01f963d3ed27ae6bfa6978d012427c20761211012c00bdc9327babf099"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.LocalModelRuntimeDiagnosticsTest",
+      "tests": 9,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "2ed98c2fd801555bb11d15aa7fab041e8090e4a6d538f11ad8f9a71e1ad8a863"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.MedianOfDoublesTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "82f76732c891a02dd08ca40be14fb177f5d4f93e776b96eddfcabcbcc340c16f"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.device.NativeAndroidShellToolTest",
+      "tests": 37,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "f82e7d49f3e7a6dce5763e9c36dfe4f86d1bc4b594623321c7a7be5e4739aca5"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.MainActivityLocalRuntimeAutoStarterTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "449bde62c0a4707d1366ff6d12d929e9d0372ef0d8d7c99245bf382bf4dabcd6"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.MinSdk24CompatibilityTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "0e25ef69eafe2ec83b402ceeba2c3e349ef13a449767457f12061c3ae1ef0330"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.HermesModelDownloadManagerTest",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "dabfea1aa252cfcbae217db5fb038614d31c6b90a3770c6719dfb5eb4c2f10d4"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.HuggingFaceModelIndexClientTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "3af4812bfcebe7ab6bcdb0852dd3c7e14b6700578c2c991e3170e9356c2c9793"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.LocalModelFileImportTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ceb613833a85573172f8d53c49df85da6c79c39a4723efb8a3277102cc5278f0"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.LocalModelImportCancellationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "0e9e593328b8244a8155c0890ac515c9d427484c651b6c10ce6030fa0e43da32"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.ModelManagerCatalogTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "567f19d835ef68be73c4d678460171a5e59d8302e91782d3273c808bb3909f37"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.PythonRuntimeWriteAuthorityTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "805320a7b7cbbcbced811c683c2f58d1d6c8dcf27721b41cf25290d90a62c88c"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.VerifiedLocalModelArtifactsTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a3aa4b76c801a8acdc644b84c0d2cbe78e9524d1d03c2b006df61aabdde31740"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.VerifiedLocalModelMirrorsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "2abe84b8e5e4ebaa451c7194898a89d8dd54bf2d29d96a2bd14232425533ea3d"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.play.PlayContentSafetyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "72cbb581d87a70e6a1ba94946d76be8aecf0322670e3585c6613748b3096ac58"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.play.PlayDistributionPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "70355fd32dbefb0c3d4aa2c5ab2d54c5346a77f7b7ca2e241993c02f47f06cb2"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.privacy.AiContentReportClientTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "c26bcf31eb9db187947ccd94267263e3da650769e49a1e9dea95a971fd77f968"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.privacy.PrivacyConsentStoreTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a0cb7c6b9e411f17e075ba085367de3c53d32d48d90cee263cdbfd4c9bb516dc"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.privacy.PrivacyDialogStyleTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "f1ab5b88034c333e4c494782d8bca7c399cd80ab9d563f9585bae5f2ea9a2a25"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.privacy.RemoteProcessingConsentTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ff12ea54eee6098af3daef6ff3218c99f9158997be9e5f4b853dc2df758b6015"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.settings.AppSettingsStorePersistenceTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "d2350bcb2dc78014c49697572030c770392d08b4db0b53c99eae34974421d69c"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.settings.HermesNetworkPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "0dd74f95051e12ad9231ce669b6ed663922df09d34e747aa5f95cbb7ba1f7603"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.settings.McpRuntimeRobotest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a761c1d4e2f9f23cb764509e8b740f622d6b058df548890205d21872fc8cee00"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.settings.McpSettingsStoreTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7225c0cf945983ed0d9003cfe730e99c5d809efbc777d1a42525bb665b272c38"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.auth.AuthViewModelSignOutTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "518a1404fddc0ff8478e81b52eaed47f985e91d2e24b8a6c9d1eed5425b5c0c9"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.boot.BootViewModelTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b9efd30c7d66bf0adcde9942ab02255528e949b3b2179e96423f74980779bcba"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.ChatCommandRouterTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a8b438b69cf32e036d9693031f09967595988d91d5f10a3e419ea74e7474c9d9"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.ChatReadinessStripTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "e07a74254feb8750b2abcc10f6043a639b34e28c862732984041df0e5cd53368"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.ChatScreenNavigationDrawerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "37c139395ad31f7f6b9574006422fa752a4091918d6604df277b6b9d0223283e"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.ChatScreenTextFormattingTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "f5f52c060b1989542753d0fa84cf390badd0a5ac95129c1074b357eb33cad84c"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.ChatToolActivityRobotest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "20ef16f2ec178e10a0822a833951857d831b63e7003fe313f4f83a5fb5444a3e"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.ChatViewModelTest",
+      "tests": 48,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "40a9f0ca80b837005b8328aa14723397c512b03baf76c95955e3de733bd3af34"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.ConversationHistoryStringsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "c46226540821e8435054eb5738d9380a2725e1ab9e17e9fdc8289094a0a5c45a"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.ConversationStoreRobotest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7a36a189fe4b1cde076601b2d85d7f1b023fc4177e00ebc263d66472113aaded"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.DiagnosticCardsTest",
+      "tests": 69,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "6cef33e6f11f26fa93c853558f43a0fd614ab1a15902d5e8bfb3f97e30a01d65"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.NativeBridgeInvokerRobotest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "061c4f632d17569756d275901ff13cb6cbfc15c83ddf0ffb2e0582ddfc2516e8"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.NativeToolCallDispatchRobotest",
+      "tests": 33,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ef0828842ec6e57c2133d73c3ae3a9adfd53b5c2888770eb30f1a3c542e3720e"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.NativeToolCallingChatClientHostPkgTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "40baf5faa3f5f7b3f188a7181ea894c8e7a5419e3a8f4d6eb615c261f08969f8"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.NativeToolCallingChatClientTest",
+      "tests": 95,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7274e44dcfc49b67da949f98489f78c5f99a8fb8178e565d9725e30bdd0b18ba"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.NativeToolCallingChatClientToolRoutingTest",
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "9f43052bc70fa8eec0f5958b4b8792289e317d666125a922d26ba5491b0d54da"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.NativeToolChatSenderTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "711ea9f35e04443974c4b604300e9f1929625518c15a0db0f60ae748c9d54542"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.NativeToolResultPresentationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a16c3afc8c46a1bccf06cffc220d5c8ceeb0a9ffb165c668b6b36b7fc341adf1"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.OpenGuiActionCompatTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "a0775ddc55548ff0a5a5f86276c88117d966b00cab11e1666bfd9f6166b9381e"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.OpenGuiActionHistoryTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "0c9258587b55c2d8c8b9f8192406f0595bb74c901cc8db6494d24f5cf6233bb3"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.OpenGuiExecutionReviewTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "e8708fb18775a686b9fc8603ddc5a6ecc7fe49885c425c0e3e96385f1eef9b91"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.OpenGuiSenseStatusTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "4734808787a145837373c9a38aff2aa593f8151a729bdfa13b915f40cd178a11"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.OpenGuiUserHandoffTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "2502c189476cf7a5ae9e60b66fe917d7a292f92246d6f40a114d032d490e0623"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.PlayChatOperationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5dd4b267a677b48e6c2e165c2a020361347caa774d0004ccf5438d98c923fbcf"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.PlayHelpTextTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "691ac8a13d137edca545bd6d3d157265b81120b055e0718e4feeaafcca0a3238"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.SignalIntelligenceQuickActionsTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "d1e16489e26fa0af2cd90abd4a08d1c4941de8cec7666b30a3bb90397163df24"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.device.DeviceOperationStatusTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "0b9957973fa7abb3398e5f442511b23a2ce67e0db933284413542fe0e05ccaa0"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.device.DeviceScreenSandboxI18nTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "9d1fb2ae7a36aa8aa43df225625cfb3b161624fc0a3edac728ecff8cfd92cd73"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.device.DeviceViewModelSandboxTargetTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7d8060afd55799237b7fc3cf49779f15099560000a8162c4fd1d8e90948704fe"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.i18n.AgentBrandingTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "d89447ceb3170d096368d21aa2e3be6823631ac3002f0c5e3bae153e0cd92be7"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.i18n.AndroidResourceTranslationTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "90f04b087f105c60df8b33f0552c5e98ef54f7bda0b7f861c8f94ed71115b5b7"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.i18n.HermesStringsTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ad6713a41c527dea4065c9c213b4032ff0a9950ca3787ff31f4f7c3f3ad042af"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.i18n.ModelMirrorStringsTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b489d7e580d3a53cb760caa76e8143d957f0466b08b976a575e741356c25e251"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.i18n.PrivacyStringsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5939f146a462218d54bd29db4344a220bc5549e53ac94d7201c11bb08e1122d1"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.i18n.RecommendedLocalModelI18nTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "5744c5131a7801c118254c0d258b4226dd664f5a4ae4443ef0fbfd6f719d53ab"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.settings.LocalModelDownloadsViewModelTest",
+      "tests": 11,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "48a99cc8ba2401afd92e6eb3955cc8214368088ea03f7ba52f128b6af18c002d"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.settings.LocalModelImportLifecycleTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "b06488a06e033e996453612fb7f8d9ce353f9ceced9877a3b2ea1f47a22f797b"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.settings.ModelFirstSettingsUiTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ec467cf367aee241139e99013db5bdf26232e26fd21693e787c7969278fc271b"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.settings.ProviderPresetsTest",
+      "tests": 15,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "63d893298388f68170481d3b908d28508464297a723e3190f70e36a565115cb5"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.settings.RecommendedLocalModelsTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "453934e47a2639c1e56b0aba1ea301cce7807322ece87bfff36c8a3aece54213"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.settings.SettingsViewModelTest",
+      "tests": 23,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "6ac22fdd3393725cade1cbcec7ed24dd858957753aed764784d344ea30914e27"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.shell.AppShellNavigationDrawerTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "405caf29a710fbda3204b1907a19008b434c078937df1a3089460217f22a87b1"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.shell.ShellThemeShapeTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "19b696b1fab246a0c9cae3ef55bb47254869aebe8144d66fd3677add6c9c6978"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.terminal.TerminalScreenParserTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "d2d5910080cab037f7bcdcbf9440415bb7f9abe3f04568a10a3030170fdf8877"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.theme.HermesLaunchThemeTest",
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "4a94fdb0a26e8d13d7fd0e22aa5f8484d11aa1edf1582207cfb8e10565486abd"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.theme.HermesThemeTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "66e7a6595d683f9011ed41700e771396c9d90bccec35e3ae3b78fe47e8ff5196"
+    }
+  ],
+  "play-jvm": [
+    {
+      "suite": "com.mobilefork.hermesagent.models.LocalModelFileImportTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "2b03a7f666b5412463dd2bb5f50a85cf910d43562df79be6af38202cf8ed12ea"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.models.LocalModelImportCancellationTest",
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "757339b50edc92615c819d801b5751978794d5c535db2a1956c444d421386153"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.play.PlayContentSafetyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "bb5af19a09bc7afb08a84d1aec2cf77c7ae9a70cb93682e8feb9ad5d4c7a87c3"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.play.PlayDistributionPolicyTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "7038e749bf3cbe0a7577e1d930496ee00907419ef3f9d517ef789799202ba5f0"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.privacy.AiContentReportClientTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "2e1706ec12def06f4ef78225d7ed66bd5f5c2caecffd5ecded90ca40f65a9ded"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.privacy.PrivacyConsentStoreTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "4eba63d3b1d87b759b302878ca2d75598f0bbde0da0e5dd24de0dc7be3c80703"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.privacy.PrivacyDialogStyleTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "daa3d7e9a3fc021728f906123d59fdd6583eb01ff147237d492bff7e96008ccf"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.privacy.RemoteProcessingConsentTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "8efb415db7365d7ec68542e28d30dcd3f59ea1b874975332e0fbae1b2e137842"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.PlayChatOperationTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "ccdfb26acaddb8567e04a100bd8152ab52549c323e2d20089f7cb3efa61451ca"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.chat.PlayHelpTextTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "497c123c8d824e432568922dde4dee73c397735cfa07a05c62174f769cc56e53"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.i18n.PrivacyStringsTest",
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "c4ed93899f510bfd85f81eb92c73f450bc4d4d5655a128e40e53ed2f318a2aca"
+    },
+    {
+      "suite": "com.mobilefork.hermesagent.ui.settings.LocalModelImportLifecycleTest",
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "xml_sha256": "594212c8255bf0b03dc90599885e1d5f00063f8e451ce3abe505db97ec1fdd12"
+    }
+  ]
+}

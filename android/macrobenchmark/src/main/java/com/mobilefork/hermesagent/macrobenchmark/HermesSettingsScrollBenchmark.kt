@@ -79,16 +79,16 @@ class HermesSettingsScrollBenchmark {
 
     private fun selectModelsSettingsPage() {
         val modelsPage = requireObject(SETTINGS_MODELS_PAGE_TAG)
-        if (modelsPage.isEnabled) {
+        if (!modelsPage.isSelected) {
             modelsPage.click()
         }
         val selectedModelsPage = device.wait(
-            Until.findObject(By.res(SETTINGS_MODELS_PAGE_TAG).enabled(false)),
+            Until.findObject(By.res(SETTINGS_MODELS_PAGE_TAG).selected(true)),
             UI_TIMEOUT_MILLIS,
         ) ?: error("Hermes Models settings page did not become selected")
         requireOwnedByTarget(selectedModelsPage, SETTINGS_MODELS_PAGE_TAG)
-        check(!selectedModelsPage.isEnabled) {
-            "$SETTINGS_MODELS_PAGE_TAG must be disabled while selected"
+        check(selectedModelsPage.isSelected && selectedModelsPage.isEnabled) {
+            "$SETTINGS_MODELS_PAGE_TAG must expose selection and remain actionable"
         }
     }
 

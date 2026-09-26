@@ -26,19 +26,19 @@ object LocalPrivacyText {
         AppLanguage.FRENCH -> "Cela efface définitivement les chats, modèles, fichiers privés, paramètres, identifiants, consentements et reçus de signalement de cette app. Android la fermera et la réinitialisera. Les exports et dossiers partagés restent. Supprimez d’abord les signalements avec leurs reçus ; la réinitialisation ne contacte pas ce service. Les comptes tiers et données déjà envoyées ne sont pas supprimés. Annuler conserve vos données."
     }
     fun accountScope(language: AppLanguage): String = when (language) {
-        AppLanguage.ENGLISH -> "Hermes has no publisher-hosted user account. Provider sign-out and API-key removal affect local access only. Use your provider’s website to revoke credentials or delete its account and data. Local erasure cannot delete a provider account."
-        AppLanguage.CHINESE -> "Hermes 没有发布者托管的用户账户。退出服务商登录或移除 API 密钥仅影响本地访问。请到服务商网站撤销凭据或删除其账户和数据。本地删除无法删除服务商账户。"
-        AppLanguage.SPANISH -> "Hermes no aloja cuentas de usuario del editor. Cerrar sesión o quitar claves solo afecta al acceso local. Revoca credenciales o elimina cuentas y datos en la web del proveedor. El borrado local no elimina cuentas externas."
-        AppLanguage.GERMAN -> "Hermes betreibt keine Herausgeber-Nutzerkonten. Abmeldung und Schlüsselentfernung betreffen nur lokalen Zugriff. Zugangsdaten, Konten und Daten auf der Website des Anbieters widerrufen oder löschen. Lokales Löschen entfernt keine Anbieterkonten."
-        AppLanguage.PORTUGUESE -> "Hermes não hospeda contas de usuário do editor. Sair ou remover chaves afeta apenas o acesso local. Revogue credenciais ou exclua contas e dados no site do provedor. Exclusão local não apaga contas externas."
-        AppLanguage.FRENCH -> "Hermes n’héberge pas de compte utilisateur de l’éditeur. Déconnexion et retrait de clé ne concernent que l’accès local. Révoquez les identifiants ou supprimez comptes et données sur le site du fournisseur. L’effacement local ne supprime pas les comptes tiers."
+        AppLanguage.ENGLISH -> "Agent has no publisher-hosted user account. Provider sign-out and API-key removal affect local access only. Use your provider’s website to revoke credentials or delete its account and data. Local erasure cannot delete a provider account."
+        AppLanguage.CHINESE -> "Agent 没有发布者托管的用户账户。退出服务商登录或移除 API 密钥仅影响本地访问。请到服务商网站撤销凭据或删除其账户和数据。本地删除无法删除服务商账户。"
+        AppLanguage.SPANISH -> "Agent no aloja cuentas de usuario del editor. Cerrar sesión o quitar claves solo afecta al acceso local. Revoca credenciales o elimina cuentas y datos en la web del proveedor. El borrado local no elimina cuentas externas."
+        AppLanguage.GERMAN -> "Agent betreibt keine Herausgeber-Nutzerkonten. Abmeldung und Schlüsselentfernung betreffen nur lokalen Zugriff. Zugangsdaten, Konten und Daten auf der Website des Anbieters widerrufen oder löschen. Lokales Löschen entfernt keine Anbieterkonten."
+        AppLanguage.PORTUGUESE -> "Agent não hospeda contas de usuário do editor. Sair ou remover chaves afeta apenas o acesso local. Revogue credenciais ou exclua contas e dados no site do provedor. Exclusão local não apaga contas externas."
+        AppLanguage.FRENCH -> "Agent n’héberge pas de compte utilisateur de l’éditeur. Déconnexion et retrait de clé ne concernent que l’accès local. Révoquez les identifiants ou supprimez comptes et données sur le site du fournisseur. L’effacement local ne supprime pas les comptes tiers."
     }
     fun deletionDenied(language: AppLanguage): String = when (language) {
-        AppLanguage.ENGLISH -> "Android did not accept the reset. Use Android Settings → Apps → Hermes → Storage to manage local data."
-        AppLanguage.CHINESE -> "Android 未接受重置。请在 Android 设置 → 应用 → Hermes → 存储中管理本地数据。"
-        AppLanguage.SPANISH -> "Android no aceptó el borrado. Gestiona los datos en Ajustes de Android → Apps → Hermes → Almacenamiento."
-        AppLanguage.GERMAN -> "Android hat das Zurücksetzen nicht angenommen. Daten unter Android-Einstellungen → Apps → Hermes → Speicher verwalten."
-        AppLanguage.PORTUGUESE -> "O Android não aceitou a redefinição. Gerencie os dados em Configurações do Android → Apps → Hermes → Armazenamento."
-        AppLanguage.FRENCH -> "Android n’a pas accepté la réinitialisation. Gérez les données dans Paramètres Android → Applications → Hermes → Stockage."
+        AppLanguage.ENGLISH -> "Android did not accept the reset. Use Android Settings → Apps → Agent → Storage to manage local data."
+        AppLanguage.CHINESE -> "Android 未接受重置。请在 Android 设置 → 应用 → Agent → 存储中管理本地数据。"
+        AppLanguage.SPANISH -> "Android no aceptó el borrado. Gestiona los datos en Ajustes de Android → Apps → Agent → Almacenamiento."
+        AppLanguage.GERMAN -> "Android hat das Zurücksetzen nicht angenommen. Daten unter Android-Einstellungen → Apps → Agent → Speicher verwalten."
+        AppLanguage.PORTUGUESE -> "O Android não aceitou a redefinição. Gerencie os dados em Configurações do Android → Apps → Agent → Armazenamento."
+        AppLanguage.FRENCH -> "Android n’a pas accepté la réinitialisation. Gérez les données dans Paramètres Android → Applications → Agent → Stockage."
     }
 }

@@ -225,9 +225,12 @@ internal object NativeDirectToolAuthorityParser {
     private fun isClosedNaturalDiagnosticRequest(actionText: String): Boolean {
         val normalized = actionText.trimEnd('.', '!', '?', '。', '！', '？')
         return normalized in setOf(
-            "run a full all features test for hermes native tools",
-            "run the full all features test for hermes native tools",
-            "perform a full all features test for hermes native tools",
+            "run a full all features test for agent native tools",
+        "run a full all features test for hermes native tools",
+            "run the full all features test for agent native tools",
+        "run the full all features test for hermes native tools",
+            "perform a full all features test for agent native tools",
+        "perform a full all features test for hermes native tools",
             "全部功能全测试",
             "check my device status",
             "检查我的设备状态",
@@ -553,8 +556,8 @@ internal class NativeToolOperationLaneGuard {
     fun requireHealthy() {
         val detail = poisonDetail.get() ?: return
         throw IllegalStateException(
-            "$detail Hermes will not start another native tool operation because request-owned " +
-                "process or callback cleanup cannot be verified. Force stop and reopen Hermes before retrying.",
+            "$detail Agent will not start another native tool operation because request-owned " +
+                "process or callback cleanup cannot be verified. Force stop and reopen Agent before retrying.",
         )
     }
 

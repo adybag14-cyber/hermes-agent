@@ -24,7 +24,7 @@ def test_chat_screen_has_bubbles_history_and_action_icons():
     strings = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/i18n/HermesStrings.kt").read_text(encoding="utf-8")
 
     assert 'strings.messageHermes' in chat_screen
-    assert 'Message Hermes Fork' in strings
+    assert 'Message Agent' in strings
     assert 'Speak last reply' in chat_screen
     chat_command_router = (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatCommandRouter.kt").read_text(encoding="utf-8")
     assert 'strings.chatCommandHelp()' in chat_command_router
@@ -53,12 +53,12 @@ def test_chat_view_model_persists_history_and_supports_native_command_feedback()
     assert 'Voice input captured' in chat_view_model
     assert 'endpoint.streamingStatus(attachments.isNotEmpty())' in chat_view_model
     assert 'fun ChatEndpoint.failureMessage(message: String)' in chat_view_model
-    assert 'Hermes normalizes raw hosts, /v1 URLs, and /v1/chat/completions URLs' in chat_view_model
+    assert 'Agent normalizes raw hosts, /v1 URLs, and /v1/chat/completions URLs' in chat_view_model
     assert 'streaming endpoints must stay open until [DONE]' in chat_view_model
     assert 'buildChatRequestMessages(' in chat_view_model
     assert 'User-configured agent persona/system instructions' in chat_view_model
     assert 'isEndpointStatusText(displayText)' in (REPO_ROOT / "android/app/src/main/java/com/mobilefork/hermesagent/ui/chat/ChatScreen.kt").read_text(encoding="utf-8")
-    assert 'Speaking the latest Hermes reply' not in chat_view_model  # UI handles TTS feedback
+    assert 'Speaking the latest Agent reply' not in chat_view_model  # UI handles TTS feedback
 
 
 # SSE parsing/disconnect coverage lives in HermesSseClientTest (real HTTP

@@ -199,7 +199,7 @@ fun AuthScreen(
                             }
                             if (option.runtimeProvider.isNotBlank()) {
                                 Text(
-                                    "${strings.hermesProviderPrefix.ifBlank { "Hermes provider" }}: ${option.runtimeProvider}",
+                                    "${strings.hermesProviderPrefix.ifBlank { "Agent provider" }}: ${option.runtimeProvider}",
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }

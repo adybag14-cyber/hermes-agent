@@ -20,7 +20,7 @@ def test_app_shell_uses_drawer_navigation_and_context_sheet():
     assert 'ContextActionSheet(' in app_shell
     assert 'TabRow' not in app_shell
     assert 'Portal(' in shell_models
-    assert 'iconRes = R.drawable.ic_nav_hermes' in shell_models
+    assert 'iconRes = R.drawable.ic_nav_agent' in shell_models
     assert 'ModalBottomSheet' in action_sheet
     assert 'LazyColumn(' in action_sheet
     assert 'navigationBarsPadding()' in action_sheet

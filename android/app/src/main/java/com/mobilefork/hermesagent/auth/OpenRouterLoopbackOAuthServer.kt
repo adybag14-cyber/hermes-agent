@@ -160,7 +160,7 @@ object OpenRouterLoopbackOAuthServer {
             writeResponse(
                 client = client,
                 status = "404 Not Found",
-                body = htmlPage("Hermes sign-in", "This local Hermes sign-in route was not found."),
+                body = htmlPage("Agent sign-in", "This local Agent sign-in route was not found."),
             )
             return
         }
@@ -170,17 +170,17 @@ object OpenRouterLoopbackOAuthServer {
                 client = client,
                 status = "500 Internal Server Error",
                 body = htmlPage(
-                    "Hermes sign-in failed",
-                    "Hermes received the OpenRouter callback, but could not save it (${error.javaClass.simpleName}). Return to Hermes and try again, or paste an API key in Settings.",
+                    "Agent sign-in failed",
+                    "Agent received the OpenRouter callback, but could not save it (${error.javaClass.simpleName}). Return to Agent and try again, or paste an API key in Settings.",
                 ),
             )
             return
         }
-        val title = if (session.signedIn) "Hermes sign-in complete" else "Hermes sign-in failed"
+        val title = if (session.signedIn) "Agent sign-in complete" else "Agent sign-in failed"
         val message = if (session.signedIn) {
-            "OpenRouter is connected. You can return to Hermes."
+            "OpenRouter is connected. You can return to Agent."
         } else {
-            session.status.ifBlank { "OpenRouter did not return a usable API key. Return to Hermes and try again." }
+            session.status.ifBlank { "OpenRouter did not return a usable API key. Return to Agent and try again." }
         }
         writeResponse(client, status = "200 OK", body = htmlPage(title, message))
     }

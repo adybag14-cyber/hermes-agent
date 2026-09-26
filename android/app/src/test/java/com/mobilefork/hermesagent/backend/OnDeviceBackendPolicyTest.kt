@@ -20,7 +20,7 @@ class OnDeviceBackendPolicyTest {
         assertTrue(status.requiresAppRestart)
         assertTrue(status.statusMessage.contains("did not stop safely"))
         assertTrue(status.statusMessage.contains("did not start llama.cpp"))
-        assertTrue(status.statusMessage.contains("Force stop and reopen Hermes"))
+        assertTrue(status.statusMessage.contains("Force stop and reopen Agent"))
     }
 
     @Test
@@ -35,7 +35,7 @@ class OnDeviceBackendPolicyTest {
         assertTrue(status.requiresAppRestart)
         assertTrue(status.statusMessage.contains("did not stop safely"))
         assertTrue(status.statusMessage.contains("did not start litert-lm"))
-        assertTrue(status.statusMessage.contains("Force stop and reopen Hermes"))
+        assertTrue(status.statusMessage.contains("Force stop and reopen Agent"))
     }
 
     @Test

@@ -54,7 +54,7 @@ class SkillsViewModel(application: Application) : AndroidViewModel(application) 
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(loading = true, error = "") }
-            var snapshot = SkillsSnapshot(ok = false, error = "Waiting for Hermes runtime…")
+            var snapshot = SkillsSnapshot(ok = false, error = "Waiting for Agent runtime…")
             repeat(12) { attempt ->
                 snapshot = withContext(Dispatchers.IO) {
                     SkillsBridge.listSkills(getApplication())
@@ -65,7 +65,7 @@ class SkillsViewModel(application: Application) : AndroidViewModel(application) 
                 _uiState.update {
                     it.copy(
                         loading = true,
-                        statusMessage = "Waiting for Hermes Python runtime…",
+                        statusMessage = "Waiting for Agent Python runtime…",
                         error = "",
                     )
                 }

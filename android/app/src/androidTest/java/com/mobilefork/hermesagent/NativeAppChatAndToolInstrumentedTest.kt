@@ -83,7 +83,7 @@ class NativeAppChatAndToolInstrumentedTest {
 
         val viewModel = ChatViewModel(app)
         viewModel.startNewConversation()
-        viewModel.updateInput("Reply with one short word confirming local Android Hermes chat works.")
+        viewModel.updateInput("Reply with one short word confirming local Android Agent chat works.")
         viewModel.sendMessage()
 
         val reply = waitForAssistantReply(viewModel)

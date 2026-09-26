@@ -139,7 +139,7 @@ class AndroidMcpTools:
             # concurrent.futures cancellation is immediate; this separate event
             # is set only after the real loop coroutine has finished cleanup.
             if not finished.wait(timeout=7):
-                self.supervisor.failure = "MCP cancellation did not unwind; force stop and reopen Hermes"
+                self.supervisor.failure = "MCP cancellation did not unwind; force stop and reopen Agent"
                 raise RuntimeError(self.supervisor.failure)
             if self.supervisor.failure:
                 raise RuntimeError(self.supervisor.failure)

@@ -44,7 +44,7 @@ class HermesAutomationBridgeOpenGuiCompatTest {
                 "operator_heartbeat",
                 JSONObject()
                     .put("deviceId", "device-1")
-                    .put("deviceName", "Hermes Test Phone")
+                    .put("deviceName", "Agent Test Phone")
                     .put("source", "discord"),
             ),
         )

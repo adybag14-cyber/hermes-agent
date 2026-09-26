@@ -142,7 +142,7 @@ object HermesWorkspaceFileBridge {
                 appFilesDir = appFilesDir,
                 target = target,
                 error = errorJson(
-                    message = "file action can only target the Hermes app workspace",
+                    message = "file action can only target the Agent app workspace",
                     exitCode = 13,
                     path = target.absolutePath,
                     homeDir = homeDir,

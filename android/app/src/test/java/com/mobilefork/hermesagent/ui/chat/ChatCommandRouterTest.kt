@@ -17,7 +17,7 @@ class ChatCommandRouterTest {
         assertEquals("openrouter", host.startedAuthMethods.single())
         assertEquals(AppSection.Accounts, host.sections.single())
         assertEquals(
-            "Opened OpenRouter OAuth in your browser. Approve Hermes to save a user-controlled API key, or paste an OpenRouter API key in Settings.",
+            "Opened OpenRouter OAuth in your browser. Approve Agent to save a user-controlled API key, or paste an OpenRouter API key in Settings.",
             result.feedback,
         )
     }
@@ -32,7 +32,7 @@ class ChatCommandRouterTest {
         assertEquals("qwen", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared qwen API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Hermes.",
+            "Prepared qwen API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Agent.",
             result.feedback,
         )
     }
@@ -47,7 +47,7 @@ class ChatCommandRouterTest {
         assertEquals("qwen-coding-plan", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared qwen-coding-plan API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Hermes.",
+            "Prepared qwen-coding-plan API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Agent.",
             result.feedback,
         )
     }
@@ -62,7 +62,7 @@ class ChatCommandRouterTest {
         assertEquals("openai", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared openai API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Hermes.",
+            "Prepared openai API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Agent.",
             result.feedback,
         )
     }
@@ -77,7 +77,7 @@ class ChatCommandRouterTest {
         assertEquals("codex", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared codex API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Hermes.",
+            "Prepared codex API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Agent.",
             result.feedback,
         )
     }
@@ -92,7 +92,7 @@ class ChatCommandRouterTest {
         assertEquals("zai", host.startedAuthMethods.single())
         assertEquals(AppSection.Settings, host.sections.single())
         assertEquals(
-            "Prepared zai API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Hermes.",
+            "Prepared zai API-key/token setup in Settings and opened the provider setup page in your browser. Paste the provider credential there to power Agent.",
             result.feedback,
         )
     }
@@ -122,7 +122,7 @@ class ChatCommandRouterTest {
         assertEquals("google", host.startedAuthMethods.single())
         assertEquals(AppSection.Accounts, host.sections.single())
         assertEquals(
-            "Opened Corr3xt app sign-in for google. Complete it in your browser, then come back to Hermes.",
+            "Opened Corr3xt app sign-in for google. Complete it in your browser, then come back to Agent.",
             result.feedback,
         )
     }

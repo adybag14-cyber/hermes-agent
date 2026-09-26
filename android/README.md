@@ -1,7 +1,7 @@
-# Hermes Agent for Android
+# Agent for Android
 
-Hermes Agent ships as a native Android app as well as the separate Termux CLI.
-The app embeds Hermes, can connect to remote OpenAI-compatible providers, and
+Agent ships as a native Android app as well as the separate Termux CLI.
+The app embeds Agent, can connect to remote OpenAI-compatible providers, and
 can run supported local models through either LiteRT-LM or llama.cpp.
 
 The published F-Droid package ID is `com.mobilefork.hermesagent`:
@@ -30,22 +30,13 @@ does not expose the Full edition's arbitrary-command or external MCP runtime.
 
 ## First run
 
-1. Install the APK from F-Droid or the matching GitHub release.
-2. Open **Settings > Provider and model** to connect a remote provider, or open
-   **Settings > Local models** to import/download an on-device model.
-3. Choose **LiteRT-LM** for a `.litertlm` Android bundle or **llama.cpp** for a
-   `.gguf` file. A browser-only FlatBuffer renamed to `.task` is not a valid
-   Android LiteRT-LM bundle.
-4. Start the selected local backend and wait for the health and completion
-   checks. If initialization fails, use the status text and diagnostics rather
-   than repeatedly retrying a model which exceeds available memory.
-5. Enable only the tool profiles you intend the agent to use. The narrow,
-   read-only prompts `What time is it?`, `Show the current directory`, `Who is
-   the current user?`, `List files`, and `Show system information` run their
-   built-in native command before any local or remote model request. Other
-   commands require an enabled profile and a model with compatible structured
-   function/tool-calling training; describing a command in prose is not the
-   same as emitting a tool call.
+1. Open **Settings > Models**. **Choose a model** is the first section, not an advanced runtime page.
+2. Select **Import model file** to open Android's system file picker. Choose a `.gguf`, `.litertlm`, or Android `.task` file already on the device. Local import works without an account or internet connection, including with offline mode enabled. Cancel simply returns to Models.
+3. Find the imported model under **Models on this device** and select **Use & Start**. Agent detects the engine from the file type; it still performs compatibility and memory checks before loading. Import success is not proof that a model can run.
+4. Expand **Download models** for the online catalog, or **Online provider and model** for a remote service. Download options and access tokens are separate from local import.
+5. Response preferences, runtime controls, advanced GGUF options, and local API sharing are labelled, expandable sections. Model removal asks for confirmation and removes the app's copy, not the original file selected through the picker.
+
+All six interface languages receive the new labels. Settings tabs remain reachable while scrolling and expose selection to accessibility services. Import progress and results use polite live announcements. See [the branding and compatibility policy](../BRANDING.md).
 
 The embedded Android runtime exposes its audited in-process tool profile.
 The v157 candidate additionally supports explicitly enabled external MCP tools
@@ -70,7 +61,7 @@ servers. Disabling the switch revokes calls and stops owned connections.
 The supervisor uses the official MCP Python SDK on the already-owned API-server
 event loop, without the desktop MCP thread/global loader. It supports stdio,
 legacy SSE, and Streamable HTTP. Stdio requires an already-installed,
-Android-compatible executable; Hermes does not install Node, a Python CLI, or
+Android-compatible executable; Agent does not install Node, a Python CLI, or
 server packages automatically. Add command arguments and environment settings in
 Advanced JSON. Entries marked `autoStart` start with the Python runtime after
 consent; other enabled entries start on manual reload.
@@ -107,25 +98,25 @@ installed/bundled skill directories. A full read-only Android system partition
 does not mean the app's writable data partition is full.
 
 Large local models need substantially more free memory than their file size.
-Hermes checks current memory headroom before starting, but Android can still
+Agent checks current memory headroom before starting, but Android can still
 reclaim a process when another app, the GPU driver, KV cache, or model-native
 buffers consume the remaining RAM. Start with the smallest certified model for
 your backend and close other memory-heavy apps before moving up.
 
-Gemma 4 12B LiteRT-LM is not supported by Hermes on nominal 16 GB phones. For
-LiteRT-LM files of 6 GB or more, Hermes requires at least 2.5 times the file
+Gemma 4 12B LiteRT-LM is not supported by Agent on nominal 16 GB phones. For
+LiteRT-LM files of 6 GB or more, Agent requires at least 2.5 times the file
 size as total device RAM before native initialization; a 6.5 GB bundle needs
 about 16.3 GB before Android, the GPU driver, KV cache, and other process
-memory. Hermes blocks this configuration before native allocation. A GPU run
+memory. Agent blocks this configuration before native allocation. A GPU run
 in Google AI Edge Gallery does not certify the same artifact/runtime path in
-Hermes. Experimental Gemma 4 E2B/E4B files require the explicit custom-import
+Agent. Experimental Gemma 4 E2B/E4B files require the explicit custom-import
 path; they are excluded from the release-certified quick-start catalog and are
 never selected automatically. The historical E4B pin
 `9695417f248178c63a9f318c6e0c56cb917cb837` is an April artifact of
 3,654,467,584 bytes (SHA-256
 `f335f2bfd1b758dc6476db16c0f41854bd6237e2658d604cbe566bcefd00a7bc`).
-Hermes classifies it as experimental and text-only. The narrow validation
-recipe below explicitly selects CPU and disables speculative decoding; Hermes
+Agent classifies it as experimental and text-only. The narrow validation
+recipe below explicitly selects CPU and disables speculative decoding; Agent
 does not silently force those settings for every custom import. This is not the
 newer upstream artifact for which speculative decoding is advertised, and it
 remains unverified on Snapdragon/Adreno until that exact path passes a headed
@@ -198,7 +189,7 @@ experimental catalog rows are excluded from quick start; an operator can still
 use custom import after separately verifying the repo, immutable revision,
 file, bytes, and runtime compatibility.
 
-Hermes currently implements LiteRT-LM GPU and CPU delegates only. It does not
+Agent currently implements LiteRT-LM GPU and CPU delegates only. It does not
 expose a separate AICore/NPU backend, does not infer one from Android API level,
 and normalizes a legacy `npu` preference back to `auto`. Do not interpret a GPU
 or CPU fallback as NPU execution.
@@ -245,15 +236,15 @@ llama.cpp cache formats called `q5_k` or `q5_v`: choose `q5_0` or `q5_1` in the
 K selector and independently in the V selector. Flash attention can be left at
 the server default or set to Auto, On, or Off. Quantized V caches require
 effective flash attention, and TurboQuant cache types cannot be combined with
-Flash Off; Hermes rejects those combinations before it starts a process.
+Flash Off; Agent rejects those combinations before it starts a process.
 
 Expert additional arguments are stored as an argument list, one token per
-line. Hermes shell-quotes every token and rejects positional values,
+line. Agent shell-quotes every token and rejects positional values,
 app-owned model/host/port options, API/TLS/download options, duplicate managed
 options, control characters, and oversized argument sets. It also checks the
 exact value count for a reviewed set of pinned-parser performance flags,
 while model, paging/RAM, device-placement, endpoint, and chat/tool-protocol
-overrides remain Hermes-owned. Other non-owned flags remain available for
+overrides remain Agent-owned. Other non-owned flags remain available for
 expert and forward-compatible use; the selected native parser performs their final
 per-flag semantic validation during the controlled restart. Because expert argv
 may contain device paths or secrets, it is intentionally omitted from portable
@@ -264,7 +255,7 @@ The displayed effective arguments are the authority for what was applied.
 
 Every owned llama.cpp process receives a fresh 256-bit loopback bearer token.
 The pinned server intentionally leaves `GET /health` and `GET /v1/models`
-public, so Hermes uses them only for readiness and model metadata. It separately
+public, so Agent uses them only for readiness and model metadata. It separately
 proves that the data-bearing chat endpoint rejects an unkeyed request, then uses
 the token for the completion canary, streamed chat, and native tool chat. The
 controller checks that the port is free both before runtime discovery and
@@ -281,7 +272,7 @@ remains empty. The TurboQuant-only reasoning-format override is not sent
 through the Stable lane, LiteRT-LM, or remote providers.
 
 **Try once despite the RAM warning** is deliberately a one-shot action. It
-bypasses only Hermes' RAM admission estimate for that single llama.cpp start;
+bypasses only Agent' RAM admission estimate for that single llama.cpp start;
 it is never persisted or exported and does not bypass file/GGUF validation,
 content-addressed checks, executable validation, localhost ownership,
 readiness, the completion canary, or fail-closed process cleanup. Android may
@@ -312,7 +303,7 @@ Google does not currently publish an Android nightly Maven coordinate. To test
 a newly published exact preview version without changing the release default:
 
 ```powershell
-./gradlew.bat :app:compileDebugKotlin -PhermesLiteRtLmVersion=0.17.0
+./gradlew.bat :app:compileDebugKotlin -PhermesLiteRtLmVersion=0.17.1
 ```
 
 To test an Android AAR built locally from LiteRT-LM `main`:
@@ -615,7 +606,7 @@ user-specific paths: persisted evidence contains only the QEMU executable
 basename, AVD/port/GPU/acceleration identity, and command hashes. The validator
 requires a positive accelerator result, one effective `-gpu host`, one
 effective `-accel on`, a headed window, at least five Macrobenchmark iterations
-and 100 pooled frames in both FrameTiming and Hermes Perfetto counts, no more
+and 100 pooled frames in both FrameTiming and Agent Perfetto counts, no more
 than 10 percent pooled distinct surface tokens marked either App Deadline
 Missed or Dropped Frame, bounded
 launch/frame results, `PSS <= RSS`, and
@@ -682,7 +673,7 @@ requires every run to match.
 Compose resource ID `HermesSettingsContentList` and performs alternating list
 flings for five measured iterations. `FrameTimingMetric` writes the standard
 Macrobenchmark JSON distributions and one Perfetto trace per iteration. A
-custom `TraceMetric` queries Hermes-only `actual_frame_timeline_slice` rows and
+custom `TraceMetric` queries Agent-only `actual_frame_timeline_slice` rows and
 emits the single-value metrics `hermesFrameTotalCount`,
 `hermesFrameSelfJankTaggedCount`, `hermesFrameAppDeadlineMissedCount`,
 `hermesFrameAppDeadlineMissedOrDroppedCount`,
@@ -705,9 +696,9 @@ overlapping Self/Other-tag tokens invalidate the evidence.
 The metric always returns structurally valid counts, even when the performance
 budget fails, so the complete JSON and traces remain available for diagnosis.
 The host evidence validator sums all five iterations, requires at least 100
-FrameTiming samples and at least 100 distinct Hermes surface-frame tokens. Its
+FrameTiming samples and at least 100 distinct Agent surface-frame tokens. Its
 controlled AVD gate is the share of the exact union of `App Deadline Missed`
-and `Dropped Frame` surface tokens, using distinct Hermes surface-frame tokens
+and `Dropped Frame` surface tokens, using distinct Agent surface-frame tokens
 as its denominator; it rejects an aggregate share above 10 percent. Each
 iteration must satisfy exact inclusion-exclusion bounds for the reported
 deadline, dropped, and union counts. Perfetto Self Jank-tagged percentage is
@@ -741,9 +732,9 @@ devices. This hardware-accelerated AVD lane therefore suppresses only the
 AVD comparison, not a claim about physical-device latency. Never suppress
 `DEBUGGABLE` or `NOT-PROFILEABLE`; either condition invalidates the run.
 AndroidX BenchmarkData 1.4.1 derives `context.compilationMode` from the
-instrumentation `targetContext`. Hermes' benchmark APK is self-instrumenting,
+instrumentation `targetContext`. Agent' benchmark APK is self-instrumenting,
 so its exact reporting-package value is `run-from-apk`; that field does not
-describe the measured Hermes application. The normalized v2 record therefore
+describe the measured Agent application. The normalized v2 record therefore
 keeps the requested `compilation_mode = "Full"`, records
 `reporting_package_compilation_mode = "run-from-apk"`, and independently
 records `target_compiler_filter = "speed"`. The latter comes from exact raw
@@ -972,14 +963,14 @@ ABIs, boot UUID, installed app/test APK hashes, and installed version. On the
 host it resolves exactly one matching live `qemu-system-*` process through
 Windows CIM and verifies its actual PID and raw command in memory. It persists
 only a deterministic public-safe canonical command plus public/raw SHA-256
-digests. Before launching Hermes it captures the target base APK's exact
+digests. Before launching Agent it captures the target base APK's exact
 package-manager Dexopt status and requires `speed`; after all measurement and
 identity checks it repeats the same raw command and rejects any drift. It also
 requires a successful `emulator -accel-check`, a hardware SurfaceFlinger renderer, and a
 headed command containing exactly one effective `-gpu host` and `-accel on`.
 
 For the host measurements it records effective `wm` size/density and cold/warm
-`am start -W` timings. The warm lane captures the Hermes PID after the cold
+`am start -W` timings. The warm lane captures the Agent PID after the cold
 launch, sends `KEYCODE_BACK`, proves that the same nonblank process PID remains,
 and only then relaunches the activity; a killed or replaced process is rejected.
 If Android returns the transient `UNKNOWN` launch state with `TotalTime: 0`
@@ -994,7 +985,7 @@ Both the initial and final device identity require Android's system
 language/profile semantics header must agree. The collector also proves that
 `com.mobilefork.hermesagent/.MainActivity` is the single resumed activity
 after the warm launch, so an overlay, keyguard, or redirected activity cannot
-be reported as headed Hermes host evidence. It reads TOTAL PSS/RSS from
+be reported as headed Agent host evidence. It reads TOTAL PSS/RSS from
 `dumpsys meminfo`, requires the dump to identify that same warm PID, then
 rechecks the live PID, device, boot, both benchmark APKs, QEMU command, and
 source after measurement.
@@ -1003,7 +994,7 @@ The collector never creates a frame claim from host gestures or shell renderer
 counters. It strictly parses the already completed AndroidX report, requires
 five to twenty iterations and one nonempty trace per iteration, recomputes the
 pooled AndroidX percentiles from the raw sample arrays, and enforces at least
-100 pooled FrameTiming samples, at least 100 pooled Hermes Perfetto surface
+100 pooled FrameTiming samples, at least 100 pooled Agent Perfetto surface
 tokens, and the 10 percent pooled `App Deadline Missed`-or-`Dropped Frame`
 controlled-AVD budget.
 Positive `frameOverrunMs` count and percentage remain bound diagnostics without
@@ -1039,7 +1030,7 @@ $tag = 'v0.13.155'
 python scripts/android_release_evidence.py create --tag $tag
 git add "android/release-evidence/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
-git tag -a $tag -m "Hermes Agent Fork $tag"
+git tag -a $tag -m "Agent $tag"
 python scripts/android_release_evidence.py verify --tag $tag --require-tag-ref
 ```
 
@@ -1087,7 +1078,7 @@ control platform-owned dialogs such as the document picker.
 - Reduce context length and choose CPU if the vendor GPU/OpenCL path fails.
 - Try a smaller model if current available memory is below the preflight
   estimate. Total installed RAM is not the same as memory available now.
-- After a native or low-memory termination, force stop and reopen Hermes, then inspect the
+- After a native or low-memory termination, force stop and reopen Agent, then inspect the
   recovered prior-exit diagnostic.
 - For Gemma 4, `Auto` speculative decoding is enabled only when the LiteRT-LM
   capabilities probe explicitly advertises support. A filename containing
@@ -1097,21 +1088,21 @@ control platform-owned dialogs such as the document picker.
   canary run inside one shared 300-second monotonic startup budget. An ordinary
   failure which safely returns may continue only after bounded candidate
   cleanup. A deadline or caller interruption aborts the whole fallback chain;
-  Hermes will not create another native engine until the abandoned worker exits
+  Agent will not create another native engine until the abandoned worker exits
   and cleanup succeeds. Replacing an existing engine likewise uses a bounded
   shutdown wait and never overlaps the replacement with an old native close.
   Each real chat completion has the same ownership boundary: the native worker
   creates, uses, cancels, and closes its `Conversation`. If vendor JNI ignores
   interruption, the HTTP/UI wait returns a bounded error, `/health` reports
-  `generation_state=running_or_unwinding`, and Hermes rejects another prompt or
+  `generation_state=running_or_unwinding`, and Agent rejects another prompt or
   backend switch instead of overlapping native work. A cleanup failure changes
   that state to `restart_required`; the runtime is not reported ready again.
   Force stop and reopen the app if a vendor JNI call or cleanup never returns,
-  or if Hermes reports that cleanup failed and a restart is required.
+  or if Agent reports that cleanup failed and a restart is required.
 
 ### A GGUF server is "ready" but chat does not answer
 
-Hermes requires both the llama.cpp model endpoint and a real completion canary.
+Agent requires both the llama.cpp model endpoint and a real completion canary.
 Check the reported GGUF architecture/chat-template error, process exit code,
 and server log tail. Do not treat a successful `/v1/models` request alone as
 proof that the model can generate text.
@@ -1134,19 +1125,19 @@ Exit code 126 means Android found the target but could not execute it. Capture
 the Device/Terminal diagnostics, including Android version, device model,
 selected Linux mode, command, executable path, mount/path classification, and
 the final log lines. Ordinary storage permission prompts cannot make a binary
-on a `noexec` mount executable; Hermes must route commands through its internal
+on a `noexec` mount executable; Agent must route commands through its internal
 executable runtime.
 
 The embedded Android terminal accepts bounded foreground commands only.
 `background=true` and shell-detached daemons are rejected: Android cannot
 reliably prove ownership of every reparented same-UID descendant, so accepting
 them would let old tool work overlap a backend stop or app-runtime restart. Use
-a native Hermes automation for persistent Android work.
+a native Agent automation for persistent Android work.
 
 ### Tools are described instead of executed
 
 Ask in ordinary language: `What time is it?` or `Run a command to tell me what
-time it is.` Hermes uses a narrow, read-only built-in route to execute `date`
+time it is.` Agent uses a narrow, read-only built-in route to execute `date`
 before the configured local or remote endpoint, so no tool name or
 model-generated function call is required. `Check my device status` similarly
 selects native device diagnostics. Confirm the visible tool result or event;

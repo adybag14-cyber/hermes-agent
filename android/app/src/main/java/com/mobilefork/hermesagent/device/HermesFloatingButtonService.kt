@@ -80,7 +80,7 @@ class HermesFloatingButtonService : Service() {
 
     private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_nav_hermes)
+            .setSmallIcon(R.drawable.ic_nav_agent)
             .setContentTitle(getString(R.string.hermes_floating_button_title))
             .setContentText(getString(R.string.hermes_floating_button_notification))
             .setContentIntent(openAppPendingIntent())
@@ -154,7 +154,7 @@ class HermesFloatingButtonService : Service() {
         var startX = 0
         var startY = 0
         return TextView(this).apply {
-            text = "H"
+            text = "A"
             textSize = 22f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(palette.onPrimary)

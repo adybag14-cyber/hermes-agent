@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class BootUiState(
-    val status: String = "Opening Hermes…",
+    val status: String = "Opening Agent…",
     val ready: Boolean = false,
     val probeResult: String = "",
     val baseUrl: String = "",
@@ -23,14 +23,14 @@ class BootViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<BootUiState> = _uiState.asStateFlow()
 
     fun refresh() {
-        _uiState.value = BootUiState(status = "Opening Hermes…")
+        _uiState.value = BootUiState(status = "Opening Agent…")
         val startupDelayMillis = if (firstRefresh) FIRST_SHELL_REFRESH_DELAY_MS else 0L
         firstRefresh = false
         viewModelScope.launch {
             if (startupDelayMillis > 0L) {
                 delay(startupDelayMillis)
             }
-            _uiState.value = BootUiState(status = "Hermes shell ready", ready = true)
+            _uiState.value = BootUiState(status = "Agent shell ready", ready = true)
         }
     }
 

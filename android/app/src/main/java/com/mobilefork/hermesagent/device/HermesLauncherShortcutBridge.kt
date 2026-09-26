@@ -117,7 +117,7 @@ object HermesLauncherShortcutBridge {
             ?: return errorJson("Launcher shortcut manager is not available on this device")
         manager.removeDynamicShortcuts(listOf(shortcutId))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1) {
-            runCatching { manager.disableShortcuts(listOf(shortcutId), "Hermes automation shortcut removed") }
+            runCatching { manager.disableShortcuts(listOf(shortcutId), "Agent automation shortcut removed") }
         }
         return JSONObject()
             .put("success", true)
@@ -173,9 +173,9 @@ object HermesLauncherShortcutBridge {
         longLabel: String,
     ): ShortcutInfo {
         return ShortcutInfo.Builder(context, shortcutId)
-            .setShortLabel(label.take(MAX_SHORTCUT_LABEL_CHARS).ifBlank { "Hermes task" })
+            .setShortLabel(label.take(MAX_SHORTCUT_LABEL_CHARS).ifBlank { "Agent task" })
             .setLongLabel(longLabel.take(MAX_SHORTCUT_LONG_LABEL_CHARS).ifBlank { label.take(MAX_SHORTCUT_LONG_LABEL_CHARS) })
-            .setIcon(Icon.createWithResource(context, R.drawable.ic_nav_hermes))
+            .setIcon(Icon.createWithResource(context, R.drawable.ic_nav_agent))
             .setIntent(shortcutIntent(context, automationId))
             .build()
     }

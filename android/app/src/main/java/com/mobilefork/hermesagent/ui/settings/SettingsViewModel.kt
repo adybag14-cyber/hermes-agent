@@ -1743,7 +1743,7 @@ internal fun llamaCppAdvancedValidationKey(
 internal fun settingsSaveUnsafeTransitionMessage(status: LocalBackendStatus): String? {
     if (!status.requiresAppRestart) return null
     return status.statusMessage.ifBlank {
-        "The previous local runtime did not stop safely. Force stop and reopen Hermes before switching providers."
+        "The previous local runtime did not stop safely. Force stop and reopen Agent before switching providers."
     }
 }
 
@@ -1772,7 +1772,7 @@ internal fun settingsRuntimeTransitionFailureMessage(
         return runtimeState.error ?: "The selected local backend was not published as ready."
     }
     if (remoteRuntimeRequired && backendKind == BackendKind.NONE && !offlineAirplaneMode && !runtimeState.started) {
-        return runtimeState.error ?: "The remote Hermes runtime did not start."
+        return runtimeState.error ?: "The remote Agent runtime did not start."
     }
     return null
 }
@@ -1791,7 +1791,7 @@ data class AppearanceThemePreset(
 val appearanceThemePresets = listOf(
     AppearanceThemePreset(
         id = "hermes",
-        label = "Hermes emerald",
+        label = "Agent emerald",
         primaryHex = AppSettings.DEFAULT_THEME_PRIMARY_HEX,
         secondaryHex = AppSettings.DEFAULT_THEME_SECONDARY_HEX,
         backgroundHex = AppSettings.DEFAULT_THEME_BACKGROUND_HEX,

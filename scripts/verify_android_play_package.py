@@ -14,6 +14,7 @@ import zipfile
 
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 PACKAGE = "com.mobilefork.hermesagent"
+DEBUG_TEST_ACTIVITY = "androidx.activity.ComponentActivity"
 ABIS = {"arm64-v8a": 183, "x86_64": 62}
 ALLOWED_PERMISSIONS = {
     "android.permission.INTERNET", "android.permission.RECORD_AUDIO", "android.permission.CAMERA",
@@ -28,7 +29,8 @@ ALLOWED_COMPONENTS = {
 }
 
 
-def inspect_manifest(xml: str, *, version_name: str | None = None, version_code: int | None = None) -> dict:
+def inspect_manifest(xml: str, *, version_name: str | None = None, version_code: int | None = None,
+                     allow_debug_test_host: bool = False) -> dict:
     root = ET.fromstring(xml)
     if root.get("package") != PACKAGE:
         raise ValueError("Wrong Play package identity")
@@ -46,13 +48,26 @@ def inspect_manifest(xml: str, *, version_name: str | None = None, version_code:
                     if node.get(ANDROID + "name") == PACKAGE + ".DISTRIBUTION"]
     if distribution != ["play"]:
         raise ValueError("Artifact is not explicitly identified as the Play edition")
+    debug_test_nodes = [node for node in app.findall("activity")
+                        if node.get(ANDROID + "name") == DEBUG_TEST_ACTIVITY]
+    if allow_debug_test_host:
+        if app.get(ANDROID + "debuggable") != "true":
+            raise ValueError("The test-host exception requires an explicitly debuggable APK")
+        if len(debug_test_nodes) != 1:
+            raise ValueError("Debug qualification requires exactly one Compose test host")
+        test_host = debug_test_nodes[0]
+        if test_host.attrib != {ANDROID + "name": DEBUG_TEST_ACTIVITY, ANDROID + "exported": "true"} or list(test_host):
+            raise ValueError("Unreviewed debug test host attributes or intent filters")
     for kind, allowed in ALLOWED_COMPONENTS.items():
+        if allow_debug_test_host and kind == "activity":
+            allowed = allowed | {DEBUG_TEST_ACTIVITY}
         observed = {node.get(ANDROID + "name", "") for node in app.findall(kind)}
         if not observed <= allowed:
             raise ValueError(f"Unreviewed Play {kind}: {sorted(observed - allowed)}")
     if app.find("activity-alias") is not None:
         raise ValueError("Unreviewed Play activity alias")
-    activities = app.findall("activity")
+    activities = [node for node in app.findall("activity")
+                  if not (allow_debug_test_host and node.get(ANDROID + "name") == DEBUG_TEST_ACTIVITY)]
     if len(activities) != 1 or activities[0].get(ANDROID + "exported") != "true":
         raise ValueError("Play must expose exactly its foreground launcher activity")
     for receiver in app.findall("receiver"):
@@ -68,7 +83,7 @@ def inspect_manifest(xml: str, *, version_name: str | None = None, version_code:
         raise ValueError("Wrong Play version code")
     return {"package": PACKAGE, "edition": "play", "version_name": actual_name,
             "version_code": actual_code, "target_sdk": int(sdk.get(ANDROID + "targetSdkVersion")),
-            "permissions": sorted(permissions)}
+            "permissions": sorted(permissions), "debug_test_host_allowed": allow_debug_test_host}
 
 
 def inspect_elf(payload: bytes, machine: int) -> list[int]:
@@ -148,12 +163,15 @@ def main() -> None:
     parser.add_argument("apk", type=Path)
     parser.add_argument("--apkanalyzer", required=True)
     parser.add_argument("--bundle", type=Path)
+    parser.add_argument("--allow-debug-test-host", action="store_true",
+                        help="Qualify a debuggable APK with exactly the reviewed Compose test activity; never valid for a release APK")
     parser.add_argument("--version-name")
     parser.add_argument("--version-code", type=int)
     args = parser.parse_args()
     xml = subprocess.run([args.apkanalyzer, "manifest", "print", str(args.apk.resolve())],
                          check=True, capture_output=True, text=True, encoding="utf-8", timeout=120).stdout
-    manifest = inspect_manifest(xml, version_name=args.version_name, version_code=args.version_code)
+    manifest = inspect_manifest(xml, version_name=args.version_name, version_code=args.version_code,
+                                allow_debug_test_host=args.allow_debug_test_host)
     payload = inspect_payload(args.apk, args.bundle)
     with args.apk.open("rb") as stream:
         apk_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()

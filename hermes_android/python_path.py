@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def prefer_hermes_package_root() -> None:
-    """Prefer Hermes' wheel root without replacing dependency modules.
+    """Prefer Agent' wheel root without replacing dependency modules.
 
     Shared helpers live in ``hermes_cli.shared_utils``, so a dependency's
     already-loaded top-level ``utils`` is unrelated and must stay untouched.

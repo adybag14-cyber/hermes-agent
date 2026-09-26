@@ -74,7 +74,7 @@ private fun StartupFirstFrame(settings: AppSettings) {
                 contentAlignment = Alignment.Center,
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.hermes_agent_fork_logo),
+                    painter = painterResource(id = R.drawable.agent_logo),
                     contentDescription = null,
                     modifier = Modifier.size(88.dp),
                 )

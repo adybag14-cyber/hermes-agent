@@ -5,7 +5,7 @@ import subprocess
 import sys
 from mcp.server import MCPServer
 
-server = MCPServer("Hermes Android lifecycle fixture", log_level="ERROR")
+server = MCPServer("Agent Android lifecycle fixture", log_level="ERROR")
 
 
 @server.tool()

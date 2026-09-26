@@ -1,0 +1,40 @@
+{
+  "agent-fdroid-checker-20260925": {
+    "container_id": "40dbd88eb45310adff6f943439c3f061cc1e3b112cbd87c4ce0548375789261b",
+    "image_id": "sha256:729e6bb4d7912814560263b65ad8721795aa23cf10e2afe5be20feaf09ad80c4",
+    "image_reference": "registry.gitlab.com/fdroid/fdroidserver@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8",
+    "memory_limit": 8589934592,
+    "nano_cpus": 12000000000,
+    "mounts": [
+      {
+        "name": "hermes-v157-sdk-candidate-20260909-work",
+        "destination": "/work",
+        "read_write": true
+      }
+    ]
+  },
+  "hermes-v157-sdk-candidate-20260909": {
+    "container_id": "a3abcb0d64424d92fdce8d9d4c9df6a26b716370513be29ce33a3961885a4d2f",
+    "image_id": "sha256:be32fe4bccf8423ba65be7945f23becf50c36e314ff4c1d878d9210ab556d09f",
+    "image_reference": "registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9bae53bb4ddbf8fa5bb7385bf2e62e7c6318f99ab0d25b2a551ad38abb528068",
+    "memory_limit": 10737418240,
+    "nano_cpus": 12000000000,
+    "mounts": [
+      {
+        "name": "hermes-v157-sdk-candidate-20260909-gradle",
+        "destination": "/home/vagrant/.gradle",
+        "read_write": true
+      },
+      {
+        "name": "hermes-v156-final-candidate-bc123-20260908-gradle",
+        "destination": "/seed-gradle",
+        "read_write": false
+      },
+      {
+        "name": "hermes-v157-sdk-candidate-20260909-work",
+        "destination": "/work",
+        "read_write": true
+      }
+    ]
+  }
+}

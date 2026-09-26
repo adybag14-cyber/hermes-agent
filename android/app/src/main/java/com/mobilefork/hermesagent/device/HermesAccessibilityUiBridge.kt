@@ -46,7 +46,7 @@ object HermesAccessibilityUiBridge {
     fun snapshotJson(limit: Int): String {
         return runCatching {
             val service = HermesAccessibilityController.currentService()
-                ?: return errorJson("Hermes accessibility service is not connected")
+                ?: return errorJson("Agent accessibility service is not connected")
             val root = service.rootInActiveWindow
                 ?: return errorJson("No active accessibility window is available")
             val cappedLimit = limit.coerceIn(1, MAX_LIMIT)
@@ -92,7 +92,7 @@ object HermesAccessibilityUiBridge {
             return errorJson("Android visual screenshot capture requires API 30 or newer")
         }
         val service = HermesAccessibilityController.currentService()
-            ?: return errorJson("Hermes accessibility service is not connected")
+            ?: return errorJson("Agent accessibility service is not connected")
         val resolvedMaxEdge = (maxImageEdgePx.takeIf { it > 0 } ?: DEFAULT_SCREENSHOT_MAX_EDGE_PX)
             .coerceIn(MIN_SCREENSHOT_MAX_EDGE_PX, MAX_SCREENSHOT_MAX_EDGE_PX)
         val executor = Executors.newSingleThreadExecutor()
@@ -174,7 +174,7 @@ object HermesAccessibilityUiBridge {
     ): String {
         return runCatching {
             val service = HermesAccessibilityController.currentService()
-                ?: return errorJson("Hermes accessibility service is not connected")
+                ?: return errorJson("Agent accessibility service is not connected")
             val root = service.rootInActiveWindow
                 ?: return errorJson("No active accessibility window is available")
             val nodes = flattenNodes(root, MAX_LIMIT)
@@ -246,7 +246,7 @@ object HermesAccessibilityUiBridge {
     ): String {
         return runCatching {
             if (!HermesAccessibilityController.isServiceConnected()) {
-                return errorJson("Hermes accessibility service is not connected")
+                return errorJson("Agent accessibility service is not connected")
             }
             val metrics = HermesAccessibilityController.screenMetrics()
                 ?: return errorJson("Screen metrics are not available")
@@ -381,7 +381,7 @@ object HermesAccessibilityUiBridge {
     ): String {
         return runCatching {
             if (!HermesAccessibilityController.isServiceConnected()) {
-                return errorJson("Hermes accessibility service is not connected")
+                return errorJson("Agent accessibility service is not connected")
             }
             val metrics = HermesAccessibilityController.screenMetrics()
                 ?: return errorJson("Screen metrics are not available")
@@ -492,7 +492,7 @@ object HermesAccessibilityUiBridge {
     ): String {
         return runCatching {
             val service = HermesAccessibilityController.currentService()
-                ?: return errorJson("Hermes accessibility service is not connected")
+                ?: return errorJson("Agent accessibility service is not connected")
             val root = service.rootInActiveWindow
                 ?: return errorJson("No active accessibility window is available")
             val nodes = flattenNodes(root, MAX_LIMIT)
@@ -584,7 +584,7 @@ object HermesAccessibilityUiBridge {
                 if (success) {
                     "Performed Android global action: $normalizedAction"
                 } else {
-                    "Hermes accessibility service is not connected or Android rejected global action: $normalizedAction"
+                    "Agent accessibility service is not connected or Android rejected global action: $normalizedAction"
                 },
             )
             .toString()
@@ -793,7 +793,7 @@ object HermesAccessibilityUiBridge {
                         cancelledValue = { false },
                         publication = {
                             if (!dir.isDirectory && !dir.mkdirs()) {
-                                throw IOException("Unable to create Hermes screenshot directory")
+                                throw IOException("Unable to create Agent screenshot directory")
                             }
                             replaceStagedFileAtCommit(staged, file)
                             true
@@ -838,7 +838,7 @@ object HermesAccessibilityUiBridge {
                 .put("max_image_edge_px", maxImageEdgePx)
                 .put(
                     "message",
-                    "Captured an Android visual screenshot through the Hermes accessibility service.",
+                    "Captured an Android visual screenshot through the Agent accessibility service.",
                 )
             if (includeBase64) {
                 output.put("image_base64", Base64.encodeToString(pngBytes, Base64.NO_WRAP))

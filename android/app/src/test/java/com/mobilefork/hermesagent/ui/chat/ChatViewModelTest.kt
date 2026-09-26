@@ -60,7 +60,7 @@ class ChatViewModelTest {
                 ChatUiMessage("assistant", "assistant", "", 3L),
             ),
             isSending = true,
-            status = "Starting Hermes runtime…",
+            status = "Starting Agent runtime…",
         )
         state.set(admitted)
         releasePublication.countDown()
@@ -674,7 +674,7 @@ class ChatViewModelTest {
     fun zeroDeltaSseCompletionAtomicallyCommitsLocalizedFailureTerminal() {
         val coordinator = ChatSendRequestCoordinator()
         val request = coordinator.begin("session-zero-delta", "assistant-zero-delta") {}!!
-        val localizedFailure = "Hermes could not complete this reply."
+        val localizedFailure = "Agent could not complete this reply."
         var storedContent = ""
         var retainedAsAssistantAnswer = true
 
@@ -1024,7 +1024,7 @@ class ChatViewModelTest {
 
     @Test
     fun allFeaturesPromptRoutesDirectlyToNativeSelfTestDiagnostics() {
-        val arguments = directNativeDiagnosticArgumentsForPrompt("Run a full all features test for Hermes native tools")
+        val arguments = directNativeDiagnosticArgumentsForPrompt("Run a full all features test for Agent native tools")
 
         requireNotNull(arguments)
         assertEquals("agent_native_tool_self_test_report", arguments.getString("action"))
@@ -1144,10 +1144,10 @@ class ChatViewModelTest {
     @Test
     fun directNativeDiagnosticsReplyPrefersBridgeOutputText() {
         val reply = formatDirectNativeDiagnosticsReply(
-            """{"success":true,"output":"Hermes native tool self-test\nterminal_tool: ready"}""",
+            """{"success":true,"output":"Agent native tool self-test\nterminal_tool: ready"}""",
         )
 
-        assertEquals("Hermes native tool self-test\nterminal_tool: ready", reply)
+        assertEquals("Agent native tool self-test\nterminal_tool: ready", reply)
     }
 
     @Test

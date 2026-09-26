@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.mobilefork.hermesagent/.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.mobilefork.hermesagent/.MainActivity
+TotalTime: 1898
+WaitTime: 1899
+Complete

@@ -48,8 +48,8 @@ if str(SCRIPT_DIR) not in sys.path:
 
 BINDING_SCHEMA = "hermes-android-fdroid-source-binding-v1"
 BINDING_FILE_NAME = "hermes-android-fdroid-source-binding.properties"
-AUTUPDATE_VERSION_NAME = "0.13.157"
-AUTUPDATE_VERSION_CODE = "145790"
+AUTUPDATE_VERSION_NAME = "0.13.158"
+AUTUPDATE_VERSION_CODE = "145890"
 EXPECTED_REMOTE_REPOSITORY = "https://github.com/adybag14-cyber/hermes-agent.git"
 GRADLE_PATH = PurePosixPath("android/app/build.gradle.kts")
 SOURCE_DIGEST_EXCLUDED_PREFIX = PurePosixPath("android/release-evidence")

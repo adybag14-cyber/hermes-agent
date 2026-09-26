@@ -15,7 +15,7 @@
         android:layout_height="36dp"
         android:layout_marginEnd="10dp"
         android:contentDescription="@string/hermes_automation_widget_label"
-        android:src="@drawable/ic_nav_hermes"
+        android:src="@drawable/ic_nav_agent"
         android:tint="@color/hermes_primary" />
 
     <LinearLayout

@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 
 package com.mobilefork.hermesagent.ui.settings
 
@@ -16,6 +16,13 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import com.mobilefork.hermesagent.ui.i18n.modelSettingsText
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
@@ -29,12 +36,14 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,6 +68,7 @@ import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.i18n.hermesStringsFor
 import com.mobilefork.hermesagent.ui.i18n.llamaCppAdvancedText
 import com.mobilefork.hermesagent.ui.shell.ShellActionItem
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 enum class SettingsPage(val route: String, val label: String) {
@@ -89,8 +99,13 @@ fun SettingsScreen(
         uiState.provider,
         selectedPreset?.label ?: uiState.provider,
     )
-    var selectedPageName by rememberSaveable { mutableStateOf(initialPage.name) }
+    var selectedPageName by rememberSaveable(initialPage) { mutableStateOf(initialPage.name) }
     val selectedPage = SettingsPage.entries.firstOrNull { it.name == selectedPageName } ?: SettingsPage.Overview
+
+    val listState = rememberLazyListState()
+    val listScope = rememberCoroutineScope()
+    // Selecting a settings destination always exposes its first action, not the old scroll offset.
+    LaunchedEffect(selectedPage) { listState.scrollToItem(0) }
 
     SideEffect {
         onContextActionsChanged(emptyList())
@@ -101,6 +116,7 @@ fun SettingsScreen(
         viewModel.refreshAgentEndpoint(forceStart = false)
     }
 
+    CompositionLocalProvider(LocalHermesStrings provides strings) {
     MaterialTheme {
         Surface(
             modifier = modifier.fillMaxSize(),
@@ -108,23 +124,33 @@ fun SettingsScreen(
             contentColor = MaterialTheme.colorScheme.onBackground,
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                LazyColumn(
+                // Keep navigation outside the scroll viewport: a sticky overlay can cover
+                // a control brought into view by keyboard, accessibility, or test scrolling.
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
                         .widthIn(max = 920.dp)
+                        .fillMaxSize()
                         .imePadding()
-                        .testTag("HermesSettingsContentList")
                         .padding(horizontal = 16.dp, vertical = 12.dp),
-                    contentPadding = PaddingValues(bottom = extraBottomSpacing),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    item {
-                        SettingsPageNavigation(
-                            selectedPage = selectedPage,
-                            onSelectPage = { selectedPageName = it.name },
-                            strings = strings,
-                        )
-                    }
+                    SettingsPageNavigation(
+                        selectedPage = selectedPage,
+                        onSelectPage = { page ->
+                            selectedPageName = page.name
+                            listScope.launch { listState.scrollToItem(0) }
+                        },
+                        strings = strings,
+                    )
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .testTag("HermesSettingsContentList"),
+                        contentPadding = PaddingValues(bottom = extraBottomSpacing),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                     if (selectedPage == SettingsPage.Privacy) {
                     item {
                         com.mobilefork.hermesagent.ui.privacy.PrivacySafetyCard(strings)
@@ -185,59 +211,7 @@ fun SettingsScreen(
                     }
                     }
                     if (selectedPage == SettingsPage.Models) {
-                    item {
-                        OnDeviceInferenceCard(
-                            onDeviceBackend = uiState.onDeviceBackend,
-                            speculativeDecodingMode = uiState.liteRtLmSpeculativeDecodingMode,
-                            onSelectBackend = viewModel::updateOnDeviceBackend,
-                            onSelectSpeculativeDecodingMode = viewModel::updateLiteRtLmSpeculativeDecodingMode,
-                            onStartRuntime = { runtimeFlavor ->
-                                viewModel.startLocalRuntimeForFlavor(runtimeFlavor)
-                            },
-                            summary = uiState.onDeviceSummary,
-                            strings = strings,
-                        )
-                    }
-                    item {
-                        LlamaCppAdvancedCard(
-                            runtimeLane = uiState.llamaCppRuntimeLane,
-                            cacheTypeK = uiState.llamaCppCacheTypeK,
-                            cacheTypeV = uiState.llamaCppCacheTypeV,
-                            flashAttention = uiState.llamaCppFlashAttention,
-                            additionalArguments = uiState.llamaCppAdditionalArguments,
-                            onRuntimeLaneChange = viewModel::updateLlamaCppRuntimeLane,
-                            onCacheTypeKChange = viewModel::updateLlamaCppCacheTypeK,
-                            onCacheTypeVChange = viewModel::updateLlamaCppCacheTypeV,
-                            onFlashAttentionChange = viewModel::updateLlamaCppFlashAttention,
-                            onAdditionalArgumentsChange = viewModel::updateLlamaCppAdditionalArguments,
-                            onApplyAndRestart = viewModel::applyLlamaCppAdvancedSettings,
-                            onDangerousOneShotStart = viewModel::tryLlamaCppDespiteRamWarning,
-                            language = strings.language,
-                        )
-                    }
-                    item {
-                        ModelGenerationConfigCard(
-                            maxTokens = uiState.localModelMaxTokens,
-                            topK = uiState.localModelTopK,
-                            topP = uiState.localModelTopP,
-                            temperature = uiState.localModelTemperature,
-                            accelerator = uiState.localModelAccelerator,
-                            toolMode = uiState.localModelToolMode,
-                            apiGenerationKnobsEnabled = uiState.apiGenerationKnobsEnabled,
-                            customSystemPrompt = uiState.customSystemPrompt,
-                            onMaxTokensChange = viewModel::updateLocalModelMaxTokens,
-                            onTopKChange = viewModel::updateLocalModelTopK,
-                            onTopPChange = viewModel::updateLocalModelTopP,
-                            onTemperatureChange = viewModel::updateLocalModelTemperature,
-                            onAcceleratorChange = viewModel::updateLocalModelAccelerator,
-                            onToolModeChange = viewModel::updateLocalModelToolMode,
-                            onApiGenerationKnobsEnabledChange = viewModel::updateApiGenerationKnobsEnabled,
-                            onPromptChange = viewModel::updateCustomSystemPrompt,
-                            onSave = viewModel::saveModelGenerationConfig,
-                            onClearPrompt = viewModel::clearAgentPersona,
-                        )
-                    }
-                    item {
+                    item(key = "model-picker") {
                         LocalModelDownloadsSection(
                             dataSaverMode = uiState.dataSaverMode,
                             offlineAirplaneMode = uiState.offlineAirplaneMode,
@@ -248,6 +222,103 @@ fun SettingsScreen(
                             onCompletedDownloadReady = viewModel::startAcceptedLocalRuntimeHandoff,
                         )
                     }
+                    item(key = "model-provider") {
+                        SettingsDisclosure(
+                            sectionId = "ModelSettings-provider",
+                            title = modelSettingsText(strings.language, "provider"),
+                            summary = modelSettingsText(strings.language, "provider_help"),
+                        ) {
+                            RemoteFallbackCard(
+                                providerId = uiState.provider,
+                                providerLabel = selectedProviderLabel,
+                                baseUrl = uiState.baseUrl,
+                                model = uiState.model,
+                                apiKey = uiState.apiKey,
+                                status = uiState.status,
+                                onSelectProvider = viewModel::updateProvider,
+                                onBaseUrlChange = viewModel::updateBaseUrl,
+                                onModelChange = viewModel::updateModel,
+                                onApiKeyChange = viewModel::updateApiKey,
+                                onOpenProviderKeyPage = viewModel::openProviderKeyPage,
+                                onCopyProviderKeyPage = viewModel::copyProviderKeyPage,
+                                onCheckProviderKeyPage = viewModel::checkProviderKeyPage,
+                                onImportProviderCredential = viewModel::importSavedProviderCredential,
+                                onSave = viewModel::save,
+                                strings = strings,
+                            )
+                        }
+                    }
+                    item(key = "model-generation") {
+                        SettingsDisclosure(
+                            sectionId = "ModelSettings-generation",
+                            title = modelSettingsText(strings.language, "generation"),
+                            summary = modelSettingsText(strings.language, "generation_help"),
+                        ) {
+                            ModelGenerationConfigCard(
+                                maxTokens = uiState.localModelMaxTokens,
+                                topK = uiState.localModelTopK,
+                                topP = uiState.localModelTopP,
+                                temperature = uiState.localModelTemperature,
+                                accelerator = uiState.localModelAccelerator,
+                                toolMode = uiState.localModelToolMode,
+                                apiGenerationKnobsEnabled = uiState.apiGenerationKnobsEnabled,
+                                customSystemPrompt = uiState.customSystemPrompt,
+                                onMaxTokensChange = viewModel::updateLocalModelMaxTokens,
+                                onTopKChange = viewModel::updateLocalModelTopK,
+                                onTopPChange = viewModel::updateLocalModelTopP,
+                                onTemperatureChange = viewModel::updateLocalModelTemperature,
+                                onAcceleratorChange = viewModel::updateLocalModelAccelerator,
+                                onToolModeChange = viewModel::updateLocalModelToolMode,
+                                onApiGenerationKnobsEnabledChange = viewModel::updateApiGenerationKnobsEnabled,
+                                onPromptChange = viewModel::updateCustomSystemPrompt,
+                                onSave = viewModel::saveModelGenerationConfig,
+                                onClearPrompt = viewModel::clearAgentPersona,
+                            )
+                        }
+                    }
+                    item(key = "model-runtime") {
+                        SettingsDisclosure(
+                            sectionId = "ModelSettings-runtime",
+                            title = modelSettingsText(strings.language, "runtime"),
+                            summary = modelSettingsText(strings.language, "runtime_help"),
+                        ) {
+                            OnDeviceInferenceCard(
+                                onDeviceBackend = uiState.onDeviceBackend,
+                                speculativeDecodingMode = uiState.liteRtLmSpeculativeDecodingMode,
+                                onSelectBackend = viewModel::updateOnDeviceBackend,
+                                onSelectSpeculativeDecodingMode = viewModel::updateLiteRtLmSpeculativeDecodingMode,
+                                onStartRuntime = { runtimeFlavor ->
+                                    viewModel.startLocalRuntimeForFlavor(runtimeFlavor)
+                                },
+                                summary = uiState.onDeviceSummary,
+                                strings = strings,
+                            )
+                        }
+                    }
+                    item(key = "model-advanced") {
+                        SettingsDisclosure(
+                            sectionId = "ModelSettings-advanced",
+                            title = modelSettingsText(strings.language, "advanced"),
+                            summary = modelSettingsText(strings.language, "advanced_help"),
+                        ) {
+                            LlamaCppAdvancedCard(
+                                runtimeLane = uiState.llamaCppRuntimeLane,
+                                cacheTypeK = uiState.llamaCppCacheTypeK,
+                                cacheTypeV = uiState.llamaCppCacheTypeV,
+                                flashAttention = uiState.llamaCppFlashAttention,
+                                additionalArguments = uiState.llamaCppAdditionalArguments,
+                                onRuntimeLaneChange = viewModel::updateLlamaCppRuntimeLane,
+                                onCacheTypeKChange = viewModel::updateLlamaCppCacheTypeK,
+                                onCacheTypeVChange = viewModel::updateLlamaCppCacheTypeV,
+                                onFlashAttentionChange = viewModel::updateLlamaCppFlashAttention,
+                                onAdditionalArgumentsChange = viewModel::updateLlamaCppAdditionalArguments,
+                                onApplyAndRestart = viewModel::applyLlamaCppAdvancedSettings,
+                                onDangerousOneShotStart = viewModel::tryLlamaCppDespiteRamWarning,
+                                language = strings.language,
+                            )
+                        }
+                    }
+
                     }
                     if (selectedPage == SettingsPage.Overview) {
                     item {
@@ -259,27 +330,13 @@ fun SettingsScreen(
                     }
                     }
                     if (selectedPage == SettingsPage.Models) {
-                    item {
-                        RemoteFallbackCard(
-                            providerId = uiState.provider,
-                            providerLabel = selectedProviderLabel,
-                            baseUrl = uiState.baseUrl,
-                            model = uiState.model,
-                            apiKey = uiState.apiKey,
-                            status = uiState.status,
-                            onSelectProvider = viewModel::updateProvider,
-                            onBaseUrlChange = viewModel::updateBaseUrl,
-                            onModelChange = viewModel::updateModel,
-                            onApiKeyChange = viewModel::updateApiKey,
-                            onOpenProviderKeyPage = viewModel::openProviderKeyPage,
-                            onCopyProviderKeyPage = viewModel::copyProviderKeyPage,
-                            onCheckProviderKeyPage = viewModel::checkProviderKeyPage,
-                            onImportProviderCredential = viewModel::importSavedProviderCredential,
-                            onSave = viewModel::save,
-                            strings = strings,
-                        )
-                    }
+
                     if (!com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) item {
+                        SettingsDisclosure(
+                            sectionId = "ModelSettings-sharing",
+                            title = modelSettingsText(strings.language, "sharing"),
+                            summary = modelSettingsText(strings.language, "sharing_help"),
+                        ) {
                         AgentEndpointCard(
                             loopbackUrl = uiState.agentLoopbackUrl,
                             lanUrl = uiState.agentLanUrl,
@@ -289,6 +346,7 @@ fun SettingsScreen(
                             onRefresh = { viewModel.refreshAgentEndpoint(forceStart = true) },
                             strings = strings,
                         )
+                        }
                     }
                     }
                     if (selectedPage == SettingsPage.Tools && !com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) {
@@ -307,12 +365,14 @@ fun SettingsScreen(
                     }
                     if (uiState.status.isNotBlank()) {
                         item {
-                            Text(uiState.status)
+                            Text(uiState.status, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
                         }
+                    }
                     }
                 }
             }
         }
+    }
     }
 }
 
@@ -658,15 +718,22 @@ private fun SettingsPageNavigation(
                 }.forEach { page ->
                     Button(
                         onClick = { onSelectPage(page) },
-                        modifier = Modifier.testTag("HermesSettingsPage_${page.name}"),
-                        enabled = page != selectedPage,
+                        modifier = Modifier
+                            .testTag("HermesSettingsPage_${page.name}")
+                            .heightIn(min = 48.dp)
+                            .semantics { selected = page == selectedPage; role = Role.Tab },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (page == selectedPage) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (page == selectedPage) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
                         Text(strings.settingsPageLabel(page.name), style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
-            Text(selectedPage.route, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
@@ -1135,20 +1202,20 @@ internal fun settingsGenerationText(language: AppLanguage, key: String): String 
             AppLanguage.ENGLISH -> "Accelerator"
         }
         "accelerator_description" -> when (language) {
-            AppLanguage.CHINESE -> "自动会使用 Hermes 运行时默认值。可选择经过实现的 CPU 或 GPU 路径；Hermes 尚未实现独立 NPU 后端。"
-            AppLanguage.SPANISH -> "Auto mantiene el valor predeterminado. Elige las rutas CPU o GPU implementadas; Hermes aún no implementa un backend NPU independiente."
-            AppLanguage.GERMAN -> "Auto nutzt den Runtime-Standard. Wähle die implementierten CPU- oder GPU-Pfade; Hermes hat noch kein separates NPU-Backend."
-            AppLanguage.PORTUGUESE -> "Auto mantém o padrão do runtime. Escolha as rotas CPU ou GPU implementadas; o Hermes ainda não implementa um backend NPU separado."
-            AppLanguage.FRENCH -> "Auto garde le réglage du runtime. Choisissez les chemins CPU ou GPU implémentés ; Hermes n’a pas encore de backend NPU distinct."
-            AppLanguage.ENGLISH -> "Auto keeps the runtime default. Choose the implemented CPU or GPU paths; Hermes does not yet implement a separate NPU backend."
+            AppLanguage.CHINESE -> "自动会使用 Agent 运行时默认值。可选择经过实现的 CPU 或 GPU 路径；Agent 尚未实现独立 NPU 后端。"
+            AppLanguage.SPANISH -> "Auto mantiene el valor predeterminado. Elige las rutas CPU o GPU implementadas; Agent aún no implementa un backend NPU independiente."
+            AppLanguage.GERMAN -> "Auto nutzt den Runtime-Standard. Wähle die implementierten CPU- oder GPU-Pfade; Agent hat noch kein separates NPU-Backend."
+            AppLanguage.PORTUGUESE -> "Auto mantém o padrão do runtime. Escolha as rotas CPU ou GPU implementadas; o Agent ainda não implementa um backend NPU separado."
+            AppLanguage.FRENCH -> "Auto garde le réglage du runtime. Choisissez les chemins CPU ou GPU implémentés ; Agent n’a pas encore de backend NPU distinct."
+            AppLanguage.ENGLISH -> "Auto keeps the runtime default. Choose the implemented CPU or GPU paths; Agent does not yet implement a separate NPU backend."
         }
         "system_prompt_placeholder" -> when (language) {
-            AppLanguage.CHINESE -> "Hermes 回复的可选指令。"
-            AppLanguage.SPANISH -> "Instrucciones opcionales para las respuestas de Hermes."
-            AppLanguage.GERMAN -> "Optionale Anweisungen für Hermes-Antworten."
-            AppLanguage.PORTUGUESE -> "Instruções opcionais para respostas do Hermes."
-            AppLanguage.FRENCH -> "Instructions facultatives pour les réponses de Hermes."
-            AppLanguage.ENGLISH -> "Optional instructions for Hermes replies."
+            AppLanguage.CHINESE -> "Agent 回复的可选指令。"
+            AppLanguage.SPANISH -> "Instrucciones opcionales para las respuestas de Agent."
+            AppLanguage.GERMAN -> "Optionale Anweisungen für Agent-Antworten."
+            AppLanguage.PORTUGUESE -> "Instruções opcionais para respostas do Agent."
+            AppLanguage.FRENCH -> "Instructions facultatives pour les réponses de Agent."
+            AppLanguage.ENGLISH -> "Optional instructions for Agent replies."
         }
         "clear_prompt" -> when (language) {
             AppLanguage.CHINESE -> "清空提示词"
@@ -1334,7 +1401,8 @@ private fun AppearanceCard(
                     Text(strings.keywordHighlightingTitle(), style = MaterialTheme.typography.titleSmall)
                     Text(strings.keywordHighlightingDescription(), style = MaterialTheme.typography.bodySmall)
                 }
-                Switch(checked = keywordHighlightingEnabled, onCheckedChange = onKeywordHighlightingChange)
+                Switch(checked = keywordHighlightingEnabled, onCheckedChange = onKeywordHighlightingChange,
+                    modifier = Modifier.semantics { contentDescription = strings.keywordHighlightingTitle() })
             }
             Text(
                 strings.uiFontSizeLabel(uiFontScale),
@@ -1345,7 +1413,8 @@ private fun AppearanceCard(
                 value = uiFontScale,
                 onValueChange = onUiFontScaleChange,
                 valueRange = AppSettings.MIN_UI_FONT_SCALE..AppSettings.MAX_UI_FONT_SCALE,
-                modifier = Modifier.fillMaxWidth().testTag("UiFontScaleSlider"),
+                modifier = Modifier.fillMaxWidth().testTag("UiFontScaleSlider")
+                    .semantics { contentDescription = strings.uiFontSizeLabel(uiFontScale) },
             )
             Text(strings.colourPresetsTitle(), style = MaterialTheme.typography.titleSmall)
             FlowRow(
@@ -1457,7 +1526,8 @@ private fun OfflineAirplaneCard(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                Switch(checked = enabled, onCheckedChange = onChange)
+                Switch(checked = enabled, onCheckedChange = onChange,
+                    modifier = Modifier.semantics { contentDescription = strings.offlineAirplaneModeTitle() })
             }
             Button(onClick = { onChange(!enabled) }) {
                 Text(strings.offlineAirplaneToggleLabel(enabled))

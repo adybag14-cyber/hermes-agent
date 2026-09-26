@@ -339,13 +339,13 @@ fun ChatScreen(
                 ShellActionItem(
                     label = strings.newChat.ifBlank { "New chat" },
                     description = strings.newChatActionDescription(),
-                    iconRes = R.drawable.ic_nav_hermes,
+                    iconRes = R.drawable.ic_nav_agent,
                     onClick = viewModel::startNewConversation,
                 ),
                 ShellActionItem(
                     label = strings.backToChat.ifBlank { "Back to chat" },
                     description = strings.backToChatActionDescription(),
-                    iconRes = R.drawable.ic_nav_hermes,
+                    iconRes = R.drawable.ic_nav_agent,
                     onClick = viewModel::hideHistory,
                 ),
             )
@@ -360,7 +360,7 @@ fun ChatScreen(
                 ShellActionItem(
                     label = strings.newChat.ifBlank { "New chat" },
                     description = strings.newChatInlineActionDescription(),
-                    iconRes = R.drawable.ic_nav_hermes,
+                    iconRes = R.drawable.ic_nav_agent,
                     onClick = viewModel::startNewConversation,
                 ),
                 ShellActionItem(
@@ -796,14 +796,14 @@ private fun ChatHeaderCard(
                             ChatHeaderDrawerButton(onOpenNavigationMenu = onOpenNavigationMenu)
                         }
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_nav_hermes),
+                            painter = painterResource(id = R.drawable.ic_nav_agent),
                             contentDescription = strings.sectionHermes,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp),
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = strings.chatTitle.ifBlank { "Hermes Chat" },
+                                text = strings.chatTitle.ifBlank { "Agent Chat" },
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -839,14 +839,14 @@ private fun ChatHeaderCard(
                         ChatHeaderDrawerButton(onOpenNavigationMenu = onOpenNavigationMenu)
                     }
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_nav_hermes),
+                        painter = painterResource(id = R.drawable.ic_nav_agent),
                         contentDescription = strings.sectionHermes,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp),
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = strings.chatTitle.ifBlank { "Hermes Chat" },
+                            text = strings.chatTitle.ifBlank { "Agent Chat" },
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -1069,7 +1069,7 @@ private fun EmptyChatHint(
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(
-                text = strings.welcomeToHermes.ifBlank { "Welcome to Hermes" },
+                text = strings.welcomeToHermes.ifBlank { "Welcome to Agent" },
                 style = MaterialTheme.typography.titleSmall,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -1159,7 +1159,7 @@ private fun ChatBubble(
     val containerColor = if (isUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val contentColor = if (isUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
     val strings = LocalHermesStrings.current
-    val roleLabel = if (isUser) strings.userRoleLabel() else "Hermes"
+    val roleLabel = if (isUser) strings.userRoleLabel() else "Agent"
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         val bubbleMaxWidth = if (maxWidth < 760.dp) maxWidth * 0.88f else 640.dp
         Row(
@@ -1345,7 +1345,7 @@ private fun CompactChatTurn(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = if (index == 0) "Hermes" else "",
+                            text = if (index == 0) "Agent" else "",
                             style = MaterialTheme.typography.labelLarge,
                             color = MaterialTheme.colorScheme.primary,
                         )
@@ -2447,7 +2447,7 @@ private fun ComposerInputField(
         shape = MaterialTheme.shapes.large,
         placeholder = {
             Text(
-                text = strings.messageHermes.ifBlank { "Message Hermes" },
+                text = strings.messageHermes.ifBlank { "Message Agent" },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

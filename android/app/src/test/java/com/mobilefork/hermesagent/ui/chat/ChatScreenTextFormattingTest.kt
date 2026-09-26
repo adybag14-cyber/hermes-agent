@@ -11,17 +11,17 @@ class ChatScreenTextFormattingTest {
     fun chatDisplayTextCleansMarkdownTablesAndEmphasis() {
         val rendered = sanitizeChatDisplayText(
             """
-            **Hermes self-test**
+            **Agent self-test**
             | Tool | Result | Detail |
             | --- | --- | --- |
             | terminal_tool | ready | bridge returned output |
             """.trimIndent(),
         )
 
-        assertTrue(rendered.contains("Hermes self-test"))
+        assertTrue(rendered.contains("Agent self-test"))
         assertTrue(rendered.contains("Tool  Result  Detail"))
         assertTrue(rendered.contains("terminal_tool  ready  bridge returned output"))
-        assertFalse(rendered.contains("**Hermes self-test**"))
+        assertFalse(rendered.contains("**Agent self-test**"))
         assertFalse(rendered.contains("| --- | --- | --- |"))
     }
 

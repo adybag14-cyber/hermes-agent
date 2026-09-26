@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 def boot_probe() -> str:
-    """Return a small JSON payload proving the embedded Python runtime can import Hermes code."""
+    """Return a small JSON payload proving the embedded Python runtime can import Agent code."""
     payload = {
         "status": "ok",
         "python_version": platform.python_version(),

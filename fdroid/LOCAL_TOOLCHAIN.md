@@ -18,17 +18,17 @@ fdroidserver revision used by the exact local build into
 git clone --depth=1 --branch master https://gitlab.com/fdroid/fdroiddata.git ~/fdroiddata-hermes
 python3 -m venv ~/.venvs/fdroidserver
 ~/.venvs/fdroidserver/bin/pip install \
-  'git+https://gitlab.com/fdroid/fdroidserver.git@4a8821a58659901c63315cb000b0e98525653bc5'
+  'git+https://gitlab.com/fdroid/fdroidserver.git@8f52ae3ce287bc28964db544b970b88dce9c38bf'
 cd ~/fdroiddata-hermes
 ~/.venvs/fdroidserver/bin/fdroid lint com.mobilefork.hermesagent
 ~/.venvs/fdroidserver/bin/fdroid checkupdates --auto --allow-dirty com.mobilefork.hermesagent
 ```
 
 Run that preview from a fresh clone of the live `fdroiddata` metadata after the
-GitHub tag exists. `--auto` must create the local 0.13.157/145790 build recipe
+GitHub tag exists. `--auto` must create the local 0.13.158/145890 build recipe
 and resolve its exact tag commit. The autoupdater copies the prior build recipe,
 so its output is not yet eligible for the pinned build. From the same WSL shell,
-render and verify the v0.13.157 source-binding fields from the committed Hermes
+render and verify the v0.13.158 source-binding fields from the committed Hermes
 template into that generated build:
 
 ```sh
@@ -46,7 +46,7 @@ git -C "$FDROIDDATA_ROOT" diff -- \
   metadata/com.mobilefork.hermesagent.yml
 ```
 
-The render transaction requires exactly one 0.13.157/145790 build, preserves
+The render transaction requires exactly one 0.13.158/145890 build, preserves
 the autoupdater-resolved full Git commit, every historical `Builds` entry, and
 all unrelated live metadata, and overlays the exact `sudo`, `ndk`, `gradle`,
 `gradleprops`, `scanignore`, and `prebuild` fields. It then verifies that
@@ -94,20 +94,20 @@ or `--skip-scan` is used.
 Use this reachable immutable buildserver image:
 
 ```text
-registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9bae53bb4ddbf8fa5bb7385bf2e62e7c6318f99ab0d25b2a551ad38abb528068
+registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8
 ```
 
 The image's OCI revision label and `/home/vagrant/buildserverid` identify
-`4a8821a58659901c63315cb000b0e98525653bc5`. Before any download, the helper
+`8f52ae3ce287bc28964db544b970b88dce9c38bf`. Before any download, the helper
 requires that exact buildserver ID and then downloads the matching
 `fdroidserver` source archive from this exact URL:
 
 ```text
-https://gitlab.com/fdroid/fdroidserver/-/archive/4a8821a58659901c63315cb000b0e98525653bc5/fdroidserver-4a8821a58659901c63315cb000b0e98525653bc5.tar.gz
+https://gitlab.com/fdroid/fdroidserver/-/archive/8f52ae3ce287bc28964db544b970b88dce9c38bf/fdroidserver-8f52ae3ce287bc28964db544b970b88dce9c38bf.tar.gz
 ```
 
-The stored archive is exactly 8,336,107 bytes with SHA-256
-`8b2f87ef6e278a49f70b98fe0ff007465524f41c15ba212f686f4239a7323909`.
+The stored archive is exactly 8,341,140 bytes with SHA-256
+`d69b5fae88d7e07e2d8a508637937a9ba49dc261c9fcc984f9236d981dbdedd9`.
 The helper downloads it to a bounded regular temporary file, verifies both
 stored-byte size and SHA-256 before extraction, and removes the file on success
 or failure. It checks out and verifies `gradlew-fdroid` at
@@ -223,7 +223,7 @@ docker run --name hermes-fdroid-build --memory 6g --cpus 12 `
   --mount "type=volume,source=hermes-fdroid-build,target=/home/vagrant/build" `
   --env HERMES_FDROID_TEMPLATE=/hermes-fdroid/com.mobilefork.hermesagent.yml.template `
   --env HERMES_SOURCE_BINDING_HELPER=/hermes-android-fdroid-source-binding.py `
-  registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9bae53bb4ddbf8fa5bb7385bf2e62e7c6318f99ab0d25b2a551ad38abb528068 `
+  registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8 `
   bash /hermes-fdroid/run-local-buildserver.sh
 ```
 
@@ -234,3 +234,24 @@ tracked update of the image digest, image/runtime revision, and helper pin; do
 not substitute a newer `FDROIDSERVER_COMMIT` at runtime. Inspect a failed named
 container before removing it so OOM termination is distinguishable from an
 application build error.
+
+## Candidate checker update (2026-09-25)
+
+The official 2026-09-22 buildserver and its matching fdroidserver source are
+updated together to revision `8f52ae3ce287bc28964db544b970b88dce9c38bf`.
+The source archive is independently size/hash locked above. `gradlew-fdroid`
+remains at its current upstream head `c7227d147483979bb5c408048cee3533a8814fb0`.
+Keep the older builder for already-published artifact comparisons; do not
+reinterpret a historical release's evidence with these newer tools.
+
+This checker refresh does not upgrade the app's Gradle/AGP/NDK/CMake/Python
+payload pins. Those pins form the already-validated Android source and ABI
+closure; a newer host checker is not a reason to replace them mid-comparison.
+The updater and candidate builds use the existing Docker infrastructure.
+
+An unpublished PR may be rehearsed with a separate, explicitly non-publishable
+metadata fixture pinned to its full commit and without `Binaries` or signing-key
+claims. That is a candidate build check, never updater discovery of the PR or
+reproduction of a public release. Preserve the real public updater output and
+its history separately. Terminal post-publication gates still require the
+public tag, allowed signer, untouched generated recipe and public APK match.

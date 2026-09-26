@@ -101,7 +101,7 @@ internal object OpenGuiSenseStatus {
         return when (channel) {
             "a11y" -> "Use android_ui_tool action=snapshot or selector actions; request visual_snapshot only when semantic state is insufficient."
             "gui" -> "Use android_ui_tool action=visual_snapshot before coordinate actions."
-            else -> "Use android_ui_tool action=open_accessibility_settings and ask the user to enable Hermes accessibility."
+            else -> "Use android_ui_tool action=open_accessibility_settings and ask the user to enable Agent accessibility."
         }
     }
 }

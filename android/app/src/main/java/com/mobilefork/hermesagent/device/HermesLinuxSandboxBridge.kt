@@ -712,7 +712,7 @@ object HermesLinuxSandboxBridge {
                 .put("required_sandbox_architecture", preferredGuestArchitecture(hostArchitecture))
                 .put(
                     "error",
-                    "container '$sandboxName' uses the device architecture ($guestArchitecture). Android 10+ blocks executing downloaded app-data binaries; preserve any data, uninstall this sandbox, and deploy it again so Hermes can install the emulated architecture.",
+                    "container '$sandboxName' uses the device architecture ($guestArchitecture). Android 10+ blocks executing downloaded app-data binaries; preserve any data, uninstall this sandbox, and deploy it again so Agent can install the emulated architecture.",
                 )
         }
         val qemuUserPath = qemuPathForGuestArchitecture(state, guestArchitecture)
@@ -909,7 +909,7 @@ object HermesLinuxSandboxBridge {
             .put("request_owned_operation_blocked", true)
             .put(
                 "error",
-                "Hermes blocked this chat-owned Linux guest process before dispatch because its filesystem/package mutations cannot be committed atomically with Stop. Use the manual Device Linux sandbox controls for install, guest commands, mirror changes, updates, or removal.",
+                "Agent blocked this chat-owned Linux guest process before dispatch because its filesystem/package mutations cannot be committed atomically with Stop. Use the manual Device Linux sandbox controls for install, guest commands, mirror changes, updates, or removal.",
             )
     }
 

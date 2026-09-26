@@ -62,13 +62,13 @@ class HermesLogcatWatcherService : Service() {
         }
         val contentText = when {
             !status.shizukuBinderAlive -> "Waiting for Shizuku/Sui to start"
-            !status.shizukuPermissionGranted -> "Waiting for Hermes Shizuku permission"
+            !status.shizukuPermissionGranted -> "Waiting for Agent Shizuku permission"
             enabledCount <= 0 -> "No enabled logcat automations"
             else -> "Watching logcat for $enabledCount saved automation(s)"
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_nav_hermes)
-            .setContentTitle("Hermes logcat watcher")
+            .setSmallIcon(R.drawable.ic_nav_agent)
+            .setContentTitle("Agent logcat watcher")
             .setContentText(contentText)
             .setContentIntent(openAppPendingIntent())
             .setOngoing(true)
@@ -99,10 +99,10 @@ class HermesLogcatWatcherService : Service() {
         }
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Hermes logcat watcher",
+            "Agent logcat watcher",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps Shizuku-backed Hermes logcat automations active"
+            description = "Keeps Shizuku-backed Agent logcat automations active"
         }
         manager.createNotificationChannel(channel)
     }

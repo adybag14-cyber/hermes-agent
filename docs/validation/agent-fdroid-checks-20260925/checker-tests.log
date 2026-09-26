@@ -1,0 +1,22 @@
+▶ no local venv — using Nix dev venv via HERMES_PYTHON: /usr/bin/python3
+▶ running per-file parallel test suite via run_tests_parallel.py
+  (TZ=UTC LANG=C.UTF-8 PYTHONHASHSEED=0; clean env)
+▶ pre-compiling bytecode cache
+▶ launching test runner
+Discovered 3 test files (~57 tests) under ['tests/hermes_android/test_android_fdroid_toolchain.py', 'tests/hermes_android/test_android_fdroid_source_binding.py', 'tests/hermes_android/test_prepare_android_python_runtime.py']; running with -j 4
+[ 15.8% |     9/~57 | ✓25 | ✗ 0] ✓ tests/hermes_android/test_prepare_android_python_runtime.py (25✓, 0.5s)
+[ 28.1% |    16/~57 | ✓32 | ✗ 0] ✓ tests/hermes_android/test_android_fdroid_toolchain.py (7✓, 0.5s)
+[100.0% |    57/~57 | ✓111 | ✗  0] ✓ tests/hermes_android/test_android_fdroid_source_binding.py (79✓, 2.8s)
+
+=== Summary: 3 files, 111 tests passed, 0 failed (100% complete) in 2.8s (4 workers) ===
+  Durations cached to test_durations.json (3 files)
+
+=== Per-file subprocess time distribution ===
+  Files:   3
+  Total subprocess CPU-wall: 3.8s  (runner wall: 2.8s, parallelism: 4x)
+  P50: 0.52s  P90: 2.76s  P95: 2.76s  P99: 2.76s  Max: 2.76s
+  <1s: 2 files (67%)  <2s: 2 files (67%)
+  Top 10 slowest:
+      2.76s  tests/hermes_android/test_android_fdroid_source_binding.py
+      0.52s  tests/hermes_android/test_android_fdroid_toolchain.py
+      0.48s  tests/hermes_android/test_prepare_android_python_runtime.py

@@ -55,7 +55,7 @@ def ensure_server(files_dir: str) -> str:
             raise RuntimeError(
                 _UNSAFE_STARTUP_ERROR
                 or "A previous Android API server startup did not prove clean shutdown. "
-                "Force stop and reopen Hermes before retrying."
+                "Force stop and reopen Agent before retrying."
             )
         _UNSAFE_STARTUP_HANDLE = None
         _UNSAFE_STARTUP_ERROR = ""
@@ -112,7 +112,7 @@ def stop_server() -> str:
         except Exception as exc:
             _UNSAFE_STOP_ERROR = (
                 "The prior Android API server could not prove that its agent/tool "
-                f"workers stopped ({exc}). Force stop and reopen Hermes before retrying."
+                f"workers stopped ({exc}). Force stop and reopen Agent before retrying."
             )
             raise RuntimeError(_UNSAFE_STOP_ERROR) from exc
         _UNSAFE_STARTUP_HANDLE = None
@@ -123,7 +123,7 @@ def stop_server() -> str:
         except Exception as exc:
             _UNSAFE_STOP_ERROR = (
                 "The Android API server could not prove that its agent/tool workers "
-                f"stopped ({exc}). Force stop and reopen Hermes before starting "
+                f"stopped ({exc}). Force stop and reopen Agent before starting "
                 "another runtime."
             )
             raise RuntimeError(_UNSAFE_STOP_ERROR) from exc

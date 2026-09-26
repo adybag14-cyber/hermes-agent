@@ -311,7 +311,7 @@ class HermesModelDownloadManagerTest {
                     LocalBackendStatus(
                         backendKind = BackendKind.LLAMA_CPP,
                         started = false,
-                        statusMessage = "Force stop and reopen Hermes before retrying.",
+                        statusMessage = "Force stop and reopen Agent before retrying.",
                         requiresAppRestart = true,
                     )
                 },

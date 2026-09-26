@@ -1,4 +1,4 @@
-"""Immutable identity checks for the embedded Hermes Android runtime."""
+"""Immutable identity checks for the embedded Agent Android runtime."""
 
 from __future__ import annotations
 

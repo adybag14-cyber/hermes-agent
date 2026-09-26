@@ -1,0 +1,85 @@
+{
+  "automated_verdict": "identity_bound_launch_capture_complete",
+  "captures": [
+    {
+      "activity_dump": "v0.13.158-10647beae48d2eb9-20260926125508z-phone-custom-light-launch-theme-cold-launcher-tap-activity.txt",
+      "activity_dump_sha256": "2e5320139ea1c4ebbe10374741f8e8c002d946717665af7f4c737236a0cef553",
+      "automated_state_verdict": "main_activity_resumed_and_artifacts_decoded",
+      "label": "cold-launcher-tap",
+      "launch_stderr": "",
+      "launch_stdout": "",
+      "settled_screenshot": "v0.13.158-10647beae48d2eb9-20260926125508z-phone-custom-light-launch-theme-cold-launcher-tap-settled.png",
+      "settled_screenshot_sha256": "55f30745669bfb2c9101bb46189b3a456a1fa7f016ab069aafd14f6cd4f59cfa",
+      "video": "v0.13.158-10647beae48d2eb9-20260926125508z-phone-custom-light-launch-theme-cold-launcher-tap.mp4",
+      "video_sha256": "1a99af33dac0815d6618c099c659fca01f06073e7c2101b2c0d45e93dba76afb",
+      "visual_splash_verdict": "manual_review_required"
+    },
+    {
+      "activity_dump": "v0.13.158-10647beae48d2eb9-20260926125508z-phone-custom-light-launch-theme-cold-deep-link-activity.txt",
+      "activity_dump_sha256": "268ec6006b7ef1a4459a6721e3ee0eef71dd04a133222e1bb951b494b7497605",
+      "automated_state_verdict": "main_activity_resumed_and_artifacts_decoded",
+      "label": "cold-deep-link",
+      "launch_stderr": "",
+      "launch_stdout": "Starting: Intent { act=android.intent.action.VIEW cat=[android.intent.category.BROWSABLE] dat=hermesagent://auth/... cmp=com.mobilefork.hermesagent/.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.mobilefork.hermesagent/.MainActivity\nTotalTime: 1733\nWaitTime: 1736\nComplete\n",
+      "settled_screenshot": "v0.13.158-10647beae48d2eb9-20260926125508z-phone-custom-light-launch-theme-cold-deep-link-settled.png",
+      "settled_screenshot_sha256": "55f30745669bfb2c9101bb46189b3a456a1fa7f016ab069aafd14f6cd4f59cfa",
+      "video": "v0.13.158-10647beae48d2eb9-20260926125508z-phone-custom-light-launch-theme-cold-deep-link.mp4",
+      "video_sha256": "abda2eeefee9d4743a78450be4f371a4776582fa5c71284b6931d5a49cb2fb14",
+      "visual_splash_verdict": "manual_review_required"
+    }
+  ],
+  "identity": {
+    "avd_name": "Agent_Release_158_Phone_20260926_Readme",
+    "build_fingerprint": "google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys",
+    "candidate_apk_sha256": "b504b2e00e47dae216768c5b6e1910ac3ee92a0b9a7b93c1180f8b017f42ab2b",
+    "device_boot_id": "1b4c7ba8-4052-4f98-b4cc-3b771671f5ab",
+    "evidence_run_id": "v0.13.158-10647beae48d2eb9-20260926125508z",
+    "expected_profile": "phone",
+    "height_dp": 914,
+    "installed_apk_path": "/data/app/~~Cq-olYrgJyqqdH6GyZczeA==/com.mobilefork.hermesagent-tzyUcVA2bfCk58sA_Ze6XQ==/base.apk",
+    "installed_apk_sha256": "b504b2e00e47dae216768c5b6e1910ac3ee92a0b9a7b93c1180f8b017f42ab2b",
+    "installed_instrumentation_apk_path": "/data/app/~~GMsf2CunmPzqHiGAzAVpvw==/com.mobilefork.hermesagent.test-e4DcvCPvZvEvv7ZX9meqzA==/base.apk",
+    "installed_instrumentation_apk_sha256": "fd6bf1bd12cf672f00c3c342ff367d97f21380e9ef0becedb7d44205afa62cd9",
+    "instrumentation_apk_sha256": "fd6bf1bd12cf672f00c3c342ff367d97f21380e9ef0becedb7d44205afa62cd9",
+    "observed_avd_name": "Agent_Release_158_Phone_20260926_Readme",
+    "observed_profile": "phone",
+    "sdk_int": 36,
+    "serial": "emulator-5580",
+    "source_digest": "10647beae48d2eb98a4e8a6efbfa971fb63155dd9839dd78d903b83ea060b615",
+    "width_dp": 411
+  },
+  "manual_acceptance": [
+    "Inspect both MP4 files frame by frame; each must visibly show the Android 12+ static Hermes splash.",
+    "Reject any black, white, legacy preview, stale-task, or third-party frame before the first Hermes frame.",
+    "Verify the first Hermes frame hands off without a contrasting flash to the saved custom-light palette.",
+    "Match source digest, run ID, candidate/test APK hashes, AVD, profile, and boot ID to the headed UI inventory.",
+    "Use this script's review command to persist the human reviewer, UTC timestamp, and pass/fail decision; capture never self-certifies pixels."
+  ],
+  "palette": {
+    "card_shape": "rounded",
+    "persisted_state_file": "v0.13.158-10647beae48d2eb9-20260926125508z-phone-custom-light-launch-theme-persisted-palette.json",
+    "persisted_state_file_sha256": "e835c61474a1c892aad7a307756eca4f6c7d688b856092a382ca21990686c636",
+    "profile": "phone-411x914dp",
+    "proof_evidence_identity": "appearance-custom-light",
+    "proof_sha256": "a54b48883c8f6de8ac38a3b8289d3ea70f25b4d6a96d5eb95d5d316d177da710",
+    "shared_preferences_xml_sha256": "23603ffade9c752ba8a7e5d3996bf76862361edfeaab1fa16c28f8b7e2a4b3fe",
+    "theme_background": "#FAFBFF",
+    "theme_id": "custom-light",
+    "theme_primary": "#1565C0",
+    "theme_secondary": "#8E24AA",
+    "theme_surface": "#FFFFFF",
+    "theme_surface_variant": "#E8EEF8",
+    "ui_font_scale": 1.0,
+    "verified_against_persisted_app_state": true
+  },
+  "schema": "hermes-host-launch-theme-evidence-v2",
+  "visual_review": {
+    "automated_pixel_certification": false,
+    "decision": null,
+    "method": "manual-frame-by-frame",
+    "notes": null,
+    "reviewed_at_utc": null,
+    "reviewer": null,
+    "status": "pending"
+  }
+}

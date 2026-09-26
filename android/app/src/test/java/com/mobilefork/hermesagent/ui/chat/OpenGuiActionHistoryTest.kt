@@ -24,7 +24,7 @@ class OpenGuiActionHistoryTest {
             OpenGuiActionCompat.parse(
                 """
                 Action_Summary: type the search term
-                Action: type(content='Hermes')
+                Action: type(content='Agent')
                 """.trimIndent(),
             ),
         )
@@ -38,7 +38,7 @@ class OpenGuiActionHistoryTest {
         assertEquals(1, json.getInt("screen_hash_count"))
         assertTrue(json.getString("history_text").contains("[Loop 1] [GUI]"))
         assertTrue(json.getString("history_text").contains("Summary: open the app drawer"))
-        assertTrue(json.getString("history_text").contains("Action: type(content='Hermes')"))
+        assertTrue(json.getString("history_text").contains("Action: type(content='Agent')"))
         assertTrue(json.getString("history_summary").contains("click -> type"))
         assertEquals("type", json.getJSONArray("actions").getJSONObject(1).getString("action_type"))
         assertEquals("type the search term", json.getJSONArray("actions").getJSONObject(1).getString("action_summary"))

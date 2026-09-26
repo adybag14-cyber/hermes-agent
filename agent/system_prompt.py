@@ -24,6 +24,8 @@ from agent.prompt_builder import (
     SKILLS_GUIDANCE, STEER_CHANNEL_NOTE, TASK_COMPLETION_GUIDANCE, TELEGRAM_RICH_MESSAGES_HINT,
     TOOL_USE_ENFORCEMENT_GUIDANCE, TOOL_USE_ENFORCEMENT_MODELS, drain_truncation_warnings,
 )
+from hermes_android.branding import default_identity_for_runtime, help_guidance_for_runtime
+from hermes_android.runtime_identity import is_embedded_android_runtime
 from agent import prompt_builder as _pb
 from agent.runtime_cwd import resolve_context_cwd
 from hermes_constants import get_default_hermes_root, get_hermes_home
@@ -490,7 +492,7 @@ def _identity_parts(agent: Any, ctx_len: Optional[int]) -> Tuple[List[str], bool
     Returns ``(parts, soul_loaded)``."""
     wants_soul = agent.load_soul_identity or not agent.skip_context_files
     _soul_content = _pb.load_soul_md(ctx_len, home_override=_agent_home(agent)) if wants_soul else None
-    return ([_soul_content], True) if _soul_content else ([DEFAULT_AGENT_IDENTITY], False)
+    return ([_soul_content], True) if _soul_content else ([default_identity_for_runtime(DEFAULT_AGENT_IDENTITY)], False)
 
 
 def _guidance_parts(agent: Any) -> List[str]:
@@ -600,12 +602,12 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
     # hermes-agent skill installed, so the variant is chosen after the skills
     # index is built; this slot holds its position.
     _help_guidance_slot = len(stable_parts)
-    stable_parts.append(HERMES_AGENT_HELP_GUIDANCE_NO_SKILLS)
+    stable_parts.append(help_guidance_for_runtime(HERMES_AGENT_HELP_GUIDANCE_NO_SKILLS))
     stable_parts.extend(_guidance_parts(agent))
     skills_prompt = _skills_prompt(agent)
     # Skill-pointer variant requires BOTH skill_view AND the hermes-agent skill
     # in the rendered index (pure string check — inherits the index's stability).
-    if "skill_view" in (agent.valid_tool_names or set()) and "- hermes-agent:" in skills_prompt:
+    if not is_embedded_android_runtime() and "skill_view" in (agent.valid_tool_names or set()) and "- hermes-agent:" in skills_prompt:
         stable_parts[_help_guidance_slot] = HERMES_AGENT_HELP_GUIDANCE
     stable_parts.extend(_alibaba_identity_part(agent))
     stable_parts.append(_pb.build_environment_hints())

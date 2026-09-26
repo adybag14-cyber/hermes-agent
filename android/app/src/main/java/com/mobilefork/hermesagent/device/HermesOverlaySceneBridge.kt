@@ -62,7 +62,7 @@ object HermesOverlaySceneBridge {
                 .put("success", false)
                 .put("exit_code", 3)
                 .put("action", "show_overlay_scene")
-                .put("error", "Android overlay permission is not granted. Run open_overlay_settings first, then enable draw-over-other-apps for Hermes.")
+                .put("error", "Android overlay permission is not granted. Run open_overlay_settings first, then enable draw-over-other-apps for Agent.")
                 .put("requires_overlay_permission", true)
                 .put("overlay_permission_granted", false)
                 .put("payload", payload)
@@ -134,7 +134,7 @@ object HermesOverlaySceneBridge {
 
         val title = stringArgument(arguments, "scene_title", "title", "heading")
             ?.take(MAX_TITLE_CHARS)
-            ?: "Hermes"
+            ?: "Agent"
         val text = stringArgument(arguments, "scene_text", "message", "text", "content", allowEmpty = true)
             ?: throw IllegalArgumentException("show_overlay_scene requires scene_text, message, text, or content")
         val buttonText = stringArgument(arguments, "scene_button_text", "button_text", "dismiss_text")

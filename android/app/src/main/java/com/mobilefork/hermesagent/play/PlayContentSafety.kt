@@ -6,7 +6,7 @@ import java.util.Locale
 
 /** High-confidence local rules supplement model instructions and user reporting; not an exhaustive classifier. */
 internal object PlayContentSafety {
-    const val SYSTEM_INSTRUCTIONS = "You are Hermes, an AI assistant. Be helpful and honest. " +
+    const val SYSTEM_INSTRUCTIONS = "You are Agent, an AI assistant. Be helpful and honest. " +
         "Do not produce sexually explicit or pornographic material, sexual content involving minors, sexual exploitation, hate or dehumanization, " +
         "instructions for violence, terrorism, self-harm, criminal wrongdoing or dangerous substances, " +
         "non-consensual sexual content, bullying, fraud, deceptive impersonation, false election instructions, " +

@@ -3,13 +3,13 @@
 package com.mobilefork.hermesagent.ui.settings
 
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -34,6 +34,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.mobilefork.hermesagent.ui.i18n.modelSettingsText
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mobilefork.hermesagent.ui.i18n.LocalHermesStrings
 import com.mobilefork.hermesagent.ui.i18n.modelScopeMirrorButton
@@ -73,9 +82,10 @@ fun LocalModelDownloadsSection(
     val uiState by viewModel.uiState.collectAsState()
     val strings = LocalHermesStrings.current
     val uriHandler = LocalUriHandler.current
+    var pendingRemovalId by rememberSaveable { mutableStateOf<String?>(null) }
     var detectedModelMenuExpanded by remember { mutableStateOf(false) }
     val selectedDetectedModel = uiState.detectedModels.firstOrNull { model -> model.id == uiState.selectedDetectedModelId }
-    val importModelLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+    val importModelLauncher = rememberLauncherForActivityResult(LocalModelDocumentPicker()) { uri ->
         if (uri != null) {
             viewModel.importLocalModelFile(uri)
         }
@@ -108,7 +118,7 @@ fun LocalModelDownloadsSection(
     }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().testTag("ModelPickerCard"),
         color = MaterialTheme.colorScheme.surfaceVariant,
         shape = MaterialTheme.shapes.large,
         tonalElevation = 2.dp,
@@ -119,13 +129,132 @@ fun LocalModelDownloadsSection(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(strings.localDownloadsTitle.ifBlank { "Hugging Face local model downloads" }, style = MaterialTheme.typography.titleMedium)
-            Text(
-                strings.localDownloadsDescription.ifBlank {
-                    "Download full model files directly to the phone, keep progress in Android's system download manager, and resume safely after network loss or a phone restart. PocketPal AI is a good reference for the kind of mobile-local model hub Hermes is moving toward."
-                },
-                style = MaterialTheme.typography.bodySmall,
-            )
+            Text(modelSettingsText(strings.language, "choose"), style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() })
+            Text(modelSettingsText(strings.language, "choose_help"), style = MaterialTheme.typography.bodyMedium)
+                Button(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("HermesImportModelButton"),
+                    enabled = !uiState.isImporting,
+                    onClick = {
+                        val override = importModelClickOverride
+                        if (override != null) {
+                            override()
+                        } else {
+                            importModelLauncher.launch(
+                                arrayOf("*/*")
+                            )
+                        }
+                    },
+                ) {
+                    Text(modelSettingsText(strings.language, "import"))
+                }
+            Text(modelSettingsText(strings.language, "formats"), style = MaterialTheme.typography.bodySmall)
+            if (uiState.isImporting) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("ModelImportProgress"))
+            }
+            if (offlineAirplaneMode) {
+                Text(
+                    strings.offlineAirplaneLocalModelsOnly(),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+            if (uiState.inspectionStatus.isNotBlank()) {
+                Text(strings.localModelUiText(uiState.inspectionStatus), style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.testTag("ModelImportStatus").semantics { liveRegion = LiveRegionMode.Polite })
+            }
+            if (uiState.candidateSummary.isNotBlank()) {
+                Text(strings.localModelUiText(uiState.candidateSummary), style = MaterialTheme.typography.bodySmall)
+            }
+            if (uiState.candidateRamWarning.isNotBlank()) {
+                Text(strings.localModelUiText(uiState.candidateRamWarning), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            HorizontalDivider()
+            Text(modelSettingsText(strings.language, "installed"), style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.semantics { heading() })
+            if (uiState.downloads.isEmpty()) {
+                Text(modelSettingsText(strings.language, "empty"), style = MaterialTheme.typography.bodySmall)
+            } else {
+                uiState.downloads.forEach { item ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(item.title, style = MaterialTheme.typography.titleSmall)
+                                    Text(strings.localDownloadStatusLine(item.runtimeFlavor, item.statusLabel), style = MaterialTheme.typography.labelMedium)
+                                }
+                                if (item.isPreferred) {
+                                    Text(strings.preferredLocalModel.ifBlank { "Preferred local model" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+                                }
+                            }
+                            LinearProgressIndicator(
+                                progress = { item.progressFraction },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text(item.progressLabel, style = MaterialTheme.typography.bodySmall)
+                            Text(strings.localModelUiText(item.statusMessage), style = MaterialTheme.typography.bodySmall)
+                            if (item.ramWarning.isNotBlank()) {
+                                Text(strings.localModelUiText(item.ramWarning), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                            }
+                            Text(item.localPath, style = MaterialTheme.typography.bodySmall)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                if (item.statusLabel == "completed") {
+                                    Button(
+                                        onClick = {
+                                            dispatchAcceptedLocalModelRuntimeHandoff(
+                                                result = viewModel.setPreferredDownload(item.id),
+                                            ) { _, selectionGeneration ->
+                                                onCompletedDownloadReady(item.runtimeFlavor, selectionGeneration)
+                                            }
+                                        },
+                                    ) {
+                                        Text(if (item.isPreferred) strings.startRuntime() else strings.useAndStart())
+                                    }
+                                }
+                                if (item.canRestartOnMobileData) {
+                                    Button(onClick = { viewModel.restartDownloadOnMobileData(item.id) }) {
+                                        Text(strings.restartOnMobileData())
+                                    }
+                                }
+                                if (item.canOpenSystemDownloads) {
+                                    Button(onClick = viewModel::openSystemDownloads) {
+                                        Text(strings.openSystemDownloads())
+                                    }
+                                }
+                                OutlinedButton(onClick = { pendingRemovalId = item.id },
+                                    modifier = Modifier.testTag("RemoveLocalModel-${item.id}")) {
+                                    Text(strings.remove.ifBlank { "Remove" })
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            SettingsDisclosure(
+                sectionId = "ModelDownloadCatalog",
+                title = modelSettingsText(strings.language, "download"),
+                summary = modelSettingsText(strings.language, "download_help"),
+            ) {
+                SettingsDisclosure(
+                    sectionId = "ModelDownloadOptions",
+                    title = modelSettingsText(strings.language, "download_options"),
+                    summary = modelSettingsText(strings.language, "download_options_help"),
+                ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -135,7 +264,7 @@ fun LocalModelDownloadsSection(
                     Text(strings.dataSaverModeTitle.ifBlank { "Data saver mode" }, style = MaterialTheme.typography.titleSmall)
                     Text(
                         strings.dataSaverModeDescription.ifBlank {
-                            "When enabled, large model downloads wait for Wi‑Fi / unmetered connectivity so Hermes uses only minimal mobile data."
+                            "When enabled, large model downloads wait for Wi‑Fi / unmetered connectivity so Agent uses only minimal mobile data."
                         },
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -143,6 +272,7 @@ fun LocalModelDownloadsSection(
                 Switch(
                     checked = dataSaverMode,
                     onCheckedChange = onDataSaverModeChange,
+                    modifier = Modifier.semantics { contentDescription = strings.dataSaverModeTitle },
                 )
             }
             OutlinedTextField(
@@ -150,6 +280,8 @@ fun LocalModelDownloadsSection(
                 onValueChange = viewModel::updateHuggingFaceToken,
                 label = { Text(strings.huggingFaceTokenOptional.ifBlank { "Hugging Face token (optional)" }) },
                 modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
             )
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -161,33 +293,8 @@ fun LocalModelDownloadsSection(
                 Button(onClick = viewModel::refreshDownloads) {
                     Text(strings.refreshDownloads.ifBlank { "Refresh downloads" })
                 }
-                Button(
-                    modifier = Modifier.testTag("HermesImportModelButton"),
-                    onClick = {
-                        val override = importModelClickOverride
-                        if (override != null) {
-                            override()
-                        } else {
-                            importModelLauncher.launch(
-                                arrayOf(
-                                    "application/octet-stream",
-                                    "application/x-gguf",
-                                    "application/zip",
-                                    "*/*",
-                                )
-                            )
-                        }
-                    },
-                ) {
-                    Text(strings.importModelFromPhoneFiles())
+            }
                 }
-            }
-            if (offlineAirplaneMode) {
-                Text(
-                    strings.offlineAirplaneLocalModelsOnly(),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
             HorizontalDivider()
             Text(strings.quickLocalModelsTitle(), style = MaterialTheme.typography.titleSmall)
             Text(strings.quickLocalModelsDescription(), style = MaterialTheme.typography.bodySmall)
@@ -353,94 +460,26 @@ fun LocalModelDownloadsSection(
                 strings.localDownloadsExampleGuidance(),
                 style = MaterialTheme.typography.bodySmall,
             )
-            if (uiState.inspectionStatus.isNotBlank()) {
-                Text(strings.localModelUiText(uiState.inspectionStatus), style = MaterialTheme.typography.bodySmall)
-            }
-            if (uiState.candidateSummary.isNotBlank()) {
-                Text(strings.localModelUiText(uiState.candidateSummary), style = MaterialTheme.typography.bodySmall)
-            }
-            if (uiState.candidateRamWarning.isNotBlank()) {
-                Text(strings.localModelUiText(uiState.candidateRamWarning), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-            HorizontalDivider()
-            Text(strings.downloadManagerTitle.ifBlank { "Download manager" }, style = MaterialTheme.typography.titleSmall)
-            Text(
-                strings.downloadManagerReliabilityDescription(),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (uiState.downloads.isEmpty()) {
-                Text(strings.noLocalModelDownloadsYet.ifBlank { "No local model downloads yet." }, style = MaterialTheme.typography.bodySmall)
-            } else {
-                uiState.downloads.forEach { item ->
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.surface,
-                        shape = MaterialTheme.shapes.medium,
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(item.title, style = MaterialTheme.typography.titleSmall)
-                                    Text(strings.localDownloadStatusLine(item.runtimeFlavor, item.statusLabel), style = MaterialTheme.typography.labelMedium)
-                                }
-                                if (item.isPreferred) {
-                                    Text(strings.preferredLocalModel.ifBlank { "Preferred local model" }, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
-                                }
-                            }
-                            LinearProgressIndicator(
-                                progress = { item.progressFraction },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Text(item.progressLabel, style = MaterialTheme.typography.bodySmall)
-                            Text(strings.localModelUiText(item.statusMessage), style = MaterialTheme.typography.bodySmall)
-                            if (item.ramWarning.isNotBlank()) {
-                                Text(strings.localModelUiText(item.ramWarning), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                            }
-                            Text(item.localPath, style = MaterialTheme.typography.bodySmall)
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                if (item.statusLabel == "completed") {
-                                    Button(
-                                        onClick = {
-                                            dispatchAcceptedLocalModelRuntimeHandoff(
-                                                result = viewModel.setPreferredDownload(item.id),
-                                            ) { _, selectionGeneration ->
-                                                onCompletedDownloadReady(item.runtimeFlavor, selectionGeneration)
-                                            }
-                                        },
-                                    ) {
-                                        Text(if (item.isPreferred) strings.startRuntime() else strings.useAndStart())
-                                    }
-                                }
-                                if (item.canRestartOnMobileData) {
-                                    Button(onClick = { viewModel.restartDownloadOnMobileData(item.id) }) {
-                                        Text(strings.restartOnMobileData())
-                                    }
-                                }
-                                if (item.canOpenSystemDownloads) {
-                                    Button(onClick = viewModel::openSystemDownloads) {
-                                        Text(strings.openSystemDownloads())
-                                    }
-                                }
-                                Button(onClick = { viewModel.removeDownload(item.id) }) {
-                                    Text(strings.remove.ifBlank { "Remove" })
-                                }
-                            }
-                        }
-                    }
-                }
             }
         }
     }
+    pendingRemovalId?.let { recordId ->
+        val model = uiState.downloads.firstOrNull { it.id == recordId }
+        AlertDialog(
+            onDismissRequest = { pendingRemovalId = null },
+            title = { Text(modelSettingsText(strings.language, "remove_title")) },
+            text = { Text("${model?.title.orEmpty()}\n\n${modelSettingsText(strings.language, "remove_help")}") },
+            confirmButton = {
+                TextButton(onClick = { pendingRemovalId = null; viewModel.removeDownload(recordId) }) {
+                    Text(strings.remove)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRemovalId = null }) {
+                    Text(modelSettingsText(strings.language, "cancel"))
+                }
+            },
+        )
+    }
+
 }

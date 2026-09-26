@@ -287,10 +287,10 @@ class NativeToolCallingChatClient(
         /** Returns null only after atomically consuming authority for the complete batch. */
         fun consumeBatch(toolCalls: List<ToolCall>): String? = synchronized(lock) {
             if (toolCalls.size != 1) {
-                return@synchronized "Hermes requires exactly one authorized native action per request."
+                return@synchronized "Agent requires exactly one authorized native action per request."
             }
             if (remainingCalls <= 0) {
-                return@synchronized "Hermes blocked a repeated native action for this request."
+                return@synchronized "Agent blocked a repeated native action for this request."
             }
             val call = toolCalls.single()
             val normalizedRawName = call.name.trim().lowercase()
@@ -300,10 +300,10 @@ class NativeToolCallingChatClient(
             // model. Once a canonical schema is offered, the returned function name itself must
             // match that schema; canonicalizing an unsolicited alias here would widen authority.
             if (normalizedRawName != canonicalName) {
-                return@synchronized "Hermes blocked a model-requested tool alias that was not explicitly offered."
+                return@synchronized "Agent blocked a model-requested tool alias that was not explicitly offered."
             }
             if (matching.none { constraintMatches(it, call.arguments) }) {
-                return@synchronized "Hermes blocked a model-requested action outside this request's exact tool scope."
+                return@synchronized "Agent blocked a model-requested action outside this request's exact tool scope."
             }
             remainingCalls -= 1
             null
@@ -502,7 +502,7 @@ class NativeToolCallingChatClient(
                     ),
                 )
                 return Result(
-                    content = "Hermes blocked a model-requested action because it was not offered for this request.",
+                    content = "Agent blocked a model-requested action because it was not offered for this request.",
                     executedToolCalls = executedToolCalls,
                     modelRequestCount = modelRequestCount,
                 )
@@ -884,7 +884,7 @@ class NativeToolCallingChatClient(
         }
         return ensureHtmlRequirements(
             rawHtml = stripMarkdownCodeFence(rawHtml),
-            title = "Hermes Gemma Flappy",
+            title = "Agent Gemma Flappy",
             marker = request.marker,
         )
     }
@@ -1218,7 +1218,7 @@ class NativeToolCallingChatClient(
         val diagnostic = parsedMessage.ifBlank { body }.trim()
         val lower = diagnostic.lowercase()
         if (isContextWindowErrorMessage(lower)) {
-            return "The local model ran out of context. Hermes retried with a compressed system prompt, custom instructions, messages, and tool schema, but this model still could not fit the request. Detail: ${diagnostic.take(MAX_NATIVE_ERROR_CHARS)}"
+            return "The local model ran out of context. Agent retried with a compressed system prompt, custom instructions, messages, and tool schema, but this model still could not fit the request. Detail: ${diagnostic.take(MAX_NATIVE_ERROR_CHARS)}"
         }
         return if (diagnostic.isNotBlank()) {
             "Native chat request failed ($statusCode): ${diagnostic.take(MAX_NATIVE_ERROR_CHARS)}"
@@ -1250,7 +1250,7 @@ class NativeToolCallingChatClient(
             "android_ui_tool", "ui_tool", "screen_tool", "accessibility_tool" -> executeAndroidUiTool(toolCall)
             else -> JSONObject()
                 .put("exit_code", 127)
-                .put("error", "Unsupported native Hermes tool: ${toolCall.name}")
+                .put("error", "Unsupported native Agent tool: ${toolCall.name}")
                 .toString()
         }
     }
@@ -1848,7 +1848,7 @@ class NativeToolCallingChatClient(
             "downgrade_to_a11y" -> JSONObject()
                 .put("success", true)
                 .put("action", parsed.actionType)
-                .put("message", "Parsed OpenGUI recovery/text-side action; Hermes stayed on the accessibility UI path and no gesture was needed.")
+                .put("message", "Parsed OpenGUI recovery/text-side action; Agent stayed on the accessibility UI path and no gesture was needed.")
                 .toString()
             else -> JSONObject()
                 .put("success", false)
@@ -2103,7 +2103,7 @@ class NativeToolCallingChatClient(
                     json.put("scale_factor", 1.0)
                 }
             }
-            .put("message", "Enable the Hermes accessibility service before using snapshot, selector actions, coordinate tap/swipe, or global navigation actions.")
+            .put("message", "Enable the Agent accessibility service before using snapshot, selector actions, coordinate tap/swipe, or global navigation actions.")
             .toString()
     }
 
@@ -2193,7 +2193,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "terminal_tool",
-                    description = "Run a packaged Android/Termux shell command in the Hermes workspace. proot-distro and pd are available when the embedded Linux sandbox packages are installed.",
+                    description = "Run a packaged Android/Termux shell command in the Agent workspace. proot-distro and pd are available when the embedded Linux sandbox packages are installed.",
                     properties = JSONObject()
                         .put("command", stringProp("Shell command."))
                         .put("timeout_seconds", intProp("Optional timeout.")),
@@ -2203,7 +2203,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "mcp_send_terminal_input",
-                    description = "Alias for terminal_tool used by MCP-style local agents. Sends one terminal command into the Hermes Android shell and returns stdout, stderr, cwd, exit code, and Linux sandbox hints.",
+                    description = "Alias for terminal_tool used by MCP-style local agents. Sends one terminal command into the Agent Android shell and returns stdout, stderr, cwd, exit code, and Linux sandbox hints.",
                     properties = JSONObject()
                         .put("command", stringProp("Shell command or terminal input to send."))
                         .put("timeout_seconds", intProp("Optional timeout.")),
@@ -2213,7 +2213,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "linux_host_pkg_tool",
-                    description = "Termux-style host package manager for the Hermes embedded prefix (proot, proot-distro, curl, git, …). Refreshes packages from Termux main mirrors in-app without an APK update. Use this for host suite updates; use linux_sandbox_tool action=update for guest distro apt/apk.",
+                    description = "Termux-style host package manager for the Agent embedded prefix (proot, proot-distro, curl, git, …). Refreshes packages from Termux main mirrors in-app without an APK update. Use this for host suite updates; use linux_sandbox_tool action=update for guest distro apt/apk.",
                     properties = JSONObject()
                         .put("action", stringProp("status, update (refresh index), upgrade, install, remove, list, search, or set_mirror."))
                         .put("packages", stringProp("Space-separated package names for install/upgrade/remove (e.g. proot proot-distro)."))
@@ -2241,7 +2241,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "mcp_run_in_proot",
-                    description = "MCP-style alias for linux_sandbox_tool action=run. Runs a command inside the active or named Hermes proot Linux sandbox only when agent shell use is started/enabled.",
+                    description = "MCP-style alias for linux_sandbox_tool action=run. Runs a command inside the active or named Agent proot Linux sandbox only when agent shell use is started/enabled.",
                     properties = JSONObject()
                         .put("command", stringProp("Command to run inside the installed proot sandbox."))
                         .put("distro_id", stringProp("Optional distro id such as alpine-3-21, debian-bookworm, ubuntu-24-04, or opensuse-tumbleweed."))
@@ -2253,7 +2253,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "file_write_tool",
-                    description = "Write UTF-8 text inside the Hermes workspace.",
+                    description = "Write UTF-8 text inside the Agent workspace.",
                     properties = JSONObject()
                         .put("path", stringProp("Workspace path."))
                         .put("content", stringProp("Exact text content."))
@@ -2399,11 +2399,11 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_ui_tool",
-                    description = "Inspect or control the visible Android UI through Hermes accessibility. OpenGUI-compatible execution includes local repeated-action and screen-state review guards that can return requires_replan before a likely loop continues, plus user-visible call_user handoff notifications/toasts/vibration.",
+                    description = "Inspect or control the visible Android UI through Agent accessibility. OpenGUI-compatible execution includes local repeated-action and screen-state review guards that can return requires_replan before a likely loop continues, plus user-visible call_user handoff notifications/toasts/vibration.",
                     properties = JSONObject()
                         .put("action", stringProp("status, sense, opengui_sense, snapshot, a11y_tree, screenshot, visual_snapshot, parse_opengui_action, opengui_action, click, long_click, focus, set_text, type, scroll_forward, scroll_backward, scroll, scroll_up, scroll_down, scroll_left, scroll_right, tap, long_press, swipe, drag, open_app, launch_app, back, home, press_back, press_home, recents, notifications, quick_settings, open_accessibility_settings."))
                         .put("raw_action", stringProp("OpenGUI-style VLM action text for parse_opengui_action or opengui_action, such as Action: click(start_box='<point>500 250</point>')."))
-                        .put("screen_hash", stringProp("Optional OpenGUI pHash or Hermes snapshot ui_state_hash for screen-state loop review."))
+                        .put("screen_hash", stringProp("Optional OpenGUI pHash or Agent snapshot ui_state_hash for screen-state loop review."))
                         .put("text_contains", stringProp("Visible text selector."))
                         .put("content_description_contains", stringProp("Accessibility description selector."))
                         .put("view_id", stringProp("Android view id selector."))
@@ -2423,7 +2423,7 @@ class NativeToolCallingChatClient(
                         .put("duration_ms", intProp("Gesture duration in milliseconds."))
                         .put("direction", stringProp("Scroll finger direction: up, down, left, or right."))
                         .put("distance_px", scalarProp("Optional scroll distance in screen pixels."))
-                        .put("save_file", boolProp("For screenshot/visual_snapshot, save PNG in the Hermes app files directory. Defaults true."))
+                        .put("save_file", boolProp("For screenshot/visual_snapshot, save PNG in the Agent app files directory. Defaults true."))
                         .put("include_base64", boolProp("For screenshot/visual_snapshot, include base64 PNG bytes inline. Defaults false to keep tool results small."))
                         .put("include_snapshot", boolProp("For sense/opengui_sense, include the accessibility semantic snapshot. Defaults true."))
                         .put("include_screenshot", boolProp("For sense/opengui_sense, include a visual screenshot fallback result. Defaults false."))
@@ -2434,7 +2434,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "schedule_task",
-                    description = "Kai-compatible scheduled reminder alias backed by Hermes native Android automation notifications. Creates Android automation records; it does not run unrestricted background AI prompts.",
+                    description = "Kai-compatible scheduled reminder alias backed by Agent native Android automation notifications. Creates Android automation records; it does not run unrestricted background AI prompts.",
                     properties = JSONObject()
                         .put("task", stringProp("Reminder or task text to show in the Android notification."))
                         .put("title", stringProp("Optional notification title."))
@@ -2451,7 +2451,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "list_tasks",
-                    description = "Kai-compatible alias for listing saved Hermes Android automations as scheduled task records.",
+                    description = "Kai-compatible alias for listing saved Agent Android automations as scheduled task records.",
                     properties = JSONObject()
                         .put("limit", intProp("Optional display limit.")),
                 ),
@@ -2459,7 +2459,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "cancel_task",
-                    description = "Kai-compatible alias for deleting a saved Hermes Android automation by task_id.",
+                    description = "Kai-compatible alias for deleting a saved Agent Android automation by task_id.",
                     properties = JSONObject()
                         .put("task_id", stringProp("Task or automation id to cancel.")),
                     required = JSONArray().put("task_id"),
@@ -2468,7 +2468,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "android_automation_tool",
-                    description = "Open URLs/files immediately or create, run, manage, import, export, or trigger saved Hermes/Tasker-style Android automations and secret-free app settings bundles. Also accepts Kai-compatible schedule_task/list_tasks/cancel_task semantics as native Android automation records.",
+                    description = "Open URLs/files immediately or create, run, manage, import, export, or trigger saved Agent/Tasker-style Android automations and secret-free app settings bundles. Also accepts Kai-compatible schedule_task/list_tasks/cancel_task semantics as native Android automation records.",
                     properties = JSONObject()
                         .put("action", stringProp("open_uri/open_url/open_browser for immediate browser/file launch; list, list_tasks, schedule_task, cancel_task, run, delete, enable, disable, export_automations/import_automations, export_app_settings/import_app_settings, import_tasker_xml, create_*_task, set/get/delete_variable, watcher status/start/stop/scan, run_*_trigger, widget/tile actions."))
                         .put("id", stringProp("Automation id."))
@@ -2480,7 +2480,7 @@ class NativeToolCallingChatClient(
                         .put("content", stringProp("File content."))
                         .put("append", boolProp("Append file content."))
                         .put("intent_task_action", stringProp("Intent mode: open_uri, start_activity, or send_broadcast."))
-                        .put("data_uri", stringProp("URL or Hermes workspace file path for open_uri/open_browser."))
+                        .put("data_uri", stringProp("URL or Agent workspace file path for open_uri/open_browser."))
                         .put("intent_action", stringProp("Android intent action."))
                         .put("system_action", stringProp("Safe Android system action."))
                         .put("ui_action", stringProp("Saved UI action."))
@@ -2510,8 +2510,8 @@ class NativeToolCallingChatClient(
                         .put("radius_meters", scalarProp("Location radius."))
                         .put("tasker_xml", stringProp("Tasker XML to import."))
                         .put("tasker_data_uri", stringProp("Tasker data URI to import."))
-                        .put("bundle_json", stringProp("Hermes automation bundle JSON for import_automations, or secret-free Hermes app settings bundle JSON for import_app_settings."))
-                        .put("settings_json", stringProp("Secret-free Hermes app settings bundle JSON for import_app_settings.")),
+                        .put("bundle_json", stringProp("Agent automation bundle JSON for import_automations, or secret-free Agent app settings bundle JSON for import_app_settings."))
+                        .put("settings_json", stringProp("Secret-free Agent app settings bundle JSON for import_app_settings.")),
                     required = JSONArray().put("action"),
                 ),
             )
@@ -2960,7 +2960,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "terminal_tool",
-                    description = "Run one command in the Hermes host workspace and return stdout, stderr, cwd, and exit code.",
+                    description = "Run one command in the Agent host workspace and return stdout, stderr, cwd, and exit code.",
                     properties = JSONObject()
                         .put("command", stringProp("Required shell command."))
                         .put("timeout_seconds", intProp("Optional timeout in seconds.")),
@@ -2983,7 +2983,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "file_write_tool",
-                    description = "Create, replace, or append UTF-8 text inside the Hermes workspace.",
+                    description = "Create, replace, or append UTF-8 text inside the Agent workspace.",
                     properties = JSONObject()
                         .put("path", stringProp("Workspace-relative file path."))
                         .put("content", stringProp("Exact UTF-8 content."))
@@ -3043,7 +3043,7 @@ class NativeToolCallingChatClient(
             .put(
                 functionSpec(
                     name = "hy_memory_tool",
-                    description = "Retain, recall, list, or delete durable local Hermes memories.",
+                    description = "Retain, recall, list, or delete durable local Agent memories.",
                     properties = JSONObject()
                         .put("action", stringProp("retain, recall, list, delete, reflect, or promoted_context."))
                         .put("content", stringProp("Memory content for retain."))
@@ -3613,7 +3613,7 @@ class NativeToolCallingChatClient(
                     "current signal context",
                     "evidence bundle",
                     "what can you see nearby",
-                    "what can hermes see",
+                    "what can agent see", "what can hermes see",
                     "what can gemma see",
                     "what are nearby signals",
                     "signal awareness",
@@ -3887,7 +3887,7 @@ class NativeToolCallingChatClient(
                             .put("name", "terminal_tool")
                             .put(
                                 "description",
-                                "Run a short Android native shell command through /system/bin/sh in the Hermes app workspace and return stdout, stderr, exit code, and cwd.",
+                                "Run a short Android native shell command through /system/bin/sh in the Agent app workspace and return stdout, stderr, exit code, and cwd.",
                             )
                             .put(
                                 "parameters",
@@ -3916,7 +3916,7 @@ class NativeToolCallingChatClient(
                             .put("name", "android_automation_tool")
                             .put(
                                 "description",
-                                "Create, list, run, enable, disable, delete, export, or import saved Android automations, variables, and secret-free app settings bundles. Supports shell, file-write, file-delete, variable set/clear/append/add/subtract/literal-replace, clipboard set, Tasker Flash/toast messages, vibration, safe Android system-action, accessibility UI-action, app-launch, Android intent, email draft composition, Shizuku/Sui package-permission/data-clear/connectivity-toggle, offline sunrise/sunset, notification post/cancel tasks, screen-aware overlay scene show/hide tasks, launcher shortcuts, a user-added Hermes Quick Settings tile, a Hermes home-screen widget, and token-protected Tasker/Locale action, condition, and event plugins bound to saved automations or Hermes/Shizuku state; direct sunrise/sunset calculation; safe Tasker XML/Data URI import; provider-backed calendar scan/watch actions; provider-backed location scan/watch actions; Shizuku-backed logcat scan/watch actions with a bounded scan cursor; manual tasks; interval tasks; Tasker-style time/day triggers; boot/power/battery/app-foreground/notification-posted/calendar-event/location/sensor/logcat-entry/Shizuku-state/external-trigger/remote-dispatch phone triggers; OpenGUI-style standby heartbeat, standby device listing, standby dispatch payloads, execution status queries, lifecycle state for /pause /resume /cancel, raw slash payloads, and IM command strings such as !opengui devices, /opengui devices, /status, /run, and /do; Tasker-style %VARIABLE expansion; Hermes automation bundle backup/restore; and Kai-style app settings export_app_settings/import_app_settings without provider secrets. Shizuku execution must be explicitly requested per shell task or by create_shizuku_action_task. The Tasker condition plugin can expose Shizuku availability, saved automation enabled/disabled state, last-run success/failure, and saved Hermes variable set/equality state to Tasker profiles. The Tasker event plugin can trigger Tasker profiles from verified Hermes automation finished/succeeded/failed events and Shizuku available/unavailable updates while returning Tasker-local %hermes_* event variables. Tasker import supports a safe subset of exported Tasker actions including global UI navigation, safe settings panels, Flash, Vibrate, Vibrate Pattern, Set Clipboard, HTTP request, audio, Variable Set, Variable Clear, Variable Add, Variable Subtract, and replace-enabled Variable Search Replace, and leaves records disabled unless enable_imported is set. Overlay scenes require Android draw-over-other-apps permission and support bounded title/text/button/position/width payloads, not arbitrary scene code. Notification post actions require Android notification permission on Android 13+. App-foreground triggers require the user-enabled Hermes accessibility service. Notification-posted triggers require user-enabled Hermes notification access. Calendar-event triggers can be explicit event dispatches or scanned/watched from Android Calendar after the user grants calendar access. Location triggers can be explicit event dispatches or scanned/watched from Android location providers after the user grants location access. Sensor, logcat-entry, and external triggers are explicit event dispatches; external triggers also have an exported broadcast receiver guarded by a required shared token. Remote dispatch can list this phone with operator_devices, record OpenGUI standby heartbeats with operator_heartbeat, parse OpenGUI-style messages with operator_command, run enabled records by automation_id, by OpenGUI taskName/label, or by trigger remote_dispatch, exposes %DISPATCH_SOURCE, %DISPATCH_CHANNEL, %DISPATCH_EXECUTION_ID, %DISPATCH_TASK_ID, and %DISPATCH_TASK_NAME, and can be inspected with operator_execution_status or lifecycle actions. Quick Settings tile actions can set, get, clear, or run the configured tile automation; the user still has to add the Hermes tile from Android Quick Settings. Home-screen widget actions can set, get, list, clear, request pinning for, or run the configured widget automation; Android launchers still control final widget placement. Location triggers can match latitude/longitude/radius, provider, name, and accuracy, and expose %LOC, %LAT, %LON, %LOCACC, %LOCPROVIDER, %LOCNAME, and LOCATION_* aliases. start_location_watcher and scan_location require Android location permission and at least one enabled location record. Sunrise/sunset actions accept latitude, longitude, optional date, and optional timezone, and expose %SUNRISE, %SUNSET, %SUN_DAWN, %SUN_DUSK, %SOLAR_NOON, %SUN_DAYLIGHT_MINUTES, %SUN_STATE, %SUN_DATE, %SUN_TIMEZONE, %SUN_LAT, and %SUN_LON. Notification actions can post, update, or cancel app notifications with title, text, channel, priority, group, ongoing, and only-alert-once fields. Variable actions can set, clear, append, add, subtract, or literal-replace a saved Hermes automation variable at run time and expand existing variables in the target name and value. Clipboard actions set Android clipboard text and expand saved variables at run time. Toast actions show bounded Android toast/Tasker Flash messages and expand saved variables at run time. Vibration actions use Android's normal vibrator permission and cap duration/pattern totals. Email draft actions open Android's mail composer with recipient, subject, and body fields; actual send remains controlled by the selected email app or a separate user-approved UI action. Sensor triggers can match type/name, event, value name, and min/max value, and expose %SENSOR, %SENSOR_EVENT, %SENSOR_VALUE, %SENSOR_VALUE_NAME, %SENSOR_UNIT, and %SENSOR_ACCURACY. start_calendar_watcher and scan_calendar_events require calendar permission and at least one enabled calendar_event record; watcher scans dedupe recently seen events and reset_calendar_watcher_cursor clears that cursor. Logcat-entry triggers can match tag, message text, level, pid, and package filters, expose %LOGCAT_TAG, %LOGCAT_MESSAGE, %LOGCAT_LEVEL, %LOGCAT_PID, %LOGCAT_PACKAGE, and %LOGCAT_TIME. start_logcat_watcher and scan_logcat_entries require Shizuku/Sui running with Hermes permission and at least one enabled logcat_entry record; watcher scans dedupe recently seen log lines and reset_logcat_watcher_cursor clears that cursor. External triggers can match trigger_id, external_token, optional trigger_package_name, and optional referrer_contains, and expose %SA_TRIGGER_ID, %SA_TRIGGER_PACKAGE_NAME, %SA_REFERRER, and %SA_EXTRAS. Shizuku-state triggers expose %SHIZUKU_AVAILABLE, %SHIZUKU_INSTALLED, %SUI_INSTALLED, %SHIZUKU_RUNNING, %SHIZUKU_PERMISSION_GRANTED, %SHIZUKU_PRIVILEGE_LABEL, and %SHIZUKU_UID.",
+                                "Create, list, run, enable, disable, delete, export, or import saved Android automations, variables, and secret-free app settings bundles. Supports shell, file-write, file-delete, variable set/clear/append/add/subtract/literal-replace, clipboard set, Tasker Flash/toast messages, vibration, safe Android system-action, accessibility UI-action, app-launch, Android intent, email draft composition, Shizuku/Sui package-permission/data-clear/connectivity-toggle, offline sunrise/sunset, notification post/cancel tasks, screen-aware overlay scene show/hide tasks, launcher shortcuts, a user-added Agent Quick Settings tile, a Agent home-screen widget, and token-protected Tasker/Locale action, condition, and event plugins bound to saved automations or Agent/Shizuku state; direct sunrise/sunset calculation; safe Tasker XML/Data URI import; provider-backed calendar scan/watch actions; provider-backed location scan/watch actions; Shizuku-backed logcat scan/watch actions with a bounded scan cursor; manual tasks; interval tasks; Tasker-style time/day triggers; boot/power/battery/app-foreground/notification-posted/calendar-event/location/sensor/logcat-entry/Shizuku-state/external-trigger/remote-dispatch phone triggers; OpenGUI-style standby heartbeat, standby device listing, standby dispatch payloads, execution status queries, lifecycle state for /pause /resume /cancel, raw slash payloads, and IM command strings such as !opengui devices, /opengui devices, /status, /run, and /do; Tasker-style %VARIABLE expansion; Agent automation bundle backup/restore; and Kai-style app settings export_app_settings/import_app_settings without provider secrets. Shizuku execution must be explicitly requested per shell task or by create_shizuku_action_task. The Tasker condition plugin can expose Shizuku availability, saved automation enabled/disabled state, last-run success/failure, and saved Agent variable set/equality state to Tasker profiles. The Tasker event plugin can trigger Tasker profiles from verified Agent automation finished/succeeded/failed events and Shizuku available/unavailable updates while returning Tasker-local %hermes_* event variables. Tasker import supports a safe subset of exported Tasker actions including global UI navigation, safe settings panels, Flash, Vibrate, Vibrate Pattern, Set Clipboard, HTTP request, audio, Variable Set, Variable Clear, Variable Add, Variable Subtract, and replace-enabled Variable Search Replace, and leaves records disabled unless enable_imported is set. Overlay scenes require Android draw-over-other-apps permission and support bounded title/text/button/position/width payloads, not arbitrary scene code. Notification post actions require Android notification permission on Android 13+. App-foreground triggers require the user-enabled Agent accessibility service. Notification-posted triggers require user-enabled Agent notification access. Calendar-event triggers can be explicit event dispatches or scanned/watched from Android Calendar after the user grants calendar access. Location triggers can be explicit event dispatches or scanned/watched from Android location providers after the user grants location access. Sensor, logcat-entry, and external triggers are explicit event dispatches; external triggers also have an exported broadcast receiver guarded by a required shared token. Remote dispatch can list this phone with operator_devices, record OpenGUI standby heartbeats with operator_heartbeat, parse OpenGUI-style messages with operator_command, run enabled records by automation_id, by OpenGUI taskName/label, or by trigger remote_dispatch, exposes %DISPATCH_SOURCE, %DISPATCH_CHANNEL, %DISPATCH_EXECUTION_ID, %DISPATCH_TASK_ID, and %DISPATCH_TASK_NAME, and can be inspected with operator_execution_status or lifecycle actions. Quick Settings tile actions can set, get, clear, or run the configured tile automation; the user still has to add the Agent tile from Android Quick Settings. Home-screen widget actions can set, get, list, clear, request pinning for, or run the configured widget automation; Android launchers still control final widget placement. Location triggers can match latitude/longitude/radius, provider, name, and accuracy, and expose %LOC, %LAT, %LON, %LOCACC, %LOCPROVIDER, %LOCNAME, and LOCATION_* aliases. start_location_watcher and scan_location require Android location permission and at least one enabled location record. Sunrise/sunset actions accept latitude, longitude, optional date, and optional timezone, and expose %SUNRISE, %SUNSET, %SUN_DAWN, %SUN_DUSK, %SOLAR_NOON, %SUN_DAYLIGHT_MINUTES, %SUN_STATE, %SUN_DATE, %SUN_TIMEZONE, %SUN_LAT, and %SUN_LON. Notification actions can post, update, or cancel app notifications with title, text, channel, priority, group, ongoing, and only-alert-once fields. Variable actions can set, clear, append, add, subtract, or literal-replace a saved Agent automation variable at run time and expand existing variables in the target name and value. Clipboard actions set Android clipboard text and expand saved variables at run time. Toast actions show bounded Android toast/Tasker Flash messages and expand saved variables at run time. Vibration actions use Android's normal vibrator permission and cap duration/pattern totals. Email draft actions open Android's mail composer with recipient, subject, and body fields; actual send remains controlled by the selected email app or a separate user-approved UI action. Sensor triggers can match type/name, event, value name, and min/max value, and expose %SENSOR, %SENSOR_EVENT, %SENSOR_VALUE, %SENSOR_VALUE_NAME, %SENSOR_UNIT, and %SENSOR_ACCURACY. start_calendar_watcher and scan_calendar_events require calendar permission and at least one enabled calendar_event record; watcher scans dedupe recently seen events and reset_calendar_watcher_cursor clears that cursor. Logcat-entry triggers can match tag, message text, level, pid, and package filters, expose %LOGCAT_TAG, %LOGCAT_MESSAGE, %LOGCAT_LEVEL, %LOGCAT_PID, %LOGCAT_PACKAGE, and %LOGCAT_TIME. start_logcat_watcher and scan_logcat_entries require Shizuku/Sui running with Agent permission and at least one enabled logcat_entry record; watcher scans dedupe recently seen log lines and reset_logcat_watcher_cursor clears that cursor. External triggers can match trigger_id, external_token, optional trigger_package_name, and optional referrer_contains, and expose %SA_TRIGGER_ID, %SA_TRIGGER_PACKAGE_NAME, %SA_REFERRER, and %SA_EXTRAS. Shizuku-state triggers expose %SHIZUKU_AVAILABLE, %SHIZUKU_INSTALLED, %SUI_INSTALLED, %SHIZUKU_RUNNING, %SHIZUKU_PERMISSION_GRANTED, %SHIZUKU_PRIVILEGE_LABEL, and %SHIZUKU_UID.",
                             )
                             .put(
                                 "parameters",
@@ -3935,19 +3935,19 @@ class NativeToolCallingChatClient(
                                                 "bundle",
                                                 JSONObject()
                                                     .put("type", "object")
-                                                    .put("description", "Hermes automation export bundle for import_automations, or secret-free Hermes app settings bundle for import_app_settings."),
+                                                    .put("description", "Agent automation export bundle for import_automations, or secret-free Agent app settings bundle for import_app_settings."),
                                             )
                                             .put(
                                                 "bundle_json",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Stringified Hermes automation export bundle for import_automations, or secret-free Hermes app settings bundle for import_app_settings."),
+                                                    .put("description", "Stringified Agent automation export bundle for import_automations, or secret-free Agent app settings bundle for import_app_settings."),
                                             )
                                             .put(
                                                 "settings_json",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Stringified secret-free Hermes app settings bundle for import_app_settings."),
+                                                    .put("description", "Stringified secret-free Agent app settings bundle for import_app_settings."),
                                             )
                                             .put(
                                                 "tasker_xml",
@@ -4019,7 +4019,7 @@ class NativeToolCallingChatClient(
                                                 "path",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Workspace path for create_file_write_task or create_file_delete_task. Relative paths resolve inside the Hermes app shell home."),
+                                                    .put("description", "Workspace path for create_file_write_task or create_file_delete_task. Relative paths resolve inside the Agent app shell home."),
                                             )
                                             .put(
                                                 "content",
@@ -4049,7 +4049,7 @@ class NativeToolCallingChatClient(
                                                 "shizuku_action",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Saved Shizuku/Sui action for create_shizuku_action_task. Package actions: grant_runtime_permission, revoke_runtime_permission, force_stop_app, clear_app_data, enable_app, disable_app, set_app_enabled. Device actions: Wi-Fi/Bluetooth/mobile-data/airplane-mode/Wi-Fi tethering toggles, set_dnd_mode/enable_dnd/disable_dnd, set_power_save_mode/enable_power_save_mode/disable_power_save_mode, turn_screen_off, end_call, global_back/global_home/global_recents/global_notifications/global_quick_settings/collapse_status_bar, set_mobile_network_type, and start_user_profile/stop_user_profile/switch_user_profile. Requires user-started Shizuku/Sui and granted Hermes permission when run."),
+                                                    .put("description", "Saved Shizuku/Sui action for create_shizuku_action_task. Package actions: grant_runtime_permission, revoke_runtime_permission, force_stop_app, clear_app_data, enable_app, disable_app, set_app_enabled. Device actions: Wi-Fi/Bluetooth/mobile-data/airplane-mode/Wi-Fi tethering toggles, set_dnd_mode/enable_dnd/disable_dnd, set_power_save_mode/enable_power_save_mode/disable_power_save_mode, turn_screen_off, end_call, global_back/global_home/global_recents/global_notifications/global_quick_settings/collapse_status_bar, set_mobile_network_type, and start_user_profile/stop_user_profile/switch_user_profile. Requires user-started Shizuku/Sui and granted Agent permission when run."),
                                             )
                                             .put(
                                                 "notification_action",
@@ -4134,7 +4134,7 @@ class NativeToolCallingChatClient(
                                                 "scene_width",
                                                 JSONObject()
                                                     .put("type", JSONArray().put("integer").put("number").put("string"))
-                                                    .put("description", "Optional overlay width. Accepts dp numbers, pixel strings like 960px, or percentages like 94%. Hermes clamps it to the current safe screen area."),
+                                                    .put("description", "Optional overlay width. Accepts dp numbers, pixel strings like 960px, or percentages like 94%. Agent clamps it to the current safe screen area."),
                                             )
                                             .put(
                                                 "scene_width_dp",
@@ -4146,7 +4146,7 @@ class NativeToolCallingChatClient(
                                                 "scene_width_px",
                                                 JSONObject()
                                                     .put("type", JSONArray().put("integer").put("string"))
-                                                    .put("description", "Optional overlay width in physical pixels. Useful when sizing from screenshot dimensions; Hermes clamps it to the current safe screen area."),
+                                                    .put("description", "Optional overlay width in physical pixels. Useful when sizing from screenshot dimensions; Agent clamps it to the current safe screen area."),
                                             )
                                             .put(
                                                 "scene_width_percent",
@@ -4176,7 +4176,7 @@ class NativeToolCallingChatClient(
                                                 "channel_id",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Notification channel id for create_notification_task. Defaults to the Hermes automation channel."),
+                                                    .put("description", "Notification channel id for create_notification_task. Defaults to the Agent automation channel."),
                                             )
                                             .put(
                                                 "channel_name",
@@ -4309,7 +4309,7 @@ class NativeToolCallingChatClient(
                                                 "trigger",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Optional trigger for create_*_task or run_trigger: manual, time, boot, power_connected, power_disconnected, battery_low, battery_okay, app_foreground, notification_posted, calendar_event, location, sensor, logcat_entry, external_trigger, remote_dispatch, shizuku_available, or shizuku_unavailable. interval_minutes creates an interval trigger. time requires a time argument such as 08:30 and can use days_of_week. app_foreground and notification_posted require trigger_package_name and the relevant Android service permission. calendar_event can filter by calendar_name, title_contains, description_contains, or location_contains. location can filter by latitude, longitude, radius_meters, location_provider, location_name, or max_accuracy_meters and can be run with run_location_trigger or watched from enabled saved location records with start_location_watcher after Android location permission is granted. sensor can filter by sensor_type, sensor_event, value_name, or min/max value and can be run with run_sensor_trigger or watched from enabled saved sensor records with start_sensor_watcher. logcat_entry can filter by logcat_tag, logcat_message_contains, logcat_level, logcat_pid, logcat_package_name, or trigger_package_name and must be run with run_logcat_entry_trigger. Shizuku logcat scans expose UID package candidates through logcat_package_candidates. external_trigger requires trigger_id and external_token and must be run with run_external_trigger or the exported Hermes external-trigger broadcast. remote_dispatch records can be run by run_remote_dispatch with OpenGUI-style executionId, taskId, and taskName payloads."),
+                                                    .put("description", "Optional trigger for create_*_task or run_trigger: manual, time, boot, power_connected, power_disconnected, battery_low, battery_okay, app_foreground, notification_posted, calendar_event, location, sensor, logcat_entry, external_trigger, remote_dispatch, shizuku_available, or shizuku_unavailable. interval_minutes creates an interval trigger. time requires a time argument such as 08:30 and can use days_of_week. app_foreground and notification_posted require trigger_package_name and the relevant Android service permission. calendar_event can filter by calendar_name, title_contains, description_contains, or location_contains. location can filter by latitude, longitude, radius_meters, location_provider, location_name, or max_accuracy_meters and can be run with run_location_trigger or watched from enabled saved location records with start_location_watcher after Android location permission is granted. sensor can filter by sensor_type, sensor_event, value_name, or min/max value and can be run with run_sensor_trigger or watched from enabled saved sensor records with start_sensor_watcher. logcat_entry can filter by logcat_tag, logcat_message_contains, logcat_level, logcat_pid, logcat_package_name, or trigger_package_name and must be run with run_logcat_entry_trigger. Shizuku logcat scans expose UID package candidates through logcat_package_candidates. external_trigger requires trigger_id and external_token and must be run with run_external_trigger or the exported Agent external-trigger broadcast. remote_dispatch records can be run by run_remote_dispatch with OpenGUI-style executionId, taskId, and taskName payloads."),
                                             )
                                             .put(
                                                 "trigger_package_name",
@@ -4339,7 +4339,7 @@ class NativeToolCallingChatClient(
                                                 "taskName",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "OpenGUI-compatible task name for run_remote_dispatch. Hermes matches this against enabled automation labels or ids."),
+                                                    .put("description", "OpenGUI-compatible task name for run_remote_dispatch. Agent matches this against enabled automation labels or ids."),
                                             )
                                             .put(
                                                 "dispatch_source",
@@ -4621,7 +4621,7 @@ class NativeToolCallingChatClient(
                                                 "use_cursor",
                                                 JSONObject()
                                                     .put("type", "boolean")
-                                                    .put("description", "Optional scan_logcat_entries cursor flag. When true, Hermes suppresses recently seen log lines so polling does not rerun the same logcat event."),
+                                                    .put("description", "Optional scan_logcat_entries cursor flag. When true, Agent suppresses recently seen log lines so polling does not rerun the same logcat event."),
                                             )
                                             .put(
                                                 "reset_cursor",
@@ -4633,7 +4633,7 @@ class NativeToolCallingChatClient(
                                                 "shizuku_state",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Optional state for run_shizuku_state_trigger: available, unavailable, shizuku_available, or shizuku_unavailable. When omitted, Hermes uses the current Shizuku/Sui binder and permission state."),
+                                                    .put("description", "Optional state for run_shizuku_state_trigger: available, unavailable, shizuku_available, or shizuku_unavailable. When omitted, Agent uses the current Shizuku/Sui binder and permission state."),
                                             )
                                             .put(
                                                 "interval_minutes",
@@ -4735,7 +4735,7 @@ class NativeToolCallingChatClient(
                                                 "timeout_seconds",
                                                 JSONObject()
                                                     .put("type", "integer")
-                                                    .put("description", "Optional timeout for Shizuku-backed saved package or permission actions, clamped by Hermes."),
+                                                    .put("description", "Optional timeout for Shizuku-backed saved package or permission actions, clamped by Agent."),
                                             )
                                             .put(
                                                 "name",
@@ -4763,7 +4763,7 @@ class NativeToolCallingChatClient(
                             .put("name", "android_ui_tool")
                             .put(
                                 "description",
-                                "Inspect or control the visible Android UI through the user-enabled Hermes accessibility service. Supports OpenGUI-style sense/perception routing between accessibility semantics and visual screenshot fallback, status, screen snapshots with stable ui_state_hash values, selector-based click/type/scroll/focus, OpenGUI-style raw VLM action parsing/execution, deterministic OpenGUI action history, user-visible call_user handoffs, repeated-action and screen-state review guards, scroll/type/press/open-app aliases, coordinate tap/long-press/swipe gestures, and global Back/Home/Recents/notifications/quick-settings actions.",
+                                "Inspect or control the visible Android UI through the user-enabled Agent accessibility service. Supports OpenGUI-style sense/perception routing between accessibility semantics and visual screenshot fallback, status, screen snapshots with stable ui_state_hash values, selector-based click/type/scroll/focus, OpenGUI-style raw VLM action parsing/execution, deterministic OpenGUI action history, user-visible call_user handoffs, repeated-action and screen-state review guards, scroll/type/press/open-app aliases, coordinate tap/long-press/swipe gestures, and global Back/Home/Recents/notifications/quick-settings actions.",
                             )
                             .put(
                                 "parameters",
@@ -4788,7 +4788,7 @@ class NativeToolCallingChatClient(
                                                 "screen_hash",
                                                 JSONObject()
                                                     .put("type", "string")
-                                                    .put("description", "Optional OpenGUI pHash or Hermes snapshot ui_state_hash for screen-state loop review."),
+                                                    .put("description", "Optional OpenGUI pHash or Agent snapshot ui_state_hash for screen-state loop review."),
                                             )
                                             .put(
                                                 "include_snapshot",
@@ -4924,7 +4924,7 @@ class NativeToolCallingChatClient(
                             .put("name", "file_write_tool")
                             .put(
                                 "description",
-                                "Write or replace a UTF-8 text file inside the Hermes app workspace without shell quoting.",
+                                "Write or replace a UTF-8 text file inside the Agent app workspace without shell quoting.",
                             )
                             .put(
                                 "parameters",
@@ -4965,7 +4965,7 @@ class NativeToolCallingChatClient(
                             .put("name", "android_system_tool")
                             .put(
                                 "description",
-                                            "Read Hermes Android phone/device status, open safe settings/setup panels, start/stop the background runtime, or perform explicit user-granted Shizuku/Sui app, permission, and connectivity toggle actions.",
+                                            "Read Agent Android phone/device status, open safe settings/setup panels, start/stop the background runtime, or perform explicit user-granted Shizuku/Sui app, permission, and connectivity toggle actions.",
                             )
                             .put(
                                 "parameters",
@@ -5493,12 +5493,12 @@ class NativeToolCallingChatClient(
                 )
             }
             val guidance = buildList {
-                add("You are Hermes in the native Android app. Tools are available in this request. When the user asks for an action, call the matching provided tool instead of saying you cannot execute commands or do not have tools. Never invent tool output, and keep replies brief. If native function calling is unavailable, emit exactly <tool_call>{\"name\":\"tool_name\",\"arguments\":{}}</tool_call>.")
+                add("You are Agent in the native Android app. Tools are available in this request. When the user asks for an action, call the matching provided tool instead of saying you cannot execute commands or do not have tools. Never invent tool output, and keep replies brief. If native function calling is unavailable, emit exactly <tool_call>{\"name\":\"tool_name\",\"arguments\":{}}</tool_call>.")
                 if ("mcp_run_in_proot" in toolNames || "linux_sandbox_tool" in toolNames) {
                     add("For a command inside an installed Linux guest, call mcp_run_in_proot with command. Use linux_sandbox_tool for lifecycle actions such as install, start, update, status, or remove.")
                 }
                 if ("terminal_tool" in toolNames || "mcp_send_terminal_input" in toolNames) {
-                    add("Use terminal_tool only for the Hermes host workspace, not for absolute paths inside a downloaded distro.")
+                    add("Use terminal_tool only for the Agent host workspace, not for absolute paths inside a downloaded distro.")
                 }
                 if ("linux_host_pkg_tool" in toolNames) {
                     add("Use linux_host_pkg_tool only for the embedded host package suite; guest apt/apk belongs to linux_sandbox_tool.")
@@ -5551,9 +5551,9 @@ class NativeToolCallingChatClient(
             relevantMemoryContext: String = "",
         ): String {
             val baseContent = if (toolsEnabled) {
-                "You are Hermes running inside the native Android app. " +
+                "You are Agent running inside the native Android app. " +
                     "Use tools for real files, shell commands, Android UI, settings, Shizuku/Sui, diagnostics, sensor sampling/range/resolution/power metadata, motion history, fused pose/orientation estimates, and local backend runtime health, camera capability checks, Wi-Fi analysis/channel graph envelopes/channel ratings/channel utilization/signal history, Bluetooth Analyzer readiness/scan-policy reports plus nearby scans/service labels/manufacturer names/device detail export rows, radio analyzer checks for AM/FM band-plan boundaries, AM/FM signal graph rows, vendor broadcast-radio hints, receiver profile schemas, Wi-Fi/Bluetooth radio routes, external SDR constraints, resource summaries, secret-free app settings backup/restore, Kai-style custom agent persona/system prompt, Kai-compatible schedule_task/list_tasks/cancel_task native Android task aliases, or Tasker-style automation. " +
-                    "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Hermes app workspace. " +
+                    "When writing multiline text, prefer file_write_tool so multiline content is written exactly; file_write_tool can only write inside the Agent app workspace. " +
                     "For HTML/browser work: write the file with file_write_tool, then call android_automation_tool action=open_uri with data_uri set to the workspace filename. " +
                     "Use android_device_diagnostics_tool for top memory/storage apps, Wi-Fi signals/channel graph envelopes/channel ratings/channel utilization/signal history, filterable Wi-Fi Analyzer readiness/scan-policy reports, Bluetooth Analyzer readiness/scan-policy reports, Bluetooth nearby decision packets, and nearby devices with service UUID labels/manufacturer names/device details/export rows, camera/sensor status plus accelerometer/gyroscope hardware metadata, motion sensor decision packets, motion trend history, fused pose/heading/acceleration estimates, active overlays, tool catalog, Gemma-visible signal briefing decks, expanded signal card decks, per-card signal refresh plans/status indicators, signal proof audits and claim-boundary matrices, unified signal timelines, signal replay/export bundles and replay freshness/staleness audits, compact signal observation packets/top-card snapshots, evidence bundles, signal workflow handoff and next-action reports, signal permission and active-refresh runbooks, agent observation dashboards, Kai-style agent environment reports, MCP tool-server registry reports, objective coverage/gap and upgrade coverage reports, release validation and GitHub release readiness reports for Android CI, signed GitHub artifacts, SHA-256 checksums, F-Droid metadata and tagged Fastlane graphics, full upgrade objective audit reports, passive agent self-check/heartbeat reports, cross-signal awareness reports, MediaTek signal-stack reports that fuse SOC/backend policy with Wi-Fi/Bluetooth/radio/sensor evidence and claim boundaries, local runtime backend health, thermal/memory/power runtime stability guardrails, SOC compatibility/backend reports and backend launch advisors for MediaTek/Mali/PowerVR and non-Snapdragon devices, AM/FM signal graph rows, radio decision packets, broader radio signal route reports, receiver profile schemas, RF capability limits, or phone preflight checks before TikTok/Instagram/Gmail work. " +
                     "For the embedded host Termux suite (proot, proot-distro, curl, git, …), use linux_host_pkg_tool action=update|upgrade|install or terminal_tool with pkg update/upgrade/install — this refreshes packages from Termux mirrors without an APK update. " +
@@ -5573,14 +5573,14 @@ class NativeToolCallingChatClient(
                     "For nearby Bluetooth or BLE decision-packet questions, call android_device_diagnostics_tool action=bluetooth_nearby_decision_packet_report so scanner/advisor rows, RSSI trends, service/manufacturer metadata, RF coexistence, MediaTek/backend sensitivity, and claim_scope stay attached. " +
                     "For accelerometer, gyroscope, IMU, pose, or motion workflow decisions, call android_device_diagnostics_tool action=motion_sensor_decision_packet_report so quality, history, pose, workflow routes, sampling privacy, MediaTek/backend sensitivity, and claim_scope stay attached. " +
                     "For AM/FM, SDR, receiver bridge, or radio evidence decisions, call android_device_diagnostics_tool action=radio_signal_decision_packet_report so band-plan limits, graph samples, bridge metadata, RF coexistence, MediaTek/backend sensitivity, and claim_scope stay attached. " +
-                    "For broad questions about what Hermes/Gemma can see from nearby signals, first call android_device_diagnostics_tool action=agent_signal_evidence_report; then drill into Wi-Fi, Bluetooth, sensor, radio, backend-risk, observation-packet, or card-manifest actions only when the evidence rows say a source card or live refresh is needed. " +
+                    "For broad questions about what Agent/Gemma can see from nearby signals, first call android_device_diagnostics_tool action=agent_signal_evidence_report; then drill into Wi-Fi, Bluetooth, sensor, radio, backend-risk, observation-packet, or card-manifest actions only when the evidence rows say a source card or live refresh is needed. " +
                     "For portable signal replay/export requests, call android_device_diagnostics_tool action=agent_signal_replay_export_report so source_action, graph_type, claim_scope, proof_status, and refresh policy stay visible together. " +
                     "Before treating replay/export rows as current, call android_device_diagnostics_tool action=agent_signal_replay_freshness_audit_report so freshness_status, staleness_risk, active_refresh_action, passive_fallback_action, permission_gate, hardware_gate, and proof_status stay attached. " +
                     "Use schedule_task/list_tasks/cancel_task for Kai-style scheduled reminders; these create, list, and cancel native Android automation notification records, not unrestricted background AI prompt execution. " +
                     "Use hy_memory_tool or package-compatible memory_search/memory_add/memory_delete/memory_list to retain, recall, reflect, and inspect promoted durable local memories before or after complex work. " +
                     "Report missing Android permissions honestly. Keep replies brief."
             } else {
-                "You are Hermes running inside the native Android app. Keep replies brief and direct."
+                "You are Agent running inside the native Android app. Keep replies brief and direct."
             }
             val normalizedPersona = NativeToolContextCompressor.compactCustomSystemPrompt(
                 AppSettings.normalizeCustomSystemPrompt(customSystemPrompt),
@@ -5920,14 +5920,14 @@ class NativeToolCallingChatClient(
                 "what can you see",
                 "what do you see",
                 "what are you seeing",
-                "what can hermes see",
+                "what can agent see", "what can hermes see",
                 "what can gemma see",
                 "what can the agent see",
                 "what is the agent viewing",
                 "what are nearby signals",
                 "what signals are nearby",
                 "what is gemma viewing",
-                "what is hermes viewing",
+                "what is agent viewing", "what is hermes viewing",
             ).any { it in lower }
             val hasSignalDomain = listOf(
                 "signal",
@@ -6082,7 +6082,7 @@ class NativeToolCallingChatClient(
                     diagnosticArguments("agent_signal_card_deck_report")
                 lower.containsAny("signal permission runbook", "permission runbook", "refresh runbook", "active signal refresh", "active refresh route", "active refresh routes", "before live scan", "request permissions") ->
                     diagnosticArguments("agent_signal_permission_runbook_report")
-                lower.containsAny("workflow handoff", "signal workflow handoff", "signal handoff", "next signal action", "next diagnostic action", "what should i open next", "what should hermes open next", "what should gemma check next", "card handoff", "next evidence route", "operational signal plan", "signal next actions") ->
+                lower.containsAny("workflow handoff", "signal workflow handoff", "signal handoff", "next signal action", "next diagnostic action", "what should i open next", "what should agent open next", "what should hermes open next", "what should gemma check next", "card handoff", "next evidence route", "operational signal plan", "signal next actions") ->
                     diagnosticArguments("agent_signal_workflow_handoff_report")
                 lower.containsAny("objective coverage", "coverage gap", "coverage gaps", "objective gap", "objective gaps", "research parity coverage", "kai wifi analyzer parity", "kai wi-fi analyzer parity", "full objective coverage", "agent upgrade coverage", "hermes upgrade coverage", "upgrade coverage report", "upgrade coverage map") ->
                     diagnosticArguments("agent_objective_coverage_report")
@@ -6100,7 +6100,7 @@ class NativeToolCallingChatClient(
                     diagnosticArguments("motion_sensor_decision_packet_report", "include_snapshot" to false)
                 lower.containsAny("rf coexistence", "wireless coexistence", "wifi bluetooth coexistence", "wi-fi bluetooth coexistence", "bluetooth wifi interference", "bluetooth wi-fi interference", "cross signal interference", "2.4 ghz coexistence", "2.4ghz coexistence") ->
                     diagnosticArguments("rf_coexistence_report")
-                lower.containsAny("signal timeline", "agent signal timeline", "gemma signal timeline", "what did the agent recently see", "what did hermes recently see", "recent signal view", "recently viewed signals") ->
+                lower.containsAny("signal timeline", "agent signal timeline", "gemma signal timeline", "what did the agent recently see", "what did agent recently see", "what did hermes recently see", "recent signal view", "recently viewed signals") ->
                     diagnosticArguments("agent_signal_timeline_report")
                 (lower.contains("export") && lower.containsAny("wifi", "wi-fi", "access point", "access points")) ||
                     lower.containsAny("export ap", "export aps", "ap export") ->
@@ -6868,7 +6868,7 @@ internal object NativeToolContextCompressor {
                     .put("role", "system")
                     .put(
                         "content",
-                        "Hermes compacted prior native tool context to keep local mobile inference within context. " +
+                        "Agent compacted prior native tool context to keep local mobile inference within context. " +
                             summary,
                     ),
             )
@@ -7017,7 +7017,7 @@ internal object NativeToolContextCompressor {
                 compacted.put(
                     JSONObject()
                         .put("type", "text")
-                        .put("text", "[Hermes omitted an attached image during context-window recovery.]"),
+                        .put("text", "[Agent omitted an attached image during context-window recovery.]"),
                 )
             } else {
                 compacted.put(
@@ -7041,7 +7041,7 @@ internal object NativeToolContextCompressor {
         recovered.put(
             JSONObject()
                 .put("role", "system")
-                .put("content", "Hermes compressed earlier local chat turns after a context-window overflow and kept the latest actionable exchange."),
+                .put("content", "Agent compressed earlier local chat turns after a context-window overflow and kept the latest actionable exchange."),
         )
         val tailStart = maxOf(1, messages.length() - 4)
         var includedUser = false

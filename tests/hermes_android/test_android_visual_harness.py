@@ -50,13 +50,13 @@ def test_is_chat_home_xml_requires_composer_not_drawer_title():
     harness = _load_harness()
     chat_home = """
     <hierarchy>
-      <node text="Message Hermes Fork" />
-      <node text="Welcome to Hermes Agent Fork" />
+      <node text="Message Agent" />
+      <node text="Welcome to Agent" />
     </hierarchy>
     """
     drawer_only = """
     <hierarchy>
-      <node text="Hermes Fork" />
+      <node text="Agent" />
       <node text="Accounts" />
       <node text="Settings" />
     </hierarchy>
@@ -77,7 +77,7 @@ def test_navigation_drawer_is_open_distinguishes_drawer_from_chat_home():
     """
     chat_home = """
     <hierarchy>
-      <node text="Message Hermes Fork" />
+      <node text="Message Agent" />
       <node text="Accounts" />
       <node text="Settings" />
     </hierarchy>

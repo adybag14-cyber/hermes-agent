@@ -44,7 +44,7 @@ object AICoreBackendController {
 
     /** Get human-readable description of available backends */
     fun getBackendDescription(): String {
-        return "AICore/NPU is not implemented in Hermes yet; select LiteRT-LM for its verified GPU/CPU path"
+        return "AICore/NPU is not implemented in Agent yet; select LiteRT-LM for its verified GPU/CPU path"
     }
 
     /** Get the minimum API level required for AICore */

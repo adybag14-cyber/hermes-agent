@@ -424,13 +424,13 @@ class AppSettingsStore private constructor(
     private fun commitNormalizedLocked(settings: AppSettings, rollback: AppSettings) {
         val failure = runCatching {
             if (commitEditor(editorFor(settings))) null else {
-                AppSettingsPersistenceException("Failed to commit Hermes app settings")
+                AppSettingsPersistenceException("Failed to commit Agent app settings")
             }
         }.fold(
             onSuccess = { it },
             onFailure = { error ->
                 if (error is AppSettingsPersistenceException) error else {
-                    AppSettingsPersistenceException("Failed to commit Hermes app settings", error)
+                    AppSettingsPersistenceException("Failed to commit Agent app settings", error)
                 }
             },
         )

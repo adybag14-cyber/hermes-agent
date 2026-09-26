@@ -1,3 +1,3 @@
-"""Android-specific bootstrap helpers for Hermes Agent."""
+"""Android-specific bootstrap helpers for Agent."""
 
 __all__ = ["boot_probe"]

@@ -1,0 +1,29 @@
+{
+  "schema": "agent-candidate-cross-builder-comparison-v1",
+  "checked_at": "2026-09-25T16:25:36.519562+00:00",
+  "source_commit": "c7bec5659b9b9f76ac523443331713f0d44a1a15",
+  "scope": "unsigned unpublished candidate comparison; not public-signed-release reproducibility",
+  "new_builder_revision": "8f52ae3ce287bc28964db544b970b88dce9c38bf",
+  "old_builder_revision": "4a8821a58659901c63315cb000b0e98525653bc5",
+  "apk_files": [
+    {
+      "path": "/home/vagrant/tmp/com.mobilefork.hermesagent_145790.apk",
+      "bytes": 349478187,
+      "sha256": "aa6a38d891197b455e78108d077052a5c54081c125bdcc985d95e4bf3f48ad90"
+    },
+    {
+      "path": "/work/agent-fdroid-checks-20260925/reference-old-builder/android/app/build/outputs/apk/release/app-release-unsigned.apk",
+      "bytes": 349478187,
+      "sha256": "aa6a38d891197b455e78108d077052a5c54081c125bdcc985d95e4bf3f48ad90"
+    }
+  ],
+  "whole_apk_byte_identical": true,
+  "entry_payloads_identical": true,
+  "entries": 4877,
+  "only_in_fdroid": [],
+  "only_in_reference": [],
+  "different_payloads": [],
+  "verified_dependency_caches_reused": true,
+  "public_reference": false,
+  "signed": false
+}

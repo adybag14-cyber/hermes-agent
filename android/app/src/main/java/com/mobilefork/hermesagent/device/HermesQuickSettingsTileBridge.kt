@@ -31,7 +31,7 @@ object HermesQuickSettingsTileBridge {
             .put("configured", true)
             .put("automation_id", record.id)
             .put("label", label.take(MAX_TILE_LABEL_CHARS))
-            .put("message", "Configured the Hermes Quick Settings tile for this saved automation.")
+            .put("message", "Configured the Agent Quick Settings tile for this saved automation.")
             .toString()
     }
 
@@ -62,7 +62,7 @@ object HermesQuickSettingsTileBridge {
             .put("success", true)
             .put("action", "clear_quick_settings_tile_automation")
             .put("configured", false)
-            .put("message", "Cleared the Hermes Quick Settings tile automation.")
+            .put("message", "Cleared the Agent Quick Settings tile automation.")
             .toString()
     }
 
@@ -73,7 +73,7 @@ object HermesQuickSettingsTileBridge {
     ): String {
         val appContext = context.applicationContext
         val config = configuredAutomation(appContext)
-            ?: return errorJson("No Hermes automation is configured for the Quick Settings tile")
+            ?: return errorJson("No Agent automation is configured for the Quick Settings tile")
         val result = JSONObject(
             HermesAutomationBridge.runAutomationJson(
                 appContext,
@@ -159,6 +159,6 @@ object HermesQuickSettingsTileBridge {
     private const val PREFS_NAME = "hermes_quick_settings_tile"
     private const val KEY_AUTOMATION_ID = "automation_id"
     private const val KEY_LABEL = "label"
-    private const val DEFAULT_TILE_LABEL = "Hermes task"
+    private const val DEFAULT_TILE_LABEL = "Agent task"
     private const val MAX_TILE_LABEL_CHARS = 40
 }

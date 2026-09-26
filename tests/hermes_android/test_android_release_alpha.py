@@ -302,14 +302,14 @@ def test_remote_release_authority_script_rejects_tag_and_default_ref_drift(tmp_p
 
     git(source, "init")
     git(source, "branch", "-M", "main")
-    git(source, "config", "user.name", "Hermes Release Test")
+    git(source, "config", "user.name", "Agent Release Test")
     git(source, "config", "user.email", "hermes-release-test@example.invalid")
     (source / "source.txt").write_text("one\n", encoding="utf-8")
     git(source, "add", "source.txt")
     git(source, "commit", "-m", "source one")
     release_commit = git(source, "rev-parse", "HEAD^{commit}").stdout.strip()
     release_tag = "v0.13.151"
-    git(source, "tag", "-a", release_tag, "-m", "Hermes release one")
+    git(source, "tag", "-a", release_tag, "-m", "Agent release one")
     initial_tag_object = git(source, "rev-parse", f"refs/tags/{release_tag}").stdout.strip()
 
     git(tmp_path, "init", "--bare", str(remote))
@@ -345,7 +345,7 @@ def test_remote_release_authority_script_rejects_tag_and_default_ref_drift(tmp_p
     assert authority(initial_tag_object).returncode != 0
 
     git(source, "tag", "-d", release_tag)
-    git(source, "tag", "-a", release_tag, "-m", "Hermes release moved", release_commit)
+    git(source, "tag", "-a", release_tag, "-m", "Agent release moved", release_commit)
     moved_tag_object = git(source, "rev-parse", f"refs/tags/{release_tag}").stdout.strip()
     assert moved_tag_object != initial_tag_object
     git(source, "push", "--force", "origin", f"refs/tags/{release_tag}")

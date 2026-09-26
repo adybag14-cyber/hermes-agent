@@ -667,13 +667,8 @@ def requires_physical_nanbeige_repair_evidence(tag: str) -> bool:
 
 
 def litertlm_coordinate_for_tag(tag: str) -> str:
-    """Return the release dependency required by the tag's immutable evidence contract."""
-
-    if _tag_version_tuple(tag) >= LITERTLM_0170_MIN_VERSION:
-        return LITERTLM_COORDINATE
-    if _tag_version_tuple(tag) >= LITERTLM_0161_MIN_VERSION:
-        return LITERTLM_0161_COORDINATE
-    return LEGACY_LITERTLM_COORDINATE
+    """Return the dependency required by the tag's immutable evidence contract."""
+    return release_policy.required_litertlm_coordinate(tag)
 
 
 def manifest_schema_for_tag(tag: str) -> str:

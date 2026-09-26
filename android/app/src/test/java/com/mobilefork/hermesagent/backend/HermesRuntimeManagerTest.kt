@@ -211,7 +211,7 @@ class HermesRuntimeManagerTest {
                 LocalBackendStatus(
                     backendKind = BackendKind.LITERT_LM,
                     started = false,
-                    statusMessage = "LiteRT-LM shutdown is still unwinding; force stop and reopen Hermes",
+                    statusMessage = "LiteRT-LM shutdown is still unwinding; force stop and reopen Agent",
                     requiresAppRestart = true,
                 )
             },

@@ -153,7 +153,7 @@ class ProviderBrowserLaunchInstrumentedTest {
     ): TypeSafeMatcher<Intent> {
         return object : TypeSafeMatcher<Intent>() {
             override fun describeTo(description: Description) {
-                description.appendText("Hermes provider setup WebView intent")
+                description.appendText("Agent provider setup WebView intent")
             }
 
             override fun matchesSafely(intent: Intent): Boolean {

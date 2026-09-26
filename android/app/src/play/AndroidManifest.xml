@@ -35,7 +35,7 @@
         <intent><action android:name="android.speech.action.RECOGNIZE_SPEECH" /></intent>
         <intent><action android:name="android.media.action.IMAGE_CAPTURE" /></intent>
     </queries>
-    <application android:label="Hermes Agent Fork — Play" tools:replace="android:label">
+    <application android:label="@string/app_name" tools:replace="android:label">
         <activity android:name=".MainActivity" tools:node="remove" />
         <activity android:name=".play.PlayActivity" android:exported="true" android:resizeableActivity="true"
             android:windowSoftInputMode="adjustResize">

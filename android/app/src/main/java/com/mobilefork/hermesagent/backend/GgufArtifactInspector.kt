@@ -46,7 +46,7 @@ object GgufArtifactInspector {
                     return Inspection(
                         valid = false,
                         version = version,
-                        error = "${file.name} uses unsupported GGUF version $version; this Hermes llama.cpp runtime accepts GGUF v2-v3",
+                        error = "${file.name} uses unsupported GGUF version $version; this Agent llama.cpp runtime accepts GGUF v2-v3",
                     )
                 }
                 val tensorCount = reader.readUInt64Checked("tensor count")
@@ -106,7 +106,7 @@ object GgufArtifactInspector {
                         architecture = architecture,
                         chatTemplatePresent = chatTemplatePresent,
                         splitCount = splitCount,
-                        error = "${file.name} is one shard of a $splitCount-file split GGUF; Hermes currently requires one complete GGUF file",
+                        error = "${file.name} is one shard of a $splitCount-file split GGUF; Agent currently requires one complete GGUF file",
                     )
                 }
                 if (!chatTemplatePresent) {

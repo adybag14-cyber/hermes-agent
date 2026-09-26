@@ -215,7 +215,7 @@ object OnDeviceBackendManager {
                     started = false,
                     sourceModelPath = preferred.destinationPath,
                     statusMessage =
-                        "Hermes verified the preferred local model, but did not start llama.cpp " +
+                        "Agent verified the preferred local model, but did not start llama.cpp " +
                             "because it could not persist the required " +
                             "${laneReconciliation.requiredLane} runtime lane. Existing settings were preserved.",
                     artifactSummary = artifactProof.summary,
@@ -228,7 +228,7 @@ object OnDeviceBackendManager {
                     started = false,
                     sourceModelPath = preferred.destinationPath,
                     statusMessage =
-                        "Hermes verified the preferred local model, but did not start llama.cpp " +
+                        "Agent verified the preferred local model, but did not start llama.cpp " +
                             "because its required runtime lane " +
                             "'${laneReconciliation.requiredLane}' is unsupported. Existing settings were preserved.",
                     artifactSummary = artifactProof.summary,
@@ -329,8 +329,8 @@ object OnDeviceBackendManager {
         statusMessage =
             "The existing llama.cpp process did not stop safely " +
                 "(${failure.message?.lineSequence()?.firstOrNull().orEmpty().ifBlank { failure.javaClass.simpleName }}). " +
-                "Hermes did not start ${targetBackend.persistedValue} or report llama.cpp as stopped. " +
-                "Force stop and reopen Hermes before retrying.",
+                "Agent did not start ${targetBackend.persistedValue} or report llama.cpp as stopped. " +
+                "Force stop and reopen Agent before retrying.",
         requiresAppRestart = true,
     )
 
@@ -346,8 +346,8 @@ object OnDeviceBackendManager {
         statusMessage =
             "The existing LiteRT-LM runtime did not stop safely " +
                 "(${failure.message?.lineSequence()?.firstOrNull().orEmpty().ifBlank { failure.javaClass.simpleName }}). " +
-                "Hermes did not start ${targetBackend.persistedValue} or report the native runtime as stopped. " +
-                "Force stop and reopen Hermes before retrying.",
+                "Agent did not start ${targetBackend.persistedValue} or report the native runtime as stopped. " +
+                "Force stop and reopen Agent before retrying.",
         requiresAppRestart = true,
     )
 

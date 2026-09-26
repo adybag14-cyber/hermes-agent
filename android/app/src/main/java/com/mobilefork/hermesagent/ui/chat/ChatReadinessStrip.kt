@@ -67,7 +67,7 @@ internal fun chatReadinessUiState(
     val staleLocalBlocksRoute = local.started && local.backendKind != selectedBackend
     val backendLabel = when {
         local.requiresAppRestart ->
-            "${local.backendKind.persistedValue}: ${local.statusMessage.ifBlank { "force stop and reopen Hermes" }}"
+            "${local.backendKind.persistedValue}: ${local.statusMessage.ifBlank { "force stop and reopen Agent" }}"
         staleLocalBlocksRoute ->
             "${selectedBackend.persistedValue}: waiting for ${local.backendKind.persistedValue} to stop"
         selectedLocalReady ->

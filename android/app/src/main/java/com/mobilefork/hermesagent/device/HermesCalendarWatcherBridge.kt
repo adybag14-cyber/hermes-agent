@@ -97,7 +97,7 @@ object HermesCalendarWatcherBridge {
         if (!hasCalendarPermission(appContext)) {
             return JSONObject()
                 .put("success", false)
-                .put("error", "Calendar permission is not granted to Hermes Agent. Grant calendar access before starting the watcher.")
+                .put("error", "Calendar permission is not granted to Agent. Grant calendar access before starting the watcher.")
                 .put("requires_calendar_permission", true)
                 .put("calendar_permission_granted", false)
                 .put("available_actions", JSONArray(ACTIONS))
@@ -173,7 +173,7 @@ object HermesCalendarWatcherBridge {
         if (injectedEvents == null && !hasCalendarPermission(appContext)) {
             return JSONObject()
                 .put("success", false)
-                .put("error", "Calendar permission is not granted to Hermes Agent.")
+                .put("error", "Calendar permission is not granted to Agent.")
                 .put("requires_calendar_permission", true)
                 .put("calendar_permission_granted", false)
                 .put("available_actions", JSONArray(ACTIONS))

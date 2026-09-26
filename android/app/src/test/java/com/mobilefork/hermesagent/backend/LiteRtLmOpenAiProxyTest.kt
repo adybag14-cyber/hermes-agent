@@ -747,7 +747,7 @@ class LiteRtLmOpenAiProxyTest {
         assertFalse(selection.verified)
         assertTrue(failed.closeStarted)
         assertFalse(failed.closed)
-        assertTrue(selection.attempts.single { it.contains(": failed") }.contains("restart Hermes"))
+        assertTrue(selection.attempts.single { it.contains(": failed") }.contains("restart Agent"))
 
         val retryCreateCount = AtomicInteger(0)
         val blockedRetry = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
@@ -895,7 +895,7 @@ class LiteRtLmOpenAiProxyTest {
         assertTrue(throwingNow.await(1L, java.util.concurrent.TimeUnit.SECONDS))
         val blocked = awaitRestartRequiredGuard()
         assertTrue(blocked.attempts.single().contains("late Capabilities.close failed"))
-        assertTrue(blocked.attempts.single().contains("restart Hermes"))
+        assertTrue(blocked.attempts.single().contains("restart Agent"))
     }
 
     @Test
@@ -1107,7 +1107,7 @@ class LiteRtLmOpenAiProxyTest {
         )
         assertFalse(blocked.verified)
         assertEquals(0, replacementCreated.get())
-        assertTrue(blocked.attempts.single().contains("restart Hermes"))
+        assertTrue(blocked.attempts.single().contains("restart Agent"))
         assertTrue(LiteRtLmOpenAiProxy.stop()?.message.orEmpty().contains("still unwinding"))
     }
 
@@ -1127,7 +1127,7 @@ class LiteRtLmOpenAiProxyTest {
         val blocked = awaitRestartRequiredGuard()
         assertFalse(blocked.verified)
         assertTrue(blocked.attempts.single().contains("late Engine.close failed"))
-        assertTrue(blocked.attempts.single().contains("restart Hermes"))
+        assertTrue(blocked.attempts.single().contains("restart Agent"))
         assertTrue(LiteRtLmOpenAiProxy.stop()?.message.orEmpty().contains("still unwinding"))
     }
 

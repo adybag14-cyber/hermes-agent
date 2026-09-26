@@ -1,1 +1,1 @@
-Independent fork for local AI chat and Android workflows
+Local AI chat, your models, and practical Android tools

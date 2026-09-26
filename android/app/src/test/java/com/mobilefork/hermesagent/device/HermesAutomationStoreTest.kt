@@ -483,7 +483,7 @@ class HermesAutomationStoreTest {
                     .put("variable_action", "replace")
                     .put("name", "MESSAGE")
                     .put("search", "tasker")
-                    .put("replacement", "Hermes")
+                    .put("replacement", "Agent")
                     .put("automation_enabled", false),
             ),
         )
@@ -493,7 +493,7 @@ class HermesAutomationStoreTest {
                 HermesAutomationBridge.performActionJson(context, "run", org.json.JSONObject().put("id", "auto-var-replace")),
             ).getBoolean("success"),
         )
-        assertEquals("hello Hermes 7", store.getVariable("MESSAGE"))
+        assertEquals("hello Agent 7", store.getVariable("MESSAGE"))
     }
 
     @Test
@@ -510,7 +510,7 @@ class HermesAutomationStoreTest {
                 org.json.JSONObject()
                     .put("id", "auto-clipboard")
                     .put("clipboard_text", "Tasker %MESSAGE")
-                    .put("clipboard_label", "Hermes test"),
+                    .put("clipboard_label", "Agent test"),
             ),
         )
 
@@ -726,7 +726,7 @@ class HermesAutomationStoreTest {
             ),
         )
         assertFalse(selfClear.toString(), selfClear.getBoolean("success"))
-        assertTrue(selfClear.getString("error").contains("Hermes"))
+        assertTrue(selfClear.getString("error").contains("Agent"))
     }
 
     @Test
@@ -1014,7 +1014,7 @@ class HermesAutomationStoreTest {
         val payload = HermesOverlaySceneBridge.payloadFromArguments(
             org.json.JSONObject()
                 .put("scene_id", "test-scene")
-                .put("scene_title", "Hermes %SCENE_MESSAGE")
+                .put("scene_title", "Agent %SCENE_MESSAGE")
                 .put("scene_text", "Tasker scene %SCENE_MESSAGE")
                 .put("scene_button_text", "Close")
                 .put("scene_position", "bottom")
@@ -1023,7 +1023,7 @@ class HermesAutomationStoreTest {
         )
         assertEquals("show", payload.getString("scene_action"))
         assertEquals("test-scene", payload.getString("scene_id"))
-        assertEquals("Hermes %SCENE_MESSAGE", payload.getString("title"))
+        assertEquals("Agent %SCENE_MESSAGE", payload.getString("title"))
         assertEquals("bottom", payload.getString("position"))
         assertEquals(560, payload.getInt("width_dp"))
         assertEquals(600000L, payload.getLong("hide_after_ms"))
@@ -1038,7 +1038,7 @@ class HermesAutomationStoreTest {
                 "create_overlay_scene_task",
                 org.json.JSONObject()
                     .put("id", "auto-scene")
-                    .put("scene_title", "Hermes %SCENE_MESSAGE")
+                    .put("scene_title", "Agent %SCENE_MESSAGE")
                     .put("scene_text", "Tasker scene %SCENE_MESSAGE")
                     .put("scene_button_text", "Close")
                     .put("scene_position", "bottom"),
@@ -1477,7 +1477,7 @@ class HermesAutomationStoreTest {
                     .put("trigger", "calendar_event")
                     .put("calendar_name", "Work")
                     .put("title_contains", "Planning")
-                    .put("description_contains", "Hermes")
+                    .put("description_contains", "Agent")
                     .put("location_contains", "Office"),
             ),
         )
@@ -1498,7 +1498,7 @@ class HermesAutomationStoreTest {
                                     .put("event_id", "ignored")
                                     .put("calendar_name", "Personal")
                                     .put("calendar_title", "Planning")
-                                    .put("calendar_description", "Hermes")
+                                    .put("calendar_description", "Agent")
                                     .put("calendar_location", "Office")
                                     .put("calendar_begin_epoch_ms", 1000L)
                                     .put("calendar_end_epoch_ms", 2000L),
@@ -1508,7 +1508,7 @@ class HermesAutomationStoreTest {
                                     .put("event_id", "work-1")
                                     .put("calendar_name", "Work")
                                     .put("calendar_title", "Planning sync")
-                                    .put("calendar_description", "Hermes release")
+                                    .put("calendar_description", "Agent release")
                                     .put("calendar_location", "Office 2")
                                     .put("calendar_begin_epoch_ms", 3000L)
                                     .put("calendar_end_epoch_ms", 4000L),
@@ -1522,14 +1522,14 @@ class HermesAutomationStoreTest {
         assertEquals(1, scan.getInt("matched_count"))
         assertEquals("Work", store.getVariable("CALNAME"))
         assertEquals("Planning sync", store.getVariable("CALTITLE"))
-        assertEquals("Hermes release", store.getVariable("CALDESCR"))
+        assertEquals("Agent release", store.getVariable("CALDESCR"))
         assertEquals("Office 2", store.getVariable("CALLOC"))
 
         val triggerResult = scan.getJSONArray("results").getJSONObject(0)
         val recordResult = triggerResult.getJSONArray("results").getJSONObject(0)
         assertTrue(recordResult.toString(), recordResult.getBoolean("success"))
         val filePath = recordResult.getJSONObject("result").getString("path")
-        assertEquals("Work|Planning sync|Hermes release|Office 2", java.io.File(filePath).readText())
+        assertEquals("Work|Planning sync|Agent release|Office 2", java.io.File(filePath).readText())
     }
 
     @Test
@@ -1569,7 +1569,7 @@ class HermesAutomationStoreTest {
                     .put("latitude", 37.7849)
                     .put("longitude", -122.4194)
                     .put("location_provider", "gps")
-                    .put("location_name", "Hermes Office"),
+                    .put("location_name", "Agent Office"),
             ),
         )
         assertTrue(missed.toString(), missed.getBoolean("success"))
@@ -1583,7 +1583,7 @@ class HermesAutomationStoreTest {
                     .put("longitude", -122.4195)
                     .put("accuracy_meters", 12.5)
                     .put("location_provider", "gps")
-                    .put("location_name", "Hermes Office"),
+                    .put("location_name", "Agent Office"),
             ),
         )
         assertTrue(matched.toString(), matched.getBoolean("success"))
@@ -1594,7 +1594,7 @@ class HermesAutomationStoreTest {
         assertEquals("37.775,-122.4195", store.getVariable("LOC"))
         assertEquals("12.5", store.getVariable("LOCACC"))
         assertEquals("gps", store.getVariable("LOCPROVIDER"))
-        assertEquals("Hermes Office", store.getVariable("LOCNAME"))
+        assertEquals("Agent Office", store.getVariable("LOCNAME"))
 
         val generic = org.json.JSONObject(
             HermesAutomationBridge.performActionJson(
@@ -1669,7 +1669,7 @@ class HermesAutomationStoreTest {
                                     .put("longitude", -122.4194)
                                     .put("accuracy_meters", 10.0)
                                     .put("location_provider", "gps")
-                                    .put("location_name", "Hermes Office"),
+                                    .put("location_name", "Agent Office"),
                             )
                             .put(
                                 org.json.JSONObject()
@@ -1677,7 +1677,7 @@ class HermesAutomationStoreTest {
                                     .put("longitude", -122.4195)
                                     .put("accuracy_meters", 12.5)
                                     .put("location_provider", "gps")
-                                    .put("location_name", "Hermes Office"),
+                                    .put("location_name", "Agent Office"),
                             ),
                     ),
             ),
@@ -1690,13 +1690,13 @@ class HermesAutomationStoreTest {
         assertEquals("-122.4195", store.getVariable("LON"))
         assertEquals("12.5", store.getVariable("LOCACC"))
         assertEquals("gps", store.getVariable("LOCPROVIDER"))
-        assertEquals("Hermes Office", store.getVariable("LOCNAME"))
+        assertEquals("Agent Office", store.getVariable("LOCNAME"))
 
         val triggerResult = scan.getJSONArray("results").getJSONObject(0)
         val recordResult = triggerResult.getJSONArray("results").getJSONObject(0)
         assertTrue(recordResult.toString(), recordResult.getBoolean("success"))
         val filePath = recordResult.getJSONObject("result").getString("path")
-        assertEquals("37.775|-122.4195|12.5|gps|Hermes Office", java.io.File(filePath).readText())
+        assertEquals("37.775|-122.4195|12.5|gps|Agent Office", java.io.File(filePath).readText())
     }
 
     @Test
@@ -1984,7 +1984,7 @@ class HermesAutomationStoreTest {
             """
                 05-07 12:34:56.789 10123  4242  777 E ActivityManager: ANR in com.example.app
                 not a logcat threadtime line
-                05-07 12:34:57.000  1000  1000 I Hermes: watcher ok
+                05-07 12:34:57.000  1000  1000 I Agent: watcher ok
             """.trimIndent(),
         )
         assertEquals(2, parsed.length())
@@ -2057,7 +2057,7 @@ class HermesAutomationStoreTest {
         val firstBatch = HermesLogcatWatcherBridge.parseThreadtimeLogcatLines(
             """
                 05-07 12:34:56.789 10123  4242  777 E ActivityManager: ANR in com.example.app
-                05-07 12:34:57.000  1000  1000 I Hermes: watcher ok
+                05-07 12:34:57.000  1000  1000 I Agent: watcher ok
             """.trimIndent(),
         )
 
@@ -2072,7 +2072,7 @@ class HermesAutomationStoreTest {
 
         val secondBatch = HermesLogcatWatcherBridge.parseThreadtimeLogcatLines(
             """
-                05-07 12:34:57.000  1000  1000 I Hermes: watcher ok
+                05-07 12:34:57.000  1000  1000 I Agent: watcher ok
                 05-07 12:34:58.111 10123  4243 W ActivityManager: New event
             """.trimIndent(),
         )
@@ -2274,9 +2274,9 @@ class HermesAutomationStoreTest {
         val context = RuntimeEnvironment.getApplication()
         val store = HermesAutomationStore(context)
         store.clear()
-        store.setVariable("DM_REPLY", "Thanks, I will follow up from Hermes.")
-        store.setVariable("EMAIL_SUBJECT", "Hermes mobile follow-up")
-        store.setVariable("EMAIL_BODY", "Drafted locally by Hermes after the DM workflow.")
+        store.setVariable("DM_REPLY", "Thanks, I will follow up from Agent.")
+        store.setVariable("EMAIL_SUBJECT", "Agent mobile follow-up")
+        store.setVariable("EMAIL_BODY", "Drafted locally by Agent after the DM workflow.")
 
         val launchTikTok = org.json.JSONObject(
             HermesAutomationBridge.performActionJson(
@@ -2425,7 +2425,7 @@ class HermesAutomationStoreTest {
                 org.json.JSONObject()
                     .put("id", "auto-notify")
                     .put("label", "Notify smoke")
-                    .put("notification_title", "Hermes")
+                    .put("notification_title", "Agent")
                     .put("notification_text", "Tasker-style notification")
                     .put("notification_id", "%NOTICE_ID")
                     .put("notification_tag", "%NOTICE_TAG")
@@ -2891,7 +2891,7 @@ class HermesAutomationStoreTest {
         val taskerXml = """
             <TaskerData sr="" dvi="1" tv="6.6.18">
               <Task sr="task1">
-                <nme>Hermes Shizuku Controls</nme>
+                <nme>Agent Shizuku Controls</nme>
                 <Action><code>248</code></Action>
                 <Action><code>175</code><Int sr="arg0" val="0" /></Action>
                 <Action><code>294</code><Int sr="arg0" val="1" /></Action>
@@ -2990,7 +2990,7 @@ class HermesAutomationStoreTest {
         val taskerXml = """
             <TaskerData sr="" dvi="1" tv="6.6.18">
               <Task sr="task1">
-                <nme>Hermes Audio Controls</nme>
+                <nme>Agent Audio Controls</nme>
                 <Action><code>307</code><Int sr="arg0" val="5" /></Action>
                 <Action><code>304</code><Int sr="arg0" val="4" /></Action>
                 <Action><code>387</code><Int sr="arg0" val="3" /></Action>
@@ -3113,7 +3113,7 @@ class HermesAutomationStoreTest {
         val taskerXml = """
             <TaskerData sr="" dvi="1" tv="6.6.18">
               <Task sr="task1">
-                <nme>Hermes Variable Controls</nme>
+                <nme>Agent Variable Controls</nme>
                 <Action><code>888</code><Str sr="arg0" ve="3">%COUNT</Str><Str sr="arg1" ve="3">3</Str></Action>
                 <Action><code>890</code><Str sr="arg0" ve="3">%COUNT</Str><Str sr="arg1" ve="3">1</Str></Action>
                 <Action><code>598</code><Str sr="arg0" ve="3">%MESSAGE</Str><Str sr="arg1" ve="3">old</Str><Int sr="arg6" val="1" /><Str sr="arg7" ve="3">new</Str></Action>
@@ -3159,7 +3159,7 @@ class HermesAutomationStoreTest {
         val taskerXml = """
             <TaskerData sr="" dvi="1" tv="6.6.18">
               <Task sr="task1">
-                <nme>Hermes Controls</nme>
+                <nme>Agent Controls</nme>
                 <Action><code>25</code></Action>
                 <Action><code>245</code></Action>
                 <Action><code>247</code></Action>

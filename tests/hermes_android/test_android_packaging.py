@@ -197,7 +197,7 @@ def test_android_launcher_uses_adaptive_icons():
     foreground = (REPO_ROOT / "android/app/src/main/res/drawable/ic_launcher_foreground.xml").read_text(encoding="utf-8")
     background = (REPO_ROOT / "android/app/src/main/res/drawable/ic_launcher_background.xml").read_text(encoding="utf-8")
     monochrome = (REPO_ROOT / "android/app/src/main/res/drawable/ic_launcher_monochrome.xml").read_text(encoding="utf-8")
-    app_logo = (REPO_ROOT / "android/app/src/main/res/drawable/hermes_agent_fork_logo.xml").read_text(encoding="utf-8")
+    app_logo = (REPO_ROOT / "android/app/src/main/res/drawable/agent_logo.xml").read_text(encoding="utf-8")
 
     assert 'android:icon="@mipmap/ic_launcher"' in manifest
     assert 'android:roundIcon="@mipmap/ic_launcher_round"' in manifest
@@ -212,7 +212,8 @@ def test_android_launcher_uses_adaptive_icons():
     assert 'android:fillColor="#FFFFFFFF"' in monochrome
     assert "FDIE" not in foreground
     assert 'android:fillColor="#FF000000"' not in monochrome
-    assert "M54,21a33,33" in foreground
+    assert "M54,29L77,77" in foreground
+    assert 'android:fillType="evenOdd"' in foreground
     assert "M28,82h52" not in app_logo
     assert "M34,86h5" not in app_logo
 
@@ -220,7 +221,7 @@ def test_android_launcher_uses_adaptive_icons():
 def test_android_anthropic_stub_warns_at_runtime():
     stub_init = (REPO_ROOT / "android/pip-stubs/anthropic-stub/anthropic/__init__.py").read_text(encoding="utf-8")
 
-    assert "not available in the Hermes Android MVP build" in stub_init
+    assert "not available in the Agent Android MVP build" in stub_init
     assert "OpenAI-compatible provider" in stub_init
 
 

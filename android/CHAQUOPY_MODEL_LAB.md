@@ -6,7 +6,7 @@ and version finalization follow this phase. Do not install this debug APK over
 an existing signed production app or downgrade/uninstall that app to make it fit.
 
 Lab builds install side by side as `com.mobilefork.hermesagent.lab`, labelled
-**Hermes Lab (experimental)** with a `-lab` version suffix. Their test package is
+**Agent Lab (experimental)** with a `-lab` version suffix. Their test package is
 `com.mobilefork.hermesagent.lab.test`. OAuth deep links and external automation/
 Tasker entry points are disabled in the lab overlay so it cannot intercept the
 released app's integrations. Those integrations require a later signed-candidate
@@ -17,8 +17,8 @@ gate; these isolated checks do not certify an in-place data migration.
 - LiteRT-LM 0.17.0; Kotlin/Compose 2.4.10; AGP 9.1.1 built-in Kotlin; Gradle 9.3.1.
 - Chaquopy 17.0.0 Gradle/Java/JNI with the fork's source-built Python bootstrap
   17.0.1, selected exclusively from the sealed consumer bundle.
-- Full Hermes Python 3.13 only. The standalone Chaquopy SDK app's 3.14 results
-  do not override Hermes's Python upper bound.
+- Full Agent Python 3.13 only. The standalone Chaquopy SDK app's 3.14 results
+  do not override Agent's Python upper bound.
 
 Prepare a bundle with `compat/hermes/prepare_hermes.py` in
 `adybag14-cyber/chaquopy`, following its README. Keep wheels, APKs, model binaries
@@ -39,7 +39,7 @@ Never bypass a receipt failure or edit its hashes to accept changed inputs.
 
 The opt-in `src/chaquopyLabAndroidTest` tests distinguish:
 
-- Genuine SDK imports/behavior and two real Hermes agent turns against a loopback
+- Genuine SDK imports/behavior and two real Agent agent turns against a loopback
   HTTP fixture (`ChaquopyHermesIntegrationInstrumentedTest`). This is not model inference.
 - Exact-model size/hash, runtime readiness, visible reply content and optional
   model-originated sandbox tool calls (`LocalModelExperimentInstrumentedTest`).
@@ -58,7 +58,7 @@ separate from x86_64/API-35 CPU emulator observations.
 
 MiniCPM5 can emit a valid `uname -a` tool call, but current request-owned PRoot
 policy blocks guest execution because filesystem/package changes cannot be
-committed atomically with Stop. Preserve that guard. Hermes now explains this
+committed atomically with Stop. Preserve that guard. Agent now explains this
 native denial directly instead of asking the model for an unreliable explanation.
 Manual Alpine installation and guest execution remain separately testable.
 

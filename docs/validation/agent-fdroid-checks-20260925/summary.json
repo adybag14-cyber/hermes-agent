@@ -1,0 +1,120 @@
+{
+  "schema": "agent-fdroid-checks-20260925-v1",
+  "checked_at": "2026-09-25T16:27:49.153599+00:00",
+  "tested_commit": "c7bec5659b9b9f76ac523443331713f0d44a1a15",
+  "previous_pr_head": "6ce09bf0ea81e8334318f4551d038efe0ff375b1",
+  "checker_image": "registry.gitlab.com/fdroid/fdroidserver@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8",
+  "checker_revision": "8f52ae3ce287bc28964db544b970b88dce9c38bf",
+  "checker_archive_sha256": "d69b5fae88d7e07e2d8a508637937a9ba49dc261c9fcc984f9236d981dbdedd9",
+  "checker_archive_bytes": 8341140,
+  "jdk": "21.0.12.1",
+  "host_python": "3.13.5",
+  "gradlew_fdroid": "c7227d147483979bb5c408048cee3533a8814fb0",
+  "android_pins_retained": {
+    "gradle": "9.3.1",
+    "agp": "9.1.1",
+    "kotlin": "2.4.10",
+    "compile_target_sdk": 36,
+    "build_tools": "36.0.0",
+    "application_ndk": "29.0.14206865",
+    "native_python_ndk": "27.3.13750724",
+    "cmake": "3.31.6",
+    "ninja": "1.12.1",
+    "litert_lm": "0.17.1"
+  },
+  "live_public_updater": {
+    "status": "passed",
+    "scope": "live public v0.13.157 updater; not discovery of unpublished Agent PR22",
+    "fdroidserver_revision": "8f52ae3ce287bc28964db544b970b88dce9c38bf",
+    "fdroiddata_commit": "564195a1cd9e20717967233f63e5716de9568ce6",
+    "version_name": "0.13.157",
+    "version_code": 145790,
+    "source_commit": "0fa5b85c810e02bc640ad911053c2b8666a29d4f",
+    "metadata_sha256": "b4e3146ec004a436c6dc9eeba1886550c603337b351c770080f145e88281b836",
+    "history_preserved": true,
+    "binaries_preserved": true,
+    "signer_preserved": true,
+    "submitted": false
+  },
+  "tests": {
+    "files": 3,
+    "passed": 111,
+    "failed": 0,
+    "toolchain_tests": 7,
+    "source_binding_tests": 79,
+    "python_preparation_tests": 25
+  },
+  "candidate_build": {
+    "schema": "agent-fdroid-candidate-v1",
+    "status": "passed",
+    "checked_at": "2026-09-25T16:24:33.878206+00:00",
+    "source_commit": "c7bec5659b9b9f76ac523443331713f0d44a1a15",
+    "source_digest": "be36acc13193f0938ff1dc9517340f53f8ef3809c78d9e84f2ae6e30d18dfb09",
+    "source_files": 12737,
+    "scope": "unpublished PR22 candidate build; not public-release certification",
+    "helper_recipe_builds_succeeded": 1,
+    "prebuild_source_binding_enforced": true,
+    "postbuild_cleanliness_probe": "rejected generated build outputs; prebuild-only verifier unchanged",
+    "dex_source_digest_verified": true,
+    "source_scan_skipped": false,
+    "genuine_python_bundle_verified": true,
+    "package_name": "com.mobilefork.hermesagent",
+    "app_label": "Agent",
+    "version_name": "0.13.157",
+    "version_code": 145790,
+    "target_sdk": 36,
+    "apk_bytes": 349478187,
+    "apk_sha256": "aa6a38d891197b455e78108d077052a5c54081c125bdcc985d95e4bf3f48ad90",
+    "apk_path_in_checker": "/home/vagrant/tmp/com.mobilefork.hermesagent_145790.apk",
+    "signing": "unsigned candidate",
+    "published": false,
+    "physical_tests": "not performed, explicitly skipped",
+    "public_binary_comparison": false,
+    "cache_mode": "validated candidate dependencies reused",
+    "scanner_log_lines": [
+      "2026-09-25 16:17:38,769 INFO: Scanning source for common problems...",
+      "2026-09-25 16:17:38,996 INFO: Removing gradle-wrapper.jar at android/gradle/wrapper/gradle-wrapper.jar"
+    ]
+  },
+  "cross_builder_comparison": {
+    "schema": "agent-candidate-cross-builder-comparison-v1",
+    "checked_at": "2026-09-25T16:25:36.519562+00:00",
+    "source_commit": "c7bec5659b9b9f76ac523443331713f0d44a1a15",
+    "scope": "unsigned unpublished candidate comparison; not public-signed-release reproducibility",
+    "new_builder_revision": "8f52ae3ce287bc28964db544b970b88dce9c38bf",
+    "old_builder_revision": "4a8821a58659901c63315cb000b0e98525653bc5",
+    "apk_files": [
+      {
+        "path": "/home/vagrant/tmp/com.mobilefork.hermesagent_145790.apk",
+        "bytes": 349478187,
+        "sha256": "aa6a38d891197b455e78108d077052a5c54081c125bdcc985d95e4bf3f48ad90"
+      },
+      {
+        "path": "/work/agent-fdroid-checks-20260925/reference-old-builder/android/app/build/outputs/apk/release/app-release-unsigned.apk",
+        "bytes": 349478187,
+        "sha256": "aa6a38d891197b455e78108d077052a5c54081c125bdcc985d95e4bf3f48ad90"
+      }
+    ],
+    "whole_apk_byte_identical": true,
+    "entry_payloads_identical": true,
+    "entries": 4877,
+    "only_in_fdroid": [],
+    "only_in_reference": [],
+    "different_payloads": [],
+    "verified_dependency_caches_reused": true,
+    "public_reference": false,
+    "signed": false
+  },
+  "physical_tests": "explicitly skipped",
+  "production_devbox_modified": false,
+  "old_builder_preserved": true,
+  "public_fdroiddata_submitted": false,
+  "release_published": false,
+  "public_signed_apk_comparison": false,
+  "intermediate_diagnostics": [
+    "Hash-locked fdroidserver archive has no Git/package version metadata; its --version exits nonzero. Exact archive/image revision checks are the identity authority.",
+    "The fresh image required a checker-only httpx package for the canonical test fixtures. The successful rerun executed all 111 tests; the initial fixture import failure is not counted as a passing test.",
+    "The image Gradle directory contained gradle.properties. The directory was retained and the policy copied into the reused candidate cache instead of deleting or ignoring it.",
+    "An additional post-build invocation of the prebuild-only cleanliness verifier rejected generated outputs and bytecode. It was not relaxed, and the outputs were not removed to make it pass. The actual F-Droid source scan/prebuild binding and artifact DEX verifier passed; the independent old/new-builder unsigned APKs also matched exactly."
+  ]
+}

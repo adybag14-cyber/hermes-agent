@@ -115,7 +115,7 @@ object HermesAutomationWidgetBridge {
             .put("configured", false)
             .put("app_widget_id", appWidgetId ?: JSONObject.NULL)
             .put("cleared_all", clearAll)
-            .put("message", if (clearAll) "Cleared all Hermes home-screen widget automations." else "Cleared the Hermes home-screen widget automation.")
+            .put("message", if (clearAll) "Cleared all Agent home-screen widget automations." else "Cleared the Agent home-screen widget automation.")
             .toString()
     }
 
@@ -127,7 +127,7 @@ object HermesAutomationWidgetBridge {
     ): String {
         val appContext = context.applicationContext
         val config = configuredAutomation(appContext, appWidgetId)
-            ?: return errorJson("No Hermes automation is configured for this home-screen widget")
+            ?: return errorJson("No Agent automation is configured for this home-screen widget")
         val result = JSONObject(
             HermesAutomationBridge.runAutomationJson(
                 appContext,
@@ -195,7 +195,7 @@ object HermesAutomationWidgetBridge {
                 ColorStateList.valueOf(palette.primary),
             )
         }
-        views.setImageViewResource(R.id.hermes_widget_icon, R.drawable.ic_nav_hermes)
+        views.setImageViewResource(R.id.hermes_widget_icon, R.drawable.ic_nav_agent)
         val pendingIntent = runPendingIntent(appContext, appWidgetId)
         views.setOnClickPendingIntent(R.id.hermes_widget_root, pendingIntent)
         views.setOnClickPendingIntent(R.id.hermes_widget_button, pendingIntent)
@@ -332,11 +332,11 @@ object HermesAutomationWidgetBridge {
 
     private fun widgetMessage(appWidgetId: Int?, requestPin: Boolean, pinResult: PinResult): String {
         return when {
-            appWidgetId != null -> "Configured the selected Hermes home-screen widget."
-            requestPin && pinResult.started -> "Configured the default Hermes widget automation and asked Android to pin a widget."
-            requestPin && !pinResult.supported -> "Configured the default Hermes widget automation; this launcher does not support widget pin requests."
-            requestPin -> "Configured the default Hermes widget automation; Android did not start a widget pin request."
-            else -> "Configured the default Hermes home-screen widget automation."
+            appWidgetId != null -> "Configured the selected Agent home-screen widget."
+            requestPin && pinResult.started -> "Configured the default Agent widget automation and asked Android to pin a widget."
+            requestPin && !pinResult.supported -> "Configured the default Agent widget automation; this launcher does not support widget pin requests."
+            requestPin -> "Configured the default Agent widget automation; Android did not start a widget pin request."
+            else -> "Configured the default Agent home-screen widget automation."
         }
     }
 

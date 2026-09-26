@@ -31,7 +31,7 @@ class HermesHindsightMemoryBridgeTest {
                 context,
                 "retain",
                 JSONObject()
-                    .put("content", "JDK 21 is the stable Android validation toolchain for native Hermes builds.")
+                    .put("content", "JDK 21 is the stable Android validation toolchain for native Agent builds.")
                     .put("source", "test")
                     .put("category", "android")
                     .put("tags", JSONArray().put("validation").put("toolchain")),

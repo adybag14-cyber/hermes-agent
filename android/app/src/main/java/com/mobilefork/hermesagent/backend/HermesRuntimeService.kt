@@ -79,19 +79,19 @@ class HermesRuntimeService : Service() {
 
     private fun buildNotification(runtime: HermesRuntimeManager.RuntimeState?): Notification {
         val contentTitle = when {
-            runtime == null -> "Hermes runtime starting"
-            runtime.started -> "Hermes runtime active"
-            else -> "Hermes runtime waiting for attention"
+            runtime == null -> "Agent runtime starting"
+            runtime.started -> "Agent runtime active"
+            else -> "Agent runtime waiting for attention"
         }
         val contentText = when {
-            runtime == null -> "Preparing the local Hermes backend"
+            runtime == null -> "Preparing the local Agent backend"
             !runtime.error.isNullOrBlank() -> runtime.error
             !runtime.modelName.isNullOrBlank() -> "Serving ${runtime.modelName} locally"
-            !runtime.baseUrl.isNullOrBlank() -> "Serving local Hermes backend"
-            else -> "Keeping Hermes ready in the background"
+            !runtime.baseUrl.isNullOrBlank() -> "Serving local Agent backend"
+            else -> "Keeping Agent ready in the background"
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_nav_hermes)
+            .setSmallIcon(R.drawable.ic_nav_agent)
             .setContentTitle(contentTitle)
             .setContentText(contentText)
             .setContentIntent(openAppPendingIntent())
@@ -120,10 +120,10 @@ class HermesRuntimeService : Service() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Hermes runtime",
+            "Agent runtime",
             NotificationManager.IMPORTANCE_LOW,
         ).apply {
-            description = "Keeps the Hermes Android runtime available in the background"
+            description = "Keeps the Agent Android runtime available in the background"
         }
         manager.createNotificationChannel(channel)
     }

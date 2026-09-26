@@ -7,7 +7,7 @@ import com.mobilefork.hermesagent.ui.i18n.HermesStrings
 enum class AppSection(
     @DrawableRes val iconRes: Int,
 ) {
-    Hermes(iconRes = R.drawable.ic_nav_hermes),
+    Hermes(iconRes = R.drawable.ic_nav_agent),
     // label = "Accounts"
     Accounts(iconRes = R.drawable.ic_nav_accounts),
     // label = "Provider Portal"

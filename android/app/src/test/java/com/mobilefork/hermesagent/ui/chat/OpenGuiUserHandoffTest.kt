@@ -9,7 +9,7 @@ import org.junit.Test
 class OpenGuiUserHandoffTest {
     @Test
     fun buildsUserVisibleNotificationPayloadForCallUser() {
-        val parsed = OpenGuiActionCompat.parse("need_login(content='Please log in, then return to Hermes')")
+        val parsed = OpenGuiActionCompat.parse("need_login(content='Please log in, then return to Agent')")
 
         val payload = OpenGuiUserHandoff.notificationPayload(
             parsed = parsed,
@@ -18,13 +18,13 @@ class OpenGuiUserHandoffTest {
         )
 
         assertEquals("post", payload.getString("notification_action"))
-        assertEquals("Hermes needs you", payload.getString("title"))
+        assertEquals("Agent needs you", payload.getString("title"))
         assertEquals("OpenGUI user handoff", payload.getString("status_text"))
         assertTrue(payload.getBoolean("ongoing"))
         val visibleText = payload.getString("text")
             .substringAfter("] ")
             .ifBlank { payload.getString("text") }
-        assertEquals("Please log in, then return to Hermes", visibleText)
+        assertEquals("Please log in, then return to Agent", visibleText)
         assertEquals(2, payload.getJSONArray("notification_buttons").length())
     }
 

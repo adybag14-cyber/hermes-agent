@@ -101,7 +101,7 @@ object HermesLogcatWatcherBridge {
             return unavailableJson("Shizuku is not running. Start Shizuku/Sui before starting the logcat watcher.", status)
         }
         if (!status.shizukuPermissionGranted) {
-            return unavailableJson("Shizuku permission is not granted to Hermes Agent.", status)
+            return unavailableJson("Shizuku permission is not granted to Agent.", status)
         }
         val enabledCount = enabledLogcatRecordCount(appContext)
         if (enabledCount <= 0) {
@@ -259,7 +259,7 @@ object HermesLogcatWatcherBridge {
             return unavailableJson("Shizuku is not running. Start Shizuku/Sui before scanning logcat.", status)
         }
         if (!status.shizukuPermissionGranted) {
-            return unavailableJson("Shizuku permission is not granted to Hermes Agent.", status)
+            return unavailableJson("Shizuku permission is not granted to Agent.", status)
         }
         val enabledCount = enabledLogcatRecordCount(appContext)
         if (enabledCount <= 0) {
@@ -529,7 +529,7 @@ object HermesLogcatWatcherBridge {
             .put("foreground_service_running", HermesLogcatWatcherService.isRunning())
             .put(
                 "error",
-                "Hermes blocked this chat-owned logcat scan before Shizuku dispatch because the remote privileged shell cannot be synchronously contained by Stop. The manual/background logcat watcher remains available.",
+                "Agent blocked this chat-owned logcat scan before Shizuku dispatch because the remote privileged shell cannot be synchronously contained by Stop. The manual/background logcat watcher remains available.",
             )
             .put("available_actions", JSONArray(ACTIONS))
             .toString()

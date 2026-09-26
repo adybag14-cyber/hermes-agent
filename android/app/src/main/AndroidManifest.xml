@@ -198,7 +198,7 @@
         <service
             android:name=".device.HermesQuickSettingsTileService"
             android:exported="true"
-            android:icon="@drawable/ic_nav_hermes"
+            android:icon="@drawable/ic_nav_agent"
             android:label="@string/hermes_quick_settings_tile_label"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>

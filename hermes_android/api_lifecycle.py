@@ -150,7 +150,7 @@ class OwnedApiRuntimeMixin:
             # authoritative final cleanup.
             detail = (
                 "The previous embedded Android API request did not unwind safely: "
-                f"{exc}. Force stop and reopen Hermes before sending another request."
+                f"{exc}. Force stop and reopen Agent before sending another request."
             )
             self._poison_owned_runtime(detail)
             raise RuntimeError(detail) from exc

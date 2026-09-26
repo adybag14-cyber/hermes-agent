@@ -218,7 +218,7 @@ pre-upgrade Stable selection and model/history survived. A normal app launch
 must then prove, in order:
 
 1. exact artifact verification occurred before reconciliation;
-2. Hermes automatically and durably changed `stable` to `turboquant` before
+2. Agent automatically and durably changed `stable` to `turboquant` before
    spawning the runtime, without user reselection;
 3. the local controller, health endpoint, and nonblank canary became ready;
 4. reopening the same Settings state after readiness visibly showed the
@@ -580,12 +580,12 @@ python scripts/android_launch_theme_evidence.py capture `
     --output-dir $launchRaw
 ```
 
-Use the actual visible Hermes icon coordinates for that launcher. Repeat on the
+Use the actual visible Agent icon coordinates for that launcher. Repeat on the
 tablet with `--expected-profile tablet` and the tablet custom-light proof.
 
 Inspect both MP4 files for each profile frame by frame. Confirm the Android 12+
-static Hermes splash is present, no black/white/legacy/third-party frame appears
-before Hermes, and handoff to the persisted custom-light palette has no
+static Agent splash is present, no black/white/legacy/third-party frame appears
+before Agent, and handoff to the persisted custom-light palette has no
 contrasting flash. Only then record the human decision:
 
 ```powershell
@@ -691,7 +691,7 @@ python scripts/android_release_evidence.py create --tag $tag --perfetto-root $tr
 git add "android/release-evidence/$tag"
 git add "android/release-evidence/perfetto-artifacts/$tag"
 git commit -m "release(android): certify $tag headed-device evidence"
-git tag -a $tag -m "Hermes Agent Fork $tag"
+git tag -a $tag -m "Agent $tag"
 python scripts/android_release_evidence.py verify --tag $tag --perfetto-root $traceRoot --require-tag-ref
 ```
 

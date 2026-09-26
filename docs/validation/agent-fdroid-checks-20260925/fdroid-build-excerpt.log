@@ -1,0 +1,20 @@
+# Selected milestones only; full raw transcript hash is in raw-inputs.json.
+sourceCommit=c7bec5659b9b9f76ac523443331713f0d44a1a15
+sourceBindingGradleProperty=hermesFdroidSourceBinding=true
+sourceBindingPrepare=true
+Verified F-Droid buildserver revision 8f52ae3ce287bc28964db544b970b88dce9c38bf
++ printf 'Verified Android native toolchain: %s, cmake %s, ninja %s\n' 'ndk;29.0.14206865' 3.31.6 1.12.1
+Verified Android native toolchain: ndk;29.0.14206865, cmake 3.31.6, ninja 1.12.1
+sourceDigest=be36acc13193f0938ff1dc9517340f53f8ef3809c78d9e84f2ae6e30d18dfb09
+sourceCommit=c7bec5659b9b9f76ac523443331713f0d44a1a15
+2026-09-25 16:17:38,769 INFO: Scanning source for common problems...
+2026-09-25 16:17:38,917 INFO: Ignoring unknown maven repo 'lab.resolve(' at android/settings.gradle.kts
+2026-09-25 16:17:38,996 INFO: Removing gradle-wrapper.jar at android/gradle/wrapper/gradle-wrapper.jar
+2026-09-25 16:17:39,096 DEBUG: > /usr/local/bin/gradlew-fdroid -PhermesFdroidSourceBinding=true assembleRelease
+Successfully built hermes-agent
+Lint found no errors or warnings
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 10.
+BUILD SUCCESSFUL in 3m 22s
+63 actionable tasks: 63 executed
+2026-09-25 16:21:14,505 INFO: Successfully built com.mobilefork.hermesagent:145790 from c7bec5659b9b9f76ac523443331713f0d44a1a15
+2026-09-25 16:21:14,571 INFO: 1 build succeeded

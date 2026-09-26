@@ -1,0 +1,30 @@
+diff --git a/metadata/com.mobilefork.hermesagent.yml b/metadata/com.mobilefork.hermesagent.yml
+index a714a947f..b3088a9e8 100644
+--- a/metadata/com.mobilefork.hermesagent.yml
++++ b/metadata/com.mobilefork.hermesagent.yml
+@@ -173 +173,5 @@ Builds:
+-      - apt-get install -y python3-pip build-essential python3-venv rustup
++      - apt-get install -y g++ make pkg-config python3-pip python3-venv rustup
++      - sdkmanager "cmake;3.31.6"
++      - sdkmanager "ndk;27.3.13750724"
++      - sdkmanager "platforms;android-36" "build-tools;36.0.0"
++    ndk: 29.0.14206865
+@@ -175,0 +180,5 @@ Builds:
++    gradleprops:
++      - hermesFdroidSourceBinding=true
++    scanignore:
++      # The local, source-built bootstrap is hash-verified before Gradle.
++      - android/settings.gradle.kts
+@@ -177 +186,6 @@ Builds:
+-      - sdkmanager 'cmake;3.31.6' 'ndk;27.3.13750724'
++      - python3.13 ../../scripts/android_fdroid_source_binding.py prepare --repo-root
++        ../.. --binding-file "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-android-fdroid-source-binding.properties"
++        --version "$$VERSION$$"
++      - python3.13 ../../scripts/prepare_android_python_runtime.py prepare --output
++        "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-runtime" --work-dir
++        "${GRADLE_USER_HOME:-$HOME/.gradle}/hermes-python-source-build-$$VERSION$$"
+@@ -182,2 +195,0 @@ Builds:
+-    scanignore:
+-      - android/settings.gradle.kts
+@@ -186 +197,0 @@ Builds:
+-    ndk: 29.0.14206865

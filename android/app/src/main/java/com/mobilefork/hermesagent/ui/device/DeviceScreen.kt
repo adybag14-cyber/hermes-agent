@@ -472,7 +472,7 @@ private fun OperatorStandbyCard(uiState: DeviceUiState) {
             if (uiState.operatorModelName.isNotBlank()) {
                 Text(
                     strings.deviceModelRouting(
-                        provider = uiState.operatorModelProvider.ifBlank { "Hermes" },
+                        provider = uiState.operatorModelProvider.ifBlank { "Agent" },
                         modelName = uiState.operatorModelName,
                         visionCapable = uiState.operatorVisionCapable,
                     ),
@@ -734,12 +734,12 @@ private fun RadioControlCard(
         com.mobilefork.hermesagent.ui.i18n.AppLanguage.ENGLISH -> "Cellular + radio controls"
     }
     val summary = when (strings.language) {
-        com.mobilefork.hermesagent.ui.i18n.AppLanguage.CHINESE -> "当前网络：${uiState.activeNetworkLabel} · 计量网络：${if (uiState.activeNetworkMetered) "是" else "否"} · 省流模式：${if (uiState.dataSaverEnabled) "开" else "关"} · 飞行模式：${if (uiState.airplaneModeEnabled) "开" else "关"}。由于 Android 限制，Hermes 使用系统面板而不是不受支持的直接无线电切换。"
-        com.mobilefork.hermesagent.ui.i18n.AppLanguage.SPANISH -> "Red actual: ${uiState.activeNetworkLabel} · medida: ${if (uiState.activeNetworkMetered) "sí" else "no"} · ahorro de datos: ${if (uiState.dataSaverEnabled) "activo" else "inactivo"} · modo avión: ${if (uiState.airplaneModeEnabled) "activo" else "inactivo"}. Por las restricciones de Android, Hermes usa paneles del sistema en lugar de toggles directos no soportados."
-        com.mobilefork.hermesagent.ui.i18n.AppLanguage.GERMAN -> "Aktives Netzwerk: ${uiState.activeNetworkLabel} · getaktet: ${if (uiState.activeNetworkMetered) "ja" else "nein"} · Datensparen: ${if (uiState.dataSaverEnabled) "aktiv" else "inaktiv"} · Flugmodus: ${if (uiState.airplaneModeEnabled) "aktiv" else "inaktiv"}. Wegen Android-Beschränkungen nutzt Hermes Systemansichten statt nicht unterstützter Direktumschaltungen."
-        com.mobilefork.hermesagent.ui.i18n.AppLanguage.PORTUGUESE -> "Rede atual: ${uiState.activeNetworkLabel} · limitada: ${if (uiState.activeNetworkMetered) "sim" else "não"} · economia de dados: ${if (uiState.dataSaverEnabled) "ativa" else "inativa"} · modo avião: ${if (uiState.airplaneModeEnabled) "ativo" else "inativo"}. Devido às restrições do Android, o Hermes usa painéis do sistema em vez de alternâncias diretas não suportadas."
-        com.mobilefork.hermesagent.ui.i18n.AppLanguage.FRENCH -> "Réseau actif : ${uiState.activeNetworkLabel} · limité : ${if (uiState.activeNetworkMetered) "oui" else "non"} · économie de données : ${if (uiState.dataSaverEnabled) "active" else "inactive"} · mode avion : ${if (uiState.airplaneModeEnabled) "actif" else "inactif"}. En raison des limites Android, Hermes utilise des panneaux système plutôt que des bascules radio directes non prises en charge."
-        com.mobilefork.hermesagent.ui.i18n.AppLanguage.ENGLISH -> "Active network: ${uiState.activeNetworkLabel} · metered: ${if (uiState.activeNetworkMetered) "yes" else "no"} · data saver: ${if (uiState.dataSaverEnabled) "enabled" else "disabled"} · airplane mode: ${if (uiState.airplaneModeEnabled) "enabled" else "disabled"}. Because of Android platform limits, Hermes uses system panels instead of unsupported direct radio toggles."
+        com.mobilefork.hermesagent.ui.i18n.AppLanguage.CHINESE -> "当前网络：${uiState.activeNetworkLabel} · 计量网络：${if (uiState.activeNetworkMetered) "是" else "否"} · 省流模式：${if (uiState.dataSaverEnabled) "开" else "关"} · 飞行模式：${if (uiState.airplaneModeEnabled) "开" else "关"}。由于 Android 限制，Agent 使用系统面板而不是不受支持的直接无线电切换。"
+        com.mobilefork.hermesagent.ui.i18n.AppLanguage.SPANISH -> "Red actual: ${uiState.activeNetworkLabel} · medida: ${if (uiState.activeNetworkMetered) "sí" else "no"} · ahorro de datos: ${if (uiState.dataSaverEnabled) "activo" else "inactivo"} · modo avión: ${if (uiState.airplaneModeEnabled) "activo" else "inactivo"}. Por las restricciones de Android, Agent usa paneles del sistema en lugar de toggles directos no soportados."
+        com.mobilefork.hermesagent.ui.i18n.AppLanguage.GERMAN -> "Aktives Netzwerk: ${uiState.activeNetworkLabel} · getaktet: ${if (uiState.activeNetworkMetered) "ja" else "nein"} · Datensparen: ${if (uiState.dataSaverEnabled) "aktiv" else "inaktiv"} · Flugmodus: ${if (uiState.airplaneModeEnabled) "aktiv" else "inaktiv"}. Wegen Android-Beschränkungen nutzt Agent Systemansichten statt nicht unterstützter Direktumschaltungen."
+        com.mobilefork.hermesagent.ui.i18n.AppLanguage.PORTUGUESE -> "Rede atual: ${uiState.activeNetworkLabel} · limitada: ${if (uiState.activeNetworkMetered) "sim" else "não"} · economia de dados: ${if (uiState.dataSaverEnabled) "ativa" else "inativa"} · modo avião: ${if (uiState.airplaneModeEnabled) "ativo" else "inativo"}. Devido às restrições do Android, o Agent usa painéis do sistema em vez de alternâncias diretas não suportadas."
+        com.mobilefork.hermesagent.ui.i18n.AppLanguage.FRENCH -> "Réseau actif : ${uiState.activeNetworkLabel} · limité : ${if (uiState.activeNetworkMetered) "oui" else "non"} · économie de données : ${if (uiState.dataSaverEnabled) "active" else "inactive"} · mode avion : ${if (uiState.airplaneModeEnabled) "actif" else "inactif"}. En raison des limites Android, Agent utilise des panneaux système plutôt que des bascules radio directes non prises en charge."
+        com.mobilefork.hermesagent.ui.i18n.AppLanguage.ENGLISH -> "Active network: ${uiState.activeNetworkLabel} · metered: ${if (uiState.activeNetworkMetered) "yes" else "no"} · data saver: ${if (uiState.dataSaverEnabled) "enabled" else "disabled"} · airplane mode: ${if (uiState.airplaneModeEnabled) "enabled" else "disabled"}. Because of Android platform limits, Agent uses system panels instead of unsupported direct radio toggles."
     }
     val mobileNetworkLabel = when (strings.language) {
         com.mobilefork.hermesagent.ui.i18n.AppLanguage.CHINESE -> "移动网络"
@@ -1155,12 +1155,12 @@ private fun HermesStrings.deviceGrantSharedFolderLabel(): String = when (languag
 }
 
 private fun HermesStrings.deviceGrantSharedFolderDescription(): String = when (language) {
-    AppLanguage.CHINESE -> "选择真实的 Android 文件夹，让 Hermes 直接访问文件。"
-    AppLanguage.SPANISH -> "Elige una carpeta real de Android para acceso directo de Hermes."
-    AppLanguage.GERMAN -> "Wählt einen echten Android-Ordner für direkten Hermes-Dateizugriff."
-    AppLanguage.PORTUGUESE -> "Escolha uma pasta Android real para acesso direto do Hermes."
-    AppLanguage.FRENCH -> "Choisit un vrai dossier Android pour l’accès direct de Hermes aux fichiers."
-    AppLanguage.ENGLISH -> "Pick a real Android folder for direct Hermes file access."
+    AppLanguage.CHINESE -> "选择真实的 Android 文件夹，让 Agent 直接访问文件。"
+    AppLanguage.SPANISH -> "Elige una carpeta real de Android para acceso directo de Agent."
+    AppLanguage.GERMAN -> "Wählt einen echten Android-Ordner für direkten Agent-Dateizugriff."
+    AppLanguage.PORTUGUESE -> "Escolha uma pasta Android real para acesso direto do Agent."
+    AppLanguage.FRENCH -> "Choisit un vrai dossier Android pour l’accès direct de Agent aux fichiers."
+    AppLanguage.ENGLISH -> "Pick a real Android folder for direct Agent file access."
 }
 
 private fun HermesStrings.deviceImportFileLabel(): String = when (language) {
@@ -1173,12 +1173,12 @@ private fun HermesStrings.deviceImportFileLabel(): String = when (language) {
 }
 
 private fun HermesStrings.deviceImportFileDescription(): String = when (language) {
-    AppLanguage.CHINESE -> "将文件带入 Hermes 工作区用于临时编辑。"
-    AppLanguage.SPANISH -> "Trae un archivo al espacio de trabajo de Hermes para ediciones temporales."
-    AppLanguage.GERMAN -> "Bringt eine Datei für temporäre Bearbeitungen in den Hermes-Arbeitsbereich."
-    AppLanguage.PORTUGUESE -> "Traz um arquivo para o workspace Hermes para edições temporárias."
-    AppLanguage.FRENCH -> "Ajoute un fichier à l’espace de travail Hermes pour les modifications temporaires."
-    AppLanguage.ENGLISH -> "Bring a file into the Hermes workspace for scratch edits."
+    AppLanguage.CHINESE -> "将文件带入 Agent 工作区用于临时编辑。"
+    AppLanguage.SPANISH -> "Trae un archivo al espacio de trabajo de Agent para ediciones temporales."
+    AppLanguage.GERMAN -> "Bringt eine Datei für temporäre Bearbeitungen in den Agent-Arbeitsbereich."
+    AppLanguage.PORTUGUESE -> "Traz um arquivo para o workspace Agent para edições temporárias."
+    AppLanguage.FRENCH -> "Ajoute un fichier à l’espace de travail Agent pour les modifications temporaires."
+    AppLanguage.ENGLISH -> "Bring a file into the Agent workspace for scratch edits."
 }
 
 private fun HermesStrings.deviceNotificationSettingsLabel(): String = when (language) {
@@ -1191,12 +1191,12 @@ private fun HermesStrings.deviceNotificationSettingsLabel(): String = when (lang
 }
 
 private fun HermesStrings.deviceNotificationSettingsDescription(): String = when (language) {
-    AppLanguage.CHINESE -> "打开 Hermes 通知设置和后台控制。"
-    AppLanguage.SPANISH -> "Abre los ajustes de notificaciones y controles en segundo plano de Hermes."
-    AppLanguage.GERMAN -> "Öffnet Hermes-Benachrichtigungseinstellungen und Hintergrundsteuerung."
-    AppLanguage.PORTUGUESE -> "Abre notificações do Hermes e controles em segundo plano."
-    AppLanguage.FRENCH -> "Ouvre les réglages de notifications Hermes et les contrôles en arrière-plan."
-    AppLanguage.ENGLISH -> "Open Hermes notification settings and background controls."
+    AppLanguage.CHINESE -> "打开 Agent 通知设置和后台控制。"
+    AppLanguage.SPANISH -> "Abre los ajustes de notificaciones y controles en segundo plano de Agent."
+    AppLanguage.GERMAN -> "Öffnet Agent-Benachrichtigungseinstellungen und Hintergrundsteuerung."
+    AppLanguage.PORTUGUESE -> "Abre notificações do Agent e controles em segundo plano."
+    AppLanguage.FRENCH -> "Ouvre les réglages de notifications Agent et les contrôles en arrière-plan."
+    AppLanguage.ENGLISH -> "Open Agent notification settings and background controls."
 }
 
 private fun HermesStrings.deviceModelRouting(provider: String, modelName: String, visionCapable: Boolean): String {
@@ -1228,21 +1228,21 @@ private fun HermesStrings.deviceLinuxSuiteTitle(): String = when (language) {
 }
 
 private fun HermesStrings.deviceLinuxSuiteReady(): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 可通过 terminal_tool 使用已解压的 Linux 套件，在本机执行完整 CLI 命令。"
-    AppLanguage.SPANISH -> "Hermes puede usar la suite Linux extraída mediante terminal_tool para ejecutar comandos CLI completos en el dispositivo."
-    AppLanguage.GERMAN -> "Hermes kann die extrahierte Linux-Suite über terminal_tool für vollständige lokale CLI-Befehle nutzen."
-    AppLanguage.PORTUGUESE -> "O Hermes pode usar a suíte Linux extraída por meio de terminal_tool para executar comandos CLI completos no dispositivo."
-    AppLanguage.FRENCH -> "Hermes peut utiliser la suite Linux extraite via terminal_tool pour exécuter des commandes CLI complètes sur l’appareil."
-    AppLanguage.ENGLISH -> "Hermes can use the extracted Linux suite through terminal_tool to run full CLI commands on the device."
+    AppLanguage.CHINESE -> "Agent 可通过 terminal_tool 使用已解压的 Linux 套件，在本机执行完整 CLI 命令。"
+    AppLanguage.SPANISH -> "Agent puede usar la suite Linux extraída mediante terminal_tool para ejecutar comandos CLI completos en el dispositivo."
+    AppLanguage.GERMAN -> "Agent kann die extrahierte Linux-Suite über terminal_tool für vollständige lokale CLI-Befehle nutzen."
+    AppLanguage.PORTUGUESE -> "O Agent pode usar a suíte Linux extraída por meio de terminal_tool para executar comandos CLI completos no dispositivo."
+    AppLanguage.FRENCH -> "Agent peut utiliser la suite Linux extraite via terminal_tool pour exécuter des commandes CLI complètes sur l’appareil."
+    AppLanguage.ENGLISH -> "Agent can use the extracted Linux suite through terminal_tool to run full CLI commands on the device."
 }
 
 private fun HermesStrings.deviceLinuxSuiteProvisioning(): String = when (language) {
-    AppLanguage.CHINESE -> "Linux 命令套件仍在配置。后端完成启动后请重试 Hermes。"
-    AppLanguage.SPANISH -> "La suite de comandos Linux aún se está preparando. Reintenta Hermes cuando el backend termine de arrancar."
-    AppLanguage.GERMAN -> "Die Linux-Befehlssuite wird noch bereitgestellt. Versuche Hermes erneut, sobald das Backend gestartet ist."
-    AppLanguage.PORTUGUESE -> "A suíte de comandos Linux ainda está sendo preparada. Tente o Hermes novamente quando o backend terminar de iniciar."
-    AppLanguage.FRENCH -> "La suite de commandes Linux est encore en préparation. Réessayez Hermes lorsque le backend a fini de démarrer."
-    AppLanguage.ENGLISH -> "Linux command suite is still provisioning. Retry Hermes once the backend finishes booting."
+    AppLanguage.CHINESE -> "Linux 命令套件仍在配置。后端完成启动后请重试 Agent。"
+    AppLanguage.SPANISH -> "La suite de comandos Linux aún se está preparando. Reintenta Agent cuando el backend termine de arrancar."
+    AppLanguage.GERMAN -> "Die Linux-Befehlssuite wird noch bereitgestellt. Versuche Agent erneut, sobald das Backend gestartet ist."
+    AppLanguage.PORTUGUESE -> "A suíte de comandos Linux ainda está sendo preparada. Tente o Agent novamente quando o backend terminar de iniciar."
+    AppLanguage.FRENCH -> "La suite de commandes Linux est encore en préparation. Réessayez Agent lorsque le backend a fini de démarrer."
+    AppLanguage.ENGLISH -> "Linux command suite is still provisioning. Retry Agent once the backend finishes booting."
 }
 
 private fun HermesStrings.deviceLinuxAbi(androidAbi: String, termuxArch: String): String = when (language) {
@@ -1531,12 +1531,12 @@ private fun HermesStrings.deviceConnectivityTitle(): String = when (language) {
 }
 
 private fun HermesStrings.deviceNetworkSummary(activeNetworkLabel: String, wifiEnabled: Boolean): String = when (language) {
-    AppLanguage.CHINESE -> "网络：$activeNetworkLabel · Wi-Fi ${if (wifiEnabled) "已开启" else "已关闭"}。Hermes 使用 Android 安全设置面板，而不是不受支持的直接无线电切换。"
-    AppLanguage.SPANISH -> "Red: $activeNetworkLabel · Wi-Fi ${if (wifiEnabled) "activado" else "desactivado"}. Hermes usa paneles seguros de Android en lugar de toggles directos no soportados."
-    AppLanguage.GERMAN -> "Netzwerk: $activeNetworkLabel · Wi-Fi ist ${if (wifiEnabled) "ein" else "aus"}. Hermes nutzt Android-sichere Einstellungsansichten statt nicht unterstützter Direktumschaltungen."
-    AppLanguage.PORTUGUESE -> "Rede: $activeNetworkLabel · Wi-Fi ${if (wifiEnabled) "ativado" else "desativado"}. O Hermes usa painéis seguros do Android em vez de alternâncias diretas não suportadas."
-    AppLanguage.FRENCH -> "Réseau : $activeNetworkLabel · Wi-Fi ${if (wifiEnabled) "activé" else "désactivé"}. Hermes utilise des panneaux Android sûrs plutôt que des bascules radio directes non prises en charge."
-    AppLanguage.ENGLISH -> "Network: $activeNetworkLabel · Wi-Fi is ${if (wifiEnabled) "on" else "off"}. Hermes uses Android-safe settings panels instead of unsupported direct radio toggles."
+    AppLanguage.CHINESE -> "网络：$activeNetworkLabel · Wi-Fi ${if (wifiEnabled) "已开启" else "已关闭"}。Agent 使用 Android 安全设置面板，而不是不受支持的直接无线电切换。"
+    AppLanguage.SPANISH -> "Red: $activeNetworkLabel · Wi-Fi ${if (wifiEnabled) "activado" else "desactivado"}. Agent usa paneles seguros de Android en lugar de toggles directos no soportados."
+    AppLanguage.GERMAN -> "Netzwerk: $activeNetworkLabel · Wi-Fi ist ${if (wifiEnabled) "ein" else "aus"}. Agent nutzt Android-sichere Einstellungsansichten statt nicht unterstützter Direktumschaltungen."
+    AppLanguage.PORTUGUESE -> "Rede: $activeNetworkLabel · Wi-Fi ${if (wifiEnabled) "ativado" else "desativado"}. O Agent usa painéis seguros do Android em vez de alternâncias diretas não suportadas."
+    AppLanguage.FRENCH -> "Réseau : $activeNetworkLabel · Wi-Fi ${if (wifiEnabled) "activé" else "désactivé"}. Agent utilise des panneaux Android sûrs plutôt que des bascules radio directes non prises en charge."
+    AppLanguage.ENGLISH -> "Network: $activeNetworkLabel · Wi-Fi is ${if (wifiEnabled) "on" else "off"}. Agent uses Android-safe settings panels instead of unsupported direct radio toggles."
 }
 
 private fun HermesStrings.deviceBluetoothTitle(): String = when (language) {
@@ -1558,12 +1558,12 @@ private fun HermesStrings.deviceBluetoothUnavailable(): String = when (language)
 }
 
 private fun HermesStrings.deviceBluetoothPermissionPrompt(): String = when (language) {
-    AppLanguage.CHINESE -> "授予蓝牙访问权限后，Hermes 可在打开设置前读取已配对设备状态。"
-    AppLanguage.SPANISH -> "Concede acceso Bluetooth para que Hermes lea el estado de dispositivos vinculados antes de abrir ajustes."
-    AppLanguage.GERMAN -> "Gewähre Bluetooth-Zugriff, damit Hermes gekoppelte Geräte vor dem Öffnen der Einstellungen lesen kann."
-    AppLanguage.PORTUGUESE -> "Conceda acesso Bluetooth para o Hermes ler o estado de dispositivos pareados antes de abrir configurações."
-    AppLanguage.FRENCH -> "Autorisez Bluetooth afin que Hermes lise l’état des appareils associés avant d’ouvrir les réglages."
-    AppLanguage.ENGLISH -> "Grant Bluetooth access so Hermes can read bonded-device state before opening settings."
+    AppLanguage.CHINESE -> "授予蓝牙访问权限后，Agent 可在打开设置前读取已配对设备状态。"
+    AppLanguage.SPANISH -> "Concede acceso Bluetooth para que Agent lea el estado de dispositivos vinculados antes de abrir ajustes."
+    AppLanguage.GERMAN -> "Gewähre Bluetooth-Zugriff, damit Agent gekoppelte Geräte vor dem Öffnen der Einstellungen lesen kann."
+    AppLanguage.PORTUGUESE -> "Conceda acesso Bluetooth para o Agent ler o estado de dispositivos pareados antes de abrir configurações."
+    AppLanguage.FRENCH -> "Autorisez Bluetooth afin que Agent lise l’état des appareils associés avant d’ouvrir les réglages."
+    AppLanguage.ENGLISH -> "Grant Bluetooth access so Agent can read bonded-device state before opening settings."
 }
 
 private fun HermesStrings.deviceBluetoothSummary(enabled: Boolean, bondedDevices: String): String {
@@ -1653,12 +1653,12 @@ private fun HermesStrings.deviceUsbUnavailable(): String = when (language) {
 }
 
 private fun HermesStrings.deviceNfcSummary(enabled: Boolean): String = when (language) {
-    AppLanguage.CHINESE -> "NFC ${if (enabled) "已启用" else "已禁用"}。Hermes 可以显示 NFC 状态并直接带你进入系统设置。"
-    AppLanguage.SPANISH -> "NFC está ${if (enabled) "activado" else "desactivado"}. Hermes puede mostrar el estado NFC y llevarte directo a ajustes del sistema."
-    AppLanguage.GERMAN -> "NFC ist ${if (enabled) "aktiviert" else "deaktiviert"}. Hermes kann den NFC-Status anzeigen und direkt zu den Systemeinstellungen führen."
-    AppLanguage.PORTUGUESE -> "NFC está ${if (enabled) "ativado" else "desativado"}. O Hermes pode mostrar o estado NFC e levar direto às configurações do sistema."
-    AppLanguage.FRENCH -> "NFC est ${if (enabled) "activé" else "désactivé"}. Hermes peut afficher l’état NFC et ouvrir directement les réglages système."
-    AppLanguage.ENGLISH -> "NFC is ${if (enabled) "enabled" else "disabled"}. Hermes can surface NFC state and take you straight to system settings."
+    AppLanguage.CHINESE -> "NFC ${if (enabled) "已启用" else "已禁用"}。Agent 可以显示 NFC 状态并直接带你进入系统设置。"
+    AppLanguage.SPANISH -> "NFC está ${if (enabled) "activado" else "desactivado"}. Agent puede mostrar el estado NFC y llevarte directo a ajustes del sistema."
+    AppLanguage.GERMAN -> "NFC ist ${if (enabled) "aktiviert" else "deaktiviert"}. Agent kann den NFC-Status anzeigen und direkt zu den Systemeinstellungen führen."
+    AppLanguage.PORTUGUESE -> "NFC está ${if (enabled) "ativado" else "desativado"}. O Agent pode mostrar o estado NFC e levar direto às configurações do sistema."
+    AppLanguage.FRENCH -> "NFC est ${if (enabled) "activé" else "désactivé"}. Agent peut afficher l’état NFC et ouvrir directement les réglages système."
+    AppLanguage.ENGLISH -> "NFC is ${if (enabled) "enabled" else "disabled"}. Agent can surface NFC state and take you straight to system settings."
 }
 
 private fun HermesStrings.deviceNfcUnavailable(): String = when (language) {
@@ -1698,12 +1698,12 @@ private fun HermesStrings.deviceRuntimeTitle(): String = when (language) {
 }
 
 private fun HermesStrings.deviceRuntimeSummary(notificationPermissionGranted: Boolean, runtimeServiceRunning: Boolean): String = when (language) {
-    AppLanguage.CHINESE -> "通知权限${if (notificationPermissionGranted) "已授予" else "未授予"}。Hermes 后台运行时${if (runtimeServiceRunning) "处于活动状态" else "未活动"}。"
-    AppLanguage.SPANISH -> "Permiso de notificaciones ${if (notificationPermissionGranted) "concedido" else "no concedido"}. El runtime en segundo plano de Hermes está ${if (runtimeServiceRunning) "activo" else "inactivo"}."
-    AppLanguage.GERMAN -> "Benachrichtigungsberechtigung ${if (notificationPermissionGranted) "erteilt" else "nicht erteilt"}. Hermes-Hintergrundlaufzeit ist ${if (runtimeServiceRunning) "aktiv" else "inaktiv"}."
-    AppLanguage.PORTUGUESE -> "Permissão de notificação ${if (notificationPermissionGranted) "concedida" else "não concedida"}. O runtime em segundo plano do Hermes está ${if (runtimeServiceRunning) "ativo" else "inativo"}."
-    AppLanguage.FRENCH -> "Autorisation de notification ${if (notificationPermissionGranted) "accordée" else "non accordée"}. Le runtime Hermes en arrière-plan est ${if (runtimeServiceRunning) "actif" else "inactif"}."
-    AppLanguage.ENGLISH -> "Notification permission is ${if (notificationPermissionGranted) "granted" else "not granted"}. Hermes background runtime is ${if (runtimeServiceRunning) "active" else "inactive"}."
+    AppLanguage.CHINESE -> "通知权限${if (notificationPermissionGranted) "已授予" else "未授予"}。Agent 后台运行时${if (runtimeServiceRunning) "处于活动状态" else "未活动"}。"
+    AppLanguage.SPANISH -> "Permiso de notificaciones ${if (notificationPermissionGranted) "concedido" else "no concedido"}. El runtime en segundo plano de Agent está ${if (runtimeServiceRunning) "activo" else "inactivo"}."
+    AppLanguage.GERMAN -> "Benachrichtigungsberechtigung ${if (notificationPermissionGranted) "erteilt" else "nicht erteilt"}. Agent-Hintergrundlaufzeit ist ${if (runtimeServiceRunning) "aktiv" else "inaktiv"}."
+    AppLanguage.PORTUGUESE -> "Permissão de notificação ${if (notificationPermissionGranted) "concedida" else "não concedida"}. O runtime em segundo plano do Agent está ${if (runtimeServiceRunning) "ativo" else "inativo"}."
+    AppLanguage.FRENCH -> "Autorisation de notification ${if (notificationPermissionGranted) "accordée" else "non accordée"}. Le runtime Agent en arrière-plan est ${if (runtimeServiceRunning) "actif" else "inactif"}."
+    AppLanguage.ENGLISH -> "Notification permission is ${if (notificationPermissionGranted) "granted" else "not granted"}. Agent background runtime is ${if (runtimeServiceRunning) "active" else "inactive"}."
 }
 
 private fun HermesStrings.deviceOverlayPermissionTitle(): String = when (language) {
@@ -1734,12 +1734,12 @@ private fun HermesStrings.deviceOverlayDisabled(): String = when (language) {
 }
 
 private fun HermesStrings.deviceFloatingButtonTitle(): String = when (language) {
-    AppLanguage.CHINESE -> "浮动 Hermes 按钮"
-    AppLanguage.SPANISH -> "Botón flotante de Hermes"
-    AppLanguage.GERMAN -> "Schwebende Hermes-Schaltfläche"
-    AppLanguage.PORTUGUESE -> "Botão flutuante do Hermes"
-    AppLanguage.FRENCH -> "Bouton flottant Hermes"
-    AppLanguage.ENGLISH -> "Floating Hermes button"
+    AppLanguage.CHINESE -> "浮动 Agent 按钮"
+    AppLanguage.SPANISH -> "Botón flotante de Agent"
+    AppLanguage.GERMAN -> "Schwebende Agent-Schaltfläche"
+    AppLanguage.PORTUGUESE -> "Botão flutuante do Agent"
+    AppLanguage.FRENCH -> "Bouton flottant Agent"
+    AppLanguage.ENGLISH -> "Floating Agent button"
 }
 
 private fun HermesStrings.deviceFloatingButtonSummary(
@@ -1751,12 +1751,12 @@ private fun HermesStrings.deviceFloatingButtonSummary(
         return floatingOverlayPermissionHint()
     }
     return when (language) {
-        AppLanguage.CHINESE -> "浮动按钮${if (floatingButtonEnabled) "已启用" else "已关闭"}，服务${if (floatingButtonRunning) "正在运行" else "未运行"}。启用后，Hermes 会在主屏幕和其他应用上层保留一个可拖动入口。"
-        AppLanguage.SPANISH -> "El botón flotante está ${if (floatingButtonEnabled) "activado" else "desactivado"} y el servicio está ${if (floatingButtonRunning) "en ejecución" else "detenido"}. Cuando está activo, Hermes mantiene un acceso arrastrable en Inicio y sobre otras apps."
-        AppLanguage.GERMAN -> "Die schwebende Schaltfläche ist ${if (floatingButtonEnabled) "aktiviert" else "deaktiviert"} und der Dienst ${if (floatingButtonRunning) "läuft" else "läuft nicht"}. Aktiv hält Hermes einen ziehbaren Einstieg auf dem Startbildschirm und über anderen Apps bereit."
-        AppLanguage.PORTUGUESE -> "O botão flutuante está ${if (floatingButtonEnabled) "ativado" else "desativado"} e o serviço está ${if (floatingButtonRunning) "em execução" else "parado"}. Ativo, o Hermes mantém um atalho arrastável na tela inicial e sobre outros apps."
-        AppLanguage.FRENCH -> "Le bouton flottant est ${if (floatingButtonEnabled) "activé" else "désactivé"} et le service est ${if (floatingButtonRunning) "en cours" else "arrêté"}. Activé, Hermes garde un accès déplaçable sur l’accueil et au-dessus des autres apps."
-        AppLanguage.ENGLISH -> "Floating button is ${if (floatingButtonEnabled) "enabled" else "off"} and the service is ${if (floatingButtonRunning) "running" else "stopped"}. When enabled, Hermes keeps a draggable entry point on Home and over other apps."
+        AppLanguage.CHINESE -> "浮动按钮${if (floatingButtonEnabled) "已启用" else "已关闭"}，服务${if (floatingButtonRunning) "正在运行" else "未运行"}。启用后，Agent 会在主屏幕和其他应用上层保留一个可拖动入口。"
+        AppLanguage.SPANISH -> "El botón flotante está ${if (floatingButtonEnabled) "activado" else "desactivado"} y el servicio está ${if (floatingButtonRunning) "en ejecución" else "detenido"}. Cuando está activo, Agent mantiene un acceso arrastrable en Inicio y sobre otras apps."
+        AppLanguage.GERMAN -> "Die schwebende Schaltfläche ist ${if (floatingButtonEnabled) "aktiviert" else "deaktiviert"} und der Dienst ${if (floatingButtonRunning) "läuft" else "läuft nicht"}. Aktiv hält Agent einen ziehbaren Einstieg auf dem Startbildschirm und über anderen Apps bereit."
+        AppLanguage.PORTUGUESE -> "O botão flutuante está ${if (floatingButtonEnabled) "ativado" else "desativado"} e o serviço está ${if (floatingButtonRunning) "em execução" else "parado"}. Ativo, o Agent mantém um atalho arrastável na tela inicial e sobre outros apps."
+        AppLanguage.FRENCH -> "Le bouton flottant est ${if (floatingButtonEnabled) "activé" else "désactivé"} et le service est ${if (floatingButtonRunning) "en cours" else "arrêté"}. Activé, Agent garde un accès déplaçable sur l’accueil et au-dessus des autres apps."
+        AppLanguage.ENGLISH -> "Floating button is ${if (floatingButtonEnabled) "enabled" else "off"} and the service is ${if (floatingButtonRunning) "running" else "stopped"}. When enabled, Agent keeps a draggable entry point on Home and over other apps."
     }
 }
 
@@ -1770,12 +1770,12 @@ private fun HermesStrings.deviceResizableWindowTitle(): String = when (language)
 }
 
 private fun HermesStrings.deviceResizableWindowSummary(resizableWindowSupport: Boolean, freeformWindowSupported: Boolean): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 声明可调整窗口支持：${if (resizableWindowSupport) "已启用" else "已禁用"}。此设备上的自由窗口/多窗口功能：${if (freeformWindowSupported) "可用" else "不可用"}。"
-    AppLanguage.SPANISH -> "Hermes declara ventana redimensionable: ${if (resizableWindowSupport) "activada" else "desactivada"}. Función de ventana libre/multiventana disponible: ${if (freeformWindowSupported) "sí" else "no"}."
-    AppLanguage.GERMAN -> "Hermes meldet größenänderbare Fenster: ${if (resizableWindowSupport) "aktiviert" else "deaktiviert"}. Freiform-/Mehrfensterfunktion auf diesem Gerät: ${if (freeformWindowSupported) "ja" else "nein"}."
-    AppLanguage.PORTUGUESE -> "Hermes declara suporte a janela redimensionável: ${if (resizableWindowSupport) "ativado" else "desativado"}. Recurso de janela livre/multijanela neste dispositivo: ${if (freeformWindowSupported) "sim" else "não"}."
-    AppLanguage.FRENCH -> "Hermes déclare la prise en charge des fenêtres redimensionnables : ${if (resizableWindowSupport) "activée" else "désactivée"}. Fenêtre libre/multifenêtre disponible sur cet appareil : ${if (freeformWindowSupported) "oui" else "non"}."
-    AppLanguage.ENGLISH -> "Hermes declares resizable window support: ${if (resizableWindowSupport) "enabled" else "disabled"}. Freeform/multi-window feature available on this device: ${if (freeformWindowSupported) "yes" else "no"}."
+    AppLanguage.CHINESE -> "Agent 声明可调整窗口支持：${if (resizableWindowSupport) "已启用" else "已禁用"}。此设备上的自由窗口/多窗口功能：${if (freeformWindowSupported) "可用" else "不可用"}。"
+    AppLanguage.SPANISH -> "Agent declara ventana redimensionable: ${if (resizableWindowSupport) "activada" else "desactivada"}. Función de ventana libre/multiventana disponible: ${if (freeformWindowSupported) "sí" else "no"}."
+    AppLanguage.GERMAN -> "Agent meldet größenänderbare Fenster: ${if (resizableWindowSupport) "aktiviert" else "deaktiviert"}. Freiform-/Mehrfensterfunktion auf diesem Gerät: ${if (freeformWindowSupported) "ja" else "nein"}."
+    AppLanguage.PORTUGUESE -> "Agent declara suporte a janela redimensionável: ${if (resizableWindowSupport) "ativado" else "desativado"}. Recurso de janela livre/multijanela neste dispositivo: ${if (freeformWindowSupported) "sim" else "não"}."
+    AppLanguage.FRENCH -> "Agent déclare la prise en charge des fenêtres redimensionnables : ${if (resizableWindowSupport) "activée" else "désactivée"}. Fenêtre libre/multifenêtre disponible sur cet appareil : ${if (freeformWindowSupported) "oui" else "non"}."
+    AppLanguage.ENGLISH -> "Agent declares resizable window support: ${if (resizableWindowSupport) "enabled" else "disabled"}. Freeform/multi-window feature available on this device: ${if (freeformWindowSupported) "yes" else "no"}."
 }
 
 private fun HermesStrings.deviceEnableNotificationsLabel(): String = when (language) {
@@ -1833,12 +1833,12 @@ private fun HermesStrings.deviceStartFloatingButtonLabel(): String = when (langu
 }
 
 private fun HermesStrings.deviceBackgroundRuntimeDescription(): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 后台运行时会在通知栏中保持本地后端就绪，以支持更长会话和后续 Android 窗口模式。"
-    AppLanguage.SPANISH -> "El runtime en segundo plano de Hermes mantiene el backend local listo en la barra de notificaciones para sesiones largas y futuros modos de ventana Android."
-    AppLanguage.GERMAN -> "Die Hermes-Hintergrundlaufzeit hält das lokale Backend in der Benachrichtigungsleiste für längere Sitzungen und spätere Android-Fenstermodi bereit."
-    AppLanguage.PORTUGUESE -> "O runtime em segundo plano do Hermes mantém o backend local pronto na barra de notificações para sessões longas e futuros modos de janela Android."
-    AppLanguage.FRENCH -> "Le runtime Hermes en arrière-plan garde le backend local prêt dans la barre de notifications pour les longues sessions et les futurs modes de fenêtre Android."
-    AppLanguage.ENGLISH -> "Hermes background runtime keeps the local backend ready in the notification bar for longer sessions and later Android windowing modes."
+    AppLanguage.CHINESE -> "Agent 后台运行时会在通知栏中保持本地后端就绪，以支持更长会话和后续 Android 窗口模式。"
+    AppLanguage.SPANISH -> "El runtime en segundo plano de Agent mantiene el backend local listo en la barra de notificaciones para sesiones largas y futuros modos de ventana Android."
+    AppLanguage.GERMAN -> "Die Agent-Hintergrundlaufzeit hält das lokale Backend in der Benachrichtigungsleiste für längere Sitzungen und spätere Android-Fenstermodi bereit."
+    AppLanguage.PORTUGUESE -> "O runtime em segundo plano do Agent mantém o backend local pronto na barra de notificações para sessões longas e futuros modos de janela Android."
+    AppLanguage.FRENCH -> "Le runtime Agent en arrière-plan garde le backend local prêt dans la barre de notifications pour les longues sessions et les futurs modes de fenêtre Android."
+    AppLanguage.ENGLISH -> "Agent background runtime keeps the local backend ready in the notification bar for longer sessions and later Android windowing modes."
 }
 
 private fun HermesStrings.deviceWorkspaceAccessTitle(): String = when (language) {
@@ -1851,12 +1851,12 @@ private fun HermesStrings.deviceWorkspaceAccessTitle(): String = when (language)
 }
 
 private fun HermesStrings.deviceWorkspaceAccessDescription(): String = when (language) {
-    AppLanguage.CHINESE -> "授权共享文件夹，让 Hermes 可直接读取和写入真实文件。需要副本时，导入的文件仍会进入 Hermes 工作区；通用命令则由兼容模型自动路由到 terminal_tool。"
-    AppLanguage.SPANISH -> "Concede una carpeta compartida para que Hermes lea y escriba archivos reales. Los archivos importados siguen en el espacio de trabajo cuando quieras copias; los comandos generales se enrutan automáticamente a terminal_tool."
-    AppLanguage.GERMAN -> "Gewähre einen freigegebenen Ordner, damit Hermes echte Dateien direkt lesen und schreiben kann. Importierte Dateien bleiben für Kopien im Arbeitsbereich; allgemeine Befehle werden automatisch an terminal_tool geleitet."
-    AppLanguage.PORTUGUESE -> "Conceda uma pasta compartilhada para o Hermes ler e escrever arquivos reais. Arquivos importados continuam no workspace quando você quiser cópias; comandos gerais são roteados automaticamente para terminal_tool."
-    AppLanguage.FRENCH -> "Autorisez un dossier partagé pour que Hermes lise et écrive les vrais fichiers. Les fichiers importés restent dans l’espace de travail pour les copies ; les commandes générales sont routées automatiquement vers terminal_tool."
-    AppLanguage.ENGLISH -> "Grant a shared folder so Hermes can read and write the real files. Imports still create workspace copies when wanted; compatible models route general commands to terminal_tool automatically."
+    AppLanguage.CHINESE -> "授权共享文件夹，让 Agent 可直接读取和写入真实文件。需要副本时，导入的文件仍会进入 Agent 工作区；通用命令则由兼容模型自动路由到 terminal_tool。"
+    AppLanguage.SPANISH -> "Concede una carpeta compartida para que Agent lea y escriba archivos reales. Los archivos importados siguen en el espacio de trabajo cuando quieras copias; los comandos generales se enrutan automáticamente a terminal_tool."
+    AppLanguage.GERMAN -> "Gewähre einen freigegebenen Ordner, damit Agent echte Dateien direkt lesen und schreiben kann. Importierte Dateien bleiben für Kopien im Arbeitsbereich; allgemeine Befehle werden automatisch an terminal_tool geleitet."
+    AppLanguage.PORTUGUESE -> "Conceda uma pasta compartilhada para o Agent ler e escrever arquivos reais. Arquivos importados continuam no workspace quando você quiser cópias; comandos gerais são roteados automaticamente para terminal_tool."
+    AppLanguage.FRENCH -> "Autorisez un dossier partagé pour que Agent lise et écrive les vrais fichiers. Les fichiers importés restent dans l’espace de travail pour les copies ; les commandes générales sont routées automatiquement vers terminal_tool."
+    AppLanguage.ENGLISH -> "Grant a shared folder so Agent can read and write the real files. Imports still create workspace copies when wanted; compatible models route general commands to terminal_tool automatically."
 }
 
 private fun HermesStrings.deviceSharedFolderLabel(label: String): String = when (language) {
@@ -1887,12 +1887,12 @@ private fun HermesStrings.deviceClearFolderLabel(): String = when (language) {
 }
 
 private fun HermesStrings.deviceNoWorkspaceFiles(): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 工作区中还没有文件。"
-    AppLanguage.SPANISH -> "Aún no hay archivos en el espacio de trabajo de Hermes."
-    AppLanguage.GERMAN -> "Noch keine Dateien im Hermes-Arbeitsbereich."
-    AppLanguage.PORTUGUESE -> "Ainda não há arquivos no workspace Hermes."
-    AppLanguage.FRENCH -> "Aucun fichier dans l’espace de travail Hermes pour l’instant."
-    AppLanguage.ENGLISH -> "No files in the Hermes workspace yet."
+    AppLanguage.CHINESE -> "Agent 工作区中还没有文件。"
+    AppLanguage.SPANISH -> "Aún no hay archivos en el espacio de trabajo de Agent."
+    AppLanguage.GERMAN -> "Noch keine Dateien im Agent-Arbeitsbereich."
+    AppLanguage.PORTUGUESE -> "Ainda não há arquivos no workspace Agent."
+    AppLanguage.FRENCH -> "Aucun fichier dans l’espace de travail Agent pour l’instant."
+    AppLanguage.ENGLISH -> "No files in the Agent workspace yet."
 }
 
 private fun HermesStrings.deviceWorkspaceFileUpdated(sizeLabel: String, modifiedLabel: String): String = when (language) {
@@ -1923,30 +1923,30 @@ private fun HermesStrings.deviceAccessibilityTitle(): String = when (language) {
 }
 
 private fun HermesStrings.deviceAccessibilityConnected(): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 无障碍已启用并已连接。兼容模型可通过 android_ui_tool 检查可见界面并执行获准的界面操作。"
-    AppLanguage.SPANISH -> "La accesibilidad de Hermes está activada y conectada. Un modelo compatible puede usar android_ui_tool para inspeccionar la interfaz y realizar acciones autorizadas."
-    AppLanguage.GERMAN -> "Die Hermes-Bedienungshilfe ist aktiviert und verbunden. Ein kompatibles Modell kann mit android_ui_tool die sichtbare Oberfläche prüfen und erlaubte Aktionen ausführen."
-    AppLanguage.PORTUGUESE -> "A acessibilidade do Hermes está ativada e conectada. Um modelo compatível pode usar android_ui_tool para inspecionar a interface e executar ações autorizadas."
-    AppLanguage.FRENCH -> "L’accessibilité Hermes est activée et connectée. Un modèle compatible peut utiliser android_ui_tool pour inspecter l’interface et effectuer les actions autorisées."
-    AppLanguage.ENGLISH -> "Hermes accessibility is enabled and connected. A tool-capable model can use android_ui_tool to inspect the visible interface and perform approved actions."
+    AppLanguage.CHINESE -> "Agent 无障碍已启用并已连接。兼容模型可通过 android_ui_tool 检查可见界面并执行获准的界面操作。"
+    AppLanguage.SPANISH -> "La accesibilidad de Agent está activada y conectada. Un modelo compatible puede usar android_ui_tool para inspeccionar la interfaz y realizar acciones autorizadas."
+    AppLanguage.GERMAN -> "Die Agent-Bedienungshilfe ist aktiviert und verbunden. Ein kompatibles Modell kann mit android_ui_tool die sichtbare Oberfläche prüfen und erlaubte Aktionen ausführen."
+    AppLanguage.PORTUGUESE -> "A acessibilidade do Agent está ativada e conectada. Um modelo compatível pode usar android_ui_tool para inspecionar a interface e executar ações autorizadas."
+    AppLanguage.FRENCH -> "L’accessibilité Agent est activée et connectée. Un modèle compatible peut utiliser android_ui_tool pour inspecter l’interface et effectuer les actions autorisées."
+    AppLanguage.ENGLISH -> "Agent accessibility is enabled and connected. A tool-capable model can use android_ui_tool to inspect the visible interface and perform approved actions."
 }
 
 private fun HermesStrings.deviceAccessibilityEnabledWaiting(): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 无障碍已启用，但 Android 尚未连接该服务。"
-    AppLanguage.SPANISH -> "La accesibilidad de Hermes está activada, pero Android aún no ha conectado el servicio."
-    AppLanguage.GERMAN -> "Hermes-Bedienungshilfe ist aktiviert, aber Android hat den Dienst noch nicht verbunden."
-    AppLanguage.PORTUGUESE -> "A acessibilidade do Hermes está ativada, mas o Android ainda não conectou o serviço."
-    AppLanguage.FRENCH -> "L’accessibilité Hermes est activée, mais Android n’a pas encore connecté le service."
-    AppLanguage.ENGLISH -> "Hermes accessibility is enabled, but Android has not connected the service yet."
+    AppLanguage.CHINESE -> "Agent 无障碍已启用，但 Android 尚未连接该服务。"
+    AppLanguage.SPANISH -> "La accesibilidad de Agent está activada, pero Android aún no ha conectado el servicio."
+    AppLanguage.GERMAN -> "Agent-Bedienungshilfe ist aktiviert, aber Android hat den Dienst noch nicht verbunden."
+    AppLanguage.PORTUGUESE -> "A acessibilidade do Agent está ativada, mas o Android ainda não conectou o serviço."
+    AppLanguage.FRENCH -> "L’accessibilité Agent est activée, mais Android n’a pas encore connecté le service."
+    AppLanguage.ENGLISH -> "Agent accessibility is enabled, but Android has not connected the service yet."
 }
 
 private fun HermesStrings.deviceAccessibilityDisabled(): String = when (language) {
-    AppLanguage.CHINESE -> "Hermes 无障碍已禁用。在 Android 设置中启用后，可解锁快捷设备操作以及界面检查/操作定位。"
-    AppLanguage.SPANISH -> "La accesibilidad de Hermes está desactivada. Actívala en ajustes de Android para desbloquear acciones rápidas del dispositivo e inspección/acción de UI."
-    AppLanguage.GERMAN -> "Hermes-Bedienungshilfe ist deaktiviert. Aktiviere sie in den Android-Einstellungen für schnelle Geräteaktionen sowie UI-Prüfung/-Aktionen."
-    AppLanguage.PORTUGUESE -> "A acessibilidade do Hermes está desativada. Ative nas configurações do Android para liberar ações rápidas do dispositivo e inspeção/ação de UI."
-    AppLanguage.FRENCH -> "L’accessibilité Hermes est désactivée. Activez-la dans les réglages Android pour débloquer les actions rapides et l’inspection/action de l’UI."
-    AppLanguage.ENGLISH -> "Hermes accessibility is disabled. Enable it in Android settings to unlock quick device actions plus UI inspection/action targeting."
+    AppLanguage.CHINESE -> "Agent 无障碍已禁用。在 Android 设置中启用后，可解锁快捷设备操作以及界面检查/操作定位。"
+    AppLanguage.SPANISH -> "La accesibilidad de Agent está desactivada. Actívala en ajustes de Android para desbloquear acciones rápidas del dispositivo e inspección/acción de UI."
+    AppLanguage.GERMAN -> "Agent-Bedienungshilfe ist deaktiviert. Aktiviere sie in den Android-Einstellungen für schnelle Geräteaktionen sowie UI-Prüfung/-Aktionen."
+    AppLanguage.PORTUGUESE -> "A acessibilidade do Agent está desativada. Ative nas configurações do Android para liberar ações rápidas do dispositivo e inspeção/ação de UI."
+    AppLanguage.FRENCH -> "L’accessibilité Agent est désactivée. Activez-la dans les réglages Android pour débloquer les actions rapides et l’inspection/action de l’UI."
+    AppLanguage.ENGLISH -> "Agent accessibility is disabled. Enable it in Android settings to unlock quick device actions plus UI inspection/action targeting."
 }
 
 private fun HermesStrings.deviceOpenAccessibilitySettingsLabel(): String = when (language) {

@@ -44,9 +44,9 @@ object McpSettingsMessages {
     const val SIMPLE_READY = "MCP simple onboarding is ready. Auto setup writes a local native-tools config."
     const val ADVANCED_READY = "Advanced MCP config editing is ready. Save validates JSON before reload."
     const val CACHE_RESEND_ENABLED =
-        "Provider cache resend enabled. Hermes may resend stable prior context only for providers that allow it."
+        "Provider cache resend enabled. Agent may resend stable prior context only for providers that allow it."
     const val CACHE_RESEND_DISABLED =
-        "Provider cache resend disabled. Hermes must not resend cached prior/tool-output context."
+        "Provider cache resend disabled. Agent must not resend cached prior/tool-output context."
 }
 
 object McpSettingsDefaults {
@@ -63,7 +63,7 @@ object McpSettingsDefaults {
                             .put("transport", "native")
                             .put("enabled", true)
                             .put("autoStart", true)
-                            .put("description", "Hermes Android local tools exposed to the agent runtime"),
+                            .put("description", "Agent Android local tools exposed to the agent runtime"),
                     ),
             )
             .put(

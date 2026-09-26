@@ -107,7 +107,7 @@ object LocalModelRuntimeDiagnostics {
                 effectiveContextTokens = MIN_CONTEXT_TOKENS,
                 estimatedAdditionalBytes = 0L,
                 level = "blocked",
-                detail = "Model size is unavailable; Hermes cannot safely start a native runtime for an empty or unreadable artifact.",
+                detail = "Model size is unavailable; Agent cannot safely start a native runtime for an empty or unreadable artifact.",
             )
         }
 
@@ -190,7 +190,7 @@ object LocalModelRuntimeDiagnostics {
                 effectiveContextTokens = effectiveContext,
                 estimatedAdditionalBytes = estimatedAdditional,
                 level = "warning",
-                detail = "Usable RAM (${formatGb(memory.usableAvailableBytes)} GB) is below the conservative ${formatGb(estimatedAdditional)} GB estimate; Hermes will use the reduced context limit.$contextNote",
+                detail = "Usable RAM (${formatGb(memory.usableAvailableBytes)} GB) is below the conservative ${formatGb(estimatedAdditional)} GB estimate; Agent will use the reduced context limit.$contextNote",
             )
         }
 
@@ -217,8 +217,8 @@ object LocalModelRuntimeDiagnostics {
             allowed = true,
             level = "dangerous_bypass",
             detail =
-                "DANGEROUS RAM CHECK BYPASS ACTIVE: Hermes will attempt this native model even though " +
-                    "the RAM admission check would block it. Android may kill Hermes or destabilize other apps. " +
+                "DANGEROUS RAM CHECK BYPASS ACTIVE: Agent will attempt this native model even though " +
+                    "the RAM admission check would block it. Android may kill Agent or destabilize other apps. " +
                     "Original check: ${blocked.detail}",
         )
     }

@@ -18,8 +18,8 @@ from pathlib import Path
 
 
 DEFAULT_PACKAGE = "com.mobilefork.hermesagent"
-DEFAULT_READY_TEXT = "Message Hermes Fork|Welcome to Hermes Agent Fork|Settings|Hermes Fork"
-CHAT_HOME_READY_TEXT = "Message Hermes Fork|Welcome to Hermes Agent Fork"
+DEFAULT_READY_TEXT = "Message Agent|Welcome to Agent Agent Fork|Settings|Hermes Fork"
+CHAT_HOME_READY_TEXT = "Message Agent|Welcome to Agent Agent Fork"
 UI_DUMP_REMOTE_PATH = "/sdcard/window_dump.xml"
 
 
@@ -288,7 +288,7 @@ def tap_ui_label(serial: str | None, label: str) -> bool:
 
 
 def is_chat_home_xml(xml: str) -> bool:
-    return "Message Hermes Fork" in xml or "Welcome to Hermes Agent Fork" in xml
+    return "Message Agent" in xml or "Welcome to Agent Agent Fork" in xml
 
 
 def ensure_chat_home(serial: str | None) -> bool:

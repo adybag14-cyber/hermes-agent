@@ -80,7 +80,7 @@ class LocalModelRuntimeDiagnosticsTest {
         assertEquals("dangerous_bypass", decision.level)
         assertEquals(512, decision.effectiveContextTokens)
         assertTrue(decision.detail, decision.detail.contains("DANGEROUS RAM CHECK BYPASS ACTIVE"))
-        assertTrue(decision.detail, decision.detail.contains("Android may kill Hermes"))
+        assertTrue(decision.detail, decision.detail.contains("Android may kill Agent"))
         assertTrue(decision.detail, decision.detail.contains("active low-memory pressure"))
     }
 

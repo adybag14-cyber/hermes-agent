@@ -1,0 +1,160 @@
+{
+  "schema": "agent-pr22-followup-validation-v1",
+  "recorded_at": "2026-09-25T14:44:14.653803+00:00",
+  "pr": 22,
+  "based_on": "ea5167b2d85119a6f4846dbdc2f53b748452c3ca",
+  "runtime_source": "76bf670451725ad0b53636f423476f6acf45b179",
+  "qualification_source": "232fcfbf598d68b58cd25c2be6f10aaac567de6e",
+  "qualification_only_delta": [
+    ".github/workflows/android.yml",
+    "scripts/verify_android_play_package.py",
+    "tests/hermes_android/test_play_package.py"
+  ],
+  "full_ui_source": "bff93d5935db5e596787e83fa1bfb08a059bb0dd",
+  "full_ui_pair_identical_after_test_only_commit": true,
+  "test_only_delta": [
+    "android/app/src/test/java/com/mobilefork/hermesagent/ui/settings/LocalModelImportLifecycleTest.kt"
+  ],
+  "full_jvm": {
+    "tests": 1048,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": 114
+  },
+  "play_scoped_jvm": {
+    "tests": 26,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": 12
+  },
+  "android_python": {
+    "files": 59,
+    "passed": 896,
+    "failed": 0,
+    "skipped": 1
+  },
+  "python_source": "232fcfbf598d68b58cd25c2be6f10aaac567de6e",
+  "python_followup_changed": true,
+  "installed_full_ui": 7,
+  "installed_play_ui": 6,
+  "fresh_launch_full": true,
+  "fresh_launch_play": true,
+  "precompilation_or_verifier_bypass": false,
+  "lint": {
+    "full": "pass under unchanged baseline",
+    "full_warnings": 57,
+    "play": "pass under unchanged baseline",
+    "play_warnings": 60,
+    "baseline_modified": false
+  },
+  "litertlm": {
+    "artifact": "com.google.ai.edge.litertlm:litertlm-android",
+    "declared": "0.17.1",
+    "latest": "0.17.1",
+    "latest_stable": "0.17.1",
+    "matches_latest": true,
+    "matches_latest_stable": true,
+    "metadata_source": "https://dl.google.com/dl/android/maven2/com/google/ai/edge/litertlm/litertlm-android/maven-metadata.xml",
+    "published_latest": "0.17.1",
+    "published_latest_is_prerelease": false
+  },
+  "apks": [
+    {
+      "path": ".artifacts/installed-full/app/app-debug.apk",
+      "bytes": 371154414,
+      "sha256": "a0a3d3797f11cc49a83b9b2fd3a9d86b9657699683b7fcffa09593a461bafc6e"
+    },
+    {
+      "path": ".artifacts/installed-full/test/app-debug-androidTest.apk",
+      "bytes": 1392810,
+      "sha256": "197de8a2ee16e97a3f320e080c74a74c1e58278f92e6fd6d4be38f4ee0d77a82"
+    },
+    {
+      "path": ".artifacts/installed-play-fresh/app/app-playDebug.apk",
+      "bytes": 190478722,
+      "sha256": "7f08e5cfeb085f0c324a0409deb465f728615c839b17ce70ee29d56056d7ca3b"
+    },
+    {
+      "path": ".artifacts/installed-play-fresh/test/app-playDebug-androidTest.apk",
+      "bytes": 1393490,
+      "sha256": "07596e7a14c2bec68d6997fab82fdda26bc3d528f934bf52db80e59b52a6f6bd"
+    }
+  ],
+  "application_id": "com.mobilefork.hermesagent",
+  "version_name": "0.13.146",
+  "version_code": 144690,
+  "debug_signed": true,
+  "native_assets_skipped": false,
+  "full_package_source_bundle_verified": true,
+  "play_package_verified": true,
+  "play_package_mode": "explicit debug-only test-host qualification; default release policy remains strict",
+  "environment": {
+    "avd": "Agent_Refresh_GPT_20260925",
+    "serial": "emulator-5590",
+    "api": 36,
+    "abi": "x86_64",
+    "ram_mb": 4096,
+    "storage_gb": 16
+  },
+  "not_claimed": [
+    "physical-device model inference",
+    "GPU/NPU model performance",
+    "production-signed upgrade",
+    "hosted CI green",
+    "legal trademark clearance",
+    "merge",
+    "release publication"
+  ],
+  "intermediate_results": [
+    "Before cancellation fix: two of three new cancellation tests failed; interrupted copies reached persistence rather than reporting interruption.",
+    "First Linux Play scoped run: one lifecycle test raced IO completion with Main-thread finalization. The test now awaits both boundaries; production source was unchanged by that correction.",
+    "First Play launch command incorrectly targeted the Full-only MainActivity. Its return code was 1, not an app success. Fresh reinstall resolved the actual PlayActivity from the manifest and passed without precompilation."
+  ],
+  "transcripts_and_images": [
+    {
+      "path": "full-ui.log",
+      "raw_sha256": "6d1b75995d9cb0ba588f6421078b82597df8a0452eb09d929dca77f0c525598f",
+      "review_sha256": "eb0be55e99badf213ae9d2f8dce1be995cd12a91a6defea15f36088106b05834"
+    },
+    {
+      "path": "play-ui.log",
+      "raw_sha256": "1501ce4e15312b521b1c406fb6f19b412dc70cb39127d31b14b4a76a885897a1",
+      "review_sha256": "8002d48b30acf5dacc7f5c44f9429f5f361ed527a76136a72e08b2e68382e1f4"
+    },
+    {
+      "path": "full-fresh-launch.log",
+      "raw_sha256": "758ba5fadb01f17325f9a8d8ebd76d01c8adb0fcf4b9077e448da86919a372b5",
+      "review_sha256": "b3817e0b684efe409dcac7e1e554e0bf429795ef9b32add28e7d4518d34ae3a7"
+    },
+    {
+      "path": "play-fresh-launch.log",
+      "raw_sha256": "0a89e3eaadfea4c824d712ba66c141b7b71bc410e28b5ad80d8366720e3413ba",
+      "review_sha256": "8340633eb543d354656bbfc4f313c1958bb6758767991b642c5133173af86874"
+    },
+    {
+      "path": "full-package.log",
+      "raw_sha256": "0b3d9a365f26e5f20c3521cbefb340769c3c71f4cd9d418016df6a1f25a029ee",
+      "review_sha256": "056459b218e016b1ae86966cd9c91469f4a0ec0b53bce9e88a930858153a35ae"
+    },
+    {
+      "path": "play-package.log",
+      "raw_sha256": "16f5cd301d4dcb1007791ee47aa7f1b832c0996a9ea0cb318a094549f4c7b77d",
+      "review_sha256": "30c2322166b9b1833e73071eae00a67a9d648148710181b3aaf51a86d3828d24"
+    },
+    {
+      "path": "litertlm-live.log",
+      "raw_sha256": "8192f6856cd234df6f12e97f14a49cb14e3ff800fb5b0792ca2a1eccf1d6d827",
+      "review_sha256": "bd916ba53f5157658fb68894abc28d8fb138c20b0fe8a979cf95c5a96329b09d"
+    },
+    {
+      "path": "full-models-app-shell.png",
+      "sha256": "f5a96e3860d11e24ed501fafc7b92797d5f93f18aef0ce29c44534be40d60481"
+    },
+    {
+      "path": "play-models.png",
+      "sha256": "8c687533739ee767938bbc04ef2fc3e120b6282789ead6a62f8114a10f447bb7"
+    }
+  ]
+}

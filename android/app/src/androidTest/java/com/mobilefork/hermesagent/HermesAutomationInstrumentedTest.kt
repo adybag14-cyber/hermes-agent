@@ -111,7 +111,7 @@ class HermesAutomationInstrumentedTest {
     fun overlaySceneLayoutUsesDeviceSafeAreaAndPercentWidth() {
         val payload = HermesOverlaySceneBridge.payloadFromArguments(
             JSONObject()
-                .put("scene_title", "Hermes overlay")
+                .put("scene_title", "Agent overlay")
                 .put("scene_text", "Screen-ratio smoke for narrow, landscape, and modern Android displays.")
                 .put("width", "94%"),
         )
@@ -300,7 +300,7 @@ class HermesAutomationInstrumentedTest {
                 "operator_heartbeat",
                 JSONObject()
                     .put("deviceId", "instrumented-device")
-                    .put("deviceName", "Hermes instrumentation")
+                    .put("deviceName", "Agent instrumentation")
                     .put("source", "discord"),
             )
         )
@@ -652,7 +652,7 @@ class HermesAutomationInstrumentedTest {
                 app,
                 "create_app_launch_task",
                 JSONObject()
-                    .put("label", "Launch Hermes smoke")
+                    .put("label", "Launch Agent smoke")
                     .put("package_name", app.packageName)
                     .put("enabled", false),
             ),
@@ -991,7 +991,7 @@ class HermesAutomationInstrumentedTest {
         val workspace = File(linuxState.getString("home_path"))
         val htmlFile = File(workspace, "hermes-flappy-browser-smoke.html").apply {
             writeText(
-                "<!doctype html><html><head><title>Hermes Flappy Smoke</title></head>" +
+                "<!doctype html><html><head><title>Agent Flappy Smoke</title></head>" +
                     "<body><canvas id=\"game\" width=\"240\" height=\"160\"></canvas>" +
                     "<script>document.body.dataset.hermes='flappy-smoke';</script></body></html>",
             )
@@ -1028,7 +1028,7 @@ class HermesAutomationInstrumentedTest {
         val workspace = File(linuxState.getString("home_path"))
         val htmlFile = File(workspace, "hermes-flappy-browser-direct.html").apply {
             writeText(
-                "<!doctype html><html><head><title>Hermes Flappy Direct</title></head>" +
+                "<!doctype html><html><head><title>Agent Flappy Direct</title></head>" +
                     "<body><canvas id=\"game\" width=\"240\" height=\"160\"></canvas>" +
                     "<script>document.body.dataset.hermes='flappy-direct';</script></body></html>",
             )
@@ -1299,14 +1299,14 @@ class HermesAutomationInstrumentedTest {
             HermesAutomationBridge.runNotificationPostedTriggerJson(
                 app,
                 app.packageName,
-                "Hermes title",
-                "Hermes text",
+                "Agent title",
+                "Agent text",
             ),
         )
         assertTrue(matched.toString(), matched.getBoolean("success"))
         assertEquals(1, matched.getInt("matched_count"))
         assertTrue("Expected ${target.absolutePath}", target.isFile)
-        assertEquals("${app.packageName}:Hermes title:Hermes text", target.readText())
+        assertEquals("${app.packageName}:Agent title:Agent text", target.readText())
     }
 
     @Test
@@ -1337,7 +1337,7 @@ class HermesAutomationInstrumentedTest {
                 "create_notification_task",
                 JSONObject()
                     .put("label", "Notification action smoke")
-                    .put("notification_title", "Hermes automation")
+                    .put("notification_title", "Agent automation")
                     .put("notification_text", "%NOTICE_TEXT")
                     .put("notification_id", "9901")
                     .put("notification_tag", "hermes-instrumented")
@@ -1440,7 +1440,7 @@ class HermesAutomationInstrumentedTest {
                 "create_notification_task",
                 JSONObject()
                     .put("label", "Notification button smoke")
-                    .put("notification_title", "Hermes button")
+                    .put("notification_title", "Agent button")
                     .put("notification_text", "Run a saved automation")
                     .put("notification_id", "9910")
                     .put("notification_tag", "hermes-button")
@@ -1508,7 +1508,7 @@ class HermesAutomationInstrumentedTest {
                 "set_variable",
                 JSONObject()
                     .put("name", "%WORK_CAL")
-                    .put("value", "Hermes Work"),
+                    .put("value", "Agent Work"),
             ),
         )
         assertTrue(variable.toString(), variable.getBoolean("success"))
@@ -1538,7 +1538,7 @@ class HermesAutomationInstrumentedTest {
                 app,
                 "run_calendar_event_trigger",
                 JSONObject()
-                    .put("calendar_name", "Hermes Work")
+                    .put("calendar_name", "Agent Work")
                     .put("calendar_title", "Lunch"),
             ),
         )
@@ -1551,7 +1551,7 @@ class HermesAutomationInstrumentedTest {
                 app,
                 "run_calendar_event_trigger",
                 JSONObject()
-                    .put("calendar_name", "Hermes Work")
+                    .put("calendar_name", "Agent Work")
                     .put("calendar_title", "Flight to SF")
                     .put("calendar_description", "Boarding")
                     .put("calendar_location", "SFO"),
@@ -1561,7 +1561,7 @@ class HermesAutomationInstrumentedTest {
         assertEquals("calendar_event", matched.getString("trigger"))
         assertEquals(1, matched.getInt("matched_count"))
         assertTrue("Expected ${target.absolutePath}", target.isFile)
-        assertEquals("Hermes Work:Flight to SF:Boarding:SFO", target.readText())
+        assertEquals("Agent Work:Flight to SF:Boarding:SFO", target.readText())
 
         val variables = JSONObject(HermesAutomationBridge.performActionJson(app, "list_variables"))
             .getJSONObject("variables")
@@ -1608,7 +1608,7 @@ class HermesAutomationInstrumentedTest {
                     .put("latitude", 37.7849)
                     .put("longitude", -122.4194)
                     .put("location_provider", "gps")
-                    .put("location_name", "Hermes Office"),
+                    .put("location_name", "Agent Office"),
             ),
         )
         assertTrue(missed.toString(), missed.getBoolean("success"))
@@ -1624,20 +1624,20 @@ class HermesAutomationInstrumentedTest {
                     .put("longitude", -122.4195)
                     .put("accuracy_meters", 12.5)
                     .put("location_provider", "gps")
-                    .put("location_name", "Hermes Office"),
+                    .put("location_name", "Agent Office"),
             ),
         )
         assertTrue(matched.toString(), matched.getBoolean("success"))
         assertEquals("location", matched.getString("trigger"))
         assertEquals(1, matched.getInt("matched_count"))
         assertTrue("Expected ${target.absolutePath}", target.isFile)
-        assertEquals("gps:37.775:-122.4195:Hermes Office:12.5", target.readText())
+        assertEquals("gps:37.775:-122.4195:Agent Office:12.5", target.readText())
 
         val variables = JSONObject(HermesAutomationBridge.performActionJson(app, "list_variables"))
             .getJSONObject("variables")
         assertEquals("37.775", variables.getString("LOCATION_LATITUDE"))
         assertEquals("-122.4195", variables.getString("LOCATION_LONGITUDE"))
-        assertEquals("Hermes Office", variables.getString("LOCATION_NAME"))
+        assertEquals("Agent Office", variables.getString("LOCATION_NAME"))
     }
 
     @Test
@@ -1864,7 +1864,7 @@ class HermesAutomationInstrumentedTest {
                     .put("path", "hermes-logcat-watcher.txt")
                     .put("content", "%LOGCAT_TAG:%LOGCAT_MESSAGE")
                     .put("trigger", "logcat_entry")
-                    .put("logcat_tag", "Hermes")
+                    .put("logcat_tag", "Agent")
                     .put("logcat_message_contains", "watcher")
                     .put("enabled", true),
             ),
@@ -2001,7 +2001,7 @@ class HermesAutomationInstrumentedTest {
         val taskerXml = """
             <TaskerData sr="" dvi="1" tv="6.6.18">
               <Task sr="task1">
-                <nme>Hermes Tasker Import</nme>
+                <nme>Agent Tasker Import</nme>
                 <Action sr="act0" ve="7">
                   <code>410</code>
                   <Str sr="arg0" ve="3">hermes-tasker-import.txt</Str>
@@ -2122,7 +2122,7 @@ class HermesAutomationInstrumentedTest {
         val taskerXml = """
             <TaskerData sr="" dvi="1" tv="6.6.18">
               <Task sr="task1">
-                <nme>Hermes Tasker Variables</nme>
+                <nme>Agent Tasker Variables</nme>
                 <Action sr="act0" ve="7">
                   <code>547</code>
                   <Str sr="arg0" ve="3">%TASKER_DYNAMIC</Str>
@@ -2217,7 +2217,7 @@ class HermesAutomationInstrumentedTest {
         val taskerXml = """
             <TaskerData sr="" dvi="1" tv="6.6.18">
               <Task sr="task1">
-                <nme>Hermes Tasker Wait</nme>
+                <nme>Agent Tasker Wait</nme>
                 <Action sr="act0" ve="7">
                   <code>30</code>
                   <Int sr="arg0" val="5"/>

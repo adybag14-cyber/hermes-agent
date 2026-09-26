@@ -190,7 +190,7 @@ def source_checkout(tmp_path: Path) -> Path:
     )
     (repo / "tracked.txt").write_text("committed\n", encoding="utf-8")
     _git(repo, "init", "-q")
-    _git(repo, "config", "user.name", "Hermes test")
+    _git(repo, "config", "user.name", "Agent test")
     _git(repo, "config", "user.email", "hermes-test@example.invalid")
     _git(repo, "config", "core.autocrlf", "false")
     _git(repo, "add", ".")

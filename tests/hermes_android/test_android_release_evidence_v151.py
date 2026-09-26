@@ -325,7 +325,7 @@ def test_release_tag_requirement_rejects_lightweight_and_wrong_commit_tags(
         )
 
     git("init")
-    git("config", "user.name", "Hermes Release Test")
+    git("config", "user.name", "Agent Release Test")
     git("config", "user.email", "hermes-release-test@example.invalid")
     (repo / "source.txt").write_text("one\n", encoding="utf-8")
     git("add", "source.txt")
@@ -336,7 +336,7 @@ def test_release_tag_requirement_rejects_lightweight_and_wrong_commit_tags(
         evidence_module.require_tag_points_to_head(repo, TAG)
 
     git("tag", "-d", TAG)
-    git("tag", "-a", TAG, "-m", "Hermes release")
+    git("tag", "-a", TAG, "-m", "Agent release")
     evidence_module.require_tag_points_to_head(repo, TAG)
 
     (repo / "source.txt").write_text("two\n", encoding="utf-8")
@@ -628,7 +628,7 @@ def test_physical_record_requires_app_managed_turboquant_readiness(
         (("ordinary_chat", "visible_reply"), "Hello!", "deterministic Nanbeige canary"),
         (
             ("ordinary_chat", "visible_reply"),
-            "Hermes could not complete this reply. Review the error above and try again.",
+            "Agent could not complete this reply. Review the error above and try again.",
             "deterministic Nanbeige canary",
         ),
         (

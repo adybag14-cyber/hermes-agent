@@ -46,11 +46,11 @@ internal object OpenGuiUserHandoff {
         val executionId = executionId(sessionId)
         return JSONObject()
             .put("notification_action", "post")
-            .put("title", "Hermes needs you")
+            .put("title", "Agent needs you")
             .put("text", message)
             .put("status_text", "OpenGUI user handoff")
             .put("channel_id", CHANNEL_ID)
-            .put("channel_name", "Hermes OpenGUI handoff")
+            .put("channel_name", "Agent OpenGUI handoff")
             .put("priority", "high")
             .put("importance", "high")
             .put("ongoing", true)
@@ -62,7 +62,7 @@ internal object OpenGuiUserHandoff {
                 JSONArray(
                     listOf(
                         JSONObject()
-                            .put("title", "Open Hermes")
+                            .put("title", "Open Agent")
                             .put("action", "open_app")
                             .put("dismiss_on_tap", false),
                         JSONObject()
@@ -101,7 +101,7 @@ internal object OpenGuiUserHandoff {
             .put("opengui_user_handoff", true)
             .put("surfaced_on_device", surfaced)
             .put("message", message)
-            .put("resume_hint", "After the user finishes the phone-side step, continue the Hermes chat or send an OpenGUI-compatible resume command.")
+            .put("resume_hint", "After the user finishes the phone-side step, continue the Agent chat or send an OpenGUI-compatible resume command.")
             .put("compatible_commands", JSONArray(listOf("/opengui resume <execution_id> <feedback>", "/opengui cancel <execution_id>")))
             .put("notification_result", notification)
             .put("toast_result", toast)

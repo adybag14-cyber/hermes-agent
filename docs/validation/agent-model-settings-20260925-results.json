@@ -1,0 +1,166 @@
+{
+  "validated_at": "2026-09-25T13:04:57.902654+00:00",
+  "runtime_source_commit": "21c9354eb701f175f7ff29f9d65f91b8b2ab6c7e",
+  "build": "complete Full debug APK and test APK; native assets enabled; Play Kotlin compiled",
+  "litert_lm_android": "0.17.1",
+  "jvm": {
+    "tests": 1044,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "suites": 112
+  },
+  "python": {
+    "files": 59,
+    "passed": 889,
+    "failed": 0,
+    "skipped": 1
+  },
+  "lint": {
+    "full": {
+      "error": 0,
+      "fatal": 0,
+      "warning": 57
+    },
+    "play": {
+      "error": 0,
+      "fatal": 0,
+      "warning": 60
+    }
+  },
+  "emulator": {
+    "android_api": 36,
+    "abi": "x86_64",
+    "ram_mb": 4096,
+    "tests_passed": 3,
+    "languages": [
+      "en",
+      "zh",
+      "es",
+      "de",
+      "pt",
+      "fr"
+    ],
+    "test_marker": "OK (3 tests)",
+    "normal_art_precompilation": true,
+    "physical_device_tested": false
+  },
+  "apk": {
+    "runtime_source_commit": "21c9354eb701f175f7ff29f9d65f91b8b2ab6c7e",
+    "apk_file": "Agent-21c9354eb7-debug.apk",
+    "bytes": 478373933,
+    "sha256": "1fd2e3834cbca147bfa820cd3d3ec315d1294556d4066cc9356c2b48b48a4e33",
+    "copied_at": "2026-09-25T13:06:25.487520+00:00",
+    "application_id": "com.mobilefork.hermesagent",
+    "application_label": "Agent",
+    "version_name": "0.13.146",
+    "version_code": 144690,
+    "minimum_sdk": 24,
+    "target_sdk": 36,
+    "abis": [
+      "arm64-v8a",
+      "x86_64"
+    ],
+    "signing": "development/debug, not a production-signed upgrade"
+  },
+  "buildserver_image": "registry.gitlab.com/fdroid/fdroidserver@sha256:9bae53bb4ddbf8fa5bb7385bf2e62e7c6318f99ab0d25b2a551ad38abb528068",
+  "evidence_sha256": {
+    "complete10.log": "99f641cd5dd651a601e5bbddf503aec939d2969f9c87114ac927be968698b586",
+    "advanced-viewport.log": "f61289671df35bb62c4f6129e8af19c25069f1d8588e12fe4753ce4bcbecc61d",
+    "python-final.log": "b47127ed93c92a33c2504b61d7d4339e64db5c0659205c94132c6c6a6d3d4406",
+    "final-ui3.log": "259196f6b76a95c49cc043814ff307922de2765276668c6c46bfd53bf6a0af16",
+    "exit-check.log": "da6ce88029234a02f6f50c2a998920b1eefbbecc0f4bf1a2b89da461bb5f8bd3",
+    "anr-trace.log": "c6b0d4704efe491259871d4003af0a9b26a89a67f8398d1615b0083a184fa9b8",
+    "lint-results-debug.xml": "1683657a693a37045627b73cfa47927a9f9c2886ede2cad9cc5ba7c25e212314",
+    "lint-results-playDebug.xml": "342b25612e65ab475adf92f1d06bc690d3f888dff542d3fc9b7e5e749875929a"
+  },
+  "screenshots": [
+    {
+      "listing_file": "00-chat.jpg",
+      "source_capture": "models-en.png",
+      "capture_sha256": "bb735acdcd12a8d0c4d0d39d19ee2e09c63df62aa1397e6abe1e583811183f4e",
+      "listing_sha256": "8f76f6503779e411e9a1502f8375bf5d7a1b4d79048f76f18445464d0e865d8d",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "01-accounts.jpg",
+      "source_capture": "models-es.png",
+      "capture_sha256": "0cb6152eacac100287717ed238d2e8c02c13c1ad533f00b647a5e363cc60032f",
+      "listing_sha256": "4dc67698bc40263d6d93c2c26e4f46af755b6737c9ad24aebe24db957bbbbabc",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "02-portal.jpg",
+      "source_capture": "settings-overview.png",
+      "capture_sha256": "062a8724a92a2bf78ee447d1a027aff86c4445e4c50893de6e65f12d3a22281d",
+      "listing_sha256": "403008e46528a77810fe7e5befcb58f0de31a97a51f57d1624f20c893281180f",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "03-device.jpg",
+      "source_capture": "system-file-picker.png",
+      "capture_sha256": "bc1f48f6b991ffb22cb8b6d963326739b764df25f91a6ae24b046664096699c2",
+      "listing_sha256": "a4f7221c55910656a210e832854fdef0d92294a1bc0a466f6b2cde99256c0550",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "04-settings.jpg",
+      "source_capture": "settings-theme.png",
+      "capture_sha256": "5a558d1e3bc63d8bad4ea5f42a590120a0be234fc14787148198fce42ab7afd0",
+      "listing_sha256": "4525017c39db0cb6566f24250a48f78c69b86b43aa9ab1912536c81d60a6e388",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "1.jpg",
+      "source_capture": "models-zh.png",
+      "capture_sha256": "3013618d9f138878032f4c559f5397e32004c1da2b6fbbb44539fca36d8c79f0",
+      "listing_sha256": "7753a2386a07d4f40e9e3eedfce49dd16ceff3a0dd1ecd23e53f061182139aa3",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "2.jpg",
+      "source_capture": "models-de.png",
+      "capture_sha256": "081e056ed279f59ba5aea08bc1e8a991c879e364c81b3f8ae373fa2620d2e550",
+      "listing_sha256": "1ea4d0dd8017ac8e3df4bbff32c2fb8b35d9559278face752b3484172131c5a4",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "3.jpg",
+      "source_capture": "models-fr.png",
+      "capture_sha256": "06bf84fb6800d4def6487849f3b0d25ea0217883d6407b9303a2c9782913769e",
+      "listing_sha256": "e733f546ab82b679f800578426c7dfd59953acfdf5d9ba06cacff3d243faa7d8",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "4.jpg",
+      "source_capture": "models-pt.png",
+      "capture_sha256": "717ab7660fc19c601e3c8dd43297927a05ea2e172e9bc351ce24fe74b345277d",
+      "listing_sha256": "b5d277014f0f7da784162cc29a70e094628ed58a7082649f7d4bf1bb9b3ddebb",
+      "width": 1080,
+      "height": 2400
+    },
+    {
+      "listing_file": "5.jpg",
+      "source_capture": "settings-privacy.png",
+      "capture_sha256": "180cc675823e08bf4ef68246bbaee9aa3a238e2a744537d66a6318d87c6ab7ff",
+      "listing_sha256": "7ba0756a2c1ca5c9aff5b9b245481880f142b07c9a82de2be235585302435b3c",
+      "width": 1080,
+      "height": 2400
+    }
+  ],
+  "qualification_limits": [
+    "An intermediate debug reinstall instrumentation attempt hit an ART DEX verification/startup ANR before app code; final runs passed after normal package compile -m speed -f for app and test package.",
+    "No fresh-install/cold-start certification without ART preparation.",
+    "No physical-device model inference, thermal, performance, or production-signed upgrade qualification.",
+    "Historical records, licensing, installed application ID and technical compatibility identifiers are deliberately preserved.",
+    "No store publication, release tag, merge or external trademark-resolution claim."
+  ]
+}

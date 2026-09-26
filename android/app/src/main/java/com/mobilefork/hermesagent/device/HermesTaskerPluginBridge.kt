@@ -45,7 +45,7 @@ object HermesTaskerPluginBridge {
             return errorJson("Tasker plugin fire request is missing Locale EXTRA_BUNDLE")
         }
         val automationId = normalizeAutomationId(bundle.getString(KEY_AUTOMATION_ID).orEmpty())
-            ?: return errorJson("Tasker plugin fire request is missing a Hermes automation id")
+            ?: return errorJson("Tasker plugin fire request is missing a Agent automation id")
         val token = bundle.getString(KEY_TOKEN).orEmpty().trim()
         if (!isAuthorizedToken(context, automationId, token)) {
             return errorJson("Tasker plugin token is missing or invalid for automation $automationId")

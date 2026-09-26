@@ -26,12 +26,12 @@ def test_settings_screen_includes_new_user_guidance():
     assert 'Text(strings.settingsHelpAccounts)' in settings
     assert 'Text(strings.currentProviderProfile(providerLabel))' in settings
     assert 'strings.apiKeyHelp()' in settings
-    assert 'Hermes Agent Fork' in strings
+    assert 'Agent' in strings
     assert 'forkDisclosure()' in strings
     assert 'Getting started' in strings
-    assert 'Hermes chat: use voice input, chat commands, or the cog button' in strings
+    assert 'Agent chat: use voice input, chat commands, or the cog button' in strings
     assert 'Use Accounts for Corr3xt app sign-in with email, phone, or Google' in strings
-    assert 'Choose the provider you want Hermes to call directly.' in strings
+    assert 'Choose the provider you want Agent to call directly.' in strings
     assert 'Paste the API key or access token for the selected provider, then tap Save' in strings
     assert 'LazyColumn(' in settings
     assert 'contentPadding = PaddingValues(bottom = extraBottomSpacing)' in settings

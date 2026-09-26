@@ -49,7 +49,7 @@ class ProviderSetupWebActivityInstrumentedTest {
         val resolved = browserIntent.resolveActivity(context.packageManager)
         assumeTrue("No browser is installed on this test device", resolved != null)
         assumeTrue(
-            "Provider setup should not resolve back to Hermes",
+            "Provider setup should not resolve back to Agent",
             resolved?.packageName != context.packageName,
         )
 
@@ -80,7 +80,7 @@ class ProviderSetupWebActivityInstrumentedTest {
         val resolved = browserIntent.resolveActivity(context.packageManager)
         assumeTrue("No browser is installed on this test device", resolved != null)
         assumeTrue(
-            "Provider setup should not resolve back to Hermes",
+            "Provider setup should not resolve back to Agent",
             resolved?.packageName != context.packageName,
         )
 
@@ -353,7 +353,7 @@ class ProviderSetupWebActivityInstrumentedTest {
     private class LightweightProviderSetupServer(port: Int) : NanoHTTPD("127.0.0.1", port) {
         override fun serve(session: IHTTPSession): Response {
             val providerId = session.uri.substringAfterLast('/').ifBlank { "provider" }
-            val html = "<!doctype html><html><body><h1>Hermes setup $providerId</h1></body></html>"
+            val html = "<!doctype html><html><body><h1>Agent setup $providerId</h1></body></html>"
             return newFixedLengthResponse(Response.Status.OK, "text/html", html)
         }
 

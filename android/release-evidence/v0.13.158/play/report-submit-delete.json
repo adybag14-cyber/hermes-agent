@@ -1,0 +1,30 @@
+{
+  "schema": "hermes-play-release-v1",
+  "case": "report-submit-delete",
+  "result": "passed",
+  "edition": "play",
+  "source_digest": "10647beae48d2eb98a4e8a6efbfa971fb63155dd9839dd78d903b83ea060b615",
+  "candidate_apk_sha256": "655607f62789444066d6dd2ecebcf27bc3964788b66a2f3010c457f70bdab7f0",
+  "instrumentation_apk_sha256": "688249980a7c1484e511d1cacaf65614a239772b9e9ce9415ee702f8b336b978",
+  "evidence_run_id": "v0.13.158-10647beae48d2eb9-20260926125508z",
+  "package": "com.mobilefork.hermesagent",
+  "version_name": "0.13.158",
+  "version_code": 145890,
+  "build_variant": "playDebug",
+  "avd_name": "Agent_Release_158_Play16K_20260926_Readme_16G",
+  "device_serial": "emulator-5580",
+  "device_boot_id": "7e4e3104-d228-4b38-b2e7-de2969ae1352",
+  "android_sdk": 36,
+  "build_fingerprint": "google\/sdk_gphone16k_x86_64\/emu64xa16k:16\/BE2A.250530.026.F3\/13894323:userdebug\/dev-keys",
+  "page_size": 16384,
+  "recorded_at_epoch_ms": 1790434569891,
+  "details": {
+    "preview_before_send": true,
+    "cancel_no_receipt": true,
+    "live_submission_confirmed": true,
+    "in_app_deletion_confirmed": true,
+    "endpoint": "https:\/\/hermes-content-reports.adybag14.workers.dev",
+    "synthetic_only": true
+  },
+  "evidence_file": "\/data\/user\/0\/com.mobilefork.hermesagent\/files\/hermes-play-evidence\/v0.13.158-10647beae48d2eb9-20260926125508z\/report-submit-delete.json"
+}
