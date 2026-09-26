@@ -3,21 +3,21 @@
   "case": "six-language-privacy",
   "result": "passed",
   "edition": "play",
-  "source_digest": "cd632c952ab62886f53e3fe9ac09a31156700ef498fc3a36799c9a0d302806ca",
-  "candidate_apk_sha256": "2a46b5eb89914968122225f2f6bbff4416b535485dfcb36d7e6aeabd4e7f31d0",
-  "instrumentation_apk_sha256": "ae6440b50786a6e174cbb3c647a0a18b70176df8f1db2df82b25619a37267de4",
-  "evidence_run_id": "v0.13.158-cd632c952ab62886-20260925212831z",
+  "source_digest": "10647beae48d2eb98a4e8a6efbfa971fb63155dd9839dd78d903b83ea060b615",
+  "candidate_apk_sha256": "655607f62789444066d6dd2ecebcf27bc3964788b66a2f3010c457f70bdab7f0",
+  "instrumentation_apk_sha256": "688249980a7c1484e511d1cacaf65614a239772b9e9ce9415ee702f8b336b978",
+  "evidence_run_id": "v0.13.158-10647beae48d2eb9-20260926125508z",
   "package": "com.mobilefork.hermesagent",
   "version_name": "0.13.158",
   "version_code": 145890,
   "build_variant": "playDebug",
-  "avd_name": "Agent_Release_158_Play16K_20260925",
+  "avd_name": "Agent_Release_158_Play16K_20260926_Readme_16G",
   "device_serial": "emulator-5580",
-  "device_boot_id": "d62ab467-e017-454d-898a-129ccd26fdbf",
+  "device_boot_id": "7e4e3104-d228-4b38-b2e7-de2969ae1352",
   "android_sdk": 36,
   "build_fingerprint": "google\/sdk_gphone16k_x86_64\/emu64xa16k:16\/BE2A.250530.026.F3\/13894323:userdebug\/dev-keys",
   "page_size": 16384,
-  "recorded_at_epoch_ms": 1790422885152,
+  "recorded_at_epoch_ms": 1790434552418,
   "details": {
     "languages": [
       "en",
@@ -30,43 +30,43 @@
     "screenshots": [
       {
         "file": "privacy-en.png",
-        "sha256": "694d0073a330086a3585633b1082ec3bea1ef8bc5acd2b4bf09ecb2b9d21f251",
-        "bytes": 221958,
+        "sha256": "2431bcb5bf97ce9d6a1ef66cd84fca00559884eeab72b19b96441456c79f6ecc",
+        "bytes": 167817,
         "width": 1080,
         "height": 2400
       },
       {
         "file": "privacy-zh.png",
-        "sha256": "33859ac85e30c1e390a88d875aeb70426a7d3d2025db3150edbab8aeb15990d8",
-        "bytes": 338719,
+        "sha256": "0e22cab2aedc79431bf4976201af20cc326b3216945946b997b534db7eedbefd",
+        "bytes": 213248,
         "width": 1080,
         "height": 2400
       },
       {
         "file": "privacy-es.png",
-        "sha256": "baae508edbf1fc68147b640167b10796bc4e70b8708e189a738b6c22a4efee88",
-        "bytes": 223426,
+        "sha256": "32e554f113a8d5170c763a522879ed94834266160c461acfab5963a5744d9749",
+        "bytes": 169935,
         "width": 1080,
         "height": 2400
       },
       {
         "file": "privacy-de.png",
-        "sha256": "5643bbfe1eddc2119ab70836ec8b74458cc20aec70bfce5d9f0ca068cf50d156",
-        "bytes": 214708,
+        "sha256": "464af0f77be4d990dea0bc7f61e5682ec01cceadb873f848d8b390d4f22f5804",
+        "bytes": 158971,
         "width": 1080,
         "height": 2400
       },
       {
         "file": "privacy-pt.png",
-        "sha256": "3bfc62cfc301ded56d0c886013ae5982f7df47ca131bb8e2d6224157983b5815",
-        "bytes": 228321,
+        "sha256": "4a171140dffa08720a7a22f1c3502db62d93e5806903b7f1c42f60e75832489d",
+        "bytes": 170053,
         "width": 1080,
         "height": 2400
       },
       {
         "file": "privacy-fr.png",
-        "sha256": "828e26dbf37aefd201f2d015fa72ffd5d44594a1f0b0d810d8e48474eb2df353",
-        "bytes": 224469,
+        "sha256": "37f7782f95d9fae236b965865b1da7eecd9eb3efa92fc879e9e4e106a5445f5b",
+        "bytes": 170288,
         "width": 1080,
         "height": 2400
       }
@@ -75,5 +75,5 @@
     "local_deletion_cancelled": true,
     "privacy_controls_visible": true
   },
-  "evidence_file": "\/data\/user\/0\/com.mobilefork.hermesagent\/files\/hermes-play-evidence\/v0.13.158-cd632c952ab62886-20260925212831z\/six-language-privacy.json"
+  "evidence_file": "\/data\/user\/0\/com.mobilefork.hermesagent\/files\/hermes-play-evidence\/v0.13.158-10647beae48d2eb9-20260926125508z\/six-language-privacy.json"
 }

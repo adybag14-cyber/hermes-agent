@@ -1,0 +1,242 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=settings:Tools
+artifact=headed-v0.13.158-10647beae48d2eb9-20260926125508z-profile-phone-411x914dp-settings-4-tools
+coverage_kind=settings-subpage
+page_id=Settings.Tools
+profile=phone-411x914dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.158
+version_code=145890
+build_variant=debug
+source_digest=10647beae48d2eb98a4e8a6efbfa971fb63155dd9839dd78d903b83ea060b615
+candidate_apk_sha256=b504b2e00e47dae216768c5b6e1910ac3ee92a0b9a7b93c1180f8b017f42ab2b
+instrumentation_apk_sha256=fd6bf1bd12cf672f00c3c342ff367d97f21380e9ef0becedb7d44205afa62cd9
+evidence_run_id=v0.13.158-10647beae48d2eb9-20260926125508z
+device_serial=emulator-5580
+avd_name=Agent_Release_158_Phone_20260926_Readme
+device_boot_id=1b4c7ba8-4052-4f98-b4cc-3b771671f5ab
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=0f4b0d586951c75779a0892d6cd618a5fcafcc51e64b39f422864bede875e36a
+sentinel=McpRuntimeStatus
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   TestTagsAsResourceId = 'true'
+    |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      IsTraversalGroup = 'true'
+       |-Node #13 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       | IsTraversalGroup = 'true'
+       |  |-Node #1162 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+       |    IsTraversalGroup = 'true'
+       |     |-Node #1165 at (l=42.0, t=350.0, r=1038.0, b=724.0)px, Tag: 'HermesSettingsPageNavigation'
+       |     | IsTraversalGroup = 'true'
+       |     |  |-Node #1167 at (l=68.0, t=371.0, r=341.0, b=424.0)px
+       |     |  | Text = '[Settings  ›  Tools]'
+       |     |  | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1170 at (l=68.0, t=440.0, r=226.0, b=566.0)px, Tag: 'HermesSettingsPage_Overview'
+       |     |  | Focused = 'false'
+       |     |  | Role = 'Tab'
+       |     |  | Selected = 'false'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1172 at (l=94.0, t=482.0, r=200.0, b=524.0)px
+       |     |  |    Text = '[General]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1173 at (l=242.0, t=440.0, r=394.0, b=566.0)px, Tag: 'HermesSettingsPage_Models'
+       |     |  | Focused = 'false'
+       |     |  | Role = 'Tab'
+       |     |  | Selected = 'false'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1175 at (l=268.0, t=482.0, r=368.0, b=524.0)px
+       |     |  |    Text = '[Models]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1176 at (l=410.0, t=440.0, r=562.0, b=566.0)px, Tag: 'HermesSettingsPage_Theme'
+       |     |  | Focused = 'false'
+       |     |  | Role = 'Tab'
+       |     |  | Selected = 'false'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1178 at (l=439.0, t=482.0, r=533.0, b=524.0)px
+       |     |  |    Text = '[Theme]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1179 at (l=578.0, t=440.0, r=730.0, b=566.0)px, Tag: 'HermesSettingsPage_Tools'
+       |     |  | Focused = 'false'
+       |     |  | Role = 'Tab'
+       |     |  | Selected = 'true'
+       |     |  | Actions = [OnClick, RequestFocus]
+       |     |  | MergeDescendants = 'true'
+       |     |  |  |-Node #1181 at (l=617.0, t=482.0, r=692.0, b=524.0)px
+       |     |  |    Text = '[Tools]'
+       |     |  |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |  |-Node #1182 at (l=68.0, t=577.0, r=374.0, b=703.0)px, Tag: 'HermesSettingsPage_Privacy'
+       |     |    Focused = 'false'
+       |     |    Role = 'Tab'
+       |     |    Selected = 'false'
+       |     |    Actions = [OnClick, RequestFocus]
+       |     |    MergeDescendants = 'true'
+       |     |     |-Node #1184 at (l=94.0, t=619.0, r=348.0, b=661.0)px
+       |     |       Text = '[Privacy and safety]'
+       |     |       Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |     |-Node #1185 at (l=42.0, t=756.0, r=1038.0, b=2305.0)px, Tag: 'HermesSettingsContentList'
+       |       IsTraversalGroup = 'true'
+       |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=100.0, reverseScrolling=false)'
+       |       CollectionInfo = 'androidx.compose.ui.semantics.CollectionInfo@4eb63eb'
+       |       Actions = [ScrollBy, ScrollByOffset, IndexForKey, ScrollToIndex, GetScrollViewportLength]
+       |        |-Node #1426 at (l=42.0, t=756.0, r=1038.0, b=3619.0)px
+       |          IsTraversalGroup = 'true'
+       |           |-Node #1428 at (l=84.0, t=798.0, r=445.0, b=861.0)px
+       |           | Text = '[MCP configuration]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1429 at (l=84.0, t=893.0, r=996.0, b=977.0)px
+       |           | Text = '[External MCP tools for Full-edition Python-agent chats. On-device native-model chat is unchanged.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1431 at (l=84.0, t=1046.0, r=859.0, b=1099.0)px
+       |           | Text = '[Allow external MCP servers]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1432 at (l=859.0, t=1030.0, r=996.0, b=1114.0)px, Tag: 'McpExternalEnabled'
+       |           | Role = 'Switch'
+       |           | Focused = 'false'
+       |           | ToggleableState = 'Off'
+       |           | ContentDescription = '[Allow external MCP servers]'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |-Node #1434 at (l=84.0, t=1167.0, r=996.0, b=1251.0)px
+       |           | Text = '[Reloaded tools apply to new chats. Existing chats retain their tool schemas; revoked tools cannot run.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1435 at (l=84.0, t=1283.0, r=996.0, b=1389.0)px, Tag: 'McpRuntimeStatus'
+       |           | Text = '[External MCP is off. Stored configuration is not executed.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1437 at (l=84.0, t=1442.0, r=281.0, b=1526.0)px, Tag: 'McpSimpleMode'
+       |           | Focused = 'false'
+       |           | Selected = 'true'
+       |           | Role = 'Checkbox'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1440 at (l=126.0, t=1458.0, r=239.0, b=1511.0)px
+       |           |    Text = '[Simple]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1441 at (l=302.0, t=1442.0, r=548.0, b=1526.0)px, Tag: 'McpAdvancedMode'
+       |           | Focused = 'false'
+       |           | Selected = 'false'
+       |           | Role = 'Checkbox'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1444 at (l=344.0, t=1458.0, r=506.0, b=1511.0)px
+       |           |    Text = '[Advanced]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1446 at (l=84.0, t=1590.0, r=996.0, b=1695.0)px, Tag: 'McpQuickAddSTDIO'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1448 at (l=418.0, t=1616.0, r=663.0, b=1669.0)px
+       |           |    Text = '[Add stdio MCP]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1449 at (l=84.0, t=1737.0, r=996.0, b=1842.0)px, Tag: 'McpQuickAddSSE'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1451 at (l=426.0, t=1763.0, r=654.0, b=1816.0)px
+       |           |    Text = '[Add SSE MCP]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1452 at (l=84.0, t=1884.0, r=996.0, b=1989.0)px, Tag: 'McpQuickAddHTTP'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1454 at (l=358.0, t=1910.0, r=722.0, b=1963.0)px
+       |           |    Text = '[Add Streamable HTTP]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1455 at (l=84.0, t=2031.0, r=996.0, b=2199.0)px
+       |           | Text = '[Stdio needs an Android-compatible executable already installed on the device. Add arguments in Advanced JSON. Agent does not install Python, Node or server packages automatically.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1456 at (l=84.0, t=2231.0, r=996.0, b=3092.0)px, Tag: 'McpAdvancedConfigText'
+       |           | EditableText = '{
+  "mcpServers": {
+    "hermes-native-tools": {
+      "transport": "native",
+      "enabled": true,
+      "autoStart": true,
+      "description": "Agent Android local tools exposed to the agent runtime"
+    }
+  },
+  "client": {
+    "reloadPolicy": "manual",
+    "safeStatusMessages": true
+  }
+}'
+       |           | TextSelectionRange = 'TextRange(0, 0)'
+       |           | IsEditable = 'false'
+       |           | ImeAction = 'Default'
+       |           | Focused = 'false'
+       |           | Actions = [GetTextLayoutResult, SetSelection, PerformImeAction, OnClick, OnLongClick, ScrollBy, ScrollByOffset, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1465 at (l=126.0, t=2231.0, r=390.0, b=2273.0)px
+       |           |    Text = '[MCP config JSON]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1467 at (l=84.0, t=3135.0, r=996.0, b=3240.0)px, Tag: 'McpReloadServersButton'
+       |           | Focused = 'false'
+       |           | Role = 'Button'
+       |           | Actions = [OnClick, RequestFocus]
+       |           | MergeDescendants = 'true'
+       |           |  |-Node #1469 at (l=418.0, t=3161.0, r=662.0, b=3214.0)px
+       |           |    Text = '[Reload servers]'
+       |           |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1470 at (l=84.0, t=3282.0, r=996.0, b=3366.0)px, Tag: 'McpConfigFilePath'
+       |           | Text = '[Config file: /data/user/0/com.mobilefork.hermesagent/files/hermes-home/mcp/mcp_config.json]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1473 at (l=84.0, t=3398.0, r=449.0, b=3451.0)px
+       |           | Text = '[Provider cache resend]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1474 at (l=84.0, t=3451.0, r=859.0, b=3577.0)px
+       |           | Text = '[When enabled, Agent may resend stable prior/tool-output context for provider input-token caching. When disabled, cached context resend is blocked.]'
+       |           | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+       |           |-Node #1475 at (l=859.0, t=3446.0, r=996.0, b=3530.0)px, Tag: 'McpProviderCacheResendSwitch'
+       |             Role = 'Switch'
+       |             Focused = 'false'
+       |             ToggleableState = 'Off'
+       |             ContentDescription = '[Provider cache resend]'
+       |             Actions = [OnClick, RequestFocus]
+       |             MergeDescendants = 'true'
+       |-Node #155 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+         IsTraversalGroup = 'true'
+          |-Node #159 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+          | Role = 'Button'
+          | Focused = 'false'
+          | ContentDescription = '[Open navigation menu]'
+          | Actions = [OnClick, RequestFocus]
+          | MergeDescendants = 'true'
+          |-Node #164 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+          | ContentDescription = '[Agent logo]'
+          | Role = 'Image'
+          |-Node #166 at (l=279.0, t=171.0, r=440.0, b=234.0)px
+          | Text = '[Settings]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #167 at (l=279.0, t=234.0, r=779.0, b=276.0)px
+          | Text = '[Runtime provider and API configuration]'
+          | Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #169 at (l=800.0, t=191.0, r=930.0, b=255.0)px
+          | IsTraversalGroup = 'true'
+          |  |-Node #170 at (l=816.0, t=202.0, r=914.0, b=244.0)px
+          |    Text = '[ALPHA]'
+          |    Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
+          |-Node #171 at (l=941.0, t=191.0, r=1048.0, b=255.0)px
+            IsTraversalGroup = 'true'
+             |-Node #172 at (l=957.0, t=202.0, r=1032.0, b=244.0)px
+               Text = '[FORK]'
+               Actions = [SetTextSubstitution, ShowTextSubstitution, ClearTextSubstitution, GetTextLayoutResult]
