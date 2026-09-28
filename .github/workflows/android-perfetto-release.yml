@@ -1,94 +1,29 @@
 name: Android release trace upload
-
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag whose measured source manifest is committed on this ref
         required: true
         type: string
-      runner_label:
-        description: Optional legacy isolated-runner label; omit for hosted draft-asset transport
-        required: false
-        type: string
       transport_release_id:
-        description: Exact private draft release ID for hosted trace transport
-        required: false
+        required: true
         type: string
       transport_asset_id:
-        description: Exact closed trace ZIP asset ID in that draft
-        required: false
+        required: true
         type: string
       transport_sha256:
-        description: SHA-256 of the closed trace ZIP, verified again before upload
-        required: false
+        required: true
         type: string
-
 permissions:
-  actions: read
   contents: read
-
-concurrency:
-  group: android-release-traces-${{ inputs.tag }}
-  cancel-in-progress: false
-
 jobs:
-  preflight:
+  hosted-draft-permission-probe:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
-    outputs:
-      artifact_name: ${{ steps.source.outputs.artifact_name }}
-      upload_runner: ${{ steps.dispatch.outputs.upload_runner }}
+    permissions:
+      contents: write
     steps:
-      - name: Validate dispatch inputs
-        id: dispatch
-        env:
-          TAG: ${{ inputs.tag }}
-          RUNNER_LABEL: ${{ inputs.runner_label }}
-          TRANSPORT_RELEASE_ID: ${{ inputs.transport_release_id }}
-          TRANSPORT_ASSET_ID: ${{ inputs.transport_asset_id }}
-          TRANSPORT_SHA256: ${{ inputs.transport_sha256 }}
-        run: |
-          set -euo pipefail
-          [[ "$TAG" =~ ^v0\.[0-9]+\.[0-9]+$ ]]
-          test "$GITHUB_REPOSITORY" = adybag14-cyber/hermes-agent
-          if [ -n "$TRANSPORT_ASSET_ID" ]; then
-            test -z "$RUNNER_LABEL"
-            [[ "$TRANSPORT_RELEASE_ID" =~ ^[1-9][0-9]*$ ]]
-            [[ "$TRANSPORT_ASSET_ID" =~ ^[1-9][0-9]*$ ]]
-            [[ "$TRANSPORT_SHA256" =~ ^[0-9a-f]{64}$ ]]
-            echo 'upload_runner=ubuntu-24.04' >> "$GITHUB_OUTPUT"
-          else
-            test -z "$TRANSPORT_RELEASE_ID$TRANSPORT_SHA256"
-            [[ "$RUNNER_LABEL" =~ ^hermes-traces-[0-9a-f]{32}$ ]]
-            echo "upload_runner=$RUNNER_LABEL" >> "$GITHUB_OUTPUT"
-          fi
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Verify measured trace source
-        id: source
-        env:
-          TAG: ${{ inputs.tag }}
-        run: |
-          set -euo pipefail
-          digest="$(python scripts/android_release_evidence.py source-identity --require-clean | sed -n 's/^sourceDigest=//p')"
-          python scripts/android_perfetto_release_artifact.py verify-source \
-            --tag "$TAG" --expected-source-digest "$digest" > "$RUNNER_TEMP/source.json"
-          printf 'artifact_name=%s\n' "$(jq -er .artifact_name "$RUNNER_TEMP/source.json")" >> "$GITHUB_OUTPUT"
-
-  upload:
-    needs: preflight
-    # Register only an approved isolated --ephemeral runner, with no default
-    # labels, for this exact unpredictable one-job label. No host mounts/socket.
-    runs-on: ${{ needs.preflight.outputs.upload_runner }}
-    timeout-minutes: 45
-    outputs:
-      artifact_id: ${{ steps.upload.outputs.artifact-id }}
-    steps:
-      - name: Check out only trusted trace tooling and metadata
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
@@ -96,55 +31,20 @@ jobs:
           sparse-checkout: |
             /scripts/android_perfetto_artifacts.py
             /scripts/android_perfetto_release_artifact.py
-            /android/release-evidence/perfetto-artifacts/${{ inputs.tag }}/source.json
-            /android/release-evidence/${{ inputs.tag }}/performance/*.json
-      - name: Download and verify private draft transport on GitHub hosting
-        if: ${{ inputs.transport_asset_id != '' }}
+            /android/release-evidence/perfetto-artifacts/v0.13.159/source.json
+            /android/release-evidence/v0.13.159/performance/*.json
+      - name: Validate exact private transport access without issuing a release receipt
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
-          TRANSPORT_RELEASE_ID: ${{ inputs.transport_release_id }}
-          TRANSPORT_ASSET_ID: ${{ inputs.transport_asset_id }}
-          TRANSPORT_SHA256: ${{ inputs.transport_sha256 }}
+          RELEASE_ID: ${{ inputs.transport_release_id }}
+          ASSET_ID: ${{ inputs.transport_asset_id }}
+          ARCHIVE_SHA: ${{ inputs.transport_sha256 }}
         run: |
-          python3 scripts/android_perfetto_release_artifact.py download-transport \
-            --tag "$TAG" --transport-release-id "$TRANSPORT_RELEASE_ID" \
-            --transport-asset-id "$TRANSPORT_ASSET_ID" --transport-sha256 "$TRANSPORT_SHA256" \
-            --expected-commit "$GITHUB_SHA" --trace-root "$RUNNER_TEMP/trace-input"
-
-      - name: Hash the closed trace-only input before upload
-        env:
-          TAG: ${{ inputs.tag }}
-          TRACE_ROOT: ${{ inputs.transport_asset_id != '' && format('{0}/trace-input', runner.temp) || '/trace-input' }}
-        run: python3 scripts/android_perfetto_release_artifact.py verify-traces --tag "$TAG" --trace-root "$TRACE_ROOT"
-      - name: Upload measured trace bytes
-        id: upload
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ needs.preflight.outputs.artifact_name }}
-          path: ${{ inputs.transport_asset_id != '' && format('{0}/trace-input', runner.temp) || '/trace-input/' }}
-          if-no-files-found: error
-          retention-days: 90
-          compression-level: 6
-          overwrite: false
-
-  verify-round-trip:
-    needs: [preflight, upload]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Download the immutable artifact on an independent hosted runner
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          artifact-ids: ${{ needs.upload.outputs.artifact_id }}
-          path: ${{ runner.temp }}/perfetto
-          merge-multiple: true
-          digest-mismatch: error
-      - name: Rehash every downloaded trace
-        env:
-          TAG: ${{ inputs.tag }}
-        run: python scripts/android_perfetto_release_artifact.py verify-traces --tag "$TAG" --trace-root "$RUNNER_TEMP/perfetto"
+          set -euo pipefail
+          # Only superseded18b measured traces are transport fixtures here.
+          # No source qualification, canonical artifact upload or release is performed.
+          python scripts/android_perfetto_release_artifact.py download-transport \
+            --tag v0.13.159 --transport-release-id "$RELEASE_ID" --transport-asset-id "$ASSET_ID" \
+            --transport-sha256 "$ARCHIVE_SHA" --expected-commit "$GITHUB_SHA" --trace-root "$RUNNER_TEMP/verified-input"
+          python scripts/android_perfetto_release_artifact.py verify-traces \
+            --tag v0.13.159 --trace-root "$RUNNER_TEMP/verified-input"
