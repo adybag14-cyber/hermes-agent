@@ -5,13 +5,20 @@ from .types import (
     CriticIssue, CriticResult, GateDecision, InferenceResult,
 )
 from .dual_model_engine import DualModelEngine, DualModelOutput, InferenceBackend
-from .cognitive_engine import CognitiveEngine, CognitiveEngineError
+from .cognitive_engine import CognitiveEngine, CognitiveEngineError, CognitiveExecutionResult
 from .backends import LlamaCppEndpoint, LlamaCppInferenceBackend
+from .hermes_execution import HermesToolExecutor, hermes_dispatcher
+from .reflexion import ReflexionEngine, ReflexionResult
+from .temporal_rag import EvidenceItem, InMemoryTemporalRAG, TemporalRAG
 
 __all__ = [
-    "CognitiveEngine", "CognitiveEngineError", "DualModelEngine", "DualModelOutput",
-    "InferenceBackend", "LlamaCppEndpoint", "LlamaCppInferenceBackend",
-    "CognitiveRequest", "Decision", "DecisionAction",
-    "DecisionCycle", "DecisionStatus", "CriticIssue", "CriticResult",
-    "GateDecision", "InferenceResult",
+    "CognitiveEngine", "CognitiveEngineError", "CognitiveExecutionResult",
+    "DualModelEngine", "DualModelOutput", "InferenceBackend",
+    "LlamaCppEndpoint", "LlamaCppInferenceBackend",
+    "HermesToolExecutor", "hermes_dispatcher",
+    "ReflexionEngine", "ReflexionResult", "EvidenceItem",
+    "InMemoryTemporalRAG", "TemporalRAG",
+    "CognitiveRequest", "Decision", "DecisionAction", "DecisionCycle",
+    "DecisionStatus", "CriticIssue", "CriticResult", "GateDecision",
+    "InferenceResult",
 ]
