@@ -112,7 +112,7 @@ class CognitiveCoreTests(unittest.TestCase):
         self.assertIn("Include the required constraint.", primary.prompts[1][0])
 
     def test_evidence_request_uses_retriever_before_retry(self):
-        primary = FakeBackend("primary-1", ["answer"])
+        primary = FakeBackend("primary-1", ["answer", "answer"])
         critic = FakeBackend(
             "critic-1",
             [
