@@ -20,5 +20,32 @@ class HermesToolExecutor:
             if not isinstance(arguments, dict):
                 raise ValueError(f"tool arguments for {name} must be an object")
             result = self._dispatch(name, arguments)
-            results.append({"name": name, "result": result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, default=str)})
+            results.append({
+                "name": name,
+                "result": result if isinstance(result, str)
+                else json.dumps(result, ensure_ascii=False, default=str),
+            })
         return results
+
+
+def hermes_dispatcher(
+    *,
+    task_id: str | None = None,
+    session_id: str | None = None,
+    user_task: str | None = None,
+    enabled_tools: list[str] | None = None,
+) -> Callable[[str, dict[str, Any]], str]:
+    """Bind the real Hermes model_tools dispatcher with session context."""
+    from model_tools import handle_function_call
+
+    def dispatch(name: str, arguments: dict[str, Any]) -> str:
+        return handle_function_call(
+            name,
+            arguments,
+            task_id=task_id,
+            session_id=session_id,
+            user_task=user_task,
+            enabled_tools=enabled_tools,
+        )
+
+    return dispatch
