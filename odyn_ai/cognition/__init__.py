@@ -6,10 +6,12 @@ from .types import (
 )
 from .dual_model_engine import DualModelEngine, DualModelOutput, InferenceBackend
 from .cognitive_engine import CognitiveEngine, CognitiveEngineError
+from .backends import LlamaCppEndpoint, LlamaCppInferenceBackend
 
 __all__ = [
     "CognitiveEngine", "CognitiveEngineError", "DualModelEngine", "DualModelOutput",
-    "InferenceBackend", "CognitiveRequest", "Decision", "DecisionAction",
+    "InferenceBackend", "LlamaCppEndpoint", "LlamaCppInferenceBackend",
+    "CognitiveRequest", "Decision", "DecisionAction",
     "DecisionCycle", "DecisionStatus", "CriticIssue", "CriticResult",
     "GateDecision", "InferenceResult",
 ]
