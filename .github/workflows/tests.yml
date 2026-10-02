@@ -51,6 +51,9 @@ jobs:
           tests/run_agent/test_cognitive_gate_dispatch_integration.py
           tests/test_cognitive_gate.py
           tests/test_tool_plan_validation.py
+          tests/run_agent/test_run_agent.py::TestExecuteToolCalls::test_invalid_json_args_is_rejected
+          tests/run_agent/test_run_agent.py::TestConcurrentToolExecution::test_malformed_json_args_blocks_entire_batch
+          tests/run_agent/test_run_agent.py::TestConcurrentToolExecution::test_non_dict_args_blocks_entire_batch
           odyn_ai/tests/
           -q --tb=short
 

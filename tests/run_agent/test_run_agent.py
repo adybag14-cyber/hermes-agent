@@ -1786,7 +1786,7 @@ class TestExecuteToolCalls:
             or "interrupted" in messages[0]["content"].lower()
         )
 
-    def test_invalid_json_args_defaults_empty(self, agent):
+    def test_invalid_json_args_is_rejected(self, agent):
         tc = _mock_tool_call(
             name="web_search", arguments="not valid json", call_id="c1"
         )
@@ -1794,13 +1794,11 @@ class TestExecuteToolCalls:
         messages = []
         with patch("run_agent.handle_function_call", return_value="ok") as mock_hfc:
             agent._execute_tool_calls(mock_msg, messages, "task-1")
-            # Invalid JSON args should fall back to empty dict
-            args, kwargs = mock_hfc.call_args
-            assert args[:3] == ("web_search", {}, "task-1")
-            assert set(kwargs.get("enabled_tools", [])) == agent.valid_tool_names
+            mock_hfc.assert_not_called()
         assert len(messages) == 1
         assert messages[0]["role"] == "tool"
         assert messages[0]["tool_call_id"] == "c1"
+        assert json.loads(messages[0]["content"])["stage"] == "plan_validation"
 
     def test_result_truncation_over_100k(self, agent, tmp_path, monkeypatch):
         monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
@@ -2044,8 +2042,8 @@ class TestConcurrentToolExecution:
                 mock_seq.assert_called_once()
                 mock_con.assert_not_called()
 
-    def test_malformed_json_args_forces_sequential(self, agent):
-        """Unparseable tool arguments should fall back to sequential."""
+    def test_malformed_json_args_blocks_entire_batch(self, agent):
+        """Malformed arguments block both execution lanes and every batch entry."""
         tc1 = _mock_tool_call(name="web_search", arguments='{}', call_id="c1")
         tc2 = _mock_tool_call(name="web_search", arguments="NOT JSON {{{", call_id="c2")
         mock_msg = _mock_assistant_msg(content="", tool_calls=[tc1, tc2])
@@ -2053,20 +2051,24 @@ class TestConcurrentToolExecution:
         with patch.object(agent, "_execute_tool_calls_sequential") as mock_seq:
             with patch.object(agent, "_execute_tool_calls_concurrent") as mock_con:
                 agent._execute_tool_calls(mock_msg, messages, "task-1")
-                mock_seq.assert_called_once()
+                mock_seq.assert_not_called()
                 mock_con.assert_not_called()
+        assert {message["tool_call_id"] for message in messages} == {"c1", "c2"}
+        assert all(json.loads(message["content"])["stage"] == "plan_validation" for message in messages)
 
-    def test_non_dict_args_forces_sequential(self, agent):
-        """Tool arguments that parse to a non-dict type should fall back to sequential."""
+    def test_non_dict_args_blocks_entire_batch(self, agent):
+        """Non-object arguments block both execution lanes and every batch entry."""
         tc1 = _mock_tool_call(name="web_search", arguments='{}', call_id="c1")
-        tc2 = _mock_tool_call(name="web_search", arguments='"just a string"', call_id="c2")
+        tc2 = _mock_tool_call(name="web_search", arguments="\"just a string\"", call_id="c2")
         mock_msg = _mock_assistant_msg(content="", tool_calls=[tc1, tc2])
         messages = []
         with patch.object(agent, "_execute_tool_calls_sequential") as mock_seq:
             with patch.object(agent, "_execute_tool_calls_concurrent") as mock_con:
                 agent._execute_tool_calls(mock_msg, messages, "task-1")
-                mock_seq.assert_called_once()
+                mock_seq.assert_not_called()
                 mock_con.assert_not_called()
+        assert {message["tool_call_id"] for message in messages} == {"c1", "c2"}
+        assert all(json.loads(message["content"])["stage"] == "plan_validation" for message in messages)
 
     def test_concurrent_executes_all_tools(self, agent):
         """Concurrent path should execute all tools and append results in order."""
