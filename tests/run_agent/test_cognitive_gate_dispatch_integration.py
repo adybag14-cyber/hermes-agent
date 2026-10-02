@@ -5,6 +5,7 @@ control flow are real. These tests assert the executor boundary directly.
 """
 import json
 import uuid
+from contextlib import nullcontext
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -24,18 +25,18 @@ def _tool_defs():
     }]
 
 
-def _tool_call():
+def _tool_call(query="test"):
     return SimpleNamespace(
         id=f"call_{uuid.uuid4().hex[:8]}",
         type="function",
-        function=SimpleNamespace(name="web_search", arguments=json.dumps({"query": "test"})),
+        function=SimpleNamespace(name="web_search", arguments=json.dumps({"query": query})),
     )
 
 
-def _response(*, with_tool=False, content="done"):
+def _response(*, with_tool=False, content="done", query="test", calls=None):
     message = SimpleNamespace(
         content=content,
-        tool_calls=[_tool_call()] if with_tool else None,
+        tool_calls=calls if calls is not None else ([_tool_call(query)] if with_tool else None),
     )
     choice = SimpleNamespace(
         message=message,
@@ -74,16 +75,23 @@ def _decision(action, reason="test decision"):
     return SimpleNamespace(action=action, reason=reason, critic=None)
 
 
-def _run(agent, decisions, responses):
+def _run(agent, decisions, responses, *, mock_executor=True):
+    if decisions is not None:
+        agent._cognitive_gate = SimpleNamespace(evaluate_turn=MagicMock(side_effect=decisions))
+    else:
+        agent._cognitive_gate = None
     agent.client.chat.completions.create.side_effect = responses
     executor_calls = []
 
     def fake_execute(*args, **kwargs):
         executor_calls.append(args)
+        assistant, messages = args[:2]
+        for call in assistant.tool_calls:
+            messages.append({"role": "tool", "name": call.function.name,
+                             "tool_call_id": call.id, "content": '{"ok":true}'})
 
     with (
-        patch("agent.cognitive_gate.evaluate_hermes_turn", side_effect=decisions),
-        patch.object(agent, "_execute_tool_calls", side_effect=fake_execute),
+        patch.object(agent, "_execute_tool_calls", side_effect=fake_execute) if mock_executor else nullcontext(),
         patch.object(agent, "_persist_session"),
         patch.object(agent, "_save_trajectory"),
         patch.object(agent, "_cleanup_task_resources"),
@@ -96,10 +104,11 @@ def _run(agent, decisions, responses):
 def test_accept_allows_dispatch(agent):
     result, calls = _run(
         agent,
-        [_decision("accept"), None],
+        [_decision("accept")],
         [_response(with_tool=True), _response(content="finished")],
     )
     assert len(calls) == 1
+    assert agent._cognitive_gate.evaluate_turn.call_count == 1
     assert result["turn_exit_reason"].startswith("text_response")
 
 
@@ -148,3 +157,84 @@ def test_retry_attempt_exhaustion_does_not_dispatch(agent):
     )
     assert calls == []
     assert result["turn_exit_reason"] == "cognitive_gate_escalation"
+
+
+@pytest.mark.parametrize("action", ["correct", "retry", "retrieve_evidence"])
+def test_regeneration_dispatches_only_the_accepted_new_candidate(agent, action):
+    result, calls = _run(
+        agent, [_decision(action), _decision("accept")],
+        [_response(with_tool=True, query="rejected"),
+         _response(with_tool=True, query="verified"), _response(content="finished")],
+    )
+    assert len(calls) == 1
+    assert json.loads(calls[0][0].tool_calls[0].function.arguments) == {"query": "verified"}
+    assert agent._cognitive_gate.evaluate_turn.call_count == 2
+    assert result["turn_exit_reason"].startswith("text_response")
+
+
+@pytest.mark.parametrize("decision", [None, {}, {"action": []}, {"action": "ACCEPT"}, RuntimeError("review failed")])
+def test_malformed_or_failed_gate_never_dispatches(agent, decision):
+    result, calls = _run(agent, [decision], [_response(with_tool=True)])
+    assert calls == []
+    assert result["turn_exit_reason"] == "cognitive_gate_escalation"
+
+
+def test_missing_gate_preserves_native_dispatch(agent):
+    result, calls = _run(agent, None, [_response(with_tool=True), _response(content="finished")])
+    assert len(calls) == 1
+    assert result["turn_exit_reason"].startswith("text_response")
+
+
+def test_accepted_gate_does_not_bypass_authorization(agent):
+    with patch("hermes_cli.plugins.get_pre_tool_call_block_message", return_value="Policy denied"), patch.object(agent, "_invoke_tool") as invoke:
+        result, _ = _run(agent, [_decision("accept")],
+                         [_response(with_tool=True), _response(content="finished")], mock_executor=False)
+    invoke.assert_not_called()
+    assert any("Policy denied" in str(m.get("content", "")) for m in result["messages"] if m.get("role") == "tool")
+
+
+@pytest.mark.parametrize("arguments", ["[]", "null", "42", '"text"', '{"query":', None])
+def test_executor_rejects_invalid_argument_envelopes_before_dispatch(agent, arguments):
+    call = _tool_call()
+    call.function.arguments = arguments
+    message = SimpleNamespace(tool_calls=[call])
+    messages = []
+    with patch.object(agent, "_execute_tool_calls_sequential") as sequential, patch.object(agent, "_execute_tool_calls_concurrent") as concurrent:
+        agent._execute_tool_calls(message, messages, "task-1")
+    sequential.assert_not_called()
+    concurrent.assert_not_called()
+    assert json.loads(messages[0]["content"])["stage"] == "plan_validation"
+
+
+def test_real_critic_adapter_controls_native_dispatch(agent):
+    from odyn_ai.cognition import DualModelEngine, HermesDualModelGate
+    primary = SimpleNamespace(model_id="primary", generate=MagicMock())
+    critic = SimpleNamespace(model_id="critic", generate=MagicMock(return_value='{"valid":true,"confidence":0.95,"issues":[],"corrections":[],"required_evidence":[]}'))
+    actual = HermesDualModelGate(DualModelEngine(primary, critic))
+    result, calls = _run(agent, actual.evaluate_turn,
+                         [_response(with_tool=True), _response(content="finished")])
+    assert len(calls) == 1
+    primary.generate.assert_not_called()
+    critic.generate.assert_called_once()
+    assert result["turn_exit_reason"].startswith("text_response")
+
+
+def test_rejected_batch_records_every_call_without_dispatch(agent):
+    batch = [_tool_call("one"), _tool_call("two")]
+    result, calls = _run(agent, [_decision("escalate")], [_response(with_tool=True, calls=batch)])
+    assert calls == []
+    tool_results = [m for m in result["messages"] if m.get("role") == "tool"]
+    assert {m["tool_call_id"] for m in tool_results} == {c.id for c in batch}
+
+
+def test_native_loop_rejects_non_object_arguments_before_review(agent):
+    responses = []
+    for _ in range(3):
+        call = _tool_call()
+        call.function.arguments = "[]"
+        responses.append(_response(with_tool=True, calls=[call]))
+    responses.append(_response(content="finished"))
+    result, calls = _run(agent, [], responses)
+    assert calls == []
+    agent._cognitive_gate.evaluate_turn.assert_not_called()
+    assert result["turn_exit_reason"].startswith("text_response")

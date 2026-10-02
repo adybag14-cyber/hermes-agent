@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -44,6 +45,11 @@ class ReflexionEngine:
             )
         else:
             next_correction = "Re-evaluate the candidate and produce a more defensible answer."
+
+        if evidence:
+            next_correction += "\nUse the available evidence: " + json.dumps(
+                evidence, ensure_ascii=False, default=str,
+            )
 
         return ReflexionResult(
             reflection=reflection,

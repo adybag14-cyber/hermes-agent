@@ -50,6 +50,7 @@ jobs:
           scripts/run_tests.sh
           tests/run_agent/test_cognitive_gate_dispatch_integration.py
           tests/test_cognitive_gate.py
+          tests/test_tool_plan_validation.py
           odyn_ai/tests/
           -q --tb=short
 

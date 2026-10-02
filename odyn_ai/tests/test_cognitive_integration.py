@@ -76,7 +76,7 @@ class CognitiveIntegrationTests(unittest.TestCase):
             ),
             tool_executor=HermesToolExecutor(lambda name, args: "ok"),
         )
-        result, cycle = engine.run_and_execute(
+        result = engine.run_and_execute(
             CognitiveRequest("build plan"),
             tool_calls=[{"name": "read_file", "arguments": {"path": "README.md"}}],
         )

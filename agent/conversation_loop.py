@@ -3166,12 +3166,13 @@ def run_conversation(
                 
                 # Validate tool call arguments are valid JSON
                 # Handle empty strings as empty objects (common model quirk)
+                from agent.tool_plan_validation import ToolPlanValidationError, parse_tool_plan_arguments
                 invalid_json_args = []
                 for tc in assistant_message.tool_calls:
                     args = tc.function.arguments
                     if isinstance(args, (dict, list)):
                         tc.function.arguments = json.dumps(args)
-                        continue
+                        args = tc.function.arguments
                     if args is not None and not isinstance(args, str):
                         tc.function.arguments = str(args)
                         args = tc.function.arguments
@@ -3180,8 +3181,8 @@ def run_conversation(
                         tc.function.arguments = "{}"
                         continue
                     try:
-                        json.loads(args)
-                    except json.JSONDecodeError as e:
+                        parse_tool_plan_arguments(args)
+                    except ToolPlanValidationError as e:
                         invalid_json_args.append((tc.function.name, str(e)))
                 
                 if invalid_json_args:
@@ -3265,51 +3266,18 @@ def run_conversation(
                     assistant_message.tool_calls
                 )
 
-                # Review the exact, validated Hermes candidate before any dispatch.
-                from agent.cognitive_gate import evaluate_hermes_turn
-                gate_decision = evaluate_hermes_turn(
+                from agent.cognitive_gate import review_hermes_turn, record_blocked_turn
+                review = review_hermes_turn(
                     agent, assistant_message, messages, effective_task_id, finish_reason,
                 )
-                gate_action = getattr(gate_decision, "action", None)
-                gate_action = getattr(gate_action, "value", gate_action)
-                if isinstance(gate_decision, dict):
-                    gate_action = gate_decision.get("action", gate_action)
-                if gate_decision is not None and gate_action != "accept":
-                    gate_reason = getattr(gate_decision, "reason", "")
-                    if isinstance(gate_decision, dict):
-                        gate_reason = gate_decision.get("reason", gate_reason)
-                    gate_reason = str(gate_reason or "The cognitive gate rejected this candidate.")
-                    attempts = getattr(agent, "_cognitive_gate_attempts", 0) + 1
-                    agent._cognitive_gate_attempts = attempts
-                    limit = max(1, int(getattr(agent, "_cognitive_gate_max_attempts", 3)))
-                    escalate = gate_action == "escalate" or attempts >= limit or gate_action not in {
-                        "correct", "retry", "retrieve_evidence",
-                    }
-                    messages.append(agent._build_assistant_message(assistant_message, finish_reason))
-                    critic = getattr(gate_decision, "critic", None)
-                    required = getattr(critic, "required_evidence", ())
-                    if isinstance(gate_decision, dict):
-                        critic = gate_decision.get("critic", critic)
-                        required = critic.get("required_evidence", ()) if isinstance(critic, dict) else required
-                    hint = (" Required evidence: " + "; ".join(map(str, required))) if gate_action == "retrieve_evidence" and required else ""
-                    feedback = f"Cognitive gate action: {gate_action}. {gate_reason}{hint}"
-                    for tc in assistant_message.tool_calls:
-                        messages.append({
-                            "role": "tool", "name": tc.function.name,
-                            "tool_call_id": tc.id,
-                            "content": "[Blocked by ODYN cognitive review; no tool was executed.] " + feedback,
-                        })
-                    if escalate:
+                if not review.allows_execution:
+                    record_blocked_turn(agent, assistant_message, messages, finish_reason, review)
+                    if review.escalated:
                         _turn_exit_reason = "cognitive_gate_escalation"
-                        final_response = (
-                            f"Cognitive review could not accept this candidate within {limit} attempts. "
-                            + gate_reason
-                        )
+                        final_response = "Cognitive review could not accept this candidate. " + review.reason
                         messages.append({"role": "assistant", "content": final_response})
                         break
                     continue
-                if gate_action == "accept":
-                    agent._cognitive_gate_attempts = 0
 
                 assistant_msg = agent._build_assistant_message(assistant_message, finish_reason)
                 
@@ -4144,3 +4112,4 @@ def run_conversation(
 
 
 __all__ = ["run_conversation"]
+

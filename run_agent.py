@@ -15006,6 +15006,21 @@ class AIAgent:
         """
         tool_calls = assistant_message.tool_calls
 
+        # Validate the entire argument envelope before either execution lane
+        # reaches authorization hooks, checkpoints or tool handlers.
+        from agent.tool_plan_validation import ToolPlanValidationError, parse_tool_plan_arguments
+        try:
+            for call in tool_calls:
+                parse_tool_plan_arguments(call.function.arguments)
+        except ToolPlanValidationError as exc:
+            for call in tool_calls:
+                messages.append({
+                    "role": "tool", "name": call.function.name,
+                    "tool_call_id": call.id,
+                    "content": json.dumps({"error": str(exc), "stage": "plan_validation"}),
+                })
+            return
+
         # Allow _vprint during tool execution even with stream consumers
         self._executing_tools = True
         try:
@@ -19019,12 +19034,13 @@ class AIAgent:
 
                     # Validate tool call arguments are valid JSON
                     # Handle empty strings as empty objects (common model quirk)
+                    from agent.tool_plan_validation import ToolPlanValidationError, parse_tool_plan_arguments
                     invalid_json_args = []
                     for tc in assistant_message.tool_calls:
                         args = tc.function.arguments
                         if isinstance(args, (dict, list)):
                             tc.function.arguments = json.dumps(args)
-                            continue
+                            args = tc.function.arguments
                         if args is not None and not isinstance(args, str):
                             tc.function.arguments = str(args)
                             args = tc.function.arguments
@@ -19033,8 +19049,8 @@ class AIAgent:
                             tc.function.arguments = "{}"
                             continue
                         try:
-                            json.loads(args)
-                        except json.JSONDecodeError as e:
+                            parse_tool_plan_arguments(args)
+                        except ToolPlanValidationError as e:
                             invalid_json_args.append((tc.function.name, str(e)))
 
                     if invalid_json_args:
@@ -19117,6 +19133,21 @@ class AIAgent:
                     assistant_message.tool_calls = self._deduplicate_tool_calls(
                         assistant_message.tool_calls
                     )
+
+                    # Review the actual model candidate before the existing
+                    # authorization and tool dispatcher can run.
+                    from agent.cognitive_gate import review_hermes_turn, record_blocked_turn
+                    review = review_hermes_turn(
+                        self, assistant_message, messages, effective_task_id, finish_reason,
+                    )
+                    if not review.allows_execution:
+                        record_blocked_turn(self, assistant_message, messages, finish_reason, review)
+                        if review.escalated:
+                            _turn_exit_reason = "cognitive_gate_escalation"
+                            final_response = "Cognitive review could not accept this candidate. " + review.reason
+                            messages.append({"role": "assistant", "content": final_response})
+                            break
+                        continue
 
                     assistant_msg = self._build_assistant_message(assistant_message, finish_reason)
 
@@ -20215,3 +20246,4 @@ def main(
 if __name__ == "__main__":
     import fire
     fire.Fire(main)
+

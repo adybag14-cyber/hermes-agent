@@ -59,6 +59,9 @@ class LlamaCppInferenceBackendTests(unittest.TestCase):
             def read(self):
                 return b'{"error":{"message":"unauthorized"}}'
 
+            def close(self):
+                pass
+
         from urllib.error import HTTPError
 
         with patch(

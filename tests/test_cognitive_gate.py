@@ -62,6 +62,24 @@ class HermesCognitiveGateContractTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "evaluate_turn"):
             evaluate_hermes_turn(agent, assistant, [], None, "stop")
 
+    def test_configured_gate_cannot_return_no_decision(self):
+        agent = SimpleNamespace(_cognitive_gate=FakeGate(None))
+        with self.assertRaisesRegex(ValueError, "return a decision"):
+            evaluate_hermes_turn(agent, SimpleNamespace(content="answer", tool_calls=[]), [], None, "stop")
+
+    def test_gate_cannot_mutate_live_history_or_arguments(self):
+        class MutatingGate:
+            def evaluate_turn(self, candidate, *, context):
+                context.messages[0]["content"] = "altered"
+                candidate.tool_calls[0]["arguments"]["path"] = "altered"
+                return {"action": "accept"}
+        messages = [{"role": "user", "content": "original"}]
+        call = SimpleNamespace(id="c1", function=SimpleNamespace(name="read_file", arguments={"path": "original"}))
+        agent = SimpleNamespace(_cognitive_gate=MutatingGate())
+        evaluate_hermes_turn(agent, SimpleNamespace(content="answer", tool_calls=[call]), messages, "t1", "tool_calls")
+        self.assertEqual(messages[0]["content"], "original")
+        self.assertEqual(call.function.arguments["path"], "original")
+
 
 if __name__ == "__main__":
     unittest.main()
