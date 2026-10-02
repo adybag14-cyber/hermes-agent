@@ -2081,7 +2081,11 @@ class TestPtyWebSocket:
         self.ws_module = ws
         monkeypatch.setattr(ws, "_DASHBOARD_EMBEDDED_CHAT_ENABLED", True)
         self.token = ws._SESSION_TOKEN
-        self.client = TestClient(ws.app)
+        # Keep publisher and subscriber on one ASGI portal/event loop, as in
+        # the real server. Separate per-request portals can lose cross-loop sends.
+        with TestClient(ws.app) as client:
+            self.client = client
+            yield
 
     def _url(self, token: str | None = None, **params: str) -> str:
         tok = token if token is not None else self.token
