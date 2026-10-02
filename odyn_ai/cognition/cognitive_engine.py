@@ -71,10 +71,21 @@ class CognitiveEngine:
     def adversarial_gate(
         self, critic, *, corrections_used: int = 0, max_corrections: int = 2,
     ) -> GateDecision:
-        if critic.valid and critic.highest_severity == "low":
-            return GateDecision(DecisionAction.ACCEPT, "Adversarial critic accepted the candidate.", critic)
+        # Evidence requirements take precedence over a nominally valid/low-risk
+        # critic result. Acceptance is forbidden until the required evidence is
+        # present in the request context and the critic has re-evaluated it.
         if critic.required_evidence:
-            return GateDecision(DecisionAction.RETRIEVE_EVIDENCE, "Critic requires additional evidence.", critic)
+            return GateDecision(
+                DecisionAction.RETRIEVE_EVIDENCE,
+                "Critic requires additional evidence.",
+                critic,
+            )
+        if critic.valid and critic.highest_severity == "low":
+            return GateDecision(
+                DecisionAction.ACCEPT,
+                "Adversarial critic accepted the candidate.",
+                critic,
+            )
         if corrections_used < max_corrections and (
             critic.corrections or critic.highest_severity in {"low", "medium", "high"}
         ):
