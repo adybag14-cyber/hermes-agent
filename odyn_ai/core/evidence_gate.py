@@ -51,16 +51,19 @@ def adversarial_gate(
         raise TypeError("critic must be a CriticResult")
     if not isinstance(critic.valid, bool):
         raise TypeError("critic.valid must be bool")
+    if not isinstance(retrieval_attempted, bool):
+        raise TypeError("retrieval_attempted must be bool")
     if not isfinite(critic.severity) or not 0.0 <= critic.severity <= 1.0:
         raise ValueError("critic.severity must be finite and between 0 and 1")
     if not isfinite(severity_threshold) or not 0.0 <= severity_threshold <= 1.0:
         raise ValueError("severity_threshold must be finite and between 0 and 1")
-
-    required = tuple(dict.fromkeys(item.strip() for item in critic.required_evidence))
-    if any(not item for item in required):
+    if not isinstance(critic.required_evidence, (tuple, list)):
+        raise TypeError("required_evidence must be a tuple or list")
+    if any(not isinstance(item, str) or not item.strip() for item in critic.required_evidence):
         raise ValueError("required_evidence entries must be non-empty strings")
 
-    available = {item.strip() for item in available_evidence if isinstance(item, str)}
+    required = tuple(dict.fromkeys(item.strip() for item in critic.required_evidence))
+    available = {item.strip() for item in available_evidence if isinstance(item, str) and item.strip()}
     missing = tuple(item for item in required if item not in available)
     if missing:
         if retrieval_attempted:
