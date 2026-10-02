@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [main, "work/**"]
+    branches: [main]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
