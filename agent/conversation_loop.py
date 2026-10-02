@@ -3146,79 +3146,8 @@ def run_conversation(
                             "error": f"Model generated invalid tool call: {invalid_preview}"
                         }
 
-                    # ODYN cognitive review receives the actual Hermes model turn.
-                # It is review-only here; tool authorization and dispatch below remain
-                # in the existing Hermes execution path.
-                from agent.cognitive_gate import evaluate_hermes_turn
-                gate_decision = evaluate_hermes_turn(
-                    agent,
-                    assistant_message,
-                    messages,
-                    effective_task_id,
-                    finish_reason,
-                )
-                gate_action = getattr(gate_decision, "action", None)
-                gate_action = getattr(gate_action, "value", gate_action)
-                if isinstance(gate_decision, dict):
-                    gate_action = gate_decision.get("action", gate_action)
-                if gate_decision is not None and gate_action != "accept":
-                    if gate_action is None:
-                        gate_action = "invalid"
-                    gate_reason = getattr(gate_decision, "reason", "")
-                    if isinstance(gate_decision, dict):
-                        gate_reason = gate_decision.get("reason", gate_reason)
-                    gate_reason = str(gate_reason or "The cognitive gate did not accept this turn.")
-                    gate_attempts = getattr(agent, "_cognitive_gate_attempts", 0) + 1
-                    agent._cognitive_gate_attempts = gate_attempts
-                    max_gate_attempts = max(1, int(getattr(agent, "_cognitive_gate_max_attempts", 3)))
-                    should_escalate = gate_action == "escalate" or gate_action not in {
-                        "correct", "retry", "retrieve_evidence"
-                    } or gate_attempts >= max_gate_attempts
-
+                    # Invalid tool names are returned to the model for correction.
                     assistant_msg = agent._build_assistant_message(assistant_message, finish_reason)
-                    messages.append(assistant_msg)
-                    critic = getattr(gate_decision, "critic", None)
-                    required_evidence = getattr(critic, "required_evidence", ())
-                    if isinstance(gate_decision, dict):
-                        critic = gate_decision.get("critic", critic)
-                        required_evidence = (
-                            critic.get("required_evidence", ())
-                            if isinstance(critic, dict) else required_evidence
-                        )
-                    evidence_hint = ""
-                    if gate_action == "retrieve_evidence" and required_evidence:
-                        evidence_hint = " Required evidence: " + "; ".join(map(str, required_evidence))
-                    feedback = (
-                        f"Cognitive gate action: {gate_action}. {gate_reason}"
-                        f"{evidence_hint}"
-                    )
-                    for tc in assistant_message.tool_calls:
-                        messages.append({
-                            "role": "tool",
-                            "name": tc.function.name,
-                            "tool_call_id": tc.id,
-                            "content": (
-                                "[Blocked by ODYN cognitive review; no tool was executed.] "
-                                + feedback
-                            ),
-                        })
-                    if should_escalate:
-                        _turn_exit_reason = "cognitive_gate_escalation"
-                        final_response = (
-                            "The cognitive review could not accept this turn within "
-                            f"the configured attempt limit ({max_gate_attempts}). "
-                            + gate_reason
-                        )
-                        messages.append({"role": "assistant", "content": final_response})
-                        break
-                    # Feed the structured rejection back to the model for a
-                    # bounded correction/retrieval attempt. Hermes will validate
-                    # and authorize any subsequent tool calls as usual.
-                    continue
-                if gate_action == "accept":
-                    agent._cognitive_gate_attempts = 0
-
-                assistant_msg = agent._build_assistant_message(assistant_message, finish_reason)
                     messages.append(assistant_msg)
                     for tc in assistant_message.tool_calls:
                         if tc.function.name not in agent.valid_tool_names:
@@ -3335,6 +3264,52 @@ def run_conversation(
                 assistant_message.tool_calls = agent._deduplicate_tool_calls(
                     assistant_message.tool_calls
                 )
+
+                # Review the exact, validated Hermes candidate before any dispatch.
+                from agent.cognitive_gate import evaluate_hermes_turn
+                gate_decision = evaluate_hermes_turn(
+                    agent, assistant_message, messages, effective_task_id, finish_reason,
+                )
+                gate_action = getattr(gate_decision, "action", None)
+                gate_action = getattr(gate_action, "value", gate_action)
+                if isinstance(gate_decision, dict):
+                    gate_action = gate_decision.get("action", gate_action)
+                if gate_decision is not None and gate_action != "accept":
+                    gate_reason = getattr(gate_decision, "reason", "")
+                    if isinstance(gate_decision, dict):
+                        gate_reason = gate_decision.get("reason", gate_reason)
+                    gate_reason = str(gate_reason or "The cognitive gate rejected this candidate.")
+                    attempts = getattr(agent, "_cognitive_gate_attempts", 0) + 1
+                    agent._cognitive_gate_attempts = attempts
+                    limit = max(1, int(getattr(agent, "_cognitive_gate_max_attempts", 3)))
+                    escalate = gate_action == "escalate" or attempts >= limit or gate_action not in {
+                        "correct", "retry", "retrieve_evidence",
+                    }
+                    messages.append(agent._build_assistant_message(assistant_message, finish_reason))
+                    critic = getattr(gate_decision, "critic", None)
+                    required = getattr(critic, "required_evidence", ())
+                    if isinstance(gate_decision, dict):
+                        critic = gate_decision.get("critic", critic)
+                        required = critic.get("required_evidence", ()) if isinstance(critic, dict) else required
+                    hint = (" Required evidence: " + "; ".join(map(str, required))) if gate_action == "retrieve_evidence" and required else ""
+                    feedback = f"Cognitive gate action: {gate_action}. {gate_reason}{hint}"
+                    for tc in assistant_message.tool_calls:
+                        messages.append({
+                            "role": "tool", "name": tc.function.name,
+                            "tool_call_id": tc.id,
+                            "content": "[Blocked by ODYN cognitive review; no tool was executed.] " + feedback,
+                        })
+                    if escalate:
+                        _turn_exit_reason = "cognitive_gate_escalation"
+                        final_response = (
+                            f"Cognitive review could not accept this candidate within {limit} attempts. "
+                            + gate_reason
+                        )
+                        messages.append({"role": "assistant", "content": final_response})
+                        break
+                    continue
+                if gate_action == "accept":
+                    agent._cognitive_gate_attempts = 0
 
                 assistant_msg = agent._build_assistant_message(assistant_message, finish_reason)
                 
