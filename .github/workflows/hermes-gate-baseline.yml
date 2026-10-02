@@ -1,0 +1,64 @@
+name: Hermes Gate Baseline Diagnostic
+
+on:
+  push:
+    branches: [work/hermes-gate-baseline]
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact baseline
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          ref: e32f42706d547eea8fce3e399b69757bf8f9d9c3
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5
+      - name: Set up Python and test dependencies
+        run: |
+          uv python install 3.11
+          uv venv .venv --python 3.11
+          uv pip install --python .venv/bin/python -e ".[all,dev]"
+      - name: Reproduce failing cases on the original baseline
+        run: >-
+          scripts/run_tests.sh
+          'tests/agent/test_memory_user_id.py::TestHonchoUserIdScoping::test_gateway_user_id_is_passed_as_runtime_peer'
+          'tests/agent/test_context_compressor.py::TestNonStringContent::test_summary_prompt_avoids_filter_sensitive_handoff_framing'
+          'tests/agent/test_context_compressor_summary_continuity.py::test_existing_previous_summary_is_not_serialized_again_as_new_turn'
+          'tests/agent/test_context_compressor_summary_continuity.py::test_resume_rehydrates_previous_summary_from_handoff_message'
+          'tests/hermes_cli/test_openai_codex_model_validation_fallback.py::test_openai_codex_unknown_but_plausible_model_is_accepted_with_warning'
+          'tests/hermes_cli/test_openai_codex_model_validation_fallback.py::test_switch_model_allows_openai_codex_model_missing_from_listing'
+          'tests/hermes_cli/test_api_key_providers.py::TestNovitaProvider::test_novita_in_provider_prefixes'
+          'tests/hermes_cli/test_aux_config.py::test_session_search_defaults_include_extra_body_and_concurrency'
+          'tests/hermes_cli/test_aux_config.py::test_aux_tasks_keys_all_exist_in_default_config'
+          'tests/plugins/test_kanban_dashboard_plugin.py::test_diagnostics_endpoint_severity_filter'
+          'tests/run_agent/test_run_agent.py::TestExecuteToolCalls::test_invalid_json_args_defaults_empty'
+          'tests/honcho_plugin/test_session.py::TestToolsModeInitBehavior::test_user_id_used_when_no_peer_name'
+          'tests/run_agent/test_run_agent.py::TestConcurrentToolExecution::test_malformed_json_args_forces_sequential'
+          'tests/run_agent/test_run_agent.py::TestConcurrentToolExecution::test_non_dict_args_forces_sequential'
+          'tests/test_cli_manual_compress.py::test_manual_compress_does_not_pass_cached_system_prompt'
+          'tests/tools/test_local_env_cwd_recovery.py::TestUpdateCwdRejectsMissingPaths::test_skips_assignment_when_marker_path_missing'
+          'tests/tools/test_terminal_tool_requirements.py::TestTerminalRequirements::test_terminal_and_execute_code_tools_resolve_for_managed_modal'
+          'tests/tools/test_web_providers_searxng.py::TestCheckWebApiKey::test_no_credentials_fails'
+          'tests/tools/test_web_providers_searxng.py::TestSearXNGOnlyExtractCrawlErrors::test_web_crawl_searxng_returns_clear_error'
+          'tests/tools/test_web_tools_config.py::TestCheckWebApiKey::test_firecrawl_key_only'
+          'tests/tools/test_web_tools_config.py::TestCheckWebApiKey::test_firecrawl_url_only'
+          'tests/tools/test_web_tools_config.py::TestCheckWebApiKey::test_tavily_key_only'
+          'tests/tools/test_web_tools_config.py::TestCheckWebApiKey::test_no_keys_returns_false'
+          'tests/tools/test_web_tools_config.py::TestCheckWebApiKey::test_tool_gateway_returns_true'
+          'tests/tools/test_web_tools_config.py::TestCheckWebApiKey::test_configured_firecrawl_backend_accepts_managed_gateway'
+          'tests/tools/test_web_providers_brave_free.py::TestBraveFreeSearchOnlyErrors::test_web_crawl_returns_search_only_error'
+          'tests/tools/test_web_providers_ddgs.py::TestDDGSSearchOnlyErrors::test_web_crawl_returns_search_only_error'
+          'tests/tools/test_windows_native_support.py::TestTzdataDependencyDeclared::test_pyproject_declares_tzdata_for_win32'
+          'tests/tools/test_windows_native_support.py::TestLocalEnvironmentWindowsTempDir::test_find_bash_skips_wsl_bash_before_git_for_windows'
+          'tests/tui_gateway/test_goal_command.py::test_goal_bare_shows_status_when_none_set'
+          'tests/tui_gateway/test_goal_command.py::test_goal_whitespace_only_shows_status'
+          'tests/tui_gateway/test_goal_command.py::test_goal_status_alias_shows_status'
+          'tests/tools/test_local_env_windows_msys.py'
+          -q --tb=short
