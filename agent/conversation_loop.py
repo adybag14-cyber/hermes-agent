@@ -3146,7 +3146,19 @@ def run_conversation(
                             "error": f"Model generated invalid tool call: {invalid_preview}"
                         }
 
-                    assistant_msg = agent._build_assistant_message(assistant_message, finish_reason)
+                    # ODYN cognitive review receives the actual Hermes model turn.
+                # It is review-only here; tool authorization and dispatch below remain
+                # in the existing Hermes execution path.
+                from agent.cognitive_gate import evaluate_hermes_turn
+                evaluate_hermes_turn(
+                    agent,
+                    assistant_message,
+                    messages,
+                    effective_task_id,
+                    finish_reason,
+                )
+
+                assistant_msg = agent._build_assistant_message(assistant_message, finish_reason)
                     messages.append(assistant_msg)
                     for tc in assistant_message.tool_calls:
                         if tc.function.name not in agent.valid_tool_names:
