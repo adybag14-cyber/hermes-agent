@@ -4,7 +4,9 @@
   "description": "An AI agent with advanced tool-calling capabilities, featuring a flexible toolsets system for organizing and managing tools.",
   "private": true,
   "scripts": {
-    "postinstall": "echo '✅ Browser tools ready. Run: python run_agent.py --help'"
+    "postinstall": "echo '✅ Browser tools ready. Run: python run_agent.py --help'",
+    "dev": "/tmp/hermes-venv/bin/python -m hermes_cli.main dashboard --port 3000 --host 0.0.0.0 --insecure",
+    "start": "/tmp/hermes-venv/bin/python -m hermes_cli.main dashboard --port 3000 --host 0.0.0.0 --insecure"
   },
   "repository": {
     "type": "git",
@@ -16,7 +18,13 @@
   },
   "homepage": "https://github.com/NousResearch/Hermes-Agent#readme",
   "dependencies": {
-    "agent-browser": "^0.26.0"
+    "agent-browser": "^0.26.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "framer-motion": "^13.5.0",
+    "lucide-react": "^1.49.0",
+    "react-icons": "^5.7.0",
+    "tailwind-merge": "^3.7.0"
   },
   "overrides": {
     "lodash": "4.18.1"
