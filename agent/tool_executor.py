@@ -93,12 +93,15 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
         elif function_name == "skill_manage":
             agent._iters_since_skill = 0
 
+        plan_validation_error = None
         try:
             function_args = json.loads(tool_call.function.arguments)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, TypeError) as exc:
             function_args = {}
+            plan_validation_error = f"Invalid tool-plan JSON: {exc}"
         if not isinstance(function_args, dict):
             function_args = {}
+            plan_validation_error = "Invalid tool plan: arguments must be a JSON object"
 
         # Checkpoint for file-mutating tools
         if function_name in {"write_file", "patch"} and agent._checkpoint_mgr.enabled:
@@ -122,23 +125,30 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
             except Exception:
                 pass
 
+        # Stage 2: authorization/policy checks. No tool is invoked here.
         block_result = None
         blocked_by_guardrail = False
-        try:
-            from hermes_cli.plugins import get_pre_tool_call_block_message
-            block_message = get_pre_tool_call_block_message(
-                function_name, function_args, task_id=effective_task_id or "",
+        if plan_validation_error:
+            block_result = json.dumps(
+                {"error": plan_validation_error, "stage": "plan_validation"},
+                ensure_ascii=False,
             )
-        except Exception:
-            block_message = None
-
-        if block_message is not None:
-            block_result = json.dumps({"error": block_message}, ensure_ascii=False)
         else:
-            guardrail_decision = agent._tool_guardrails.before_call(function_name, function_args)
-            if not guardrail_decision.allows_execution:
-                block_result = agent._guardrail_block_result(guardrail_decision)
-                blocked_by_guardrail = True
+            try:
+                from hermes_cli.plugins import get_pre_tool_call_block_message
+                block_message = get_pre_tool_call_block_message(
+                    function_name, function_args, task_id=effective_task_id or "",
+                )
+            except Exception:
+                block_message = None
+
+            if block_message is not None:
+                block_result = json.dumps({"error": block_message, "stage": "authorization"}, ensure_ascii=False)
+            else:
+                guardrail_decision = agent._tool_guardrails.before_call(function_name, function_args)
+                if not guardrail_decision.allows_execution:
+                    block_result = agent._guardrail_block_result(guardrail_decision)
+                    blocked_by_guardrail = True
 
         parsed_calls.append((tool_call, function_name, function_args, block_result, blocked_by_guardrail))
 
@@ -494,23 +504,32 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
 
         function_name = tool_call.function.name
 
+        # Stage 1: validate the model-produced tool plan before policy checks.
+        _plan_validation_error: Optional[str] = None
         try:
             function_args = json.loads(tool_call.function.arguments)
-        except json.JSONDecodeError as e:
-            logging.warning(f"Unexpected JSON error after validation: {e}")
+        except (json.JSONDecodeError, TypeError) as e:
+            logging.warning("Invalid tool-plan JSON for %s: %s", function_name, e)
             function_args = {}
+            _plan_validation_error = f"Invalid tool-plan JSON: {e}"
         if not isinstance(function_args, dict):
             function_args = {}
+            _plan_validation_error = "Invalid tool plan: arguments must be a JSON object"
 
-        # Check plugin hooks for a block directive before executing.
-        _block_msg: Optional[str] = None
-        try:
-            from hermes_cli.plugins import get_pre_tool_call_block_message
-            _block_msg = get_pre_tool_call_block_message(
-                function_name, function_args, task_id=effective_task_id or "",
-            )
-        except Exception:
-            pass
+        # Stage 2: authorization/policy. Existing Hermes plugin policy,
+        # loop guardrails, and the dispatcher's own approval checks remain authoritative.
+        _block_msg: Optional[str] = (
+            json.dumps({"error": _plan_validation_error, "stage": "plan_validation"}, ensure_ascii=False)
+            if _plan_validation_error else None
+        )
+        if _block_msg is None:
+            try:
+                from hermes_cli.plugins import get_pre_tool_call_block_message
+                _block_msg = get_pre_tool_call_block_message(
+                    function_name, function_args, task_id=effective_task_id or "",
+                )
+            except Exception:
+                pass
 
         _guardrail_block_decision: ToolGuardrailDecision | None = None
         if _block_msg is None:
