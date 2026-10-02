@@ -96,7 +96,7 @@ def _run(agent, decisions, responses):
 def test_accept_allows_dispatch(agent):
     result, calls = _run(
         agent,
-        [_decision("accept")],
+        [_decision("accept"), None],
         [_response(with_tool=True), _response(content="finished")],
     )
     assert len(calls) == 1
