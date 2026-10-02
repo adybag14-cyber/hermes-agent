@@ -160,5 +160,5 @@ def record_blocked_turn(agent: Any, assistant_message: Any, messages: list, fini
         messages.append({
             "role": "tool", "name": call.function.name,
             "tool_call_id": call.id,
-            "content": "[Blocked by ODYN cognitive review; no tool was executed.] " + review.feedback,
+            "content": "[Blocked by Hermes cognitive review; no tool was executed.] " + review.feedback,
         })

@@ -1,6 +1,7 @@
 """Local execution environment — spawn-per-call with session snapshot."""
 
 import logging
+import ntpath
 import os
 import platform
 import re
@@ -60,14 +61,19 @@ def _is_windows_wsl_bash(candidate: str | None) -> bool:
     if not candidate:
         return False
     try:
-        normalized = os.path.normcase(os.path.abspath(candidate))
+        normalized = ntpath.normcase(ntpath.normpath(candidate))
     except Exception:
-        normalized = os.path.normcase(str(candidate))
+        normalized = ntpath.normcase(str(candidate))
     return (
         normalized.endswith(r"\windows\system32\bash.exe")
         or normalized.endswith(r"\windows\sysnative\bash.exe")
         or normalized.endswith(r"\microsoft\windowsapps\bash.exe")
     )
+
+
+def _msys_to_windows_path(path: str) -> str:
+    """Normalize shell paths only when the terminal runs on Windows."""
+    return _git_bash_path_to_windows(path) if _IS_WINDOWS else path
 
 
 def _resolve_safe_cwd(cwd: str) -> str:
@@ -259,7 +265,7 @@ def _find_bash() -> str:
         )
 
     custom = os.environ.get("HERMES_GIT_BASH_PATH")
-    if custom and os.path.isfile(custom):
+    if custom and os.path.isfile(custom) and not _is_windows_wsl_bash(custom):
         return custom
 
     # Prefer our own portable Git install first — this way a broken or
@@ -272,19 +278,19 @@ def _find_bash() -> str:
     #   PortableGit: %LOCALAPPDATA%\hermes\git\bin\bash.exe   (primary)
     #   MinGit:      %LOCALAPPDATA%\hermes\git\usr\bin\bash.exe (legacy/32-bit fallback)
     _local_appdata = os.environ.get("LOCALAPPDATA", "")
-    _hermes_portable_git = os.path.join(_local_appdata, "hermes", "git") if _local_appdata else ""
+    _hermes_portable_git = ntpath.join(_local_appdata, "hermes", "git") if _local_appdata else ""
     if _hermes_portable_git:
         for candidate in (
-            os.path.join(_hermes_portable_git, "bin", "bash.exe"),        # PortableGit (primary)
-            os.path.join(_hermes_portable_git, "usr", "bin", "bash.exe"), # MinGit fallback
+            ntpath.join(_hermes_portable_git, "bin", "bash.exe"),        # PortableGit (primary)
+            ntpath.join(_hermes_portable_git, "usr", "bin", "bash.exe"), # MinGit fallback
         ):
             if os.path.isfile(candidate):
                 return candidate
 
     for candidate in (
-        os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "Git", "bin", "bash.exe"),
-        os.path.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"), "Git", "bin", "bash.exe"),
-        os.path.join(_local_appdata, "Programs", "Git", "bin", "bash.exe"),
+        ntpath.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "Git", "bin", "bash.exe"),
+        ntpath.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"), "Git", "bin", "bash.exe"),
+        ntpath.join(_local_appdata, "Programs", "Git", "bin", "bash.exe"),
     ):
         if candidate and os.path.isfile(candidate):
             return candidate
@@ -513,16 +519,9 @@ class LocalEnvironment(BaseEnvironment):
         return cwd
 
     def _set_cwd_from_shell(self, cwd_path: str) -> None:
-        if _IS_WINDOWS:
-            native = _git_bash_path_to_windows(cwd_path)
-            if native and os.path.isdir(native):
-                self.cwd = native
-                return
-            if cwd_path and os.path.isdir(cwd_path):
-                self.cwd = cwd_path
-                return
-            return
-        super()._set_cwd_from_shell(cwd_path)
+        native = _msys_to_windows_path(cwd_path)
+        if native and os.path.isdir(native):
+            self.cwd = native
 
     def _run_bash(self, cmd_string: str, *, login: bool = False,
                   timeout: int = 120,

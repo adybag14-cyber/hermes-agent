@@ -42,12 +42,10 @@ def test_title_generation_present_in_default_config():
     assert tg["extra_body"] == {}
 
 
-def test_session_search_defaults_include_extra_body_and_concurrency():
-    ss = DEFAULT_CONFIG["auxiliary"]["session_search"]
-    assert ss["provider"] == "auto"
-    assert ss["model"] == ""
-    assert ss["extra_body"] == {}
-    assert ss["max_concurrency"] == 3
+def test_session_search_does_not_offer_an_unused_auxiliary_model():
+    """DB-backed session search has no summarization model to configure."""
+    assert "session_search" not in DEFAULT_CONFIG["auxiliary"]
+    assert all(task != "session_search" for task, _name, _desc in _AUX_TASKS)
 
 
 def test_aux_tasks_keys_all_exist_in_default_config():

@@ -188,7 +188,7 @@ hermes_cli = ["web_dist/**/*", "tui_dist/**/*", "scripts/install.sh", "scripts/i
 gateway = ["assets/**/*"]
 
 [tool.setuptools.packages.find]
-include = ["agent", "agent.*", "tools", "tools.*", "hermes_cli", "gateway", "gateway.*", "tui_gateway", "tui_gateway.*", "cron", "acp_adapter", "plugins", "plugins.*", "providers", "providers.*", "hermes_android", "hermes_android.*"]
+include = ["agent", "agent.*", "tools", "tools.*", "hermes_cli", "gateway", "gateway.*", "tui_gateway", "tui_gateway.*", "cron", "acp_adapter", "plugins", "plugins.*", "providers", "providers.*", "hermes_android", "hermes_android.*", "odyn_ai", "odyn_ai.cognition", "odyn_ai.cognition.*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

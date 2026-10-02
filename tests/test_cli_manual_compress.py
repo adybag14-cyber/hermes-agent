@@ -10,16 +10,20 @@ class DummyAgent:
         self.session_id = "new-session"
         self.calls = []
 
-    def _compress_context(self, messages, system_message, *, approx_tokens=None, focus_topic=None):
+    def _compress_context(self, messages, system_message, *, approx_tokens=None, focus_topic=None, force=False):
         self.calls.append(
             {
                 "messages": messages,
                 "system_message": system_message,
                 "approx_tokens": approx_tokens,
                 "focus_topic": focus_topic,
+                "force": force,
             }
         )
         return ([{"role": "user", "content": "[CONTEXT SUMMARY]: compacted"}], "new system prompt")
+
+    def _flush_messages_to_session_db(self, messages, system_message):
+        self.persisted_messages = messages
 
 
 def test_manual_compress_does_not_pass_cached_system_prompt(monkeypatch):
@@ -53,5 +57,7 @@ def test_manual_compress_does_not_pass_cached_system_prompt(monkeypatch):
     assert call["system_message"] is None
     assert call["system_message"] != cli.agent._cached_system_prompt
     assert call["focus_topic"] == "database schema"
+    assert call["force"] is True
+    assert cli.agent.persisted_messages == cli.conversation_history
     assert cli.session_id == "new-session"
     assert cli._pending_title is None

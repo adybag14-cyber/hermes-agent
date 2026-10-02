@@ -228,7 +228,7 @@ def _get_session_db() -> Optional[Any]:
     if cached is not None:
         return cached
     try:
-        db = SessionDB()
+        db = SessionDB(db_path=get_hermes_home() / "state.db")
     except Exception as exc:  # pragma: no cover
         logger.debug("GoalManager: SessionDB() raised (%s)", exc)
         return None

@@ -1749,7 +1749,14 @@ async def web_crawl_tool(
         return tool_error(error_msg)
 
 
-# Convenience function to check Firecrawl credentials
+def check_firecrawl_api_key() -> bool:
+    """Check the same direct/gateway configuration used by the client."""
+    if _has_direct_firecrawl_config() and not prefers_gateway("web"):
+        return True
+    return _is_tool_gateway_ready()
+
+
+# Convenience function to check configured web providers
 def check_web_api_key() -> bool:
     """Check whether the configured web backend is available."""
     configured = _load_web_config().get("backend", "").lower().strip()

@@ -1470,6 +1470,8 @@ class AIAgent:
         checkpoint_max_total_size_mb: int = 500,
         checkpoint_max_file_size_mb: int = 10,
         pass_session_id: bool = False,
+        cognitive_gate: Any = None,
+        cognitive_gate_max_attempts: int = 3,
     ):
         """
         Initialize the AI Agent.
@@ -1518,8 +1520,20 @@ class AIAgent:
             load_soul_identity (bool): If True, still use ~/.hermes/SOUL.md as the primary
                 identity even when skip_context_files=True. Project context files from the cwd
                 remain skipped.
+            cognitive_gate: Optional reviewer implementing evaluate_turn(candidate, context=...).
+                Only an ACCEPT decision permits tool dispatch; errors and exhausted retries stop it.
+            cognitive_gate_max_attempts (int): Positive maximum rejected candidates per task.
         """
         _install_safe_stdio()
+
+        if type(cognitive_gate_max_attempts) is not int or cognitive_gate_max_attempts < 1:
+            raise ValueError("cognitive_gate_max_attempts must be a positive integer")
+        if cognitive_gate is not None and not callable(getattr(cognitive_gate, "evaluate_turn", None)):
+            raise TypeError("cognitive_gate must implement evaluate_turn(candidate, context=...)")
+        self._cognitive_gate = cognitive_gate
+        self._cognitive_gate_max_attempts = cognitive_gate_max_attempts
+        self._cognitive_gate_attempts = 0
+        self._cognitive_gate_task_id = None
 
         self.model = model
         self.max_iterations = max_iterations
@@ -20246,4 +20260,3 @@ def main(
 if __name__ == "__main__":
     import fire
     fire.Fire(main)
-

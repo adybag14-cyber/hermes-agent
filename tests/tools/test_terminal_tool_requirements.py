@@ -33,6 +33,7 @@ class TestTerminalRequirements:
         assert {"read_file", "write_file", "patch", "search_files"}.issubset(names)
 
     def test_terminal_and_execute_code_tools_resolve_for_managed_modal(self, monkeypatch, tmp_path):
+        monkeypatch.setattr("tools.tool_backend_helpers.managed_nous_tools_enabled", lambda: True)
         monkeypatch.setenv("HERMES_ENABLE_NOUS_MANAGED_TOOLS", "1")
         monkeypatch.setenv("TERMINAL_ENV", "modal")
         monkeypatch.setenv("TERMINAL_MODAL_MODE", "managed")

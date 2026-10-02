@@ -45,8 +45,7 @@ def _response(*, with_tool=False, content="done", query="test", calls=None):
     return SimpleNamespace(choices=[choice], model="test/model", usage=None)
 
 
-@pytest.fixture
-def agent():
+def _create_agent(**kwargs):
     with (
         patch("run_agent.get_tool_definitions", return_value=_tool_defs()),
         patch("run_agent.check_toolset_requirements", return_value={}),
@@ -59,6 +58,7 @@ def agent():
             quiet_mode=True,
             skip_context_files=True,
             skip_memory=True,
+            **kwargs,
         )
     instance.client = MagicMock()
     instance._cached_system_prompt = "You are helpful."
@@ -67,19 +67,43 @@ def agent():
     instance.compression_enabled = False
     instance.save_trajectories = False
     instance._cognitive_gate_attempts = 0
-    instance._cognitive_gate_max_attempts = 3
     return instance
+
+
+@pytest.fixture
+def agent():
+    return _create_agent()
+
+
+def test_public_gate_configuration_controls_native_dispatch():
+    gate = SimpleNamespace(evaluate_turn=MagicMock(return_value=_decision("accept")))
+    instance = _create_agent(cognitive_gate=gate, cognitive_gate_max_attempts=2)
+    result, calls = _run(
+        instance, None, [_response(with_tool=True), _response(content="finished")],
+        configure_gate=False,
+    )
+    assert result["final_response"] == "finished"
+    assert len(calls) == 1
+    gate.evaluate_turn.assert_called_once()
+    assert instance._cognitive_gate_max_attempts == 2
+
+
+@pytest.mark.parametrize("limit", [0, -1, True, 1.5, "3"])
+def test_invalid_public_gate_budget_is_rejected(limit):
+    with pytest.raises(ValueError, match="positive integer"):
+        AIAgent(cognitive_gate_max_attempts=limit)
 
 
 def _decision(action, reason="test decision"):
     return SimpleNamespace(action=action, reason=reason, critic=None)
 
 
-def _run(agent, decisions, responses, *, mock_executor=True):
-    if decisions is not None:
-        agent._cognitive_gate = SimpleNamespace(evaluate_turn=MagicMock(side_effect=decisions))
-    else:
-        agent._cognitive_gate = None
+def _run(agent, decisions, responses, *, mock_executor=True, configure_gate=True):
+    if configure_gate:
+        if decisions is not None:
+            agent._cognitive_gate = SimpleNamespace(evaluate_turn=MagicMock(side_effect=decisions))
+        else:
+            agent._cognitive_gate = None
     agent.client.chat.completions.create.side_effect = responses
     executor_calls = []
 
@@ -122,7 +146,7 @@ def test_non_accept_retry_actions_do_not_dispatch_candidate(agent, action):
     assert calls == []
     assert result["turn_exit_reason"] == "cognitive_gate_escalation"
     assert any(
-        "Blocked by ODYN cognitive review" in str(message.get("content", ""))
+        "Blocked by Hermes cognitive review" in str(message.get("content", ""))
         for message in result["messages"]
         if message.get("role") == "tool"
     )

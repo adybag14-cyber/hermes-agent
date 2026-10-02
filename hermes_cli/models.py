@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.request
 import urllib.error
 import time
@@ -3528,9 +3529,16 @@ def validate_requested_model(
             if suggestions:
                 suggestion_text = "\n  Similar models: " + ", ".join(f"`{s}`" for s in suggestions)
             provider_label = "OpenAI Codex" if normalized == "openai-codex" else "xAI Grok OAuth (SuperGrok Subscription)"
+            # The curated Codex list can lag account-specific model slugs.
+            # Accept a syntactically plausible ID with a warning; actual
+            # availability and entitlement are still checked by the backend.
+            plausible_codex = normalized == "openai-codex" and re.fullmatch(
+                r"(?:gpt-\d+(?:\.\d+)*|o\d+)(?:-[a-z0-9]+)*",
+                requested_for_lookup,
+            ) is not None
             return {
-                "accepted": False,
-                "persist": False,
+                "accepted": plausible_codex,
+                "persist": plausible_codex,
                 "recognized": False,
                 "message": (
                     f"Note: `{requested}` was not found in the {provider_label} model listing. "

@@ -36,6 +36,24 @@ def hermes_home(tmp_path, monkeypatch):
 # ──────────────────────────────────────────────────────────────────────
 
 
+def test_goal_persistence_is_isolated_across_home_changes(hermes_home, tmp_path, monkeypatch):
+    """The cached connection must open the home used as its cache key."""
+    from hermes_cli import goals
+
+    session_id = "same-session-in-two-profiles"
+    goals.save_goal(session_id, goals.GoalState(goal="first profile"))
+
+    second_home = tmp_path / "second-profile"
+    second_home.mkdir()
+    monkeypatch.setenv("HERMES_HOME", str(second_home))
+    assert goals.load_goal(session_id) is None
+    goals.save_goal(session_id, goals.GoalState(goal="second profile"))
+    assert goals.load_goal(session_id).goal == "second profile"
+
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+    assert goals.load_goal(session_id).goal == "first profile"
+
+
 class TestParseJudgeResponse:
     def test_clean_json_done(self):
         from hermes_cli.goals import _parse_judge_response

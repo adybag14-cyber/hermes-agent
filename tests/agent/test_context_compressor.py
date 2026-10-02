@@ -219,7 +219,9 @@ class TestNonStringContent:
         assert "Do NOT respond" not in prompt
         assert "DIFFERENT assistant" not in prompt
         assert "different assistant" not in prompt
-        assert "Treat the conversation turns below as source material" in prompt
+        assert "source material" in prompt
+        assert "SESSION_SNAPSHOT.md" in prompt
+        assert "[USER]: do something" in prompt
         assert "structured checkpoint summary" in prompt
 
     def test_summary_call_passes_live_main_runtime(self):

@@ -1542,8 +1542,14 @@ def test_diagnostics_endpoint_surfaces_blocked_hallucination(client):
     assert "t_ffff00001234" in row["diagnostics"][0]["data"]["phantom_ids"]
 
 
-def test_diagnostics_endpoint_severity_filter(client):
+def test_diagnostics_endpoint_severity_filter(client, monkeypatch):
     """Warning-severity filter excludes error-severity entries."""
+    # Five failures are an error below the configured critical threshold
+    # (twice the failure limit). Keep the fixture independent of defaults.
+    monkeypatch.setattr(
+        "hermes_cli.config.load_config",
+        lambda: {"kanban": {"failure_limit": 3}},
+    )
     conn = kb.connect()
     try:
         # A warning-severity diagnostic (prose phantom) on one task.

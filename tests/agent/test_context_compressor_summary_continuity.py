@@ -47,7 +47,8 @@ def test_existing_previous_summary_is_not_serialized_again_as_new_turn():
 
     prompt = mock_call.call_args.kwargs["messages"][0]["content"]
     assert "PREVIOUS SUMMARY:" in prompt
-    assert "NEW TURNS TO INCORPORATE:" in prompt
+    assert "SESSION_SNAPSHOT.md" in prompt
+    assert "new user turn after resume" in prompt
     assert prompt.count(old_summary) == 1
     assert f"[USER]: {SUMMARY_PREFIX}" not in prompt
 
@@ -63,7 +64,7 @@ def test_resume_rehydrates_previous_summary_from_handoff_message():
 
     prompt = mock_call.call_args.kwargs["messages"][0]["content"]
     assert "PREVIOUS SUMMARY:" in prompt
-    assert "NEW TURNS TO INCORPORATE:" in prompt
-    assert "TURNS TO SUMMARIZE:" not in prompt
+    assert "SESSION_SNAPSHOT.md" in prompt
+    assert "new user turn after resume" in prompt
     assert prompt.count(old_summary) == 1
     assert f"[USER]: {SUMMARY_PREFIX}" not in prompt
