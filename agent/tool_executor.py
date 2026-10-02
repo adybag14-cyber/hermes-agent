@@ -93,15 +93,16 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
         elif function_name == "skill_manage":
             agent._iters_since_skill = 0
 
+        from agent.tool_plan_validation import (
+            ToolPlanValidationError,
+            parse_tool_plan_arguments,
+        )
         plan_validation_error = None
         try:
-            function_args = json.loads(tool_call.function.arguments)
-        except (json.JSONDecodeError, TypeError) as exc:
+            function_args = parse_tool_plan_arguments(tool_call.function.arguments)
+        except ToolPlanValidationError as exc:
             function_args = {}
-            plan_validation_error = f"Invalid tool-plan JSON: {exc}"
-        if not isinstance(function_args, dict):
-            function_args = {}
-            plan_validation_error = "Invalid tool plan: arguments must be a JSON object"
+            plan_validation_error = str(exc)
 
         # Checkpoint for file-mutating tools
         if function_name in {"write_file", "patch"} and agent._checkpoint_mgr.enabled:
@@ -505,16 +506,17 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
         function_name = tool_call.function.name
 
         # Stage 1: validate the model-produced tool plan before policy checks.
+        from agent.tool_plan_validation import (
+            ToolPlanValidationError,
+            parse_tool_plan_arguments,
+        )
         _plan_validation_error: Optional[str] = None
         try:
-            function_args = json.loads(tool_call.function.arguments)
-        except (json.JSONDecodeError, TypeError) as e:
-            logging.warning("Invalid tool-plan JSON for %s: %s", function_name, e)
+            function_args = parse_tool_plan_arguments(tool_call.function.arguments)
+        except ToolPlanValidationError as e:
+            logging.warning("Invalid tool plan for %s: %s", function_name, e)
             function_args = {}
-            _plan_validation_error = f"Invalid tool-plan JSON: {e}"
-        if not isinstance(function_args, dict):
-            function_args = {}
-            _plan_validation_error = "Invalid tool plan: arguments must be a JSON object"
+            _plan_validation_error = str(e)
 
         # Stage 2: authorization/policy. Existing Hermes plugin policy,
         # loop guardrails, and the dispatcher's own approval checks remain authoritative.
