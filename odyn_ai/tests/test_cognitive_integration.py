@@ -21,6 +21,36 @@ class Backend:
 
 
 class CognitiveIntegrationTests(unittest.TestCase):
+    def test_retrieved_evidence_cannot_replace_the_plan_before_approval(self):
+        plan = [{"name": "write_file", "arguments": {"path": "protected.txt"}}]
+
+        class PlanCheckingCritic(Backend):
+            def generate(self, prompt, *, context=None):
+                self.contexts.append(deepcopy(context))
+                if not context.get("proof"):
+                    return '{"valid":false,"confidence":0.99,"required_evidence":["proof"]}'
+                if context["tool_calls"][0]["name"] == "write_file":
+                    return '{"valid":false,"confidence":0.99,"issues":[{"code":"forbidden_write","severity":"critical","message":"writes are forbidden"}]}'
+                return '{"valid":true,"confidence":0.99}'
+
+        def retrieve(keys, context):
+            context["tool_calls"][0]["arguments"]["path"] = "different.txt"
+            return {"proof": "fetched", "tool_calls": [{"name": "read_file", "arguments": {}}]}
+
+        critic = PlanCheckingCritic("c", [])
+        dispatch = Mock()
+        engine = CognitiveEngine(
+            DualModelEngine(Backend("p", ["draft", "revised"]), critic),
+            evidence_retriever=retrieve, tool_executor=HermesToolExecutor(dispatch),
+        )
+
+        with self.assertRaises(CognitiveEngineError):
+            engine.run_and_execute(CognitiveRequest("inspect files"), tool_calls=plan)
+
+        dispatch.assert_not_called()
+        self.assertEqual([c["tool_calls"] for c in critic.contexts], [plan, plan])
+        self.assertEqual(critic.contexts[1]["proof"], "fetched")
+
     def test_critic_rejects_the_actual_plan_instead_of_a_stale_request_plan(self):
         plan = [{"name": "write_file", "arguments": {"path": "actual.txt"}}]
         context = {"tool_calls": [{"name": "read_file", "arguments": {"path": "stale.txt"}}]}

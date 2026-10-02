@@ -94,11 +94,20 @@ class CognitiveEngine:
         return GateDecision(DecisionAction.ESCALATE, "Review could not be satisfied within the correction budget.", critic)
 
     def run(self, request: CognitiveRequest) -> tuple[InferenceResult, DecisionCycle]:
+        return self._run_cycle(request)
+
+    def _run_cycle(
+        self, request: CognitiveRequest, *, tool_plan: list[dict[str, Any]] | None = None,
+    ) -> tuple[InferenceResult, DecisionCycle]:
         cycle = DecisionCycle(request=request)
-        context = dict(request.context)
+        context = deepcopy(request.context)
         correction: str | None = None
 
         for _ in range(self.max_attempts):
+            if tool_plan is not None:
+                # Retrieved data must not replace the authority of the explicit
+                # execution plan, including when a retriever mutates its context.
+                context["tool_calls"] = deepcopy(tool_plan)
             output = self.dual_model.evaluate(request.goal, context=context, correction=correction)
             gate = self.adversarial_gate(
                 output.critic, corrections_used=cycle.corrections,
@@ -153,7 +162,7 @@ class CognitiveEngine:
             request,
             context={**deepcopy(request.context), "tool_calls": deepcopy(validated)},
         )
-        inference, cycle = self.run(reviewed_request)
+        inference, cycle = self._run_cycle(reviewed_request, tool_plan=validated)
         results = self.tool_executor.execute(validated)
         return CognitiveExecutionResult(inference, cycle, results)
 
