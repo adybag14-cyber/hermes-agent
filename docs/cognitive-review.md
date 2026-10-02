@@ -26,7 +26,7 @@ The reviewer implements `evaluate_turn(candidate, *, context)` and returns a dec
 
 The rejection budget is per task and resets on acceptance or escalation. The normal Hermes iteration budget still applies. Evidence requests are feedback for regeneration: the adapter does not autonomously perform an evidence search. A subsequent proposed search must itself pass review.
 
-Without a reviewer, the normal Hermes flow remains available. Whole tool batches must still contain JSON-object argument envelopes before either executor lane can run. Acceptance never bypasses existing authorization, plugin policy, or guardrails.
+Without a reviewer, the normal Hermes flow remains available. Whole tool batches must still contain JSON-object argument envelopes with finite numeric values before either executor lane can run. Acceptance never bypasses existing authorization, plugin policy, or guardrails.
 
 ## Critic-only model adapter
 
@@ -35,5 +35,7 @@ Without a reviewer, the normal Hermes flow remains available. Whole tool batches
 The critic's `valid` field must be a JSON boolean and `confidence` a number between zero and one. Strings such as `"false"`, numeric booleans, non-finite confidence values, and malformed issue/evidence arrays cannot authorize tools.
 
 For callers using `CognitiveEngine.run_and_execute` directly, the complete explicit tool plan is validated before inference and included in the review context. The primary and critic backends receive separate context snapshots. A malformed later call blocks the entire batch before any tool runs, and dispatch receives the reviewed plan rather than a caller's stale context entry.
+
+`HermesToolExecutor` accepts a dispatcher callback, which is responsible for its authorization. Use the native agent gate when the full `AIAgent` plugin and guardrail chain is required.
 
 An OpenAI-compatible llama.cpp endpoint can be wrapped with `LlamaCppInferenceBackend(LlamaCppEndpoint(...))`. Hermes and the device runtime remain responsible for starting servers, selecting models, and allocating memory. The boundary tests use controlled model/dispatcher doubles; they do not establish physical-device GGUF performance or model quality.
