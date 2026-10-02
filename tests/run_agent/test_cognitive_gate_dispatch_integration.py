@@ -217,7 +217,10 @@ def test_accepted_gate_does_not_bypass_authorization(agent):
     assert any("Policy denied" in str(m.get("content", "")) for m in result["messages"] if m.get("role") == "tool")
 
 
-@pytest.mark.parametrize("arguments", ["[]", "null", "42", '"text"', '{"query":', None])
+@pytest.mark.parametrize("arguments", [
+    "[]", "null", "42", '"text"', '{"query":', None,
+    '{"value":NaN}', '{"value":Infinity}', '{"value":1e999}',
+])
 def test_executor_rejects_invalid_argument_envelopes_before_dispatch(agent, arguments):
     call = _tool_call()
     call.function.arguments = arguments

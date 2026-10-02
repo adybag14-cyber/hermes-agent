@@ -5,6 +5,12 @@ pluginManagement {
         repositories {
             google()
             mavenCentral()
+            maven {
+                url = uri("https://storage.googleapis.com/r8-releases/raw")
+                content {
+                    includeModule("com.android.tools", "r8")
+                }
+            }
         }
         dependencies {
             classpath("com.android.tools:r8:9.1.29")

@@ -21,6 +21,15 @@ class ToolPlanValidationTests(unittest.TestCase):
         with self.assertRaises(ToolPlanValidationError):
             parse_tool_plan_arguments(None)
 
+    def test_rejects_non_finite_numbers_at_any_depth(self):
+        for value in ("NaN", "Infinity", "-Infinity", "1e999"):
+            with self.subTest(value=value), self.assertRaises(ToolPlanValidationError):
+                parse_tool_plan_arguments('{"options":{"values":[' + value + ']}}')
+
+    def test_preserves_finite_numeric_arguments(self):
+        self.assertEqual(parse_tool_plan_arguments('{"ratio":0.5,"offset":-2,"enabled":true}'),
+                         {"ratio": 0.5, "offset": -2, "enabled": True})
+
 
 if __name__ == "__main__":
     unittest.main()
