@@ -1,4 +1,15 @@
 pluginManagement {
+    // LiteRT-LM 0.17.1 carries Kotlin 2.4 metadata. Keep the dex compiler
+    // compatible while retaining the existing AGP/Chaquopy integration.
+    buildscript {
+        repositories {
+            google()
+            mavenCentral()
+        }
+        dependencies {
+            classpath("com.android.tools:r8:9.1.29")
+        }
+    }
     repositories {
         google()
         mavenCentral()

@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import Mock
 
 from odyn_ai.cognition.hermes_execution import HermesToolExecutor
 from odyn_ai.cognition.reflexion import ReflexionEngine
@@ -32,6 +33,29 @@ class ReflexionTests(unittest.TestCase):
 
 
 class HermesToolExecutorTests(unittest.TestCase):
+    def test_invalid_later_call_blocks_the_entire_batch(self):
+        for invalid in (None, {"name": ""}, {"name": "write_file", "arguments": []},
+                        {"name": "write_file", "arguments": {"value": float("nan")}}):
+            with self.subTest(call=invalid):
+                dispatch = Mock()
+                executor = HermesToolExecutor(dispatch)
+                with self.assertRaises(ValueError):
+                    executor.execute([
+                        {"name": "write_file", "arguments": {"path": "first.txt"}},
+                        invalid,
+                    ])
+                dispatch.assert_not_called()
+
+    def test_dispatcher_cannot_mutate_the_callers_nested_plan(self):
+        plan = [{"name": "write_file", "arguments": {"options": {"path": "original.txt"}}}]
+
+        def dispatch(name, arguments):
+            arguments["options"]["path"] = "changed.txt"
+            return "ok"
+
+        HermesToolExecutor(dispatch).execute(plan)
+        self.assertEqual(plan[0]["arguments"]["options"]["path"], "original.txt")
+
     def test_executes_explicit_tool_calls_through_hermes_dispatch(self):
         calls = []
 

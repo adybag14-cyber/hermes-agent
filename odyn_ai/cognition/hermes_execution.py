@@ -4,6 +4,25 @@ import json
 from typing import Any, Callable, Mapping
 
 
+def validate_tool_calls(tool_calls: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Snapshot and validate the complete plan before any dispatch."""
+    validated = []
+    for call in tool_calls:
+        if not isinstance(call, Mapping):
+            raise ValueError("tool calls must be objects")
+        name = call.get("name")
+        arguments = call.get("arguments", {})
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("tool call name must be a non-empty string")
+        if not isinstance(arguments, dict):
+            raise ValueError(f"tool arguments for {name} must be an object")
+        # The JSON round trip validates serializability and breaks shared
+        # references, so reviewers/dispatchers cannot change the caller's plan.
+        arguments = json.loads(json.dumps(arguments, allow_nan=False))
+        validated.append({"name": name, "arguments": arguments})
+    return validated
+
+
 class HermesToolExecutor:
     """Cognition-to-Hermes bridge for explicit structured tool calls."""
 
@@ -11,14 +30,11 @@ class HermesToolExecutor:
         self._dispatch = dispatch
 
     def execute(self, tool_calls: list[Mapping[str, Any]]) -> list[dict[str, str]]:
+        validated = validate_tool_calls(tool_calls)
         results = []
-        for call in tool_calls:
-            name = call.get("name")
-            arguments = call.get("arguments", {})
-            if not isinstance(name, str) or not name.strip():
-                raise ValueError("tool call name must be a non-empty string")
-            if not isinstance(arguments, dict):
-                raise ValueError(f"tool arguments for {name} must be an object")
+        for call in validated:
+            name = call["name"]
+            arguments = call["arguments"]
             result = self._dispatch(name, arguments)
             results.append({
                 "name": name,

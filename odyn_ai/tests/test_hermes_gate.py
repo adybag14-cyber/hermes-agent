@@ -68,6 +68,28 @@ class HermesDualModelGateTests(unittest.TestCase):
         self.assertEqual(gate.evaluate_turn(candidate(), context=context()).action.value, "correct")
         self.assertEqual(gate.evaluate_turn(candidate(), context=context()).action.value, "escalate")
 
+    def test_invalid_critic_field_types_cannot_authorize_tools(self):
+        accepted = {"valid": True, "confidence": 0.99, "issues": [],
+                    "corrections": [], "required_evidence": []}
+        invalid_fields = [
+            ("valid", "false"), ("valid", "true"), ("valid", 1),
+            ("confidence", "0.99"), ("confidence", True),
+            ("confidence", float("nan")), ("confidence", float("inf")),
+            ("issues", {}), ("issues", [{"code": "x", "severity": "low", "message": 1}]),
+            ("corrections", "fix it"), ("corrections", [1]),
+            ("required_evidence", "source"), ("required_evidence", [None]),
+        ]
+        for key, value in invalid_fields:
+            with self.subTest(key=key, value=value):
+                gate, primary, _ = self.make_gate([json.dumps({**accepted, key: value})])
+                decision = gate.evaluate_turn(
+                    candidate(calls=[{"name": "write_file", "arguments": {"path": "x"}}]),
+                    context=context(),
+                )
+                self.assertEqual(decision.action.value, "escalate")
+                self.assertFalse(decision.critic.valid)
+                self.assertEqual(primary.prompts, [])
+
 
 if __name__ == "__main__":
     unittest.main()

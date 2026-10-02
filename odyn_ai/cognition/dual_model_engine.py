@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -48,7 +49,7 @@ class DualModelEngine:
         context = dict(context or {})
         answer = self.primary.generate(
             self._build_primary_prompt(goal, correction),
-            context=context,
+            context=deepcopy(context),
         )
         primary = InferenceResult(
             answer=answer,
@@ -57,7 +58,7 @@ class DualModelEngine:
         )
         raw = self.critic.generate(
             self._build_critic_prompt(goal, answer, context),
-            context=context,
+            context=deepcopy(context),
         )
         return DualModelOutput(primary=primary, critic=self._parse_critic(raw))
 
@@ -102,6 +103,25 @@ class DualModelEngine:
     def _parse_critic(self, raw: str) -> CriticResult:
         try:
             payload = self._extract_json(raw)
+            valid = payload["valid"]
+            confidence = payload["confidence"]
+            if type(valid) is not bool:
+                raise ValueError("critic valid must be a JSON boolean")
+            if type(confidence) not in {int, float} or not 0.0 <= confidence <= 1.0:
+                raise ValueError("critic confidence must be a number between 0 and 1")
+            for key in ("issues", "corrections", "required_evidence"):
+                if not isinstance(payload.get(key, []), list):
+                    raise ValueError(f"critic {key} must be an array")
+            for key in ("corrections", "required_evidence"):
+                if any(not isinstance(value, str) for value in payload.get(key, [])):
+                    raise ValueError(f"critic {key} must contain only strings")
+            for item in payload.get("issues", []):
+                if not isinstance(item, dict):
+                    raise ValueError("critic issues must contain objects")
+                if any(not isinstance(item.get(key), str) for key in ("code", "severity", "message")):
+                    raise ValueError("critic issue code, severity and message must be strings")
+                if item.get("correction") is not None and not isinstance(item["correction"], str):
+                    raise ValueError("critic issue correction must be a string or null")
             issues = tuple(
                 CriticIssue(
                     code=str(item["code"]),
@@ -111,8 +131,7 @@ class DualModelEngine:
                 )
                 for item in payload.get("issues", [])
             )
-            confidence = float(payload.get("confidence", 0.0))
-            valid = bool(payload.get("valid", False))
+            confidence = float(confidence)
             if valid and confidence < self.critic_confidence_threshold:
                 valid = False
                 issues += (
@@ -149,6 +168,8 @@ class DualModelEngine:
 
     @staticmethod
     def _extract_json(raw: str) -> dict[str, Any]:
+        if not isinstance(raw, str):
+            raise TypeError("critic response must be text")
         raw = raw.strip()
         try:
             value = json.loads(raw)

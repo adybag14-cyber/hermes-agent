@@ -37,6 +37,7 @@ TEST_PACKAGE_ID = f"{PACKAGE_ID}.macrobenchmark"
 MAIN_ACTIVITY = f"{PACKAGE_ID}/.MainActivity"
 BUILD_VARIANT = "benchmark"
 PROFILES = ("phone-compact", "tablet")
+# Compatibility constant for historical v0.13.148 evidence consumers.
 LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:0.16.1"
 ANDROIDX_BENCHMARK_COORDINATE = "androidx.benchmark:benchmark-macro-junit4:1.4.1"
 REPORTING_PACKAGE_COMPILATION_MODE = "run-from-apk"
@@ -255,6 +256,7 @@ class ReleaseEvidencePayloadValidator:
                 config.release_source_digest,
                 config.version_name,
                 config.version_code,
+                litertlm_coordinate=config.litertlm_coordinate,
                 artifact_path_overrides={
                     f"performance/{config.profile}.host.raw.json": host_raw_path,
                     f"performance/{config.profile}.macrobenchmark.raw.json": macrobenchmark_raw_path,
@@ -313,9 +315,15 @@ class CollectorConfig:
             raise CollectorError("version_name must be a nonblank token")
         if isinstance(self.version_code, bool) or self.version_code <= 0:
             raise CollectorError("version_code must be a positive integer")
-        if self.litertlm_coordinate != LITERTLM_COORDINATE:
+        try:
+            expected_coordinate = _load_release_evidence_module().litertlm_coordinate_for_tag(
+                f"v{self.version_name}"
+            )
+        except Exception as exc:
+            raise CollectorError(f"Unable to resolve release dependency: {exc}") from exc
+        if self.litertlm_coordinate != expected_coordinate:
             raise CollectorError(
-                f"litertlm_coordinate must equal the release dependency {LITERTLM_COORDINATE}"
+                f"litertlm_coordinate must equal the release dependency {expected_coordinate}"
             )
         if not self.adb.strip() or not self.emulator.strip():
             raise CollectorError("adb and emulator executable inputs must be nonblank")
@@ -2152,3 +2160,4 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

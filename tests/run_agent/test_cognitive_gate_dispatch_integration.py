@@ -243,6 +243,28 @@ def test_real_critic_adapter_controls_native_dispatch(agent):
     assert result["turn_exit_reason"].startswith("text_response")
 
 
+@pytest.mark.parametrize("invalid_fields", [
+    {"valid": "false"},
+    {"valid": 1},
+    {"confidence": "0.95"},
+    {"confidence": True},
+    {"issues": [{"code": "x", "severity": "low", "message": []}]},
+])
+def test_malformed_real_critic_cannot_authorize_native_tools(invalid_fields):
+    from odyn_ai.cognition import DualModelEngine, HermesDualModelGate
+    payload = {"valid": True, "confidence": 0.95, **invalid_fields}
+    primary = SimpleNamespace(model_id="primary", generate=MagicMock())
+    critic = SimpleNamespace(model_id="critic", generate=MagicMock(return_value=json.dumps(payload)))
+    instance = _create_agent(cognitive_gate=HermesDualModelGate(DualModelEngine(primary, critic)))
+
+    result, calls = _run(instance, None, [_response(with_tool=True)], configure_gate=False)
+
+    assert calls == []
+    assert result["turn_exit_reason"] == "cognitive_gate_escalation"
+    primary.generate.assert_not_called()
+    critic.generate.assert_called_once()
+
+
 def test_rejected_batch_records_every_call_without_dispatch(agent):
     batch = [_tool_call("one"), _tool_call("two")]
     result, calls = _run(agent, [_decision("escalate")], [_response(with_tool=True, calls=batch)])

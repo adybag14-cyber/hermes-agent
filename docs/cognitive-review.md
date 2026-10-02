@@ -32,4 +32,8 @@ Without a reviewer, the normal Hermes flow remains available. Whole tool batches
 
 `odyn_ai.cognition.HermesDualModelGate` adapts a `DualModelEngine` to this contract by calling `review_candidate`. This path calls the critic endpoint only; Hermes has already generated the primary candidate. The cognition modules are shipped with the Hermes Python package. Their internal namespace does not change the application's name or interface.
 
+The critic's `valid` field must be a JSON boolean and `confidence` a number between zero and one. Strings such as `"false"`, numeric booleans, non-finite confidence values, and malformed issue/evidence arrays cannot authorize tools.
+
+For callers using `CognitiveEngine.run_and_execute` directly, the complete explicit tool plan is validated before inference and included in the review context. The primary and critic backends receive separate context snapshots. A malformed later call blocks the entire batch before any tool runs, and dispatch receives the reviewed plan rather than a caller's stale context entry.
+
 An OpenAI-compatible llama.cpp endpoint can be wrapped with `LlamaCppInferenceBackend(LlamaCppEndpoint(...))`. Hermes and the device runtime remain responsible for starting servers, selecting models, and allocating memory. The boundary tests use controlled model/dispatcher doubles; they do not establish physical-device GGUF performance or model quality.

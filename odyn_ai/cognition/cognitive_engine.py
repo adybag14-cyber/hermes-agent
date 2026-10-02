@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 from .dual_model_engine import DualModelEngine
-from .hermes_execution import HermesToolExecutor
+from .hermes_execution import HermesToolExecutor, validate_tool_calls
 from .reflexion import ReflexionEngine
 from .temporal_rag import TemporalRAG
 from .types import (
@@ -147,8 +148,13 @@ class CognitiveEngine:
                 "Hermes tool executor is not configured.",
                 cycle=DecisionCycle(request=request),
             )
-        inference, cycle = self.run(request)
-        results = self.tool_executor.execute(tool_calls)
+        validated = validate_tool_calls(tool_calls)
+        reviewed_request = replace(
+            request,
+            context={**deepcopy(request.context), "tool_calls": deepcopy(validated)},
+        )
+        inference, cycle = self.run(reviewed_request)
+        results = self.tool_executor.execute(validated)
         return CognitiveExecutionResult(inference, cycle, results)
 
 
