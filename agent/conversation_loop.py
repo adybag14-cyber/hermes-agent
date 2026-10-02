@@ -3161,7 +3161,9 @@ def run_conversation(
                 gate_action = getattr(gate_action, "value", gate_action)
                 if isinstance(gate_decision, dict):
                     gate_action = gate_decision.get("action", gate_action)
-                if gate_action is not None and gate_action != "accept":
+                if gate_decision is not None and gate_action != "accept":
+                    if gate_action is None:
+                        gate_action = "invalid"
                     gate_reason = getattr(gate_decision, "reason", "")
                     if isinstance(gate_decision, dict):
                         gate_reason = gate_decision.get("reason", gate_reason)
