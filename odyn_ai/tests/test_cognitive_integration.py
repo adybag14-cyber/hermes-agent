@@ -35,6 +35,26 @@ class CognitiveIntegrationTests(unittest.TestCase):
         self.assertEqual(result.answer, "final")
         self.assertEqual(cycle.status.value, "accepted")
 
+    def test_required_evidence_prevents_acceptance_even_for_valid_low_severity_critic(self):
+        rag = InMemoryTemporalRAG()
+        rag.add("evidence payload", source="unit-test", timestamp=100)
+        primary = Backend("p", ["draft", "final"])
+        critic = Backend("c", [
+            '{"valid":true,"confidence":0.99,"issues":[],"corrections":[],"required_evidence":["source-key"]}',
+            '{"valid":true,"confidence":0.99,"issues":[],"corrections":[],"required_evidence":[]}',
+        ])
+        engine = CognitiveEngine(
+            DualModelEngine(primary, critic),
+            temporal_rag=rag,
+            clock=lambda: 150,
+        )
+
+        result, cycle = engine.run(CognitiveRequest("source-key"))
+
+        self.assertEqual(result.answer, "final")
+        self.assertEqual(cycle.history[0].action.value, "retrieve_evidence")
+        self.assertEqual(cycle.status.value, "accepted")
+
     def test_reflexion_output_drives_next_primary_correction(self):
         primary = Backend("p", ["bad", "good"])
         critic = Backend("c", [
