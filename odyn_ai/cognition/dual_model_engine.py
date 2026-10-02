@@ -61,6 +61,23 @@ class DualModelEngine:
         )
         return DualModelOutput(primary=primary, critic=self._parse_critic(raw))
 
+    def review_candidate(
+        self,
+        goal: str,
+        candidate: str,
+        *,
+        tool_calls: list[dict[str, Any]] | tuple[dict[str, Any], ...] = (),
+        context: dict[str, Any] | None = None,
+    ) -> CriticResult:
+        """Review an already-generated candidate without invoking the primary model."""
+        review_context = dict(context or {})
+        review_context["tool_calls"] = list(tool_calls)
+        raw = self.critic.generate(
+            self._build_critic_prompt(goal, candidate, review_context),
+            context=review_context,
+        )
+        return self._parse_critic(raw)
+
     @staticmethod
     def _build_primary_prompt(goal: str, correction: str | None) -> str:
         prompt = f"Goal:\n{goal}\n"
