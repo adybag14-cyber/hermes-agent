@@ -1,0 +1,45 @@
+name: ODYN-AI Autonomous Repo Agent
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      task_prompt:
+        description: 'Polecenie inżynieryjne do wykonania w repozytorium'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  execute_autonomous_task:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' && github.event.issue.user.login == github.repository_owner) ||
+      (github.event_name == 'issue_comment' && github.event.comment.user.login == github.repository_owner && startsWith(github.event.comment.body, '@odyn'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run ODYN-AI Cloud Agent
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          AGENT_TASK: ${{ github.event.inputs.task_prompt || github.event.comment.body || format('{0}\n{1}', github.event.issue.title, github.event.issue.body) }}
+        run: python3 .github/scripts/odyn_cloud_agent.py
+      - name: Comment Report on Issue
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f AGENT_EXECUTION_REPORT.md ]; then
+            gh issue comment "${{ github.event.issue.number }}" --body-file AGENT_EXECUTION_REPORT.md
+          fi
