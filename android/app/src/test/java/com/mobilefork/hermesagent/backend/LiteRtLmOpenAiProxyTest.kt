@@ -1,5 +1,7 @@
 package com.mobilefork.hermesagent.backend
 
+import com.google.ai.edge.litertlm.Engine
+import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.Message
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -18,6 +20,14 @@ import kotlin.io.path.createTempDirectory
 import kotlin.io.path.pathString
 
 class LiteRtLmOpenAiProxyTest {
+    @Test
+    fun uninitializedGoogleEngineDoesNotPoisonFallbackCleanup() {
+        val engine = Engine(EngineConfig(modelPath = "missing.litertlm"))
+        assertFalse(engine.isInitialized())
+        LiteRtLmOpenAiProxy.closeInitializedEngine(engine)
+        assertFalse(engine.isInitialized())
+    }
+
     private class FakeStartupCandidate(
         private val completion: () -> LiteRtLmOpenAiProxy.StartupCompletionCanary,
         private val initializationFailure: Throwable? = null,
