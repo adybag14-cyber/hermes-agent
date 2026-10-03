@@ -38,6 +38,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 object LiteRtLmOpenAiProxy {
+    internal fun closeInitializedEngine(engine: Engine?) {
+        if (engine?.isInitialized() == true) engine.close()
+    }
+
     @Volatile private var server: LiteRtLmServer? = null
     @Volatile private var activeModelPath: String = ""
     @Volatile private var activeRuntimeConfigKey: String = ""
@@ -1544,7 +1548,7 @@ object LiteRtLmOpenAiProxy {
                         activeConversation = null
                         val engineToClose = candidate
                         candidate = null
-                        captureClose { engineToClose?.close() }
+                        captureClose { closeInitializedEngine(engineToClose) }
                     } finally {
                         ExperimentalFlags.enableSpeculativeDecoding = false
                     }
