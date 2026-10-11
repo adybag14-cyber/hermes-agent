@@ -7,7 +7,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Base64
 import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.Capabilities
+import com.google.ai.edge.litertlm.ModelInfo
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
@@ -38,6 +38,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
 object LiteRtLmOpenAiProxy {
+    internal fun closeInitializedEngine(engine: Engine?) {
+        if (engine?.isInitialized() == true) engine.close()
+    }
+
     @Volatile private var server: LiteRtLmServer? = null
     @Volatile private var activeModelPath: String = ""
     @Volatile private var activeRuntimeConfigKey: String = ""
@@ -1404,8 +1408,8 @@ object LiteRtLmOpenAiProxy {
                 openClProbe = { hasLoadableOpenClLibrary() },
                 capabilitiesProbe = {
                     useOwnedNativeProbeResource(
-                        create = { Capabilities(modelPath) },
-                        query = { it.hasSpeculativeDecodingSupport() },
+                        create = { ModelInfo.from(modelPath) },
+                        query = { (it as? ModelInfo.Llm)?.hasSpeculativeDecodingSupport() == true },
                         close = { it.close() },
                     )
                 },
@@ -1544,7 +1548,7 @@ object LiteRtLmOpenAiProxy {
                         activeConversation = null
                         val engineToClose = candidate
                         candidate = null
-                        captureClose { engineToClose?.close() }
+                        captureClose { closeInitializedEngine(engineToClose) }
                     } finally {
                         ExperimentalFlags.enableSpeculativeDecoding = false
                     }

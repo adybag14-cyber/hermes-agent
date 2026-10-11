@@ -3,7 +3,7 @@ package com.mobilefork.hermesagent.backend
 import android.content.Context
 import java.io.File
 
-/** The Play GGUF engine is the source-built static e30664a engine, never a downloaded executable. */
+/** The Play GGUF engine is the source-built static engine pinned by the native build lock. */
 internal object PlayPackagedLlamaLaunch {
     const val PACKAGED_LIBRARY = "libhermes_android_llama_server_experimental.so"
 

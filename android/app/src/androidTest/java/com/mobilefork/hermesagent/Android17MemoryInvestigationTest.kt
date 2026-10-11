@@ -19,6 +19,9 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.URI
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
@@ -64,6 +67,7 @@ class Android17MemoryInvestigationTest {
         val expected = args.getString("agentModelSha256").orEmpty()
         require(Regex("[a-f0-9]{64}").matches(expected))
         val bypass = args.getString("agentRamBypass") == "true"
+        val occupyPreferredPort = args.getString("agentOccupyPreferredPort") == "true"
         val model = File(path)
         require(model.isFile && model.length() > 0)
         val digest = MessageDigest.getInstance("SHA-256")
@@ -77,14 +81,28 @@ class Android17MemoryInvestigationTest {
             .put("model_name", model.name).put("model_bytes", model.length()).put("sha256", expected)
             .put("ram_bypass_requested", bypass).put("before", JSONObject(LocalModelRuntimeDiagnostics.exportSupportSnapshot(context)))
             .put("previous_exits", exits()).put("inference_passed", false)
-        val name = if (bypass) "model-bypass.json" else "model-normal.json"
+        val name = if (occupyPreferredPort) "model-port-conflict.json" else if (bypass) "model-bypass.json" else "model-normal.json"
+        assertNull("Existing owned model could not stop", LlamaCppServerController.stop())
+        val occupied = if (occupyPreferredPort) ServerSocket(18791, 1, InetAddress.getByName("127.0.0.1")) else null
         try {
-            assertNull("Existing owned model could not stop", LlamaCppServerController.stop())
             val status = LlamaCppServerController.ensureRunning(
                 context = context, modelPath = model.absolutePath,
                 requestedModelName = model.nameWithoutExtension, port = 18791,
                 dangerouslySkipRamChecks = bypass,
             )
+            if (occupyPreferredPort) {
+                assertTrue(status.statusMessage, status.started)
+                assertNotEquals(18791, URI(status.baseUrl).port)
+                val reused = LlamaCppServerController.ensureRunning(
+                    context = context, modelPath = model.absolutePath,
+                    requestedModelName = model.nameWithoutExtension, port = 18791,
+                    dangerouslySkipRamChecks = bypass,
+                )
+                assertTrue(reused.statusMessage, reused.started)
+                assertEquals(status.baseUrl, reused.baseUrl)
+                assertEquals("The existing owned process must be reused", status.apiKey, reused.apiKey)
+                result.put("occupied_preferred_port", 18791).put("selected_port", URI(status.baseUrl).port)
+            }
             result.put("started", status.started).put("status", status.statusMessage)
                 .put("completion_verified", status.completionVerified)
                 .put("after_start", JSONObject(LocalModelRuntimeDiagnostics.exportSupportSnapshot(context)))
@@ -113,11 +131,18 @@ class Android17MemoryInvestigationTest {
             result.put("inference_passed", true)
         } finally {
             val stopError = LlamaCppServerController.stop()
+            if (occupied != null) {
+                result.put("unrelated_listener_preserved", !occupied.isClosed)
+                occupied.close()
+            }
             result.put("stop_succeeded", stopError == null)
                 .put("after_stop", JSONObject(LocalModelRuntimeDiagnostics.exportSupportSnapshot(context)))
                 .put("latest_exits", exits())
             save(name, result)
             assertNull("Owned model stop failed", stopError)
+            if (occupied != null) {
+                assertTrue("The unrelated listener must survive model shutdown", result.getBoolean("unrelated_listener_preserved"))
+            }
         }
     }
 }

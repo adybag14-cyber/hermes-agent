@@ -259,7 +259,7 @@ val keystoreProperties = Properties().apply {
     }
 }
 val hasReleaseKeystore = keystoreProperties.isNotEmpty()
-val liteRtLmStableVersion = "0.17.1"
+val liteRtLmStableVersion = "0.18.0"
 val liteRtLmVersion = providers.gradleProperty("hermesLiteRtLmVersion")
     .getOrElse(liteRtLmStableVersion)
     .trim()

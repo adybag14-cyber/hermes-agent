@@ -303,7 +303,7 @@ Google does not currently publish an Android nightly Maven coordinate. To test
 a newly published exact preview version without changing the release default:
 
 ```powershell
-./gradlew.bat :app:compileDebugKotlin -PhermesLiteRtLmVersion=0.17.1
+./gradlew.bat :app:compileDebugKotlin -PhermesLiteRtLmVersion=0.18.0
 ```
 
 To test an Android AAR built locally from LiteRT-LM `main`:
