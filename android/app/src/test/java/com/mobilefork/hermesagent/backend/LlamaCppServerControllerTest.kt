@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.net.InetAddress
 import java.net.ServerSocket
+import java.net.Socket
 
 class LlamaCppServerControllerTest {
     @Test
@@ -248,6 +249,35 @@ class LlamaCppServerControllerTest {
             occupied.close()
         }
         assertTrue(LlamaCppServerController.isLoopbackPortAvailable(port))
+    }
+
+    @Test
+    fun occupiedPreferredPortReservesAFreePortAndPreservesTheOtherListener() {
+        val loopback = InetAddress.getByName("127.0.0.1")
+        ServerSocket(0, 1, loopback).use { occupied ->
+            val selected = reserveLlamaLoopbackPort(occupied.localPort).use { reservation ->
+                assertTrue(reservation.localPort != occupied.localPort)
+                assertEquals(loopback, reservation.inetAddress)
+                assertFalse(LlamaCppServerController.isLoopbackPortAvailable(reservation.localPort))
+                Socket(loopback, occupied.localPort).use { client ->
+                    client.getOutputStream().write(42)
+                    occupied.accept().use { peer -> assertEquals(42, peer.getInputStream().read()) }
+                }
+                reservation.localPort
+            }
+            assertTrue(LlamaCppServerController.isLoopbackPortAvailable(selected))
+            assertFalse(occupied.isClosed)
+        }
+    }
+
+    @Test
+    fun freePreferredPortIsReservedUntilLaunch() {
+        val preferred = ServerSocket(0).use { it.localPort }
+        reserveLlamaLoopbackPort(preferred).use { reservation ->
+            assertEquals(preferred, reservation.localPort)
+            assertFalse(LlamaCppServerController.isLoopbackPortAvailable(preferred))
+        }
+        assertTrue(LlamaCppServerController.isLoopbackPortAvailable(preferred))
     }
 
     @Test

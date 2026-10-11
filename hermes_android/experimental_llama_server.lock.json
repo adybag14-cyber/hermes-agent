@@ -2,10 +2,10 @@
   "schema_version": 1,
   "source": {
     "repository": "https://github.com/TheTom/llama-cpp-turboquant",
-    "commit": "bcb85fc3ae85efa0f5f392c6c880dfc524923860",
-    "archive_url": "https://codeload.github.com/TheTom/llama-cpp-turboquant/tar.gz/bcb85fc3ae85efa0f5f392c6c880dfc524923860",
-    "archive_size_bytes": 37594863,
-    "archive_sha256": "4c57d59e0b366f3db1e048fa8bee4a9b7c97859583613c19513eba34765400fb",
+    "commit": "6e09de1b44ae328f641d1367bb4c875a8ffab43f",
+    "archive_url": "https://codeload.github.com/TheTom/llama-cpp-turboquant/tar.gz/6e09de1b44ae328f641d1367bb4c875a8ffab43f",
+    "archive_size_bytes": 37583179,
+    "archive_sha256": "dbf21e2e5d5e6d89ee613a8afe4d4a3d3618ea6dfe57c59b9aac3f858e648c49",
     "license": "MIT"
   },
   "android": {
@@ -39,9 +39,9 @@
       "GGML_LLAMAFILE": "OFF",
       "GGML_NATIVE": "OFF",
       "GGML_OPENMP": "OFF",
-      "LLAMA_BUILD_COMMIT": "bcb85fc3ae85efa0f5f392c6c880dfc524923860",
+      "LLAMA_BUILD_COMMIT": "6e09de1b44ae328f641d1367bb4c875a8ffab43f",
       "LLAMA_BUILD_EXAMPLES": "OFF",
-      "LLAMA_BUILD_NUMBER": "10837",
+      "LLAMA_BUILD_NUMBER": "10850",
       "LLAMA_BUILD_SERVER": "ON",
       "LLAMA_BUILD_TESTS": "OFF",
       "LLAMA_BUILD_UI": "OFF",
@@ -66,7 +66,7 @@
   ],
   "artifact": {
     "packaged_filename": "libhermes_android_llama_server_experimental.so",
-    "server_identity": "llama-cpp-turboquant-bcb85fc-android-static"
+    "server_identity": "llama-cpp-turboquant-6e09de1-android-static"
   },
   "license_artifacts": [
     {

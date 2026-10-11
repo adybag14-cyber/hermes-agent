@@ -7,7 +7,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Base64
 import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.Capabilities
+import com.google.ai.edge.litertlm.ModelInfo
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
@@ -1408,8 +1408,8 @@ object LiteRtLmOpenAiProxy {
                 openClProbe = { hasLoadableOpenClLibrary() },
                 capabilitiesProbe = {
                     useOwnedNativeProbeResource(
-                        create = { Capabilities(modelPath) },
-                        query = { it.hasSpeculativeDecodingSupport() },
+                        create = { ModelInfo.from(modelPath) },
+                        query = { (it as? ModelInfo.Llm)?.hasSpeculativeDecodingSupport() == true },
                         close = { it.close() },
                     )
                 },
