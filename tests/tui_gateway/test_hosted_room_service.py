@@ -588,16 +588,20 @@ def test_same_thread_followup_migrates_and_delivers_committed_peer_reply(
             for event in service._events("room-1")
         )
     )
-    with sqlite3.connect(db) as conn:
-        assert conn.execute(
-            """SELECT COUNT(*) FROM hosted_room_policy_transcript
-               WHERE room_id='room-1' AND thread_id='thread-1'"""
-        ).fetchone()[0] == 2
-        conn.execute("DELETE FROM hosted_room_policy_transcript")
-        conn.execute(
-            """DELETE FROM hosted_room_policy_transcript_state
-               WHERE room_id='room-1'"""
-        )
+    # The activity event is committed before the scheduler finishes its policy
+    # tick. Simulate a migration between ticks, rather than deleting a projection
+    # while a plan is still being built from it.
+    with service._policy_lock:
+        with sqlite3.connect(db) as conn:
+            assert conn.execute(
+                """SELECT COUNT(*) FROM hosted_room_policy_transcript
+                   WHERE room_id='room-1' AND thread_id='thread-1'"""
+            ).fetchone()[0] == 2
+            conn.execute("DELETE FROM hosted_room_policy_transcript")
+            conn.execute(
+                """DELETE FROM hosted_room_policy_transcript_state
+                   WHERE room_id='room-1'"""
+            )
     service.send(
         room_id="room-1",
         event_id="user-2",
