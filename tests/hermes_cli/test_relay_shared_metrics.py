@@ -1463,6 +1463,40 @@ def test_cross_process_model_call_updates_are_transactional(tmp_path):
     assert restarted.counter_snapshot()[0]["value"] == 20
 
 
+def test_counter_waits_for_a_transient_writer_without_losing_the_update(tmp_path, monkeypatch):
+    from contextlib import contextmanager
+    import sqlite3
+    import threading
+    import time
+
+    store = SharedMetricsStore(tmp_path / "metrics.sqlite3", tmp_path / "outbox")
+    attempted = threading.Event()
+    original_connection = store._connection
+
+    @contextmanager
+    def observed_connection(**kwargs):
+        with original_connection(**kwargs) as connection:
+            connection.set_trace_callback(lambda sql: attempted.set() if sql.startswith("BEGIN") else None)
+            yield connection
+
+    monkeypatch.setattr(store, "_connection", observed_connection)
+    blocker = sqlite3.connect(store.database_path)
+    try:
+        blocker.execute("BEGIN IMMEDIATE")
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            update = executor.submit(store.record_model_call, _dimensions(), _resource())
+            assert attempted.wait(timeout=5)
+            # A short competing transaction must outlive the old 250-ms read
+            # budget without dropping a successfully admitted counter update.
+            time.sleep(0.4)
+            blocker.commit()
+            update.result(timeout=5)
+    finally:
+        blocker.rollback()
+        blocker.close()
+    assert store.counter_snapshot()[0]["value"] == 1
+
+
 def test_cross_process_client_active_attempts_record_one_install(tmp_path):
     database_path = tmp_path / "metrics.sqlite3"
     outbox_directory = tmp_path / "outbox"

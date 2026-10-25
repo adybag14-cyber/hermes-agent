@@ -12,6 +12,8 @@ endpoint through readiness, chat, process reuse, and shutdown.
   advanced model arguments, and safely handles failed LiteRT initialization.
 - Keeps optional HY Memory available through reviewed, commit-pinned HY Memory
   and ChromaDB security patches. Stored memory data is preserved.
+- Preserves registered provider credentials when catalogs change and handles
+  brief SQLite write contention without losing counter updates.
 
 The source security review, including the four specific upstream-version
 matches for already-patched fork code, is recorded in

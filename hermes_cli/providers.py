@@ -196,27 +196,10 @@ def _overlay_pdef(canonical, ov: HermesOverlay, name, env_vars, base_url, doc, s
                        source=source)
 
 
-def get_provider(name: str, *, allow_network: bool = True) -> Optional[ProviderDef]:
-    """Look up a built-in provider by id or alias: models.dev catalog merged with the Hermes overlay;
-    Hermes-only overlay (nous, openai-codex, …); plugin provider profiles with a concrete endpoint."""
-    canonical = normalize_provider(name)
-    mdev_info = _models_dev_info(canonical, allow_network)
-    overlay = HERMES_OVERLAYS.get(canonical)
-    if mdev_info is not None:
-        ov = overlay or HermesOverlay()
-        env_vars = list(ov.extra_env_vars if ov.prefer_extra_env_vars else mdev_info.env)
-        remaining = mdev_info.env if ov.prefer_extra_env_vars else ov.extra_env_vars
-        for ev in remaining:
-            if ev not in env_vars:
-                env_vars.append(ev)
-        return _overlay_pdef(canonical, ov, mdev_info.name, tuple(env_vars), ov.base_url_override or mdev_info.api,
-                             mdev_info.doc, "models.dev")
-    if overlay is not None:
-        return _overlay_pdef(canonical, overlay, _LABEL_OVERRIDES.get(canonical, canonical), overlay.extra_env_vars,
-                             overlay.base_url_override, "", "hermes")
-    # Plugin-registered profiles (plugins/model-providers/<name>/) absent from models.dev and
-    # HERMES_OVERLAYS would otherwise be "Unknown provider" in /model, --provider and model-switch
-    # even though the picker lists them. Only profiles with a concrete endpoint resolve here:
+def _profile_pdef(canonical: str) -> Optional[ProviderDef]:
+    # A registered profile owns its transport, endpoint and credential names,
+    # including when that provider later appears in the external catalog.
+    # Only profiles with a concrete endpoint resolve here:
     # placeholder profiles like ``custom`` (aliases ollama/local/vllm) ship an empty base_url and
     # are completed by config.yaml custom_providers — resolving them would preempt
     # resolve_provider_full's custom step and collapse keyed ``custom:<name>`` ids to bare custom.
@@ -231,6 +214,30 @@ def get_provider(name: str, *, allow_network: bool = True) -> Optional[ProviderD
                                auth_type=_prof.auth_type or "api_key", source="plugin-profile")
     except Exception:
         pass
+    return None
+
+
+def get_provider(name: str, *, allow_network: bool = True) -> Optional[ProviderDef]:
+    """Resolve curated overlays/profiles before catalog-only provider defaults."""
+    canonical = normalize_provider(name)
+    overlay = HERMES_OVERLAYS.get(canonical)
+    if overlay is None:
+        profile = _profile_pdef(canonical)
+        if profile is not None:
+            return profile
+    mdev_info = _models_dev_info(canonical, allow_network)
+    if mdev_info is not None:
+        ov = overlay or HermesOverlay()
+        env_vars = list(ov.extra_env_vars if ov.prefer_extra_env_vars else mdev_info.env)
+        remaining = mdev_info.env if ov.prefer_extra_env_vars else ov.extra_env_vars
+        for ev in remaining:
+            if ev not in env_vars:
+                env_vars.append(ev)
+        return _overlay_pdef(canonical, ov, mdev_info.name, tuple(env_vars), ov.base_url_override or mdev_info.api,
+                             mdev_info.doc, "models.dev")
+    if overlay is not None:
+        return _overlay_pdef(canonical, overlay, _LABEL_OVERRIDES.get(canonical, canonical), overlay.extra_env_vars,
+                             overlay.base_url_override, "", "hermes")
     return None
 
 

@@ -71,6 +71,15 @@ must continue to pass; changing the fork's version number is not remediation.
 
 ## Runtime refresh and release boundary
 
+The complete Linux suite also exposed two shared-runtime defects: a new
+models.dev entry could replace a registered provider's credential/transport
+identity, and a legitimate concurrent metrics writer could exceed the short
+250-ms read budget. Registered profiles now retain precedence when no curated
+overlay exists; counter updates use an immediate transaction with a bounded
+five-second write budget. A real held-writer regression fails before the fix.
+The API shutdown-drain fixture now delays only its owned run coroutine,
+preserving the real HTTP client tasks used by newer aiohttp releases.
+
 LiteRT-LM is pinned to Google's published Android 0.18.1 artifact. Stable
 Termux llama.cpp is 0.7.0 on both ABIs, with its current dependency closure.
 TurboQuant is pinned to `643956891dfdf51aecdbd05ca508dd21e21e8195`; source,

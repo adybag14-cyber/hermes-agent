@@ -257,7 +257,7 @@ class TestCommandCodeFetchModelsPickerContract:
         assert profile is not None
         assert "base_url" in inspect.signature(profile.fetch_models).parameters
 
-    def test_resolve_provider_full(self):
+    def test_resolve_provider_full(self, monkeypatch):
         """Both profiles must resolve through the model-switch path.
 
         Regression: ``resolve_provider_full`` only knew models.dev + overlay
@@ -266,11 +266,19 @@ class TestCommandCodeFetchModelsPickerContract:
         them.
         """
         from hermes_cli.providers import resolve_provider_full
+        from types import SimpleNamespace
+
+        # Catalog growth must not replace a registered profile's credentials
+        # or transport. Keep this independent of the live models.dev cache.
+        monkeypatch.setattr("hermes_cli.providers._models_dev_info", lambda *args, **kwargs: SimpleNamespace(
+            name="Catalog entry", env=("CMD_API_KEY",), api="https://catalog.invalid/v1", doc="",
+        ))
 
         chat = resolve_provider_full("commandcode", {}, [])
         assert chat is not None and chat.id == "commandcode"
         assert chat.transport == "openai_chat"
         assert "COMMANDCODE_API_KEY" in chat.api_key_env_vars
+        assert chat.source == "plugin-profile"
 
         anth = resolve_provider_full("commandcode-anthropic", {}, [])
         assert anth is not None and anth.id == "commandcode-anthropic"
