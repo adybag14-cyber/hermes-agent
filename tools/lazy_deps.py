@@ -5,13 +5,14 @@ active venv (or the durable target) unless ``security.allow_lazy_installs: false
 case :class:`FeatureUnavailable` carries a remediation hint. Security model: venv-scoped
 (never system Python); durable-target mode (``HERMES_LAZY_INSTALL_TARGET``, sealed images)
 APPENDS the target to ``sys.path`` so core site-packages wins every collision and a lazy
-package can only add modules, never shadow core; PyPI-by-name specs only (``_spec_is_safe``);
+package can only add modules, never shadow core; PyPI names or explicitly reviewed source pins (``_spec_is_safe``);
 ``ensure`` accepts only the :data:`LAZY_DEPS` allowlist; failures surface pip's stderr, no retry.
 """
 
 from __future__ import annotations
 
 import contextlib
+import json
 import logging
 import os
 import re
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 # Allowlist: "namespace.backend" -> pip specs matching the pyproject extra. Pins are exact
-# (security posture); bump here AND in pyproject. Shared patched floors (aiohttp==3.14.3,
+# (security posture); bump here AND in pyproject. Shared patched floors (aiohttp==3.14.5,
 # starlette==1.3.1) are literals in every feature: tests/test_packaging_metadata.py checks by AST.
 LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # ─── Inference providers ───────────────────────────────────────────────
@@ -105,7 +106,10 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     "image.fal": ("fal-client==0.13.1",),
 
     # ─── Memory providers ──────────────────────────────────────────────────
-    "memory.hy_memory": ("hy-memory==1.2.18",),
+    "memory.hy_memory": (
+        "hy-memory @ git+https://github.com/adybag14-cyber/Hy-Memory.git@a4ba7bcaa8b6347febb966445814ea9a51ae1538",
+        "chromadb @ git+https://github.com/adybag14-cyber/chroma.git@8f60a3606141bf1b388e0df57faf4982580a9384",
+    ),
     "memory.honcho": ("honcho-ai==2.2.0",),
     "memory.hindsight": ("hindsight-client==0.6.1",),
     # Cloud memory SDKs MUST be allowlisted + ensure()'d at the import site, or they never
@@ -123,20 +127,20 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # br" — see #12511 / #15744.
     "platform.discord": (
         "discord.py[voice]==2.7.1",
-        "brotlicffi==1.2.0.1",
-        "aiohttp==3.14.3",
+        "brotlicffi==1.2.1.0",
+        "aiohttp==3.14.5",
     ),
     "platform.slack": (
         "slack-bolt==1.30.0",
         "slack-sdk==3.43.0",
-        "aiohttp==3.14.3",
+        "aiohttp==3.14.5",
     ),
     "platform.matrix": (
         "mautrix[encryption]==0.21.1",
         "aiosqlite==0.22.1",
         "asyncpg==0.31.0",
         "aiohttp-socks==0.11.0",
-        "aiohttp==3.14.3",
+        "aiohttp==3.14.5",
     ),
     "platform.dingtalk": (
         "dingtalk-stream==0.24.3",
@@ -150,7 +154,7 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # WeCom callback adapter parses untrusted XML POST bodies -> defusedxml.
     "platform.wecom_callback": ("defusedxml==0.7.1",),
     # Teams pulls a heavy tree (msal, dependency-injector); also the `teams` extra.
-    "platform.teams": ("microsoft-teams-apps==2.0.13.4", "aiohttp==3.14.3"),
+    "platform.teams": ("microsoft-teams-apps==2.0.13.4", "aiohttp==3.14.5"),
 
     # ─── Terminal backends ─────────────────────────────────────────────────
     "terminal.modal": ("modal==1.3.4",),
@@ -183,11 +187,11 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # Vision image-resize recovery (Pillow). Pillow is now a CORE dependency (pyproject `dependencies`), so
     # this entry is a belt-and-suspenders fallback for stripped/source-build installs that somehow dropped
     # it. See #40490.
-    "tool.vision": ("Pillow==12.3.0",),
+    "tool.vision": ("Pillow==13.0.0",),
     "tool.doc_extract": ("firecrawl-anydoc==0.2.4",),  # imports as `anydoc`; lockstep with pyproject
     # MCP client SDK for the cua-driver, so computer_use never dead-ends on `No module named 'mcp'`.
     "tool.computer_use": (
-        "mcp==2.0.0",
+        "mcp==2.3.0",
         "httpx2==2.13.1",  # mcp 2.x HTTP stack — sync with pyproject [computer-use]
         "starlette==1.3.1",
     ),
@@ -208,6 +212,12 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
 
 
 # Spec validation: name[extras]specifier only — no URLs, paths, or shell metachars.
+# No published Chroma release fixes the collection-boundary advisories yet.
+# Only these complete reviewed requirements may use a source origin. Installed
+# distributions must retain matching PEP 610 provenance; a PyPI name/version
+# alone cannot satisfy the security pin.
+_PINNED_SOURCE_SPECS = frozenset(LAZY_DEPS["memory.hy_memory"])
+
 _NAME_RE = r"[A-Za-z0-9_][A-Za-z0-9_.\-]*"
 _NAME_EXTRAS_RE = re.compile(rf"^{_NAME_RE}(?:\[[A-Za-z0-9_,\-]+\])?")
 _SAFE_SPEC = re.compile(rf"^{_NAME_RE}(?:\[[A-Za-z0-9_,\-]+\])?(?:[<>=!~]=?[A-Za-z0-9_.\-+,*<>=!~]+)?$")
@@ -335,7 +345,9 @@ def _unsupported_feature_reason(feature: str) -> Optional[str]:
 
 
 def _spec_is_safe(spec: str) -> bool:
-    """Reject pip specs that contain URLs, paths, or shell metacharacters."""
+    """Permit reviewed source pins; reject every other URL, path, or shell fragment."""
+    if spec in _PINNED_SOURCE_SPECS:
+        return True
     return bool(spec and len(spec) <= 200
                 and not any(ch in spec for ch in (";", "|", "&", "`", "$", "\n", "\r", "\t", "\\"))
                 and not spec.startswith(("-", "/", ".")) and "://" not in spec and "@" not in spec
@@ -370,6 +382,22 @@ def _is_satisfied(spec: str) -> bool:
     toward "don't churn"."""
     installed = _installed_version(spec)
     if installed is None:
+        return False
+    if spec in _PINNED_SOURCE_SPECS:
+        from importlib.metadata import distribution
+
+        url, commit = spec.split(" @ git+", 1)[1].rsplit("@", 1)
+        try:
+            origin = json.loads(distribution(_pkg_name_from_spec(spec)).read_text("direct_url.json") or "null")
+        except (ImportError, OSError, ValueError, TypeError):
+            return False
+        if not isinstance(origin, dict) or not isinstance(origin.get("vcs_info"), dict):
+            return False
+        vcs = origin["vcs_info"]
+        matches = origin.get("url") == url and vcs.get("vcs") == "git" and vcs.get("commit_id") == commit
+        loaded = sys.modules.get(_pkg_name_from_spec(spec).replace("-", "_"))
+        return matches and (loaded is None or getattr(loaded, "__version__", None) == installed)
+    if "://" in spec or "@" in spec:
         return False
     if not (spec_tail := _specifier_from_spec(spec)):
         return True

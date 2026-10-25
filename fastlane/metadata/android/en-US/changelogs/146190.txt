@@ -1,0 +1,1 @@
+Recover local model startup when another process occupies the preferred port. Update LiteRT-LM to 0.18.1, stable llama.cpp to 0.7.0, and TurboQuant. Refresh security dependencies and strengthen context-file injection checks. Preserve advanced model arguments and safely clean up failed LiteRT initialization.

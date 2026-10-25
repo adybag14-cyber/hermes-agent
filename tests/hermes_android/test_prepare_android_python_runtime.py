@@ -12,6 +12,29 @@ import pytest
 from scripts import prepare_android_python_runtime as runtime
 
 
+def test_reused_tooling_preserves_existing_environment_and_separates_results(tmp_path):
+    tooling = tmp_path / "retained"
+    (tooling / "drivers/bin").mkdir(parents=True)
+    (tooling / "drivers/pyvenv.cfg").write_text("version = 3.13.7\n")
+    interpreter = tooling / "drivers/bin/python"
+    interpreter.write_bytes(b"existing interpreter")
+    work = tmp_path / "new-results"
+    assert runtime.build_tooling_directory(work, tooling) == tooling.resolve()
+    assert interpreter.read_bytes() == b"existing interpreter"
+    assert not work.exists()
+    with pytest.raises(ValueError, match="separate"):
+        runtime.build_tooling_directory(tooling / "nested-results", tooling)
+
+
+def test_missing_reuse_environment_is_not_silently_replaced(tmp_path):
+    work = tmp_path / "new-results"
+    tooling = tmp_path / "missing"
+    with pytest.raises(ValueError, match="existing"):
+        runtime.build_tooling_directory(work, tooling)
+    assert not tooling.exists()
+    assert not work.exists()
+
+
 @pytest.mark.parametrize("arguments", [("--help",), ("prepare", "--help")])
 def test_cold_cli_keeps_the_source_checkout_free_of_import_caches(tmp_path, arguments):
     scripts = tmp_path / "scripts"

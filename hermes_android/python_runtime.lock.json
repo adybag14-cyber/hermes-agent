@@ -29,14 +29,14 @@
       "sha256": "9243213661e29250eb41368e5daa826fc017156c3b8a11440826b2e3ed376472"
     },
     {
-      "filename": "aiohttp-3.14.3-cp313-cp313-android_21_arm64_v8a.whl",
-      "bytes": 506269,
-      "sha256": "2e9878ae68e4a5f1c0abe4dd497dbc3d51946f5837b56759e2a02e78fa90ef86"
+      "filename": "aiohttp-3.14.5-cp313-cp313-android_24_arm64_v8a.whl",
+      "bytes": 538932,
+      "sha256": "9ad7e6aa38c20da1be697874349c4c273c8a03b7887169665081706398d0439a"
     },
     {
-      "filename": "aiohttp-3.14.3-cp313-cp313-android_21_x86_64.whl",
-      "bytes": 515166,
-      "sha256": "f3d2669fe7dec7fc359ecdb5984b29b50d85d5d00f8c1cb61de4f4a24ee42627"
+      "filename": "aiohttp-3.14.5-cp313-cp313-android_24_x86_64.whl",
+      "bytes": 553329,
+      "sha256": "f59c7673465908cbe506117176156c127f29f917677afceada34957179221d91"
     },
     {
       "filename": "aiosignal-1.4.0-py3-none-any.whl",
@@ -69,9 +69,9 @@
       "sha256": "c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309"
     },
     {
-      "filename": "certifi-2026.7.22-py3-none-any.whl",
-      "bytes": 136983,
-      "sha256": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775"
+      "filename": "certifi-2026.10.23-py3-none-any.whl",
+      "bytes": 135082,
+      "sha256": "e9b54de76e530bb6cf0ccd036787103acb58fd42ba930ea8bf948ddbaa2f61d1"
     },
     {
       "filename": "chaquopy_libyaml-0.2.5-0-py3-none-android_24_arm64_v8a.whl",
@@ -119,9 +119,9 @@
       "sha256": "57e900aabd45b03f788498195e4c562c79a37b06e3dd54371d81130496841ddb"
     },
     {
-      "filename": "filelock-3.24.3-py3-none-any.whl",
-      "bytes": 24331,
-      "sha256": "426e9a4660391f7f8a810d71b0555bce9008b0a1cc342ab1f6947d37639e002d"
+      "filename": "filelock-4.2.4-py3-none-any.whl",
+      "bytes": 162475,
+      "sha256": "301241438c57936ef93f4243a94f2559022268bfcf9b375a9a72eb0f8db8358e"
     },
     {
       "filename": "fire-0.7.1-py3-none-any.whl",
@@ -204,14 +204,14 @@
       "sha256": "9a6aff9d2f4a14710296588afac034cf04f9c891b1b939ef1a4891ba733ef91b"
     },
     {
-      "filename": "mcp-2.0.0-py3-none-any.whl",
-      "bytes": 349980,
-      "sha256": "1cb4c75d2d2c7b8c1d756355e5d82a39f2822cc7f13e22a2051d7ca3592349d6"
+      "filename": "mcp-2.3.0-py3-none-any.whl",
+      "bytes": 368664,
+      "sha256": "dd0c44c089d16453e8ae31a3877a0054d7a2314caaa81f5e0541b9b1734b2377"
     },
     {
-      "filename": "mcp_types-2.0.0-py3-none-any.whl",
-      "bytes": 69649,
-      "sha256": "6b2de797ca2797f568b79529e1b25948e34de511bcc0bd82fef1039a6d1b8eb0"
+      "filename": "mcp_types-2.3.0-py3-none-any.whl",
+      "bytes": 69108,
+      "sha256": "968efdbdaedfab06adae40d378a34395f1090c5921d4be3c9cde283aaf76d91d"
     },
     {
       "filename": "mdurl-0.1.2-py3-none-any.whl",
@@ -264,9 +264,9 @@
       "sha256": "81a9e26dd42fd28a23a2d169d86d7ac03b46e2f8b59ed4698fb4785f946d0176"
     },
     {
-      "filename": "pyjwt-2.13.0-py3-none-any.whl",
-      "bytes": 31274,
-      "sha256": "66adcc2aff09b3f1bbd95fc1e1577df8ac8723c978552fd43304c8a290ac5728"
+      "filename": "pyjwt-2.15.1-py3-none-any.whl",
+      "bytes": 33860,
+      "sha256": "42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193"
     },
     {
       "filename": "python_dateutil-2.9.0.post0-py2.py3-none-any.whl",
@@ -369,9 +369,9 @@
       "sha256": "4b1d2be7ac37ceafd7327b961aa3a54e467efbdb563a23655fbfe0d39cfc42a9"
     },
     {
-      "filename": "urllib3-2.7.0-py3-none-any.whl",
-      "bytes": 131087,
-      "sha256": "9fb4c81ebbb1ce9531cce37674bbc6f1360472bc18ca9a553ede278ef7276897"
+      "filename": "urllib3-2.8.0-py3-none-any.whl",
+      "bytes": 135717,
+      "sha256": "0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3"
     },
     {
       "filename": "uvicorn-0.41.0-py3-none-any.whl",
@@ -384,9 +384,9 @@
       "sha256": "f221081107b8c48184d99f7019604486376e7ef826037e70aad6b02540732c23"
     },
     {
-      "filename": "yarl-1.24.5-py3-none-any.whl",
-      "bytes": 58612,
-      "sha256": "a33700d13d9b7d84fd10947b09ff69fb9a792e519c8cb9764a3ca70baa6c23a7"
+      "filename": "yarl-1.25.1-py3-none-any.whl",
+      "bytes": 63617,
+      "sha256": "681c758b0490f9e96b78e5fa8e8dc6e648e9185bb6eaebe73183c33ea0c445f3"
     },
     {
       "filename": "zipp-3.23.0-py3-none-any.whl",

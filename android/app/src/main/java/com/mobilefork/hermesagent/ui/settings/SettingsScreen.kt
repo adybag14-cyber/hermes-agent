@@ -430,17 +430,7 @@ private fun LlamaCppAdvancedCard(
         flashAttention = normalizedFlash,
         additionalArguments = additionalArguments,
     )
-    var additionalArgumentsText by rememberSaveable {
-        mutableStateOf(additionalArguments.joinToString("\n"))
-    }
     var showDangerConfirmation by rememberSaveable { mutableStateOf(false) }
-
-    LaunchedEffect(additionalArguments) {
-        val draftTokens = llamaCppArgumentLines(additionalArgumentsText)
-        if (draftTokens != additionalArguments) {
-            additionalArgumentsText = additionalArguments.joinToString("\n")
-        }
-    }
 
     if (showDangerConfirmation) {
         AlertDialog(
@@ -557,9 +547,8 @@ private fun LlamaCppAdvancedCard(
             Text(llamaCppAdvancedText(language, "turbo_requirement"), style = MaterialTheme.typography.bodySmall)
 
             OutlinedTextField(
-                value = additionalArgumentsText,
+                value = additionalArguments.joinToString("\n"),
                 onValueChange = { value ->
-                    additionalArgumentsText = value
                     onAdditionalArgumentsChange(llamaCppArgumentLines(value))
                 },
                 modifier = Modifier

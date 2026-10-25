@@ -128,17 +128,16 @@ class TestDrainWaitsForApiWork:
         api = APIServerAdapter(PlatformConfig(enabled=True))
         runner.adapters = {Platform.API_SERVER: api}
         app = _make_admission_app(api)
-        original_create_task = asyncio.create_task
+        from gateway.platforms import api_server_runs
+
+        original_execute_run = api_server_runs._execute_run
         task_started = asyncio.Event()
         allow_task = asyncio.Event()
 
-        def delayed_create_task(coro):
-            async def delayed():
-                task_started.set()
-                await allow_task.wait()
-                return await coro
-
-            return original_create_task(delayed())
+        async def delayed_execute_run(*args, **kwargs):
+            task_started.set()
+            await allow_task.wait()
+            return await original_execute_run(*args, **kwargs)
 
         mock_agent = MagicMock()
         mock_agent.run_conversation.return_value = {"final_response": "done"}
@@ -147,8 +146,8 @@ class TestDrainWaitsForApiWork:
         mock_agent.session_total_tokens = 0
 
         with patch(
-            "gateway.platforms.api_server.asyncio.create_task",
-            side_effect=delayed_create_task,
+            "gateway.platforms.api_server_runs._execute_run",
+            new=delayed_execute_run,
         ), patch.object(api, "_create_agent", return_value=mock_agent):
             async with TestClient(TestServer(app)) as client:
                 response = await client.post("/v1/runs", json={"input": "hello"})
@@ -157,8 +156,8 @@ class TestDrainWaitsForApiWork:
 
                 assert api._active_run_agents == {}
                 assert runner._active_api_run_count() == 1
-                drain_task = original_create_task(runner._drain_active_agents(2.0))
-                await asyncio.sleep(0.1)
+                drain_task = asyncio.create_task(runner._drain_active_agents(2.0))
+                await asyncio.sleep(0)
                 assert not drain_task.done()
 
                 allow_task.set()

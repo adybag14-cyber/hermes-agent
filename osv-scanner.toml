@@ -1,0 +1,22 @@
+# Only version matches for this editable Android fork are excepted. These
+# upstream source fixes are retained and behavior-tested; see the review.
+# No third-party dependency or entire package is excluded from scanning.
+[[IgnoredVulns]]
+id = "GHSA-238w-f66p-w349"
+ignoreUntil = 2027-01-23
+reason = "Android fork includes upstream 7ebebfbb8d10937cbf2219b4cf5e121b71e67428; multi-word Skills Guard regression retained. See docs/design/android-v161-security-review.md."
+
+[[IgnoredVulns]]
+id = "GHSA-4pqm-j46f-795x"
+ignoreUntil = 2027-01-23
+reason = "Android fork includes WebSocket Host/Origin enforcement and upstream d9ec90585cf7616b5972e44cf8d92bb569fc3feb; actual WebSocket guard tests pass. See docs/design/android-v161-security-review.md."
+
+[[IgnoredVulns]]
+id = "GHSA-pgp4-xr4j-h5cg"
+ignoreUntil = 2027-01-23
+reason = "Android fork includes upstream 0dee92df22bdc0cfbcad90ca954aa14916f018de; context payloads are blocked, including the v161 multi-word override regression. See docs/design/android-v161-security-review.md."
+
+[[IgnoredVulns]]
+id = "GHSA-xq8w-9jvx-gm3v"
+ignoreUntil = 2027-01-23
+reason = "Android fork includes upstream 2ca38e5df43411afe11aedfc34bfd71a2eecd4bb; todo snapshot and zero-user compression provenance regressions are retained. See docs/design/android-v161-security-review.md."

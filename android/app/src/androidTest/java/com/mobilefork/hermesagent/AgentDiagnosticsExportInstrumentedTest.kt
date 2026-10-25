@@ -223,8 +223,11 @@ class AgentDiagnosticsExportInstrumentedTest {
             // A visible roots list alone can also describe a persistent side pane.
             // Never use global Back here: it can cancel ACTION_CREATE_DOCUMENT.
             if (node.actionList.any { it.id == AccessibilityNodeInfo.ACTION_DISMISS }) {
-                assertTrue("Only the drawer-owned dismiss action may close the root chooser",
-                    node.performAction(AccessibilityNodeInfo.ACTION_DISMISS))
+                // The selected root can finish closing the drawer after this node
+                // snapshot was read. A stale DISMISS can then return false even
+                // though the requested transition already completed. Verify the
+                // real window state, including that the save request is still open.
+                node.performAction(AccessibilityNodeInfo.ACTION_DISMISS)
                 waitFor("Drawer dismissed while save request remains active") {
                     !rootsAreVisible() && automation.rootInActiveWindow?.packageName?.toString()?.contains("documentsui", true) == true
                 }

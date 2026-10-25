@@ -145,7 +145,10 @@ class FullTesterReportedUiInstrumentedTest {
         // A native AlertDialog dismissal can outlive Compose's idle state.
         // Persistence alone is not proof the history row is actionable again.
         compose.waitUntil(5_000) {
-            compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()
+            runCatching {
+                compose.onNodeWithTag(tag).assertIsDisplayed()
+                true
+            }.getOrDefault(false)
         }
         compose.onNodeWithTag(tag).assertIsDisplayed().performClick()
     }

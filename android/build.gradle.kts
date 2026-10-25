@@ -17,6 +17,14 @@ tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
 
+// The application pin is also the benchmark authority. A second literal here
+// can silently qualify compilation while rejecting the actual connected task.
+val applicationLiteRtLmPins = Regex("""val\s+liteRtLmStableVersion\s*=\s*"([^"]+)"""")
+    .findAll(file("app/build.gradle.kts").readText()).map { it.groupValues[1] }.toList()
+require(applicationLiteRtLmPins.size == 1) { "Expected exactly one application LiteRT-LM release pin" }
+val releaseLiteRtLmVersion by extra(applicationLiteRtLmPins.single())
+val releaseLiteRtLmCoordinate = "com.google.ai.edge.litertlm:litertlm-android:$releaseLiteRtLmVersion"
+
 gradle.taskGraph.whenReady {
     val guardedAppBenchmarkTasks = setOf(
         "assembleBenchmark",
@@ -44,7 +52,7 @@ gradle.taskGraph.whenReady {
     val liteRtLmVersion = projectProperties["hermesLiteRtLmVersion"]
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
-        ?: "0.17.1"
+        ?: releaseLiteRtLmVersion
     val liteRtLmLocalAar = projectProperties["hermesLiteRtLmLocalAar"]
         ?.trim()
         .orEmpty()
@@ -55,8 +63,8 @@ gradle.taskGraph.whenReady {
     require(Regex("v\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?").matches(releaseTag)) {
         "Benchmark artifact and connected tasks require an exact semver HERMES_RELEASE_TAG"
     }
-    require(liteRtLmVersion == "0.17.1" && liteRtLmLocalAar.isEmpty()) {
-        "Release benchmark evidence requires LiteRT-LM 0.17.1 and forbids a local AAR"
+    require(liteRtLmVersion == releaseLiteRtLmVersion && liteRtLmLocalAar.isEmpty()) {
+        "Release benchmark evidence requires LiteRT-LM $releaseLiteRtLmVersion and forbids a local AAR"
     }
 
     val expectedSourceDigest = projectProperties["hermesBenchmarkExpectedSourceDigest"]
@@ -69,7 +77,7 @@ gradle.taskGraph.whenReady {
         projectProperties["hermesBenchmarkExpectedLiteRtLmCoordinate"]
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
-            ?: "com.google.ai.edge.litertlm:litertlm-android:0.17.1"
+            ?: releaseLiteRtLmCoordinate
     require(expectedSourceDigest.isEmpty() || expectedSourceDigest == sourceDigest) {
         "hermesBenchmarkExpectedSourceDigest must equal HERMES_SOURCE_DIGEST"
     }
@@ -77,8 +85,7 @@ gradle.taskGraph.whenReady {
         "hermesBenchmarkExpectedVersionName must equal HERMES_RELEASE_TAG without v"
     }
     require(
-        expectedLiteRtLmCoordinate ==
-            "com.google.ai.edge.litertlm:litertlm-android:0.17.1"
+        expectedLiteRtLmCoordinate == releaseLiteRtLmCoordinate
     ) {
         "hermesBenchmarkExpectedLiteRtLmCoordinate must equal the release coordinate"
     }

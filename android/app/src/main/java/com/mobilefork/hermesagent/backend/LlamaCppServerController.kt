@@ -53,6 +53,7 @@ object LlamaCppServerController {
     @Volatile private var activeArtifactSummary: String = ""
     @Volatile private var activeLaunchFingerprint: String = ""
     @Volatile private var activeApiKey: String = ""
+    @Volatile private var activePort: Int = 0
 
     @Synchronized
     internal fun ensureRunning(
@@ -85,13 +86,14 @@ object LlamaCppServerController {
             activeCompletionVerified &&
             activeCompletionDetail.isNotBlank() &&
             activeApiKey.isNotBlank() &&
-            checkReady(port, activeApiKey)
+            activePort > 0 &&
+            checkReady(activePort, activeApiKey)
         ) {
             return LocalBackendStatus(
                 backendKind = BackendKind.LLAMA_CPP,
                 started = true,
-                baseUrl = "http://127.0.0.1:$port/v1",
-                modelName = actualModelName(port, requestedModelName, activeApiKey),
+                baseUrl = "http://127.0.0.1:$activePort/v1",
+                modelName = actualModelName(activePort, requestedModelName, activeApiKey),
                 sourceModelPath = modelPath,
                 statusMessage = cachedCompletionStatusMessage(
                     laneDisplayLabel = launchConfig.lane.displayLabel(),
@@ -167,24 +169,6 @@ object LlamaCppServerController {
                 statusMessage = "llama.cpp memory preflight blocked this model: ${preflight.detail}",
             )
         }
-        if (!isLoopbackPortAvailable(port)) {
-            val detail =
-                "Agent did not start llama.cpp because 127.0.0.1:$port is already in use by an unowned process"
-            LocalModelRuntimeDiagnostics.finishAttempt(
-                context = context,
-                attemptId = attemptId,
-                status = "failed",
-                stage = "loopback_port_ownership",
-                detail = detail,
-            )
-            return LocalBackendStatus(
-                backendKind = BackendKind.LLAMA_CPP,
-                started = false,
-                sourceModelPath = modelPath,
-                artifactSummary = inspection.summary,
-                statusMessage = "$detail. Force stop the conflicting app or choose the Stable/LiteRT-LM path after the port is free.",
-            )
-        }
         val playEdition = com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION
         val linuxState = if (playEdition) JSONObject() else HermesLinuxSubsystemBridge.ensureInstalled(context)
         val shellPath = shellPathForState(linuxState)
@@ -247,28 +231,15 @@ object LlamaCppServerController {
             )
         }
 
-        val launchApiKey = generateLoopbackApiKey()
-        val command = shellCommandForLaunch(
-            llamaServerPath = llamaServerPath,
-            modelPath = modelPath,
-            port = port,
-            contextSizeOverride = preflight.effectiveContextTokens,
-            launchConfig = launchConfig,
-            apiKey = launchApiKey,
-        )
-
-        // Runtime installation/discovery above can take long enough for another process to
-        // claim the fixed loopback port after the initial fail-fast check. Recheck at the
-        // actual spawn boundary so Hermes never certifies or sends the per-process token to
-        // a listener it did not launch.
-        if (!isLoopbackPortAvailable(port)) {
-            val detail =
-                "Agent did not start llama.cpp because 127.0.0.1:$port became occupied by an unowned process before launch"
+        val reservation = try {
+            reserveLlamaLoopbackPort(port)
+        } catch (error: Exception) {
+            val detail = "Agent could not bind a local llama.cpp server port: ${error.javaClass.simpleName}: ${error.message}"
             LocalModelRuntimeDiagnostics.finishAttempt(
                 context = context,
                 attemptId = attemptId,
                 status = "failed",
-                stage = "loopback_port_ownership",
+                stage = "loopback_port_bind",
                 detail = detail,
             )
             return LocalBackendStatus(
@@ -276,18 +247,31 @@ object LlamaCppServerController {
                 started = false,
                 sourceModelPath = modelPath,
                 artifactSummary = inspection.summary,
-                statusMessage = "$detail. Force stop the conflicting app or choose the Stable/LiteRT-LM path after the port is free.",
+                statusMessage = detail,
             )
         }
 
         return try {
+            val launchPort = reservation.localPort
+            val launchApiKey = generateLoopbackApiKey()
+            val command = shellCommandForLaunch(
+                llamaServerPath = llamaServerPath,
+                modelPath = modelPath,
+                port = launchPort,
+                contextSizeOverride = preflight.effectiveContextTokens,
+                launchConfig = launchConfig,
+                apiKey = launchApiKey,
+            )
             val shellArgs = if (shellPath.endsWith("/sh")) {
                 listOf(shellPath, "-c", command)
             } else {
                 listOf(shellPath, "-lc", command)
             }
+            // llama-server binds its own socket. Release only at spawn; retain the existing
+            // owned-process and bearer checks before publishing this selected endpoint.
+            reservation.close()
             val startedProcess = if (playEdition) {
-                PlayPackagedLlamaLaunch.start(context, modelPath, port, preflight.effectiveContextTokens, launchConfig, launchApiKey)
+                PlayPackagedLlamaLaunch.start(context, modelPath, launchPort, preflight.effectiveContextTokens, launchConfig, launchApiKey)
             } else ProcessBuilder(shellArgs)
                 .directory(File(homePath.ifBlank { prefixPath }))
                 .redirectErrorStream(true)
@@ -300,8 +284,9 @@ object LlamaCppServerController {
             activeModelName = requestedModelName
             activeLaunchFingerprint = launchFingerprint
             activeApiKey = launchApiKey
+            activePort = launchPort
             drainLogs(startedProcess)
-            if (!waitUntilReady(port, startedProcess, launchApiKey)) {
+            if (!waitUntilReady(launchPort, startedProcess, launchApiKey)) {
                 val errorTail = recentLog.takeLast(600)
                 val exitDetail = processExitDetail(startedProcess)
                 val failure = when {
@@ -339,7 +324,7 @@ object LlamaCppServerController {
                 )
                 return status
             }
-            if (!protectedEndpointRequiresApiKey(port)) {
+            if (!protectedEndpointRequiresApiKey(launchPort)) {
                 val status = failureStatusAfterStop(
                     modelPath = modelPath,
                     artifactSummary = inspection.summary,
@@ -355,9 +340,9 @@ object LlamaCppServerController {
                 )
                 return status
             }
-            val modelName = actualModelName(port, requestedModelName, launchApiKey)
+            val modelName = actualModelName(launchPort, requestedModelName, launchApiKey)
             val canary = runCompletionCanary(
-                port = port,
+                port = launchPort,
                 modelName = modelName,
                 lane = launchConfig.lane,
                 apiKey = launchApiKey,
@@ -410,7 +395,7 @@ object LlamaCppServerController {
             val status = LocalBackendStatus(
                 backendKind = BackendKind.LLAMA_CPP,
                 started = true,
-                baseUrl = "http://127.0.0.1:$port/v1",
+                baseUrl = "http://127.0.0.1:$launchPort/v1",
                 modelName = modelName,
                 sourceModelPath = modelPath,
                 statusMessage = "llama.cpp ${launchConfig.lane.displayLabel()} lane is serving locally from ${llamaServerOriginLabel(linuxState, launchConfig.lane)}${llamaServerCompatibilitySuffix(llamaServerPath)}; ${inspection.summary}; completion canary passed with ${canary.detail} in ${canary.elapsedMs} ms. ${preflight.detail}",
@@ -447,6 +432,8 @@ object LlamaCppServerController {
                 detail = diagnosticsSafeDetail(status.statusMessage, launchConfig),
             )
             status
+        } finally {
+            reservation.close()
         }
     }
 
@@ -476,6 +463,7 @@ object LlamaCppServerController {
         activeArtifactSummary = ""
         activeLaunchFingerprint = ""
         activeApiKey = ""
+        activePort = 0
     }
 
     internal fun failureStatusAfterStop(
@@ -950,7 +938,7 @@ object LlamaCppServerController {
     }
 
     private fun LlamaCppRuntimeLane.displayLabel(): String = if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) {
-        "Play-packaged bcb85fc (${persistedValue} cache profile)"
+        "Play-packaged 6e09de1 (${persistedValue} cache profile)"
     } else when (this) {
         LlamaCppRuntimeLane.STABLE -> "stable"
         LlamaCppRuntimeLane.TURBOQUANT -> "experimental TurboQuant"
