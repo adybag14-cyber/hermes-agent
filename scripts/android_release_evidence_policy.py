@@ -26,7 +26,7 @@ def required_litertlm_coordinate(tag: str) -> str:
         raise EvidenceError(f"Invalid Android release policy tag: {tag!r}")
     version = tuple(int(part) for part in match.groups())
     for minimum, sdk in (
-        ((0, 13, 161), "0.18.0"),
+        ((0, 13, 161), "0.18.1"),
         ((0, 13, 158), "0.17.1"),
         ((0, 13, 154), "0.17.0"),
         ((0, 13, 148), "0.16.1"),

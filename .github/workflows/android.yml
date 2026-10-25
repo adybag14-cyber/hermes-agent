@@ -79,6 +79,11 @@ jobs:
         working-directory: android/report-service
         run: node --test worker.test.mjs
 
+      - name: Verify confined ZIP extraction
+        run: |
+          npm ci --prefix vendor/extract-zip --ignore-scripts --no-audit --no-fund
+          node --test vendor/extract-zip/test.cjs
+
       - name: Ensure Gradle wrapper is executable
         run: chmod +x android/gradlew
 

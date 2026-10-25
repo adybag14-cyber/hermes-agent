@@ -142,8 +142,6 @@ class HyMemoryProvider(MemoryProvider):
         return "hy_memory"
 
     def is_available(self) -> bool:
-        if importlib.util.find_spec("hy_memory") is not None:
-            return True
         try:
             from tools.lazy_deps import ensure as _lazy_ensure
 

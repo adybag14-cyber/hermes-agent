@@ -193,6 +193,11 @@ jobs:
         working-directory: android/report-service
         run: node --test worker.test.mjs
 
+      - name: Verify confined ZIP extraction
+        run: |
+          npm ci --prefix vendor/extract-zip --ignore-scripts --no-audit --no-fund
+          node --test vendor/extract-zip/test.cjs
+
       - name: Reauthorize live default head and annotated tag before signing
         env:
           HERMES_RELEASE_TAG: ${{ github.ref_name }}

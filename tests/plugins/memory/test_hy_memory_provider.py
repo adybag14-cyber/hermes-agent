@@ -70,6 +70,7 @@ class FakeHyMemoryClient:
 
 
 def install_fake_hy_memory(monkeypatch):
+    monkeypatch.setattr("tools.lazy_deps.ensure", lambda *args, **kwargs: None)
     FakeHyMemoryClient.instances.clear()
     module = types.ModuleType("hy_memory")
     module.HyMemoryClient = FakeHyMemoryClient
@@ -79,6 +80,20 @@ def install_fake_hy_memory(monkeypatch):
         "plugins.memory.hy_memory.load_config",
         lambda: {"memory": {"hy_memory": {"mode": "lite", "limit": 3}}},
     )
+
+
+def test_installed_hy_memory_does_not_bypass_security_pin_validation(monkeypatch):
+    from tools.lazy_deps import FeatureUnavailable
+
+    install_fake_hy_memory(monkeypatch)
+
+    def require_patch(*args, **kwargs):
+        raise FeatureUnavailable("memory.hy_memory", (), "required security patch is missing")
+
+    monkeypatch.setattr("tools.lazy_deps.ensure", require_patch)
+    provider = HyMemoryProvider()
+    assert provider.is_available() is False
+    assert "required security patch" in provider._init_error
 
 
 def test_hy_memory_provider_uses_package_client_for_recall_and_turn_sync(monkeypatch, tmp_path):

@@ -24,6 +24,13 @@ import tools.lazy_deps as ld
 
 
 class TestSpecSafety:
+    def test_only_reviewed_source_pins_are_allowed(self):
+        for spec in ld.LAZY_DEPS["memory.hy_memory"]:
+            assert ld._spec_is_safe(spec)
+            assert not ld._spec_is_safe(spec.rsplit("@", 1)[0] + "@main")
+            assert not ld._spec_is_safe(spec.replace("adybag14-cyber/", "untrusted-owner/"))
+            assert not ld._spec_is_safe(spec + "#subdirectory=other")
+
     @pytest.mark.parametrize("spec", [
         "mistralai>=2.3.0,<3",
         "elevenlabs>=1.0,<2",
@@ -185,6 +192,35 @@ class TestIsAvailable:
 
 
 class TestIsSatisfiedVersionAware:
+    @pytest.mark.parametrize("spec", ld.LAZY_DEPS["memory.hy_memory"])
+    def test_source_pin_requires_real_distribution_provenance(self, tmp_path, monkeypatch, spec):
+        import json
+        import sys
+        from types import ModuleType
+
+        name = ld._pkg_name_from_spec(spec)
+        version = "1.0.0+security.1"
+        metadata = tmp_path / (name.replace("-", "_") + "-" + version + ".dist-info")
+        metadata.mkdir()
+        (metadata / "METADATA").write_text(f"Metadata-Version: 2.1\nName: {name}\nVersion: {version}\n")
+        monkeypatch.syspath_prepend(str(tmp_path))
+        monkeypatch.delitem(sys.modules, name.replace("-", "_"), raising=False)
+        assert not ld._is_satisfied(spec)
+        url, commit = spec.split(" @ git+", 1)[1].rsplit("@", 1)
+        origin = {"url": url, "vcs_info": {"vcs": "git", "commit_id": commit}}
+        path = metadata / "direct_url.json"
+        path.write_text(json.dumps(origin))
+        assert ld._is_satisfied(spec)
+        origin["vcs_info"]["commit_id"] = "0" * 40
+        path.write_text(json.dumps(origin))
+        assert not ld._is_satisfied(spec)
+        origin["vcs_info"]["commit_id"] = commit
+        path.write_text(json.dumps(origin))
+        loaded = ModuleType(name.replace("-", "_"))
+        loaded.__version__ = "0.1.0"
+        monkeypatch.setitem(sys.modules, loaded.__name__, loaded)
+        assert not ld._is_satisfied(spec)
+
     def _fake_version(self, monkeypatch, installed_versions: dict):
         """Patch importlib.metadata.version() inside lazy_deps."""
         from importlib.metadata import PackageNotFoundError

@@ -131,10 +131,10 @@
             "libc++",
             "libcurl"
           ],
-          "filename": "pool/main/l/llama-cpp/llama-cpp_0.6.0_aarch64.deb",
+          "filename": "pool/main/l/llama-cpp/llama-cpp_0.7.0_aarch64.deb",
           "name": "llama-cpp",
-          "sha256": "4744dd2170bf99aacdc15fe0ece0db61c187af636c540943c2b314b652a84124",
-          "version": "0.6.0"
+          "sha256": "cdad47092ee9eb519c51f7367f1b0e8d76ba10cf3201bbecbcb38e21f67f420d",
+          "version": "0.7.0"
         },
         {
           "depends": [
@@ -302,10 +302,10 @@
             "openssl",
             "zlib"
           ],
-          "filename": "pool/main/libc/libcurl/libcurl_8.22.0_aarch64.deb",
+          "filename": "pool/main/libc/libcurl/libcurl_8.23.0_aarch64.deb",
           "name": "libcurl",
-          "sha256": "e780d925d977c32a3cfe6a2c7d340f0726618786deee98b0cb8b601efb93a8c9",
-          "version": "8.22.0"
+          "sha256": "2011bb9709261bb3d5ecaa6672faa333be14cf48ad4af37031e3e365309557ac",
+          "version": "8.23.0"
         },
         {
           "depends": [
@@ -502,10 +502,10 @@
         },
         {
           "depends": [],
-          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.09.25_all.deb",
+          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.10.20-1_all.deb",
           "name": "ca-certificates",
-          "sha256": "57fab24bf4561bfdd35afe71bc1929914e51c35458cfd1fca2b15e54bc8df7af",
-          "version": "1:2026.09.25"
+          "sha256": "ab8a7fe63293b455c02399ee125eb8a0041e430ccfdf89a5be8317522fdf9107",
+          "version": "1:2026.10.20-1"
         },
         {
           "depends": [],
@@ -817,10 +817,10 @@
             "libc++",
             "libcurl"
           ],
-          "filename": "pool/main/l/llama-cpp/llama-cpp_0.6.0_x86_64.deb",
+          "filename": "pool/main/l/llama-cpp/llama-cpp_0.7.0_x86_64.deb",
           "name": "llama-cpp",
-          "sha256": "f7fa4cd7e6cb3ab6d189b33a7229b9d3732ae475553db90395764e71e10b400a",
-          "version": "0.6.0"
+          "sha256": "ba8ef80b3a402933d22940f7d90d85196011e3e0ef979730766658c2c4a62a8a",
+          "version": "0.7.0"
         },
         {
           "depends": [
@@ -988,10 +988,10 @@
             "openssl",
             "zlib"
           ],
-          "filename": "pool/main/libc/libcurl/libcurl_8.22.0_x86_64.deb",
+          "filename": "pool/main/libc/libcurl/libcurl_8.23.0_x86_64.deb",
           "name": "libcurl",
-          "sha256": "b442ccf9eea4a4695bdc71b1bc577990e3d56024d245886f9b4bf2efa3e009aa",
-          "version": "8.22.0"
+          "sha256": "fa71ce8eca3d0aa48a748fc60e4519351fc9c4d51b20cac5722190cb002cfd1c",
+          "version": "8.23.0"
         },
         {
           "depends": [
@@ -1188,10 +1188,10 @@
         },
         {
           "depends": [],
-          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.09.25_all.deb",
+          "filename": "pool/main/c/ca-certificates/ca-certificates_1:2026.10.20-1_all.deb",
           "name": "ca-certificates",
-          "sha256": "57fab24bf4561bfdd35afe71bc1929914e51c35458cfd1fca2b15e54bc8df7af",
-          "version": "1:2026.09.25"
+          "sha256": "ab8a7fe63293b455c02399ee125eb8a0041e430ccfdf89a5be8317522fdf9107",
+          "version": "1:2026.10.20-1"
         },
         {
           "depends": [],
@@ -1378,7 +1378,7 @@
       "sha256": "37af60c558f53d59d5ac15113abb615843e581b67b4e6b67bc53dbba7b5acd00",
       "url": "https://github.com/adybag14-cyber/hermes-agent/releases/download/v0.13.160/agent-termux-packages-v160.zip"
     },
-    "sha256": "13271ade4ed890cf7128ad50c9d91460c048d5931f7add9ac47d487e5975ec28",
+    "sha256": "27caa54545eaab0809034dfe7f69e3b41384e16640cbf9a20717a7df70b23288",
     "url": "https://github.com/adybag14-cyber/hermes-agent/releases/download/v0.13.161/agent-termux-packages-v161.zip"
   },
   "root_packages": [

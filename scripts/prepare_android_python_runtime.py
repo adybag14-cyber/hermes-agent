@@ -39,8 +39,8 @@ ABIS = {"arm64-v8a": "arm64_v8a", "x86_64": "x86_64"}
 BUILD_PINS = (
     "pip==26.2.1", "cibuildwheel==4.2.0", "build==1.3.0", "maturin==1.15.0",
     "setuptools==80.9.0", "wheel==0.45.1", "packaging==26.3", "bashlex==0.18",
-    "bracex==3.0.1", "certifi==2026.7.22", "dependency-groups==1.3.2",
-    "filelock==3.32.5", "humanize==4.16.0", "platformdirs==4.11.7",
+    "bracex==3.0.1", "certifi==2026.10.23", "dependency-groups==1.3.2",
+    "filelock==4.2.4", "humanize==4.16.0", "platformdirs==4.11.7",
     "pyproject-hooks==1.2.0",
 )
 
@@ -189,7 +189,22 @@ def official_requirements(lock, requirements):
     return "\n".join(lines) + "\n"
 
 
-def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS):
+def build_tooling_directory(work, reuse_tooling=None):
+    """Keep retained interpreter/Rust caches separate from new build results."""
+    if reuse_tooling is None:
+        return work
+    tooling = Path(reuse_tooling)
+    if tooling.is_symlink() or not tooling.is_dir():
+        raise ValueError("Reused tooling must be an existing real directory")
+    tooling = tooling.resolve()
+    if tooling.is_relative_to(work.resolve()) or work.resolve().is_relative_to(tooling):
+        raise ValueError("Reused tooling and build results must be separate directories")
+    if not (tooling / "drivers/pyvenv.cfg").is_file() or not (tooling / "drivers/bin/python").is_file():
+        raise ValueError("Reused tooling must contain the existing build virtualenv")
+    return tooling
+
+
+def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS, reuse_tooling=None):
     lock = load_lock(lock_file, requirements)
     if output.exists():
         return verify(output, lock_file=lock_file, requirements=requirements)
@@ -197,6 +212,7 @@ def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS):
         raise ValueError("Source preparation requires Linux Python 3.13; Windows uses the pinned buildserver container")
     if work.exists() or work.is_relative_to(output) or output.is_relative_to(work):
         raise ValueError("Use distinct new work/output directories; failed work is retained")
+    tooling = build_tooling_directory(work, reuse_tooling)
     work.mkdir(parents=True)
     source_archive = work / "chaquopy-source.tar.gz"
     download_source(lock["source"], source_archive)
@@ -207,7 +223,7 @@ def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS):
                    if not name.endswith(("_TOKEN", "_SECRET", "_PASSWORD", "_API_KEY"))
                    and not name.startswith(("PIP_", "CIBW_"))}
     environment.update(PYTHONHASHSEED="0", SOURCE_DATE_EPOCH=str(lock["build"]["source_date_epoch"]),
-                       CARGO_HOME=str(work / "cargo"), RUSTUP_HOME=str(work / "rustup"),
+                       CARGO_HOME=str(tooling / "cargo"), RUSTUP_HOME=str(tooling / "rustup"),
                        RUSTUP_TOOLCHAIN=lock["build"]["rust_version"],
                        CARGO_BUILD_JOBS=str(lock["build"]["maximum_parallel_jobs"]),
                        PIP_CONFIG_FILE=os.devnull)
@@ -216,9 +232,12 @@ def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS):
     if not ndk.is_file():
         raise ValueError("Install declared native Python NDK " + lock["build"]["native_ndk_version"])
     environment["ANDROID_HOME"] = environment["ANDROID_SDK_ROOT"] = str(sdk)
-    drivers = work / "drivers"
-    venv.create(drivers, with_pip=True)
+    drivers = tooling / "drivers"
+    if reuse_tooling is None:
+        venv.create(drivers, with_pip=True)
     python = drivers / "bin/python"
+    run([python, "-c", "import sys; assert sys.version_info[:2] == (3, 13)"],
+        cwd=source, env=environment, timeout=30)
     run([python, "-m", "pip", "install", "--index-url", "https://pypi.org/simple", "--no-deps", *BUILD_PINS],
         cwd=source, env=environment, timeout=600)
     run(["rustup", "toolchain", "install", lock["build"]["rust_version"], "--profile", "minimal",
@@ -290,6 +309,8 @@ def main():
     parser.add_argument("command", choices=("prepare", "verify"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--work-dir", type=Path)
+    parser.add_argument("--reuse-tooling", type=Path,
+                        help="Retained build directory whose virtualenv and Rust caches are updated in place")
     args = parser.parse_args()
     output = args.output.resolve()
     if args.command == "verify":
@@ -297,7 +318,7 @@ def main():
     else:
         if args.work_dir is None:
             parser.error("prepare requires --work-dir (new directory, retained on failure)")
-        receipt = prepare(output, args.work_dir.resolve())
+        receipt = prepare(output, args.work_dir.resolve(), reuse_tooling=args.reuse_tooling)
     print(json.dumps({"schema": receipt["schema"], "files": len(receipt["files"]),
                       "bootstrap_sha256": receipt["bootstrap_sha256"], "runtime_tested": False}))
 
