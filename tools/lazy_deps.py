@@ -107,8 +107,8 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
 
     # ─── Memory providers ──────────────────────────────────────────────────
     "memory.hy_memory": (
-        "hy-memory @ git+https://github.com/adybag14-cyber/Hy-Memory.git@df2cf75f2fb59af54016559fc08c4d57a5fe827f",
-        "chromadb @ git+https://github.com/adybag14-cyber/chroma.git@00c54a0164bc0d433d92bf956bebf2a0883d77dd",
+        "hy-memory @ git+https://github.com/adybag14-cyber/Hy-Memory.git@a4ba7bcaa8b6347febb966445814ea9a51ae1538",
+        "chromadb @ git+https://github.com/adybag14-cyber/chroma.git@8f60a3606141bf1b388e0df57faf4982580a9384",
     ),
     "memory.honcho": ("honcho-ai==2.2.0",),
     "memory.hindsight": ("hindsight-client==0.6.1",),

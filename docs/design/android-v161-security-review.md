@@ -3,8 +3,9 @@
 The 25 October 2026 GitHub baseline contained 8 critical and 97 high code-scanning
 entries, including duplicate reports. Fresh OSV and npm queries also identified
 advisories published since the repository's last scan. The update covers all
-five lockfiles used by `.github/workflows/osv-scanner.yml` and the separate
-Android Python wheel inventory.
+five application lockfiles used by `.github/workflows/osv-scanner.yml`, the
+separate Android Python wheel inventory, and the pinned memory forks' Cargo
+and SDK/MemHub Python locks.
 
 ## Dependency changes
 
@@ -34,14 +35,32 @@ CVE-2026-45830, CVE-2026-45831, and CVE-2026-45833. Moving to the latest PyPI
 version alone would not resolve them.
 
 HY Memory 2.0.5 is patched at
-`adybag14-cyber/Hy-Memory@df2cf75f2fb59af54016559fc08c4d57a5fe827f` and requires
-`adybag14-cyber/chroma@00c54a0164bc0d433d92bf956bebf2a0883d77dd`. The Chroma
+`adybag14-cyber/Hy-Memory@a4ba7bcaa8b6347febb966445814ea9a51ae1538` and requires
+`adybag14-cyber/chroma@8f60a3606141bf1b388e0df57faf4982580a9384`. The Chroma
 repair rejects remote-code enablement through serialized embedding settings,
 checks tenant/database scope in RBAC and both storage implementations, and
 propagates scope through v1 collection handlers. Its 65 regression cases use
 real FastAPI routing, token authentication, and Segment/Rust storage. HY Memory's
-19 focused store/SDK checks pass against that patched source. These are source
-validation results, not Android release certification.
+19 focused store/SDK checks pass against the rebuilt native wheel. An additional
+17 native metadata round-trip cases and 133 offline MemHub integration cases
+pass. These are component validation results, not Android release certification.
+
+The Chroma `1.5.9+agent.2` native update selects PyO3 0.29.3, object_store
+0.14.2, ZIP 9.1.0, OpenSSL 0.10.81, rustls 0.23.46/webpki 0.103.16,
+Quinn 0.11.19, and Smithy JSON 0.62.7. Kube and Swagger dependency updates
+remove the older vulnerable TLS/ZIP paths; `serde_yaml_ng` replaces libyml.
+Python conversions, storage traits and the GIL contract are adapted and tested.
+Both forks require Python 3.11, matching Agent's host baseline, and declare
+security floors so existing environments cannot satisfy installs with the
+affected transport, locking, parser or optional model/image dependencies.
+
+The three fork locks have zero high/critical findings in the current OSV scan.
+Chroma's scan still reports five lower-severity occurrences and twelve unscored
+occurrences, including maintenance notices, LRU panic-safety and cryptographic
+timing reports. Those are retained without advisory suppression. CI now fetches
+the forks' locks from the exact installer commits and preserves their hashes;
+both application and dependency-fork jobs fail on high/critical findings or
+missing/malformed scan evidence.
 
 Agent's lazy installer accepts only those complete reviewed source requirements;
 arbitrary URLs and moving Git references remain rejected. Installed source
