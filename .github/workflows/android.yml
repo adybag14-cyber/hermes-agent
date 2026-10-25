@@ -87,6 +87,25 @@ jobs:
       - name: Ensure Gradle wrapper is executable
         run: chmod +x android/gradlew
 
+      - name: Verify benchmark runtime guard against the application pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          export HERMES_RELEASE_TAG="v$(sed -n 's/^versionName=//p' fdroid/com.mobilefork.hermesagent.version)"
+          export HERMES_SOURCE_DIGEST="$(python scripts/android_release_evidence.py source-identity --require-clean | sed -n 's/^sourceDigest=//p')"
+          coordinate="com.google.ai.edge.litertlm:litertlm-android:$(python scripts/check_android_litertlm_version.py --print-declared)"
+          cd android
+          ./gradlew :app:assembleBenchmark :macrobenchmark:assembleBenchmark --dry-run --no-daemon \
+            "-PhermesBenchmarkExpectedLiteRtLmCoordinate=$coordinate"
+          if ./gradlew :app:assembleBenchmark --dry-run --no-daemon \
+            -PhermesBenchmarkExpectedLiteRtLmCoordinate=com.google.ai.edge.litertlm:litertlm-android:0.0.0 \
+            > "$RUNNER_TEMP/benchmark-stale-coordinate.log" 2>&1; then
+            echo 'Benchmark guard accepted a different runtime coordinate' >&2
+            exit 1
+          fi
+          grep -F 'hermesBenchmarkExpectedLiteRtLmCoordinate must equal the release coordinate' \
+            "$RUNNER_TEMP/benchmark-stale-coordinate.log"
+
       - name: Build Android debug APK and run unit tests
         working-directory: android
         env:
