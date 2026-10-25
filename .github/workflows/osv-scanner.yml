@@ -4,7 +4,7 @@ name: OSV-Scanner
 # database. Runs on every PR/push (via the ci.yml orchestrator's workflow_call)
 # and on a weekly schedule against main.
 #
-# This is detection-only — OSV-Scanner does NOT open PRs or modify pins.
+# OSV-Scanner does NOT open PRs or modify pins.
 # It reports known CVEs in currently-pinned dependency versions so we can
 # decide when and how to patch on our own schedule. Our pinning strategy
 # (full SHA / exact version) is preserved; only the notification signal
@@ -16,8 +16,8 @@ name: OSV-Scanner
 #
 # Uses Google's officially-recommended reusable workflow, pinned by SHA.
 # Findings land in the repo's Security tab (Code Scanning > OSV-Scanner).
-# fail-on-vuln is disabled so the job does not block merges on pre-existing
-# vulnerabilities in pinned deps that we may need to patch deliberately.
+# The scanner retains every severity in its report; the explicit gate below
+# fails on high/critical findings and missing or malformed scan evidence.
 #
 # The reusable workflow can't emit custom outputs, so a wrapper job
 # downloads the SARIF result and summarizes the vulnerability count into
@@ -56,6 +56,49 @@ jobs:
       results-file-name: osv-results.sarif
       fail-on-vuln: false
 
+  memory-dependencies:
+    name: Scan pinned memory dependency internals
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Fetch locks from the installer source commits
+        run: python3 scripts/prepare_memory_security_scan.py --output-dir "$RUNNER_TEMP/agent-memory-sources"
+
+      - name: Install verified OSV scanner
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 2 --output "$RUNNER_TEMP/osv-scanner" \
+            https://github.com/google/osv-scanner/releases/download/v2.3.8/osv-scanner_linux_amd64
+          echo "bc98e15319ed0d515e3f9235287ba53cdc5535d576d24fd573978ecfe9ab92dc  $RUNNER_TEMP/osv-scanner" | sha256sum --check --strict
+          chmod +x "$RUNNER_TEMP/osv-scanner"
+
+      - name: Audit Chroma Rust and both HY Memory lockfiles
+        run: |
+          set -euo pipefail
+          status=0
+          "$RUNNER_TEMP/osv-scanner" scan source \
+            --lockfile="$RUNNER_TEMP/agent-memory-sources/chromadb/Cargo.lock" \
+            --lockfile="$RUNNER_TEMP/agent-memory-sources/hy-memory/uv.lock" \
+            --lockfile="$RUNNER_TEMP/agent-memory-sources/hy-memory/memhub/apps/core/uv.lock" \
+            --format=sarif --output="$RUNNER_TEMP/agent-memory-sources/memory-dependencies.sarif" || status=$?
+          # Exit 1 means findings. Other statuses are scanner failures.
+          if [ "$status" -ne 0 ] && [ "$status" -ne 1 ]; then exit "$status"; fi
+          python3 scripts/check_osv_severity.py "$RUNNER_TEMP/agent-memory-sources/memory-dependencies.sarif"
+
+      - name: Preserve dependency audit and source provenance
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: memory-dependency-security
+          path: |
+            ${{ runner.temp }}/agent-memory-sources/source-provenance.json
+            ${{ runner.temp }}/agent-memory-sources/memory-dependencies.sarif
+          if-no-files-found: error
+          retention-days: 90
+
   emit-status:
     name: Emit review status
     runs-on: ubuntu-latest
@@ -73,6 +116,9 @@ jobs:
           name: OSV Scanner SARIF file
           path: /tmp/osv-results
         continue-on-error: true
+
+      - name: Enforce high and critical security gate
+        run: python3 scripts/check_osv_severity.py /tmp/osv-results/osv-results.sarif
 
       - name: Emit review_status
         id: emit
