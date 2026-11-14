@@ -128,9 +128,6 @@ jobs:
             --tag "$GITHUB_REF_NAME" \
             --perfetto-root "$RUNNER_TEMP/perfetto" \
             --require-tag-ref
-          python scripts/verify_android_play_release_evidence.py \
-            --tag "$GITHUB_REF_NAME" \
-            --source-digest '${{ steps.release_identity.outputs.source_digest }}'
 
       - name: Install Python test dependencies
         run: |
@@ -173,16 +170,6 @@ jobs:
             :app:compileBenchmarkKotlin \
             :macrobenchmark:compileBenchmarkKotlin \
             :app:lintDebug
-
-      - name: Run Play distribution and privacy regression gates
-        working-directory: android
-        run: |
-          export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
-          ./gradlew :app:testPlayDebugUnitTest -PhermesTestBuildType=playDebug \
-            --tests 'com.mobilefork.hermesagent.play.*' --tests 'com.mobilefork.hermesagent.privacy.*' \
-            --tests 'com.mobilefork.hermesagent.ui.chat.PlayChatOperationTest' \
-            --tests 'com.mobilefork.hermesagent.ui.i18n.PrivacyStringsTest'
-          ./gradlew :app:lintPlayDebug -PhermesTestBuildType=playDebug
 
       - name: Set up Node 24 for report service regression gates
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -243,14 +230,14 @@ jobs:
           rm -rf ../build
           rm -f keystore.properties
           export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
-          ./gradlew :app:assembleRelease :app:assemblePlayRelease
+          ./gradlew :app:assembleRelease
           cat > keystore.properties <<EOF
           storeFile=release.keystore
           storePassword=$ANDROID_KEYSTORE_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           keyPassword=$ANDROID_KEY_PASSWORD
           EOF
-          ./gradlew :app:bundleRelease :app:bundlePlayRelease
+          ./gradlew :app:bundleRelease
           sdk_root="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
           build_tools_dir="$sdk_root/build-tools/36.0.0"
           apksigner="$build_tools_dir/apksigner"
@@ -301,32 +288,6 @@ jobs:
           cp -f "$signed_apk" "$universal_apk"
           rm -f "$unsigned_apk"
 
-          play_unsigned="app/build/outputs/apk/playRelease/app-playRelease-unsigned.apk"
-          play_apk="app/build/outputs/apk/playRelease/app-playRelease.apk"
-          play_aab="app/build/outputs/bundle/playRelease/app-playRelease.aab"
-          test -f "$play_unsigned"
-          test -f "$play_aab"
-          "$apksigner" sign \
-            --alignment-preserved true --v1-signing-enabled false \
-            --v2-signing-enabled true --v3-signing-enabled false --v4-signing-enabled false \
-            --ks release.keystore --ks-key-alias "$ANDROID_KEY_ALIAS" \
-            --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
-            --out "$play_apk" "$play_unsigned"
-          "$apksigner" verify --verbose "$play_apk"
-          play_cert="$("$apksigner" verify --print-certs "$play_apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]')"
-          test "$play_cert" = "$EXPECTED_SIGNER_SHA256"
-          "$build_tools_dir/zipalign" -c -P 16 -v 4 "$play_apk"
-          python ../scripts/verify_android_play_package.py "$play_apk" \
-            --bundle "$play_aab" --apkanalyzer "$sdk_root/cmdline-tools/latest/bin/apkanalyzer" \
-            --version-name "$EXPECTED_VERSION_NAME" --version-code "$EXPECTED_VERSION_CODE"
-          for artifact in "$play_apk" "$play_aab"; do
-            python ../scripts/verify_android_source_bound_artifact.py \
-              --artifact "$artifact" --source-digest "$HERMES_SOURCE_DIGEST"
-          done
-          jarsigner -verify "$play_aab"
-          play_aab_cert="$(keytool -printcert -jarfile "$play_aab" -rfc | openssl x509 -inform PEM -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-          test "$play_aab_cert" = "$EXPECTED_SIGNER_SHA256"
-          rm -f "$play_unsigned"
 
       - name: Remove signing material
         if: ${{ always() }}
@@ -372,7 +333,6 @@ jobs:
           HERMES_RELEASE_TAG: ${{ github.ref_name }}
         run: |
           python scripts/android_release_manifest.py --tag "$HERMES_RELEASE_TAG"
-          python scripts/android_release_manifest.py --tag "$HERMES_RELEASE_TAG" --edition play
 
       - name: Build and verify versioned terminal dependency archive
         env:
@@ -400,6 +360,12 @@ jobs:
               --verify-package-archive "dist/android-release/$archive_name"
             (cd dist/android-release && sha256sum "$archive_name" > "$archive_name.sha256")
           fi
+
+      - name: Enforce Full-only publication
+        run: |
+          shopt -s nullglob
+          deprecated_assets=(dist/android-release/hermes-agent-android-play-*)
+          test "${#deprecated_assets[@]}" -eq 0
 
       - name: Verify GitHub CLI is available
         run: |

@@ -1,4 +1,10 @@
-# Play edition and v0.13.157 review boundary
+# Deprecated Play edition and historical review boundary
+
+The release owner deprecated the Play edition on 2026-11-14. Starting with
+v0.13.162, only the normal Full/F-Droid edition is qualified and published.
+The Play-specific device/reporting gate and Play APK/AAB publication are no
+longer required. Historical v0.13.156–161 artifacts and their evidence remain
+unchanged. The material below documents those historical releases.
 
 The Play edition is a separate distribution of the same application source. The
 full GitHub/F-Droid APK retains Linux, Python-agent tools, accessibility-assisted

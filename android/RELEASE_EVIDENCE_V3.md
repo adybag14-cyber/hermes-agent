@@ -12,6 +12,12 @@ validator keeps historical v0.13.148–153 evidence bound to 0.16.1 and earlier
 evidence to 0.16.0. Do not relabel or regenerate those immutable records for an
 SDK upgrade. A model-lab APK is not a release-certified or phone-upgrade APK.
 
+From v0.13.162 onward, the owner's 2026-11-14 policy publishes only the normal
+Full/F-Droid edition. Play artifacts and their separate live-reporting/device
+gate are deprecated. All Full source, package, headed-AVD, signing and both
+post-publication F-Droid gates remain required. Keep the historical Play
+evidence for v0.13.156–161 unchanged.
+
 ### v0.13.154 and later policy
 
 **Version-scoped owner waivers:** On 2026-09-07 the release owner explicitly
@@ -608,11 +614,12 @@ an explicit failure or fabricated review claim is rejected.
 
 ## 8. Merge into the closed release layout
 
-From v0.13.156, include the separately captured `play/` directory specified in
+For v0.13.156–161, include the separately captured `play/` directory specified in
 `PLAY_EDITION.md`. The Full manifest invokes that source-bound Play validator
 and includes its exact JSON/screenshot path set in the closed inventory; do not
 move Play evidence outside the release tree to pass layout validation. Earlier
-tags keep their original Full-only layout.
+tags keep their original Full-only layout. From v0.13.162, omit `play/`; the
+closed Full-only inventory rejects stale Play evidence.
 
 Create only the v3 additions below. Preserve all existing `ui/`,
 `performance/`, and `models/` paths required by the v2 contract.

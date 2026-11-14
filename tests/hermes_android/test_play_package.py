@@ -110,16 +110,17 @@ def test_debug_compose_host_requires_explicit_qualification_opt_in():
         inspect_manifest(DEBUG_HOST_XML)
 
 
-def test_publisher_test_host_theme_is_limited_to_debug_qualification():
+@pytest.mark.parametrize("theme", ["@ref/0x1030241", "@android:style/Theme.Material.Light.NoActionBar"])
+def test_publisher_test_host_theme_is_limited_to_debug_qualification(theme):
     current = DEBUG_HOST_XML.replace(
         'android:name="androidx.activity.ComponentActivity" android:exported="true"',
-        'android:name="androidx.activity.ComponentActivity" android:exported="true" android:theme="@ref/0x1030241"',
+        f'android:name="androidx.activity.ComponentActivity" android:exported="true" android:theme="{theme}"',
     )
     assert inspect_manifest(current, allow_debug_test_host=True)["debug_test_host_allowed"]
     with pytest.raises(ValueError, match="Unreviewed Play activity"):
         inspect_manifest(current)
     with pytest.raises(ValueError, match="Unreviewed debug test host"):
-        inspect_manifest(current.replace("@ref/0x1030241", "@ref/0x103006b"), allow_debug_test_host=True)
+        inspect_manifest(current.replace(theme, "@ref/0x103006b"), allow_debug_test_host=True)
 
 
 @pytest.mark.parametrize("mutation", [

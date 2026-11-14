@@ -15,16 +15,32 @@ except ModuleNotFoundError:  # Imported as a package rather than executed as a s
 REVIEWER_RE = re.compile(r"^[^\r\n]{2,120}$")
 POLICY_UPDATE_VERSION = (0, 13, 154)
 OPTIONAL_PHYSICAL_VERSION = (0, 13, 158)
+PLAY_INTRODUCTION_VERSION = (0, 13, 156)
+PLAY_DEPRECATION_VERSION = (0, 13, 162)
 POLICY_TAG_RE = re.compile(r"v(\d+)\.(\d+)\.(\d+)(?:-(?:alpha|beta|rc)(?:\.\d+)?)?")
 
 
 
-def required_litertlm_coordinate(tag: str) -> str:
-    """Bind each release to its runtime without relabeling historical evidence."""
+def _release_version(tag: str) -> tuple[int, int, int]:
     match = POLICY_TAG_RE.fullmatch(tag.strip())
     if match is None:
         raise EvidenceError(f"Invalid Android release policy tag: {tag!r}")
-    version = tuple(int(part) for part in match.groups())
+    major, minor, patch = match.groups()
+    return int(major), int(minor), int(patch)
+
+
+def requires_play_evidence(tag: str) -> bool:
+    """Retain the immutable Play contract only for releases which shipped it."""
+    return PLAY_INTRODUCTION_VERSION <= _release_version(tag) < PLAY_DEPRECATION_VERSION
+
+
+def play_edition_deprecated(tag: str) -> bool:
+    return _release_version(tag) >= PLAY_DEPRECATION_VERSION
+
+
+def required_litertlm_coordinate(tag: str) -> str:
+    """Bind each release to its runtime without relabeling historical evidence."""
+    version = _release_version(tag)
     for minimum, sdk in (
         ((0, 13, 162), "0.19.1"),
         ((0, 13, 161), "0.18.1"),

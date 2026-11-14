@@ -17,16 +17,19 @@ repository's application ID.
 | Area | Supported value |
 | --- | --- |
 | Minimum Android version | Android 7.0 / API 24 |
-| Compile and target SDK | API 36 (Android 16) |
+| Compile SDK | API 37.0 |
+| Target SDK | API 36 (Android 16) |
 | Release ABIs | `arm64-v8a` for devices and `x86_64` for emulators |
-| Embedded Python | Chaquopy 17 with Python 3.13 |
+| Embedded Python | Chaquopy 17.2 with Python 3.13 |
 | Java bytecode | Java 17 |
 | Release artifacts | One universal APK and one Android App Bundle |
 | F-Droid update source | Signed Git tags, via `fdroid/com.mobilefork.hermesagent.version` |
 
 The Full release APK is intentionally universal. There are no 32-bit ABI splits.
-The separate Play edition uses the `playDebug` / `playRelease` build types and
-does not expose the Full edition's arbitrary-command or external MCP runtime.
+From v0.13.162 onward, releases contain only the normal Full/F-Droid edition.
+The separate Play edition is deprecated. Its retained build types and
+[historical contract](PLAY_EDITION.md) support inspection of earlier releases;
+they are no longer part of release qualification or publication.
 
 ## First run
 
