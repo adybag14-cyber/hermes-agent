@@ -1,7 +1,7 @@
 const debug = require('debug')('extract-zip')
 // eslint-disable-next-line node/no-unsupported-features/node-builtins
 const { promises: fs } = require('fs')
-const getStream = require('get-stream')
+const { default: getStream } = require('get-stream')
 const path = require('path')
 const { randomUUID } = require('crypto')
 const { promisify } = require('util')

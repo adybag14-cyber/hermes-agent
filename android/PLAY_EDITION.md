@@ -9,7 +9,7 @@ label, BuildConfig flag and binary manifest distribution marker distinguish edit
 | Surface | Full GitHub/F-Droid | Play |
 |---|---|---|
 | Remote API chat | Existing agent transport, explicit processing consent | Foreground direct API chat, explicit target-bound consent, no model tools |
-| Local GGUF | Existing Stable and TurboQuant engines | Packaged static e30664a engine for both conventional and TurboQuant cache profiles |
+| Local GGUF | Existing Stable and TurboQuant engines | Packaged static engine from the pinned TurboQuant source for both conventional and TurboQuant cache profiles |
 | LiteRT-LM | Existing packaged runtime | Packaged runtime, foreground only |
 | Linux, executable/package installation, arbitrary shell | Retained | No packaged Linux payload; runtime admission denied |
 | Accessibility, broad app inventory, privileged actions, watchers | Retained with applicable disclosure/permission checks | Components/permissions removed; tool dispatch denied |
