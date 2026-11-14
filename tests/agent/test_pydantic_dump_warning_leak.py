@@ -1,14 +1,9 @@
 """Serializer-warning leak regression tests (#82xxx).
 
-The Anthropic SDK's streaming accumulator builds ``ParsedMessage`` snapshots
-whose content blocks (``ParsedTextBlock``) don't match the generic union
-pydantic expects at serialization time. ``model_dump()`` on those objects
-emits ``PydanticSerializationUnexpectedValue`` UserWarnings that leak
-straight into the user's terminal mid-response.
-
-Every Hermes serialization helper that dumps arbitrary SDK models must pass
-``warnings=False`` (with a TypeError fallback for duck-typed models). These
-tests pin that contract for all four helpers.
+Older Anthropic SDK streaming snapshots emitted pydantic union warnings.
+The current SDK fixed that mismatch. Keep genuine stream snapshots in these
+tests so serialization retains their content and stays quiet, alongside the
+helpers' compatibility with duck-typed models.
 """
 
 import warnings
@@ -53,8 +48,9 @@ def _accumulated_stop_event():
         delta={"type": "text_delta", "text": "hello"},
     )
     snapshot = None
+    json_bufs = {}
     for event in (start, cb_start, cb_delta):
-        snapshot = accumulate_event(event=event, current_snapshot=snapshot)
+        snapshot = accumulate_event(event=event, current_snapshot=snapshot, json_bufs=json_bufs)
     return build(ParsedMessageStopEvent, type="message_stop", message=snapshot), snapshot
 
 
@@ -62,20 +58,14 @@ def _pydantic_warnings(recorded):
     return [w for w in recorded if "Pydantic serializer warnings" in str(w.message)]
 
 
-def test_stop_event_dump_actually_warns_without_suppression():
-    """Precondition: the fixture really trips the SDK/pydantic warning.
-
-    If a future SDK/pydantic release stops warning here, the other tests
-    pass vacuously — this test tells us the guard can be simplified.
-    """
+def test_current_sdk_stop_event_serializes_without_warning():
+    """The current SDK fixed the ParsedMessage union warning; retain real output coverage."""
     stop_event, _ = _accumulated_stop_event()
     with warnings.catch_warnings(record=True) as recorded:
         warnings.simplefilter("always")
-        stop_event.model_dump()
-    assert _pydantic_warnings(recorded), (
-        "fixture no longer reproduces the pydantic serializer warning; "
-        "the warnings=False guards may be removable"
-    )
+        payload = stop_event.model_dump()
+    assert payload["message"]["content"][0]["text"] == "hello"
+    assert not _pydantic_warnings(recorded)
 
 
 def test_relay_llm_jsonable_no_warning_leak():

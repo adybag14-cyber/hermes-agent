@@ -114,7 +114,7 @@ def _stub_discord_permissions(monkeypatch):
         def __init__(self, value=0, **_):
             self.value = value
 
-    monkeypatch.setattr(discord, "Permissions", _Perm)
+    monkeypatch.setattr(discord, "Permissions", _Perm, raising=False)
 
 
 @pytest.fixture

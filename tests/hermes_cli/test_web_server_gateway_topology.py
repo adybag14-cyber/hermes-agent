@@ -518,7 +518,7 @@ class TestStatusEndpointTopology:
                 "gateways": [{"profile": "default", "ports": {"webhook": 8644}}],
             },
         )
-        monkeypatch.setattr(web_server.app.state, "auth_required", True, raising=False)
+        monkeypatch.setitem(web_server.app.state._state, "auth_required", True)
         try:
             resp = self.client.get("/api/status")
             assert resp.status_code == 200
@@ -531,6 +531,4 @@ class TestStatusEndpointTopology:
             assert "hermes_home" not in data
             assert "gateway_pid" not in data
         finally:
-            monkeypatch.setattr(
-                web_server.app.state, "auth_required", False, raising=False
-            )
+            monkeypatch.setitem(web_server.app.state._state, "auth_required", False)

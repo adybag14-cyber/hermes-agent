@@ -36,7 +36,8 @@ def _ensure_discord_mock():
 
     if sys.modules.get("discord") is None:
         discord_mod = MagicMock()
-        discord_mod.Intents.default.return_value = MagicMock()
+        discord_mod.Intents = SimpleNamespace(default=lambda: MagicMock())
+        discord_mod.Permissions = MagicMock()
         discord_mod.Client = MagicMock
         discord_mod.File = MagicMock
         discord_mod.DMChannel = type("DMChannel", (), {})
@@ -74,6 +75,10 @@ from plugins.platforms.discord.adapter import DiscordAdapter  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def _speed_up_command_sync_mutation_pacing(monkeypatch):
+    # Give each test concrete SDK attributes. Newer pytest restores static
+    # attributes without preserving MagicMock's lazily created children.
+    monkeypatch.setattr(discord_platform, "Intents", SimpleNamespace(default=lambda: MagicMock()))
+    monkeypatch.setattr(discord_platform.discord, "Permissions", MagicMock(), raising=False)
     monkeypatch.setattr(
         DiscordAdapter,
         "_command_sync_mutation_interval_seconds",

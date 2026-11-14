@@ -56,7 +56,12 @@ def inspect_manifest(xml: str, *, version_name: str | None = None, version_code:
         if len(debug_test_nodes) != 1:
             raise ValueError("Debug qualification requires exactly one Compose test host")
         test_host = debug_test_nodes[0]
-        if test_host.attrib != {ANDROID + "name": DEBUG_TEST_ACTIVITY, ANDROID + "exported": "true"} or list(test_host):
+        expected_host = {ANDROID + "name": DEBUG_TEST_ACTIVITY, ANDROID + "exported": "true"}
+        if ANDROID + "theme" in test_host.attrib:
+            # Compose ui-test-manifest 1.12.1 declares the platform's
+            # Theme.Material.Light.NoActionBar; apkanalyzer emits its exact ID.
+            expected_host[ANDROID + "theme"] = "@ref/0x1030241"
+        if test_host.attrib != expected_host or list(test_host):
             raise ValueError("Unreviewed debug test host attributes or intent filters")
     for kind, allowed in ALLOWED_COMPONENTS.items():
         if allow_debug_test_host and kind == "activity":
