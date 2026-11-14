@@ -4,10 +4,10 @@
   "bootstrap_version": "17.2.0",
   "source": {
     "repository": "https://github.com/adybag14-cyber/chaquopy",
-    "commit": "7d96d3ac50b08c14e5479cefeec92700dbb0a266",
-    "archive_url": "https://codeload.github.com/adybag14-cyber/chaquopy/tar.gz/7d96d3ac50b08c14e5479cefeec92700dbb0a266",
-    "archive_size_bytes": 8283320,
-    "archive_sha256": "51bb34da0ef66237165a8b296ab469166ce45bb3ab87f58b77fc6a105a6fc3b7",
+    "commit": "558c707a9593e65d5c8ce6169d99a96afdcf1051",
+    "archive_url": "https://codeload.github.com/adybag14-cyber/chaquopy/tar.gz/558c707a9593e65d5c8ce6169d99a96afdcf1051",
+    "archive_size_bytes": 8283395,
+    "archive_sha256": "ddf94a2b932d773274e18036165f69433f31d7711b5375e0cd8adceefae12a0c",
     "license": "MIT"
   },
   "build": {

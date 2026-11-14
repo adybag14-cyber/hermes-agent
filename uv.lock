@@ -1975,6 +1975,7 @@ daytona = [
     { name = "daytona" },
 ]
 dev = [
+    { name = "anthropic" },
     { name = "debugpy" },
     { name = "httpx2" },
     { name = "mcp" },
@@ -2157,6 +2158,7 @@ requires-dist = [
     { name = "aiosqlite", marker = "extra == 'matrix'", specifier = "==0.22.1" },
     { name = "alibabacloud-dingtalk", marker = "extra == 'dingtalk'", specifier = "==2.2.67" },
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = "==2.8.0" },
+    { name = "anthropic", marker = "extra == 'dev'", specifier = "==2.8.0" },
     { name = "asyncpg", marker = "extra == 'matrix'", specifier = "==0.32.0" },
     { name = "azure-identity", marker = "extra == 'azure-identity'", specifier = "==1.27.0" },
     { name = "boto3", marker = "extra == 'bedrock'", specifier = "==1.44.3" },

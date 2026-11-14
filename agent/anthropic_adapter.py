@@ -342,7 +342,7 @@ def _build_anthropic_client_with_bearer_hook(
     return _new_sdk_client(sdk, kwargs, headers)
 
 
-def _new_sdk_client(sdk, kwargs: Dict[str, Any], headers: Dict[str, str]):
+def _new_sdk_client(sdk, kwargs: Dict[str, Any], headers: Dict[str, Any]):
     """``sdk.Anthropic(**kwargs)`` with ``headers`` attached. Bearer-only construction leaves
     ``api_key`` unset, so the SDK fills it from ANTHROPIC_API_KEY (loaded from ~/.hermes/.env) and
     sends dual auth — X-Api-Key *and* Authorization: Bearer — on every Portal/MiniMax/OAuth/Entra
@@ -392,7 +392,12 @@ def build_anthropic_client(api_key, base_url: str = None, timeout: float = None,
     common_betas = _common_betas_for_base_url(normalized_base_url, drop_context_1m_beta=drop_context_1m_beta)
     style = _auth_style(api_key, base_url, normalized_base_url)
     kwargs["auth_token" if style in ("bearer", "oauth") else "api_key"] = api_key
-    headers = _beta_header(common_betas + _OAUTH_ONLY_BETAS if style == "oauth" else common_betas)
+    headers: Dict[str, Any] = _beta_header(common_betas + _OAUTH_ONLY_BETAS if style == "oauth" else common_betas)
+    if style in ("api_key", "kimi") and _is_third_party_anthropic_endpoint(base_url):
+        # SDK 2.x defaults API keys to Bearer auth. Existing compatible endpoints
+        # still use x-api-key; omit the SDK's Authorization header on those routes.
+        headers["x-api-key"] = api_key
+        headers["Authorization"] = sdk.omit
     if style == "kimi":
         headers = {**_attribution_headers(), **headers}
     elif style == "oauth":
