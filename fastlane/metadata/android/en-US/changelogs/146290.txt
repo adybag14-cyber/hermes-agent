@@ -1,0 +1,1 @@
+Update LiteRT-LM to 0.19.1, stable llama.cpp to 1.0.0, and TurboQuant. Refresh the Android, embedded Python, and Linux runtime dependencies. Use proot-distro's upstream executable override and recover from invalid package-mirror responses. Preserve existing conversations, model files, and runtime settings.

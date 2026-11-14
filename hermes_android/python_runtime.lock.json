@@ -4,10 +4,10 @@
   "bootstrap_version": "17.2.0",
   "source": {
     "repository": "https://github.com/adybag14-cyber/chaquopy",
-    "commit": "e26045ecbbfd257836eef4fa0aa24f18e66cd4a0",
-    "archive_url": "https://codeload.github.com/adybag14-cyber/chaquopy/tar.gz/e26045ecbbfd257836eef4fa0aa24f18e66cd4a0",
-    "archive_size_bytes": 8283291,
-    "archive_sha256": "3258269f65ff09619b73b4b0e8997e6c28de7b3ea89cab573da5bde85da2a0c3",
+    "commit": "7d96d3ac50b08c14e5479cefeec92700dbb0a266",
+    "archive_url": "https://codeload.github.com/adybag14-cyber/chaquopy/tar.gz/7d96d3ac50b08c14e5479cefeec92700dbb0a266",
+    "archive_size_bytes": 8283320,
+    "archive_sha256": "51bb34da0ef66237165a8b296ab469166ce45bb3ab87f58b77fc6a105a6fc3b7",
     "license": "MIT"
   },
   "build": {
@@ -37,11 +37,6 @@
       "filename": "aiohttp-3.14.5-cp313-cp313-android_24_x86_64.whl",
       "bytes": 553329,
       "sha256": "f59c7673465908cbe506117176156c127f29f917677afceada34957179221d91"
-    },
-    {
-      "filename": "aiohttp-3.14.5-py3-none-any.whl",
-      "bytes": 279517,
-      "sha256": "efc21a454892828368b11c2c780de0ff8bc991f73f6b99c6b66e56205470929b"
     },
     {
       "filename": "aiosignal-1.4.0-py3-none-any.whl",
@@ -97,11 +92,6 @@
       "filename": "charset_normalizer-3.5.2-cp313-cp313-android_24_x86_64.whl",
       "bytes": 238619,
       "sha256": "a66c3bc5ab1f0ff2164fc9965ddd611ff0802173f4b9d24554c563f6ab7e1d6e"
-    },
-    {
-      "filename": "charset_normalizer-3.5.2-py3-none-any.whl",
-      "bytes": 68872,
-      "sha256": "b6b751274acb69d77b3323d6b7dbaa3c7fdfc1eb829b7eb61d262f32e1af9685"
     },
     {
       "filename": "click-8.5.1-py3-none-any.whl",

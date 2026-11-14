@@ -31,6 +31,7 @@ val expectedBootId = providers.gradleProperty("hermesBenchmarkExpectedBootId")
 android {
     namespace = "com.mobilefork.hermesagent.macrobenchmark"
     compileSdk = 37
+    compileSdkMinor = 0
     buildToolsVersion = "36.0.0"
 
     defaultConfig {

@@ -406,6 +406,7 @@ hermes-acp = "acp_adapter.entry:main"
 
 [tool.uv]
 constraint-dependencies = [
+  "huggingface-hub>=1.5,<2",  # Shared with the supported Hindsight embedding stack.
   "anyio>=4.14.2,<5",  # CVE-2026-63374: certificate hostname validation.
   "tornado>=6.5.9,<7",  # HTTP response bounds, form parsing, and static paths.
   "filelock>=4.2.1,<5",  # Symlink-safe lock ownership.

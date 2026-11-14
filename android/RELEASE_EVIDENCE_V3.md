@@ -5,8 +5,8 @@ tags at or after `v0.13.148`. Earlier committed evidence, including
 `android/release-evidence/v0.13.147`, remains on manifest v2 and must not be
 regenerated or rearranged.
 
-The v0.13.161 candidate uses LiteRT-LM 0.18.0. Historical v0.13.159–160
-evidence remains bound to LiteRT-LM 0.17.1.
+The v0.13.162 candidate uses LiteRT-LM 0.19.1. Historical v0.13.161
+evidence remains bound to LiteRT-LM 0.18.1, and v0.13.159–160 to 0.17.1.
 Historical v0.13.154–158 evidence remains bound to 0.17.0. The offline
 validator keeps historical v0.13.148–153 evidence bound to 0.16.1 and earlier
 evidence to 0.16.0. Do not relabel or regenerate those immutable records for an
@@ -33,7 +33,7 @@ phone is required. v0.13.157 retains its already-authorized immutable waiver.
 Required AVD, source, signing, hosted workflow and both post-publication F-Droid
 gates are unchanged. Do not reuse older API 35 phone results as API 36 proof.
 
-The app and macrobenchmark compile and target API 36 with Build Tools 36.0.0.
+The app and macrobenchmark compile against API 37 and target API 36 with Build Tools 36.0.0.
 The signed candidate and release workflows independently inspect the APK manifest
 and reject target SDKs below 36. Run the Android 16 back-navigation instrumentation
 on an API 36-or-newer device; preserve the API 35 AVD performance baseline as a

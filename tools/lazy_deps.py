@@ -207,7 +207,7 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # posture), but it MUST stay inside transformers' accepted window and MUST match uv.lock so the whole
     # tree converges on ONE hub version (tests/test_project_metadata.py enforces both). When bumping: update
     # here AND `uv lock --upgrade-package huggingface-hub` in lockstep.
-    "tool.trace_upload": ("huggingface-hub==1.24.0",),
+    "tool.trace_upload": ("huggingface-hub==1.33.0",),
 }
 
 

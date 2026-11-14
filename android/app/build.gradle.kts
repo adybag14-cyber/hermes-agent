@@ -348,6 +348,7 @@ if (hermesSourceDigest.isNotBlank()) {
 android {
     namespace = "com.mobilefork.hermesagent"
     compileSdk = 37
+    compileSdkMinor = 0
     buildToolsVersion = "36.0.0"
     ndkVersion = hermesExperimentalLlamaNdkVersion
 
