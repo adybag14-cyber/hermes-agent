@@ -56,7 +56,7 @@ def inputs(tmp_path):
     requirements = tmp_path / "requirements.txt"
     requirements.write_text("jiter==0.16.0\npydantic-core==2.46.5\nmsgpack==1.2.2\nexample==1.0\n")
     lock = {
-        "schema_version": 1, "python": "3.13", "bootstrap_version": "17.0.1",
+        "schema_version": 1, "python": "3.13", "bootstrap_version": "17.2.0",
         "source": {"commit": "a" * 40, "archive_sha256": "b" * 64,
                    "archive_size_bytes": 123,
                    "archive_url": "https://codeload.github.com/adybag14-cyber/chaquopy/tar.gz/" + "a" * 40},
@@ -70,12 +70,12 @@ def inputs(tmp_path):
 
 def make_bundle(tmp_path, lock_file, requirements, lock):
     root = tmp_path / "bundle"
-    bootstrap = root / "maven/com/chaquo/python/runtime/bootstrap/17.0.1/bootstrap-17.0.1-3.13.imy"
+    bootstrap = root / "maven/com/chaquo/python/runtime/bootstrap/17.2.0/bootstrap-17.2.0-3.13.imy"
     bootstrap.parent.mkdir(parents=True)
     bootstrap.write_bytes(b"fixture bootstrap")
     (root / "requirements.txt").write_bytes(requirements.read_bytes())
     receipt = {
-        "schema": runtime.SCHEMA, "python": "3.13", "bootstrap_version": "17.0.1",
+        "schema": runtime.SCHEMA, "python": "3.13", "bootstrap_version": "17.2.0",
         "source_lock_sha256": runtime.digest(lock_file),
         "hermes_requirements_sha256": runtime.digest(requirements),
         "fork_commit": lock["source"]["commit"], "runtime_tested": False,

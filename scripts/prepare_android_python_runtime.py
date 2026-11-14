@@ -37,8 +37,8 @@ SCHEMA = "hermes-chaquopy-source-consumer-v1"
 CUSTOM = {"jiter", "pydantic-core", "msgpack"}
 ABIS = {"arm64-v8a": "arm64_v8a", "x86_64": "x86_64"}
 BUILD_PINS = (
-    "pip==26.2.1", "cibuildwheel==4.2.0", "build==1.3.0", "maturin==1.15.0",
-    "setuptools==80.9.0", "wheel==0.45.1", "packaging==26.3", "bashlex==0.18",
+    "pip==26.3", "cibuildwheel==4.3.5", "build==1.6.1", "maturin==1.16.0",
+    "setuptools==84.2.1", "wheel==0.48.0", "packaging==26.3", "bashlex==0.18",
     "bracex==3.0.1", "certifi==2026.10.23", "dependency-groups==1.3.2",
     "filelock==4.2.4", "humanize==4.16.0", "platformdirs==4.11.7",
     "pyproject-hooks==1.2.0",
@@ -85,7 +85,7 @@ def inventory(root):
 def load_lock(path=LOCK, requirements=REQUIREMENTS):
     lock = json.loads(path.read_text(encoding="utf-8"))
     if (lock.get("schema_version") != 1 or lock.get("python") != "3.13"
-            or lock.get("bootstrap_version") != "17.0.1"):
+            or lock.get("bootstrap_version") != "17.2.0"):
         raise ValueError("Unsupported Android Python source lock")
     source = lock["source"]
     if (not re.fullmatch(r"[0-9a-f]{40}", source["commit"])
@@ -255,8 +255,9 @@ def prepare(output, work, *, lock_file=LOCK, requirements=REQUIREMENTS, reuse_to
                 shutil.copyfile(wheel, wheels / wheel.name)
     run([python, helpers / "prepare_sources.py", "prepare", "--package", "msgpack",
          "--dest", work / "source-msgpack"], cwd=source, env=environment, timeout=180)
+    msgpack_source = json.loads((helpers / "sources.lock.json").read_text(encoding="utf-8"))["packages"]["msgpack"]["source_directory"]
     run([python, "-m", "build", "--no-isolation", "--wheel", "--outdir", wheels,
-         work / "source-msgpack/msgpack-1.2.2"], cwd=source,
+         work / "source-msgpack" / msgpack_source], cwd=source,
         env=environment | {"MSGPACK_PUREPYTHON": "1"}, timeout=600)
     if "mcp_native" in lock:
         mcp_report = mcp_wheels.build(lock["mcp_native"], work=work / "mcp-native", wheel_dir=wheels,

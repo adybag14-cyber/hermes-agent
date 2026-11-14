@@ -256,7 +256,7 @@ def build_bearer_http_client(token_provider: Callable[[], str], **httpx_kwargs: 
     forwarded verbatim (``timeout``, ``transport``...)."""
     if not is_token_provider(token_provider):
         raise ValueError("build_bearer_http_client requires a zero-arg callable token provider")
-    import httpx
+    import httpx2 as httpx
 
     def _inject_bearer(request: "httpx.Request") -> None:
         try:

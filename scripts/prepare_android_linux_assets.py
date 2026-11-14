@@ -42,24 +42,13 @@ from hermes_android.linux_assets import (
 ANDROID_SPAWN_NEEDED = b"libandroid-spawn.so\0"
 BIONIC_LIBC_NEEDED = b"libc.so\0"
 BIONIC_LLAMA_SERVER_NAME = "llama-server-bionic"
-PROOT_DIRECT_EXEC_ENV = "HERMES_ANDROID_PROOT_EXECUTABLE"
-PROOT_LOOKUP_EXPRESSION = b'shutil.which("proot") or "proot"'
-PROOT_DIRECT_EXEC_REPLACEMENT = (
-    b'os.environ.get("' + PROOT_DIRECT_EXEC_ENV.encode("ascii") + b'") or ' + PROOT_LOOKUP_EXPRESSION
-)
-# proot-distro 5.4.0-1 is architecture-independent and is pinned by the
-# package lock. Guard the two modules by both their original and resulting
-# hashes so upstream layout/source drift fails the asset build loudly instead
-# of silently restoring PATH-based execution.
-PROOT_DISTRO_DIRECT_EXEC_PATCHES = {
-    "lib/python3.14/site-packages/proot_distro/commands/login/__init__.py": {
-        "source_sha256": "099b1dd1e7d4885c3e302c74aa30c7d544e623f271d9aadbc3bf7b7d16fee897",
-        "patched_sha256": "15abb7deff3ba395358cdbd319b2d2d40c6e4fc267f95cf60f5b9a211ad11ada",
-    },
-    "lib/python3.14/site-packages/proot_distro/helpers/build_engine/run_step.py": {
-        "source_sha256": "61195ff3c00a1f411687501f95934e0b619191d93f6651b84cc06b2cc7473c37",
-        "patched_sha256": "7204f8b01f2ac94f506e913d034d252a427842ec013c79edc56c5cdb2aed3c67",
-    },
+# proot-distro 5.10.3 supplies PD_PROOT_BIN upstream. Bind the reviewed
+# resolver and CLI validation instead of rewriting its Python call sites.
+PROOT_DISTRO_DIRECT_EXEC_SOURCES = {
+    "lib/python3.14/site-packages/proot_distro/arch.py":
+        "9f275c287b24e89eba1082a01c787bcfd20ec0d82e234b576953a24c12c66208",
+    "lib/python3.14/site-packages/proot_distro/cli.py":
+        "45b7b6fa7f36ed6bc358b6a1f43667f3f5ec1f136537b476a53cd36258c3796f",
 }
 DEFAULT_LOCK_FILE = REPO_ROOT / "hermes_android" / "termux_linux_assets.lock.json"
 LOCK_FILE_VERSION = 1
@@ -170,6 +159,10 @@ def download_termux_main_path(relative_path: str, expected_sha256: str | None = 
                 except ValueError as exc:
                     errors.append(f"{url}: {exc}")
                     continue
+            # Some mirrors return an HTML challenge with HTTP 200. An empty
+            # parsed index must fall through just like a failed download.
+            if relative_path.endswith("/Packages") and not parse_packages_index(payload.decode("utf-8")):
+                raise ValueError("Termux package index contains no valid package records")
             return payload
         except Exception as exc:  # pragma: no cover - exercised by live release builds
             errors.append(f"{url}: {exc}")
@@ -535,58 +528,22 @@ def create_bionic_llama_server_launcher(prefix_dir: Path) -> None:
         destination.unlink(missing_ok=True)
 
 
-def patch_proot_distro_direct_execution(prefix_dir: Path) -> list[str]:
-    """Route PRoot through the APK-native executable selected at runtime.
-
-    Android 10+ can reject execve() of downloaded ELF files in writable app
-    data. This deterministic build step changes only the two pinned
-    proot-distro call sites that otherwise resolve ``proot`` from PATH. Runtime
-    startup never edits the extracted Python sources.
-    """
-
-    patched: list[str] = []
-    for relative_path, hashes in PROOT_DISTRO_DIRECT_EXEC_PATCHES.items():
+def verify_proot_distro_direct_execution(prefix_dir: Path) -> list[str]:
+    """Verify upstream's APK-native executable override without changing sources."""
+    verified: list[str] = []
+    for relative_path, expected_sha256 in PROOT_DISTRO_DIRECT_EXEC_SOURCES.items():
         module = prefix_dir / relative_path
         if not module.is_file():
             raise RuntimeError(f"Pinned proot-distro module is missing: {relative_path}")
-
         payload = module.read_bytes()
         actual_sha256 = sha256(payload).hexdigest()
-        source_sha256 = hashes["source_sha256"]
-        patched_sha256 = hashes["patched_sha256"]
-        if actual_sha256 == patched_sha256:
-            if payload.count(PROOT_DIRECT_EXEC_REPLACEMENT) != 1:
-                raise RuntimeError(
-                    f"Patched proot-distro anchor count changed for {relative_path}"
-                )
-            patched.append(relative_path)
-            continue
-        if actual_sha256 != source_sha256:
+        if actual_sha256 != expected_sha256:
             raise RuntimeError(
                 "Pinned proot-distro source hash changed for "
-                f"{relative_path}: expected {source_sha256}, got {actual_sha256}"
+                f"{relative_path}: expected {expected_sha256}, got {actual_sha256}"
             )
-        if payload.count(PROOT_LOOKUP_EXPRESSION) != 1:
-            raise RuntimeError(
-                f"Expected exactly one proot lookup anchor in {relative_path}"
-            )
-        if PROOT_DIRECT_EXEC_REPLACEMENT in payload:
-            raise RuntimeError(f"Unexpected partial proot patch in {relative_path}")
-
-        updated = payload.replace(
-            PROOT_LOOKUP_EXPRESSION,
-            PROOT_DIRECT_EXEC_REPLACEMENT,
-            1,
-        )
-        updated_sha256 = sha256(updated).hexdigest()
-        if updated_sha256 != patched_sha256:
-            raise RuntimeError(
-                "Pinned proot-distro patched hash changed for "
-                f"{relative_path}: expected {patched_sha256}, got {updated_sha256}"
-            )
-        module.write_bytes(updated)
-        patched.append(relative_path)
-    return patched
+        verified.append(relative_path)
+    return verified
 
 
 def manifest_file_list(prefix_dir: Path) -> list[str]:
@@ -627,7 +584,7 @@ def prepare_assets(output_dir: Path, lock_file: Path | None = DEFAULT_LOCK_FILE,
                     links.extend(mirror_data_tar(tar, prefix_dir))
 
             prune_staging_prefix(prefix_dir)
-            patch_proot_distro_direct_execution(prefix_dir)
+            verify_proot_distro_direct_execution(prefix_dir)
             create_bionic_llama_server_launcher(prefix_dir)
             for extra_dir in [prefix_dir / "home", prefix_dir / "tmp"]:
                 extra_dir.mkdir(parents=True, exist_ok=True)

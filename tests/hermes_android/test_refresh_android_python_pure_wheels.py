@@ -30,7 +30,7 @@ def inputs(tmp_path):
              "sha256": hashlib.sha256(original).hexdigest()}
     new_wheel = {"filename": "example-1.1-py3-none-any.whl", "bytes": len(replacement),
                  "sha256": hashlib.sha256(replacement).hexdigest()}
-    old = {"schema_version": 1, "python": "3.13", "bootstrap_version": "17.0.1",
+    old = {"schema_version": 1, "python": "3.13", "bootstrap_version": "17.2.0",
            "source": {"commit": "a" * 40, "archive_sha256": "b" * 64, "archive_size_bytes": 123,
                       "archive_url": "https://codeload.github.com/adybag14-cyber/chaquopy/tar.gz/" + "a" * 40},
            "official_wheels": [wheel]}
@@ -45,12 +45,12 @@ def inputs(tmp_path):
     next_lock.write_text(json.dumps(new))
     next_requirements = tmp_path / "new.txt"
     next_requirements.write_text(req.replace("example==1.0", "example==1.1"))
-    bootstrap = root / "maven/com/chaquo/python/runtime/bootstrap/17.0.1/bootstrap-17.0.1-3.13.imy"
+    bootstrap = root / "maven/com/chaquo/python/runtime/bootstrap/17.2.0/bootstrap-17.2.0-3.13.imy"
     bootstrap.parent.mkdir(parents=True)
     bootstrap.write_bytes(b"native bootstrap fixture; must be preserved")
     (root / "wheels" / wheel["filename"]).write_bytes(original)
     shutil.copyfile(previous_requirements, root / "requirements.txt")
-    receipt = {"schema": runtime.SCHEMA, "python": "3.13", "bootstrap_version": "17.0.1",
+    receipt = {"schema": runtime.SCHEMA, "python": "3.13", "bootstrap_version": "17.2.0",
                "source_lock_sha256": runtime.digest(previous_lock),
                "hermes_requirements_sha256": runtime.digest(previous_requirements),
                "fork_commit": "a" * 40, "runtime_tested": False,

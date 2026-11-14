@@ -129,10 +129,10 @@ object HermesLinuxSubsystemBridge {
     private const val NATIVE_COMMAND_ENV_NAME = "native-command-functions.sh"
     private const val PYTHON_BINARY_NAME = "python"
     private const val DIRECT_PROOT_ENV = "HERMES_ANDROID_PROOT_EXECUTABLE"
+    private const val PROOT_DISTRO_EXEC_ENV = "PD_PROOT_BIN"
     private const val DIRECT_EXECUTION_MODE = "apk_native_library_direct"
     private const val NATIVE_EXECUTION_POLICY_VERSION = 1
-    private const val PROOT_DIRECT_EXEC_EXPRESSION =
-        "os.environ.get(\"HERMES_ANDROID_PROOT_EXECUTABLE\") or shutil.which(\"proot\") or \"proot\""
+    private const val PROOT_DIRECT_EXEC_EXPRESSION = "os.environ.get(\"PD_PROOT_BIN\")"
     private const val TAG = "HermesLinuxSubsystem"
     private const val MANAGED_PREFIX_REFRESH_MODE = "managed_overlay_preserve_mutable_state"
     private val ELF_MAGIC = byteArrayOf(0x7f, 0x45, 0x4c, 0x46)
@@ -927,8 +927,8 @@ object HermesLinuxSubsystemBridge {
     private fun isProotDistroDirectExecutionReady(prefixDir: File): Boolean {
         val pythonLibDir = resolvePythonLibPath(prefixDir)
         val relativeModules = listOf(
-            "site-packages/proot_distro/commands/login/__init__.py",
-            "site-packages/proot_distro/helpers/build_engine/run_step.py",
+            "site-packages/proot_distro/arch.py",
+            "site-packages/proot_distro/cli.py",
         )
         return relativeModules.all { relativeModule ->
             val module = File(pythonLibDir, relativeModule)
@@ -1112,6 +1112,7 @@ object HermesLinuxSubsystemBridge {
             "PROOT_LOADER_32" to prootLoader32Path,
             "PROOT_NO_SECCOMP" to "1",
             DIRECT_PROOT_ENV to state.optString("native_proot_path"),
+            PROOT_DISTRO_EXEC_ENV to state.optString("native_proot_path"),
             "HERMES_ANDROID_NATIVE_COMMAND_ENV" to state.optString("native_command_env_path"),
             "ANDROID_DATA" to "/data",
             "ANDROID_ROOT" to "/system",
@@ -1237,6 +1238,7 @@ object HermesLinuxSubsystemBridge {
             "export PROOT_LOADER_32=${shellQuote(prootLoader32Path)}",
             "export PROOT_NO_SECCOMP=${shellQuote("1")}",
             "export $DIRECT_PROOT_ENV=${shellQuote(directProotPath)}",
+            "export $PROOT_DISTRO_EXEC_ENV=${shellQuote(directProotPath)}",
             "export LD_LIBRARY_PATH=${shellQuote(runtimeLibraryPath)}",
             nativeCommandEnvironment
                 .takeIf { it.isNotBlank() && File(it).isFile }

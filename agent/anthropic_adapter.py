@@ -304,7 +304,7 @@ def _attribution_headers() -> Dict[str, str]:
 
 def _client_timeout(timeout):
     """httpx.Timeout with the caller's read timeout (default 900s) and a 10s connect."""
-    from httpx import Timeout
+    from httpx2 import Timeout
     read = timeout if (isinstance(timeout, (int, float)) and timeout > 0) else 900.0
     return Timeout(timeout=float(read), connect=10.0)
 

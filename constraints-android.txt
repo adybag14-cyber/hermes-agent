@@ -9,9 +9,9 @@
 # Android uses hash-locked publisher wheels, including aiohttp's API 24 wheels.
 #
 # Note: the Gradle / Chaquopy build installs ../../ with --no-deps, then adds
-# requirements-android-chaquopy.txt plus Android-safe stubs for anthropic and
-# fal-client. This keeps the embedded runtime independent from the broader host
+# requirements-android-chaquopy.txt with genuine publisher SDKs. This keeps
+# the embedded runtime independent from the broader host
 # constraints used by CI/test installs here.
 
 aiohttp>=3.14.5,<4
-croniter>=6.0.0,<7
+croniter>=7.0.0,<8

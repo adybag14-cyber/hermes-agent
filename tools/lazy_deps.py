@@ -32,44 +32,44 @@ logger = logging.getLogger(__name__)
 
 # Allowlist: "namespace.backend" -> pip specs matching the pyproject extra. Pins are exact
 # (security posture); bump here AND in pyproject. Shared patched floors (aiohttp==3.14.5,
-# starlette==1.3.1) are literals in every feature: tests/test_packaging_metadata.py checks by AST.
+# starlette==1.10.0) are literals in every feature: tests/test_packaging_metadata.py checks by AST.
 LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # ─── Inference providers ───────────────────────────────────────────────
     # Native Anthropic SDK (provider=anthropic; aggregators use the openai SDK).
-    "provider.anthropic": ("anthropic==0.87.0",),  # CVE-2026-34450, CVE-2026-34452
-    "provider.bedrock": ("boto3==1.42.89",),
+    "provider.anthropic": ("anthropic==2.8.0",),  # CVE-2026-34450, CVE-2026-34452
+    "provider.bedrock": ("boto3==1.44.3",),
     # Vertex OAuth2 token minting; google-auth is NOT in [all] on purpose.
     "provider.vertex": (
-        "google-auth==2.55.1",
-        "pyasn1==0.6.4",
+        "google-auth==2.62.2",
+        "pyasn1==0.6.5",
     ),
     # Foundry Entra ID auth; only when model.auth_mode=entra_id.
-    "provider.azure_identity": ("azure-identity==1.25.3",),
+    "provider.azure_identity": ("azure-identity==1.27.0",),
 
     # ─── Web search backends ───────────────────────────────────────────────
-    "search.exa": ("exa-py==2.10.2",),
-    "search.firecrawl": ("firecrawl-py==4.17.0",),
-    "search.parallel": ("parallel-web==0.4.2",),
+    "search.exa": ("exa-py==2.28.0",),
+    "search.firecrawl": ("firecrawl-py==4.57.0",),
+    "search.parallel": ("parallel-web==1.3.7",),
 
     # ─── Monitoring ─────────────────────────────────────────────────────────
     # OTLP export; tracks the `otlp` extra.
     "export.otlp": (
-        "opentelemetry-sdk==1.39.1",
-        "opentelemetry-exporter-otlp-proto-http==1.39.1",
+        "opentelemetry-sdk==1.45.2",
+        "opentelemetry-exporter-otlp-proto-http==1.45.2",
     ),
 
     # ─── TTS providers ─────────────────────────────────────────────────────
     # mistralai: 2.4.6 was a malicious quarantined release — never pin below 2.4.7.
     # Voxtral STT + TTS share the SDK.
-    "tts.mistral": ("mistralai==2.4.8",),
-    "tts.edge": ("edge-tts==7.2.7",),
-    "tts.elevenlabs": ("elevenlabs==1.59.0",),
+    "tts.mistral": ("mistralai==3.7.0",),
+    "tts.edge": ("edge-tts==7.3.1",),
+    "tts.elevenlabs": ("elevenlabs==2.78.0",),
 
     # ─── Speech-to-text providers ──────────────────────────────────────────
-    "stt.mistral": ("mistralai==2.4.8",),
+    "stt.mistral": ("mistralai==3.7.0",),
     "stt.faster_whisper": (
         "faster-whisper==1.2.1",
-        "sounddevice==0.5.5",
+        "sounddevice==0.5.6",
         "numpy==2.4.3",
     ),
     # SILK voice-note decoding (WeChat/QQ); silk-v3 codec binding.
@@ -80,42 +80,42 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # (ai-edge-litert, bridged in tools/wake_word.py). Separate feature because specs cannot
     # carry PEP 508 markers (";" is rejected) — the caller applies the platform gate.
     "wake.openwakeword.tflite": (
-        "ai-edge-litert==2.1.6",
+        "ai-edge-litert==2.3.0",
     ),
     "wake.openwakeword": (
         "openwakeword==0.6.0",
-        "onnxruntime==1.27.0",
-        "sounddevice==0.5.5",
+        "onnxruntime==1.32.0",
+        "sounddevice==0.5.6",
         "numpy==2.4.3",
     ),
     # Open-vocabulary keyword spotting. sentencepiece is needed by
     # sherpa_onnx.text2token but undeclared by sherpa-onnx.
     "wake.sherpa": (
-        "sherpa-onnx==1.13.4",
-        "sentencepiece==0.2.2",
-        "sounddevice==0.5.5",
+        "sherpa-onnx==2.0.1",
+        "sentencepiece==0.2.3",
+        "sounddevice==0.5.6",
         "numpy==2.4.3",
     ),
     "wake.porcupine": (
         "pvporcupine==4.0.3",
-        "sounddevice==0.5.5",
+        "sounddevice==0.5.6",
         "numpy==2.4.3",
     ),
 
     # ─── Image generation backends ─────────────────────────────────────────
-    "image.fal": ("fal-client==0.13.1",),
+    "image.fal": ("fal-client==1.0.3",),
 
     # ─── Memory providers ──────────────────────────────────────────────────
     "memory.hy_memory": (
         "hy-memory @ git+https://github.com/adybag14-cyber/Hy-Memory.git@a4ba7bcaa8b6347febb966445814ea9a51ae1538",
         "chromadb @ git+https://github.com/adybag14-cyber/chroma.git@8f60a3606141bf1b388e0df57faf4982580a9384",
     ),
-    "memory.honcho": ("honcho-ai==2.2.0",),
-    "memory.hindsight": ("hindsight-client==0.6.1",),
+    "memory.honcho": ("honcho-ai==2.9.0",),
+    "memory.hindsight": ("hindsight-client==1.2.1",),
     # Cloud memory SDKs MUST be allowlisted + ensure()'d at the import site, or they never
     # install on the sealed Docker image (durable-target only).
-    "memory.supermemory": ("supermemory==3.50.0",),
-    "memory.mem0": ("mem0ai==2.0.10",),
+    "memory.supermemory": ("supermemory==5.0.1",),
+    "memory.mem0": ("mem0ai==2.2.1",),
 
     # ─── Messaging platforms (lazy-installable on demand) ──────────────────
     "platform.telegram": ("python-telegram-bot[webhooks]==22.8",),
@@ -132,55 +132,55 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     ),
     "platform.slack": (
         "slack-bolt==1.30.0",
-        "slack-sdk==3.43.0",
+        "slack-sdk==3.47.0",
         "aiohttp==3.14.5",
     ),
     "platform.matrix": (
         "mautrix[encryption]==0.21.1",
         "aiosqlite==0.22.1",
-        "asyncpg==0.31.0",
-        "aiohttp-socks==0.11.0",
+        "asyncpg==0.32.0",
+        "aiohttp-socks==0.12.0",
         "aiohttp==3.14.5",
     ),
     "platform.dingtalk": (
         "dingtalk-stream==0.24.3",
-        "alibabacloud-dingtalk==2.2.42",
-        "qrcode==7.4.2",
+        "alibabacloud-dingtalk==2.2.67",
+        "qrcode==8.2",
     ),
     "platform.feishu": (
-        "lark-oapi==1.6.8",
-        "qrcode==7.4.2",
+        "lark-oapi==1.7.5",
+        "qrcode==8.2",
     ),
     # WeCom callback adapter parses untrusted XML POST bodies -> defusedxml.
     "platform.wecom_callback": ("defusedxml==0.7.1",),
     # Teams pulls a heavy tree (msal, dependency-injector); also the `teams` extra.
-    "platform.teams": ("microsoft-teams-apps==2.0.13.4", "aiohttp==3.14.5"),
+    "platform.teams": ("microsoft-teams-apps==2.2.1", "aiohttp==3.14.5"),
 
     # ─── Terminal backends ─────────────────────────────────────────────────
-    "terminal.modal": ("modal==1.3.4",),
-    "terminal.daytona": ("daytona==0.155.0",),
-    "terminal.vercel": ("vercel==0.7.2",),
+    "terminal.modal": ("modal==1.6.4",),
+    "terminal.daytona": ("daytona==0.231.1",),
+    "terminal.vercel": ("vercel==0.13.0",),
 
     # ─── Skills ────────────────────────────────────────────────────────────
     "skill.google_workspace": (
-        "google-api-python-client==2.194.0",
-        "google-auth==2.55.1",
-        "google-auth-oauthlib==1.3.1",
-        "google-auth-httplib2==0.3.1",
+        "google-api-python-client==2.202.0",
+        "google-auth==2.62.2",
+        "google-auth-oauthlib==1.5.0",
+        "google-auth-httplib2==0.4.4",
         # Explicit transitive pins: httplib2 <0.32 has a decompression-bomb DoS.
-        "httplib2==0.32.0",
-        "pyasn1==0.6.4",
+        "httplib2==0.32.1",
+        "pyasn1==0.6.5",
     ),
-    "skill.youtube": ("youtube-transcript-api==1.2.4",),
+    "skill.youtube": ("youtube-transcript-api==1.2.5",),
 
     # ─── Tools ─────────────────────────────────────────────────────────────
     # ACP adapter (VS Code / Zed / JetBrains)
-    "tool.acp": ("agent-client-protocol==0.9.0",),
+    "tool.acp": ("agent-client-protocol==1.0.0",),
     "tool.dashboard": (
-        "fastapi==0.133.1",
-        "uvicorn[standard]==0.41.0",
-        "starlette==1.3.1",
-        "python-multipart==0.0.32",  # FastAPI UploadFile/Form streaming uploads
+        "fastapi==0.162.7",
+        "uvicorn[standard]==0.54.0",
+        "starlette==1.10.0",
+        "python-multipart==0.0.33",  # FastAPI UploadFile/Form streaming uploads
     ),
     # Pillow and firecrawl-anydoc are CORE deps; these entries self-heal lean/partial installs.
     # Call sites use prompt=False so read_file / vision never block on input() mid-session.
@@ -192,8 +192,8 @@ LAZY_DEPS: dict[str, tuple[str, ...]] = {
     # MCP client SDK for the cua-driver, so computer_use never dead-ends on `No module named 'mcp'`.
     "tool.computer_use": (
         "mcp==2.3.0",
-        "httpx2==2.13.1",  # mcp 2.x HTTP stack — sync with pyproject [computer-use]
-        "starlette==1.3.1",
+        "httpx2==2.16.0",  # mcp 2.x HTTP stack — sync with pyproject [computer-use]
+        "starlette==1.10.0",
     ),
     # huggingface-hub is SHARED with transformers (>=1.5.0,<2 via Hindsight) and marked active
     # on mere presence, so `hermes update` re-asserts this pin everywhere hub exists. MUST stay
@@ -469,7 +469,7 @@ def _warm_installed_bytecode(specs: tuple[str, ...], target: Optional[Path]) -> 
 
     A pip/uv install writes ``.py`` sources and no ``__pycache__`` — and an install of the *same* version
     still deletes the cache the old copy had. Whoever imports the package next pays the whole compile: for
-    ``anthropic==0.87.0`` (541 modules) on cpython-3.12.13 that measured 2.2-2.7s cold against 0.7-1.0s
+    ``anthropic==2.8.0`` (541 modules) on cpython-3.12.13 that measured 2.2-2.7s cold against 0.7-1.0s
     warm, and 10.5s cold under concurrent load. That bill lands wherever the first import happens, and for a
     lazily-installed backend that is the foreground of a user request (#100461) — with nothing printed while
     it runs, so it reads as a hang. Worse, N per-profile daemons cold-starting together each pay it in full

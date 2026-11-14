@@ -1053,6 +1053,7 @@ class NativeAndroidShellToolTest {
         assertTrue(command.contains("LD_LIBRARY_PATH='/data/user/0/com.nousresearch.hermesagent/files/hermes-home/linux/x86_64/prefix/lib:/data/app/example/lib/x86_64'"))
         assertTrue(command.contains("/data/app/example/lib/x86_64/libhermes_exec_bin_python3_14.so'"))
         assertTrue(command.contains("HERMES_ANDROID_PROOT_EXECUTABLE='/data/app/example/lib/x86_64/libhermes_exec_bin_proot.so'"))
+        assertTrue(command.contains("PD_PROOT_BIN='/data/app/example/lib/x86_64/libhermes_exec_bin_proot.so'"))
         assertTrue(command.contains("python3.13").not())
         assertTrue(command.contains("proot-distro() { case \"\${1:-}\" in login|sh|run)"))
         assertTrue(command.contains("\"${'$'}_pd_cmd\" -e \"LD_LIBRARY_PATH=${'$'}LD_LIBRARY_PATH\" -e \"PROOT_TMP_DIR=${'$'}PROOT_TMP_DIR\" -e \"PROOT_LOADER=${'$'}PROOT_LOADER\" -e \"PROOT_LOADER_32=${'$'}PROOT_LOADER_32\" -e \"PROOT_NO_SECCOMP=${'$'}PROOT_NO_SECCOMP\""))
@@ -1072,6 +1073,7 @@ class NativeAndroidShellToolTest {
             "/data/app/example/lib/arm64/libhermes_exec_bin_proot.so",
             environment["HERMES_ANDROID_PROOT_EXECUTABLE"],
         )
+        assertEquals(environment["HERMES_ANDROID_PROOT_EXECUTABLE"], environment["PD_PROOT_BIN"])
         assertEquals(
             "/data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/arm64-v8a/native-command-functions.sh",
             environment["HERMES_ANDROID_NATIVE_COMMAND_ENV"],
