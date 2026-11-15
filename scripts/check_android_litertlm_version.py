@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check the stable release pin or resolve Google's published LiteRT-LM SDKs."""
+"""Check release/device pins or resolve Google's published LiteRT-LM SDKs."""
 
 from __future__ import annotations
 
@@ -13,6 +13,10 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_GRADLE_FILE = REPO_ROOT / "android" / "app" / "build.gradle.kts"
+DEFAULT_DEVICE_EVIDENCE_FILE = (
+    DEFAULT_GRADLE_FILE.parent
+    / "src/androidTest/java/com/mobilefork/hermesagent/ReleaseDeviceEvidenceIdentity.kt"
+)
 MAVEN_METADATA_URL = (
     "https://dl.google.com/dl/android/maven2/"
     "com/google/ai/edge/litertlm/litertlm-android/maven-metadata.xml"
@@ -26,6 +30,9 @@ DEPENDENCY_PATTERN = re.compile(
 )
 EXACT_VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+(?:[-.][0-9A-Za-z.]+)?")
 STABLE_EXACT_VERSION_PATTERN = re.compile(r"\d+\.\d+\.\d+")
+DEVICE_EVIDENCE_COORDINATE_PATTERN = re.compile(
+    r'\bconst\s+val\s+LITERTLM_COORDINATE\s*=\s*"([^"\r\n]+)"'
+)
 
 
 def declared_version(gradle_file: Path) -> str:
@@ -59,6 +66,17 @@ def latest_release(metadata: bytes) -> str:
     return version
 
 
+def verify_device_evidence_pin(evidence_file: Path, version: str) -> None:
+    coordinates = DEVICE_EVIDENCE_COORDINATE_PATTERN.findall(
+        evidence_file.read_text(encoding="utf-8")
+    )
+    expected = f"com.google.ai.edge.litertlm:litertlm-android:{version}"
+    if coordinates != [expected]:
+        raise ValueError(
+            f"Android device evidence guard must match release pin {expected}; found {coordinates}"
+        )
+
+
 def latest_stable_release(metadata: bytes) -> str:
     root = ET.fromstring(metadata)
     candidates = {
@@ -90,6 +108,10 @@ def download_metadata(url: str = MAVEN_METADATA_URL) -> bytes:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gradle-file", default=str(DEFAULT_GRADLE_FILE))
+    parser.add_argument(
+        "--device-evidence-file",
+        help="Kotlin device evidence guard to validate; checked automatically for the repository release pin",
+    )
     parser.add_argument("--metadata-file", help="Use local Maven metadata instead of the live Google URL")
     output_mode = parser.add_mutually_exclusive_group()
     output_mode.add_argument(
@@ -114,6 +136,17 @@ def main(argv: list[str] | None = None) -> None:
         print(declared_version(gradle_file))
         return
 
+    declared = None
+    if not (args.print_latest or args.print_latest_stable):
+        declared = declared_version(gradle_file)
+        evidence_file = None
+        if args.device_evidence_file:
+            evidence_file = Path(args.device_evidence_file).expanduser().resolve()
+        elif gradle_file == DEFAULT_GRADLE_FILE.resolve():
+            evidence_file = DEFAULT_DEVICE_EVIDENCE_FILE
+        if evidence_file is not None:
+            verify_device_evidence_pin(evidence_file, declared)
+
     if args.metadata_file:
         metadata_source = str(Path(args.metadata_file).expanduser().resolve())
         metadata = Path(metadata_source).read_bytes()
@@ -130,7 +163,7 @@ def main(argv: list[str] | None = None) -> None:
         print(latest_stable)
         return
 
-    declared = declared_version(gradle_file)
+    assert declared is not None
     result = {
         "artifact": "com.google.ai.edge.litertlm:litertlm-android",
         "declared": declared,
