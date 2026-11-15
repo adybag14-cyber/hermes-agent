@@ -580,37 +580,50 @@ class LiteRtLmOpenAiProxyTest {
 
     @Test
     fun verifiedEngineSelection_totalBudgetStopsBeforeConstructingLaterCandidate() {
+        val totalTimeoutMs = 2_000L
+        val releaseCleanup = CountDownLatch(1)
         val first = FakeStartupCandidate(
             completion = { LiteRtLmOpenAiProxy.StartupCompletionCanary("never reached", 1L) },
+            closeBlock = { awaitIgnoringInterrupts(releaseCleanup) },
         )
         val laterCreateCount = AtomicInteger(0)
 
-        val selection = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
-            candidateAttempts = listOf(
-                LiteRtLmOpenAiProxy.StartupEngineAttempt("slow/create") {
-                    Thread.sleep(40L)
-                    first
-                },
-                LiteRtLmOpenAiProxy.StartupEngineAttempt("must/not/create") {
-                    laterCreateCount.incrementAndGet()
-                    FakeStartupCandidate(completion = {
-                        LiteRtLmOpenAiProxy.StartupCompletionCanary("unexpected", 1L)
-                    })
-                },
-            ),
-            timeoutMs = 1_000L,
-            initializationTimeoutMs = 1_000L,
-            totalTimeoutMs = 10L,
-        )
+        try {
+            val selection = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
+                candidateAttempts = listOf(
+                    LiteRtLmOpenAiProxy.StartupEngineAttempt("slow/create") {
+                        Thread.sleep(totalTimeoutMs + 50L)
+                        first
+                    },
+                    LiteRtLmOpenAiProxy.StartupEngineAttempt("must/not/create") {
+                        laterCreateCount.incrementAndGet()
+                        FakeStartupCandidate(completion = {
+                            LiteRtLmOpenAiProxy.StartupCompletionCanary("unexpected", 1L)
+                        })
+                    },
+                ),
+                timeoutMs = 1_000L,
+                initializationTimeoutMs = 1_000L,
+                totalTimeoutMs = totalTimeoutMs,
+            )
 
-        assertFalse(selection.verified)
-        assertTrue(first.closed)
-        assertEquals(0, laterCreateCount.get())
-        assertTrue(selection.attempts.any { it.contains("total startup budget exhausted") })
+            assertFalse(selection.verified)
+            assertFalse(first.initialized)
+            assertEquals(0, laterCreateCount.get())
+            // Once the total budget expires, cleanup has only a 1 ms grace.
+            // Hold it explicitly: its timeout may supersede the budget message,
+            // but it must never admit another engine or lose native ownership.
+            assertTrue(selection.failure?.cause is TimeoutException)
+            assertTrue(LiteRtLmOpenAiProxy.nativeStartupUnwindActiveForTests())
+        } finally {
+            releaseCleanup.countDown()
+            awaitClosed(first, "An expired startup must finish cleanup before the next test")
+        }
     }
 
     @Test
     fun verifiedEngineSelection_sharedDeadlineDoesNotResetForTextOnlyFallbackMatrix() {
+        val totalTimeoutMs = 2_000L
         val startupStartedAt = System.nanoTime()
         val multimodal = FakeStartupCandidate(
             completion = { LiteRtLmOpenAiProxy.StartupCompletionCanary("never reached", 1L) },
@@ -620,17 +633,17 @@ class LiteRtLmOpenAiProxyTest {
         val multimodalSelection = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
             candidateAttempts = listOf(
                 LiteRtLmOpenAiProxy.StartupEngineAttempt("gpu/multimodal") {
-                    Thread.sleep(40L)
+                    Thread.sleep(totalTimeoutMs + 50L)
                     multimodal
                 },
             ),
             timeoutMs = 1_000L,
             initializationTimeoutMs = 1_000L,
-            totalTimeoutMs = 10L,
+            totalTimeoutMs = totalTimeoutMs,
             startupStartedAtNanos = startupStartedAt,
         )
         assertFalse(multimodalSelection.verified)
-        assertTrue(multimodal.closed)
+        awaitClosed(multimodal, "The shared-deadline assertion must run after cleanup finishes")
 
         val textOnlySelection = LiteRtLmOpenAiProxy.selectCompletionVerifiedEngine(
             candidateAttempts = listOf(
@@ -643,7 +656,7 @@ class LiteRtLmOpenAiProxyTest {
             ),
             timeoutMs = 1_000L,
             initializationTimeoutMs = 1_000L,
-            totalTimeoutMs = 10L,
+            totalTimeoutMs = totalTimeoutMs,
             startupStartedAtNanos = startupStartedAt,
         )
 
