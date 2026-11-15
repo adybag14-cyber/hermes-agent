@@ -1,0 +1,25 @@
+{
+  "contains_only_filtered_palette_state": true,
+  "identity": {
+    "avd_name": "Agent_Release_158_Play16K_20260926_Readme_16G",
+    "candidate_apk_sha256": "680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2",
+    "device_boot_id": "5c478aff-0fde-49df-a287-bf4b7e5c2656",
+    "device_serial": "emulator-5582",
+    "evidence_run_id": "v0.13.162-6cbe68a111d85e42-20261114",
+    "instrumentation_apk_sha256": "a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d",
+    "profile": "tablet-1280x900dp",
+    "source_digest": "6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e"
+  },
+  "palette": {
+    "card_shape": "rounded",
+    "theme_background": "#FAFBFF",
+    "theme_primary": "#1565C0",
+    "theme_secondary": "#8E24AA",
+    "theme_surface": "#FFFFFF",
+    "theme_surface_variant": "#E8EEF8",
+    "ui_font_scale": 1.0
+  },
+  "schema": "hermes-persisted-palette-state-v1",
+  "shared_preferences_xml_sha256": "ab77cbd8d51bfe73e7ad08f42eb493a778b2b08bccbcf52497cbc31af2253bf7",
+  "theme_id": "custom-light"
+}

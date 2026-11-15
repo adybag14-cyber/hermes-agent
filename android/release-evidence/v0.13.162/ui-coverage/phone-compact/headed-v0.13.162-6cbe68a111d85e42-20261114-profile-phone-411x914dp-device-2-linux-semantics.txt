@@ -1,0 +1,335 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=device:Linux
+artifact=headed-v0.13.162-6cbe68a111d85e42-20261114-profile-phone-411x914dp-device-2-linux
+coverage_kind=device-subpage
+page_id=Linux
+profile=phone-411x914dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.162
+version_code=146290
+build_variant=debug
+source_digest=6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e
+candidate_apk_sha256=680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2
+instrumentation_apk_sha256=a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d
+evidence_run_id=v0.13.162-6cbe68a111d85e42-20261114
+device_serial=emulator-5582
+avd_name=Agent_Release_158_Phone_20260926_Readme
+device_boot_id=5da391b5-cfe1-4cdc-9a38-84e3e83cdf74
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=0233e2734b211ab17153a3478dc9820b211eb97c45947e5a71d13a6fa351ae05
+sentinel=HermesDevicePage_Linux
+sentinel=/device/linux
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #2 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   Shape = 'RectangleShape'
+    |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      TestTagsAsResourceId = 'true'
+       |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+         IsContainer = 'true'
+         Shape = 'RectangleShape'
+          |-Node #18 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          | IsContainer = 'true'
+          | Shape = 'RectangleShape'
+          |  |-Node #1559 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          |    IsContainer = 'true'
+          |    Shape = 'RectangleShape'
+          |     |-Node #1561 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@3f869cc'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=1969.0, reverseScrolling=false)'
+          |       Actions = [ScrollBy, ScrollByOffset]
+          |        |-Node #1562 at (l=42.0, t=350.0, r=1038.0, b=807.0)px, Tag: 'HermesDevicePageNavigation'
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1564 at (l=74.0, t=376.0, r=305.0, b=429.0)px
+          |        |  | Text = '[Device / Linux]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1567 at (l=74.0, t=471.0, r=283.0, b=555.0)px, Tag: 'HermesDevicePage_Overview'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1570 at (l=116.0, t=492.0, r=241.0, b=534.0)px
+          |        |  |    Text = '[Overview]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1571 at (l=299.0, t=471.0, r=458.0, b=555.0)px, Tag: 'HermesDevicePage_Linux'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1574 at (l=341.0, t=492.0, r=416.0, b=534.0)px
+          |        |  |    Text = '[Linux]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1575 at (l=474.0, t=471.0, r=729.0, b=555.0)px, Tag: 'HermesDevicePage_Connectivity'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1578 at (l=516.0, t=492.0, r=687.0, b=534.0)px
+          |        |  |    Text = '[Connectivity]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1579 at (l=745.0, t=471.0, r=894.0, b=555.0)px, Tag: 'HermesDevicePage_Files'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1582 at (l=787.0, t=492.0, r=852.0, b=534.0)px
+          |        |  |    Text = '[Files]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1583 at (l=74.0, t=613.0, r=274.0, b=697.0)px, Tag: 'HermesDevicePage_Controls'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1586 at (l=116.0, t=634.0, r=232.0, b=676.0)px
+          |        |  |    Text = '[Controls]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1587 at (l=290.0, t=613.0, r=549.0, b=697.0)px, Tag: 'HermesDevicePage_Automations'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1590 at (l=332.0, t=634.0, r=507.0, b=676.0)px
+          |        |  |    Text = '[Automations]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1591 at (l=74.0, t=739.0, r=255.0, b=781.0)px
+          |        |    Text = '[/device/linux]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1617 at (l=42.0, t=839.0, r=1038.0, b=2078.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1620 at (l=84.0, t=881.0, r=499.0, b=944.0)px
+          |        |  | Text = '[Linux command suite]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1621 at (l=84.0, t=965.0, r=996.0, b=1154.0)px
+          |        |  | Text = '[Agent can use the extracted Linux suite through terminal_tool to run full CLI commands on the device.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1622 at (l=84.0, t=1175.0, r=550.0, b=1217.0)px
+          |        |  | Text = '[ABI: x86_64 · suite arch: x86_64]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1623 at (l=84.0, t=1238.0, r=996.0, b=1322.0)px
+          |        |  | Text = '[Prefix: /data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/x86_64/prefix]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1624 at (l=84.0, t=1343.0, r=996.0, b=1469.0)px
+          |        |  | Text = '[Bash: /data/app/~~jH5apPExI2fcEGpFNvIR6g==/com.mobilefork.hermesagent-wyNHn_EL6vx1xBjwiapPpA==/lib/x86_64/libhermes_android_bash.so]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1625 at (l=84.0, t=1490.0, r=996.0, b=1574.0)px
+          |        |  | Text = '[Home: /data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/x86_64/prefix/home]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1626 at (l=84.0, t=1595.0, r=996.0, b=1679.0)px
+          |        |  | Text = '[Temp: /data/user/0/com.mobilefork.hermesagent/files/hermes-home/linux/x86_64/prefix/tmp]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1627 at (l=84.0, t=1700.0, r=487.0, b=1742.0)px
+          |        |  | Text = '[Included package count: 74]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1628 at (l=84.0, t=1763.0, r=996.0, b=1889.0)px
+          |        |  | Text = '[Ask directly, “Run git status” or “List the files in the workspace.” A tool-capable model selects terminal_tool automatically.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1629 at (l=84.0, t=1921.0, r=701.0, b=2026.0)px
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #1631 at (l=147.0, t=1947.0, r=638.0, b=2000.0)px
+          |        |       Text = '[Install / refresh Linux terminal]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1632 at (l=42.0, t=2110.0, r=1038.0, b=3013.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1635 at (l=84.0, t=2152.0, r=510.0, b=2215.0)px
+          |        |  | Text = '[Host Linux suite (pkg)]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1636 at (l=84.0, t=2236.0, r=996.0, b=2551.0)px
+          |        |  | Text = '[Refresh host packages (proot, proot-distro, …) from Termux mirrors in-app — no APK reinstall. Guest sandbox packages use “Update packages” below. Also: terminal pkg or linux_host_pkg_tool.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1637 at (l=84.0, t=2572.0, r=663.0, b=2614.0)px
+          |        |  | Text = '[proot: 5.1.107.102 · proot-distro: 5.10.3]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1638 at (l=84.0, t=2635.0, r=619.0, b=2677.0)px
+          |        |  | Text = '[Installed 74 · index 0 · mirror default]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1641 at (l=84.0, t=2709.0, r=435.0, b=2814.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1643 at (l=147.0, t=2735.0, r=372.0, b=2788.0)px
+          |        |  |    Text = '[Refresh index]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1644 at (l=456.0, t=2709.0, r=809.0, b=2814.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1646 at (l=519.0, t=2735.0, r=746.0, b=2788.0)px
+          |        |  |    Text = '[Upgrade suite]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1647 at (l=84.0, t=2856.0, r=442.0, b=2961.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1649 at (l=147.0, t=2882.0, r=379.0, b=2935.0)px
+          |        |  |    Text = '[Upgrade proot]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1650 at (l=463.0, t=2856.0, r=812.0, b=2961.0)px
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #1652 at (l=526.0, t=2882.0, r=749.0, b=2935.0)px
+          |        |       Text = '[China mirrors]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1653 at (l=42.0, t=3045.0, r=1038.0, b=4137.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1656 at (l=84.0, t=3087.0, r=363.0, b=3150.0)px
+          |        |  | Text = '[Linux sandbox]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1657 at (l=84.0, t=3171.0, r=996.0, b=3423.0)px
+          |        |  | Text = '[Download, update, start, stop, or uninstall the proot Linux sandbox inside app-private storage. AI shell tools can use the sandbox after start.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1658 at (l=84.0, t=3444.0, r=996.0, b=3528.0)px
+          |        |  | Text = '[Storage root: /storage/emulated/0/Android/data/com.mobilefork.hermesagent]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1659 at (l=84.0, t=3549.0, r=414.0, b=3591.0)px
+          |        |  | Text = '[Installed sandboxes: 0]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1660 at (l=84.0, t=3612.0, r=336.0, b=3654.0)px
+          |        |  | Text = '[AI shell: disabled]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1663 at (l=84.0, t=3686.0, r=481.0, b=3791.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1665 at (l=147.0, t=3712.0, r=418.0, b=3765.0)px
+          |        |  |    Text = '[One-click deploy]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1666 at (l=502.0, t=3686.0, r=852.0, b=3791.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1668 at (l=565.0, t=3712.0, r=789.0, b=3765.0)px
+          |        |  |    Text = '[Deploy Alpine]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1669 at (l=84.0, t=3833.0, r=327.0, b=3938.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1671 at (l=147.0, t=3859.0, r=264.0, b=3912.0)px
+          |        |  |    Text = '[Update]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1672 at (l=348.0, t=3833.0, r=555.0, b=3938.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1674 at (l=411.0, t=3859.0, r=492.0, b=3912.0)px
+          |        |  |    Text = '[Start]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1675 at (l=576.0, t=3833.0, r=778.0, b=3938.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1677 at (l=639.0, t=3859.0, r=715.0, b=3912.0)px
+          |        |  |    Text = '[Stop]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1678 at (l=84.0, t=3980.0, r=433.0, b=4085.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1680 at (l=147.0, t=4006.0, r=370.0, b=4059.0)px
+          |        |  |    Text = '[China mirrors]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1681 at (l=454.0, t=3980.0, r=725.0, b=4085.0)px
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #1683 at (l=517.0, t=4006.0, r=662.0, b=4059.0)px
+          |        |       Text = '[Uninstall]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1616 at (l=42.0, t=4169.0, r=823.0, b=4211.0)px
+          |          Text = '[Linux command suite ready for on-device commands]'
+          |          Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |-Node #160 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+            IsContainer = 'true'
+            Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+             |-Node #164 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+             | ContentDescription = '[Open navigation menu]'
+             | Focused = 'false'
+             | Role = 'Button'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+             | Actions = [OnClick, RequestFocus]
+             | MergeDescendants = 'true'
+             |  |-Node #166 at (l=72.0, t=205.0, r=119.0, b=210.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #167 at (l=72.0, t=221.0, r=119.0, b=226.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #168 at (l=72.0, t=237.0, r=119.0, b=242.0)px
+             |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |-Node #169 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+             | ContentDescription = '[Agent logo]'
+             | Role = 'Image'
+             | Shape = 'RectangleShape'
+             |-Node #171 at (l=279.0, t=171.0, r=410.0, b=234.0)px
+             | Text = '[Device]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #172 at (l=279.0, t=234.0, r=779.0, b=276.0)px
+             | Text = '[Files, Linux suite, and phone controls]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #174 at (l=800.0, t=191.0, r=930.0, b=255.0)px
+             | IsContainer = 'true'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+             |  |-Node #175 at (l=816.0, t=202.0, r=914.0, b=244.0)px
+             |    Text = '[ALPHA]'
+             |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #176 at (l=941.0, t=191.0, r=1048.0, b=255.0)px
+               IsContainer = 'true'
+               Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+                |-Node #177 at (l=957.0, t=202.0, r=1032.0, b=244.0)px
+                  Text = '[FORK]'
+                  Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]

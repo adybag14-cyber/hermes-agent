@@ -1,0 +1,1641 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=section:Accounts
+artifact=headed-v0.13.162-6cbe68a111d85e42-20261114-profile-tablet-1280x900dp-section-2-accounts
+coverage_kind=app-section
+page_id=Accounts
+profile=tablet-1280x900dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=1280
+screen_height_dp=900
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.162
+version_code=146290
+build_variant=debug
+source_digest=6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e
+candidate_apk_sha256=680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2
+instrumentation_apk_sha256=a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d
+evidence_run_id=v0.13.162-6cbe68a111d85e42-20261114
+device_serial=emulator-5582
+avd_name=Agent_Release_158_Play16K_20260926_Readme_16G
+device_boot_id=5c478aff-0fde-49df-a287-bf4b7e5c2656
+build_fingerprint=google/sdk_gphone16k_x86_64/emu64xa16k:17/CE2A.260420.051.A3/16571990:userdebug/dev-keys
+screenshot_sha256=dc27ffe4d1964e9104287c241aef8c38189d233e62bdb0aff354a16b761301fe
+sentinel=Accounts
+sentinel=Corr3xt is used for app sign-in; providers use secure API keys or tokens in Settings.
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+ |-Node #2 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+   Shape = 'RectangleShape'
+    |-Node #3 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+      TestTagsAsResourceId = 'true'
+       |-Node #5 at (l=0.0, t=0.0, r=2560.0, b=1800.0)px
+         IsContainer = 'true'
+         Shape = 'RectangleShape'
+          |-Node #18 at (l=0.0, t=230.0, r=224.0, b=1736.0)px, Tag: 'HermesPersistentNavigation'
+          | IsContainer = 'true'
+          | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |  |-Node #19 at (l=0.0, t=340.0, r=224.0, b=1664.0)px
+          |    IsTraversalGroup = 'true'
+          |    [SelectableGroup]
+          |     |-Node #20 at (l=78.0, t=364.0, r=146.0, b=432.0)px
+          |     | ContentDescription = '[Agent logo]'
+          |     | Role = 'Image'
+          |     | Shape = 'RectangleShape'
+          |     |-Node #22 at (l=0.0, t=488.0, r=224.0, b=1664.0)px
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@d9753fa'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+          |       Actions = [ScrollBy, ScrollByOffset]
+          |        |-Node #23 at (l=32.0, t=488.0, r=192.0, b=600.0)px, Tag: 'HermesRailHermes'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #26 at (l=112.0, t=490.0, r=112.0, b=550.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #30 at (l=80.0, t=558.0, r=143.0, b=590.0)px
+          |        |  |  |-Node #31 at (l=80.0, t=558.0, r=143.0, b=590.0)px
+          |        |  |    Text = '[Agent]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #28 at (l=90.0, t=498.0, r=134.0, b=542.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #29 at (l=90.0, t=498.0, r=134.0, b=542.0)px
+          |        |  |    ContentDescription = '[Agent]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #25 at (l=58.0, t=490.0, r=166.0, b=550.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #32 at (l=32.0, t=604.0, r=192.0, b=716.0)px, Tag: 'HermesRailAccounts'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'true'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #35 at (l=58.0, t=606.0, r=166.0, b=666.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #39 at (l=62.0, t=674.0, r=161.0, b=706.0)px
+          |        |  |  |-Node #40 at (l=62.0, t=674.0, r=161.0, b=706.0)px
+          |        |  |    Text = '[Accounts]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #37 at (l=90.0, t=614.0, r=134.0, b=658.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #38 at (l=90.0, t=614.0, r=134.0, b=658.0)px
+          |        |  |    ContentDescription = '[Accounts]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #34 at (l=58.0, t=606.0, r=166.0, b=666.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #41 at (l=32.0, t=720.0, r=192.0, b=832.0)px, Tag: 'HermesRailNousPortal'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #44 at (l=112.0, t=722.0, r=112.0, b=782.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #48 at (l=79.0, t=790.0, r=145.0, b=822.0)px
+          |        |  |  |-Node #49 at (l=79.0, t=790.0, r=145.0, b=822.0)px
+          |        |  |    Text = '[Portal]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #46 at (l=90.0, t=730.0, r=134.0, b=774.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #47 at (l=90.0, t=730.0, r=134.0, b=774.0)px
+          |        |  |    ContentDescription = '[Portal]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #43 at (l=58.0, t=722.0, r=166.0, b=782.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #50 at (l=32.0, t=836.0, r=192.0, b=948.0)px, Tag: 'HermesRailDevice'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #53 at (l=112.0, t=838.0, r=112.0, b=898.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #57 at (l=76.0, t=906.0, r=148.0, b=938.0)px
+          |        |  |  |-Node #58 at (l=76.0, t=906.0, r=148.0, b=938.0)px
+          |        |  |    Text = '[Device]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #55 at (l=90.0, t=846.0, r=134.0, b=890.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #56 at (l=90.0, t=846.0, r=134.0, b=890.0)px
+          |        |  |    ContentDescription = '[Device]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #52 at (l=58.0, t=838.0, r=166.0, b=898.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #59 at (l=32.0, t=952.0, r=192.0, b=1064.0)px, Tag: 'HermesRailKanban'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #62 at (l=112.0, t=954.0, r=112.0, b=1014.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #66 at (l=72.0, t=1022.0, r=152.0, b=1054.0)px
+          |        |  |  |-Node #67 at (l=72.0, t=1022.0, r=152.0, b=1054.0)px
+          |        |  |    Text = '[Kanban]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #64 at (l=90.0, t=962.0, r=134.0, b=1006.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #65 at (l=90.0, t=962.0, r=134.0, b=1006.0)px
+          |        |  |    ContentDescription = '[Kanban]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #61 at (l=58.0, t=954.0, r=166.0, b=1014.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #68 at (l=32.0, t=1068.0, r=192.0, b=1180.0)px, Tag: 'HermesRailTerminal'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #71 at (l=112.0, t=1070.0, r=112.0, b=1130.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #75 at (l=64.0, t=1138.0, r=159.0, b=1170.0)px
+          |        |  |  |-Node #76 at (l=64.0, t=1138.0, r=159.0, b=1170.0)px
+          |        |  |    Text = '[Terminal]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #73 at (l=90.0, t=1078.0, r=134.0, b=1122.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #74 at (l=90.0, t=1078.0, r=134.0, b=1122.0)px
+          |        |  |    ContentDescription = '[Terminal]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #70 at (l=58.0, t=1070.0, r=166.0, b=1130.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #77 at (l=32.0, t=1184.0, r=192.0, b=1296.0)px, Tag: 'HermesRailSettings'
+          |        | Focused = 'false'
+          |        | Role = 'Tab'
+          |        | Selected = 'false'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #80 at (l=112.0, t=1186.0, r=112.0, b=1246.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  |-Node #84 at (l=68.0, t=1254.0, r=156.0, b=1286.0)px
+          |        |  |  |-Node #85 at (l=68.0, t=1254.0, r=156.0, b=1286.0)px
+          |        |  |    Text = '[Settings]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #82 at (l=90.0, t=1194.0, r=134.0, b=1238.0)px
+          |        |  | ClearAndSetSemantics = 'true'
+          |        |  |  |-Node #83 at (l=90.0, t=1194.0, r=134.0, b=1238.0)px
+          |        |  |    ContentDescription = '[Settings]'
+          |        |  |    Role = 'Image'
+          |        |  |-Node #79 at (l=58.0, t=1186.0, r=166.0, b=1246.0)px
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |-Node #814 at (l=32.0, t=1330.0, r=192.0, b=1442.0)px, Tag: 'HermesRailAction0'
+          |          Focused = 'false'
+          |          Role = 'Tab'
+          |          Selected = 'false'
+          |          Actions = [OnClick, RequestFocus]
+          |          MergeDescendants = 'true'
+          |           |-Node #817 at (l=112.0, t=1332.0, r=112.0, b=1392.0)px
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           |-Node #821 at (l=70.0, t=1400.0, r=154.0, b=1432.0)px
+          |           |  |-Node #822 at (l=70.0, t=1400.0, r=154.0, b=1432.0)px
+          |           |    Text = '[Refresh]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #819 at (l=90.0, t=1340.0, r=134.0, b=1384.0)px
+          |           | ClearAndSetSemantics = 'true'
+          |           |  |-Node #820 at (l=90.0, t=1340.0, r=134.0, b=1384.0)px
+          |           |    ContentDescription = '[Reload local Corr3xt and provider auth status.]'
+          |           |    Role = 'Image'
+          |           |-Node #816 at (l=58.0, t=1332.0, r=166.0, b=1392.0)px
+          |             Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |-Node #86 at (l=224.0, t=230.0, r=2560.0, b=1736.0)px
+          | IsContainer = 'true'
+          | Shape = 'RectangleShape'
+          |  |-Node #220 at (l=224.0, t=230.0, r=2560.0, b=1736.0)px
+          |    IsContainer = 'true'
+          |    Shape = 'RectangleShape'
+          |     |-Node #222 at (l=224.0, t=230.0, r=2560.0, b=1736.0)px
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@d9753fa'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=8774.0, reverseScrolling=false)'
+          |       Actions = [ScrollBy, ScrollByOffset]
+          |        |-Node #223 at (l=256.0, t=254.0, r=1640.0, b=294.0)px
+          |        | Text = '[Configure a reachable Corr3xt URL to enable app sign-in; providers use secure API keys or tokens in Settings.]'
+          |        | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #224 at (l=256.0, t=318.0, r=1202.0, b=350.0)px
+          |        | Text = '[Corr3xt is used for app sign-in; providers use secure API keys or tokens in Settings.]'
+          |        | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #225 at (l=256.0, t=374.0, r=2528.0, b=502.0)px
+          |        | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        | EditableText = ''
+          |        | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@1f2ca26'
+          |        | Focused = 'false'
+          |        | ImeAction = 'Default'
+          |        | InputText = ''
+          |        | IsEditable = 'true'
+          |        | TextSelectionRange = 'TextRange(0, 0)'
+          |        | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #229 at (l=256.0, t=390.0, r=2528.0, b=502.0)px
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |-Node #234 at (l=288.0, t=422.0, r=628.0, b=470.0)px
+          |        |  | Text = '[Corr3xt auth base URL]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #231 at (l=288.0, t=422.0, r=2496.0, b=470.0)px
+          |        |    Shape = 'RectangleShape'
+          |        |-Node #237 at (l=256.0, t=534.0, r=538.0, b=614.0)px
+          |        | Focused = 'false'
+          |        | Role = 'Button'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #239 at (l=304.0, t=554.0, r=490.0, b=594.0)px
+          |        |    Text = '[Save auth URL]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #240 at (l=562.0, t=534.0, r=758.0, b=614.0)px
+          |        | Focused = 'false'
+          |        | Role = 'Button'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        | Actions = [OnClick, RequestFocus]
+          |        | MergeDescendants = 'true'
+          |        |  |-Node #242 at (l=610.0, t=554.0, r=710.0, b=594.0)px
+          |        |    Text = '[Refresh]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #243 at (l=256.0, t=646.0, r=2528.0, b=974.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #245 at (l=288.0, t=678.0, r=370.0, b=726.0)px
+          |        |  | Text = '[Email]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #246 at (l=288.0, t=742.0, r=1100.0, b=774.0)px
+          |        |  | Text = '[Sign in to the app through Corr3xt using an email link or password flow.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #247 at (l=288.0, t=790.0, r=458.0, b=830.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #250 at (l=288.0, t=854.0, r=473.0, b=934.0)px, Tag: 'AuthSignIn-email'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    [Disabled]
+          |        |    Actions = [OnClick]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #252 at (l=336.0, t=874.0, r=425.0, b=914.0)px
+          |        |       Text = '[Sign in]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #253 at (l=256.0, t=998.0, r=2528.0, b=1326.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #255 at (l=288.0, t=1030.0, r=393.0, b=1078.0)px
+          |        |  | Text = '[Google]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #256 at (l=288.0, t=1094.0, r=888.0, b=1126.0)px
+          |        |  | Text = '[Sign in to the app with a Google account via Corr3xt.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #257 at (l=288.0, t=1142.0, r=458.0, b=1182.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #260 at (l=288.0, t=1206.0, r=473.0, b=1286.0)px, Tag: 'AuthSignIn-google'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    [Disabled]
+          |        |    Actions = [OnClick]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #262 at (l=336.0, t=1226.0, r=425.0, b=1266.0)px
+          |        |       Text = '[Sign in]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #263 at (l=256.0, t=1350.0, r=2528.0, b=1678.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #265 at (l=288.0, t=1382.0, r=382.0, b=1430.0)px
+          |        |  | Text = '[Phone]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #266 at (l=288.0, t=1446.0, r=1060.0, b=1478.0)px
+          |        |  | Text = '[Sign in to the app with an SMS / phone verification flow via Corr3xt.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #267 at (l=288.0, t=1494.0, r=458.0, b=1534.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #270 at (l=288.0, t=1558.0, r=473.0, b=1638.0)px, Tag: 'AuthSignIn-phone'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    [Disabled]
+          |        |    Actions = [OnClick]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #272 at (l=336.0, t=1578.0, r=425.0, b=1618.0)px
+          |        |       Text = '[Sign in]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #273 at (l=256.0, t=1702.0, r=2528.0, b=2262.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #275 at (l=288.0, t=1734.0, r=463.0, b=1782.0)px
+          |        |  | Text = '[OpenRouter]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #276 at (l=288.0, t=1798.0, r=1045.0, b=1830.0)px
+          |        |  | Text = '[Use an OpenRouter API key for Agent Android remote model calls.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #277 at (l=288.0, t=1846.0, r=458.0, b=1886.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #278 at (l=288.0, t=1902.0, r=595.0, b=1934.0)px
+          |        |  | Text = '[Agent provider: openrouter]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #279 at (l=288.0, t=1950.0, r=2496.0, b=2118.0)px, Tag: 'AuthProviderCredential-openrouter'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@617dc14'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #283 at (l=288.0, t=1966.0, r=2496.0, b=2078.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #288 at (l=320.0, t=1998.0, r=548.0, b=2046.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #285 at (l=320.0, t=1998.0, r=2464.0, b=2046.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #290 at (l=320.0, t=2086.0, r=1097.0, b=2118.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as OPENROUTER_API_KEY=...]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #293 at (l=288.0, t=2142.0, r=473.0, b=2222.0)px, Tag: 'AuthSignIn-openrouter'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #295 at (l=336.0, t=2162.0, r=425.0, b=2202.0)px
+          |        |  |    Text = '[Sign in]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #296 at (l=497.0, t=2142.0, r=656.0, b=2222.0)px, Tag: 'AuthProviderSaveCredential-openrouter'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #298 at (l=545.0, t=2162.0, r=608.0, b=2202.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #299 at (l=680.0, t=2142.0, r=1071.0, b=2222.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #301 at (l=728.0, t=2162.0, r=1023.0, b=2202.0)px
+          |        |  |    Text = '[Use API key in Settings]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #302 at (l=1095.0, t=2142.0, r=1566.0, b=2222.0)px, Tag: 'AuthProviderOpenSetup-openrouter'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #304 at (l=1143.0, t=2162.0, r=1518.0, b=2202.0)px
+          |        |  |    Text = '[Open OpenRouter setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #305 at (l=1590.0, t=2142.0, r=1889.0, b=2222.0)px, Tag: 'AuthProviderCopySetup-openrouter'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #307 at (l=1638.0, t=2162.0, r=1841.0, b=2202.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #308 at (l=1913.0, t=2142.0, r=2168.0, b=2222.0)px, Tag: 'AuthProviderCheckSetup-openrouter'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #310 at (l=1961.0, t=2162.0, r=2120.0, b=2202.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #311 at (l=256.0, t=2286.0, r=2528.0, b=2846.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #313 at (l=288.0, t=2318.0, r=397.0, b=2366.0)px
+          |        |  | Text = '[OpenAI]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #314 at (l=288.0, t=2382.0, r=1393.0, b=2414.0)px
+          |        |  | Text = '[Use an OpenAI API key for Agent Android remote model calls. Opens setup in the in-app browser.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #315 at (l=288.0, t=2430.0, r=458.0, b=2470.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #316 at (l=288.0, t=2486.0, r=547.0, b=2518.0)px
+          |        |  | Text = '[Agent provider: openai]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #317 at (l=288.0, t=2534.0, r=2496.0, b=2702.0)px, Tag: 'AuthProviderCredential-openai'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@8aefcbd'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #321 at (l=288.0, t=2550.0, r=2496.0, b=2662.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #326 at (l=320.0, t=2582.0, r=548.0, b=2630.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #323 at (l=320.0, t=2582.0, r=2464.0, b=2630.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #328 at (l=320.0, t=2670.0, r=1026.0, b=2702.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as OPENAI_API_KEY=...]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #331 at (l=288.0, t=2726.0, r=447.0, b=2806.0)px, Tag: 'AuthProviderSaveCredential-openai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #333 at (l=336.0, t=2746.0, r=399.0, b=2786.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #334 at (l=471.0, t=2726.0, r=855.0, b=2806.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #336 at (l=519.0, t=2746.0, r=807.0, b=2786.0)px
+          |        |  |    Text = '[Set up OpenAI API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #337 at (l=879.0, t=2726.0, r=1293.0, b=2806.0)px, Tag: 'AuthProviderOpenSetup-openai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #339 at (l=927.0, t=2746.0, r=1245.0, b=2786.0)px
+          |        |  |    Text = '[Open OpenAI setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #340 at (l=1317.0, t=2726.0, r=1616.0, b=2806.0)px, Tag: 'AuthProviderCopySetup-openai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #342 at (l=1365.0, t=2746.0, r=1568.0, b=2786.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #343 at (l=1640.0, t=2726.0, r=1895.0, b=2806.0)px, Tag: 'AuthProviderCheckSetup-openai'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #345 at (l=1688.0, t=2746.0, r=1847.0, b=2786.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #346 at (l=256.0, t=2870.0, r=2528.0, b=3430.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #348 at (l=288.0, t=2902.0, r=686.0, b=2950.0)px
+          |        |  | Text = '[Codex / OpenAI Responses]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #349 at (l=288.0, t=2966.0, r=1521.0, b=2998.0)px
+          |        |  | Text = '[Sign in with ChatGPT (openai/codex OAuth: localhost:1455 PKCE, device-code fallback) or paste an API key.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #350 at (l=288.0, t=3014.0, r=458.0, b=3054.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #351 at (l=288.0, t=3070.0, r=625.0, b=3102.0)px
+          |        |  | Text = '[Agent provider: openai-codex]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #352 at (l=288.0, t=3118.0, r=2496.0, b=3286.0)px, Tag: 'AuthProviderCredential-codex'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@ab162b2'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #356 at (l=288.0, t=3134.0, r=2496.0, b=3246.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #361 at (l=320.0, t=3166.0, r=548.0, b=3214.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #358 at (l=320.0, t=3166.0, r=2464.0, b=3214.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #363 at (l=320.0, t=3254.0, r=1774.0, b=3286.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as OPENAI_API_KEY=...; also accepts CODEX_API_KEY, CHATGPT_WEB_ACCESS_TOKEN.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #366 at (l=288.0, t=3310.0, r=473.0, b=3390.0)px, Tag: 'AuthSignIn-codex'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #368 at (l=336.0, t=3330.0, r=425.0, b=3370.0)px
+          |        |  |    Text = '[Sign in]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #369 at (l=497.0, t=3310.0, r=656.0, b=3390.0)px, Tag: 'AuthProviderSaveCredential-codex'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #371 at (l=545.0, t=3330.0, r=608.0, b=3370.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #372 at (l=680.0, t=3310.0, r=1071.0, b=3390.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #374 at (l=728.0, t=3330.0, r=1023.0, b=3370.0)px
+          |        |  |    Text = '[Use API key in Settings]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #375 at (l=1095.0, t=3310.0, r=1761.0, b=3390.0)px, Tag: 'AuthProviderOpenSetup-codex'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #377 at (l=1143.0, t=3330.0, r=1713.0, b=3370.0)px
+          |        |  |    Text = '[Open Codex / OpenAI Responses setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #378 at (l=1785.0, t=3310.0, r=2084.0, b=3390.0)px, Tag: 'AuthProviderCopySetup-codex'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #380 at (l=1833.0, t=3330.0, r=2036.0, b=3370.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #381 at (l=2108.0, t=3310.0, r=2363.0, b=3390.0)px, Tag: 'AuthProviderCheckSetup-codex'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #383 at (l=2156.0, t=3330.0, r=2315.0, b=3370.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #384 at (l=256.0, t=3454.0, r=2528.0, b=4014.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #386 at (l=288.0, t=3486.0, r=421.0, b=3534.0)px
+          |        |  | Text = '[ChatGPT]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #387 at (l=288.0, t=3550.0, r=1491.0, b=3582.0)px
+          |        |  | Text = '[Sign in with ChatGPT subscription via official Codex OAuth (in-app browser) or paste a web access token.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #388 at (l=288.0, t=3598.0, r=458.0, b=3638.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #389 at (l=288.0, t=3654.0, r=611.0, b=3686.0)px
+          |        |  | Text = '[Agent provider: chatgpt-web]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #390 at (l=288.0, t=3702.0, r=2496.0, b=3870.0)px, Tag: 'AuthProviderCredential-chatgpt'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@1457203'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #394 at (l=288.0, t=3718.0, r=2496.0, b=3830.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #399 at (l=320.0, t=3750.0, r=548.0, b=3798.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #396 at (l=320.0, t=3750.0, r=2464.0, b=3798.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #401 at (l=320.0, t=3838.0, r=1201.0, b=3870.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as CHATGPT_WEB_ACCESS_TOKEN=...]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #404 at (l=288.0, t=3894.0, r=473.0, b=3974.0)px, Tag: 'AuthSignIn-chatgpt'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #406 at (l=336.0, t=3914.0, r=425.0, b=3954.0)px
+          |        |  |    Text = '[Sign in]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #407 at (l=497.0, t=3894.0, r=656.0, b=3974.0)px, Tag: 'AuthProviderSaveCredential-chatgpt'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #409 at (l=545.0, t=3914.0, r=608.0, b=3954.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #410 at (l=680.0, t=3894.0, r=1071.0, b=3974.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #412 at (l=728.0, t=3914.0, r=1023.0, b=3954.0)px
+          |        |  |    Text = '[Use API key in Settings]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #413 at (l=1095.0, t=3894.0, r=1528.0, b=3974.0)px, Tag: 'AuthProviderOpenSetup-chatgpt'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #415 at (l=1143.0, t=3914.0, r=1480.0, b=3954.0)px
+          |        |  |    Text = '[Open ChatGPT setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #416 at (l=1552.0, t=3894.0, r=1851.0, b=3974.0)px, Tag: 'AuthProviderCopySetup-chatgpt'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #418 at (l=1600.0, t=3914.0, r=1803.0, b=3954.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #419 at (l=1875.0, t=3894.0, r=2130.0, b=3974.0)px, Tag: 'AuthProviderCheckSetup-chatgpt'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #421 at (l=1923.0, t=3914.0, r=2082.0, b=3954.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #422 at (l=256.0, t=4038.0, r=2528.0, b=4598.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #424 at (l=288.0, t=4070.0, r=553.0, b=4118.0)px
+          |        |  | Text = '[xAI / Grok API key]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #425 at (l=288.0, t=4134.0, r=1000.0, b=4166.0)px
+          |        |  | Text = '[Use an xAI Grok API key from console.x.ai (in-app setup page).]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #426 at (l=288.0, t=4182.0, r=458.0, b=4222.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #427 at (l=288.0, t=4238.0, r=503.0, b=4270.0)px
+          |        |  | Text = '[Agent provider: xai]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #428 at (l=288.0, t=4286.0, r=2496.0, b=4454.0)px, Tag: 'AuthProviderCredential-xai'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@4a0a580'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #432 at (l=288.0, t=4302.0, r=2496.0, b=4414.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #437 at (l=320.0, t=4334.0, r=548.0, b=4382.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #434 at (l=320.0, t=4334.0, r=2464.0, b=4382.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #439 at (l=320.0, t=4422.0, r=1320.0, b=4454.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as XAI_API_KEY=...; also accepts GROK_API_KEY.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #442 at (l=288.0, t=4478.0, r=447.0, b=4558.0)px, Tag: 'AuthProviderSaveCredential-xai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #444 at (l=336.0, t=4498.0, r=399.0, b=4538.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #445 at (l=471.0, t=4478.0, r=993.0, b=4558.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #447 at (l=519.0, t=4498.0, r=945.0, b=4538.0)px
+          |        |  |    Text = '[Set up xAI / Grok API key API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #448 at (l=1017.0, t=4478.0, r=1568.0, b=4558.0)px, Tag: 'AuthProviderOpenSetup-xai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #450 at (l=1065.0, t=4498.0, r=1520.0, b=4538.0)px
+          |        |  |    Text = '[Open xAI / Grok API key setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #451 at (l=1592.0, t=4478.0, r=1891.0, b=4558.0)px, Tag: 'AuthProviderCopySetup-xai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #453 at (l=1640.0, t=4498.0, r=1843.0, b=4538.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #454 at (l=1915.0, t=4478.0, r=2170.0, b=4558.0)px, Tag: 'AuthProviderCheckSetup-xai'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #456 at (l=1963.0, t=4498.0, r=2122.0, b=4538.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #457 at (l=256.0, t=4622.0, r=2528.0, b=5182.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #459 at (l=288.0, t=4654.0, r=699.0, b=4702.0)px
+          |        |  | Text = '[xAI Grok OAuth (SuperGrok)]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #460 at (l=288.0, t=4718.0, r=1337.0, b=4750.0)px
+          |        |  | Text = '[Full Grok SuperGrok subscription OAuth (PKCE + local callback) in the Agent in-app browser.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #461 at (l=288.0, t=4766.0, r=458.0, b=4806.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #462 at (l=288.0, t=4822.0, r=576.0, b=4854.0)px
+          |        |  | Text = '[Agent provider: xai-oauth]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #463 at (l=288.0, t=4870.0, r=2496.0, b=5038.0)px, Tag: 'AuthProviderCredential-xai-oauth'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@bd3a7b9'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #467 at (l=288.0, t=4886.0, r=2496.0, b=4998.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #472 at (l=320.0, t=4918.0, r=548.0, b=4966.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #469 at (l=320.0, t=4918.0, r=2464.0, b=4966.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #474 at (l=320.0, t=5006.0, r=1572.0, b=5038.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as XAI_API_KEY=...; also accepts XAI_ACCESS_TOKEN, GROK_API_KEY.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #477 at (l=288.0, t=5062.0, r=473.0, b=5142.0)px, Tag: 'AuthSignIn-xai-oauth'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #479 at (l=336.0, t=5082.0, r=425.0, b=5122.0)px
+          |        |  |    Text = '[Sign in]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #480 at (l=497.0, t=5062.0, r=656.0, b=5142.0)px, Tag: 'AuthProviderSaveCredential-xai-oauth'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #482 at (l=545.0, t=5082.0, r=608.0, b=5122.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #483 at (l=680.0, t=5062.0, r=1071.0, b=5142.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #485 at (l=728.0, t=5082.0, r=1023.0, b=5122.0)px
+          |        |  |    Text = '[Use API key in Settings]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #486 at (l=1095.0, t=5062.0, r=1774.0, b=5142.0)px, Tag: 'AuthProviderOpenSetup-xai-oauth'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #488 at (l=1143.0, t=5082.0, r=1726.0, b=5122.0)px
+          |        |  |    Text = '[Open xAI Grok OAuth (SuperGrok) setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #489 at (l=1798.0, t=5062.0, r=2097.0, b=5142.0)px, Tag: 'AuthProviderCopySetup-xai-oauth'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #491 at (l=1846.0, t=5082.0, r=2049.0, b=5122.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #492 at (l=2121.0, t=5062.0, r=2376.0, b=5142.0)px, Tag: 'AuthProviderCheckSetup-xai-oauth'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #494 at (l=2169.0, t=5082.0, r=2328.0, b=5122.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #495 at (l=256.0, t=5206.0, r=2528.0, b=5766.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #497 at (l=288.0, t=5238.0, r=462.0, b=5286.0)px
+          |        |  | Text = '[Nous Portal]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #498 at (l=288.0, t=5302.0, r=1221.0, b=5334.0)px
+          |        |  | Text = '[Sign in to Nous Portal with device code (opens verification in the in-app browser).]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #499 at (l=288.0, t=5350.0, r=458.0, b=5390.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #500 at (l=288.0, t=5406.0, r=525.0, b=5438.0)px
+          |        |  | Text = '[Agent provider: nous]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #501 at (l=288.0, t=5454.0, r=2496.0, b=5622.0)px, Tag: 'AuthProviderCredential-nous'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@84ef7fe'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #505 at (l=288.0, t=5470.0, r=2496.0, b=5582.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #510 at (l=320.0, t=5502.0, r=548.0, b=5550.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #507 at (l=320.0, t=5502.0, r=2464.0, b=5550.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #512 at (l=320.0, t=5590.0, r=1440.0, b=5622.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as NOUS_API_KEY=...; also accepts NOUS_ACCESS_TOKEN.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #515 at (l=288.0, t=5646.0, r=473.0, b=5726.0)px, Tag: 'AuthSignIn-nous'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #517 at (l=336.0, t=5666.0, r=425.0, b=5706.0)px
+          |        |  |    Text = '[Sign in]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #518 at (l=497.0, t=5646.0, r=656.0, b=5726.0)px, Tag: 'AuthProviderSaveCredential-nous'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #520 at (l=545.0, t=5666.0, r=608.0, b=5706.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #521 at (l=680.0, t=5646.0, r=1071.0, b=5726.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #523 at (l=728.0, t=5666.0, r=1023.0, b=5706.0)px
+          |        |  |    Text = '[Use API key in Settings]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #524 at (l=1095.0, t=5646.0, r=1565.0, b=5726.0)px, Tag: 'AuthProviderOpenSetup-nous'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #526 at (l=1143.0, t=5666.0, r=1517.0, b=5706.0)px
+          |        |  |    Text = '[Open Nous Portal setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #527 at (l=1589.0, t=5646.0, r=1888.0, b=5726.0)px, Tag: 'AuthProviderCopySetup-nous'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #529 at (l=1637.0, t=5666.0, r=1840.0, b=5706.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #530 at (l=1912.0, t=5646.0, r=2167.0, b=5726.0)px, Tag: 'AuthProviderCheckSetup-nous'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #532 at (l=1960.0, t=5666.0, r=2119.0, b=5706.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #533 at (l=256.0, t=5790.0, r=2528.0, b=6350.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #535 at (l=288.0, t=5822.0, r=391.0, b=5870.0)px
+          |        |  | Text = '[Claude]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #536 at (l=288.0, t=5886.0, r=1125.0, b=5918.0)px
+          |        |  | Text = '[Use an Anthropic / Claude API key for Agent Android remote model calls.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #537 at (l=288.0, t=5934.0, r=458.0, b=5974.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #538 at (l=288.0, t=5990.0, r=578.0, b=6022.0)px
+          |        |  | Text = '[Agent provider: anthropic]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #539 at (l=288.0, t=6038.0, r=2496.0, b=6206.0)px, Tag: 'AuthProviderCredential-claude'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@5a32b5f'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #543 at (l=288.0, t=6054.0, r=2496.0, b=6166.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #548 at (l=320.0, t=6086.0, r=548.0, b=6134.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #545 at (l=320.0, t=6086.0, r=2464.0, b=6134.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #550 at (l=320.0, t=6174.0, r=1481.0, b=6206.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as ANTHROPIC_API_KEY=...; also accepts ANTHROPIC_TOKEN.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #553 at (l=288.0, t=6230.0, r=447.0, b=6310.0)px, Tag: 'AuthProviderSaveCredential-claude'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #555 at (l=336.0, t=6250.0, r=399.0, b=6290.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #556 at (l=471.0, t=6230.0, r=849.0, b=6310.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #558 at (l=519.0, t=6250.0, r=801.0, b=6290.0)px
+          |        |  |    Text = '[Set up Claude API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #559 at (l=873.0, t=6230.0, r=1281.0, b=6310.0)px, Tag: 'AuthProviderOpenSetup-claude'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #561 at (l=921.0, t=6250.0, r=1233.0, b=6290.0)px
+          |        |  |    Text = '[Open Claude setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #562 at (l=1305.0, t=6230.0, r=1604.0, b=6310.0)px, Tag: 'AuthProviderCopySetup-claude'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #564 at (l=1353.0, t=6250.0, r=1556.0, b=6290.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #565 at (l=1628.0, t=6230.0, r=1883.0, b=6310.0)px, Tag: 'AuthProviderCheckSetup-claude'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #567 at (l=1676.0, t=6250.0, r=1835.0, b=6290.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #568 at (l=256.0, t=6374.0, r=2528.0, b=6934.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #570 at (l=288.0, t=6406.0, r=393.0, b=6454.0)px
+          |        |  | Text = '[Gemini]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #571 at (l=288.0, t=6470.0, r=1193.0, b=6502.0)px
+          |        |  | Text = '[Use a Google AI Studio / Gemini API key for Agent Android remote model calls.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #572 at (l=288.0, t=6518.0, r=458.0, b=6558.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #573 at (l=288.0, t=6574.0, r=547.0, b=6606.0)px
+          |        |  | Text = '[Agent provider: gemini]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #574 at (l=288.0, t=6622.0, r=2496.0, b=6790.0)px, Tag: 'AuthProviderCredential-gemini'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@82a99ac'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #578 at (l=288.0, t=6638.0, r=2496.0, b=6750.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #583 at (l=320.0, t=6670.0, r=548.0, b=6718.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #580 at (l=320.0, t=6670.0, r=2464.0, b=6718.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #585 at (l=320.0, t=6758.0, r=1398.0, b=6790.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as GOOGLE_API_KEY=...; also accepts GEMINI_API_KEY.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #588 at (l=288.0, t=6814.0, r=447.0, b=6894.0)px, Tag: 'AuthProviderSaveCredential-gemini'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #590 at (l=336.0, t=6834.0, r=399.0, b=6874.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #591 at (l=471.0, t=6814.0, r=850.0, b=6894.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #593 at (l=519.0, t=6834.0, r=802.0, b=6874.0)px
+          |        |  |    Text = '[Set up Gemini API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #594 at (l=874.0, t=6814.0, r=1283.0, b=6894.0)px, Tag: 'AuthProviderOpenSetup-gemini'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #596 at (l=922.0, t=6834.0, r=1235.0, b=6874.0)px
+          |        |  |    Text = '[Open Gemini setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #597 at (l=1307.0, t=6814.0, r=1606.0, b=6894.0)px, Tag: 'AuthProviderCopySetup-gemini'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #599 at (l=1355.0, t=6834.0, r=1558.0, b=6874.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #600 at (l=1630.0, t=6814.0, r=1885.0, b=6894.0)px, Tag: 'AuthProviderCheckSetup-gemini'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #602 at (l=1678.0, t=6834.0, r=1837.0, b=6874.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #603 at (l=256.0, t=6958.0, r=2528.0, b=7518.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #605 at (l=288.0, t=6990.0, r=465.0, b=7038.0)px
+          |        |  | Text = '[Qwen Cloud]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #606 at (l=288.0, t=7054.0, r=1187.0, b=7086.0)px
+          |        |  | Text = '[Use a Qwen Cloud / DashScope API key for Agent Android remote model calls.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #607 at (l=288.0, t=7102.0, r=458.0, b=7142.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #608 at (l=288.0, t=7158.0, r=553.0, b=7190.0)px
+          |        |  | Text = '[Agent provider: alibaba]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #609 at (l=288.0, t=7206.0, r=2496.0, b=7374.0)px, Tag: 'AuthProviderCredential-qwen'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@bfe0675'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #613 at (l=288.0, t=7222.0, r=2496.0, b=7334.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #618 at (l=320.0, t=7254.0, r=548.0, b=7302.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #615 at (l=320.0, t=7254.0, r=2464.0, b=7302.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #620 at (l=320.0, t=7342.0, r=1432.0, b=7374.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as DASHSCOPE_API_KEY=...; also accepts QWEN_API_KEY.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #623 at (l=288.0, t=7398.0, r=447.0, b=7478.0)px, Tag: 'AuthProviderSaveCredential-qwen'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #625 at (l=336.0, t=7418.0, r=399.0, b=7458.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #626 at (l=471.0, t=7398.0, r=914.0, b=7478.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #628 at (l=519.0, t=7418.0, r=866.0, b=7458.0)px
+          |        |  |    Text = '[Set up Qwen Cloud API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #629 at (l=938.0, t=7398.0, r=1410.0, b=7478.0)px, Tag: 'AuthProviderOpenSetup-qwen'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #631 at (l=986.0, t=7418.0, r=1362.0, b=7458.0)px
+          |        |  |    Text = '[Open Qwen Cloud setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #632 at (l=1434.0, t=7398.0, r=1733.0, b=7478.0)px, Tag: 'AuthProviderCopySetup-qwen'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #634 at (l=1482.0, t=7418.0, r=1685.0, b=7458.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #635 at (l=1757.0, t=7398.0, r=2012.0, b=7478.0)px, Tag: 'AuthProviderCheckSetup-qwen'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #637 at (l=1805.0, t=7418.0, r=1964.0, b=7458.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #638 at (l=256.0, t=7542.0, r=2528.0, b=8102.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #640 at (l=288.0, t=7574.0, r=556.0, b=7622.0)px
+          |        |  | Text = '[Qwen Coding Plan]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #641 at (l=288.0, t=7638.0, r=1214.0, b=7670.0)px
+          |        |  | Text = '[Use a Qwen Coding Plan API key with the dedicated DashScope coding endpoint.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #642 at (l=288.0, t=7686.0, r=458.0, b=7726.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #643 at (l=288.0, t=7742.0, r=694.0, b=7774.0)px
+          |        |  | Text = '[Agent provider: alibaba-coding-plan]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #644 at (l=288.0, t=7790.0, r=2496.0, b=7958.0)px, Tag: 'AuthProviderCredential-qwen-coding-plan'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@49e960a'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #648 at (l=288.0, t=7806.0, r=2496.0, b=7918.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #653 at (l=320.0, t=7838.0, r=548.0, b=7886.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #650 at (l=320.0, t=7838.0, r=2464.0, b=7886.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #655 at (l=320.0, t=7926.0, r=2043.0, b=7958.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as BAILIAN_CODING_PLAN_API_KEY=...; also accepts ALIBABA_CODING_PLAN_API_KEY, DASHSCOPE_API_KEY.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #658 at (l=288.0, t=7982.0, r=447.0, b=8062.0)px, Tag: 'AuthProviderSaveCredential-qwen-coding-plan'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #660 at (l=336.0, t=8002.0, r=399.0, b=8042.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #661 at (l=471.0, t=7982.0, r=994.0, b=8062.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #663 at (l=519.0, t=8002.0, r=946.0, b=8042.0)px
+          |        |  |    Text = '[Set up Qwen Coding Plan API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #664 at (l=1018.0, t=7982.0, r=1571.0, b=8062.0)px, Tag: 'AuthProviderOpenSetup-qwen-coding-plan'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #666 at (l=1066.0, t=8002.0, r=1523.0, b=8042.0)px
+          |        |  |    Text = '[Open Qwen Coding Plan setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #667 at (l=1595.0, t=7982.0, r=1894.0, b=8062.0)px, Tag: 'AuthProviderCopySetup-qwen-coding-plan'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #669 at (l=1643.0, t=8002.0, r=1846.0, b=8042.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #670 at (l=1918.0, t=7982.0, r=2173.0, b=8062.0)px, Tag: 'AuthProviderCheckSetup-qwen-coding-plan'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #672 at (l=1966.0, t=8002.0, r=2125.0, b=8042.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #673 at (l=256.0, t=8126.0, r=2528.0, b=8686.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #675 at (l=288.0, t=8158.0, r=598.0, b=8206.0)px
+          |        |  | Text = '[Qwen OAuth (legacy)]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #676 at (l=288.0, t=8222.0, r=2144.0, b=8254.0)px
+          |        |  | Text = '[Reuse an existing Qwen OAuth / Qwen Chat token in Agent Android; new Qwen OAuth sign-ins were discontinued on 2026-04-15, so use Qwen Cloud for new setup.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #677 at (l=288.0, t=8270.0, r=458.0, b=8310.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #678 at (l=288.0, t=8326.0, r=604.0, b=8358.0)px
+          |        |  | Text = '[Agent provider: qwen-oauth]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #679 at (l=288.0, t=8374.0, r=2496.0, b=8542.0)px, Tag: 'AuthProviderCredential-qwen-oauth'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@ef91e7b'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #683 at (l=288.0, t=8390.0, r=2496.0, b=8502.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #688 at (l=320.0, t=8422.0, r=548.0, b=8470.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #685 at (l=320.0, t=8422.0, r=2464.0, b=8470.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #690 at (l=320.0, t=8510.0, r=1713.0, b=8542.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as QWEN_ACCESS_TOKEN=...; also accepts QWEN_API_KEY, DASHSCOPE_API_KEY.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #693 at (l=288.0, t=8566.0, r=447.0, b=8646.0)px, Tag: 'AuthProviderSaveCredential-qwen-oauth'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #695 at (l=336.0, t=8586.0, r=399.0, b=8626.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #696 at (l=471.0, t=8566.0, r=1030.0, b=8646.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #698 at (l=519.0, t=8586.0, r=982.0, b=8626.0)px
+          |        |  |    Text = '[Set up Qwen OAuth (legacy) API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #699 at (l=1054.0, t=8566.0, r=1643.0, b=8646.0)px, Tag: 'AuthProviderOpenSetup-qwen-oauth'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #701 at (l=1102.0, t=8586.0, r=1595.0, b=8626.0)px
+          |        |  |    Text = '[Open Qwen OAuth (legacy) setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #702 at (l=1667.0, t=8566.0, r=1966.0, b=8646.0)px, Tag: 'AuthProviderCopySetup-qwen-oauth'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #704 at (l=1715.0, t=8586.0, r=1918.0, b=8626.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #705 at (l=1990.0, t=8566.0, r=2245.0, b=8646.0)px, Tag: 'AuthProviderCheckSetup-qwen-oauth'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #707 at (l=2038.0, t=8586.0, r=2197.0, b=8626.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #708 at (l=256.0, t=8710.0, r=2528.0, b=9270.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #710 at (l=288.0, t=8742.0, r=461.0, b=8790.0)px
+          |        |  | Text = '[Z.AI / Zhipu]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #711 at (l=288.0, t=8806.0, r=1077.0, b=8838.0)px
+          |        |  | Text = '[Use a Z.AI / Zhipu GLM API key. Opens console in the in-app browser.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #712 at (l=288.0, t=8854.0, r=458.0, b=8894.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #713 at (l=288.0, t=8910.0, r=503.0, b=8942.0)px
+          |        |  | Text = '[Agent provider: zai]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #714 at (l=288.0, t=8958.0, r=2496.0, b=9126.0)px, Tag: 'AuthProviderCredential-zai'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@57da498'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #718 at (l=288.0, t=8974.0, r=2496.0, b=9086.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #723 at (l=320.0, t=9006.0, r=548.0, b=9054.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #720 at (l=320.0, t=9006.0, r=2464.0, b=9054.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #725 at (l=320.0, t=9094.0, r=1721.0, b=9126.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as GLM_API_KEY=...; also accepts ZAI_API_KEY, Z_AI_API_KEY, BIGMODEL_API_KEY.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #728 at (l=288.0, t=9150.0, r=447.0, b=9230.0)px, Tag: 'AuthProviderSaveCredential-zai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #730 at (l=336.0, t=9170.0, r=399.0, b=9210.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #731 at (l=471.0, t=9150.0, r=912.0, b=9230.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #733 at (l=519.0, t=9170.0, r=864.0, b=9210.0)px
+          |        |  |    Text = '[Set up Z.AI / Zhipu API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #734 at (l=936.0, t=9150.0, r=1407.0, b=9230.0)px, Tag: 'AuthProviderOpenSetup-zai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #736 at (l=984.0, t=9170.0, r=1359.0, b=9210.0)px
+          |        |  |    Text = '[Open Z.AI / Zhipu setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #737 at (l=1431.0, t=9150.0, r=1730.0, b=9230.0)px, Tag: 'AuthProviderCopySetup-zai'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #739 at (l=1479.0, t=9170.0, r=1682.0, b=9210.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #740 at (l=1754.0, t=9150.0, r=2009.0, b=9230.0)px, Tag: 'AuthProviderCheckSetup-zai'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #742 at (l=1802.0, t=9170.0, r=1961.0, b=9210.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #743 at (l=256.0, t=9294.0, r=2528.0, b=9854.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #745 at (l=288.0, t=9326.0, r=533.0, b=9374.0)px
+          |        |  | Text = '[Z.AI Coding Plan]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #746 at (l=288.0, t=9390.0, r=1073.0, b=9422.0)px
+          |        |  | Text = '[Use a Z.AI Coding Plan key with the dedicated GLM coding endpoint.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #747 at (l=288.0, t=9438.0, r=458.0, b=9478.0)px
+          |        |  | Text = '[Not signed in]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #748 at (l=288.0, t=9494.0, r=645.0, b=9526.0)px
+          |        |  | Text = '[Agent provider: zai-coding-plan]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #749 at (l=288.0, t=9542.0, r=2496.0, b=9710.0)px, Tag: 'AuthProviderCredential-zai-coding-plan'
+          |        |  | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |        |  | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |        |  | EditableText = ''
+          |        |  | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@43594f1'
+          |        |  | Focused = 'false'
+          |        |  | ImeAction = 'Default'
+          |        |  | InputText = ''
+          |        |  | IsEditable = 'true'
+          |        |  | TextSelectionRange = 'TextRange(0, 0)'
+          |        |  | [Password]
+          |        |  | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #753 at (l=288.0, t=9558.0, r=2496.0, b=9670.0)px
+          |        |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |        |  |  |-Node #758 at (l=320.0, t=9590.0, r=548.0, b=9638.0)px
+          |        |  |  | Text = '[API key / token]'
+          |        |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |  |-Node #755 at (l=320.0, t=9590.0, r=2464.0, b=9638.0)px
+          |        |  |  | Shape = 'RectangleShape'
+          |        |  |  |-Node #760 at (l=320.0, t=9678.0, r=2171.0, b=9710.0)px
+          |        |  |    Text = '[Paste a raw key or a CLI env line such as GLM_CODING_PLAN_API_KEY=...; also accepts ZAI_CODING_PLAN_API_KEY, GLM_API_KEY, ZAI_API_KEY, Z_AI_API_KEY.]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #763 at (l=288.0, t=9734.0, r=447.0, b=9814.0)px, Tag: 'AuthProviderSaveCredential-zai-coding-plan'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #765 at (l=336.0, t=9754.0, r=399.0, b=9794.0)px
+          |        |  |    Text = '[Save]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #766 at (l=471.0, t=9734.0, r=975.0, b=9814.0)px
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #768 at (l=519.0, t=9754.0, r=927.0, b=9794.0)px
+          |        |  |    Text = '[Set up Z.AI Coding Plan API key]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #769 at (l=999.0, t=9734.0, r=1533.0, b=9814.0)px, Tag: 'AuthProviderOpenSetup-zai-coding-plan'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #771 at (l=1047.0, t=9754.0, r=1485.0, b=9794.0)px
+          |        |  |    Text = '[Open Z.AI Coding Plan setup page]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #772 at (l=1557.0, t=9734.0, r=1856.0, b=9814.0)px, Tag: 'AuthProviderCopySetup-zai-coding-plan'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Button'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #774 at (l=1605.0, t=9754.0, r=1808.0, b=9794.0)px
+          |        |  |    Text = '[Copy setup URL]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #775 at (l=1880.0, t=9734.0, r=2135.0, b=9814.0)px, Tag: 'AuthProviderCheckSetup-zai-coding-plan'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #777 at (l=1928.0, t=9754.0, r=2087.0, b=9794.0)px
+          |        |       Text = '[Check setup]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #778 at (l=256.0, t=9878.0, r=2528.0, b=10438.0)px
+          |          IsContainer = 'true'
+          |          Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |           |-Node #780 at (l=288.0, t=9910.0, r=576.0, b=9958.0)px
+          |           | Text = '[BigModel CN (智谱)]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #781 at (l=288.0, t=9974.0, r=1359.0, b=10006.0)px
+          |           | Text = '[Use open.bigmodel.cn API key for China-region Zhipu GLM. Setup opens in the in-app browser.]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #782 at (l=288.0, t=10022.0, r=458.0, b=10062.0)px
+          |           | Text = '[Not signed in]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #783 at (l=288.0, t=10078.0, r=576.0, b=10110.0)px
+          |           | Text = '[Agent provider: bigmodel]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #784 at (l=288.0, t=10126.0, r=2496.0, b=10294.0)px, Tag: 'AuthProviderCredential-bigmodel'
+          |           | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+          |           | ContentType = 'androidx.compose.ui.autofill.AndroidContentType@d5bd667'
+          |           | EditableText = ''
+          |           | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@19808d6'
+          |           | Focused = 'false'
+          |           | ImeAction = 'Default'
+          |           | InputText = ''
+          |           | IsEditable = 'true'
+          |           | TextSelectionRange = 'TextRange(0, 0)'
+          |           | [Password]
+          |           | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #788 at (l=288.0, t=10142.0, r=2496.0, b=10254.0)px
+          |           |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 6.0.dp), topEnd = CornerSize(size = 6.0.dp), bottomEnd = CornerSize(size = 6.0.dp), bottomStart = CornerSize(size = 6.0.dp))'
+          |           |  |-Node #793 at (l=320.0, t=10174.0, r=548.0, b=10222.0)px
+          |           |  | Text = '[API key / token]'
+          |           |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |  |-Node #790 at (l=320.0, t=10174.0, r=2464.0, b=10222.0)px
+          |           |  | Shape = 'RectangleShape'
+          |           |  |-Node #795 at (l=320.0, t=10262.0, r=1721.0, b=10294.0)px
+          |           |    Text = '[Paste a raw key or a CLI env line such as GLM_API_KEY=...; also accepts ZAI_API_KEY, Z_AI_API_KEY, BIGMODEL_API_KEY.]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #798 at (l=288.0, t=10318.0, r=447.0, b=10398.0)px, Tag: 'AuthProviderSaveCredential-bigmodel'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #800 at (l=336.0, t=10338.0, r=399.0, b=10378.0)px
+          |           |    Text = '[Save]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #801 at (l=471.0, t=10318.0, r=1011.0, b=10398.0)px
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #803 at (l=519.0, t=10338.0, r=963.0, b=10378.0)px
+          |           |    Text = '[Set up BigModel CN (智谱) API key]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #804 at (l=1035.0, t=10318.0, r=1605.0, b=10398.0)px, Tag: 'AuthProviderOpenSetup-bigmodel'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #806 at (l=1083.0, t=10338.0, r=1557.0, b=10378.0)px
+          |           |    Text = '[Open BigModel CN (智谱) setup page]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #807 at (l=1629.0, t=10318.0, r=1928.0, b=10398.0)px, Tag: 'AuthProviderCopySetup-bigmodel'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #809 at (l=1677.0, t=10338.0, r=1880.0, b=10378.0)px
+          |           |    Text = '[Copy setup URL]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #810 at (l=1952.0, t=10318.0, r=2207.0, b=10398.0)px, Tag: 'AuthProviderCheckSetup-bigmodel'
+          |             Focused = 'false'
+          |             Role = 'Button'
+          |             Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |             Actions = [OnClick, RequestFocus]
+          |             MergeDescendants = 'true'
+          |              |-Node #812 at (l=2000.0, t=10338.0, r=2159.0, b=10378.0)px
+          |                Text = '[Check setup]'
+          |                Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |-Node #207 at (l=0.0, t=0.0, r=2560.0, b=230.0)px
+            IsContainer = 'true'
+            Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+             |-Node #211 at (l=24.0, t=136.0, r=84.0, b=196.0)px
+             | ContentDescription = '[Agent logo]'
+             | Role = 'Image'
+             | Shape = 'RectangleShape'
+             |-Node #213 at (l=100.0, t=126.0, r=240.0, b=174.0)px
+             | Text = '[Accounts]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #214 at (l=100.0, t=174.0, r=505.0, b=206.0)px
+             | Text = '[Corr3xt sign-in and provider access]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #216 at (l=2343.0, t=142.0, r=2445.0, b=190.0)px
+             | IsContainer = 'true'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+             |  |-Node #217 at (l=2355.0, t=150.0, r=2433.0, b=182.0)px
+             |    Text = '[ALPHA]'
+             |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #218 at (l=2453.0, t=142.0, r=2536.0, b=190.0)px
+               IsContainer = 'true'
+               Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+                |-Node #219 at (l=2465.0, t=150.0, r=2524.0, b=182.0)px
+                  Text = '[FORK]'
+                  Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]

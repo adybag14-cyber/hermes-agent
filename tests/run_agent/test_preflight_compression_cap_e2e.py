@@ -40,6 +40,9 @@ def _config(max_attempts) -> dict:
         "prompt_caching": {"cache_ttl": "5m"},
         "sessions": {},
         "bedrock": {},
+        # This compression fixture must not leave an unrelated title worker
+        # writing to pytest's output capture after the turn has completed.
+        "auxiliary": {"title_generation": {"enabled": False}},
     }
 
 

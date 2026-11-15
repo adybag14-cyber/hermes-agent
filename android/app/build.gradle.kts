@@ -259,7 +259,7 @@ val keystoreProperties = Properties().apply {
     }
 }
 val hasReleaseKeystore = keystoreProperties.isNotEmpty()
-val liteRtLmStableVersion = "0.18.1"
+val liteRtLmStableVersion = "0.19.1"
 val liteRtLmVersion = providers.gradleProperty("hermesLiteRtLmVersion")
     .getOrElse(liteRtLmStableVersion)
     .trim()
@@ -347,7 +347,8 @@ if (hermesSourceDigest.isNotBlank()) {
 
 android {
     namespace = "com.mobilefork.hermesagent"
-    compileSdk = 36
+    compileSdk = 37
+    compileSdkMinor = 0
     buildToolsVersion = "36.0.0"
     ndkVersion = hermesExperimentalLlamaNdkVersion
 
@@ -838,30 +839,30 @@ afterEvaluate {
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
+    val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
 
-    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.0")
+    implementation("androidx.activity:activity-compose:1.13.0")
     implementation(composeBom)
     androidTestImplementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.documentfile:documentfile:1.0.1")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
-    implementation("org.apache.commons:commons-compress:1.26.2")
-    implementation("org.tukaani:xz:1.9")
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.documentfile:documentfile:1.1.0")
+    implementation("com.squareup.okhttp3:okhttp:5.5.1")
+    implementation("com.squareup.okhttp3:okhttp-sse:5.5.1")
+    implementation("org.apache.commons:commons-compress:1.28.0")
+    implementation("org.tukaani:xz:1.12")
+    implementation("androidx.security:security-crypto:1.1.0")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
-    implementation("org.json:json:20240303")
+    implementation("org.json:json:20260814")
     // Release/F-Droid builds use the exact stable default declared above. Developers can compile
     // an upstream preview version or a locally built LiteRT-LM main-branch AAR
     // without weakening the reproducible release pin.
@@ -875,11 +876,11 @@ dependencies {
     testImplementation(composeBom)
     testImplementation("androidx.compose.ui:ui-test-junit4")
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.16.1")
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
-    testImplementation("org.json:json:20240303")
-    androidTestImplementation("androidx.test:core-ktx:1.6.1")
-    androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("org.robolectric:robolectric:4.18")
+    testImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
+    testImplementation("org.json:json:20260814")
+    androidTestImplementation("androidx.test:core-ktx:1.7.0")
+    androidTestImplementation("com.squareup.okhttp3:mockwebserver:5.5.1")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-intents:3.7.0")

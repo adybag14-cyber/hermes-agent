@@ -740,6 +740,9 @@ def test_room_log_pages_are_bounded_by_serialized_event_bytes(tmp_path, monkeypa
             kind="message.user",
             actor=USER,
             payload={"text": "x" * 180, "index": index},
+            # Equal-width timestamps keep the first event's byte budget valid
+            # for every fixture event, independent of wall-clock precision.
+            now=1000.0 + index,
         )
 
     one_event = rooms.read_events(db, room_id="room-1", limit=1)

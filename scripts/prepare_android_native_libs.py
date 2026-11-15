@@ -25,7 +25,7 @@ RUNTIME_LIBRARIES = {
     "libllama.so": "libllama.so",
     "libmtmd.so": "libmtmd.so",
     "libssl.so.3": "libssl.so",
-    "libtalloc.so.2.4.3": "libtalloc.so",
+    "libtalloc.so.2.5.0": "libtalloc.so",
 }
 NATIVE_EXECUTABLE_SEARCH_DIRS = ("bin", "libexec")
 

@@ -1,4 +1,10 @@
-# Play edition and v0.13.157 review boundary
+# Deprecated Play edition and historical review boundary
+
+The release owner deprecated the Play edition on 2026-11-14. Starting with
+v0.13.162, only the normal Full/F-Droid edition is qualified and published.
+The Play-specific device/reporting gate and Play APK/AAB publication are no
+longer required. Historical v0.13.156–161 artifacts and their evidence remain
+unchanged. The material below documents those historical releases.
 
 The Play edition is a separate distribution of the same application source. The
 full GitHub/F-Droid APK retains Linux, Python-agent tools, accessibility-assisted
@@ -9,7 +15,7 @@ label, BuildConfig flag and binary manifest distribution marker distinguish edit
 | Surface | Full GitHub/F-Droid | Play |
 |---|---|---|
 | Remote API chat | Existing agent transport, explicit processing consent | Foreground direct API chat, explicit target-bound consent, no model tools |
-| Local GGUF | Existing Stable and TurboQuant engines | Packaged static e30664a engine for both conventional and TurboQuant cache profiles |
+| Local GGUF | Existing Stable and TurboQuant engines | Packaged static engine from the pinned TurboQuant source for both conventional and TurboQuant cache profiles |
 | LiteRT-LM | Existing packaged runtime | Packaged runtime, foreground only |
 | Linux, executable/package installation, arbitrary shell | Retained | No packaged Linux payload; runtime admission denied |
 | Accessibility, broad app inventory, privileged actions, watchers | Retained with applicable disclosure/permission checks | Components/permissions removed; tool dispatch denied |

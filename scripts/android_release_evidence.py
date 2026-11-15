@@ -55,7 +55,6 @@ COMPREHENSIVE_UI_EVIDENCE_MIN_VERSION = (0, 13, 148)
 LITERTLM_0161_MIN_VERSION = (0, 13, 148)
 LITERTLM_0170_MIN_VERSION = (0, 13, 154)
 PHYSICAL_NANBEIGE_REPAIR_MIN_VERSION = (0, 13, 151)
-PLAY_EVIDENCE_MIN_VERSION = (0, 13, 156)
 LANGUAGES = ("en", "zh", "es", "de", "pt", "fr")
 PROFILES = ("phone-compact", "tablet")
 UI_COVERAGE_PREFIX = PurePosixPath("ui-coverage")
@@ -5772,7 +5771,7 @@ def expected_evidence_paths(
         paths.update(launch_theme_paths)
     if tag is not None and requires_physical_nanbeige_repair_evidence(tag):
         paths.add(PHYSICAL_NANBEIGE_REPAIR_PATH)
-    if tag is not None and _tag_version_tuple(tag) >= PLAY_EVIDENCE_MIN_VERSION:
+    if tag is not None and release_policy.requires_play_evidence(tag):
         try:
             import verify_android_play_release_evidence as play_evidence
         except ModuleNotFoundError:
@@ -5835,7 +5834,7 @@ def validate_evidence_directory(
     if not HEX_64_RE.fullmatch(source_digest):
         raise EvidenceError("Current source digest must be one lowercase SHA-256")
     version_name, version_code = android_identity_for_tag(tag)
-    if _tag_version_tuple(tag) >= PLAY_EVIDENCE_MIN_VERSION:
+    if release_policy.requires_play_evidence(tag):
         try:
             import verify_android_play_release_evidence as play_evidence
         except ModuleNotFoundError:
@@ -6257,6 +6256,11 @@ def build_manifest(
             "device_models": list(evidence.device_models),
         },
     }
+    if release_policy.play_edition_deprecated(normalized_tag):
+        manifest["contract"].update({
+            "released_editions": ["full"],
+            "play_edition_deprecated_from": "v0.13.162",
+        })
     if requires_comprehensive_ui_evidence(normalized_tag):
         manifest["contract"].update(
             {

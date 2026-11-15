@@ -24,20 +24,21 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref }}
           fetch-depth: 1
           persist-credentials: false
 
       - name: Set up Java 21
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: '21'
+          problem-matcher: true
 
       - name: Set up Python 3.13 for Chaquopy
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.13'
 
@@ -108,7 +109,7 @@ jobs:
             "$(jq -er .artifact_id "$RUNNER_TEMP/perfetto-receipt.json")" >> "$GITHUB_OUTPUT"
 
       - name: Download exact release traces before signing
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ steps.perfetto.outputs.artifact_id }}
           run-id: ${{ steps.perfetto.outputs.run_id }}
@@ -128,9 +129,6 @@ jobs:
             --tag "$GITHUB_REF_NAME" \
             --perfetto-root "$RUNNER_TEMP/perfetto" \
             --require-tag-ref
-          python scripts/verify_android_play_release_evidence.py \
-            --tag "$GITHUB_REF_NAME" \
-            --source-digest '${{ steps.release_identity.outputs.source_digest }}'
 
       - name: Install Python test dependencies
         run: |
@@ -153,12 +151,12 @@ jobs:
         run: python scripts/check_android_litertlm_version.py
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@40fd30fb8d7440372e1316f5d1809ec01dcd3699 # v4.0.1
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
         with:
           # Avoid the full "tools" meta-package (pulls emulator) — zip fetch of
           # emulator has been flaky on GitHub runners and is not needed to
           # assemble/sign release APK/AAB.
-          packages: platform-tools platforms;android-36 build-tools;36.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
+          packages: platform-tools platforms;android-37.0 build-tools;36.0.0 ndk;29.0.14206865 ndk;27.3.13750724 cmake;3.31.6
 
       - name: Build the genuine Android Python SDK stack from source
         uses: ./.github/actions/prepare-android-python
@@ -174,20 +172,11 @@ jobs:
             :macrobenchmark:compileBenchmarkKotlin \
             :app:lintDebug
 
-      - name: Run Play distribution and privacy regression gates
-        working-directory: android
-        run: |
-          export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
-          ./gradlew :app:testPlayDebugUnitTest -PhermesTestBuildType=playDebug \
-            --tests 'com.mobilefork.hermesagent.play.*' --tests 'com.mobilefork.hermesagent.privacy.*' \
-            --tests 'com.mobilefork.hermesagent.ui.chat.PlayChatOperationTest' \
-            --tests 'com.mobilefork.hermesagent.ui.i18n.PrivacyStringsTest'
-          ./gradlew :app:lintPlayDebug -PhermesTestBuildType=playDebug
-
       - name: Set up Node 24 for report service regression gates
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+          package-manager-cache: false
 
       - name: Verify private report service contracts
         working-directory: android/report-service
@@ -243,14 +232,14 @@ jobs:
           rm -rf ../build
           rm -f keystore.properties
           export PYTHON_FOR_BUILD="$(command -v python3.13 || command -v python3 || command -v python)"
-          ./gradlew :app:assembleRelease :app:assemblePlayRelease
+          ./gradlew :app:assembleRelease
           cat > keystore.properties <<EOF
           storeFile=release.keystore
           storePassword=$ANDROID_KEYSTORE_PASSWORD
           keyAlias=$ANDROID_KEY_ALIAS
           keyPassword=$ANDROID_KEY_PASSWORD
           EOF
-          ./gradlew :app:bundleRelease :app:bundlePlayRelease
+          ./gradlew :app:bundleRelease
           sdk_root="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
           build_tools_dir="$sdk_root/build-tools/36.0.0"
           apksigner="$build_tools_dir/apksigner"
@@ -301,32 +290,6 @@ jobs:
           cp -f "$signed_apk" "$universal_apk"
           rm -f "$unsigned_apk"
 
-          play_unsigned="app/build/outputs/apk/playRelease/app-playRelease-unsigned.apk"
-          play_apk="app/build/outputs/apk/playRelease/app-playRelease.apk"
-          play_aab="app/build/outputs/bundle/playRelease/app-playRelease.aab"
-          test -f "$play_unsigned"
-          test -f "$play_aab"
-          "$apksigner" sign \
-            --alignment-preserved true --v1-signing-enabled false \
-            --v2-signing-enabled true --v3-signing-enabled false --v4-signing-enabled false \
-            --ks release.keystore --ks-key-alias "$ANDROID_KEY_ALIAS" \
-            --ks-pass env:ANDROID_KEYSTORE_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
-            --out "$play_apk" "$play_unsigned"
-          "$apksigner" verify --verbose "$play_apk"
-          play_cert="$("$apksigner" verify --print-certs "$play_apk" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr '[:upper:]' '[:lower:]')"
-          test "$play_cert" = "$EXPECTED_SIGNER_SHA256"
-          "$build_tools_dir/zipalign" -c -P 16 -v 4 "$play_apk"
-          python ../scripts/verify_android_play_package.py "$play_apk" \
-            --bundle "$play_aab" --apkanalyzer "$sdk_root/cmdline-tools/latest/bin/apkanalyzer" \
-            --version-name "$EXPECTED_VERSION_NAME" --version-code "$EXPECTED_VERSION_CODE"
-          for artifact in "$play_apk" "$play_aab"; do
-            python ../scripts/verify_android_source_bound_artifact.py \
-              --artifact "$artifact" --source-digest "$HERMES_SOURCE_DIGEST"
-          done
-          jarsigner -verify "$play_aab"
-          play_aab_cert="$(keytool -printcert -jarfile "$play_aab" -rfc | openssl x509 -inform PEM -noout -fingerprint -sha256 | cut -d= -f2 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-          test "$play_aab_cert" = "$EXPECTED_SIGNER_SHA256"
-          rm -f "$play_unsigned"
 
       - name: Remove signing material
         if: ${{ always() }}
@@ -372,7 +335,6 @@ jobs:
           HERMES_RELEASE_TAG: ${{ github.ref_name }}
         run: |
           python scripts/android_release_manifest.py --tag "$HERMES_RELEASE_TAG"
-          python scripts/android_release_manifest.py --tag "$HERMES_RELEASE_TAG" --edition play
 
       - name: Build and verify versioned terminal dependency archive
         env:
@@ -400,6 +362,12 @@ jobs:
               --verify-package-archive "dist/android-release/$archive_name"
             (cd dist/android-release && sha256sum "$archive_name" > "$archive_name.sha256")
           fi
+
+      - name: Enforce Full-only publication
+        run: |
+          shopt -s nullglob
+          deprecated_assets=(dist/android-release/hermes-agent-android-play-*)
+          test "${#deprecated_assets[@]}" -eq 0
 
       - name: Verify GitHub CLI is available
         run: |

@@ -1,0 +1,228 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=section:Hermes
+artifact=headed-v0.13.162-6cbe68a111d85e42-20261114-profile-phone-411x914dp-section-1-hermes
+coverage_kind=app-section
+page_id=Hermes
+profile=phone-411x914dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.162
+version_code=146290
+build_variant=debug
+source_digest=6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e
+candidate_apk_sha256=680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2
+instrumentation_apk_sha256=a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d
+evidence_run_id=v0.13.162-6cbe68a111d85e42-20261114
+device_serial=emulator-5582
+avd_name=Agent_Release_158_Phone_20260926_Readme
+device_boot_id=5da391b5-cfe1-4cdc-9a38-84e3e83cdf74
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=ac72230aac385fbfe72171d5c1c33dc56fbeb17281a408860ee280d3fba14ae6
+sentinel=HermesChatInput
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #2 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   Shape = 'RectangleShape'
+    |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      TestTagsAsResourceId = 'true'
+       |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+         IsContainer = 'true'
+         Shape = 'RectangleShape'
+          |-Node #18 at (l=0.0, t=128.0, r=1080.0, b=2337.0)px
+            IsContainer = 'true'
+            Shape = 'RectangleShape'
+             |-Node #19 at (l=0.0, t=128.0, r=1080.0, b=2337.0)px
+               IsContainer = 'true'
+               Shape = 'RectangleShape'
+                |-Node #23 at (l=21.0, t=139.0, r=1059.0, b=307.0)px
+                | IsContainer = 'true'
+                | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+                |  |-Node #39 at (l=47.0, t=160.0, r=173.0, b=286.0)px, Tag: 'HermesChatDrawerButton'
+                |  | ContentDescription = '[Open navigation menu]'
+                |  | Focused = 'false'
+                |  | Role = 'Button'
+                |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                |  | Actions = [OnClick, RequestFocus]
+                |  | MergeDescendants = 'true'
+                |  |  |-Node #41 at (l=87.0, t=205.0, r=134.0, b=210.0)px
+                |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+                |  |  |-Node #42 at (l=87.0, t=221.0, r=134.0, b=226.0)px
+                |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+                |  |  |-Node #43 at (l=87.0, t=237.0, r=134.0, b=242.0)px
+                |  |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+                |  |-Node #44 at (l=194.0, t=192.0, r=257.0, b=255.0)px
+                |  | ContentDescription = '[Agent]'
+                |  | Role = 'Image'
+                |  |-Node #46 at (l=278.0, t=176.0, r=461.0, b=229.0)px
+                |  | Text = '[Agent Chat]'
+                |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |-Node #47 at (l=278.0, t=229.0, r=604.0, b=271.0)px
+                |  | Text = '[Release readiness probe]'
+                |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |-Node #49 at (l=626.0, t=172.0, r=731.0, b=277.0)px, Tag: 'HermesChatHistoryButton'
+                |  | Focused = 'false'
+                |  | Role = 'Button'
+                |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                |  | Actions = [OnClick, RequestFocus]
+                |  | MergeDescendants = 'true'
+                |  |  |-Node #50 at (l=652.0, t=198.0, r=705.0, b=251.0)px
+                |  |    ContentDescription = '[Open history]'
+                |  |    Role = 'Image'
+                |  |-Node #51 at (l=741.0, t=176.0, r=917.0, b=271.0)px, Tag: 'HermesChatDisplayToggle'
+                |  | Focused = 'false'
+                |  | Role = 'Button'
+                |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+                |  | Actions = [OnClick, RequestFocus]
+                |  | MergeDescendants = 'true'
+                |  |  |-Node #53 at (l=762.0, t=203.0, r=896.0, b=245.0)px
+                |  |    Text = '[Compact]'
+                |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |-Node #54 at (l=928.0, t=171.0, r=1033.0, b=276.0)px, Tag: 'HermesFloatingActionButton'
+                |     |-Node #55 at (l=929.0, t=172.0, r=1034.0, b=277.0)px, Tag: 'HermesChatPageActionsButton'
+                |       Focused = 'false'
+                |       Role = 'Button'
+                |       Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                |       Actions = [OnClick, RequestFocus]
+                |       MergeDescendants = 'true'
+                |        |-Node #56 at (l=955.0, t=198.0, r=1008.0, b=251.0)px
+                |          ContentDescription = '[Open page actions]'
+                |          Role = 'Image'
+                |-Node #25 at (l=21.0, t=318.0, r=1059.0, b=434.0)px, Tag: 'HermesChatReadinessStrip'
+                | IsContainer = 'true'
+                | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+                |  |-Node #27 at (l=47.0, t=334.0, r=1033.0, b=418.0)px
+                |    Text = '[Ready · remote openrouter · anthropic/claude-sonnet-4 · Python optional · saved facts 0]'
+                |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |-Node #29 at (l=21.0, t=445.0, r=1059.0, b=1989.0)px, Tag: 'HermesChatMessageList'
+                | CollectionInfo = 'CollectionInfo(rowCount=2, columnCount=1)'
+                | IsTraversalGroup = 'true'
+                | Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@3f869cc'
+                | VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=0.0, reverseScrolling=false)'
+                | Actions = [GetScrollViewportLength, IndexForKey, ScrollBy, ScrollByOffset, ScrollToIndex]
+                |  |-Node #79 at (l=21.0, t=445.0, r=1059.0, b=1094.0)px, Tag: 'HermesCompactChatTurn'
+                |  | IsContainer = 'true'
+                |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+                |  |  |-Node #81 at (l=42.0, t=466.0, r=1038.0, b=644.0)px, Tag: 'HermesCompactPromptHeader'
+                |  |  | Focused = 'false'
+                |  |  | IsContainer = 'true'
+                |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+                |  |  | Actions = [OnClick, RequestFocus]
+                |  |  | MergeDescendants = 'true'
+                |  |  |  |-Node #84 at (l=66.0, t=508.0, r=252.0, b=550.0)px
+                |  |  |  | Text = '[Your prompt]'
+                |  |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |  |  |-Node #87 at (l=862.0, t=485.0, r=951.0, b=574.0)px, Tag: 'HermesMessageActionsButton'
+                |  |  |  | Focused = 'false'
+                |  |  |  | Role = 'Button'
+                |  |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                |  |  |  | Actions = [OnClick, RequestFocus]
+                |  |  |  | MergeDescendants = 'true'
+                |  |  |  |  |-Node #88 at (l=883.0, t=506.0, r=930.0, b=553.0)px
+                |  |  |  |    ContentDescription = '[Message actions]'
+                |  |  |  |    Role = 'Image'
+                |  |  |  |-Node #89 at (l=971.0, t=497.0, r=1014.0, b=560.0)px
+                |  |  |  | Text = '[▼]'
+                |  |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |  |  |-Node #90 at (l=66.0, t=584.0, r=427.0, b=626.0)px
+                |  |  |    Text = '[Release readiness probe]'
+                |  |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |  |-Node #92 at (l=42.0, t=675.0, r=140.0, b=728.0)px
+                |  |  | Text = '[Agent]'
+                |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |  |-Node #94 at (l=950.0, t=658.0, r=1039.0, b=747.0)px, Tag: 'HermesMessageActionsButton'
+                |  |  | Focused = 'false'
+                |  |  | Role = 'Button'
+                |  |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                |  |  | Actions = [OnClick, RequestFocus]
+                |  |  | MergeDescendants = 'true'
+                |  |  |  |-Node #95 at (l=971.0, t=679.0, r=1018.0, b=726.0)px
+                |  |  |    ContentDescription = '[Message actions]'
+                |  |  |    Role = 'Image'
+                |  |  |-Node #98 at (l=42.0, t=759.0, r=1038.0, b=971.0)px
+                |  |  | Text = '[The stream was interrupted. The agent may already have performed actions, even if their results did not arrive. Agent did not resend this request; check the results before retrying.]'
+                |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |  |-Node #100 at (l=42.0, t=1008.0, r=120.0, b=1050.0)px
+                |  |  | Text = '[14:17]'
+                |  |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |  |  |-Node #101 at (l=950.0, t=985.0, r=1039.0, b=1074.0)px
+                |  |    Focused = 'false'
+                |  |    Role = 'Button'
+                |  |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                |  |    Actions = [OnClick, RequestFocus]
+                |  |    MergeDescendants = 'true'
+                |  |     |-Node #102 at (l=971.0, t=1006.0, r=1018.0, b=1053.0)px
+                |  |       ContentDescription = '[Speak reply]'
+                |  |       Role = 'Image'
+                |  |-Node #104 at (l=21.0, t=1107.0, r=21.0, b=1110.0)px, Tag: 'HermesChatBottomAnchor'
+                |-Node #31 at (l=21.0, t=2021.0, r=239.0, b=2105.0)px, Tag: 'HermesToggleIntermediateSteps'
+                | Focused = 'false'
+                | Role = 'Button'
+                | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                | Actions = [OnClick, RequestFocus]
+                | MergeDescendants = 'true'
+                |  |-Node #33 at (l=42.0, t=2037.0, r=218.0, b=2090.0)px
+                |    Text = '[Hide steps]'
+                |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                |-Node #34 at (l=21.0, t=2137.0, r=1059.0, b=2326.0)px
+                  IsContainer = 'true'
+                  Shape = 'RoundedCornerShape(topStart = CornerSize(size = 24.0.dp), topEnd = CornerSize(size = 24.0.dp), bottomEnd = CornerSize(size = 24.0.dp), bottomStart = CornerSize(size = 24.0.dp))'
+                   |-Node #36 at (l=47.0, t=2158.0, r=1033.0, b=2305.0)px, Tag: 'HermesChatComposerFrame'
+                      |-Node #58 at (l=47.0, t=2158.0, r=1033.0, b=2305.0)px, Tag: 'HermesChatComposerRow'
+                         |-Node #59 at (l=58.0, t=2180.0, r=163.0, b=2285.0)px, Tag: 'HermesChatMoreInputActionsButton'
+                         | Focused = 'false'
+                         | Role = 'Button'
+                         | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                         | Actions = [OnClick, RequestFocus]
+                         | MergeDescendants = 'true'
+                         |  |-Node #60 at (l=82.0, t=2204.0, r=140.0, b=2262.0)px
+                         |    ContentDescription = '[More input actions]'
+                         |    Role = 'Image'
+                         |-Node #61 at (l=189.0, t=2158.0, r=644.0, b=2305.0)px, Tag: 'HermesChatInput'
+                         | ContentDataType = 'AndroidContentDataType(androidAutofillType=1)'
+                         | EditableText = ''
+                         | FillableData = 'androidx.compose.ui.autofill.AndroidFillableData@c96415'
+                         | Focused = 'false'
+                         | ImeAction = 'Send'
+                         | InputText = ''
+                         | IsEditable = 'true'
+                         | TextSelectionRange = 'TextRange(0, 0)'
+                         | Actions = [GetTextLayoutResult, InsertTextAtCursor, OnClick, OnFillData, OnLongClick, PasteText, PerformImeAction, RequestFocus, SetSelection, SetText]
+                         | MergeDescendants = 'true'
+                         |  |-Node #65 at (l=189.0, t=2158.0, r=644.0, b=2305.0)px
+                         |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+                         |  |-Node #69 at (l=231.0, t=2200.0, r=602.0, b=2263.0)px
+                         |  | Shape = 'RectangleShape'
+                         |  |-Node #66 at (l=231.0, t=2200.0, r=540.0, b=2263.0)px
+                         |     |-Node #67 at (l=231.0, t=2200.0, r=540.0, b=2263.0)px
+                         |       Text = '[Message Agent]'
+                         |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+                         |-Node #71 at (l=671.0, t=2180.0, r=776.0, b=2285.0)px, Tag: 'HermesChatMicButton'
+                         | Focused = 'false'
+                         | Role = 'Button'
+                         | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+                         | Actions = [OnClick, RequestFocus]
+                         | MergeDescendants = 'true'
+                         |  |-Node #72 at (l=695.0, t=2204.0, r=753.0, b=2262.0)px
+                         |    ContentDescription = '[Voice input]'
+                         |    Role = 'Image'
+                         |-Node #75 at (l=802.0, t=2180.0, r=1033.0, b=2285.0)px, Tag: 'HermesChatSendButton'
+                           Role = 'Button'
+                           Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+                           [Disabled]
+                           Actions = [OnClick]
+                           MergeDescendants = 'true'
+                            |-Node #77 at (l=876.0, t=2206.0, r=959.0, b=2259.0)px
+                              Text = '[Send]'
+                              Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]

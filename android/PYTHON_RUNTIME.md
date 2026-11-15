@@ -1,8 +1,8 @@
 # Source-built Android Python runtime
 
 The normal application now selects the genuine SDK set in
-`requirements-android-chaquopy.txt`: OpenAI 2.54, Anthropic 0.125, FAL 1.0,
-Pydantic 2.13 and their Android dependencies. Production packaging no longer
+`requirements-android-chaquopy.txt`: OpenAI 2.54, Anthropic 2.8, FAL 1.0.3,
+Pydantic 2.14 and their Android dependencies. Production packaging no longer
 installs the raising Anthropic/FAL placeholders. The interpreter remains
 Chaquopy's Python **3.13**; standalone Python 3.14 dependency tests are not a
 claim that the complete Agent app supports 3.14.
@@ -26,8 +26,8 @@ explicit link to `libpython3.13.so` instead of relying on the generic abi3 shim.
 Every native MCP extension must declare the real interpreter as a dependency;
 packaging/alignment checks alone cannot prove that Chaquopy can import it.
 
-The Java/JNI runtime and Gradle plugin remain upstream Chaquopy 17.0.0. Only the
-source-built Python bootstrap uses fork version 17.0.1, including the corrected
+The Java/JNI runtime and Gradle plugin use upstream Chaquopy 17.2.0. The
+source-built Python bootstrap uses the pinned 17.2.0 fork, including the corrected
 split-archive importer. All bootstrap code objects and license files are
 validated against source. The fork CI independently compares the source-only
 bootstrap with its upstream Gradle compiler output, then runs the app matrix.
@@ -51,6 +51,11 @@ committed lock/requirements hashes. A failed or changed output is not silently
 overwritten. Generated sources, wheels, compiler caches and receipts remain
 outside the checkout and are not Git blobs.
 
+For retained build environments, pass `--reuse-tooling /existing/tooling-cache`
+to update the existing driver environment and Rust caches in place. The new work
+directory holds this attempt's outputs; it does not require a new container or
+another toolchain environment.
+
 Gradle defaults to the output above. A local developer may select a verified
 source-built bundle with `-PhermesPythonBundle=/absolute/bundle`. All requirements
 install offline, and bootstrap resolution is exclusive and checksum-verified.
@@ -67,7 +72,7 @@ PYC headers are deterministic. The closed receipt explicitly says
 `runtime_tested: false`.
 
 Debug builds include the genuine SDK/Agent-loop instrumentation probes. Release
-builds exclude those probe modules. The actual app/device gates, signed upgrade,
+builds exclude those probe modules. The actual app/device gates, signing checks,
 and source-bound release evidence remain mandatory. After GitHub publication,
 fresh updater detection and pinned-buildserver comparison with the public APK
 are both required; a prepared bundle or successful Gradle build is not either

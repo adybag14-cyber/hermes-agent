@@ -114,17 +114,15 @@ def test_fdroid_updatecheck_data_uses_literal_version_code_for_future_tags():
     assert len(changelog.read_text(encoding="utf-8")) <= 500
 
 
-def test_android_anthropic_stub_matches_project_requirement_pin():
+def test_android_anthropic_sdk_matches_project_requirement_pin():
     pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    stub_project = tomllib.loads(
-        (REPO_ROOT / "android/pip-stubs/anthropic-stub/pyproject.toml").read_text(encoding="utf-8")
-    )
+    packaged = (REPO_ROOT / "requirements-android-chaquopy.txt").read_text(encoding="utf-8").splitlines()
 
     base_anthropic = next(
         dep for dep in pyproject["project"]["optional-dependencies"]["anthropic"]
         if dep.startswith("anthropic==")
     )
-    assert base_anthropic == f"anthropic=={stub_project['project']['version']}"
+    assert base_anthropic in packaged
 
 
 def test_hy_memory_dependency_is_registered_as_lazy_optional_provider():

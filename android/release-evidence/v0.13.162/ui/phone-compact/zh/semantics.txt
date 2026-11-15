@@ -1,0 +1,203 @@
+language=zh
+screen_width_dp=411
+screen_height_dp=914
+font_scale=1.0
+release_source_digest=6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e
+candidate_apk_sha256=680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2
+instrumentation_apk_sha256=a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d
+evidence_run_id=v0.13.162-6cbe68a111d85e42-20261114
+package_id=com.mobilefork.hermesagent
+version_name=0.13.162
+version_code=146290
+build_variant=debug
+litertlm_coordinate=com.google.ai.edge.litertlm:litertlm-android:0.19.1
+device_serial=emulator-5582
+avd_name=Agent_Release_158_Phone_20260926_Readme
+device_boot_id=5da391b5-cfe1-4cdc-9a38-84e3e83cdf74
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=2d7d30c7816dc20a9aa260b3db31b60e7d72d7879537933320fd223b60f5952f
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #2 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   Shape = 'RectangleShape'
+    |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      TestTagsAsResourceId = 'true'
+       |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+         IsContainer = 'true'
+         Shape = 'RectangleShape'
+          |-Node #18 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          | IsContainer = 'true'
+          | Shape = 'RectangleShape'
+          |  |-Node #1204 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          |    IsContainer = 'true'
+          |    Shape = 'RectangleShape'
+          |     |-Node #1206 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@b6d099d'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=350.0, reverseScrolling=false)'
+          |       Actions = [ScrollBy, ScrollByOffset]
+          |        |-Node #1207 at (l=42.0, t=350.0, r=1038.0, b=807.0)px, Tag: 'HermesDevicePageNavigation'
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1209 at (l=74.0, t=376.0, r=253.0, b=429.0)px
+          |        |  | Text = '[设备 / 概览]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1212 at (l=74.0, t=471.0, r=217.0, b=555.0)px, Tag: 'HermesDevicePage_Overview'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1215 at (l=116.0, t=492.0, r=175.0, b=534.0)px
+          |        |  |    Text = '[概览]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1216 at (l=233.0, t=471.0, r=392.0, b=555.0)px, Tag: 'HermesDevicePage_Linux'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1219 at (l=275.0, t=492.0, r=350.0, b=534.0)px
+          |        |  |    Text = '[Linux]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1220 at (l=408.0, t=471.0, r=551.0, b=555.0)px, Tag: 'HermesDevicePage_Connectivity'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1223 at (l=450.0, t=492.0, r=509.0, b=534.0)px
+          |        |  |    Text = '[连接]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1224 at (l=567.0, t=471.0, r=710.0, b=555.0)px, Tag: 'HermesDevicePage_Files'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1227 at (l=609.0, t=492.0, r=668.0, b=534.0)px
+          |        |  |    Text = '[文件]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1228 at (l=726.0, t=471.0, r=869.0, b=555.0)px, Tag: 'HermesDevicePage_Controls'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1231 at (l=768.0, t=492.0, r=827.0, b=534.0)px
+          |        |  |    Text = '[控制]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1232 at (l=74.0, t=613.0, r=246.0, b=697.0)px, Tag: 'HermesDevicePage_Automations'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #1235 at (l=116.0, t=634.0, r=204.0, b=676.0)px
+          |        |  |    Text = '[自动化]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1236 at (l=74.0, t=739.0, r=176.0, b=781.0)px
+          |        |    Text = '[/device]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1237 at (l=42.0, t=839.0, r=1038.0, b=1998.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1240 at (l=84.0, t=881.0, r=425.0, b=944.0)px
+          |        |  | Text = '[如何使用此预览版]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1241 at (l=84.0, t=965.0, r=996.0, b=1280.0)px
+          |        |  | Text = '[1. 请用自然语言提问，例如“运行 date 命令并告诉我时间”或“检查我的设备状态”。这两个精确示例会直接运行只读原生路由，无需模型。其他工具请求仍可能需要支持结构化工具调用的模型。]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1242 at (l=84.0, t=1301.0, r=996.0, b=1553.0)px
+          |        |  | Text = '[2. 如果你想让 Agent 直接读取或编辑真实文件，请通过 Android 原生选择器授予共享文件夹访问权限，然后用自然语言说明要处理的文件。]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1243 at (l=84.0, t=1574.0, r=996.0, b=1700.0)px
+          |        |  | Text = '[3. 只有在需要草稿副本或暂存文件时，才把文件导入工作区。]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1244 at (l=84.0, t=1721.0, r=996.0, b=1847.0)px
+          |        |  | Text = '[4. 如果你希望 Agent 检查可见 UI 并触发更精确的操作，请启用 Agent 无障碍服务。]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1245 at (l=84.0, t=1868.0, r=996.0, b=1956.0)px
+          |        |    Text = '[工作区路径：/data/user/0/com.mobilefork.hermesagent/files/hermes-home/workspace]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1246 at (l=42.0, t=2030.0, r=1038.0, b=2514.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1249 at (l=84.0, t=2072.0, r=340.0, b=2135.0)px
+          |        |  | Text = '[设备控制中心]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1250 at (l=84.0, t=2167.0, r=996.0, b=2255.0)px
+          |        |  | Text = '[每个页面只显示一个领域：Linux、连接、文件、系统控制或自动化。]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1253 at (l=84.0, t=2287.0, r=452.0, b=2369.0)px
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |  |  |-Node #1254 at (l=113.0, t=2305.0, r=423.0, b=2351.0)px
+          |        |  |    Text = '[Linux 就绪 · 0 个沙箱]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1255 at (l=473.0, t=2287.0, r=702.0, b=2369.0)px
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |  |  |-Node #1256 at (l=502.0, t=2305.0, r=673.0, b=2351.0)px
+          |        |  |    Text = '[网络 · Wi-Fi]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1257 at (l=84.0, t=2390.0, r=393.0, b=2472.0)px
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |  |  |-Node #1258 at (l=113.0, t=2408.0, r=364.0, b=2454.0)px
+          |        |  |    Text = '[工作区 · 0 个文件]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1259 at (l=414.0, t=2390.0, r=756.0, b=2472.0)px
+          |        |    IsContainer = 'true'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |     |-Node #1260 at (l=443.0, t=2408.0, r=727.0, b=2454.0)px
+          |        |       Text = '[自动化 · 0 个已启用]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1261 at (l=42.0, t=2546.0, r=643.0, b=2592.0)px
+          |          Text = '[Linux 命令套件已就绪，可运行设备端命令]'
+          |          Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |-Node #160 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+            IsContainer = 'true'
+            Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+             |-Node #164 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+             | ContentDescription = '[打开导航菜单]'
+             | Focused = 'false'
+             | Role = 'Button'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+             | Actions = [OnClick, RequestFocus]
+             | MergeDescendants = 'true'
+             |  |-Node #166 at (l=72.0, t=205.0, r=119.0, b=210.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #167 at (l=72.0, t=221.0, r=119.0, b=226.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #168 at (l=72.0, t=237.0, r=119.0, b=242.0)px
+             |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |-Node #169 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+             | ContentDescription = '[Agent 标志]'
+             | Role = 'Image'
+             | Shape = 'RectangleShape'
+             |-Node #171 at (l=279.0, t=169.0, r=365.0, b=232.0)px
+             | Text = '[设备]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #172 at (l=279.0, t=232.0, r=688.0, b=278.0)px
+             | Text = '[文件、Linux 套件与手机控制]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #174 at (l=826.0, t=191.0, r=946.0, b=255.0)px
+             | IsContainer = 'true'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+             |  |-Node #175 at (l=842.0, t=202.0, r=930.0, b=244.0)px
+             |    Text = '[预览版]'
+             |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #176 at (l=957.0, t=191.0, r=1048.0, b=255.0)px
+               IsContainer = 'true'
+               Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+                |-Node #177 at (l=973.0, t=202.0, r=1032.0, b=244.0)px
+                  Text = '[分支]'
+                  Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]

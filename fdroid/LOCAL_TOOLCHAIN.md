@@ -7,7 +7,7 @@ each release. Native Linux is still required for fdroiddata's real symlinks;
 a normal Windows checkout can materialize them incorrectly.
 
 For v0.13.154 onward, both the generated metadata recipe and local helper install
-`platforms;android-36` and `build-tools;36.0.0`; the application targets API 36.
+`platforms;android-37` and `build-tools;36.0.0`; the application compiles against API 37 and targets API 36.
 The older Build Tools 31 `aapt` retained by the helper belongs to fdroidserver's
 inspection tooling, not the app compile/target SDK. Verify targetSdk in the
 public APK as well as in source configuration.

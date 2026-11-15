@@ -12,7 +12,7 @@ Online downloads and remote providers are optional, separate choices. Response p
 
 ## Android application
 
-The interface supports English, Chinese, Spanish, German, Portuguese, and French, with phone/tablet layouts, conversation history, local model management, and explicit permission and remote-processing controls. The Full edition also exposes Android workflow tools; the Play edition intentionally restricts the available tools.
+The interface supports English, Chinese, Spanish, German, Portuguese, and French, with phone/tablet layouts, conversation history, local model management, and explicit permission and remote-processing controls. The normal Full/F-Droid edition includes Android workflow tools. Starting with v0.13.162, it is the only published edition; the separate Play edition is deprecated.
 
 Read the [Android guide](android/README.md) for installation, model constraints, settings, builds, and tests. Read [the Python runtime guide](android/PYTHON_RUNTIME.md) for verified source-built dependencies and [the compatibility policy](BRANDING.md) for upgrade identifiers and credits.
 

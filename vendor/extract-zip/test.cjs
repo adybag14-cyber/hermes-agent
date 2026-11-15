@@ -69,3 +69,12 @@ test('preserves ordinary files, modes, callbacks, and confined relative links', 
   assert.equal(await fs.readFile(path.join(output, 'lib/alias'), 'utf8'), 'program')
   if (process.platform !== 'win32') assert.equal((await fs.stat(path.join(output, 'bin/run'))).mode & 0o777, 0o755)
 })
+
+test('rejects oversized symbolic link targets before creating the link', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-zip-limit-'))
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  const archive = path.join(root, 'oversized.zip'), output = path.join(root, 'output')
+  await fs.writeFile(archive, zip([['link', 'a'.repeat(65537), 0o120777]]))
+  await assert.rejects(extract(archive, { dir: output }), { name: 'MaxBufferError' })
+  await assert.rejects(fs.lstat(path.join(output, 'link')), { code: 'ENOENT' })
+})

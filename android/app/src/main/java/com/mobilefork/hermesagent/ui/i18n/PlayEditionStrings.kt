@@ -44,12 +44,12 @@ object PlaySettingsText {
     }
 
     fun packagedEngine(language: AppLanguage): String = when (language) {
-        AppLanguage.ENGLISH -> "Play uses the packaged static e30664a GGUF engine for both cache profiles, not the full edition's Termux Stable executable. No shell or executable download is used. Clear additional CLI arguments; cache and Flash Attention settings are supported."
-        AppLanguage.CHINESE -> "Play 两种缓存配置均使用内置静态 e30664a GGUF 引擎，而非完整版的 Termux Stable 程序。不使用 shell 或可执行文件下载。请清空额外命令行参数；支持缓存和 Flash Attention 设置。"
-        AppLanguage.SPANISH -> "Play usa el motor GGUF estático e30664a incluido para ambos perfiles, no el ejecutable Termux Stable de la edición completa. Sin shell ni descargas ejecutables. Borra los argumentos CLI adicionales; admite caché y Flash Attention."
-        AppLanguage.GERMAN -> "Play nutzt für beide Cache-Profile die mitgelieferte statische e30664a-GGUF-Engine, nicht Termux Stable der Vollversion. Keine Shell oder ausführbaren Downloads. Zusätzliche CLI-Argumente löschen; Cache und Flash Attention werden unterstützt."
-        AppLanguage.PORTUGUESE -> "Play usa o motor GGUF estático e30664a incluído nos dois perfis, não o Termux Stable da edição completa. Sem shell ou downloads executáveis. Limpe argumentos CLI extras; cache e Flash Attention são suportados."
-        AppLanguage.FRENCH -> "Play utilise le moteur GGUF statique e30664a intégré pour les deux profils, pas Termux Stable de l’édition complète. Sans shell ni téléchargement exécutable. Effacez les arguments CLI supplémentaires ; cache et Flash Attention sont pris en charge."
+        AppLanguage.ENGLISH -> "Play uses the packaged static GGUF engine for both cache profiles, not the full edition's Termux Stable executable. No shell or executable download is used. Clear additional CLI arguments; cache and Flash Attention settings are supported."
+        AppLanguage.CHINESE -> "Play 两种缓存配置均使用内置静态 GGUF 引擎，而非完整版的 Termux Stable 程序。不使用 shell 或可执行文件下载。请清空额外命令行参数；支持缓存和 Flash Attention 设置。"
+        AppLanguage.SPANISH -> "Play usa el motor GGUF estático incluido para ambos perfiles, no el ejecutable Termux Stable de la edición completa. Sin shell ni descargas ejecutables. Borra los argumentos CLI adicionales; admite caché y Flash Attention."
+        AppLanguage.GERMAN -> "Play nutzt für beide Cache-Profile die mitgelieferte statische GGUF-Engine, nicht Termux Stable der Vollversion. Keine Shell oder ausführbaren Downloads. Zusätzliche CLI-Argumente löschen; Cache und Flash Attention werden unterstützt."
+        AppLanguage.PORTUGUESE -> "Play usa o motor GGUF estático incluído nos dois perfis, não o Termux Stable da edição completa. Sem shell ou downloads executáveis. Limpe argumentos CLI extras; cache e Flash Attention são suportados."
+        AppLanguage.FRENCH -> "Play utilise le moteur GGUF statique intégré pour les deux profils, pas Termux Stable de l’édition complète. Sans shell ni téléchargement exécutable. Effacez les arguments CLI supplémentaires ; cache et Flash Attention sont pris en charge."
     }
 
     fun saved(language: AppLanguage): String = when (language) {

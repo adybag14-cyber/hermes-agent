@@ -33,9 +33,9 @@ TARGETS = {
 }
 EXPECTED_INITIALIZERS = {"cffi": "PyInit__cffi_backend", "cryptography": "PyInit__rust", "rpds-py": "PyInit_rpds"}
 BUILD_REQUIREMENTS = {
-    "cffi": ["setuptools==80.9.0"],
-    "cryptography": ["maturin==1.15.0", "cffi==2.0.0", "setuptools==80.9.0"],
-    "rpds-py": ["maturin==1.15.0"],
+    "cffi": ["setuptools==84.2.1"],
+    "cryptography": ["maturin==1.16.0", "cffi==2.1.1", "setuptools==84.2.1"],
+    "rpds-py": ["maturin==1.16.0"],
 }
 
 

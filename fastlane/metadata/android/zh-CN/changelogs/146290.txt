@@ -1,0 +1,1 @@
+更新 LiteRT-LM 至 0.19.1、稳定版 llama.cpp 至 1.0.0，并更新 TurboQuant。升级 Android、内置 Python 和 Linux 运行环境依赖。采用 proot-distro 上游提供的可执行文件配置，并在软件源返回无效内容时自动切换镜像。今后仅发布普通完整版/F-Droid 版本，Play 版本已停止发布。保留现有对话、模型文件及运行设置。

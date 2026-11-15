@@ -199,3 +199,34 @@ def test_litertlm_version_check_default_mode_allows_newer_published_alpha(
     assert '"matches_latest_stable": true' in output
     assert '"published_latest": "9.9.0-alpha1"' in output
     assert '"published_latest_is_prerelease": true' in output
+
+
+def test_litertlm_check_rejects_stale_device_guard_before_reading_metadata(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
+    gradle_file = tmp_path / "build.gradle.kts"
+    gradle_file.write_text(
+        'val liteRtLmStableVersion = "9.8.7"\n'
+        'implementation("com.google.ai.edge.litertlm:litertlm-android:$liteRtLmVersion")\n',
+        encoding="utf-8",
+    )
+    evidence_file = tmp_path / "ReleaseDeviceEvidenceIdentity.kt"
+    evidence_file.write_text(
+        'private const val LITERTLM_COORDINATE = "com.google.ai.edge.litertlm:litertlm-android:9.8.6"\n',
+        encoding="utf-8",
+    )
+    metadata_file = tmp_path / "not-read-until-guard-matches.xml"
+    args = [
+        "--gradle-file", str(gradle_file), "--device-evidence-file", str(evidence_file),
+        "--metadata-file", str(metadata_file),
+    ]
+    with pytest.raises(ValueError, match="device evidence guard must match release pin"):
+        main(args)
+    evidence_file.write_text(
+        evidence_file.read_text(encoding="utf-8").replace("9.8.6", "9.8.7"), encoding="utf-8"
+    )
+    metadata_file.write_text(
+        "<metadata><versioning><release>9.8.7</release></versioning></metadata>", encoding="utf-8"
+    )
+    main(args)
+    assert '"matches_latest_stable": true' in capsys.readouterr().out

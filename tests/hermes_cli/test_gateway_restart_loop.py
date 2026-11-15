@@ -2032,7 +2032,7 @@ class TestLifecycleGuardNeverRaises:
         )
         assert self._scan(f"source {zshrc}") is False
 
-    def test_fstat_directory_mode_is_not_unsafe(self, tmp_path, monkeypatch):
+    def test_fstat_directory_mode_is_not_unsafe(self, tmp_path):
         """#86753 Unix contract: os.open(dir) succeeds, fstat is not S_ISREG.
 
         Windows raises OSError on os.open(dir) and already returns
@@ -2040,22 +2040,10 @@ class TestLifecycleGuardNeverRaises:
         return unsafe=True, blocking sourced zshrcs that mention
         ``~/.docker/completions``.
         """
-        import os
-        import stat as statmod
-
         from cron.lifecycle_guard import _read_referenced_script
 
         probe = tmp_path / "probe"
-        probe.write_text("echo hi\n", encoding="utf-8")
-        orig = os.fstat
-
-        def _dir_fstat(fd):
-            orig(fd)
-            class _DirStat:
-                st_mode = statmod.S_IFDIR | 0o755
-            return _DirStat()
-
-        monkeypatch.setattr(os, "fstat", _dir_fstat)
+        probe.mkdir()
         text, unsafe = _read_referenced_script(probe)
         assert text is None
         assert unsafe is False

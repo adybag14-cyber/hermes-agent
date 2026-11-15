@@ -1,0 +1,261 @@
+evidence_type=headed-ui-coverage-bound
+evidence_identity=section:Settings
+artifact=headed-v0.13.162-6cbe68a111d85e42-20261114-profile-phone-411x914dp-section-7-settings
+coverage_kind=app-section
+page_id=Settings
+profile=phone-411x914dp
+language=en
+theme_id=hermes
+theme_primary=#24D6A3
+theme_secondary=#F1B84B
+theme_background=#03090C
+theme_surface=#0A1418
+theme_surface_variant=#111E22
+card_shape=rounded
+ui_font_scale=1.0
+screen_width_dp=411
+screen_height_dp=914
+system_font_scale=1.0
+package_id=com.mobilefork.hermesagent
+version_name=0.13.162
+version_code=146290
+build_variant=debug
+source_digest=6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e
+candidate_apk_sha256=680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2
+instrumentation_apk_sha256=a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d
+evidence_run_id=v0.13.162-6cbe68a111d85e42-20261114
+device_serial=emulator-5582
+avd_name=Agent_Release_158_Phone_20260926_Readme
+device_boot_id=5da391b5-cfe1-4cdc-9a38-84e3e83cdf74
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=133f76ab9c4edf1f097b782496e0c5e5bf330707a07a0681aa0da600ebc9d395
+sentinel=Settings
+sentinel=HermesSettingsPageNavigation
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #2 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   Shape = 'RectangleShape'
+    |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      TestTagsAsResourceId = 'true'
+       |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+         IsContainer = 'true'
+         Shape = 'RectangleShape'
+          |-Node #18 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          | IsContainer = 'true'
+          | Shape = 'RectangleShape'
+          |  |-Node #1167 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          |    IsContainer = 'true'
+          |    Shape = 'RectangleShape'
+          |     |-Node #1170 at (l=42.0, t=350.0, r=1038.0, b=724.0)px, Tag: 'HermesSettingsPageNavigation'
+          |     | IsContainer = 'true'
+          |     | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |     |  |-Node #1172 at (l=68.0, t=371.0, r=378.0, b=424.0)px
+          |     |  | Text = '[Settings  ›  General]'
+          |     |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #1175 at (l=68.0, t=440.0, r=226.0, b=566.0)px, Tag: 'HermesSettingsPage_Overview'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'true'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #1177 at (l=94.0, t=482.0, r=200.0, b=524.0)px
+          |     |  |    Text = '[General]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #1178 at (l=242.0, t=440.0, r=394.0, b=566.0)px, Tag: 'HermesSettingsPage_Models'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #1180 at (l=268.0, t=482.0, r=368.0, b=524.0)px
+          |     |  |    Text = '[Models]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #1181 at (l=410.0, t=440.0, r=562.0, b=566.0)px, Tag: 'HermesSettingsPage_Theme'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #1183 at (l=439.0, t=482.0, r=533.0, b=524.0)px
+          |     |  |    Text = '[Theme]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #1184 at (l=578.0, t=440.0, r=730.0, b=566.0)px, Tag: 'HermesSettingsPage_Tools'
+          |     |  | Focused = 'false'
+          |     |  | Role = 'Tab'
+          |     |  | Selected = 'false'
+          |     |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |  | Actions = [OnClick, RequestFocus]
+          |     |  | MergeDescendants = 'true'
+          |     |  |  |-Node #1186 at (l=617.0, t=482.0, r=692.0, b=524.0)px
+          |     |  |    Text = '[Tools]'
+          |     |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |  |-Node #1187 at (l=68.0, t=577.0, r=374.0, b=703.0)px, Tag: 'HermesSettingsPage_Privacy'
+          |     |    Focused = 'false'
+          |     |    Role = 'Tab'
+          |     |    Selected = 'false'
+          |     |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |     |    Actions = [OnClick, RequestFocus]
+          |     |    MergeDescendants = 'true'
+          |     |     |-Node #1189 at (l=94.0, t=619.0, r=348.0, b=661.0)px
+          |     |       Text = '[Privacy and safety]'
+          |     |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |     |-Node #1190 at (l=42.0, t=756.0, r=1038.0, b=2305.0)px, Tag: 'HermesSettingsContentList'
+          |       CollectionInfo = 'CollectionInfo(rowCount=5, columnCount=1)'
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@3f869cc'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=100.0, reverseScrolling=false)'
+          |       Actions = [GetScrollViewportLength, IndexForKey, ScrollBy, ScrollByOffset, ScrollToIndex]
+          |        |-Node #1192 at (l=42.0, t=756.0, r=1038.0, b=1317.0)px, Tag: 'AgentDiagnosticsCard'
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1195 at (l=84.0, t=798.0, r=489.0, b=861.0)px
+          |        |  | Text = '[Diagnostics and logs]'
+          |        |  | [Heading]
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1196 at (l=84.0, t=887.0, r=996.0, b=971.0)px
+          |        |  | Text = '[Save app, Android, memory and model-start diagnostics to a folder you choose. No running model or crash is required.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1197 at (l=84.0, t=997.0, r=996.0, b=1123.0)px
+          |        |  | Text = '[Known secrets are redacted, but model filenames and error details may remain. Review the file before sharing. Nothing is uploaded automatically.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1199 at (l=84.0, t=1160.0, r=996.0, b=1265.0)px, Tag: 'ExportDiagnosticLog'
+          |        |    Focused = 'false'
+          |        |    Role = 'Button'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |        |    Actions = [OnClick, RequestFocus]
+          |        |    MergeDescendants = 'true'
+          |        |     |-Node #1201 at (l=368.0, t=1186.0, r=713.0, b=1239.0)px
+          |        |       Text = '[Export diagnostic log]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1203 at (l=42.0, t=1349.0, r=1038.0, b=2042.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #1205 at (l=84.0, t=1391.0, r=200.0, b=1454.0)px
+          |        |  | Text = '[Agent]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1206 at (l=84.0, t=1475.0, r=996.0, b=1559.0)px
+          |        |  | Text = '[Fork status: Agent is an independent community fork. It is not official Nous Research or Teknium software.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1207 at (l=84.0, t=1580.0, r=996.0, b=1706.0)px
+          |        |  | Text = '[Start with OpenRouter or another API provider if you already have a key.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1208 at (l=84.0, t=1727.0, r=996.0, b=1916.0)px
+          |        |  | Text = '[Use Accounts for Corr3xt app sign-in with email, phone, or Google; keep provider keys in Settings.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #1209 at (l=84.0, t=1937.0, r=799.0, b=2000.0)px
+          |        |    Text = '[Current provider profile: OpenRouter]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #1211 at (l=42.0, t=2074.0, r=1038.0, b=2832.0)px, Tag: 'SettingsLanguagePicker'
+          |          IsContainer = 'true'
+          |          Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |           |-Node #1213 at (l=84.0, t=2116.0, r=351.0, b=2179.0)px
+          |           | Text = '[App language]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1214 at (l=84.0, t=2211.0, r=974.0, b=2253.0)px
+          |           | Text = '[Tap a flag to save and switch the app language immediately.]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1215 at (l=84.0, t=2285.0, r=260.0, b=2338.0)px, Tag: 'SettingsLanguageCurrent'
+          |           | Text = '[🇬🇧 English]'
+          |           | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1218 at (l=84.0, t=2381.0, r=424.0, b=2486.0)px, Tag: 'SettingsLanguage-en'
+          |           | ContentDescription = '[Selected language English]'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #1220 at (l=147.0, t=2407.0, r=361.0, b=2460.0)px
+          |           |    Text = '[✓ 🇬🇧 English]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1221 at (l=445.0, t=2381.0, r=699.0, b=2486.0)px, Tag: 'SettingsLanguage-zh'
+          |           | ContentDescription = '[Switch language to 中文]'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #1223 at (l=508.0, t=2407.0, r=636.0, b=2460.0)px
+          |           |    Text = '[🇨🇳 中文]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1224 at (l=84.0, t=2528.0, r=394.0, b=2633.0)px, Tag: 'SettingsLanguage-es'
+          |           | ContentDescription = '[Switch language to Español]'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #1226 at (l=147.0, t=2554.0, r=331.0, b=2607.0)px
+          |           |    Text = '[🇪🇸 Español]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1227 at (l=415.0, t=2528.0, r=731.0, b=2633.0)px, Tag: 'SettingsLanguage-de'
+          |           | ContentDescription = '[Switch language to Deutsch]'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #1229 at (l=478.0, t=2554.0, r=668.0, b=2607.0)px
+          |           |    Text = '[🇩🇪 Deutsch]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1230 at (l=84.0, t=2675.0, r=435.0, b=2780.0)px, Tag: 'SettingsLanguage-pt'
+          |           | ContentDescription = '[Switch language to Português]'
+          |           | Focused = 'false'
+          |           | Role = 'Button'
+          |           | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |           | Actions = [OnClick, RequestFocus]
+          |           | MergeDescendants = 'true'
+          |           |  |-Node #1232 at (l=147.0, t=2701.0, r=372.0, b=2754.0)px
+          |           |    Text = '[🇵🇹 Português]'
+          |           |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |           |-Node #1233 at (l=456.0, t=2675.0, r=777.0, b=2780.0)px, Tag: 'SettingsLanguage-fr'
+          |             ContentDescription = '[Switch language to Français]'
+          |             Focused = 'false'
+          |             Role = 'Button'
+          |             Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+          |             Actions = [OnClick, RequestFocus]
+          |             MergeDescendants = 'true'
+          |              |-Node #1235 at (l=519.0, t=2701.0, r=714.0, b=2754.0)px
+          |                Text = '[🇫🇷 Français]'
+          |                Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |-Node #160 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+            IsContainer = 'true'
+            Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+             |-Node #164 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+             | ContentDescription = '[Open navigation menu]'
+             | Focused = 'false'
+             | Role = 'Button'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+             | Actions = [OnClick, RequestFocus]
+             | MergeDescendants = 'true'
+             |  |-Node #166 at (l=72.0, t=205.0, r=119.0, b=210.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #167 at (l=72.0, t=221.0, r=119.0, b=226.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #168 at (l=72.0, t=237.0, r=119.0, b=242.0)px
+             |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |-Node #169 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+             | ContentDescription = '[Agent logo]'
+             | Role = 'Image'
+             | Shape = 'RectangleShape'
+             |-Node #171 at (l=279.0, t=171.0, r=440.0, b=234.0)px
+             | Text = '[Settings]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #172 at (l=279.0, t=234.0, r=779.0, b=276.0)px
+             | Text = '[Runtime provider and API configuration]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #174 at (l=800.0, t=191.0, r=930.0, b=255.0)px
+             | IsContainer = 'true'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+             |  |-Node #175 at (l=816.0, t=202.0, r=914.0, b=244.0)px
+             |    Text = '[ALPHA]'
+             |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #176 at (l=941.0, t=191.0, r=1048.0, b=255.0)px
+               IsContainer = 'true'
+               Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+                |-Node #177 at (l=957.0, t=202.0, r=1032.0, b=244.0)px
+                  Text = '[FORK]'
+                  Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]

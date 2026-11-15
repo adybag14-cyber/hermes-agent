@@ -4,7 +4,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import shutil
+import sys
 from pathlib import Path
+
+if __name__ == "__main__":
+    sys.dont_write_bytecode = True
+
+try:
+    import android_release_evidence_policy as release_policy
+except ModuleNotFoundError:
+    from scripts import android_release_evidence_policy as release_policy
 
 
 def sha256sum(path: Path) -> str:
@@ -49,6 +58,11 @@ def select_release_apk(path: Path) -> Path:
 def stage_release_artifacts(tag: str, edition: str, apk_dir: Path, aab_dir: Path, output_dir: Path) -> tuple[Path, Path]:
     if edition not in {"full", "play"}:
         raise ValueError(f"Unknown Android edition: {edition}")
+    if release_policy.play_edition_deprecated(tag):
+        if edition == "play":
+            raise ValueError("Play edition is deprecated from v0.13.162; publish the Full/F-Droid edition")
+        if any(output_dir.glob("hermes-agent-android-play-*")):
+            raise ValueError("Full-only output directory contains deprecated Play artifacts")
     apk_src = select_release_apk(apk_dir)
     aab_src = newest_matching(aab_dir, "*.aab")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -67,7 +81,7 @@ def stage_release_artifacts(tag: str, edition: str, apk_dir: Path, aab_dir: Path
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Rename Android release artifacts and emit SHA256 manifests")
-    parser.add_argument("--tag", required=True, help="Git tag, for example v2026.4.10")
+    parser.add_argument("--tag", required=True, help="Git tag, for example v0.13.162")
     parser.add_argument("--edition", choices=("full", "play"), default="full")
     parser.add_argument("--apk-dir")
     parser.add_argument("--aab-dir")

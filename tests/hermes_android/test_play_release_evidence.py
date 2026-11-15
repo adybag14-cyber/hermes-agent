@@ -65,16 +65,16 @@ def test_missing_behavior_or_different_model_bytes_cannot_be_certified(contract)
             gate.validate_records(changed, "a" * 64, "0.13.999", 99990, [model])
 
 
-def test_full_manifest_includes_exact_play_contract_only_from_play_introduction(contract):
+def test_full_manifest_keeps_play_only_for_releases_that_shipped_it(contract):
     gate, model, _ = contract
     core = importlib.import_module("android_release_evidence")
     model.evidence_path = PurePosixPath("models/test-model.json")
     expected = {PurePosixPath("play") / f"{case}.json" for case in (*gate.CASES, f"model-{model.model_id}")}
     expected.update(PurePosixPath("play") / f"privacy-{language}.png" for language in gate.LANGUAGES)
-    for tag in ("v0.13.156", "v0.13.156-rc.1", "v0.13.157"):
+    for tag in ("v0.13.156", "v0.13.156-rc.1", "v0.13.157", "v0.13.161"):
         paths = core.expected_evidence_paths([model], tag=tag)
         assert {path for path in paths if path.parts[0] == "play"} == expected
-    for tag in (None, "v0.13.147", "v0.13.155"):
+    for tag in (None, "v0.13.147", "v0.13.155", "v0.13.162", "v0.13.162-rc.1", "v0.14.0"):
         assert not any(path.parts[0] == "play" for path in core.expected_evidence_paths([model], tag=tag))
 
 

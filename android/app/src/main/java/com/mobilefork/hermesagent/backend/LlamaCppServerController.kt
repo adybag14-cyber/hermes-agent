@@ -627,7 +627,7 @@ object LlamaCppServerController {
         linuxState: JSONObject,
         lane: LlamaCppRuntimeLane,
     ): String {
-        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return "the Play-packaged static e30664a engine"
+        if (com.mobilefork.hermesagent.BuildConfig.HERMES_PLAY_EDITION) return "the Play-packaged static GGUF engine"
         if (lane == LlamaCppRuntimeLane.TURBOQUANT) {
             return "the packaged experimental TurboQuant Android lane"
         }

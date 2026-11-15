@@ -21,6 +21,45 @@ from agent.transports import get_transport
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("base_url,legacy_api_key", [
+    ("https://api.anthropic.com", False),
+    ("https://proxy.fixture.invalid", True),
+])
+def test_real_sdk_preserves_endpoint_auth_protocol(monkeypatch, base_url, legacy_api_key):
+    import anthropic
+    import httpx2
+    from agent import anthropic_adapter
+
+    key = "sk-ant-api03-offline-fixture"
+
+    def respond(request):
+        assert request.url.path == "/v1/messages"
+        if legacy_api_key:
+            assert request.headers["x-api-key"] == key
+            assert "authorization" not in request.headers
+        else:
+            assert request.headers["authorization"] == f"Bearer {key}"
+            assert "x-api-key" not in request.headers
+        return httpx2.Response(200, json={
+            "id": "msg_fixture", "type": "message", "role": "assistant",
+            "model": "fixture", "content": [{"type": "text", "text": "pong"}],
+            "stop_reason": "end_turn", "stop_sequence": None,
+            "usage": {"input_tokens": 1, "output_tokens": 1},
+        })
+
+    with httpx2.Client(transport=httpx2.MockTransport(respond), trust_env=False) as transport:
+        sdk = SimpleNamespace(
+            Anthropic=lambda **kwargs: anthropic.Anthropic(http_client=transport, **kwargs),
+            omit=anthropic.omit,
+        )
+        monkeypatch.setattr(anthropic_adapter, "_require_sdk", lambda *args, **kwargs: sdk)
+        with build_anthropic_client(key, base_url=base_url) as client:
+            response = client.messages.create(
+                model="fixture", max_tokens=16, messages=[{"role": "user", "content": "ping"}],
+            )
+            assert response.content[0].text == "pong"
+
+
 class TestIsOAuthToken:
     def test_setup_token(self):
         assert _is_oauth_token("sk-ant-oat01-abcdef1234567890") is True

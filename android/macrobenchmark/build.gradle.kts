@@ -30,7 +30,8 @@ val expectedBootId = providers.gradleProperty("hermesBenchmarkExpectedBootId")
 
 android {
     namespace = "com.mobilefork.hermesagent.macrobenchmark"
-    compileSdk = 36
+    compileSdk = 37
+    compileSdkMinor = 0
     buildToolsVersion = "36.0.0"
 
     defaultConfig {
@@ -104,8 +105,8 @@ androidComponents {
 }
 
 dependencies {
-    implementation("androidx.benchmark:benchmark-macro-junit4:1.4.1")
+    implementation("androidx.benchmark:benchmark-macro-junit4:1.5.0")
     implementation("androidx.test.ext:junit:1.3.0")
     implementation("androidx.test:runner:1.7.0")
-    implementation("androidx.test.uiautomator:uiautomator:2.4.0")
+    implementation("androidx.test.uiautomator:uiautomator:2.4.1")
 }

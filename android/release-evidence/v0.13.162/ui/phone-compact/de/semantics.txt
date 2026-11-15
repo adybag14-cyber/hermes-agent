@@ -1,0 +1,203 @@
+language=de
+screen_width_dp=411
+screen_height_dp=914
+font_scale=1.0
+release_source_digest=6cbe68a111d85e42171d3561fbc89bedd71316bae471f43c98c3b6030dfe476e
+candidate_apk_sha256=680787fe42694ae652f8a9da25182a22f66bf84c47c80521ba706ce3bed834c2
+instrumentation_apk_sha256=a6c585d8be61dc25a7b2c7c3252663e5d52d2ab92050abaf1c65b57635180a5d
+evidence_run_id=v0.13.162-6cbe68a111d85e42-20261114
+package_id=com.mobilefork.hermesagent
+version_name=0.13.162
+version_code=146290
+build_variant=debug
+litertlm_coordinate=com.google.ai.edge.litertlm:litertlm-android:0.19.1
+device_serial=emulator-5582
+avd_name=Agent_Release_158_Phone_20260926_Readme
+device_boot_id=5da391b5-cfe1-4cdc-9a38-84e3e83cdf74
+build_fingerprint=google/sdk_gphone64_x86_64/emu64xa:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+screenshot_sha256=0079e137e6704dc5d24edd62274337325812eb6e5529e0cffffe2928aa15e5f9
+
+Printing with useUnmergedTree = 'true'
+Node #1 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+ |-Node #2 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+   Shape = 'RectangleShape'
+    |-Node #3 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+      TestTagsAsResourceId = 'true'
+       |-Node #5 at (l=0.0, t=0.0, r=1080.0, b=2400.0)px
+         IsContainer = 'true'
+         Shape = 'RectangleShape'
+          |-Node #18 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          | IsContainer = 'true'
+          | Shape = 'RectangleShape'
+          |  |-Node #2352 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          |    IsContainer = 'true'
+          |    Shape = 'RectangleShape'
+          |     |-Node #2354 at (l=0.0, t=318.0, r=1080.0, b=2337.0)px
+          |       IsTraversalGroup = 'true'
+          |       Shape = 'androidx.compose.foundation.VerticalScrollableClipShape@b6d099d'
+          |       VerticalScrollAxisRange = 'ScrollAxisRange(value=0.0, maxValue=771.0, reverseScrolling=false)'
+          |       Actions = [ScrollBy, ScrollByOffset]
+          |        |-Node #2355 at (l=42.0, t=350.0, r=1038.0, b=807.0)px, Tag: 'HermesDevicePageNavigation'
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #2357 at (l=74.0, t=376.0, r=354.0, b=429.0)px
+          |        |  | Text = '[Gerät / Übersicht]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2360 at (l=74.0, t=471.0, r=290.0, b=555.0)px, Tag: 'HermesDevicePage_Overview'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #2363 at (l=116.0, t=492.0, r=248.0, b=534.0)px
+          |        |  |    Text = '[Übersicht]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2364 at (l=306.0, t=471.0, r=465.0, b=555.0)px, Tag: 'HermesDevicePage_Linux'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #2367 at (l=348.0, t=492.0, r=423.0, b=534.0)px
+          |        |  |    Text = '[Linux]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2368 at (l=481.0, t=471.0, r=757.0, b=555.0)px, Tag: 'HermesDevicePage_Connectivity'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #2371 at (l=523.0, t=492.0, r=715.0, b=534.0)px
+          |        |  |    Text = '[Verbindungen]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2372 at (l=773.0, t=471.0, r=961.0, b=555.0)px, Tag: 'HermesDevicePage_Files'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #2375 at (l=815.0, t=492.0, r=919.0, b=534.0)px
+          |        |  |    Text = '[Dateien]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2376 at (l=74.0, t=613.0, r=300.0, b=697.0)px, Tag: 'HermesDevicePage_Controls'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #2379 at (l=116.0, t=634.0, r=258.0, b=676.0)px
+          |        |  |    Text = '[Steuerung]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2380 at (l=316.0, t=613.0, r=593.0, b=697.0)px, Tag: 'HermesDevicePage_Automations'
+          |        |  | Focused = 'false'
+          |        |  | Role = 'Checkbox'
+          |        |  | Selected = 'false'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 12.0.dp), topEnd = CornerSize(size = 12.0.dp), bottomEnd = CornerSize(size = 12.0.dp), bottomStart = CornerSize(size = 12.0.dp))'
+          |        |  | Actions = [OnClick, RequestFocus]
+          |        |  | MergeDescendants = 'true'
+          |        |  |  |-Node #2383 at (l=358.0, t=634.0, r=551.0, b=676.0)px
+          |        |  |    Text = '[Automationen]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2384 at (l=74.0, t=739.0, r=176.0, b=781.0)px
+          |        |    Text = '[/device]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #2385 at (l=42.0, t=839.0, r=1038.0, b=2435.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #2388 at (l=84.0, t=881.0, r=829.0, b=944.0)px
+          |        |  | Text = '[So verwendest du diese Alpha-Version]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2389 at (l=84.0, t=965.0, r=996.0, b=1406.0)px
+          |        |  | Text = '[1. Frage in natürlicher Sprache, etwa „Führe date aus und nenne mir die Uhrzeit“ oder „Prüfe meinen Gerätestatus“. Diese beiden exakten Beispiele nutzen schreibgeschützte native Routen ohne Modell. Andere Werkzeuganfragen können ein Modell mit strukturierten Aufrufen erfordern.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2390 at (l=84.0, t=1427.0, r=996.0, b=1742.0)px
+          |        |  | Text = '[2. Gewähre über den nativen Android-Auswahldialog einen freigegebenen Ordner, damit Agent echte Dateien lesen oder bearbeiten kann, und beschreibe die Aufgabe dann in natürlicher Sprache.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2391 at (l=84.0, t=1763.0, r=996.0, b=1952.0)px
+          |        |  | Text = '[3. Importiere Dateien nur dann in den Arbeitsbereich, wenn du Entwurfs- oder Staging-Kopien brauchst.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2392 at (l=84.0, t=1973.0, r=996.0, b=2288.0)px
+          |        |  | Text = '[4. Aktiviere die Agent-Barrierefreiheit, wenn Agent die sichtbare UI prüfen und gezielte Aktionen zusätzlich zu Start, Zurück, Letzte Apps, Benachrichtigungen und Schnelleinstellungen auslösen soll.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2393 at (l=84.0, t=2309.0, r=996.0, b=2393.0)px
+          |        |    Text = '[Arbeitsbereichspfad: /data/user/0/com.mobilefork.hermesagent/files/hermes-home/workspace]'
+          |        |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #2394 at (l=42.0, t=2467.0, r=1038.0, b=2939.0)px
+          |        | IsContainer = 'true'
+          |        | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 20.0.dp), topEnd = CornerSize(size = 20.0.dp), bottomEnd = CornerSize(size = 20.0.dp), bottomStart = CornerSize(size = 20.0.dp))'
+          |        |  |-Node #2397 at (l=84.0, t=2509.0, r=540.0, b=2572.0)px
+          |        |  | Text = '[Geräte-Kontrollzentrum]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2398 at (l=84.0, t=2604.0, r=996.0, b=2688.0)px
+          |        |  | Text = '[Jede Seite konzentriert sich auf einen Bereich: Linux, Verbindungen, Dateien, Systemsteuerung oder Automationen.]'
+          |        |  | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2401 at (l=84.0, t=2720.0, r=543.0, b=2798.0)px
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |  |  |-Node #2402 at (l=113.0, t=2738.0, r=514.0, b=2780.0)px
+          |        |  |    Text = '[Linux bereit · 0 Sandboxes]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2403 at (l=564.0, t=2720.0, r=871.0, b=2798.0)px
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |  |  |-Node #2404 at (l=593.0, t=2738.0, r=842.0, b=2780.0)px
+          |        |  |    Text = '[Netzwerk · Wi-Fi]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2405 at (l=84.0, t=2819.0, r=536.0, b=2897.0)px
+          |        |  | IsContainer = 'true'
+          |        |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |  |  |-Node #2406 at (l=113.0, t=2837.0, r=507.0, b=2879.0)px
+          |        |  |    Text = '[Arbeitsbereich · 0 Dateien]'
+          |        |  |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |  |-Node #2407 at (l=557.0, t=2819.0, r=921.0, b=2897.0)px
+          |        |    IsContainer = 'true'
+          |        |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+          |        |     |-Node #2408 at (l=586.0, t=2837.0, r=892.0, b=2879.0)px
+          |        |       Text = '[Automation · 0 aktiv]'
+          |        |       Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |        |-Node #2409 at (l=42.0, t=2971.0, r=836.0, b=3013.0)px
+          |          Text = '[Die Linux-Befehlssuite ist für On-Device-Befehle bereit]'
+          |          Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+          |-Node #160 at (l=0.0, t=0.0, r=1080.0, b=318.0)px
+            IsContainer = 'true'
+            Shape = 'RoundedCornerShape(topStart = CornerSize(size = 28.0.dp), topEnd = CornerSize(size = 28.0.dp), bottomEnd = CornerSize(size = 28.0.dp), bottomStart = CornerSize(size = 28.0.dp))'
+             |-Node #164 at (l=32.0, t=160.0, r=158.0, b=286.0)px, Tag: 'HermesShellDrawerButton'
+             | ContentDescription = '[Navigationsmenü öffnen]'
+             | Focused = 'false'
+             | Role = 'Button'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 50.0%), topEnd = CornerSize(size = 50.0%), bottomEnd = CornerSize(size = 50.0%), bottomStart = CornerSize(size = 50.0%))'
+             | Actions = [OnClick, RequestFocus]
+             | MergeDescendants = 'true'
+             |  |-Node #166 at (l=72.0, t=205.0, r=119.0, b=210.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #167 at (l=72.0, t=221.0, r=119.0, b=226.0)px
+             |  | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |  |-Node #168 at (l=72.0, t=237.0, r=119.0, b=242.0)px
+             |    Shape = 'RoundedCornerShape(topStart = CornerSize(size = 1.0.dp), topEnd = CornerSize(size = 1.0.dp), bottomEnd = CornerSize(size = 1.0.dp), bottomStart = CornerSize(size = 1.0.dp))'
+             |-Node #169 at (l=179.0, t=184.0, r=258.0, b=263.0)px
+             | ContentDescription = '[Agent-Logo]'
+             | Role = 'Image'
+             | Shape = 'RectangleShape'
+             |-Node #171 at (l=279.0, t=171.0, r=386.0, b=234.0)px
+             | Text = '[Gerät]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #172 at (l=279.0, t=234.0, r=793.0, b=276.0)px
+             | Text = '[Dateien, Linux-Suite und Telefonsteuerung]'
+             | Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #174 at (l=814.0, t=191.0, r=944.0, b=255.0)px
+             | IsContainer = 'true'
+             | Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+             |  |-Node #175 at (l=830.0, t=202.0, r=928.0, b=244.0)px
+             |    Text = '[ALPHA]'
+             |    Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]
+             |-Node #176 at (l=955.0, t=191.0, r=1048.0, b=255.0)px
+               IsContainer = 'true'
+               Shape = 'RoundedCornerShape(topStart = CornerSize(size = 999.0.dp), topEnd = CornerSize(size = 999.0.dp), bottomEnd = CornerSize(size = 999.0.dp), bottomStart = CornerSize(size = 999.0.dp))'
+                |-Node #177 at (l=971.0, t=202.0, r=1032.0, b=244.0)px
+                  Text = '[Fork]'
+                  Actions = [ClearTextSubstitution, GetTextLayoutResult, SetTextSubstitution, ShowTextSubstitution]

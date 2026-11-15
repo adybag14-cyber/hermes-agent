@@ -5,12 +5,18 @@ tags at or after `v0.13.148`. Earlier committed evidence, including
 `android/release-evidence/v0.13.147`, remains on manifest v2 and must not be
 regenerated or rearranged.
 
-The v0.13.161 candidate uses LiteRT-LM 0.18.0. Historical v0.13.159–160
-evidence remains bound to LiteRT-LM 0.17.1.
+The v0.13.162 candidate uses LiteRT-LM 0.19.1. Historical v0.13.161
+evidence remains bound to LiteRT-LM 0.18.1, and v0.13.159–160 to 0.17.1.
 Historical v0.13.154–158 evidence remains bound to 0.17.0. The offline
 validator keeps historical v0.13.148–153 evidence bound to 0.16.1 and earlier
 evidence to 0.16.0. Do not relabel or regenerate those immutable records for an
 SDK upgrade. A model-lab APK is not a release-certified or phone-upgrade APK.
+
+From v0.13.162 onward, the owner's 2026-11-14 policy publishes only the normal
+Full/F-Droid edition. Play artifacts and their separate live-reporting/device
+gate are deprecated. All Full source, package, headed-AVD, signing and both
+post-publication F-Droid gates remain required. Keep the historical Play
+evidence for v0.13.156–161 unchanged.
 
 ### v0.13.154 and later policy
 
@@ -33,7 +39,7 @@ phone is required. v0.13.157 retains its already-authorized immutable waiver.
 Required AVD, source, signing, hosted workflow and both post-publication F-Droid
 gates are unchanged. Do not reuse older API 35 phone results as API 36 proof.
 
-The app and macrobenchmark compile and target API 36 with Build Tools 36.0.0.
+The app and macrobenchmark compile against API 37 and target API 36 with Build Tools 36.0.0.
 The signed candidate and release workflows independently inspect the APK manifest
 and reject target SDKs below 36. Run the Android 16 back-navigation instrumentation
 on an API 36-or-newer device; preserve the API 35 AVD performance baseline as a
@@ -608,11 +614,12 @@ an explicit failure or fabricated review claim is rejected.
 
 ## 8. Merge into the closed release layout
 
-From v0.13.156, include the separately captured `play/` directory specified in
+For v0.13.156–161, include the separately captured `play/` directory specified in
 `PLAY_EDITION.md`. The Full manifest invokes that source-bound Play validator
 and includes its exact JSON/screenshot path set in the closed inventory; do not
 move Play evidence outside the release tree to pass layout validation. Earlier
-tags keep their original Full-only layout.
+tags keep their original Full-only layout. From v0.13.162, omit `play/`; the
+closed Full-only inventory rejects stale Play evidence.
 
 Create only the v3 additions below. Preserve all existing `ui/`,
 `performance/`, and `models/` paths required by the v2 contract.

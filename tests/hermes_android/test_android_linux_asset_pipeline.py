@@ -17,7 +17,7 @@ from scripts.prepare_android_linux_assets import (
     create_bionic_llama_server_launcher,
     locked_packages,
     mirror_data_tar,
-    patch_proot_distro_direct_execution,
+    verify_proot_distro_direct_execution,
     write_lock_file,
 )
 
@@ -97,6 +97,29 @@ def test_prepare_android_linux_assets_can_scope_downloads_to_ipv4(monkeypatch):
     linux_asset_script.socket.getaddrinfo("mirror.example", 443)
 
     assert families == [socket.AF_INET, 0]
+
+
+def test_termux_index_falls_back_from_successful_html_response(monkeypatch):
+    mirrors = ["https://challenge.example/main", "https://packages.example/main"]
+    index = (
+        "Package: bash\nVersion: 5.3\nFilename: pool/bash.deb\n"
+        f"SHA256: {'a' * 64}\n\n"
+    ).encode()
+    calls = []
+
+    def download(url):
+        calls.append(url)
+        if url.startswith(mirrors[0]):
+            return b"<!doctype html><title>Checking your browser</title>"
+        return index
+
+    monkeypatch.setattr(linux_asset_script, "configured_termux_main_base_urls", lambda: mirrors)
+    monkeypatch.setattr(linux_asset_script, "download_bytes", download)
+
+    records = linux_asset_script.read_packages_index("aarch64")
+
+    assert records["bash"].filename == "pool/bash.deb"
+    assert calls == [f"{base}/dists/stable/main/binary-aarch64/Packages" for base in mirrors]
 
 
 def test_prepare_android_linux_assets_defaults_to_ipv4_on_windows_with_opt_out(monkeypatch):
@@ -308,56 +331,30 @@ def test_prepare_android_linux_assets_creates_bionic_llama_server_copy(tmp_path)
     assert b"libc.so\0" in payload
 
 
-def test_proot_distro_direct_exec_patch_is_exact_guarded_and_idempotent(tmp_path, monkeypatch):
-    relative = "lib/python3.14/site-packages/proot_distro/commands/login/__init__.py"
-    module = tmp_path / "prefix" / relative
-    module.parent.mkdir(parents=True)
-    source = (
-        b"import os\nimport shutil\n"
-        b"def command():\n"
-        b'    proot_bin = shutil.which("proot") or "proot"\n'
-    )
-    updated = source.replace(
-        linux_asset_script.PROOT_LOOKUP_EXPRESSION,
-        linux_asset_script.PROOT_DIRECT_EXEC_REPLACEMENT,
-    )
-    module.write_bytes(source)
+def test_proot_distro_override_validation_preserves_verified_payload(tmp_path, monkeypatch):
+    relative = "proot-source.dat"
+    payload = b"reviewed upstream executable override"
+    module = tmp_path / relative
+    module.write_bytes(payload)
     monkeypatch.setattr(
         linux_asset_script,
-        "PROOT_DISTRO_DIRECT_EXEC_PATCHES",
-        {
-            relative: {
-                "source_sha256": hashlib.sha256(source).hexdigest(),
-                "patched_sha256": hashlib.sha256(updated).hexdigest(),
-            }
-        },
+        "PROOT_DISTRO_DIRECT_EXEC_SOURCES",
+        {relative: hashlib.sha256(payload).hexdigest()},
     )
 
-    assert patch_proot_distro_direct_execution(tmp_path / "prefix") == [relative]
-    assert module.read_bytes() == updated
-    assert updated.count(linux_asset_script.PROOT_DIRECT_EXEC_REPLACEMENT) == 1
-    assert patch_proot_distro_direct_execution(tmp_path / "prefix") == [relative]
-    assert module.read_bytes() == updated
+    assert verify_proot_distro_direct_execution(tmp_path) == [relative]
+    assert module.read_bytes() == payload
 
 
-def test_proot_distro_direct_exec_patch_rejects_unpinned_source(tmp_path, monkeypatch):
-    relative = "lib/python3.14/site-packages/proot_distro/commands/login/__init__.py"
-    module = tmp_path / "prefix" / relative
-    module.parent.mkdir(parents=True)
-    module.write_bytes(b"import os\n# unexpected upstream source\n")
-    monkeypatch.setattr(
-        linux_asset_script,
-        "PROOT_DISTRO_DIRECT_EXEC_PATCHES",
-        {
-            relative: {
-                "source_sha256": "0" * 64,
-                "patched_sha256": "1" * 64,
-            }
-        },
-    )
+def test_proot_distro_override_validation_rejects_unpinned_payload(tmp_path, monkeypatch):
+    relative = "proot-source.dat"
+    payload = b"unreviewed resolver"
+    (tmp_path / relative).write_bytes(payload)
+    monkeypatch.setattr(linux_asset_script, "PROOT_DISTRO_DIRECT_EXEC_SOURCES", {relative: "0" * 64})
 
     with pytest.raises(RuntimeError, match="source hash changed"):
-        patch_proot_distro_direct_execution(tmp_path / "prefix")
+        verify_proot_distro_direct_execution(tmp_path)
+    assert (tmp_path / relative).read_bytes() == payload
 
 
 def test_android_linux_subsystem_recreates_windows_manifest_links():
